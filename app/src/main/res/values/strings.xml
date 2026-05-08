@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">RPClient</string>
+    <string name="back">Back</string>
+    <string name="about">About</string>
+    <string name="unknown_version">Unknown version</string>
+
+</resources>
