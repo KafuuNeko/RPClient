@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.about.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ fun AboutLayout(
 ) {
     Scaffold(
         modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
         topBar = {
             AppTopBar(

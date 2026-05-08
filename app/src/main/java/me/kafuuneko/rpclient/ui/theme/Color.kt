@@ -3,45 +3,52 @@ package me.kafuuneko.rpclient.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // 背景颜色（浅色模式与暗色模式）
-val BackgroundColor = Color(0xFFEBEBEB)
-val BackgroundDarkColor = Color(0xFF1C1C1C)
+val BackgroundColor = Color(0xFFF7F3EC)
+val BackgroundDarkColor = Color(0xFF0B0D12)
 
 // 主色（浅色模式与暗色模式）
-val PrimaryColor = Color(0xFF03A9F4)
-val PrimaryDarkColor = Color(0xFF0288D1)
+val PrimaryColor = Color(0xFF2563EB)
+val PrimaryDarkColor = Color(0xFF8FB2FF)
 
 // 辅助色（浅色模式与暗色模式）
-val SecondaryColor = Color(0xFFD7D7D7)
-val SecondaryDarkColor = Color(0xFF303030)
+val SecondaryColor = Color(0xFF5D6D55)
+val SecondaryDarkColor = Color(0xFFBFD6B1)
 
 // 其他颜色(卡片、表面元素的颜色)
-val SurfaceColor = Color(0xFFF5F5F5)
-val SurfaceDarkColor = Color(0xFF121212)
+val SurfaceColor = Color(0xFFFFFCF7)
+val SurfaceDarkColor = Color(0xFF171A22)
+val SurfaceVariantColor = Color(0xFFE7E1D8)
+val SurfaceVariantDarkColor = Color(0xFF242936)
+val OutlineColor = Color(0xFF81766A)
+val OutlineDarkColor = Color(0xFF8C94A3)
 
 // 错误颜色（用于警告或错误提示）
 val ErrorColor = Color(0xFFB00020)
 val ErrorDarkColor = Color(0xFFCF6679)
 
 // 浅色背景色上的文本颜色
-val OnBackgroundColor = Color(0xFF1C1B1F)
+val OnBackgroundColor = Color(0xFF181B20)
 
 // 暗色背景色上的文本颜色
-val OnBackgroundDarkColor = Color(0xFFE4E4E4)
+val OnBackgroundDarkColor = Color(0xFFF1F3F8)
 
 // 浅色模式主色上的文本颜色
 val OnPrimaryColor = Color(0xFFFFFFFF)
 
 // 暗色模式主色上的文本颜色
-val OnPrimaryDarkColor = Color(0xFFFFFFFF)
+val OnPrimaryDarkColor = Color(0xFF0A1020)
 
 // 浅色模式表面上的文本颜色
-val OnSurfaceColor = Color(0xFF1C1B1F)
+val OnSurfaceColor = Color(0xFF1A1C20)
 
 // 暗色模式表面上的文本颜色
-val OnSurfaceDarkColor = Color(0xFFE4E4E4)
+val OnSurfaceDarkColor = Color(0xFFE9ECF3)
+val OnSurfaceVariantColor = Color(0xFF4E463E)
+val OnSurfaceVariantDarkColor = Color(0xFFC5CBD6)
 
 // 辅助色上的文本颜色
-val OnSecondaryColor = Color(0xFFE4E4E4)
+val OnSecondaryColor = Color(0xFFFFFFFF)
+val OnSecondaryDarkColor = Color(0xFF182113)
 
 // 错误色上的文本颜色
 val OnErrorColor = Color(0xFFFFFFFF)

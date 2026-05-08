@@ -19,14 +19,14 @@ val Typography = Typography(
         fontFamily = FontFamily.Default,
         fontSize = 16.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = (-0.5).sp
+        letterSpacing = 0.sp
     ),
     // 小号文本
     displaySmall = TextStyle(
         fontFamily = FontFamily.Default,
         fontSize = 11.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = (-0.25).sp
+        letterSpacing = 0.sp
     ),
 
     // 大号副标题

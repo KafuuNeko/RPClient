@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.ui.widgets
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,30 +34,42 @@ fun AppTopBar(
     onBack: () -> Unit = {},
     actions: @Composable () -> Unit = {}
 ) {
-    Row(
+    Surface(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp)
-            .height(height),
-        verticalAlignment = Alignment.CenterVertically,
+            .fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
-        Image(
-            modifier = Modifier.clickable { onBack() },
-            painter = backIconPainter,
-            contentDescription = stringResource(R.string.back)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp)
+                .height(height),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable { onBack() }
+                    .padding(4.dp),
+                painter = backIconPainter,
+                contentDescription = stringResource(R.string.back),
+                tint = MaterialTheme.colorScheme.onBackground
+            )
 
-        Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-        Text(
-            modifier = Modifier.weight(1f),
-            text = title,
-            maxLines = 1,
-            style = MaterialTheme.typography.titleMedium,
-            overflow = TextOverflow.Ellipsis
-        )
+            Text(
+                modifier = Modifier.weight(1f),
+                text = title,
+                maxLines = 1,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                overflow = TextOverflow.Ellipsis
+            )
 
-        actions()
+            actions()
+        }
     }
 }
 
