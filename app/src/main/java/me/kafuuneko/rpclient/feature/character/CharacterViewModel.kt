@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.character
 
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiIntent
 import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -36,12 +37,12 @@ class CharacterViewModel : CoreViewModelWithEvent<CharacterUiIntent, CharacterUi
 
     @UiIntentObserver(CharacterUiIntent.ImportCharacter::class)
     private fun onImportCharacter() {
-        AppViewEvent.PopupToastMessage("角色卡导入逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.character_import_coming_soon).tryEmit()
     }
 
     @UiIntentObserver(CharacterUiIntent.CreateCharacter::class)
     private fun onCreateCharacter() {
-        AppViewEvent.PopupToastMessage("角色创建逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.character_creation_coming_soon).tryEmit()
     }
 
     private fun previewCharacters() = listOf(

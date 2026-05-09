@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.worldbook
 
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiIntent
 import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -38,12 +39,12 @@ class WorldBookViewModel : CoreViewModelWithEvent<WorldBookUiIntent, WorldBookUi
 
     @UiIntentObserver(WorldBookUiIntent.CreateLoreBook::class)
     private fun onCreateLoreBook() {
-        AppViewEvent.PopupToastMessage("世界书创建逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.world_book_creation_coming_soon).tryEmit()
     }
 
     @UiIntentObserver(WorldBookUiIntent.CreateEntry::class)
     private fun onCreateEntry() {
-        AppViewEvent.PopupToastMessage("世界书条目创建逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.world_book_entry_creation_coming_soon).tryEmit()
     }
 
     private fun previewLoreBooks() = listOf(

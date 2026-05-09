@@ -31,8 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiIntent
 import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiState
 import me.kafuuneko.rpclient.libs.model.LoreBookUiModel
@@ -68,11 +70,11 @@ private fun WorldBookNormal(
             .statusBarsPadding()
     ) {
         AppTopBar(
-            title = "世界书管理",
+            title = stringResource(R.string.world_book_manager),
             onBack = { WorldBookUiIntent.Back.emit() },
             actions = {
                 IconButton(onClick = { WorldBookUiIntent.CreateLoreBook.emit() }) {
-                    Icon(Icons.Rounded.Add, contentDescription = "新建世界书")
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_world_book))
                 }
             }
         )
@@ -83,8 +85,8 @@ private fun WorldBookNormal(
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { RpPageTitle(title = "世界书", subtitle = "管理 Lorebook 和条目；会话内再决定启用哪些资料") }
-            item { RpSectionHeader(title = "世界书库", action = "新建") { WorldBookUiIntent.CreateLoreBook.emit() } }
+            item { RpPageTitle(title = stringResource(R.string.world_book_title), subtitle = stringResource(R.string.world_book_subtitle)) }
+            item { RpSectionHeader(title = stringResource(R.string.world_book_library), action = stringResource(R.string.create)) { WorldBookUiIntent.CreateLoreBook.emit() } }
             item {
                 LoreBookSelector(
                     loreBooks = state.loreBooks,
@@ -92,7 +94,7 @@ private fun WorldBookNormal(
                     emit = emit
                 )
             }
-            item { RpSectionHeader(title = "条目", action = "新增") { WorldBookUiIntent.CreateEntry.emit() } }
+            item { RpSectionHeader(title = stringResource(R.string.entries), action = stringResource(R.string.add)) { WorldBookUiIntent.CreateEntry.emit() } }
             items(state.entries) { entry ->
                 LoreEntryCard(entry)
             }
@@ -126,7 +128,7 @@ private fun LoreBookSelector(
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        "${loreBook.scope} · ${loreBook.entries} 条目",
+                        "${loreBook.scope} · ${stringResource(R.string.entry_count, loreBook.entries)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
@@ -159,10 +161,10 @@ private fun LoreBookCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(loreBook.title, style = MaterialTheme.typography.titleSmall)
-                Text("${loreBook.scope} · ${loreBook.entries} 条目 · ${loreBook.updatedAt}", style = MaterialTheme.typography.bodySmall)
+                Text("${loreBook.scope} · ${stringResource(R.string.entry_count, loreBook.entries)} · ${loreBook.updatedAt}", style = MaterialTheme.typography.bodySmall)
             }
             IconButton(onClick = {}) {
-                Icon(Icons.Rounded.Edit, contentDescription = "编辑世界书")
+                Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit_world_book))
             }
         }
     }
@@ -183,10 +185,10 @@ private fun LoreEntryCard(entry: LoreEntryUiModel) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(entry.title, style = MaterialTheme.typography.titleSmall)
-                    Text("优先级 ${entry.priority}", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.priority, entry.priority), style = MaterialTheme.typography.labelSmall)
                 }
                 IconButton(onClick = {}) {
-                    Icon(Icons.Rounded.Edit, contentDescription = "编辑")
+                    Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit))
                 }
             }
             Text(entry.content, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
@@ -202,8 +204,8 @@ private fun WorldBookLayoutPreview() {
         WorldBookLayout(
             uiState = WorldBookUiState.Normal(
                 selectedLoreBookId = "l",
-                loreBooks = listOf(LoreBookUiModel("l", "雾港旧城区", "Chat Lore", 18, true, "今天")),
-                entries = listOf(LoreEntryUiModel("e", "旧城区", listOf("雾港"), "设定内容", 80, true))
+                loreBooks = listOf(LoreBookUiModel("l", "Fog Harbor Old District", "Chat Lore", 18, true, "Today")),
+                entries = listOf(LoreEntryUiModel("e", "Old District", listOf("Fog Harbor"), "Setting content", 80, true))
             ),
             emit = {}
         )

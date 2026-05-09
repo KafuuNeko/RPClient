@@ -33,9 +33,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiIntent
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiState
@@ -73,11 +75,11 @@ private fun LLMProviderListNormal(
             .statusBarsPadding()
     ) {
         AppTopBar(
-            title = "模型 Provider",
+            title = stringResource(R.string.model_provider_title),
             onBack = { LLMProviderListUiIntent.Back.emit() },
             actions = {
                 IconButton(onClick = { LLMProviderListUiIntent.CreateProvider.emit() }) {
-                    Icon(Icons.Rounded.Add, contentDescription = "新建模型")
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_model))
                 }
             }
         )
@@ -90,14 +92,14 @@ private fun LLMProviderListNormal(
         ) {
             item {
                 RpPageTitle(
-                    title = "模型列表",
-                    subtitle = "管理所有在线模型配置、启用状态与协议类型"
+                    title = stringResource(R.string.model_list_title),
+                    subtitle = stringResource(R.string.model_list_subtitle)
                 )
             }
             item {
                 RpSectionHeader(
-                    title = "全部模型",
-                    action = "新建",
+                    title = stringResource(R.string.all_models),
+                    action = stringResource(R.string.create),
                     onAction = { LLMProviderListUiIntent.CreateProvider.emit() }
                 )
             }
@@ -167,7 +169,7 @@ private fun ProviderListCard(
                     )
                     Icon(
                         Icons.Rounded.Edit,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.edit),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -187,6 +189,7 @@ private fun ProviderListCard(
     }
 }
 
+@Composable
 private fun LLMProvider.typeText(): String {
     return "${providerType.name} / ${protocol.name}"
 }
@@ -194,9 +197,9 @@ private fun LLMProvider.typeText(): String {
 @Composable
 private fun LLMProvider.statusText(): String {
     return when {
-        !isEnabled -> "未启用"
-        apiKey.isBlank() -> "待配置"
-        else -> "可用"
+        !isEnabled -> stringResource(R.string.not_enabled)
+        apiKey.isBlank() -> stringResource(R.string.pending_config)
+        else -> stringResource(R.string.available)
     }
 }
 

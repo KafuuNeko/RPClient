@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -36,9 +35,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiIntent
 import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiState
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
@@ -76,14 +77,14 @@ private fun CharacterNormal(
             .statusBarsPadding()
     ) {
         AppTopBar(
-            title = "角色管理",
+            title = stringResource(R.string.character_manager),
             onBack = { CharacterUiIntent.Back.emit() },
             actions = {
                 IconButton(onClick = { CharacterUiIntent.ImportCharacter.emit() }) {
-                    Icon(Icons.Rounded.FileUpload, contentDescription = "导入角色")
+                    Icon(Icons.Rounded.FileUpload, contentDescription = stringResource(R.string.import_character))
                 }
                 IconButton(onClick = { CharacterUiIntent.CreateCharacter.emit() }) {
-                    Icon(Icons.Rounded.Add, contentDescription = "新建角色")
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_character))
                 }
             }
         )
@@ -94,7 +95,7 @@ private fun CharacterNormal(
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { RpPageTitle(title = "角色卡", subtitle = "创建、导入、编辑角色定义与高级设定") }
+            item { RpPageTitle(title = stringResource(R.string.character_cards_title), subtitle = stringResource(R.string.character_cards_subtitle)) }
             item { SearchPreview() }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -127,9 +128,9 @@ private fun SearchPreview() {
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Rounded.Search, contentDescription = "搜索")
+            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_placeholder))
             Spacer(modifier = Modifier.width(10.dp))
-            Text("搜索名称、标签、作者备注", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.46f))
+            Text(stringResource(R.string.search_placeholder), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.46f))
         }
     }
 }
@@ -184,21 +185,21 @@ private fun CharacterDetail(character: RpCharacterUiModel) {
                     Text(character.subtitle, style = MaterialTheme.typography.bodyMedium)
                 }
                 IconButton(onClick = {}) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "更多")
+                    Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.more))
                 }
             }
             Text(character.description, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
             RpTagRow(character.tags)
-            RpMetaRow(listOf("${character.sessions} 个会话", character.updatedAt, "角色 Lore 可绑定"))
-            RpSectionHeader(title = "酒馆字段", action = "编辑")
+            RpMetaRow(listOf(stringResource(R.string.sessions_count, character.sessions), character.updatedAt, stringResource(R.string.character_lore_bindable)))
+            RpSectionHeader(title = stringResource(R.string.tavern_fields), action = stringResource(R.string.edit))
             RpInfoCard(
                 icon = Icons.Rounded.FileUpload,
-                title = "Character Card V2",
-                subtitle = "头像、描述、开场白、示例对话、作者备注"
+                title = stringResource(R.string.character_card_v2),
+                subtitle = stringResource(R.string.card_v2_desc)
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(onClick = {}, label = { Text("新建会话") })
-                AssistChip(onClick = {}, label = { Text("高级定义") })
+                AssistChip(onClick = {}, label = { Text(stringResource(R.string.new_session)) })
+                AssistChip(onClick = {}, label = { Text(stringResource(R.string.advanced_definition)) })
             }
         }
     }
@@ -212,7 +213,7 @@ private fun CharacterLayoutPreview() {
             uiState = CharacterUiState.Normal(
                 selectedCharacterId = "lyra",
                 characters = listOf(
-                    RpCharacterUiModel("lyra", "Lyra", "雾港档案管理员", "描述", "L", listOf("悬疑"), 12, "刚刚", 0xFF315EFD)
+                    RpCharacterUiModel("lyra", "Lyra", "Fog Harbor Archivist", "Description", "L", listOf("Mystery"), 12, "Just now", 0xFF315EFD)
                 )
             ),
             emit = {}

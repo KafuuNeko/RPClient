@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
@@ -78,7 +79,9 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
         val provider = uiState.form.toProviderOrNull() ?: return
         uiState.copy(loadState = LLMProviderEditLoadState.Saving).setup()
         withContext(Dispatchers.IO) { mLLMRepository.saveProvider(provider) }
-        AppViewEvent.PopupToastMessage(if (uiState.mode == LLMProviderEditMode.Create) "模型已创建" else "模型已保存").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(
+            if (uiState.mode == LLMProviderEditMode.Create) R.string.model_created else R.string.model_saved
+        ).tryEmit()
         LLMProviderEditUiState.Finished.setup()
     }
 
@@ -95,7 +98,7 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
                         messages = listOf(
                             LLMMessage(
                                 role = LLMMessageRole.User,
-                                content = "请用一句简短中文回复：模型测试成功。"
+                                content = "Please reply with a short English sentence: Model test successful."
                             )
                         )
                     )
@@ -105,8 +108,8 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
         val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         latestState.copy(
             testState = result.fold(
-                onSuccess = { LLMProviderEditTestState.Success(it.content.ifBlank { "模型测试成功" }) },
-                onFailure = { LLMProviderEditTestState.Failed(it.message ?: "测试失败") }
+                onSuccess = { LLMProviderEditTestState.Success(it.content.ifBlank { "Model test successful" }) },
+                onFailure = { LLMProviderEditTestState.Failed(it.message ?: "Test failed") }
             )
         ).setup()
     }
@@ -147,22 +150,22 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
      */
     private fun LLMProviderEditForm.toProviderOrNull(): LLMProvider? {
         if (name.isBlank()) {
-            AppViewEvent.PopupToastMessage("模型名称不可为空").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.model_name_empty).tryEmit()
             return null
         }
         if (baseUrl.isBlank()) {
-            AppViewEvent.PopupToastMessage("Base URL 不可为空").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.base_url_empty).tryEmit()
             return null
         }
         if (model.isBlank()) {
-            AppViewEvent.PopupToastMessage("模型名不可为空").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.model_name_required).tryEmit()
             return null
         }
         val parsedTemperature = temperature.toFloatOrNull()
         val parsedMaxTokens = maxTokens.toIntOrNull()
         val parsedContextTokens = contextTokens.toIntOrNull()
         if (parsedTemperature == null || parsedMaxTokens == null || parsedContextTokens == null) {
-            AppViewEvent.PopupToastMessage("生成参数格式不正确").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
             return null
         }
         return LLMProvider(

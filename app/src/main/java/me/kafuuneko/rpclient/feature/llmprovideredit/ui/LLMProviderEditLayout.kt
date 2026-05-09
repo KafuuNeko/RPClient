@@ -34,11 +34,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
@@ -77,7 +79,7 @@ private fun LLMProviderEditNormal(
             .statusBarsPadding()
     ) {
         AppTopBar(
-            title = if (state.mode == LLMProviderEditMode.Create) "新建模型" else "编辑模型",
+            title = if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create_model_title) else stringResource(R.string.edit_model_title),
             onBack = { LLMProviderEditUiIntent.Back.emit() }
         )
         LazyColumn(
@@ -89,8 +91,8 @@ private fun LLMProviderEditNormal(
         ) {
             item {
                 RpPageTitle(
-                    title = if (state.mode == LLMProviderEditMode.Create) "创建模型配置" else state.form.name.ifBlank { "模型配置" },
-                    subtitle = "协议、鉴权、模型名与生成参数"
+                    title = if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create_model_subtitle) else state.form.name.ifBlank { stringResource(R.string.model_provider_title) },
+                    subtitle = stringResource(R.string.edit_model_subtitle)
                 )
             }
             item { BasicPanel(state.form, emit) }
@@ -108,21 +110,21 @@ private fun BasicPanel(
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
-        RpSectionHeader(title = "基础信息")
-        FormTextField("名称", form.name) { LLMProviderEditUiIntent.ChangeName(it).emit() }
-        FormTextField("Base URL", form.baseUrl) { LLMProviderEditUiIntent.ChangeBaseUrl(it).emit() }
+        RpSectionHeader(title = stringResource(R.string.basic_info))
+        FormTextField(stringResource(R.string.name), form.name) { LLMProviderEditUiIntent.ChangeName(it).emit() }
+        FormTextField(stringResource(R.string.base_url), form.baseUrl) { LLMProviderEditUiIntent.ChangeBaseUrl(it).emit() }
         FormTextField(
-            label = "API Key",
+            label = stringResource(R.string.api_key),
             value = form.apiKey,
             visualTransformation = if (form.apiKey.isBlank()) VisualTransformation.None else PasswordVisualTransformation(),
             onChange = { LLMProviderEditUiIntent.ChangeApiKey(it).emit() }
         )
-        FormTextField("模型名", form.model) { LLMProviderEditUiIntent.ChangeModel(it).emit() }
+        FormTextField(stringResource(R.string.model_name), form.model) { LLMProviderEditUiIntent.ChangeModel(it).emit() }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("启用", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.enabled), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "启用后会出现在主页设置页",
+                    stringResource(R.string.enabled_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -141,15 +143,15 @@ private fun ProtocolPanel(
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
-        RpSectionHeader(title = "协议")
-        Text("Provider Type", style = MaterialTheme.typography.titleSmall)
+        RpSectionHeader(title = stringResource(R.string.protocol))
+        Text(stringResource(R.string.provider_type), style = MaterialTheme.typography.titleSmall)
         EnumChipRow(
             values = LLMProviderType.entries,
             selected = form.providerType,
             label = { it.name },
             onSelect = { LLMProviderEditUiIntent.ChangeProviderType(it).emit() }
         )
-        Text("Protocol", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.protocol), style = MaterialTheme.typography.titleSmall)
         EnumChipRow(
             values = LLMProviderProtocol.entries,
             selected = form.protocol,
@@ -157,7 +159,7 @@ private fun ProtocolPanel(
             onSelect = { LLMProviderEditUiIntent.ChangeProtocol(it).emit() }
         )
         FormTextField(
-            label = "自定义请求头 JSON",
+            label = stringResource(R.string.custom_headers_json),
             value = form.customHeadersJson,
             minLines = 3,
             onChange = { LLMProviderEditUiIntent.ChangeCustomHeadersJson(it).emit() }
@@ -171,17 +173,17 @@ private fun ParameterPanel(
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     Panel {
-        RpSectionHeader(title = "生成参数")
+        RpSectionHeader(title = stringResource(R.string.generation_parameters))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
-                label = "Temperature",
+                label = stringResource(R.string.temperature),
                 value = form.temperature,
                 modifier = Modifier.weight(1f),
                 keyboardType = KeyboardType.Decimal,
                 onChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
             )
             FormTextField(
-                label = "Max Tokens",
+                label = stringResource(R.string.max_tokens),
                 value = form.maxTokens,
                 modifier = Modifier.weight(1f),
                 keyboardType = KeyboardType.Number,
@@ -189,7 +191,7 @@ private fun ParameterPanel(
             )
         }
         FormTextField(
-            label = "Context Tokens",
+            label = stringResource(R.string.context) + " " + stringResource(R.string.tokens),
             value = form.contextTokens,
             keyboardType = KeyboardType.Number,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
@@ -217,11 +219,11 @@ private fun TestPanel(
                     .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text("模型测试", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.model_test), style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = when (testState) {
-                        LLMProviderEditTestState.None -> "发送一条短消息验证连接"
-                        LLMProviderEditTestState.Testing -> "测试中..."
+                        LLMProviderEditTestState.None -> stringResource(R.string.send_short_message)
+                        LLMProviderEditTestState.Testing -> stringResource(R.string.testing)
                         is LLMProviderEditTestState.Success -> testState.message
                         is LLMProviderEditTestState.Failed -> testState.message
                     },
@@ -233,8 +235,8 @@ private fun TestPanel(
                 enabled = testState !is LLMProviderEditTestState.Testing,
                 onClick = { LLMProviderEditUiIntent.TestClick.emit() }
             ) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                Text("测试")
+                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.test))
+                Text(stringResource(R.string.test))
             }
         }
     }
@@ -251,7 +253,7 @@ private fun ActionPanel(
         onClick = { LLMProviderEditUiIntent.SaveClick.emit() }
     ) {
         Icon(Icons.Rounded.Check, contentDescription = null)
-        Text(if (state.mode == LLMProviderEditMode.Create) "创建" else "保存")
+        Text(if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create) else stringResource(R.string.save))
     }
 }
 

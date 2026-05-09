@@ -48,10 +48,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
@@ -120,14 +122,14 @@ private fun MainBottomBar(
         NavigationBarItem(
             selected = selectedPage == MainPage.Home,
             onClick = { MainUiIntent.SelectPage(MainPage.Home).emit() },
-            icon = { Icon(Icons.Rounded.Home, contentDescription = "首页") },
-            label = { Text("首页") }
+            icon = { Icon(Icons.Rounded.Home, contentDescription = stringResource(R.string.home)) },
+            label = { Text(stringResource(R.string.home)) }
         )
         NavigationBarItem(
             selected = selectedPage == MainPage.Settings,
             onClick = { MainUiIntent.SelectPage(MainPage.Settings).emit() },
-            icon = { Icon(Icons.Rounded.Settings, contentDescription = "设置") },
-            label = { Text("设置") }
+            icon = { Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings)) },
+            label = { Text(stringResource(R.string.settings)) }
         )
     }
 }
@@ -150,20 +152,20 @@ private fun HomePage(
                 HomeEntryCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Rounded.Person,
-                    title = "角色",
-                    subtitle = "${state.totalCharacters} 张角色卡",
+                    title = stringResource(R.string.character),
+                    subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
                     onClick = { MainUiIntent.OpenCharacterManager.emit() }
                 )
                 HomeEntryCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Rounded.Book,
-                    title = "世界书",
-                    subtitle = "${state.totalWorldBooks} 个 lorebook",
+                    title = stringResource(R.string.world_book),
+                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
                     onClick = { MainUiIntent.OpenWorldBookManager.emit() }
                 )
             }
         }
-        item { RpSectionHeader(title = "最近会话", action = "管理角色") { MainUiIntent.OpenCharacterManager.emit() } }
+        item { RpSectionHeader(title = stringResource(R.string.recent_chats), action = stringResource(R.string.manage_characters)) { MainUiIntent.OpenCharacterManager.emit() } }
         items(state.recentSessions) { session ->
             SessionCard(
                 session = session,
@@ -185,7 +187,7 @@ private fun HomeHero(state: MainHomeState) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "RPClient",
+                text = stringResource(R.string.app_name),
                 style = androidx.compose.material3.MaterialTheme.typography.displayLarge,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Black
@@ -272,8 +274,8 @@ private fun SessionCard(
             RpMetaRow(
                 items = listOf(
                     session.characterName,
-                    "${session.messageCount} 条消息",
-                    "${session.branchCount} 分支",
+                    stringResource(R.string.message_count, session.messageCount),
+                    stringResource(R.string.branch_count, session.branchCount),
                     session.updatedAt
                 )
             )
@@ -293,8 +295,8 @@ private fun SettingsPage(
         contentPadding = PaddingValues(top = 18.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { RpPageTitle(title = "设置", subtitle = "Provider、生成参数、本地优先与备份") }
-        item { RpSectionHeader(title = "模型 Provider", action = "管理") { MainUiIntent.OpenProviderManager.emit() } }
+        item { RpPageTitle(title = stringResource(R.string.setting_page_title), subtitle = stringResource(R.string.setting_subtitle)) }
+        item { RpSectionHeader(title = stringResource(R.string.model_provider), action = stringResource(R.string.manage)) { MainUiIntent.OpenProviderManager.emit() } }
         if (state.providers.isEmpty()) {
             item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
         } else {
@@ -320,8 +322,8 @@ private fun EmptyProviderCard(
             .fillMaxWidth()
             .clickable { onClick() },
         icon = Icons.Rounded.Storage,
-        title = "没有已启用模型",
-        subtitle = "进入模型管理启用或新建一个 Provider"
+        title = stringResource(R.string.no_enabled_model),
+        subtitle = stringResource(R.string.go_to_model_manager)
     )
 }
 
@@ -361,11 +363,12 @@ private fun ProviderCard(
     }
 }
 
+@Composable
 private fun LLMProvider.statusText(): String {
     return when {
-        !isEnabled -> "未启用"
-        apiKey.isBlank() -> "待配置"
-        else -> "可用"
+        !isEnabled -> stringResource(R.string.not_enabled)
+        apiKey.isBlank() -> stringResource(R.string.pending_config)
+        else -> stringResource(R.string.available)
     }
 }
 
@@ -379,10 +382,10 @@ private fun ParameterPanel(state: MainSettingsState) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = "生成参数", action = "预设")
-            ParameterRow("Temperature", state.temperature.toString())
-            ParameterRow("Max Tokens", state.maxTokens.toString())
-            ParameterRow("Context", "${state.contextTokens} tokens")
+            RpSectionHeader(title = stringResource(R.string.generation_parameters), action = stringResource(R.string.preset))
+            ParameterRow(stringResource(R.string.temperature), state.temperature.toString())
+            ParameterRow(stringResource(R.string.max_tokens), state.maxTokens.toString())
+            ParameterRow(stringResource(R.string.context), "${state.contextTokens} ${stringResource(R.string.tokens)}")
         }
     }
 }
@@ -405,9 +408,9 @@ private fun PrivacyPanel(state: MainSettingsState) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = "隐私与备份", action = "导出")
-            SettingSwitchRow(Icons.Rounded.Shield, "本地优先", "聊天、角色与世界书默认保存在设备内", state.localFirstEnabled)
-            SettingSwitchRow(Icons.Rounded.Refresh, "流式回复", "实时显示模型输出，支持停止生成", state.streamEnabled)
+            RpSectionHeader(title = stringResource(R.string.privacy_and_backup), action = stringResource(R.string.export))
+            SettingSwitchRow(Icons.Rounded.Shield, stringResource(R.string.local_first), stringResource(R.string.local_first_desc), state.localFirstEnabled)
+            SettingSwitchRow(Icons.Rounded.Refresh, stringResource(R.string.streaming_response), stringResource(R.string.streaming_response_desc), state.streamEnabled)
         }
     }
 }
@@ -446,8 +449,8 @@ private fun MainLayoutPreview() {
         MainLayout(
             uiState = MainUiState.Normal(
                 homeState = MainHomeState(
-                    greeting = "继续一段有角色记忆、有世界书约束的剧情。",
-                    activeCharacter = RpCharacterUiModel("lyra", "Lyra", "雾港档案管理员", "", "L", emptyList(), 12, "刚刚", 0xFF315EFD),
+                    greeting = "Continue a story with character memory and world book constraints.",
+                    activeCharacter = RpCharacterUiModel("lyra", "Lyra", "Fog Harbor Archivist", "", "L", emptyList(), 12, "Just now", 0xFF315EFD),
                     recentSessions = emptyList(),
                     totalCharacters = 24,
                     totalWorldBooks = 7

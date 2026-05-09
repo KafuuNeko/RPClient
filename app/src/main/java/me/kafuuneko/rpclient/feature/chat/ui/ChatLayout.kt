@@ -40,8 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -88,13 +90,13 @@ private fun ChatNormal(
                 IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
                     Icon(
                         Icons.Rounded.Book,
-                        contentDescription = "会话世界书",
+                        contentDescription = stringResource(R.string.session_world_book),
                         tint = if (state.isSessionLoreExpanded) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurface
                     )
                 }
                 IconButton(onClick = {}) {
-                    Icon(Icons.Rounded.Tune, contentDescription = "生成参数")
+                    Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.generation_params))
                 }
             }
         )
@@ -140,9 +142,9 @@ private fun ChatHeader(state: ChatUiState.Normal) {
             }
             RpMetaRow(
                 listOf(
-                    "${state.session.messageCount} 条消息",
-                    "${state.session.branchCount} 分支",
-                    "启用世界书 ${state.sessionLoreBooks.count { it.enabled }}"
+                    stringResource(R.string.messages_count, state.session.messageCount),
+                    stringResource(R.string.branches_count, state.session.branchCount),
+                    stringResource(R.string.world_books_enabled, state.sessionLoreBooks.count { it.enabled })
                 )
             )
         }
@@ -164,7 +166,7 @@ private fun SessionLorePanel(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = "本会话世界书", action = "管理") {
+            RpSectionHeader(title = stringResource(R.string.session_world_books), action = stringResource(R.string.manage_world_books)) {
                 ChatUiIntent.OpenSessionLore.emit()
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,7 +175,7 @@ private fun SessionLorePanel(
                 }
             }
             Text(
-                text = "条目开关只影响当前会话，不改变世界书资料库本身。",
+                text = stringResource(R.string.session_lore_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
             )
@@ -191,7 +193,7 @@ private fun SessionLoreBookChip(
 ) {
     AssistChip(
         onClick = { ChatUiIntent.ToggleSessionLoreBook(loreBook.id).emit() },
-        label = { Text(if (loreBook.enabled) loreBook.title else "${loreBook.title} 关闭") },
+        label = { Text(if (loreBook.enabled) loreBook.title else "${loreBook.title} ${stringResource(R.string.disabled)}") },
         leadingIcon = {
             Icon(
                 Icons.Rounded.Book,
@@ -273,25 +275,25 @@ private fun MessageActions(isStreaming: Boolean) {
         val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
         Icon(
             Icons.Rounded.ContentCopy,
-            contentDescription = "复制",
+            contentDescription = stringResource(R.string.copy),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
         Icon(
             Icons.Rounded.Edit,
-            contentDescription = "编辑",
+            contentDescription = stringResource(R.string.edit),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
         Icon(
             Icons.Rounded.Refresh,
-            contentDescription = "重新生成",
+            contentDescription = stringResource(R.string.regenerate),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
         Icon(
             imageVector = if (isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
-            contentDescription = if (isStreaming) "停止" else "收藏",
+            contentDescription = if (isStreaming) stringResource(R.string.stop) else stringResource(R.string.favorite),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
@@ -317,7 +319,7 @@ private fun ChatInputBar(
                 minLines = 1,
                 maxLines = 4,
                 shape = RoundedCornerShape(8.dp),
-                placeholder = { Text("输入你的下一句剧情") }
+                placeholder = { Text(stringResource(R.string.input_next_story)) }
             )
             Spacer(modifier = Modifier.width(8.dp))
             Surface(
@@ -330,7 +332,7 @@ private fun ChatInputBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = "发送",
+                        contentDescription = stringResource(R.string.send),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -345,33 +347,33 @@ private fun ChatLayoutPreview() {
     AppTheme(dynamicColor = false) {
         ChatLayout(
             uiState = ChatUiState.Normal(
-                session = ChatSessionUiModel("s", "Lyra", "雨夜里的第七份卷宗", "", 12, 2, "刚刚"),
+                session = ChatSessionUiModel("s", "Lyra", "The Seventh File on a Rainy Night", "", 12, 2, "Just now"),
                 character = RpCharacterUiModel(
                     "lyra",
                     "Lyra",
-                    "雾港档案管理员",
+                    "Fog Harbor Archivist",
                     "",
                     "L",
                     emptyList(),
                     12,
-                    "刚刚",
+                    "Just now",
                     0xFF315EFD
                 ),
                 messages = emptyList(),
                 sessionLoreBooks = listOf(
                     LoreBookUiModel(
                         "l",
-                        "雾港旧城区",
+                        "Fog Harbor Old District",
                         "Chat Lore",
                         18,
                         true,
-                        "今天"
+                        "Today"
                     )
                 ),
                 sessionLoreEntries = emptyList(),
                 isSessionLoreExpanded = true,
                 inputDraft = "",
-                generationStatus = "已连接"
+                generationStatus = stringResource(R.string.connected)
             ),
             emit = {}
         )

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat
 
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -39,17 +40,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     @UiIntentObserver(ChatUiIntent.SendMessage::class)
     private fun onSendMessage() {
-        AppViewEvent.PopupToastMessage("发送与流式生成逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.send_and_stream_coming_soon).tryEmit()
     }
 
     @UiIntentObserver(ChatUiIntent.StopGeneration::class)
     private fun onStopGeneration() {
-        AppViewEvent.PopupToastMessage("停止生成逻辑稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_coming_soon).tryEmit()
     }
 
     @UiIntentObserver(ChatUiIntent.RegenerateLast::class)
     private fun onRegenerateLast() {
-        AppViewEvent.PopupToastMessage("重新生成会创建同级分支，稍后接入").tryEmit()
+        AppViewEvent.PopupToastMessageByResId(R.string.regenerate_creates_branch_coming_soon).tryEmit()
     }
 
     @UiIntentObserver(ChatUiIntent.OpenSessionLore::class)
