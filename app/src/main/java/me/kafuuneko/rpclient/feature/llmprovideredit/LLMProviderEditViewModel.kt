@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
@@ -39,6 +40,12 @@ class LLMProviderEditViewModel :
 
     @UiIntentObserver(LLMProviderEditUiIntent.Back::class)
     private fun onBack() {
+        val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        if (uiState.loadState is LLMProviderEditLoadState.Saving) return
+        if (uiState.form.hasUnsavedChangesFrom(uiState.initialForm)) {
+            uiState.copy(dialogState = LLMProviderEditDialogState.UnsavedChangesConfirm).setup()
+            return
+        }
         LLMProviderEditUiState.Finished.setup()
     }
 
@@ -123,6 +130,17 @@ class LLMProviderEditViewModel :
         ).setup()
     }
 
+    @UiIntentObserver(LLMProviderEditUiIntent.ConfirmDiscardChanges::class)
+    private fun onConfirmDiscardChanges() {
+        LLMProviderEditUiState.Finished.setup()
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        uiState.copy(dialogState = LLMProviderEditDialogState.None).setup()
+    }
+
     /**
      * 统一更新表单字段，并清理测试结果。
      */
@@ -155,5 +173,23 @@ class LLMProviderEditViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
         }
         return provider
+    }
+
+    private fun LLMProviderEditForm.hasUnsavedChangesFrom(initialForm: LLMProviderEditForm): Boolean {
+        return toComparableForm() != initialForm.toComparableForm()
+    }
+
+    private fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
+        return copy(
+            name = name.trim(),
+            baseUrl = baseUrl.trim(),
+            apiKey = apiKey.trim(),
+            model = model.trim(),
+            customHeadersJson = customHeadersJson.trim(),
+            temperature = temperature.trim(),
+            topP = topP.trim(),
+            maxTokens = maxTokens.trim(),
+            contextTokens = contextTokens.trim()
+        )
     }
 }

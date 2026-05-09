@@ -96,7 +96,10 @@ private fun CharacterEditNormal(
             } else {
                 stringResource(R.string.edit_character_title)
             },
-            onBack = { CharacterEditUiIntent.Back.emit() }
+            onBack = { CharacterEditUiIntent.Back.emit() },
+            actions = {
+                TopBarSaveButton(state.mode, state.loadState, emit)
+            }
         )
         LazyColumn(
             modifier = Modifier
@@ -324,6 +327,27 @@ private fun ActionPanel(
 }
 
 @Composable
+private fun TopBarSaveButton(
+    mode: CharacterEditMode,
+    loadState: CharacterEditLoadState,
+    emit: CharacterEditUiIntent.() -> Unit
+) {
+    TextButton(
+        enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
+        onClick = { CharacterEditUiIntent.SaveCharacter.emit() }
+    ) {
+        Icon(Icons.Rounded.Check, contentDescription = null)
+        Text(
+            when {
+                loadState == CharacterEditLoadState.Saving -> stringResource(R.string.saving)
+                mode == CharacterEditMode.Create -> stringResource(R.string.create)
+                else -> stringResource(R.string.save)
+            }
+        )
+    }
+}
+
+@Composable
 private fun DialogSwitch(
     dialogState: CharacterEditDialogState,
     emit: CharacterEditUiIntent.() -> Unit
@@ -337,6 +361,21 @@ private fun DialogSwitch(
             confirmButton = {
                 TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacter.emit() }) {
                     Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { CharacterEditUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+        CharacterEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = { CharacterEditUiIntent.ConfirmDiscardChanges.emit() }) {
+                    Text(stringResource(R.string.discard_changes))
                 }
             },
             dismissButton = {

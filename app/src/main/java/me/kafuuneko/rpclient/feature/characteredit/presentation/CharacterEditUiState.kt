@@ -8,6 +8,7 @@ sealed class CharacterEditUiState {
     data class Normal(
         val mode: CharacterEditMode,
         val form: CharacterEditForm,
+        val initialForm: CharacterEditForm = form,
         val loadState: CharacterEditLoadState = CharacterEditLoadState.None,
         val dialogState: CharacterEditDialogState = CharacterEditDialogState.None,
         val avatarFilePath: String? = null
@@ -34,4 +35,6 @@ sealed class CharacterEditDialogState {
     data class DeleteConfirm(
         val characterName: String
     ) : CharacterEditDialogState()
+
+    data object UnsavedChangesConfirm : CharacterEditDialogState()
 }

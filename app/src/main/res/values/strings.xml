@@ -147,6 +147,9 @@
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
     <string name="delete">Delete</string>
+    <string name="unsaved_changes_title">Discard changes?</string>
+    <string name="unsaved_changes_message">You have unsaved changes. Leaving this page will discard them.</string>
+    <string name="discard_changes">Discard</string>
 
     <!-- Error messages -->
     <string name="model_created">Model created</string>

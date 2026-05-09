@@ -41,5 +41,7 @@ sealed class CharacterEditUiIntent {
 
     data object ConfirmDeleteCharacter : CharacterEditUiIntent()
 
+    data object ConfirmDiscardChanges : CharacterEditUiIntent()
+
     data object DismissDialog : CharacterEditUiIntent()
 }

@@ -8,8 +8,10 @@ sealed class LLMProviderEditUiState {
     data class Normal(
         val mode: LLMProviderEditMode,
         val form: LLMProviderEditForm,
+        val initialForm: LLMProviderEditForm = form,
         val loadState: LLMProviderEditLoadState = LLMProviderEditLoadState.None,
-        val testState: LLMProviderEditTestState = LLMProviderEditTestState.None
+        val testState: LLMProviderEditTestState = LLMProviderEditTestState.None,
+        val dialogState: LLMProviderEditDialogState = LLMProviderEditDialogState.None
     ) : LLMProviderEditUiState()
 
     data object Finished : LLMProviderEditUiState()
@@ -30,4 +32,9 @@ sealed class LLMProviderEditTestState {
     data object Testing : LLMProviderEditTestState()
     data class Success(val message: String) : LLMProviderEditTestState()
     data class Failed(val message: String) : LLMProviderEditTestState()
+}
+
+sealed class LLMProviderEditDialogState {
+    data object None : LLMProviderEditDialogState()
+    data object UnsavedChangesConfirm : LLMProviderEditDialogState()
 }

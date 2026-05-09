@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
@@ -63,7 +66,10 @@ fun LLMProviderEditLayout(
     BackHandler { LLMProviderEditUiIntent.Back.emit() }
     when (uiState) {
         LLMProviderEditUiState.None, LLMProviderEditUiState.Finished -> Unit
-        is LLMProviderEditUiState.Normal -> LLMProviderEditNormal(uiState, emit)
+        is LLMProviderEditUiState.Normal -> {
+            LLMProviderEditNormal(uiState, emit)
+            DialogSwitch(uiState.dialogState, emit)
+        }
     }
 }
 
@@ -80,7 +86,10 @@ private fun LLMProviderEditNormal(
     ) {
         AppTopBar(
             title = if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create_model_title) else stringResource(R.string.edit_model_title),
-            onBack = { LLMProviderEditUiIntent.Back.emit() }
+            onBack = { LLMProviderEditUiIntent.Back.emit() },
+            actions = {
+                TopBarSaveButton(state, emit)
+            }
         )
         LazyColumn(
             modifier = Modifier
@@ -262,6 +271,51 @@ private fun ActionPanel(
     ) {
         Icon(Icons.Rounded.Check, contentDescription = null)
         Text(if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create) else stringResource(R.string.save))
+    }
+}
+
+@Composable
+private fun TopBarSaveButton(
+    state: LLMProviderEditUiState.Normal,
+    emit: LLMProviderEditUiIntent.() -> Unit
+) {
+    TextButton(
+        enabled = state.loadState !is LLMProviderEditLoadState.Saving,
+        onClick = { LLMProviderEditUiIntent.SaveClick.emit() }
+    ) {
+        Icon(Icons.Rounded.Check, contentDescription = null)
+        Text(
+            when {
+                state.loadState is LLMProviderEditLoadState.Saving -> stringResource(R.string.saving)
+                state.mode == LLMProviderEditMode.Create -> stringResource(R.string.create)
+                else -> stringResource(R.string.save)
+            }
+        )
+    }
+}
+
+@Composable
+private fun DialogSwitch(
+    dialogState: LLMProviderEditDialogState,
+    emit: LLMProviderEditUiIntent.() -> Unit
+) {
+    when (dialogState) {
+        LLMProviderEditDialogState.None -> Unit
+        LLMProviderEditDialogState.UnsavedChangesConfirm -> AlertDialog(
+            onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = { LLMProviderEditUiIntent.ConfirmDiscardChanges.emit() }) {
+                    Text(stringResource(R.string.discard_changes))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { LLMProviderEditUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 

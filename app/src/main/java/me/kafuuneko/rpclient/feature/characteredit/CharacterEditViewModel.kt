@@ -47,8 +47,16 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     @UiIntentObserver(CharacterEditUiIntent.Back::class)
     private suspend fun onBack() {
-        cleanupPendingAvatar()
-        CharacterEditUiState.Finished.setup()
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (
+            uiState.loadState == CharacterEditLoadState.Saving ||
+            uiState.loadState == CharacterEditLoadState.Deleting
+        ) return
+        if (uiState.form.hasUnsavedChangesFrom(uiState.initialForm)) {
+            uiState.copy(dialogState = CharacterEditDialogState.UnsavedChangesConfirm).setup()
+            return
+        }
+        finishEditing()
     }
 
     @UiIntentObserver(CharacterEditUiIntent.PickAvatarClick::class)
@@ -192,6 +200,11 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         CharacterEditUiState.Finished.setup()
     }
 
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmDiscardChanges::class)
+    private suspend fun onConfirmDiscardChanges() {
+        finishEditing()
+    }
+
     @UiIntentObserver(CharacterEditUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
@@ -225,10 +238,34 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         }
     }
 
+    private suspend fun finishEditing() {
+        cleanupPendingAvatar()
+        CharacterEditUiState.Finished.setup()
+    }
+
+    private fun CharacterEditForm.hasUnsavedChangesFrom(initialForm: CharacterEditForm): Boolean {
+        return toComparableForm() != initialForm.toComparableForm()
+    }
+
     private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
         return copy(
             tags = tags.ifEmpty { listOf("") },
             firstMessages = firstMessages.ifEmpty { listOf("") }
+        )
+    }
+
+    private fun CharacterEditForm.toComparableForm(): CharacterEditForm {
+        return copy(
+            name = name.trim(),
+            avatar = avatar.trim(),
+            originalAvatar = originalAvatar.trim(),
+            tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
+            description = description.trim(),
+            personality = personality.trim(),
+            scenario = scenario.trim(),
+            firstMessages = firstMessages.map { it.trim() }.filter { it.isNotEmpty() },
+            examplesOfDialogue = examplesOfDialogue.trim(),
+            postHistoryInstructions = postHistoryInstructions.trim()
         )
     }
 
