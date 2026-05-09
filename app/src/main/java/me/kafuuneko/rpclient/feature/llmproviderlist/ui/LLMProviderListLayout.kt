@@ -79,7 +79,10 @@ private fun LLMProviderListNormal(
             onBack = { LLMProviderListUiIntent.Back.emit() },
             actions = {
                 IconButton(onClick = { LLMProviderListUiIntent.CreateProvider.emit() }) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_model))
+                    Icon(
+                        Icons.Rounded.Add,
+                        contentDescription = stringResource(R.string.create_model)
+                    )
                 }
             }
         )
@@ -181,7 +184,11 @@ private fun ProviderListCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                RpTagRow(listOf(provider.typeText(), provider.statusText()), maxCount = 2)
+                RpTagRow(
+                    modifier = Modifier.padding(top = 4.dp),
+                    tags = listOf(provider.typeText(), provider.statusText()),
+                    maxCount = 2
+                )
             }
             Spacer(modifier = Modifier.width(10.dp))
             Switch(checked = provider.isEnabled, onCheckedChange = onCheckedChange)

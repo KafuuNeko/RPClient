@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -102,12 +104,18 @@ fun RpIconBubble(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RpTagRow(
     tags: List<String>,
+    modifier: Modifier = Modifier,
     maxCount: Int = tags.size
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         tags.take(maxCount).forEach { tag ->
             RpTagPill(tag)
         }
@@ -124,7 +132,8 @@ fun RpTagPill(text: String) {
             text = text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }
