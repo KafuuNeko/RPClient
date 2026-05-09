@@ -2,8 +2,6 @@ package me.kafuuneko.rpclient
 
 import android.app.Application
 import androidx.room.Room
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chibatching.kotpref.Kotpref
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.room.AppDatabase

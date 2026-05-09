@@ -5,7 +5,6 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
 data class LLMProviderEditForm(
     val id: Long = 0L,
-    val isSelected: Boolean = false,
     val createTime: Long = System.currentTimeMillis(),
     val name: String = "",
     val providerType: LLMProviderType = LLMProviderType.Custom,

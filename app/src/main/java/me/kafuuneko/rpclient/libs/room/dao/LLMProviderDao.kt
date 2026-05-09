@@ -16,15 +16,6 @@ interface LLMProviderDao : MutableDao<LLMProvider> {
     @Query("SELECT * FROM llm_providers WHERE id = :id")
     suspend fun getProviderById(id: Long): LLMProvider?
 
-    @Query("SELECT * FROM llm_providers WHERE isSelected = 1 LIMIT 1")
-    suspend fun getSelectedProvider(): LLMProvider?
-
-    @Query("UPDATE llm_providers SET isSelected = 0")
-    suspend fun clearSelectedProvider()
-
-    @Query("UPDATE llm_providers SET isSelected = 1, updateTime = :updateTime WHERE id = :id")
-    suspend fun selectProvider(id: Long, updateTime: Long = System.currentTimeMillis())
-
     @Query("UPDATE llm_providers SET isEnabled = :isEnabled WHERE id = :id")
     suspend fun updateProviderEnabled(
         id: Long,

@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -28,7 +29,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
         val providers = mLLMRepository.getEnabledProviders()
-        val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
+        val currentId = AppModel.currentLLMProvider
+        val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = MainHomeState(
                 activeCharacter = previewCharacters().first(),
@@ -52,7 +54,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providers = mLLMRepository.getEnabledProviders()
-        val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
+        val currentId = AppModel.currentLLMProvider
+        val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
@@ -107,7 +110,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providerId = intent.providerId.toLongOrNull() ?: return
-        mLLMRepository.selectProvider(providerId)
+        mLLMRepository.updateCurrentProvider(providerId)
         val providers = mLLMRepository.getEnabledProviders()
         val selectedProvider = providers.firstOrNull { it.id == providerId }
         uiState.copy(

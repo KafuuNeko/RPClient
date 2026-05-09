@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
@@ -42,11 +43,19 @@ class LLMRepository(
     }
 
     /**
-     * 获取当前选中的供应商；没有显式选中时回退到第一个已启用供应商。
+     * 获取当前选中的供应商
      */
     suspend fun getSelectedProvider(): LLMProvider? {
         ensureDefaultProviders()
-        return mLLMProviderDao.getSelectedProvider() ?: mLLMProviderDao.getEnabledProviders().firstOrNull()
+        val currentId = AppModel.currentLLMProvider
+        if (currentId != 0L) {
+            mLLMProviderDao.getProviderById(currentId)?.let {
+                return it.takeIf { it.isEnabled }
+            }
+        }
+        // 不执行自动回退
+//        return mLLMProviderDao.getEnabledProviders().firstOrNull()
+        return null
     }
 
     /**
@@ -66,11 +75,8 @@ class LLMRepository(
     /**
      * 将指定供应商设为当前选中项。
      */
-    suspend fun selectProvider(id: Long) {
-        mAppDatabase.withTransaction {
-            mLLMProviderDao.clearSelectedProvider()
-            mLLMProviderDao.selectProvider(id)
-        }
+    fun updateCurrentProvider(id: Long) {
+        AppModel.currentLLMProvider = id
     }
 
     /**
@@ -158,7 +164,6 @@ class LLMRepository(
                 protocol = LLMProviderProtocol.OpenAICompatible,
                 baseUrl = "https://api.openai.com/v1",
                 model = "gpt-4o-mini",
-                isSelected = true,
                 createTime = now,
                 updateTime = now,
                 isEnabled = false

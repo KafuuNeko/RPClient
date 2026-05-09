@@ -3,10 +3,10 @@ package me.kafuuneko.rpclient.libs.room
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatMessageDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatSessionDao
+import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -15,7 +15,6 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-
 
 @Database(
     entities = [

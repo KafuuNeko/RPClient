@@ -130,7 +130,6 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
      */
     private fun LLMProvider.toForm() = LLMProviderEditForm(
         id = id,
-        isSelected = isSelected,
         createTime = createTime,
         name = name,
         providerType = providerType,
@@ -181,7 +180,6 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
             maxTokens = parsedMaxTokens,
             contextTokens = parsedContextTokens,
             isEnabled = isEnabled,
-            isSelected = isSelected,
             createTime = createTime
         )
     }

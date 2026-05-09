@@ -31,8 +31,6 @@ data class LLMProvider(
     val contextTokens: Int = 8192,
     // 是否启用
     val isEnabled: Boolean = true,
-    // 是否为当前选中供应商
-    val isSelected: Boolean = false,
     // 创建时间
     val createTime: Long = System.currentTimeMillis(),
     // 更新时间
