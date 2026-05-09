@@ -18,4 +18,6 @@ sealed class MainUiIntent {
     data object OpenProviderManager : MainUiIntent()
 
     data class SelectProvider(val providerId: String) : MainUiIntent()
+
+    data object OpenPromptPreset : MainUiIntent()
 }

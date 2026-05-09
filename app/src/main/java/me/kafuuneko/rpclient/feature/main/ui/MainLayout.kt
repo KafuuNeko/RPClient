@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Home
@@ -278,6 +279,7 @@ private fun SettingsPage(
             }
             item { ParameterPanel(state) }
         }
+        item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { PrivacyPanel(state) }
     }
 }
@@ -385,6 +387,18 @@ private fun ParameterRow(label: String, value: String) {
         )
         FilterChip(selected = true, onClick = {}, label = { Text(value) })
     }
+}
+
+@Composable
+private fun PromptPresetEntryCard(onClick: () -> Unit) {
+    RpInfoCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        icon = Icons.Rounded.AutoAwesome,
+        title = stringResource(R.string.prompt_preset_title),
+        subtitle = stringResource(R.string.prompt_preset_entry_subtitle)
+    )
 }
 
 @Composable

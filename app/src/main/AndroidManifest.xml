@@ -35,6 +35,10 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.promptpreset.PromptPresetActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.main.MainActivity"
             android:exported="true"
             android:label="@string/app_name"

@@ -4,6 +4,7 @@ import android.os.Bundle
 import me.kafuuneko.rpclient.feature.character.CharacterActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
@@ -104,6 +105,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenProviderManager::class)
     private fun onOpenProviderManager() {
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
+    private fun onOpenPromptPreset() {
+        AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.SelectProvider::class)

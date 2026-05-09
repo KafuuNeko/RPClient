@@ -145,4 +145,18 @@
     <string name="send_and_stream_coming_soon">Send and streaming generation logic coming soon</string>
     <string name="stop_generation_coming_soon">Stop generation logic coming soon</string>
     <string name="regenerate_creates_branch_coming_soon">Regenerate will create同级 branch, coming soon</string>
+
+    <!-- Prompt Preset -->
+    <string name="prompt_preset_title">System Prompt Preset</string>
+    <string name="prompt_preset_subtitle">Manage global system prompts used across all sessions</string>
+    <string name="prompt_preset_section">Prompt Templates</string>
+    <string name="prompt_preset_entry_subtitle">Manage main and summarize system prompts</string>
+    <string name="prompt_main_title">Main Prompt</string>
+    <string name="prompt_main_desc">Primary system prompt injected at the start of every session</string>
+    <string name="prompt_summarize_title">Summarize Prompt</string>
+    <string name="prompt_summarize_desc">Prompt used to condense long context into a short summary</string>
+    <string name="prompt_empty_hint">Tap to set a prompt…</string>
+    <string name="prompt_edit_hint">Tap to edit</string>
+    <string name="prompt_editor_label">Prompt Content</string>
+    <string name="prompt_editor_placeholder">Enter your system prompt here…</string>
 </resources>
