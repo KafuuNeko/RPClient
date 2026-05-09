@@ -24,6 +24,8 @@ sealed class LLMProviderEditUiIntent {
 
     data class ChangeTemperature(val value: String) : LLMProviderEditUiIntent()
 
+    data class ChangeTopP(val value: String) : LLMProviderEditUiIntent()
+
     data class ChangeMaxTokens(val value: String) : LLMProviderEditUiIntent()
 
     data class ChangeContextTokens(val value: String) : LLMProviderEditUiIntent()

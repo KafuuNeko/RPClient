@@ -32,6 +32,7 @@ data class MainSettingsState(
     val selectedProviderId: String,
     val providers: List<LLMProvider>,
     val temperature: Float,
+    val topP: Float,
     val maxTokens: Int,
     val contextTokens: Int,
     val localFirstEnabled: Boolean,

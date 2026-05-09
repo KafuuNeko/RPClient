@@ -43,6 +43,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
                 temperature = selectedProvider?.temperature ?: 0.8f,
+                topP = selectedProvider?.topP ?: 1.0f,
                 maxTokens = selectedProvider?.maxTokens ?: 1200,
                 contextTokens = selectedProvider?.contextTokens ?: 8192,
                 localFirstEnabled = true,
@@ -62,6 +63,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
                 temperature = selectedProvider?.temperature ?: 0f,
+                topP = selectedProvider?.topP ?: 0f,
                 maxTokens = selectedProvider?.maxTokens ?: 0,
                 contextTokens = selectedProvider?.contextTokens ?: 0
             )
@@ -125,6 +127,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 selectedProviderId = intent.providerId,
                 providers = providers,
                 temperature = selectedProvider?.temperature ?: uiState.settingsState.temperature,
+                topP = selectedProvider?.topP ?: uiState.settingsState.topP,
                 maxTokens = selectedProvider?.maxTokens ?: uiState.settingsState.maxTokens,
                 contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens
             )

@@ -29,6 +29,7 @@
     <string name="context">Context</string>
     <string name="tokens">tokens</string>
     <string name="temperature">Temperature</string>
+    <string name="top_p">Top P</string>
     <string name="max_tokens">Max Tokens</string>
     <string name="privacy_and_backup">Privacy &amp; Backup</string>
     <string name="export">Export</string>

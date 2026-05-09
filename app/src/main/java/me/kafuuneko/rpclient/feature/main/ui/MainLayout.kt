@@ -368,6 +368,7 @@ private fun ParameterPanel(state: MainSettingsState) {
                 action = stringResource(R.string.preset)
             )
             ParameterRow(stringResource(R.string.temperature), state.temperature.toString())
+            ParameterRow(stringResource(R.string.top_p), state.topP.toString())
             ParameterRow(stringResource(R.string.max_tokens), state.maxTokens.toString())
             ParameterRow(
                 stringResource(R.string.context),
@@ -480,7 +481,7 @@ private fun MainLayoutPreview() {
                     totalCharacters = 24,
                     totalWorldBooks = 7
                 ),
-                settingsState = MainSettingsState("", emptyList(), 0.8f, 1200, 8192, true, true)
+                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true)
             ),
             emit = {}
         )

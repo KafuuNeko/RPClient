@@ -23,8 +23,10 @@ data class LLMProvider(
     val model: String,
     // 额外请求头 JSON
     val customHeadersJson: String = "",
-    // 默认温度
+    // 默认 Temp
     val temperature: Float = 0.8f,
+    // 默认 Top P
+    val topP: Float = 1.0f,
     // 默认最大输出 Token
     val maxTokens: Int = 1200,
     // 默认上下文 Token 预算

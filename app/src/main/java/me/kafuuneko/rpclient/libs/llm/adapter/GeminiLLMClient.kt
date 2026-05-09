@@ -51,10 +51,10 @@ class GeminiLLMClient(
             .put(
                 "generationConfig",
                 JSONObject()
+                    .put("topP", request.options.topP ?: mProvider.topP)
                     .put("temperature", request.options.temperature ?: mProvider.temperature)
                     .put("maxOutputTokens", request.options.maxTokens ?: mProvider.maxTokens)
                     .also { config ->
-                        config.putIfNotNull("topP", request.options.topP)
                         if (request.options.stop.isNotEmpty()) {
                             config.put("stopSequences", request.options.stop.toJsonArray())
                         }

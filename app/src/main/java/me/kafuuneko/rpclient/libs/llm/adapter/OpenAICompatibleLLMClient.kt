@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -47,10 +48,10 @@ class OpenAICompatibleLLMClient(
         val payload = JSONObject()
             .put("model", model)
             .put("messages", request.messages.toOpenAIMessages())
+            .put("top_p", request.options.topP ?: mProvider.topP)
             .put("temperature", request.options.temperature ?: mProvider.temperature)
             .put("max_tokens", request.options.maxTokens ?: mProvider.maxTokens)
             .put("stream", stream)
-        payload.putIfNotNull("top_p", request.options.topP)
         if (request.options.stop.isNotEmpty()) payload.put("stop", request.options.stop.toJsonArray())
 
         return Request.Builder()
@@ -65,7 +66,7 @@ class OpenAICompatibleLLMClient(
     /**
      * 转换通用消息为 OpenAI-compatible messages 数组。
      */
-    private fun List<me.kafuuneko.rpclient.libs.llm.model.LLMMessage>.toOpenAIMessages(): JSONArray {
+    private fun List<LLMMessage>.toOpenAIMessages(): JSONArray {
         return JSONArray().also { array ->
             forEach { message ->
                 array.put(

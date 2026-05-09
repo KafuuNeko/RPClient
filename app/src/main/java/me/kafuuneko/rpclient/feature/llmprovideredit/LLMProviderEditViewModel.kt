@@ -64,6 +64,9 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTemperature::class)
     private fun onChangeTemperature(intent: LLMProviderEditUiIntent.ChangeTemperature) = updateForm { copy(temperature = intent.value) }
 
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeTopP::class)
+    private fun onChangeTopP(intent: LLMProviderEditUiIntent.ChangeTopP) = updateForm { copy(topP = intent.value) }
+
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeMaxTokens::class)
     private fun onChangeMaxTokens(intent: LLMProviderEditUiIntent.ChangeMaxTokens) = updateForm { copy(maxTokens = intent.value) }
 
@@ -139,6 +142,7 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
         model = model,
         customHeadersJson = customHeadersJson,
         temperature = temperature.toString(),
+        topP = topP.toString(),
         maxTokens = maxTokens.toString(),
         contextTokens = contextTokens.toString(),
         isEnabled = isEnabled
@@ -161,9 +165,10 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
             return null
         }
         val parsedTemperature = temperature.toFloatOrNull()
+        val parsedTopP = topP.toFloatOrNull()
         val parsedMaxTokens = maxTokens.toIntOrNull()
         val parsedContextTokens = contextTokens.toIntOrNull()
-        if (parsedTemperature == null || parsedMaxTokens == null || parsedContextTokens == null) {
+        if (parsedTemperature == null || parsedTopP == null || parsedMaxTokens == null || parsedContextTokens == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
             return null
         }
@@ -177,6 +182,7 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
             model = model.trim(),
             customHeadersJson = customHeadersJson.trim(),
             temperature = parsedTemperature,
+            topP = parsedTopP,
             maxTokens = parsedMaxTokens,
             contextTokens = parsedContextTokens,
             isEnabled = isEnabled,

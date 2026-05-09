@@ -183,16 +183,24 @@ private fun ParameterPanel(
                 onChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
             )
             FormTextField(
-                label = stringResource(R.string.max_tokens),
-                value = form.maxTokens,
+                label = stringResource(R.string.top_p),
+                value = form.topP,
                 modifier = Modifier.weight(1f),
-                keyboardType = KeyboardType.Number,
-                onChange = { LLMProviderEditUiIntent.ChangeMaxTokens(it).emit() }
+                keyboardType = KeyboardType.Decimal,
+                onChange = { LLMProviderEditUiIntent.ChangeTopP(it).emit() }
             )
         }
         FormTextField(
+            label = stringResource(R.string.max_tokens),
+            value = form.maxTokens,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardType = KeyboardType.Number,
+            onChange = { LLMProviderEditUiIntent.ChangeMaxTokens(it).emit() }
+        )
+        FormTextField(
             label = stringResource(R.string.context) + " " + stringResource(R.string.tokens),
             value = form.contextTokens,
+            modifier = Modifier.fillMaxWidth(),
             keyboardType = KeyboardType.Number,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
         )

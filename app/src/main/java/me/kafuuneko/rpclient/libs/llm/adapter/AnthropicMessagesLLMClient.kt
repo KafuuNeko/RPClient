@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -47,10 +48,10 @@ class AnthropicMessagesLLMClient(
         val payload = JSONObject()
             .put("model", model)
             .put("max_tokens", request.options.maxTokens ?: mProvider.maxTokens)
+            .put("top_p", request.options.topP ?: mProvider.topP)
             .put("temperature", request.options.temperature ?: mProvider.temperature)
             .put("messages", request.messages.toAnthropicMessages())
             .put("stream", stream)
-        payload.putIfNotNull("top_p", request.options.topP)
         val systemPrompt = request.messages
             .filter { it.role == LLMMessageRole.System }
             .joinToString("\n\n") { it.content }
@@ -70,7 +71,7 @@ class AnthropicMessagesLLMClient(
     /**
      * 转换通用消息为 Anthropic messages 数组。
      */
-    private fun List<me.kafuuneko.rpclient.libs.llm.model.LLMMessage>.toAnthropicMessages(): JSONArray {
+    private fun List<LLMMessage>.toAnthropicMessages(): JSONArray {
         return JSONArray().also { array ->
             filter { it.role != LLMMessageRole.System }.forEach { message ->
                 array.put(

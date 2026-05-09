@@ -14,6 +14,7 @@ data class LLMProviderEditForm(
     val model: String = "",
     val customHeadersJson: String = "",
     val temperature: String = "0.8",
+    val topP: String = "1.0",
     val maxTokens: String = "1200",
     val contextTokens: String = "8192",
     val isEnabled: Boolean = true
