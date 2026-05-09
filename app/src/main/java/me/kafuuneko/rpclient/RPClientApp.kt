@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import org.koin.android.ext.koin.androidContext
@@ -33,5 +34,6 @@ private val appModules = module {
 
     singleOf(::CharacterRepository)
     singleOf(::LorebookRepository)
+    singleOf(::ChatRepository)
 
 }
