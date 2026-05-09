@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.character
+package me.kafuuneko.rpclient.feature.characteredit
 
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -7,17 +7,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiIntent
-import me.kafuuneko.rpclient.feature.character.presentation.CharacterUiState
-import me.kafuuneko.rpclient.feature.character.presentation.CharacterViewEvent
-import me.kafuuneko.rpclient.feature.character.ui.CharacterLayout
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
+import me.kafuuneko.rpclient.feature.characteredit.ui.CharacterEditLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
-class CharacterActivity : CoreActivityWithEvent() {
-    private val mViewModel by viewModels<CharacterViewModel>()
+class CharacterEditActivity : CoreActivityWithEvent() {
+    private val mViewModel by viewModels<CharacterEditViewModel>()
     private val mAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { mViewModel.emit(CharacterUiIntent.AvatarSelected(it)) }
+        uri?.let { mViewModel.emit(CharacterEditUiIntent.AvatarSelected(it)) }
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -27,10 +27,10 @@ class CharacterActivity : CoreActivityWithEvent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
 
         LaunchedEffect(uiState) {
-            if (uiState is CharacterUiState.Finished) finish()
+            if (uiState is CharacterEditUiState.Finished) finish()
         }
 
-        CharacterLayout(
+        CharacterEditLayout(
             uiState = uiState,
             emit = { mViewModel.emit(this) }
         )
@@ -38,18 +38,18 @@ class CharacterActivity : CoreActivityWithEvent() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mViewModel.emit(CharacterUiIntent.Init)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        mViewModel.emit(CharacterUiIntent.Resume)
+        val characterId = intent.getLongExtra(EXTRA_CHARACTER_ID, 0L).takeIf { it > 0L }
+        mViewModel.emit(CharacterEditUiIntent.Init(characterId))
     }
 
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
-            CharacterViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
+            CharacterEditViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
         }
+    }
+
+    companion object {
+        const val EXTRA_CHARACTER_ID = "extra_character_id"
     }
 }

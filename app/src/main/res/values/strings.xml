@@ -45,6 +45,7 @@
     <string name="character_cards_title">Character Cards</string>
     <string name="character_cards_subtitle">Create and edit character definitions and advanced settings</string>
     <string name="search_placeholder">Search by name, tags, author notes</string>
+    <string name="all_characters">All Characters</string>
     <string name="more">More</string>
     <string name="sessions_count">%d sessions</string>
     <string name="character_lore_bindable">Character Lore Bindable</string>
@@ -60,8 +61,11 @@
     <string name="character_editor_empty">No character selected</string>
     <string name="character_editor_empty_desc">Select an existing card or create a new one.</string>
     <string name="character_editor_subtitle">Profile, definition, scene and dialogue content</string>
+    <string name="edit_character_title">Edit Character</string>
+    <string name="tap_avatar_to_choose">Tap avatar to choose a picture</string>
     <string name="choose_character_avatar">Choose character avatar</string>
     <string name="character_tags">Tags</string>
+    <string name="character_tag_index">Tag %d</string>
     <string name="character_description">Description</string>
     <string name="character_definition">Definition</string>
     <string name="character_personality">Core / Personality</string>
@@ -69,6 +73,7 @@
     <string name="character_post_history_instructions">Post History Instructions</string>
     <string name="character_dialogue">Dialogue</string>
     <string name="character_first_messages">First Messages</string>
+    <string name="character_first_message_index">First Message %d</string>
     <string name="character_examples_of_dialogue">Examples of Dialogue</string>
     <string name="saving">Saving…</string>
     <string name="delete_character_title">Delete character</string>

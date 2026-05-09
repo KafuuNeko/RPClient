@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.character.model
+package me.kafuuneko.rpclient.feature.characteredit.model
 
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -9,22 +9,16 @@ data class CharacterEditForm(
     val name: String = "",
     val avatar: String = "",
     val originalAvatar: String = "",
-    val tagsText: String = "",
+    val tags: List<String> = emptyList(),
     val description: String = "",
     val personality: String = "",
     val scenario: String = "",
-    val firstMessages: String = "",
+    val firstMessages: List<String> = emptyList(),
     val examplesOfDialogue: String = "",
     val postHistoryInstructions: String = ""
 ) {
     val isNew: Boolean
         get() = id == 0L
-
-    val parsedTags: List<String>
-        get() = tagsText.split(",", "，", "\n")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
 
     companion object {
         fun from(character: Character) = CharacterEditForm(
@@ -32,26 +26,29 @@ data class CharacterEditForm(
             name = character.name,
             avatar = character.avatar,
             originalAvatar = character.avatar,
-            tagsText = character.getCharacterTagList().joinToString(", "),
+            tags = character.getCharacterTagList(),
             description = character.description,
             personality = character.personality,
             scenario = character.scenario,
-            firstMessages = character.firstMessages,
+            firstMessages = character.getFirstMessageList(),
             examplesOfDialogue = character.examplesOfDialogue,
             postHistoryInstructions = character.postHistoryInstructions
         )
     }
 
-    fun toCharacter(gson: Gson): Character {
+    fun toCharacter(): Character {
         return Character(
             id = id,
             name = name.trim(),
             avatar = avatar.trim(),
-            characterTags = gson.toJsonString(parsedTags),
+            characterTags = Gson().toJsonString(tags.map { it.trim() }.filter { it.isNotEmpty() }),
             description = description.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
-            firstMessages = firstMessages.trim(),
+            firstMessages = firstMessages
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .joinToString("<START>"),
             examplesOfDialogue = examplesOfDialogue.trim(),
             postHistoryInstructions = postHistoryInstructions.trim()
         )

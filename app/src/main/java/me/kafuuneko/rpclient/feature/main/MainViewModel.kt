@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.main
 
 import android.os.Bundle
-import me.kafuuneko.rpclient.feature.character.CharacterActivity
+import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
@@ -96,7 +96,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
     private fun onOpenCharacterManager() {
-        AppViewEvent.StartActivity(CharacterActivity::class.java).tryEmit()
+        AppViewEvent.StartActivity(CharacterListActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenWorldBookManager::class)
