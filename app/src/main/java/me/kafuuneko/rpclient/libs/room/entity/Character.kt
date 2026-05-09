@@ -12,7 +12,7 @@ data class Character(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     // 角色名称
     val name: String,
-    // 角色头像
+    // 角色头像(存储的是File UUID，可通过[FileRepository]查找到文件数据)
     val avatar: String,
     // 角色标签(JSON, 例如["腼腆", "可爱"])
     val characterTags: String,

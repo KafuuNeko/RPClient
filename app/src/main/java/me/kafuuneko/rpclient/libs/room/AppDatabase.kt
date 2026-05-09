@@ -15,6 +15,8 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.FileEntity
+import me.kafuuneko.rpclient.libs.room.dao.FileDao
 
 @Database(
     entities = [
@@ -23,7 +25,8 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
         LorebookEntry::class,
         ChatSession::class,
         ChatMessage::class,
-        LLMProvider::class
+        LLMProvider::class,
+        FileEntity::class
     ],
     version = 1,
     autoMigrations = [],
@@ -37,5 +40,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getChatSessionDao(): ChatSessionDao
     abstract fun getChatMessageDao(): ChatMessageDao
     abstract fun getLLMProviderDao(): LLMProviderDao
+    abstract fun getFileDao(): FileDao
 
 }

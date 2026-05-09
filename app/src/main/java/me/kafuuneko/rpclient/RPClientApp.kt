@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -53,6 +54,7 @@ private val appModules = module {
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)
     singleOf(::LLMRepository)
+    singleOf(::FileRepository)
 
 }
 
