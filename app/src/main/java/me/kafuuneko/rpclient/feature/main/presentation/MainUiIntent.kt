@@ -15,6 +15,7 @@ sealed class MainUiIntent {
 
     data object OpenWorldBookManager : MainUiIntent()
 
+    data object OpenProviderManager : MainUiIntent()
+
     data class SelectProvider(val providerId: String) : MainUiIntent()
 }
-

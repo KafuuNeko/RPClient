@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.ProviderUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 sealed class MainUiState {
     data object None : MainUiState()
@@ -31,11 +31,10 @@ data class MainHomeState(
 
 data class MainSettingsState(
     val selectedProviderId: String,
-    val providers: List<ProviderUiModel>,
+    val providers: List<LLMProvider>,
     val temperature: Float,
     val maxTokens: Int,
     val contextTokens: Int,
     val localFirstEnabled: Boolean,
     val streamEnabled: Boolean
 )
-

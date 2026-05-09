@@ -40,16 +40,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
-import me.kafuuneko.rpclient.libs.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.LoreBookUiModel
 import me.kafuuneko.rpclient.libs.model.LoreEntryUiModel
-import me.kafuuneko.rpclient.libs.model.MessageRole
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -272,9 +271,24 @@ private fun MessageBubble(message: ChatMessageUiModel) {
 private fun MessageActions(isStreaming: Boolean) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
-        Icon(Icons.Rounded.ContentCopy, contentDescription = "复制", modifier = Modifier.size(16.dp), tint = iconColor)
-        Icon(Icons.Rounded.Edit, contentDescription = "编辑", modifier = Modifier.size(16.dp), tint = iconColor)
-        Icon(Icons.Rounded.Refresh, contentDescription = "重新生成", modifier = Modifier.size(16.dp), tint = iconColor)
+        Icon(
+            Icons.Rounded.ContentCopy,
+            contentDescription = "复制",
+            modifier = Modifier.size(16.dp),
+            tint = iconColor
+        )
+        Icon(
+            Icons.Rounded.Edit,
+            contentDescription = "编辑",
+            modifier = Modifier.size(16.dp),
+            tint = iconColor
+        )
+        Icon(
+            Icons.Rounded.Refresh,
+            contentDescription = "重新生成",
+            modifier = Modifier.size(16.dp),
+            tint = iconColor
+        )
         Icon(
             imageVector = if (isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
             contentDescription = if (isStreaming) "停止" else "收藏",
@@ -314,7 +328,11 @@ private fun ChatInputBar(
                 onClick = { ChatUiIntent.SendMessage.emit() }
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "发送", tint = MaterialTheme.colorScheme.onPrimary)
+                    Icon(
+                        Icons.AutoMirrored.Rounded.Send,
+                        contentDescription = "发送",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
@@ -328,9 +346,28 @@ private fun ChatLayoutPreview() {
         ChatLayout(
             uiState = ChatUiState.Normal(
                 session = ChatSessionUiModel("s", "Lyra", "雨夜里的第七份卷宗", "", 12, 2, "刚刚"),
-                character = RpCharacterUiModel("lyra", "Lyra", "雾港档案管理员", "", "L", emptyList(), 12, "刚刚", 0xFF315EFD),
+                character = RpCharacterUiModel(
+                    "lyra",
+                    "Lyra",
+                    "雾港档案管理员",
+                    "",
+                    "L",
+                    emptyList(),
+                    12,
+                    "刚刚",
+                    0xFF315EFD
+                ),
                 messages = emptyList(),
-                sessionLoreBooks = listOf(LoreBookUiModel("l", "雾港旧城区", "Chat Lore", 18, true, "今天")),
+                sessionLoreBooks = listOf(
+                    LoreBookUiModel(
+                        "l",
+                        "雾港旧城区",
+                        "Chat Lore",
+                        18,
+                        true,
+                        "今天"
+                    )
+                ),
                 sessionLoreEntries = emptyList(),
                 isSessionLoreExpanded = true,
                 inputDraft = "",

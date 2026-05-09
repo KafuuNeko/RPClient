@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".RPClientApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -13,6 +14,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient">
+        <activity
+            android:name=".feature.llmprovideredit.LLMProviderEditActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
+            android:name=".feature.llmproviderlist.LLMProviderListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
         <activity
             android:name=".feature.worldbook.WorldBookActivity"
             android:exported="false"

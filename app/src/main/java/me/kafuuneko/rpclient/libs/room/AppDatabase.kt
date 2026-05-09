@@ -26,7 +26,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
         ChatMessage::class,
         LLMProvider::class
     ],
-    version = 2,
+    version = 1,
     autoMigrations = [],
     exportSchema = false
 )

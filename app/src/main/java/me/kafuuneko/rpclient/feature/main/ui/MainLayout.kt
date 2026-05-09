@@ -58,8 +58,8 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.ProviderUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -294,22 +294,40 @@ private fun SettingsPage(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { RpPageTitle(title = "设置", subtitle = "Provider、生成参数、本地优先与备份") }
-        item { RpSectionHeader(title = "模型 Provider", action = "测试") }
-        items(state.providers) { provider ->
-            ProviderCard(
-                provider = provider,
-                selected = provider.id == state.selectedProviderId,
-                onClick = { MainUiIntent.SelectProvider(provider.id).emit() }
-            )
+        item { RpSectionHeader(title = "模型 Provider", action = "管理") { MainUiIntent.OpenProviderManager.emit() } }
+        if (state.providers.isEmpty()) {
+            item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
+        } else {
+            items(state.providers) { provider ->
+                ProviderCard(
+                    provider = provider,
+                    selected = provider.id.toString() == state.selectedProviderId,
+                    onClick = { MainUiIntent.SelectProvider(provider.id.toString()).emit() }
+                )
+            }
+            item { ParameterPanel(state) }
         }
-        item { ParameterPanel(state) }
         item { PrivacyPanel(state) }
     }
 }
 
 @Composable
+private fun EmptyProviderCard(
+    onClick: () -> Unit
+) {
+    RpInfoCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        icon = Icons.Rounded.Storage,
+        title = "没有已启用模型",
+        subtitle = "进入模型管理启用或新建一个 Provider"
+    )
+}
+
+@Composable
 private fun ProviderCard(
-    provider: ProviderUiModel,
+    provider: LLMProvider,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -331,15 +349,23 @@ private fun ProviderCard(
                 Text(provider.name, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
                 Text(provider.model, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 Text(
-                    provider.endpoint,
+                    provider.baseUrl,
                     style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            RpTagRow(listOf(provider.status), maxCount = 1)
+            RpTagRow(listOf(provider.statusText()), maxCount = 1)
         }
+    }
+}
+
+private fun LLMProvider.statusText(): String {
+    return when {
+        !isEnabled -> "未启用"
+        apiKey.isBlank() -> "待配置"
+        else -> "可用"
     }
 }
 

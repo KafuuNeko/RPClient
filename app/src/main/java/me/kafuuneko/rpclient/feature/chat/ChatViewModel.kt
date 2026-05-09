@@ -1,15 +1,15 @@
 package me.kafuuneko.rpclient.feature.chat
 
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.LoreBookUiModel
 import me.kafuuneko.rpclient.libs.model.LoreEntryUiModel
-import me.kafuuneko.rpclient.libs.model.MessageRole
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 
 class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(

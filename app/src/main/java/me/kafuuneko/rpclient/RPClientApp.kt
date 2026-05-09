@@ -54,3 +54,4 @@ private val appModules = module {
     singleOf(::LLMRepository)
 
 }
+

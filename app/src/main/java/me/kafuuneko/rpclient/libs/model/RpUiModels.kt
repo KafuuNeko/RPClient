@@ -1,11 +1,7 @@
 package me.kafuuneko.rpclient.libs.model
 
-enum class MessageRole {
-    User,
-    Assistant,
-    Narrator
-}
 
+// TODO: 本页面的所有Model仅作为测试使用，实际接入实际数据或者实际业务逻辑后，不应该继续使用本页的数据模型，而应该使用实际的数据类型
 data class RpCharacterUiModel(
     val id: String,
     val name: String,
@@ -26,26 +22,6 @@ data class ChatSessionUiModel(
     val messageCount: Int,
     val branchCount: Int,
     val updatedAt: String
-)
-
-data class ChatMessageUiModel(
-    val id: String,
-    val role: MessageRole,
-    val speaker: String,
-    val content: String,
-    val time: String,
-    val tokenCount: Int,
-    val isStreaming: Boolean = false
-)
-
-data class ProviderUiModel(
-    val id: String,
-    val name: String,
-    val type: String,
-    val endpoint: String,
-    val model: String,
-    val status: String,
-    val isEnabled: Boolean
 )
 
 data class LoreBookUiModel(

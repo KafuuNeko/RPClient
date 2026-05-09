@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
-import me.kafuuneko.rpclient.libs.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.LoreBookUiModel
 import me.kafuuneko.rpclient.libs.model.LoreEntryUiModel

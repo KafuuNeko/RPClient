@@ -105,6 +105,13 @@ class LLMRepository(
     }
 
     /**
+     * 使用临时供应商配置进行一次性生成，适合编辑页保存前测试。
+     */
+    suspend fun generateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): LLMGenerationResponse {
+        return mLLMClientFactory.create(provider).generate(request)
+    }
+
+    /**
      * 使用指定供应商进行流式生成。
      */
     suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
@@ -118,6 +125,13 @@ class LLMRepository(
      */
     suspend fun streamGenerateWithSelectedProvider(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
+        return mLLMClientFactory.create(provider).streamGenerate(request)
+    }
+
+    /**
+     * 使用临时供应商配置进行流式生成，适合编辑页保存前测试。
+     */
+    fun streamGenerateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         return mLLMClientFactory.create(provider).streamGenerate(request)
     }
 
@@ -146,7 +160,8 @@ class LLMRepository(
                 model = "gpt-4o-mini",
                 isSelected = true,
                 createTime = now,
-                updateTime = now
+                updateTime = now,
+                isEnabled = false
             ),
             LLMProvider(
                 name = "Gemini",
@@ -155,7 +170,8 @@ class LLMRepository(
                 baseUrl = "https://generativelanguage.googleapis.com",
                 model = "gemini-1.5-flash",
                 createTime = now,
-                updateTime = now
+                updateTime = now,
+                isEnabled = false
             ),
             LLMProvider(
                 name = "Claude",
@@ -164,7 +180,8 @@ class LLMRepository(
                 baseUrl = "https://api.anthropic.com",
                 model = "claude-3-5-sonnet-latest",
                 createTime = now,
-                updateTime = now
+                updateTime = now,
+                isEnabled = false
             ),
             LLMProvider(
                 name = "DeepSeek",
@@ -173,7 +190,8 @@ class LLMRepository(
                 baseUrl = "https://api.deepseek.com",
                 model = "deepseek-chat",
                 createTime = now,
-                updateTime = now
+                updateTime = now,
+                isEnabled = false
             ),
             LLMProvider(
                 name = "OpenRouter",
@@ -182,7 +200,8 @@ class LLMRepository(
                 baseUrl = "https://openrouter.ai/api/v1",
                 model = "anthropic/claude-3.5-sonnet",
                 createTime = now,
-                updateTime = now
+                updateTime = now,
+                isEnabled = false
             )
         )
     }

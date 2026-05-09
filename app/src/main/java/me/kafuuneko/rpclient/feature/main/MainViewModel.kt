@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.main
 import android.os.Bundle
 import me.kafuuneko.rpclient.feature.character.CharacterActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
@@ -13,9 +14,7 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.ProviderUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -28,7 +27,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
-        val providers = mLLMRepository.getAllProviders()
+        val providers = mLLMRepository.getEnabledProviders()
         val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = MainHomeState(
@@ -40,7 +39,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ),
             settingsState = MainSettingsState(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
-                providers = providers.map { it.toUiModel() },
+                providers = providers,
                 temperature = selectedProvider?.temperature ?: 0.8f,
                 maxTokens = selectedProvider?.maxTokens ?: 1200,
                 contextTokens = selectedProvider?.contextTokens ?: 8192,
@@ -51,7 +50,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     }
 
     @UiIntentObserver(MainUiIntent.Resume::class)
-    private fun onResume() = Unit
+    private suspend fun onResume() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val providers = mLLMRepository.getEnabledProviders()
+        val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
+                providers = providers,
+                temperature = selectedProvider?.temperature ?: 0f,
+                maxTokens = selectedProvider?.maxTokens ?: 0,
+                contextTokens = selectedProvider?.contextTokens ?: 0
+            )
+        ).setup()
+    }
 
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
@@ -87,18 +99,23 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(WorldBookActivity::class.java).tryEmit()
     }
 
+    @UiIntentObserver(MainUiIntent.OpenProviderManager::class)
+    private fun onOpenProviderManager() {
+        AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
+    }
+
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
     private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providerId = intent.providerId.toLongOrNull() ?: return
         mLLMRepository.selectProvider(providerId)
-        val providers = mLLMRepository.getAllProviders()
+        val providers = mLLMRepository.getEnabledProviders()
         val selectedProvider = providers.firstOrNull { it.id == providerId }
         uiState.copy(
             selectedPage = MainPage.Settings,
             settingsState = uiState.settingsState.copy(
                 selectedProviderId = intent.providerId,
-                providers = providers.map { it.toUiModel() },
+                providers = providers,
                 temperature = selectedProvider?.temperature ?: uiState.settingsState.temperature,
                 maxTokens = selectedProvider?.maxTokens ?: uiState.settingsState.maxTokens,
                 contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens
@@ -141,17 +158,4 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     )
 
-    private fun LLMProvider.toUiModel() = ProviderUiModel(
-        id = id.toString(),
-        name = name,
-        type = protocol.name,
-        endpoint = baseUrl,
-        model = model,
-        status = when {
-            !isEnabled -> "未启用"
-            apiKey.isBlank() -> "待配置"
-            else -> "可用"
-        },
-        isEnabled = isEnabled
-    )
 }
