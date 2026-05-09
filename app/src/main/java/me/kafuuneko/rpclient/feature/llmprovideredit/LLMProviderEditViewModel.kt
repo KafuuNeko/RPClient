@@ -13,9 +13,6 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
-import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -113,14 +110,7 @@ class LLMProviderEditViewModel :
         val result = runCatching {
             withContext(Dispatchers.IO) {
                 mLLMClientFactory.create(provider.toConfig()).generate(
-                    LLMGenerationRequest(
-                        messages = listOf(
-                            LLMMessage(
-                                role = LLMMessageRole.User,
-                                content = "Please reply with a short English sentence: Model test successful."
-                            )
-                        )
-                    )
+                    "Please reply with a short English sentence: Model test successful."
                 )
             }
         }
