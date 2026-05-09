@@ -43,7 +43,7 @@
     <string name="import_character">Import character</string>
     <string name="create_character">Create character</string>
     <string name="character_cards_title">Character Cards</string>
-    <string name="character_cards_subtitle">Create, import, edit character definitions and advanced settings</string>
+    <string name="character_cards_subtitle">Create and edit character definitions and advanced settings</string>
     <string name="search_placeholder">Search by name, tags, author notes</string>
     <string name="more">More</string>
     <string name="sessions_count">%d sessions</string>
@@ -54,6 +54,25 @@
     <string name="card_v2_desc">Avatar, description, first message, example dialogues, author notes</string>
     <string name="new_session">New Session</string>
     <string name="advanced_definition">Advanced Definition</string>
+    <string name="no_character_cards">No character cards</string>
+    <string name="no_character_cards_desc">Create a character card to start managing role definitions.</string>
+    <string name="no_description">No description</string>
+    <string name="character_editor_empty">No character selected</string>
+    <string name="character_editor_empty_desc">Select an existing card or create a new one.</string>
+    <string name="character_editor_subtitle">Profile, definition, scene and dialogue content</string>
+    <string name="choose_character_avatar">Choose character avatar</string>
+    <string name="character_tags">Tags</string>
+    <string name="character_description">Description</string>
+    <string name="character_definition">Definition</string>
+    <string name="character_personality">Core / Personality</string>
+    <string name="character_scenario">Scenario</string>
+    <string name="character_post_history_instructions">Post History Instructions</string>
+    <string name="character_dialogue">Dialogue</string>
+    <string name="character_first_messages">First Messages</string>
+    <string name="character_examples_of_dialogue">Examples of Dialogue</string>
+    <string name="saving">Saving…</string>
+    <string name="delete_character_title">Delete character</string>
+    <string name="delete_character_message">Delete “%s”? This cannot be undone.</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">Session World Book</string>
@@ -133,14 +152,15 @@
     <string name="base_url_empty">Base URL cannot be empty</string>
     <string name="model_name_required">Model name is required</string>
     <string name="generation_params_invalid">Generation parameters format is invalid</string>
+    <string name="character_name_empty">Character name cannot be empty</string>
+    <string name="character_created">Character created</string>
+    <string name="character_saved">Character saved</string>
+    <string name="character_deleted">Character deleted</string>
+    <string name="character_avatar_save_failed">Failed to save character avatar</string>
 
     <!-- World Book ViewModel -->
     <string name="world_book_creation_coming_soon">World book creation logic coming soon</string>
     <string name="world_book_entry_creation_coming_soon">World book entry creation logic coming soon</string>
-
-    <!-- Character ViewModel -->
-    <string name="character_import_coming_soon">Character card import logic coming soon</string>
-    <string name="character_creation_coming_soon">Character creation logic coming soon</string>
 
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">Send and streaming generation logic coming soon</string>
