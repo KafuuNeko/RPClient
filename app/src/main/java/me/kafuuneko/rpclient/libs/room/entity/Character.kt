@@ -1,8 +1,9 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.Entity
-import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.google.gson.Gson
+import me.kafuuneko.rpclient.utils.toStringList
 
 @Entity(
     tableName = "character"
@@ -13,9 +14,11 @@ data class Character(
     val name: String,
     // 角色头像
     val avatar: String,
-    // 性格标签
+    // 角色标签(JSON, 例如["腼腆", "可爱"])
     val characterTags: String,
-    // 核心设定
+    // 角色描述
+    val description: String,
+    // 核心/性格设定
     val personality: String,
     // 场景设定
     val scenario: String,
@@ -25,4 +28,14 @@ data class Character(
     val examplesOfDialogue: String,
     // 后置提示词
     val postHistoryInstructions: String
-)
+) {
+    fun getCharacterTagList(): List<String> {
+        return Gson().toStringList(characterTags)
+    }
+
+    fun getFirstMessageList(): List<String> {
+        return firstMessages.split("<START>")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
+}

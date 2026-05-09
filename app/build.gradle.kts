@@ -75,4 +75,7 @@ dependencies {
     // okhttp
     implementation(libs.okhttp)
 
+    // gson
+    implementation(libs.gson)
+
 }

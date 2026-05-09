@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
+import com.google.gson.Gson
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
@@ -37,6 +38,8 @@ private val appModules = module {
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }
+
+    single { Gson() }
 
     singleOf(::LLMClientFactory)
 

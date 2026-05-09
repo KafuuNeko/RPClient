@@ -1,11 +1,17 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.utils.toJsonString
+import me.kafuuneko.rpclient.utils.toStringList
 
-class LorebookRepository(private val mAppDatabase: AppDatabase) {
+class LorebookRepository(
+    private val mAppDatabase: AppDatabase,
+    private val mGson: Gson
+) {
     private val mLorebookDao = mAppDatabase.getLorebookDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
 
@@ -97,43 +103,6 @@ class LorebookRepository(private val mAppDatabase: AppDatabase) {
     }
 
     /**
-     * 创建新的世界书条目。
-     *
-     * @param lorebookId 条目所属的世界书 id。
-     * @param name 条目名称。
-     * @param keywords 触发关键词。
-     * @param secondaryKeywords 次要触发关键词。
-     * @param order 插入顺序，数值越小优先级越高。
-     * @param depth 插入深度。
-     * @param category 分类标签。
-     * @param content 条目正文内容。
-     * @return 新创建的世界书条目 id。
-     */
-    suspend fun createEntry(
-        lorebookId: Long,
-        name: String,
-        keywords: String = "",
-        secondaryKeywords: String = "",
-        order: Int = 0,
-        depth: Int = 0,
-        category: String = "",
-        content: String = ""
-    ): Long {
-        return mLorebookEntryDao.insertOrReplace(
-            LorebookEntry(
-                lorebookId = lorebookId,
-                name = name,
-                keywords = keywords,
-                secondaryKeywords = secondaryKeywords,
-                order = order,
-                depth = depth,
-                category = category,
-                content = content
-            )
-        )
-    }
-
-    /**
      * 保存世界书条目。
      *
      * 当 id 为 0 时创建新条目；否则更新已有条目。
@@ -186,5 +155,56 @@ class LorebookRepository(private val mAppDatabase: AppDatabase) {
      */
     suspend fun deleteEntriesByLorebookId(lorebookId: Long) {
         mLorebookEntryDao.deleteEntriesByLorebookId(lorebookId)
+    }
+
+    /**
+     * 获取世界书条目的主要关键词列表。
+     */
+    suspend fun getEntryKeywords(id: Long): List<String> {
+        val entry = getEntryById(id) ?: return emptyList()
+        return mGson.toStringList(entry.keywords)
+    }
+
+    /**
+     * 更新世界书条目的主要关键词列表。
+     */
+    suspend fun updateEntryKeywords(id: Long, keywords: List<String>): Boolean {
+        val entry = getEntryById(id) ?: return false
+        updateEntry(entry.copy(keywords = mGson.toJsonString(keywords)))
+        return true
+    }
+
+    /**
+     * 获取世界书条目的次要关键词列表。
+     */
+    suspend fun getEntrySecondaryKeywords(id: Long): List<String> {
+        val entry = getEntryById(id) ?: return emptyList()
+        return mGson.toStringList(entry.secondaryKeywords)
+    }
+
+    /**
+     * 更新世界书条目的次要关键词列表。
+     */
+    suspend fun updateEntrySecondaryKeywords(id: Long, secondaryKeywords: List<String>): Boolean {
+        val entry = getEntryById(id) ?: return false
+        updateEntry(entry.copy(secondaryKeywords = mGson.toJsonString(secondaryKeywords)))
+        return true
+    }
+
+    /**
+     * 获取世界书条目的分类标签列表。
+     */
+    suspend fun getEntryCategory(id: Long): List<String> {
+        val entry = getEntryById(id) ?: return emptyList()
+        return mGson.toStringList(entry.category)
+    }
+
+    /**
+     * 更新世界书条目的分类标签列表。
+     */
+    suspend fun updateEntryCategory(id: Long, category: List<String>): Boolean {
+        val entry = getEntryById(id) ?: return false
+        updateEntry(entry.copy(category = mGson.toJsonString(category)))
+        return true
     }
 }

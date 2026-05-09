@@ -1,10 +1,16 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.utils.toJsonString
+import me.kafuuneko.rpclient.utils.toStringList
 
-class CharacterRepository(private val mAppDatabase: AppDatabase) {
-    private val characterDao = mAppDatabase.getCharacterDao()
+class CharacterRepository(
+    appDatabase: AppDatabase,
+    private val mGson: Gson
+) {
+    private val mCharacterDao = appDatabase.getCharacterDao()
 
     /**
      * 获取所有角色。
@@ -12,7 +18,7 @@ class CharacterRepository(private val mAppDatabase: AppDatabase) {
      * @return 角色列表。
      */
     suspend fun getAllCharacters(): List<Character> {
-        return characterDao.getAllCharacters()
+        return mCharacterDao.getAllCharacters()
     }
 
     /**
@@ -22,44 +28,7 @@ class CharacterRepository(private val mAppDatabase: AppDatabase) {
      * @return 匹配的角色；如果不存在则返回 null。
      */
     suspend fun getCharacterById(id: Long): Character? {
-        return characterDao.getCharacterById(id)
-    }
-
-    /**
-     * 创建新的角色。
-     *
-     * @param name 角色名称。
-     * @param avatar 角色头像资源路径或标识。
-     * @param characterTags 角色标签，按当前数据结构保存为字符串。
-     * @param personality 角色核心设定。
-     * @param scenario 场景设定。
-     * @param firstMessages 开场白。
-     * @param examplesOfDialogue 对话示例。
-     * @param postHistoryInstructions 后置提示词。
-     * @return 新创建的角色 id。
-     */
-    suspend fun createCharacter(
-        name: String,
-        avatar: String = "",
-        characterTags: String = "",
-        personality: String = "",
-        scenario: String = "",
-        firstMessages: String = "",
-        examplesOfDialogue: String = "",
-        postHistoryInstructions: String = ""
-    ): Long {
-        return characterDao.insertOrReplace(
-            Character(
-                name = name,
-                avatar = avatar,
-                characterTags = characterTags,
-                personality = personality,
-                scenario = scenario,
-                firstMessages = firstMessages,
-                examplesOfDialogue = examplesOfDialogue,
-                postHistoryInstructions = postHistoryInstructions
-            )
-        )
+        return mCharacterDao.getCharacterById(id)
     }
 
     /**
@@ -72,9 +41,9 @@ class CharacterRepository(private val mAppDatabase: AppDatabase) {
      */
     suspend fun saveCharacter(character: Character): Long {
         if (character.id == 0L) {
-            return characterDao.insertOrReplace(character)
+            return mCharacterDao.insertOrReplace(character)
         }
-        characterDao.update(character)
+        mCharacterDao.update(character)
         return character.id
     }
 
@@ -84,7 +53,7 @@ class CharacterRepository(private val mAppDatabase: AppDatabase) {
      * @param character 要更新的角色。
      */
     suspend fun updateCharacter(character: Character) {
-        characterDao.update(character)
+        mCharacterDao.update(character)
     }
 
     /**
@@ -93,6 +62,57 @@ class CharacterRepository(private val mAppDatabase: AppDatabase) {
      * @param id 角色 id。
      */
     suspend fun deleteCharacter(id: Long) {
-        characterDao.deleteCharacterById(id)
+        mCharacterDao.deleteCharacterById(id)
+    }
+
+    /**
+     * 获取角色的所有开场白列表。
+     *
+     * @param id 角色 id。
+     * @return 开场白列表；如果角色不存在或开场白为空则返回空列表。
+     */
+    suspend fun getCharacterFirstMessages(id: Long): List<String> {
+        return getCharacterById(id)?.getFirstMessageList() ?: emptyList()
+    }
+
+    /**
+     * 更新角色的开场白列表。
+     * 自动使用 "<START>" 将列表拼接为字符串并保存。
+     *
+     * @param id 角色 id。
+     * @param messages 开场白列表。
+     * @return 更新是否成功（如果角色不存在则返回 false）。
+     */
+    suspend fun updateCharacterFirstMessages(id: Long, messages: List<String>): Boolean {
+        val character = getCharacterById(id) ?: return false
+        val newFirstMessages = messages.joinToString("<START>")
+        updateCharacter(character.copy(firstMessages = newFirstMessages))
+        return true
+    }
+
+    /**
+     * 获取角色的所有标签列表。
+     * 自动将 JSON 字符串解析为列表。
+     *
+     * @param id 角色 id。
+     * @return 标签列表；如果角色不存在或解析失败则返回空列表。
+     */
+    suspend fun getCharacterTags(id: Long): List<String> {
+        val character = getCharacterById(id) ?: return emptyList()
+        return mGson.toStringList(character.characterTags)
+    }
+
+    /**
+     * 更新角色的标签列表。
+     * 自动将其转换为 JSON 字符串并保存。
+     *
+     * @param id 角色 id。
+     * @param tags 标签列表。
+     * @return 更新是否成功（如果角色不存在则返回 false）。
+     */
+    suspend fun updateCharacterTags(id: Long, tags: List<String>): Boolean {
+        val character = getCharacterById(id) ?: return false
+        updateCharacter(character.copy(characterTags = mGson.toJsonString(tags)))
+        return true
     }
 }

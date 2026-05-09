@@ -39,40 +39,6 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
     }
 
     /**
-     * 创建新的聊天会话。
-     *
-     * @param characterId 当前会话绑定的角色 id。
-     * @param title 会话标题。
-     * @param createTime 会话创建时间。
-     * @param latestTime 会话最近活跃时间。
-     * @param lorebookEntrySet 当前会话启用的世界书条目集合字符串。
-     * @param summarize 会话总结。
-     * @param userNote 用户笔记。
-     * @return 新创建的会话 id。
-     */
-    suspend fun createSession(
-        characterId: Long,
-        title: String,
-        createTime: Long = System.currentTimeMillis(),
-        latestTime: Long = createTime,
-        lorebookEntrySet: String = "",
-        summarize: String = "",
-        userNote: String = ""
-    ): Long {
-        return mChatSessionDao.insertOrReplace(
-            ChatSession(
-                characterId = characterId,
-                createTime = createTime,
-                latestTime = latestTime,
-                lorebookEntrySet = lorebookEntrySet,
-                title = title,
-                summarize = summarize,
-                userNote = userNote
-            )
-        )
-    }
-
-    /**
      * 保存会话。
      *
      * 当 id 为 0 时创建新会话；否则更新已有会话。
