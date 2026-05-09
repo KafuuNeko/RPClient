@@ -71,4 +71,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.androidx.room.testing)
 
+    // okhttp
+    implementation(libs.okhttp)
+
 }

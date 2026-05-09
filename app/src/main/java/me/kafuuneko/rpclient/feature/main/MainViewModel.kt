@@ -15,13 +15,21 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.ProviderUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
-) {
+), KoinComponent {
+    private val mLLMRepository by inject<LLMRepository>()
+
     @UiIntentObserver(MainUiIntent.Init::class)
-    private fun onInit() {
+    private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
+        val providers = mLLMRepository.getAllProviders()
+        val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = MainHomeState(
                 greeting = "继续一段有角色记忆、有世界书约束的剧情。",
@@ -31,11 +39,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 totalWorldBooks = 7
             ),
             settingsState = MainSettingsState(
-                selectedProviderId = "openrouter",
-                providers = previewProviders(),
-                temperature = 0.82f,
-                maxTokens = 1200,
-                contextTokens = 8192,
+                selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
+                providers = providers.map { it.toUiModel() },
+                temperature = selectedProvider?.temperature ?: 0.8f,
+                maxTokens = selectedProvider?.maxTokens ?: 1200,
+                contextTokens = selectedProvider?.contextTokens ?: 8192,
                 localFirstEnabled = true,
                 streamEnabled = true
             )
@@ -80,11 +88,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     }
 
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
-    private fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
+    private suspend fun onSelectProvider(intent: MainUiIntent.SelectProvider) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val providerId = intent.providerId.toLongOrNull() ?: return
+        mLLMRepository.selectProvider(providerId)
+        val providers = mLLMRepository.getAllProviders()
+        val selectedProvider = providers.firstOrNull { it.id == providerId }
         uiState.copy(
             selectedPage = MainPage.Settings,
-            settingsState = uiState.settingsState.copy(selectedProviderId = intent.providerId)
+            settingsState = uiState.settingsState.copy(
+                selectedProviderId = intent.providerId,
+                providers = providers.map { it.toUiModel() },
+                temperature = selectedProvider?.temperature ?: uiState.settingsState.temperature,
+                maxTokens = selectedProvider?.maxTokens ?: uiState.settingsState.maxTokens,
+                contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens
+            )
         ).setup()
     }
 
@@ -123,25 +141,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     )
 
-    private fun previewProviders() = listOf(
-        ProviderUiModel(
-            id = "openrouter",
-            name = "OpenRouter",
-            type = "OpenAI-compatible",
-            endpoint = "https://openrouter.ai/api/v1",
-            model = "anthropic/claude-sonnet",
-            status = "可用",
-            isEnabled = true
-        ),
-        ProviderUiModel(
-            id = "ollama",
-            name = "Ollama Local",
-            type = "Local",
-            endpoint = "http://127.0.0.1:11434",
-            model = "qwen3:14b",
-            status = "未连接",
-            isEnabled = false
-        )
+    private fun LLMProvider.toUiModel() = ProviderUiModel(
+        id = id.toString(),
+        name = name,
+        type = protocol.name,
+        endpoint = baseUrl,
+        model = model,
+        status = when {
+            !isEnabled -> "未启用"
+            apiKey.isBlank() -> "待配置"
+            else -> "可用"
+        },
+        isEnabled = isEnabled
     )
 }
-
