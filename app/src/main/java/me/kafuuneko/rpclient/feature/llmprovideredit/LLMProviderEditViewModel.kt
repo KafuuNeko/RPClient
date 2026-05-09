@@ -12,18 +12,22 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent, LLMProviderEditUiState>(
-    LLMProviderEditUiState.None
-), KoinComponent {
+class LLMProviderEditViewModel :
+    CoreViewModelWithEvent<LLMProviderEditUiIntent, LLMProviderEditUiState>(
+        LLMProviderEditUiState.None
+    ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
+    private val mLLMClientFactory by inject<LLMClientFactory>()
 
     @UiIntentObserver(LLMProviderEditUiIntent.Init::class)
     private suspend fun onInit(intent: LLMProviderEditUiIntent.Init) {
@@ -31,7 +35,8 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
         val provider = intent.providerId?.let { mLLMRepository.getProviderById(it) }
         LLMProviderEditUiState.Normal(
             mode = if (provider == null) LLMProviderEditMode.Create else LLMProviderEditMode.Edit,
-            form = provider?.toForm() ?: LLMProviderEditForm()
+
+            form = provider?.let { LLMProviderEditForm.from(it) } ?: LLMProviderEditForm()
         ).setup()
     }
 
@@ -41,45 +46,57 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeName::class)
-    private fun onChangeName(intent: LLMProviderEditUiIntent.ChangeName) = updateForm { copy(name = intent.value) }
+    private fun onChangeName(intent: LLMProviderEditUiIntent.ChangeName) =
+        updateForm { copy(name = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeProviderType::class)
-    private fun onChangeProviderType(intent: LLMProviderEditUiIntent.ChangeProviderType) = updateForm { copy(providerType = intent.value) }
+    private fun onChangeProviderType(intent: LLMProviderEditUiIntent.ChangeProviderType) =
+        updateForm { copy(providerType = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeProtocol::class)
-    private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) = updateForm { copy(protocol = intent.value) }
+    private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) =
+        updateForm { copy(protocol = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeBaseUrl::class)
-    private fun onChangeBaseUrl(intent: LLMProviderEditUiIntent.ChangeBaseUrl) = updateForm { copy(baseUrl = intent.value) }
+    private fun onChangeBaseUrl(intent: LLMProviderEditUiIntent.ChangeBaseUrl) =
+        updateForm { copy(baseUrl = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeApiKey::class)
-    private fun onChangeApiKey(intent: LLMProviderEditUiIntent.ChangeApiKey) = updateForm { copy(apiKey = intent.value) }
+    private fun onChangeApiKey(intent: LLMProviderEditUiIntent.ChangeApiKey) =
+        updateForm { copy(apiKey = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeModel::class)
-    private fun onChangeModel(intent: LLMProviderEditUiIntent.ChangeModel) = updateForm { copy(model = intent.value) }
+    private fun onChangeModel(intent: LLMProviderEditUiIntent.ChangeModel) =
+        updateForm { copy(model = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeCustomHeadersJson::class)
-    private fun onChangeCustomHeadersJson(intent: LLMProviderEditUiIntent.ChangeCustomHeadersJson) = updateForm { copy(customHeadersJson = intent.value) }
+    private fun onChangeCustomHeadersJson(intent: LLMProviderEditUiIntent.ChangeCustomHeadersJson) =
+        updateForm { copy(customHeadersJson = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTemperature::class)
-    private fun onChangeTemperature(intent: LLMProviderEditUiIntent.ChangeTemperature) = updateForm { copy(temperature = intent.value) }
+    private fun onChangeTemperature(intent: LLMProviderEditUiIntent.ChangeTemperature) =
+        updateForm { copy(temperature = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTopP::class)
-    private fun onChangeTopP(intent: LLMProviderEditUiIntent.ChangeTopP) = updateForm { copy(topP = intent.value) }
+    private fun onChangeTopP(intent: LLMProviderEditUiIntent.ChangeTopP) =
+        updateForm { copy(topP = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeMaxTokens::class)
-    private fun onChangeMaxTokens(intent: LLMProviderEditUiIntent.ChangeMaxTokens) = updateForm { copy(maxTokens = intent.value) }
+    private fun onChangeMaxTokens(intent: LLMProviderEditUiIntent.ChangeMaxTokens) =
+        updateForm { copy(maxTokens = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeContextTokens::class)
-    private fun onChangeContextTokens(intent: LLMProviderEditUiIntent.ChangeContextTokens) = updateForm { copy(contextTokens = intent.value) }
+    private fun onChangeContextTokens(intent: LLMProviderEditUiIntent.ChangeContextTokens) =
+        updateForm { copy(contextTokens = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleEnabled::class)
-    private fun onToggleEnabled(intent: LLMProviderEditUiIntent.ToggleEnabled) = updateForm { copy(isEnabled = intent.value) }
+    private fun onToggleEnabled(intent: LLMProviderEditUiIntent.ToggleEnabled) =
+        updateForm { copy(isEnabled = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.SaveClick::class)
     private suspend fun onSaveClick() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
-        val provider = uiState.form.toProviderOrNull() ?: return
+        val provider = uiState.form.toProviderOrNullWithToast() ?: return
         uiState.copy(loadState = LLMProviderEditLoadState.Saving).setup()
         withContext(Dispatchers.IO) { mLLMRepository.saveProvider(provider) }
         AppViewEvent.PopupToastMessageByResId(
@@ -91,13 +108,12 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
     @UiIntentObserver(LLMProviderEditUiIntent.TestClick::class)
     private suspend fun onTestClick() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
-        val provider = uiState.form.toProviderOrNull() ?: return
+        val provider = uiState.form.toProviderOrNullWithToast() ?: return
         uiState.copy(testState = LLMProviderEditTestState.Testing).setup()
         val result = runCatching {
             withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = provider,
-                    request = LLMGenerationRequest(
+                mLLMClientFactory.create(provider.toConfig()).generate(
+                    LLMGenerationRequest(
                         messages = listOf(
                             LLMMessage(
                                 role = LLMMessageRole.User,
@@ -129,29 +145,9 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
     }
 
     /**
-     * 将实体转换为表单状态。
+     * 校验表单并转换为数据库实体，失败时给出对应提示。
      */
-    private fun LLMProvider.toForm() = LLMProviderEditForm(
-        id = id,
-        createTime = createTime,
-        name = name,
-        providerType = providerType,
-        protocol = protocol,
-        baseUrl = baseUrl,
-        apiKey = apiKey,
-        model = model,
-        customHeadersJson = customHeadersJson,
-        temperature = temperature.toString(),
-        topP = topP.toString(),
-        maxTokens = maxTokens.toString(),
-        contextTokens = contextTokens.toString(),
-        isEnabled = isEnabled
-    )
-
-    /**
-     * 校验并将表单转换为数据库实体。
-     */
-    private fun LLMProviderEditForm.toProviderOrNull(): LLMProvider? {
+    private fun LLMProviderEditForm.toProviderOrNullWithToast(): LLMProvider? {
         if (name.isBlank()) {
             AppViewEvent.PopupToastMessageByResId(R.string.model_name_empty).tryEmit()
             return null
@@ -164,29 +160,10 @@ class LLMProviderEditViewModel : CoreViewModelWithEvent<LLMProviderEditUiIntent,
             AppViewEvent.PopupToastMessageByResId(R.string.model_name_required).tryEmit()
             return null
         }
-        val parsedTemperature = temperature.toFloatOrNull()
-        val parsedTopP = topP.toFloatOrNull()
-        val parsedMaxTokens = maxTokens.toIntOrNull()
-        val parsedContextTokens = contextTokens.toIntOrNull()
-        if (parsedTemperature == null || parsedTopP == null || parsedMaxTokens == null || parsedContextTokens == null) {
+        val provider = toProviderOrNull()
+        if (provider == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
-            return null
         }
-        return LLMProvider(
-            id = id,
-            name = name.trim(),
-            providerType = providerType,
-            protocol = protocol,
-            baseUrl = baseUrl.trim(),
-            apiKey = apiKey.trim(),
-            model = model.trim(),
-            customHeadersJson = customHeadersJson.trim(),
-            temperature = parsedTemperature,
-            topP = parsedTopP,
-            maxTokens = parsedMaxTokens,
-            contextTokens = parsedContextTokens,
-            isEnabled = isEnabled,
-            createTime = createTime
-        )
+        return provider
     }
 }

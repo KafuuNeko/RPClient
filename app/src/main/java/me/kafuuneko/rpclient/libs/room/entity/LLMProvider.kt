@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
@@ -37,4 +38,18 @@ data class LLMProvider(
     val createTime: Long = System.currentTimeMillis(),
     // 更新时间
     val updateTime: Long = createTime
+)
+
+fun LLMProvider.toConfig() = LLMProviderConfig(
+    name = name,
+    providerType = providerType,
+    protocol = protocol,
+    baseUrl = baseUrl,
+    apiKey = apiKey,
+    model = model,
+    customHeadersJson = customHeadersJson,
+    temperature = temperature,
+    topP = topP,
+    maxTokens = maxTokens,
+    contextTokens = contextTokens
 )

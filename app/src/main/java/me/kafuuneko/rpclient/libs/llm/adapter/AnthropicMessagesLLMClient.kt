@@ -7,8 +7,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -16,7 +16,7 @@ import org.json.JSONObject
 
 class AnthropicMessagesLLMClient(
     private val mOkHttpClient: OkHttpClient,
-    private val mProvider: LLMProvider
+    private val mProvider: LLMProviderConfig
 ) : LLMClient {
     /**
      * Anthropic Messages 非流式调用，适用于 Claude 官方接口。

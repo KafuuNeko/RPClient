@@ -7,8 +7,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,7 +17,7 @@ import org.json.JSONObject
 
 class GeminiLLMClient(
     private val mOkHttpClient: OkHttpClient,
-    private val mProvider: LLMProvider
+    private val mProvider: LLMProviderConfig
 ) : LLMClient {
     /**
      * Gemini 非流式调用，等待 generateContent 返回完整文本。

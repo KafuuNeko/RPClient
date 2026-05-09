@@ -7,7 +7,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -119,14 +119,14 @@ internal fun LLMMessage.toGeminiRole(): String {
 /**
  * 标准化 Provider baseUrl，避免拼接路径时出现重复斜杠。
  */
-internal fun LLMProvider.normalizedBaseUrl(): String {
+internal fun LLMProviderConfig.normalizedBaseUrl(): String {
     return baseUrl.trim().trimEnd('/')
 }
 
 /**
  * 解析用户自定义请求头 JSON。格式错误时返回空 Map，避免阻断主流程。
  */
-internal fun LLMProvider.customHeaders(): Map<String, String> {
+internal fun LLMProviderConfig.customHeaders(): Map<String, String> {
     if (customHeadersJson.isBlank()) return emptyMap()
     return runCatching {
         val json = JSONObject(customHeadersJson)
@@ -137,7 +137,7 @@ internal fun LLMProvider.customHeaders(): Map<String, String> {
 /**
  * 将 Provider 自定义请求头应用到当前请求。
  */
-internal fun Request.Builder.applyProviderHeaders(provider: LLMProvider): Request.Builder {
+internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): Request.Builder {
     provider.customHeaders().forEach { (key, value) -> header(key, value) }
     return this
 }

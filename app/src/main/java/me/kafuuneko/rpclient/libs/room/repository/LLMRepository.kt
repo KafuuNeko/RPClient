@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.toConfig
 
 class LLMRepository(
     private val mAppDatabase: AppDatabase,
@@ -99,7 +100,7 @@ class LLMRepository(
     suspend fun generate(providerId: Long, request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider).generate(request)
+        return mLLMClientFactory.create(provider.toConfig()).generate(request)
     }
 
     /**
@@ -107,14 +108,14 @@ class LLMRepository(
      */
     suspend fun generateWithSelectedProvider(request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
-        return mLLMClientFactory.create(provider).generate(request)
+        return mLLMClientFactory.create(provider.toConfig()).generate(request)
     }
 
     /**
      * 使用临时供应商配置进行一次性生成，适合编辑页保存前测试。
      */
     suspend fun generateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): LLMGenerationResponse {
-        return mLLMClientFactory.create(provider).generate(request)
+        return mLLMClientFactory.create(provider.toConfig()).generate(request)
     }
 
     /**
@@ -123,7 +124,7 @@ class LLMRepository(
     suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider).streamGenerate(request)
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request)
     }
 
     /**
@@ -131,14 +132,14 @@ class LLMRepository(
      */
     suspend fun streamGenerateWithSelectedProvider(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
-        return mLLMClientFactory.create(provider).streamGenerate(request)
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request)
     }
 
     /**
      * 使用临时供应商配置进行流式生成，适合编辑页保存前测试。
      */
     fun streamGenerateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
-        return mLLMClientFactory.create(provider).streamGenerate(request)
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request)
     }
 
     /**

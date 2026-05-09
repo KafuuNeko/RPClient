@@ -24,6 +24,23 @@ enum class LLMProviderProtocol {
 }
 
 /**
+ * LLM 模块运行时使用的 Provider 配置
+ */
+data class LLMProviderConfig(
+    val name: String,
+    val providerType: LLMProviderType,
+    val protocol: LLMProviderProtocol,
+    val baseUrl: String,
+    val apiKey: String = "",
+    val model: String,
+    val customHeadersJson: String = "",
+    val temperature: Float = 0.8f,
+    val topP: Float = 1.0f,
+    val maxTokens: Int = 1200,
+    val contextTokens: Int = 8192
+)
+
+/**
  * 通用聊天消息角色，适配器会转换成各协议自己的角色名称。
  */
 enum class LLMMessageRole {
