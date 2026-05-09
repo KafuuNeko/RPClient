@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
-import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Person
@@ -39,17 +37,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,7 +57,6 @@ import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
@@ -128,7 +121,12 @@ private fun MainBottomBar(
         NavigationBarItem(
             selected = selectedPage == MainPage.Settings,
             onClick = { MainUiIntent.SelectPage(MainPage.Settings).emit() },
-            icon = { Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings)) },
+            icon = {
+                Icon(
+                    Icons.Rounded.Settings,
+                    contentDescription = stringResource(R.string.settings)
+                )
+            },
             label = { Text(stringResource(R.string.settings)) }
         )
     }
@@ -146,76 +144,35 @@ private fun HomePage(
         contentPadding = PaddingValues(top = 18.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { HomeHero(state) }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HomeEntryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.Person,
-                    title = stringResource(R.string.character),
-                    subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
-                    onClick = { MainUiIntent.OpenCharacterManager.emit() }
-                )
-                HomeEntryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.Book,
-                    title = stringResource(R.string.world_book),
-                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
-                    onClick = { MainUiIntent.OpenWorldBookManager.emit() }
-                )
-            }
+            HomeEntryCard(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Rounded.Person,
+                title = stringResource(R.string.character),
+                subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
+                onClick = { MainUiIntent.OpenCharacterManager.emit() }
+            )
         }
-        item { RpSectionHeader(title = stringResource(R.string.recent_chats), action = stringResource(R.string.manage_characters)) { MainUiIntent.OpenCharacterManager.emit() } }
+        item {
+            HomeEntryCard(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Rounded.Book,
+                title = stringResource(R.string.world_book),
+                subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
+                onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+            )
+        }
+        item {
+            RpSectionHeader(
+                title = stringResource(R.string.recent_chats),
+                action = stringResource(R.string.manage_characters)
+            ) { MainUiIntent.OpenCharacterManager.emit() }
+        }
         items(state.recentSessions) { session ->
             SessionCard(
                 session = session,
                 onClick = { MainUiIntent.OpenChat(session.id).emit() }
             )
-        }
-    }
-}
-
-@Composable
-private fun HomeHero(state: MainHomeState) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = androidx.compose.material3.MaterialTheme.typography.displayLarge,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
-                fontWeight = FontWeight.Black
-            )
-            Text(
-                text = state.greeting,
-                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.88f)
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RpAvatar(
-                    text = state.activeCharacter.avatarText,
-                    color = Color(state.activeCharacter.accentColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = state.activeCharacter.name,
-                        style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
-                    )
-                    Text(
-                        text = state.activeCharacter.subtitle,
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
-                    )
-                }
-            }
         }
     }
 }
@@ -265,7 +222,9 @@ private fun SessionCard(
                     Text(
                         text = session.preview,
                         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.62f
+                        ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -295,8 +254,18 @@ private fun SettingsPage(
         contentPadding = PaddingValues(top = 18.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { RpPageTitle(title = stringResource(R.string.setting_page_title), subtitle = stringResource(R.string.setting_subtitle)) }
-        item { RpSectionHeader(title = stringResource(R.string.model_provider), action = stringResource(R.string.manage)) { MainUiIntent.OpenProviderManager.emit() } }
+        item {
+            RpPageTitle(
+                title = stringResource(R.string.setting_page_title),
+                subtitle = stringResource(R.string.setting_subtitle)
+            )
+        }
+        item {
+            RpSectionHeader(
+                title = stringResource(R.string.model_provider),
+                action = stringResource(R.string.manage)
+            ) { MainUiIntent.OpenProviderManager.emit() }
+        }
         if (state.providers.isEmpty()) {
             item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
         } else {
@@ -338,7 +307,10 @@ private fun ProviderCard(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
-        border = if (selected) BorderStroke(2.dp, androidx.compose.material3.MaterialTheme.colorScheme.primary) else null,
+        border = if (selected) BorderStroke(
+            2.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.primary
+        ) else null,
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -348,27 +320,34 @@ private fun ProviderCard(
             RpIconBubble(if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(provider.name, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
-                Text(provider.model, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                Text(
+                    provider.name,
+                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    provider.model,
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                )
                 Text(
                     provider.baseUrl,
                     style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.48f
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            RpTagRow(listOf(provider.statusText()), maxCount = 1)
+            RpTagRow(
+                tags = listOf(
+                    when {
+                        !provider.isEnabled -> stringResource(R.string.not_enabled)
+                        provider.apiKey.isBlank() -> stringResource(R.string.pending_config)
+                        else -> stringResource(R.string.available)
+                    }
+                ), maxCount = 1
+            )
         }
-    }
-}
-
-@Composable
-private fun LLMProvider.statusText(): String {
-    return when {
-        !isEnabled -> stringResource(R.string.not_enabled)
-        apiKey.isBlank() -> stringResource(R.string.pending_config)
-        else -> stringResource(R.string.available)
     }
 }
 
@@ -382,10 +361,16 @@ private fun ParameterPanel(state: MainSettingsState) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.generation_parameters), action = stringResource(R.string.preset))
+            RpSectionHeader(
+                title = stringResource(R.string.generation_parameters),
+                action = stringResource(R.string.preset)
+            )
             ParameterRow(stringResource(R.string.temperature), state.temperature.toString())
             ParameterRow(stringResource(R.string.max_tokens), state.maxTokens.toString())
-            ParameterRow(stringResource(R.string.context), "${state.contextTokens} ${stringResource(R.string.tokens)}")
+            ParameterRow(
+                stringResource(R.string.context),
+                "${state.contextTokens} ${stringResource(R.string.tokens)}"
+            )
         }
     }
 }
@@ -393,7 +378,11 @@ private fun ParameterPanel(state: MainSettingsState) {
 @Composable
 private fun ParameterRow(label: String, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, modifier = Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium
+        )
         FilterChip(selected = true, onClick = {}, label = { Text(value) })
     }
 }
@@ -408,9 +397,22 @@ private fun PrivacyPanel(state: MainSettingsState) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.privacy_and_backup), action = stringResource(R.string.export))
-            SettingSwitchRow(Icons.Rounded.Shield, stringResource(R.string.local_first), stringResource(R.string.local_first_desc), state.localFirstEnabled)
-            SettingSwitchRow(Icons.Rounded.Refresh, stringResource(R.string.streaming_response), stringResource(R.string.streaming_response_desc), state.streamEnabled)
+            RpSectionHeader(
+                title = stringResource(R.string.privacy_and_backup),
+                action = stringResource(R.string.export)
+            )
+            SettingSwitchRow(
+                Icons.Rounded.Shield,
+                stringResource(R.string.local_first),
+                stringResource(R.string.local_first_desc),
+                state.localFirstEnabled
+            )
+            SettingSwitchRow(
+                Icons.Rounded.Refresh,
+                stringResource(R.string.streaming_response),
+                stringResource(R.string.streaming_response_desc),
+                state.streamEnabled
+            )
         }
     }
 }
@@ -449,8 +451,17 @@ private fun MainLayoutPreview() {
         MainLayout(
             uiState = MainUiState.Normal(
                 homeState = MainHomeState(
-                    greeting = "Continue a story with character memory and world book constraints.",
-                    activeCharacter = RpCharacterUiModel("lyra", "Lyra", "Fog Harbor Archivist", "", "L", emptyList(), 12, "Just now", 0xFF315EFD),
+                    activeCharacter = RpCharacterUiModel(
+                        "lyra",
+                        "Lyra",
+                        "Fog Harbor Archivist",
+                        "",
+                        "L",
+                        emptyList(),
+                        12,
+                        "Just now",
+                        0xFF315EFD
+                    ),
                     recentSessions = emptyList(),
                     totalCharacters = 24,
                     totalWorldBooks = 7

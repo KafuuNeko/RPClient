@@ -31,7 +31,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val selectedProvider = providers.firstOrNull { it.isSelected } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = MainHomeState(
-                greeting = "继续一段有角色记忆、有世界书约束的剧情。",
                 activeCharacter = previewCharacters().first(),
                 recentSessions = previewSessions(),
                 totalCharacters = 24,

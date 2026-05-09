@@ -22,7 +22,6 @@ enum class MainPage {
 }
 
 data class MainHomeState(
-    val greeting: String,
     val activeCharacter: RpCharacterUiModel,
     val recentSessions: List<ChatSessionUiModel>,
     val totalCharacters: Int,
