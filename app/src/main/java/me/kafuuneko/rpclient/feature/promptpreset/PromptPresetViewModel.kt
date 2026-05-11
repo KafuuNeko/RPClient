@@ -16,8 +16,8 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     private fun onInit() {
         if (!isStateOf<PromptPresetUiState.None>()) return
         PromptPresetUiState.Normal(
-            mainPrompt = AppModel.mainPrompt.orEmpty(),
-            summarizePrompt = AppModel.summarizePrompt.orEmpty()
+            mainPrompt = AppModel.mainPrompt,
+            summarizePrompt = AppModel.summarizePrompt
         ).setup()
     }
 
@@ -50,8 +50,8 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.Summarize -> AppModel.summarizePrompt = intent.text
         }
         uiState.copy(
-            mainPrompt = AppModel.mainPrompt.orEmpty(),
-            summarizePrompt = AppModel.summarizePrompt.orEmpty(),
+            mainPrompt = AppModel.mainPrompt,
+            summarizePrompt = AppModel.summarizePrompt,
             dialogState = PromptPresetDialogState.None
         ).setup()
     }

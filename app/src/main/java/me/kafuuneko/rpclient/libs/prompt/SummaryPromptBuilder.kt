@@ -41,7 +41,7 @@ class SummaryPromptBuilder(
             maxResponseTokens = AppModel.summaryResponseTokens
         )
         val prompt = mMacroResolver.resolve(
-            template = AppModel.summarizePrompt?.takeIf { it.isNotBlank() } ?: DEFAULT_SUMMARY_PROMPT,
+            template = AppModel.summarizePrompt,
             context = context,
             history = history
         ).replace("{{words}}", AppModel.summaryWordsLimit.toString(), ignoreCase = true)
@@ -83,23 +83,5 @@ class SummaryPromptBuilder(
             usedTokens += nextTokens
         }
         return selected
-    }
-
-    private companion object {
-        const val DEFAULT_SUMMARY_PROMPT = """
-Please summarize the following chat history into concise story memory.
-Rules:
-- Do not continue roleplay.
-- Do not generate a new reply for {{char}} or {{user}}.
-- Only summarize what already happened in the chat.
-- Preserve important facts, relationship changes, promises, injuries, locations, goals, unresolved conflicts and current scene state.
-- Keep it within {{words}} words.
-
-Existing summary:
-{{summary}}
-
-Chat history to summarize:
-{{history}}
-"""
     }
 }

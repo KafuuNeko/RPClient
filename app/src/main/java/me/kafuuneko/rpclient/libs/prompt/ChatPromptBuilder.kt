@@ -39,7 +39,7 @@ class ChatPromptBuilder(
         fixedMessages.afterHistory.forEach { messages += it.resolve(context, historyText) }
 
         return LLMGenerationRequest(
-            messages = messages.ifEmpty { listOf(LLMMessage(LLMMessageRole.System, mainPrompt())) },
+            messages = messages.ifEmpty { listOf(LLMMessage(LLMMessageRole.System, AppModel.mainPrompt)) },
             model = context.provider?.model,
             options = LLMGenerationOptions(
                 temperature = context.provider?.temperature,
@@ -56,7 +56,7 @@ class ChatPromptBuilder(
     ): PromptSections {
         // 固定区承载角色扮演的稳定约束；后续裁剪历史时不应优先丢失这些内容。
         val beforeHistory = mutableListOf<PromptPiece>()
-        beforeHistory += PromptPiece(LLMMessageRole.System, mainPrompt(), PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(LLMMessageRole.System, AppModel.mainPrompt, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.personality, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.scenario, PromptPieceImportance.Required)
@@ -113,10 +113,6 @@ class ChatPromptBuilder(
         val resolved = resolve(content, context, history).trim()
         val maxTokens = if (importance == PromptPieceImportance.Required) REQUIRED_PIECE_MAX_TOKENS else OPTIONAL_PIECE_MAX_TOKENS
         return LLMMessage(role, trimToTokenLimit(resolved, maxTokens))
-    }
-
-    private fun mainPrompt(): String {
-        return AppModel.mainPrompt?.takeIf { it.isNotBlank() } ?: DEFAULT_MAIN_PROMPT
     }
 
     private fun resolve(text: String, context: PromptBuildContext, history: String): String {
@@ -177,8 +173,5 @@ class ChatPromptBuilder(
         const val MIN_WORLD_BUDGET = 128
         const val REQUIRED_PIECE_MAX_TOKENS = 1600
         const val OPTIONAL_PIECE_MAX_TOKENS = 900
-        const val DEFAULT_MAIN_PROMPT =
-            "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.\n" +
-                "Write one reply only. Do not decide what {{user}} says or does."
     }
 }

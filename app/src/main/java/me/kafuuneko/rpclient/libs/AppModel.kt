@@ -4,15 +4,34 @@ import com.chibatching.kotpref.KotprefModel
 
 object AppModel : KotprefModel() {
     const val EMAIL = "kafuuneko@gmail.com"
+    const val DEFAULT_MAIN_PROMPT = """
+Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
+Write one reply only. Do not decide what {{user}} says or does.
+"""
+    const val DEFAULT_SUMMARIZE_PROMPT = """
+Please summarize the following chat history into concise story memory.
+Rules:
+- Do not continue roleplay.
+- Do not generate a new reply for {{char}} or {{user}}.
+- Only summarize what already happened in the chat.
+- Preserve important facts, relationship changes, promises, injuries, locations, goals, unresolved conflicts and current scene state.
+- Keep it within {{words}} words.
+
+Existing summary:
+{{summary}}
+
+Chat history to summarize:
+{{history}}
+"""
 
     // 当前选中的模型
     var currentLLMProvider by longPref()
 
     // 主要提示词（Main Prompt）
-    var mainPrompt by nullableStringPref(default = null)
+    var mainPrompt by stringPref(default = DEFAULT_MAIN_PROMPT)
 
     // 总结提示词（Summarize Prompt）
-    var summarizePrompt by nullableStringPref(default = null)
+    var summarizePrompt by stringPref(default = DEFAULT_SUMMARIZE_PROMPT)
 
     // 是否启用流式响应
     var streamEnabled by booleanPref(default = true)
