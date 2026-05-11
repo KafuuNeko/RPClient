@@ -1,10 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
 sealed class ChatUiIntent {
-    data class Init(
-        val sessionId: String?,
-        val firstMessage: String?
-    ) : ChatUiIntent()
+    data class Init(val sessionId: String?) : ChatUiIntent()
 
     data object Resume : ChatUiIntent()
 

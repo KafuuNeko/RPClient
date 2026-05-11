@@ -7,7 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -77,9 +76,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         mSessionId = sessionId
-        val loaded = withContext(Dispatchers.IO) {
-            loadNormalState(sessionId, firstMessage = intent.firstMessage)
-        }
+        val loaded = withContext(Dispatchers.IO) { loadNormalState(sessionId) }
         if (loaded == null) {
             finishWithToast(R.string.session_not_found)
             return
@@ -498,7 +495,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private suspend fun loadNormalState(
         sessionId: Long,
-        firstMessage: String? = null,
         inputDraft: String = "",
         page: ChatPage = ChatPage.Conversation,
         isExpanded: Boolean = false,
@@ -510,10 +506,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 所有 UI model 在 ViewModel 中组装，Compose 只负责渲染和发送 intent。
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
-        val existingMessages = mChatRepository.getMessagesBySessionId(sessionId)
-        if (existingMessages.isEmpty() && !firstMessage.isNullOrBlank()) {
-            mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, firstMessage)
-        }
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()

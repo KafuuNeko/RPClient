@@ -62,6 +62,46 @@ class ChatRepository(
     }
 
     /**
+     * 创建新的聊天会话，同时附带开场白消息。
+     */
+    suspend fun createSessionWithFirstMessage(
+        characterId: Long,
+        title: String,
+        userNote: String,
+        lorebookEntryIds: List<Long>,
+        firstMessageContent: String?,
+        creatorNotes: String? = null,
+        createTime: Long = System.currentTimeMillis()
+    ): Long {
+        return mAppDatabase.withTransaction {
+            val sessionId = mChatSessionDao.insertOrReplace(
+                ChatSession(
+                    characterId = characterId,
+                    createTime = createTime,
+                    latestTime = createTime,
+                    lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
+                    title = title,
+                    summarize = "",
+                    userNote = userNote,
+                    creatorNotes = creatorNotes
+                )
+            )
+            firstMessageContent?.takeIf { it.isNotBlank() }?.let {
+                mChatMessageDao.insertOrReplace(
+                    ChatMessage(
+                        sessionId = sessionId,
+                        createTime = createTime,
+                        source = ChatMessage.Source.Char,
+                        content = it,
+                        isSummarized = false
+                    )
+                )
+            }
+            sessionId
+        }
+    }
+
+    /**
      * 创建新的聊天会话。
      *
      * 世界书条目通过 id 列表传入，由仓库统一序列化为持久化字段。

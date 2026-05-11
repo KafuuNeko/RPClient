@@ -13,10 +13,15 @@ import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -26,6 +31,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
+    private val mLLMRepository by inject<LLMRepository>()
+    private val mMacroResolver by inject<PromptMacroResolver>()
 
     @UiIntentObserver(ChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
@@ -112,19 +119,46 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         }
         val firstMessageSelection = uiState.resolveFirstMessageSelection() ?: return
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
+
+        val firstMessageContent = firstMessageSelection.value?.let { rawFirstMessage ->
+            val session = ChatSession(
+                id = 0L,
+                characterId = character.id,
+                createTime = System.currentTimeMillis(),
+                latestTime = System.currentTimeMillis(),
+                lorebookEntrySet = "",
+                title = uiState.form.normalizedTitle(character),
+                summarize = "",
+                userNote = uiState.form.userNote.trim(),
+                creatorNotes = null
+            )
+            val context = PromptBuildContext(
+                userName = AppModel.userName,
+                character = character,
+                session = session,
+                messages = emptyList(),
+                currentUserMessage = null,
+                candidateLorebookEntries = emptyList(),
+                provider = mLLMRepository.getSelectedProvider(),
+                maxContextTokens = 0,
+                maxResponseTokens = 0
+            )
+            mMacroResolver.resolve(rawFirstMessage, context)
+        }
+
         val sessionId = withContext(Dispatchers.IO) {
-            mChatRepository.createSession(
+            mChatRepository.createSessionWithFirstMessage(
                 characterId = character.id,
                 title = uiState.form.normalizedTitle(character),
                 userNote = uiState.form.userNote.trim(),
-                lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted()
+                lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
+                firstMessageContent = firstMessageContent
             )
         }
         AppViewEvent.StartActivity(
             activity = ChatActivity::class.java,
             extras = Bundle().apply {
                 putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
-                putString(ChatActivity.EXTRA_FIRST_MESSAGE, firstMessageSelection.value)
             }
         ).emitAndAwait()
         ChatCreateUiState.Finished.setup()
