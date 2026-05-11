@@ -1,8 +1,10 @@
 package me.kafuuneko.rpclient.feature.main
 
+import android.content.Context
 import android.os.Bundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
@@ -38,6 +40,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
+    private val mContext by inject<Context>()
 
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
@@ -247,9 +250,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val latestMessage = mChatRepository.getLatestMessageBySessionId(id)
         return MainChatSessionItem(
             id = id.toString(),
-            characterName = character?.name.orEmpty().ifBlank { "Unknown character" },
+            characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
-            preview = latestMessage?.content?.takeIf { it.isNotBlank() } ?: "No messages yet",
+            preview = latestMessage?.content?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
             messageCount = mChatRepository.getMessageCountBySessionId(id),
             branchCount = 0,
             updatedAt = latestTime.toDisplayTime()

@@ -6,6 +6,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chibatching.kotpref.Kotpref
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
+import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -45,6 +50,11 @@ private val appModules = module {
     single { Gson() }
 
     singleOf(::LLMClientFactory)
+    singleOf(::FormattedHistoryBuilder)
+    singleOf(::PromptMacroResolver)
+    singleOf(::WorldBookActivator)
+    singleOf(::ChatPromptBuilder)
+    singleOf(::SummaryPromptBuilder)
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat
 
+import android.content.Context
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -9,8 +10,10 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
@@ -51,20 +54,26 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
-    private val mChatPromptBuilder = ChatPromptBuilder()
-    private val mSummaryPromptBuilder = SummaryPromptBuilder()
+    private val mChatPromptBuilder by inject<ChatPromptBuilder>()
+    private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
+    private val mContext by inject<Context>()
 
     private var mSessionId: Long? = null
     private var mGenerationJob: Job? = null
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
 
+    /**
+     * 初始化真实会话数据。
+     *
+     * 新建会话进入 Chat 页时，如果数据库中还没有消息且携带开场白，则在这里将开场白落库为角色消息。
+     */
     @UiIntentObserver(ChatUiIntent.Init::class)
     private suspend fun onInit(intent: ChatUiIntent.Init) {
         if (!isStateOf<ChatUiState.None>()) return
         val sessionId = intent.sessionId?.toLongOrNull()
         if (sessionId == null) {
-            finishWithToast("Invalid session id")
+            finishWithToast(R.string.invalid_session_id)
             return
         }
         mSessionId = sessionId
@@ -72,7 +81,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             loadNormalState(sessionId, firstMessage = intent.firstMessage)
         }
         if (loaded == null) {
-            finishWithToast("Session not found")
+            finishWithToast(R.string.session_not_found)
             return
         }
         loaded.setup()
@@ -116,10 +125,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val input = uiState.inputDraft.trim()
         if (input.isBlank()) return
         if (mGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessage("Generation is already running").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
 
+        // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -144,9 +154,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     inputDraft = "",
                     isExpanded = uiState.isSessionLoreExpanded,
-                    generationState = ChatGenerationState.Failed(throwable.message ?: "Generation failed")
+                    generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(R.string.generation_failed))
                 )
-                AppViewEvent.PopupToastMessage(throwable.message ?: "Generation failed").tryEmit()
+                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(R.string.generation_failed)).tryEmit()
             }
         }
     }
@@ -159,6 +169,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         job.cancel()
         val messageId = mStreamingMessageId
         val content = mStreamingContent
+        // 用户停止生成时，已经收到的流式片段仍然是有效剧情内容，需要写回当前 assistant 消息。
         withContext(Dispatchers.IO) {
             if (messageId != null && content.isNotBlank()) {
                 mChatRepository.updateMessageContent(messageId, content)
@@ -185,7 +196,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mChatRepository.getMessagesBySessionId(sessionId).lastOrNull { it.source == ChatMessage.Source.Char }
         }
         if (latestAssistantMessage?.id != messageId) {
-            AppViewEvent.PopupToastMessage("Only the latest assistant reply can be regenerated for now").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.only_latest_assistant_reply_regenerate).tryEmit()
             return
         }
         regenerateLastAssistantMessage(sessionId)
@@ -257,7 +268,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSummarizeNow() {
         val sessionId = mSessionId ?: return
         if (mGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessage("Please stop generation before summarizing").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -275,7 +286,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSaveTitle(intent: ChatUiIntent.SaveTitle) {
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionTitle(sessionId, intent.value.trim().ifBlank { "Untitled chat" })
+            mChatRepository.updateSessionTitle(sessionId, intent.value.trim().ifBlank { mContext.getString(R.string.untitled_chat) })
         }
         refreshUiState(sessionId = sessionId, dialogState = ChatDialogState.None)
     }
@@ -326,15 +337,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) {
-            AppViewEvent.PopupToastMessage("Generation is already running").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
+        // 当前数据结构尚未支持 swipe/branch，只允许重生成最后一条角色回复，避免破坏中间历史。
         val latestAssistantMessage = withContext(Dispatchers.IO) {
             val messages = mChatRepository.getMessagesBySessionId(sessionId)
             messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
         }
         if (latestAssistantMessage == null) {
-            AppViewEvent.PopupToastMessage("No latest assistant reply to regenerate").tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_regenerate).tryEmit()
             return
         }
         mGenerationJob = viewModelScope.launch {
@@ -358,8 +370,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 if (throwable is CancellationException) return@onFailure
-                AppViewEvent.PopupToastMessage(throwable.message ?: "Regenerate failed").tryEmit()
-                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: "Regenerate failed"))
+                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(R.string.regenerate_failed)).tryEmit()
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(R.string.regenerate_failed)))
             }
         }
     }
@@ -381,6 +393,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         sessionId: Long,
         request: me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
     ) {
+        // 先插入空 assistant 消息作为流式占位，后续 delta 只更新 UI，完成或停止时再持久化完整内容。
         mStreamingMessageId = withContext(Dispatchers.IO) {
             mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, "")
         }
@@ -430,7 +443,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 AutoSummaryData(session, character, messages, provider)
             } ?: return
             if (data.messages.isEmpty()) {
-                if (showToast) AppViewEvent.PopupToastMessage("No unsummarized messages").tryEmit()
+                if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
                 return
             }
             if (!showToast && data.messages.size < AppModel.summaryTriggerMessageCount) return
@@ -441,6 +454,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messages = data.messages,
                 provider = data.provider
             )
+            // SummaryPromptBuilder 会按上下文预算选择真正提交的消息，只标记这部分为已总结。
             val summarizedIds = mSummaryPromptBuilder.selectSummarizedMessageIds(data.messages, data.provider)
             if (summarizedIds.isEmpty()) return
             val response = withContext(Dispatchers.IO) {
@@ -453,19 +467,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     summarizedMessageIds = summarizedIds
                 )
             }
-            if (showToast) AppViewEvent.PopupToastMessage("Summary updated").tryEmit()
+            if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure {
-            AppViewEvent.PopupToastMessage(it.message ?: "Summary failed").tryEmit()
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.summary_failed)).tryEmit()
         }
     }
 
     private suspend fun buildGenerationRequest(sessionId: Long): me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest {
-        val session = mChatRepository.getSessionById(sessionId) ?: error("Session not found")
-        val character = mCharacterRepository.getCharacterById(session.characterId) ?: error("Character not found")
+        // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
+        val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
+        val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookEntries = getAllLorebookEntries().entries.filter { it.id in enabledIds }
-        val provider = mLLMRepository.getSelectedProvider() ?: error("No enabled LLM provider configured")
+        val provider = mLLMRepository.getSelectedProvider() ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
         return mChatPromptBuilder.build(
             PromptBuildContext(
                 userName = AppModel.userName,
@@ -492,6 +507,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         generationState: ChatGenerationState = ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet()
     ): ChatUiState.Normal? {
+        // 所有 UI model 在 ViewModel 中组装，Compose 只负责渲染和发送 intent。
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
         val existingMessages = mChatRepository.getMessagesBySessionId(sessionId)
@@ -597,9 +613,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 speaker = when (message.source) {
                     ChatMessage.Source.User -> AppModel.userName
                     ChatMessage.Source.Char -> characterName
-                    ChatMessage.Source.System -> "System"
+                    ChatMessage.Source.System -> mContext.getString(R.string.system_speaker)
                 },
                 content = message.content,
+                parts = message.content.toContentParts(message.id.toString()),
                 time = message.createTime.toDisplayTime(),
                 tokenCount = (message.content.length / 3).coerceAtLeast(1),
                 isStreaming = message.id == mStreamingMessageId
@@ -613,7 +630,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 ChatLorebookEntryItem(
                     id = entry.id,
                     lorebookId = entry.lorebookId,
-                    lorebookName = lorebooks[entry.lorebookId]?.name.orEmpty().ifBlank { "Unknown lorebook" },
+                    lorebookName = lorebooks[entry.lorebookId]?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_lorebook) },
                     name = entry.name,
                     keywords = entry.getKeywordList(),
                     secondaryKeywords = entry.getSecondaryKeywordList(),
@@ -632,19 +649,47 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (messageId == null) return this
         return map {
             if (it.id == messageId.toString()) {
-                it.copy(content = content, isStreaming = true)
+                it.copy(
+                    content = content,
+                    parts = content.toContentParts(it.id),
+                    isStreaming = true
+                )
             } else {
                 it
             }
         }
     }
 
+    private fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
+        // 推理模型的 reasoning 会被适配器包成 <think>，这里预拆成 UI 可直接渲染的结构。
+        val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
+        val parts = mutableListOf<ChatMessageContentPart>()
+        var cursor = 0
+        regex.findAll(this).forEachIndexed { index, match ->
+            if (match.range.first > cursor) {
+                parts += ChatMessageContentPart.Text(substring(cursor, match.range.first))
+            }
+            val thinkContent = match.groupValues[1].trim()
+            if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
+                parts += ChatMessageContentPart.Think(
+                    id = "$messageId:$index",
+                    content = thinkContent
+                )
+            }
+            cursor = match.range.last + 1
+        }
+        if (cursor < length) {
+            parts += ChatMessageContentPart.Text(substring(cursor))
+        }
+        return parts.ifEmpty { listOf(ChatMessageContentPart.Text(this)) }
+    }
+
     private fun Long.toDisplayTime(): String {
         return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(this))
     }
 
-    private fun finishWithToast(message: String) {
-        AppViewEvent.PopupToastMessage(message).tryEmit()
+    private fun finishWithToast(messageResId: Int) {
+        AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
         ChatUiState.Finished.setup()
     }
 

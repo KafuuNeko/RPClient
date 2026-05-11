@@ -55,6 +55,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
@@ -169,7 +170,7 @@ private fun ChatHeader(state: ChatUiState.Normal) {
                 listOf(
                     stringResource(R.string.messages_count, state.session.messageCount),
                     stringResource(R.string.world_books_enabled, state.lorebookEntries.count { it.enabled }),
-                    if (state.streamEnabled) "Streaming on" else "Streaming off"
+                    if (state.streamEnabled) stringResource(R.string.streaming_on) else stringResource(R.string.streaming_off)
                 )
             )
         }
@@ -292,9 +293,9 @@ private fun MessageContent(
     emit: ChatUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        parseThinkBlocks(message.id, message.content).forEach { part ->
+        message.parts.forEach { part ->
             when (part) {
-                is MessageContentPart.Text -> {
+                is ChatMessageContentPart.Text -> {
                     if (part.content.isNotBlank()) {
                         Text(
                             text = part.content,
@@ -303,7 +304,7 @@ private fun MessageContent(
                         )
                     }
                 }
-                is MessageContentPart.Think -> ThinkBlock(
+                is ChatMessageContentPart.Think -> ThinkBlock(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
                     emit = emit
@@ -315,7 +316,7 @@ private fun MessageContent(
 
 @Composable
 private fun ThinkBlock(
-    part: MessageContentPart.Think,
+    part: ChatMessageContentPart.Think,
     expanded: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -332,13 +333,13 @@ private fun ThinkBlock(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Thought process",
+                    stringResource(R.string.thought_process),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 Text(
-                    if (expanded) "Hide" else "Show",
+                    if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -437,7 +438,7 @@ private fun ChatSettingsPage(
             .statusBarsPadding()
     ) {
         AppTopBar(
-            title = "Chat Settings",
+            title = stringResource(R.string.chat_settings),
             onBack = { ChatUiIntent.CloseChatSettings.emit() }
         )
         LazyColumn(
@@ -446,35 +447,35 @@ private fun ChatSettingsPage(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                SettingsSection(title = "Actions") {
+                SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
                     MenuAction(
                         icon = Icons.Rounded.Refresh,
-                        title = "Regenerate latest reply",
-                        subtitle = "Delete the latest assistant reply and generate again"
+                        title = stringResource(R.string.regenerate_latest_reply),
+                        subtitle = stringResource(R.string.regenerate_latest_reply_desc)
                     ) { ChatUiIntent.RegenerateLast.emit() }
                     MenuAction(
                         icon = Icons.Rounded.AutoAwesome,
-                        title = "Summarize now",
-                        subtitle = "Update this chat's memory using the global summary settings"
+                        title = stringResource(R.string.summarize_now),
+                        subtitle = stringResource(R.string.summarize_now_desc)
                     ) { ChatUiIntent.SummarizeNow.emit() }
                 }
             }
             item {
-                SettingsSection(title = "Session") {
-                    MenuAction(Icons.Rounded.Edit, "Title", state.session.title) { ChatUiIntent.EditTitleClick.emit() }
-                    MenuAction(Icons.Rounded.Edit, "Current summary", state.session.summarize.ifBlank { "No summary yet" }) {
+                SettingsSection(title = stringResource(R.string.session)) {
+                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.title), state.session.title) { ChatUiIntent.EditTitleClick.emit() }
+                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.current_summary), state.session.summarize.ifBlank { stringResource(R.string.no_summary_yet) }) {
                         ChatUiIntent.EditSummaryClick.emit()
                     }
-                    MenuAction(Icons.Rounded.Edit, "User note", state.session.userNote.ifBlank { "Empty" }) {
+                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.user_note), state.session.userNote.ifBlank { stringResource(R.string.empty) }) {
                         ChatUiIntent.EditUserNoteClick.emit()
                     }
-                    MenuAction(Icons.Rounded.Edit, "Creator notes", state.session.creatorNotes.ifBlank { "Using character default or empty" }) {
+                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.creator_notes), state.session.creatorNotes.ifBlank { stringResource(R.string.using_character_default_or_empty) }) {
                         ChatUiIntent.EditCreatorNotesClick.emit()
                     }
                 }
             }
             item {
-                SettingsSection(title = "World Book") {
+                SettingsSection(title = stringResource(R.string.world_book)) {
                     if (state.lorebookEntries.isEmpty()) {
                         Text(
                             text = stringResource(R.string.no_world_book_entries),
@@ -517,10 +518,10 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         ChatDialogState.None -> Unit
-        is ChatDialogState.EditTitle -> TextEditDialog("Title", dialogState.text, { ChatUiIntent.SaveTitle(it).emit() }, emit)
-        is ChatDialogState.EditSummary -> TextEditDialog("Summary", dialogState.text, { ChatUiIntent.SaveSummary(it).emit() }, emit)
-        is ChatDialogState.EditUserNote -> TextEditDialog("User Note", dialogState.text, { ChatUiIntent.SaveUserNote(it).emit() }, emit)
-        is ChatDialogState.EditCreatorNotes -> TextEditDialog("Creator Notes", dialogState.text, { ChatUiIntent.SaveCreatorNotes(it).emit() }, emit)
+        is ChatDialogState.EditTitle -> TextEditDialog(stringResource(R.string.title), dialogState.text, { ChatUiIntent.SaveTitle(it).emit() }, emit)
+        is ChatDialogState.EditSummary -> TextEditDialog(stringResource(R.string.current_summary), dialogState.text, { ChatUiIntent.SaveSummary(it).emit() }, emit)
+        is ChatDialogState.EditUserNote -> TextEditDialog(stringResource(R.string.user_note), dialogState.text, { ChatUiIntent.SaveUserNote(it).emit() }, emit)
+        is ChatDialogState.EditCreatorNotes -> TextEditDialog(stringResource(R.string.creator_notes), dialogState.text, { ChatUiIntent.SaveCreatorNotes(it).emit() }, emit)
     }
 }
 
@@ -595,49 +596,23 @@ private fun ChatGenerationState.isGenerating(): Boolean {
     return this is ChatGenerationState.Requesting || this is ChatGenerationState.Streaming
 }
 
+@Composable
 private fun ChatGenerationState.label(streamEnabled: Boolean): String {
     return when (this) {
-        ChatGenerationState.Idle -> if (streamEnabled) "Connected, streaming enabled" else "Connected"
-        ChatGenerationState.Requesting -> "Requesting model..."
-        is ChatGenerationState.Streaming -> "Generating..."
+        ChatGenerationState.Idle -> if (streamEnabled) stringResource(R.string.connected_streaming_enabled) else stringResource(R.string.connected)
+        ChatGenerationState.Requesting -> stringResource(R.string.requesting_model)
+        is ChatGenerationState.Streaming -> stringResource(R.string.generating)
         is ChatGenerationState.Failed -> message
     }
 }
 
+@Composable
 private fun ChatUiState.Normal.statusText(): String {
     return if (loadState == ChatLoadState.Saving) {
-        "Updating summary..."
+        stringResource(R.string.updating_summary)
     } else {
         generationState.label(streamEnabled)
     }
-}
-
-private fun parseThinkBlocks(messageId: String, content: String): List<MessageContentPart> {
-    val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
-    val parts = mutableListOf<MessageContentPart>()
-    var cursor = 0
-    regex.findAll(content).forEachIndexed { index, match ->
-        if (match.range.first > cursor) {
-            parts += MessageContentPart.Text(content.substring(cursor, match.range.first))
-        }
-        val thinkContent = match.groupValues[1].trim()
-        if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
-            parts += MessageContentPart.Think(
-                id = "$messageId:$index",
-                content = thinkContent
-            )
-        }
-        cursor = match.range.last + 1
-    }
-    if (cursor < content.length) {
-        parts += MessageContentPart.Text(content.substring(cursor))
-    }
-    return parts.ifEmpty { listOf(MessageContentPart.Text(content)) }
-}
-
-private sealed class MessageContentPart {
-    data class Text(val content: String) : MessageContentPart()
-    data class Think(val id: String, val content: String) : MessageContentPart()
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
@@ -673,6 +648,7 @@ private fun ChatLayoutPreview() {
                         role = MessageRole.Assistant,
                         speaker = "Lyra",
                         content = "The rain kept tapping on the archive windows.",
+                        parts = listOf(ChatMessageContentPart.Text("The rain kept tapping on the archive windows.")),
                         time = "02:15",
                         tokenCount = 12
                     )

@@ -9,10 +9,16 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
 class ChatPromptBuilder(
-    private val mMacroResolver: PromptMacroResolver = PromptMacroResolver(),
-    private val mHistoryBuilder: FormattedHistoryBuilder = FormattedHistoryBuilder(),
-    private val mWorldBookActivator: WorldBookActivator = WorldBookActivator()
+    private val mMacroResolver: PromptMacroResolver,
+    private val mHistoryBuilder: FormattedHistoryBuilder,
+    private val mWorldBookActivator: WorldBookActivator
 ) {
+    /**
+     * 构建真实发送给 LLM 的 Chat Completion 请求。
+     *
+     * 这里按 SillyTavern 风格将长期设定、Summary、世界书、近期历史和后置指令分层组织，
+     * 并在字符数估算的 token 预算内优先保留核心设定与最近历史。
+     */
     fun build(context: PromptBuildContext): LLMGenerationRequest {
         val maxPromptTokens = (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(MIN_PROMPT_TOKENS)
         val worldBudget = (maxPromptTokens * AppModel.worldInfoBudgetPercent.coerceIn(0, 40) / 100)
@@ -47,6 +53,7 @@ class ChatPromptBuilder(
         context: PromptBuildContext,
         activatedEntries: List<LorebookEntry>
     ): PromptSections {
+        // 固定区承载角色扮演的稳定约束；后续裁剪历史时不应优先丢失这些内容。
         val beforeHistory = mutableListOf<PromptPiece>()
         beforeHistory += PromptPiece(LLMMessageRole.System, mainPrompt(), PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
@@ -74,6 +81,7 @@ class ChatPromptBuilder(
     }
 
     private fun fitHistory(messages: List<ChatMessage>, tokenBudget: Int): List<ChatMessage> {
+        // 历史从新到旧纳入预算，长对话时优先保留最近上下文。
         val selected = ArrayDeque<ChatMessage>()
         var usedTokens = 0
         messages.asReversed().forEach { message ->
@@ -86,6 +94,7 @@ class ChatPromptBuilder(
     }
 
     private fun fitWorldInfo(entries: List<LorebookEntry>, tokenBudget: Int): List<LorebookEntry> {
+        // 世界书使用独立预算，避免被触发的 lore 过多时挤掉核心 prompt 和聊天历史。
         val selected = mutableListOf<LorebookEntry>()
         var usedTokens = 0
         entries.sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
@@ -99,6 +108,7 @@ class ChatPromptBuilder(
     }
 
     private fun PromptPiece.resolve(context: PromptBuildContext, history: String): LLMMessage {
+        // 单条固定 prompt 也做上限保护，避免超长角色卡独占整个上下文。
         val resolved = resolve(content, context, history).trim()
         val maxTokens = if (importance == PromptPieceImportance.Required) REQUIRED_PIECE_MAX_TOKENS else OPTIONAL_PIECE_MAX_TOKENS
         return LLMMessage(role, trimToTokenLimit(resolved, maxTokens))
@@ -171,4 +181,3 @@ class ChatPromptBuilder(
                 "Write one reply only. Do not decide what {{user}} says or does."
     }
 }
-

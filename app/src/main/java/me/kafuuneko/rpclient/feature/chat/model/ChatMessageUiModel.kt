@@ -5,7 +5,13 @@ data class ChatMessageUiModel(
     val role: MessageRole,
     val speaker: String,
     val content: String,
+    val parts: List<ChatMessageContentPart>,
     val time: String,
     val tokenCount: Int,
     val isStreaming: Boolean = false
 )
+
+sealed class ChatMessageContentPart {
+    data class Text(val content: String) : ChatMessageContentPart()
+    data class Think(val id: String, val content: String) : ChatMessageContentPart()
+}

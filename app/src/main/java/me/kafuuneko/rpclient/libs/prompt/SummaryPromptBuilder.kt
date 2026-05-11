@@ -11,9 +11,15 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 class SummaryPromptBuilder(
-    private val mMacroResolver: PromptMacroResolver = PromptMacroResolver(),
-    private val mHistoryBuilder: FormattedHistoryBuilder = FormattedHistoryBuilder()
+    private val mMacroResolver: PromptMacroResolver,
+    private val mHistoryBuilder: FormattedHistoryBuilder
 ) {
+    /**
+     * 构建独立的总结请求。
+     *
+     * 总结不走正常角色扮演 prompt 栈，只提交已有摘要与待总结聊天历史，避免世界书、
+     * 角色卡或作者注释把未发生的设定污染进剧情记忆。
+     */
     fun build(
         userName: String,
         character: Character,
@@ -55,6 +61,7 @@ class SummaryPromptBuilder(
         messages: List<ChatMessage>,
         provider: LLMProvider?
     ): List<Long> {
+        // 与 build() 使用相同裁剪逻辑，确保只标记实际送入总结请求的消息。
         return fitSummaryMessages(messages, provider).map { it.id }
     }
 
@@ -62,6 +69,7 @@ class SummaryPromptBuilder(
         messages: List<ChatMessage>,
         provider: LLMProvider?
     ): List<ChatMessage> {
+        // 增量总结按时间顺序选择尚未总结的旧消息，超出预算时保留已纳入的前段。
         val maxMessages = AppModel.summaryMaxMessagesPerRequest
         val limitedByCount = if (maxMessages > 0) messages.take(maxMessages) else messages
         val tokenBudget = ((provider?.contextTokens ?: 8192) - AppModel.summaryResponseTokens)

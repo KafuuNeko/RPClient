@@ -7,8 +7,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 class PromptMacroResolver(
-    private val mHistoryBuilder: FormattedHistoryBuilder = FormattedHistoryBuilder()
+    private val mHistoryBuilder: FormattedHistoryBuilder
 ) {
+    /**
+     * 替换 prompt 中的基础 SillyTavern 宏。
+     *
+     * 未识别的宏保持原样，方便调试用户自定义 prompt 中尚未支持的语法。
+     */
     fun resolve(
         template: String,
         context: PromptBuildContext,
@@ -16,6 +21,7 @@ class PromptMacroResolver(
         original: String = template
     ): String {
         val firstMessages = context.character.getFirstMessageList()
+        // 兼容旧式 <USER>/<BOT>/<CHAR> 写法，统一转换到 {{...}} 宏格式。
         var result = template
             .replace("<USER>", "{{user}}", ignoreCase = true)
             .replace("<BOT>", "{{char}}", ignoreCase = true)

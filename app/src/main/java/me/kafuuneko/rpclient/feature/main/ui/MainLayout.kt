@@ -437,34 +437,34 @@ private fun SummaryPanel(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             RpSectionHeader(
-                title = "Summary Memory",
-                action = if (state.autoSummaryEnabled) "Auto" else "Manual"
+                title = stringResource(R.string.summary_memory),
+                action = if (state.autoSummaryEnabled) stringResource(R.string.auto) else stringResource(R.string.manual)
             )
             SettingSwitchRow(
                 Icons.Rounded.AutoAwesome,
-                "Auto summarize",
-                "Update chat memory after the configured number of unsummarized messages",
+                stringResource(R.string.auto_summarize),
+                stringResource(R.string.auto_summarize_desc),
                 state.autoSummaryEnabled,
                 onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
             )
             NumberSettingRow(
-                title = "Update every messages",
+                title = stringResource(R.string.summary_update_every_messages),
                 value = state.summaryTriggerMessageCount.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
             )
             NumberSettingRow(
-                title = "Target words",
+                title = stringResource(R.string.summary_target_words),
                 value = state.summaryWordsLimit.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
             )
             NumberSettingRow(
-                title = "Max messages per request",
+                title = stringResource(R.string.summary_max_messages_per_request),
                 value = state.summaryMaxMessagesPerRequest.toString(),
-                helper = "0 lets the context budget decide",
+                helper = stringResource(R.string.summary_max_messages_helper),
                 onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
             )
             NumberSettingRow(
-                title = "Summary response tokens",
+                title = stringResource(R.string.summary_response_tokens),
                 value = state.summaryResponseTokens.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
             )
@@ -483,7 +483,7 @@ private fun NumberSettingRow(
         Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = value,
-            onValueChange = { onValueChange(it.filter { char -> char.isDigit() }) },
+            onValueChange = onValueChange,
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

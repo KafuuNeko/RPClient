@@ -40,6 +40,18 @@
     <string name="new_session_desc">Choose a character, notes and world book entries</string>
     <string name="no_recent_chats">No recent chats</string>
     <string name="no_recent_chats_desc">Create a session to start a new conversation.</string>
+    <string name="summary_memory">Summary Memory</string>
+    <string name="auto">Auto</string>
+    <string name="manual">Manual</string>
+    <string name="auto_summarize">Auto summarize</string>
+    <string name="auto_summarize_desc">Update chat memory after the configured number of unsummarized messages</string>
+    <string name="summary_update_every_messages">Update every messages</string>
+    <string name="summary_target_words">Target words</string>
+    <string name="summary_max_messages_per_request">Max messages per request</string>
+    <string name="summary_max_messages_helper">0 lets the context budget decide</string>
+    <string name="summary_response_tokens">Summary response tokens</string>
+    <string name="unknown_character">Unknown character</string>
+    <string name="no_messages_yet">No messages yet</string>
 
     <!-- Character Layout -->
     <string name="character_manager">Character Manager</string>
@@ -100,6 +112,45 @@
     <string name="input_next_story">Input your next story line</string>
     <string name="send">Send</string>
     <string name="connected">Connected</string>
+    <string name="streaming_on">Streaming on</string>
+    <string name="streaming_off">Streaming off</string>
+    <string name="connected_streaming_enabled">Connected, streaming enabled</string>
+    <string name="requesting_model">Requesting model…</string>
+    <string name="generating">Generating…</string>
+    <string name="updating_summary">Updating summary…</string>
+    <string name="thought_process">Thought process</string>
+    <string name="show">Show</string>
+    <string name="hide">Hide</string>
+    <string name="chat_settings">Chat Settings</string>
+    <string name="chat_settings_actions">Actions</string>
+    <string name="regenerate_latest_reply">Regenerate latest reply</string>
+    <string name="regenerate_latest_reply_desc">Delete the latest assistant reply and generate again</string>
+    <string name="summarize_now">Summarize now</string>
+    <string name="summarize_now_desc">Update this chat memory using the global summary settings</string>
+    <string name="session">Session</string>
+    <string name="title">Title</string>
+    <string name="current_summary">Current summary</string>
+    <string name="no_summary_yet">No summary yet</string>
+    <string name="user_note">User note</string>
+    <string name="empty">Empty</string>
+    <string name="creator_notes">Creator notes</string>
+    <string name="using_character_default_or_empty">Using character default or empty</string>
+    <string name="invalid_session_id">Invalid session id</string>
+    <string name="session_not_found">Session not found</string>
+    <string name="generation_already_running">Generation is already running</string>
+    <string name="generation_failed">Generation failed</string>
+    <string name="only_latest_assistant_reply_regenerate">Only the latest assistant reply can be regenerated for now</string>
+    <string name="stop_generation_before_summarizing">Please stop generation before summarizing</string>
+    <string name="untitled_chat">Untitled chat</string>
+    <string name="no_latest_assistant_reply_to_regenerate">No latest assistant reply to regenerate</string>
+    <string name="regenerate_failed">Regenerate failed</string>
+    <string name="no_unsummarized_messages">No unsummarized messages</string>
+    <string name="summary_updated">Summary updated</string>
+    <string name="summary_failed">Summary failed</string>
+    <string name="character_not_found">Character not found</string>
+    <string name="no_enabled_llm_provider_configured">No enabled LLM provider configured</string>
+    <string name="system_speaker">System</string>
+    <string name="unknown_lorebook">Unknown lorebook</string>
 
     <!-- Chat Create Layout -->
     <string name="create_chat_title">Create Chat</string>
