@@ -27,7 +27,15 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
-            android:name=".feature.worldbook.WorldBookActivity"
+            android:name=".feature.worldbookedit.WorldBookEditActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
+            android:name=".feature.worldbookentryedit.WorldBookEntryEditActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
+            android:name=".feature.worldbooklist.WorldBookListActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity

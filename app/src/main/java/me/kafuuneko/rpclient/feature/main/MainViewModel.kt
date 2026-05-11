@@ -10,13 +10,14 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
-import me.kafuuneko.rpclient.feature.worldbook.WorldBookActivity
+import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
 import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -25,11 +26,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
 ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
+    private val mLorebookRepository by inject<LorebookRepository>()
 
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
         val providers = mLLMRepository.getEnabledProviders()
+        val totalWorldBooks = mLorebookRepository.getAllLorebooks().size
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
@@ -37,7 +40,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 activeCharacter = previewCharacters().first(),
                 recentSessions = previewSessions(),
                 totalCharacters = 24,
-                totalWorldBooks = 7
+                totalWorldBooks = totalWorldBooks
             ),
             settingsState = MainSettingsState(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
@@ -56,9 +59,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providers = mLLMRepository.getEnabledProviders()
+        val totalWorldBooks = mLorebookRepository.getAllLorebooks().size
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         uiState.copy(
+            homeState = uiState.homeState.copy(totalWorldBooks = totalWorldBooks),
             settingsState = uiState.settingsState.copy(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
@@ -101,7 +106,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     @UiIntentObserver(MainUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
-        AppViewEvent.StartActivity(WorldBookActivity::class.java).tryEmit()
+        AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenProviderManager::class)

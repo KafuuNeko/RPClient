@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.worldbook
+package me.kafuuneko.rpclient.feature.worldbooklist
 
 import android.os.Bundle
 import androidx.activity.viewModels
@@ -6,13 +6,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiIntent
-import me.kafuuneko.rpclient.feature.worldbook.presentation.WorldBookUiState
-import me.kafuuneko.rpclient.feature.worldbook.ui.WorldBookLayout
+import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
+import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
+import me.kafuuneko.rpclient.feature.worldbooklist.ui.WorldBookListLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
-class WorldBookActivity : CoreActivityWithEvent() {
-    private val mViewModel by viewModels<WorldBookViewModel>()
+class WorldBookListActivity : CoreActivityWithEvent() {
+    private val mViewModel by viewModels<WorldBookListViewModel>()
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -21,10 +21,10 @@ class WorldBookActivity : CoreActivityWithEvent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
 
         LaunchedEffect(uiState) {
-            if (uiState is WorldBookUiState.Finished) finish()
+            if (uiState is WorldBookListUiState.Finished) finish()
         }
 
-        WorldBookLayout(
+        WorldBookListLayout(
             uiState = uiState,
             emit = { mViewModel.emit(this) }
         )
@@ -32,12 +32,12 @@ class WorldBookActivity : CoreActivityWithEvent() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mViewModel.emit(WorldBookUiIntent.Init)
+        mViewModel.emit(WorldBookListUiIntent.Init)
     }
 
     override fun onResume() {
         super.onResume()
-        mViewModel.emit(WorldBookUiIntent.Resume)
+        mViewModel.emit(WorldBookListUiIntent.Resume)
     }
 }
 

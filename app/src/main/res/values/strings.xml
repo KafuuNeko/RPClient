@@ -111,6 +111,38 @@
     <string name="edit_world_book">Edit world book</string>
     <string name="priority">Priority %d</string>
     <string name="entry_card_desc">Avatar, description, first message, example dialogues, author notes</string>
+    <string name="no_world_books">No world books</string>
+    <string name="no_world_books_desc">Create a world book to start managing reusable lore entries.</string>
+    <string name="world_book_editor_subtitle">Edit lorebook metadata and every trigger entry saved in the local library</string>
+    <string name="no_world_book_entries">No entries</string>
+    <string name="no_world_book_entries_desc">Add entries for keywords, categories, insertion order and lore content.</string>
+    <string name="entry_index">Entry %d</string>
+    <string name="unnamed_entry">Unnamed entry</string>
+    <string name="entry_name">Entry name</string>
+    <string name="entry_order">Order</string>
+    <string name="entry_depth">Depth</string>
+    <string name="entry_content">Content</string>
+    <string name="no_keywords">No keywords</string>
+    <string name="entry_order_depth">Order %1$d / Depth %2$d</string>
+    <string name="primary_keywords">Primary keywords</string>
+    <string name="secondary_keywords">Secondary keywords</string>
+    <string name="categories">Categories</string>
+    <string name="create_world_book_entry">Create entry</string>
+    <string name="edit_world_book_entry">Edit entry</string>
+    <string name="world_book_entry_editor_subtitle">Keywords, insertion rules and lore content</string>
+    <string name="delete_world_book_entry_title">Delete entry</string>
+    <string name="delete_world_book_entry_message">Delete "%s"? This cannot be undone.</string>
+    <string name="delete_world_book_title">Delete world book</string>
+    <string name="delete_world_book_message">Delete "%s" and all of its entries? This cannot be undone.</string>
+    <string name="world_book_name_empty">World book name cannot be empty</string>
+    <string name="world_book_entry_order_invalid">Entry order must be a number</string>
+    <string name="world_book_entry_depth_invalid">Entry depth must be a number</string>
+    <string name="world_book_created">World book created</string>
+    <string name="world_book_saved">World book saved</string>
+    <string name="world_book_deleted">World book deleted</string>
+    <string name="world_book_entry_created">Entry created</string>
+    <string name="world_book_entry_saved">Entry saved</string>
+    <string name="world_book_entry_deleted">Entry deleted</string>
 
     <!-- LLM Provider List Layout -->
     <string name="model_provider_title">Model Provider</string>
@@ -166,10 +198,6 @@
     <string name="character_saved">Character saved</string>
     <string name="character_deleted">Character deleted</string>
     <string name="character_avatar_save_failed">Failed to save character avatar</string>
-
-    <!-- World Book ViewModel -->
-    <string name="world_book_creation_coming_soon">World book creation logic coming soon</string>
-    <string name="world_book_entry_creation_coming_soon">World book entry creation logic coming soon</string>
 
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">Send and streaming generation logic coming soon</string>
