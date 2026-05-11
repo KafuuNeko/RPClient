@@ -79,6 +79,15 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateSessionUserNote(id: Long, userNote: String)
 
     /**
+     * 修改角色笔记。
+     *
+     * @param id 会话 id。
+     * @param creatorNotes 新的角色笔记。
+     */
+    @Query("UPDATE chat_sessions SET creatorNotes = :creatorNotes WHERE id = :id")
+    suspend fun updateSessionCreatorNotes(id: Long, creatorNotes: String?)
+
+    /**
      * 根据会话 id 删除会话。
      *
      * @param id 会话 id。

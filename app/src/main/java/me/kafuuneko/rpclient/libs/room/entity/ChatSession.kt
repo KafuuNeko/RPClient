@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
 @Entity(
     tableName = "chat_sessions",
@@ -35,5 +36,11 @@ data class ChatSession(
     // 当前对话总结
     val summarize: String,
     // 用户笔记
-    val userNote: String
-)
+    val userNote: String,
+    // 当前对话的角色备注覆盖值，为空时使用关联角色的 creatorNotes
+    val creatorNotes: String? = null
+) {
+    fun withNormalizedCreatorNotes(): ChatSession {
+        return copy(creatorNotes = creatorNotes.takeIfNotBlank())
+    }
+}

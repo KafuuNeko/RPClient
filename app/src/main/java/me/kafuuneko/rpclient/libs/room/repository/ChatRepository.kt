@@ -4,10 +4,12 @@ import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
 class ChatRepository(private val mAppDatabase: AppDatabase) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
+    private val mCharacterDao = mAppDatabase.getCharacterDao()
 
     /**
      * 获取所有会话。
@@ -47,10 +49,11 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
      * @return 保存后的会话 id。
      */
     suspend fun saveSession(session: ChatSession): Long {
+        val normalizedSession = session.withNormalizedCreatorNotes()
         if (session.id == 0L) {
-            return mChatSessionDao.insertOrReplace(session)
+            return mChatSessionDao.insertOrReplace(normalizedSession)
         }
-        mChatSessionDao.update(session)
+        mChatSessionDao.update(normalizedSession)
         return session.id
     }
 
@@ -60,7 +63,7 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
      * @param session 要更新的会话。
      */
     suspend fun updateSession(session: ChatSession) {
-        mChatSessionDao.update(session)
+        mChatSessionDao.update(session.withNormalizedCreatorNotes())
     }
 
     /**
@@ -111,6 +114,35 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
      */
     suspend fun updateSessionUserNote(id: Long, userNote: String) {
         mChatSessionDao.updateSessionUserNote(id, userNote)
+    }
+
+    /**
+     * 获取指定会话实际生效的角色备注。
+     *
+     * 如果会话没有覆盖值，则回退到关联角色的 creatorNotes。
+     */
+    suspend fun getSessionCreatorNotes(id: Long): String? {
+        val session = mChatSessionDao.getSessionById(id) ?: return null
+        return getSessionCreatorNotes(session)
+    }
+
+    /**
+     * 获取指定会话实际生效的角色备注。
+     *
+     * 如果会话没有覆盖值，则回退到关联角色的 creatorNotes。
+     */
+    suspend fun getSessionCreatorNotes(session: ChatSession): String {
+        return session.creatorNotes.takeIfNotBlank()
+            ?: mCharacterDao.getCharacterById(session.characterId)?.creatorNotes.orEmpty()
+    }
+
+    /**
+     * 设置当前会话的角色备注覆盖值。
+     *
+     * 传入 null 或空白字符串会清空覆盖值，后续读取时继承 Character.creatorNotes。
+     */
+    suspend fun updateSessionCreatorNotes(id: Long, creatorNotes: String?) {
+        mChatSessionDao.updateSessionCreatorNotes(id, creatorNotes.takeIfNotBlank())
     }
 
     /**
@@ -303,3 +335,4 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
         mChatMessageDao.deleteMessagesBySessionId(sessionId)
     }
 }
+
