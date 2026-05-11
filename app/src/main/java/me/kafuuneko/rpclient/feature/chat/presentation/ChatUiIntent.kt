@@ -21,17 +21,11 @@ sealed class ChatUiIntent {
 
     data class ToggleSessionLoreEntry(val entryId: Long) : ChatUiIntent()
 
+    data class ToggleSessionLorebook(val lorebookId: Long) : ChatUiIntent()
+
     data object OpenChatSettings : ChatUiIntent()
 
     data object CloseChatSettings : ChatUiIntent()
-
-    data object EditTitleClick : ChatUiIntent()
-
-    data object EditSummaryClick : ChatUiIntent()
-
-    data object EditUserNoteClick : ChatUiIntent()
-
-    data object EditCreatorNotesClick : ChatUiIntent()
 
     data object SummarizeNow : ChatUiIntent()
 
@@ -43,7 +37,15 @@ sealed class ChatUiIntent {
 
     data class SaveCreatorNotes(val value: String) : ChatUiIntent()
 
-    data class ToggleThinkBlock(val blockId: String) : ChatUiIntent()
+    data class CopyMessage(val messageId: String) : ChatUiIntent()
 
-    data object DismissDialog : ChatUiIntent()
+    data class StartEditMessage(val messageId: String) : ChatUiIntent()
+
+    data class ChangeEditingMessageDraft(val value: String) : ChatUiIntent()
+
+    data object SaveEditingMessage : ChatUiIntent()
+
+    data object CancelEditingMessage : ChatUiIntent()
+
+    data class ToggleThinkBlock(val blockId: String) : ChatUiIntent()
 }

@@ -25,7 +25,10 @@ class OpenAICompatibleLLMClient(
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
         val raw = mOkHttpClient.await(httpRequest)
-        return raw.toOpenAIResponse(model)
+        return raw.toOpenAIResponse(
+            fallbackModel = model,
+            includeReasoningInContent = request.includeReasoningInContent
+        )
     }
 
     /**
@@ -37,12 +40,13 @@ class OpenAICompatibleLLMClient(
             var isThinking = false
             mOkHttpClient.streamLines(buildRequest(request, model, stream = true)).collect { line ->
                 val event = line.toOpenAIStreamEvent(
+                    includeReasoningInContent = request.includeReasoningInContent,
                     isThinking = isThinking,
                     onThinkingStateChange = { isThinking = it }
                 ) ?: return@collect
                 emit(event)
             }
-            if (isThinking) {
+            if (request.includeReasoningInContent && isThinking) {
                 emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
             }
         }
@@ -92,7 +96,10 @@ class OpenAICompatibleLLMClient(
     /**
      * 解析非流式完整响应。
      */
-    private fun String.toOpenAIResponse(fallbackModel: String): LLMGenerationResponse {
+    private fun String.toOpenAIResponse(
+        fallbackModel: String,
+        includeReasoningInContent: Boolean
+    ): LLMGenerationResponse {
         val json = JSONObject(this)
         val choice = json.getJSONArray("choices").getJSONObject(0)
         val message = choice.optJSONObject("message")
@@ -100,7 +107,11 @@ class OpenAICompatibleLLMClient(
         val reasoningContent = message?.optReasoningContent().orEmpty()
         val content = message?.optCleanString("content").orEmpty()
         return LLMGenerationResponse(
-            content = mergeReasoningContent(reasoningContent, content),
+            content = mergeReasoningContent(
+                reasoningContent = reasoningContent,
+                content = content,
+                includeReasoningInContent = includeReasoningInContent
+            ),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
             usage = usageJson?.let {
@@ -118,6 +129,7 @@ class OpenAICompatibleLLMClient(
      * 解析 OpenAI-compatible SSE 行。
      */
     private fun String.toOpenAIStreamEvent(
+        includeReasoningInContent: Boolean,
         isThinking: Boolean,
         onThinkingStateChange: (Boolean) -> Unit
     ): LLMStreamEvent? {
@@ -131,13 +143,14 @@ class OpenAICompatibleLLMClient(
             ?: return null
         val reasoningContent = deltaObject.optReasoningContent()
         if (reasoningContent.isNotBlank()) {
+            if (!includeReasoningInContent) return null
             val content = if (isThinking) reasoningContent else "<think>\n$reasoningContent"
             onThinkingStateChange(true)
             return LLMStreamEvent.Delta(content = content, rawChunk = data)
         }
         val content = deltaObject.optCleanString("content").orEmpty()
         if (content.isBlank()) return null
-        val mergedContent = if (isThinking) "\n</think>\n\n$content" else content
+        val mergedContent = if (includeReasoningInContent && isThinking) "\n</think>\n\n$content" else content
         onThinkingStateChange(false)
         return LLMStreamEvent.Delta(content = mergedContent, rawChunk = data)
     }
@@ -154,8 +167,12 @@ class OpenAICompatibleLLMClient(
         return if (value.equals("null", ignoreCase = true)) "" else value
     }
 
-    private fun mergeReasoningContent(reasoningContent: String, content: String): String {
-        if (reasoningContent.isBlank()) return content
+    private fun mergeReasoningContent(
+        reasoningContent: String,
+        content: String,
+        includeReasoningInContent: Boolean
+    ): String {
+        if (!includeReasoningInContent || reasoningContent.isBlank()) return content
         return "<think>\n$reasoningContent\n</think>\n\n$content".trim()
     }
 

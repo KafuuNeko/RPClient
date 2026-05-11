@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.chatcreate.presentation
 
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
 import me.kafuuneko.rpclient.libs.room.entity.Character
 
 sealed class ChatCreateUiState {
@@ -12,7 +12,7 @@ sealed class ChatCreateUiState {
         val form: ChatCreateForm = ChatCreateForm(),
         val characters: List<Character> = emptyList(),
         val selectedCharacterFirstMessages: List<String> = emptyList(),
-        val lorebookEntries: List<ChatCreateLorebookEntryItem> = emptyList()
+        val lorebookGroups: List<ChatCreateLorebookGroupItem> = emptyList()
     ) : ChatCreateUiState()
 
     data object Finished : ChatCreateUiState()

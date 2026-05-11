@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateLoadState
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
@@ -128,7 +130,7 @@ private fun ChatCreateNormal(
                 item {
                     RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
                 }
-                if (state.lorebookEntries.isEmpty()) {
+                if (state.lorebookGroups.isEmpty()) {
                     item {
                         EmptyCard(
                             icon = Icons.Rounded.Book,
@@ -136,11 +138,11 @@ private fun ChatCreateNormal(
                         )
                     }
                 }
-                items(state.lorebookEntries) { item ->
-                    LorebookEntryOption(
-                        item = item,
-                        selected = item.entry.id in state.form.selectedLorebookEntryIds,
-                        onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.entry.id).emit() }
+                items(state.lorebookGroups) { group ->
+                    LorebookGroupOption(
+                        group = group,
+                        selectedEntryIds = state.form.selectedLorebookEntryIds,
+                        emit = emit
                     )
                 }
                 item {
@@ -261,18 +263,67 @@ private fun FirstMessageOption(
 }
 
 @Composable
+private fun LorebookGroupOption(
+    group: ChatCreateLorebookGroupItem,
+    selectedEntryIds: Set<Long>,
+    emit: ChatCreateUiIntent.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            val selectedCount = group.entries.count { it.entry.id in selectedEntryIds }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = selectedCount == group.entryCount,
+                    onCheckedChange = { ChatCreateUiIntent.ToggleLorebook(group.lorebookId).emit() }
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                RpIconBubble(Icons.Rounded.Book)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = group.lorebookName,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = stringResource(R.string.enabled_entries_count, selectedCount, group.entryCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    )
+                }
+            }
+            group.entries.forEach { item ->
+                LorebookEntryOption(
+                    item = item,
+                    selected = item.entry.id in selectedEntryIds,
+                    onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.entry.id).emit() }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun LorebookEntryOption(
     item: ChatCreateLorebookEntryItem,
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -393,20 +444,27 @@ private fun ChatCreateLayoutPreview() {
                         postHistoryInstructions = ""
                     )
                 ),
-                lorebookEntries = listOf(
-                    ChatCreateLorebookEntryItem(
-                        entry = LorebookEntry(
-                            id = 1L,
-                            lorebookId = 1L,
-                            name = "Old Town",
-                            keywords = "[]",
-                            secondaryKeywords = "[]",
-                            order = 100,
-                            depth = 0,
-                            category = "[]",
-                            content = "Persistent lore content."
-                        ),
-                        lorebookName = "Fog Harbor"
+                lorebookGroups = listOf(
+                    ChatCreateLorebookGroupItem(
+                        lorebookId = 1L,
+                        lorebookName = "Fog Harbor",
+                        entryCount = 1,
+                        entries = listOf(
+                            ChatCreateLorebookEntryItem(
+                                entry = LorebookEntry(
+                                    id = 1L,
+                                    lorebookId = 1L,
+                                    name = "Old Town",
+                                    keywords = "[]",
+                                    secondaryKeywords = "[]",
+                                    order = 100,
+                                    depth = 0,
+                                    category = "[]",
+                                    content = "Persistent lore content."
+                                ),
+                                lorebookName = "Fog Harbor"
+                            )
+                        )
                     )
                 )
             ),

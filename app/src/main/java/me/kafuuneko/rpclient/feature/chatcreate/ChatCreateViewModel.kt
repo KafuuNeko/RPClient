@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateLoadState
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
@@ -41,11 +42,18 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
             val lorebooks = mLorebookRepository.getAllLorebooks()
-            val entries = lorebooks.flatMap { lorebook ->
-                mLorebookRepository.getEntriesByLorebookId(lorebook.id)
+            val groups = lorebooks.map { lorebook ->
+                val entries = mLorebookRepository.getEntriesByLorebookId(lorebook.id)
+                    .sortedBy { it.order }
                     .map { entry -> ChatCreateLorebookEntryItem(entry, lorebook.name) }
-            }
-            characters to entries
+                ChatCreateLorebookGroupItem(
+                    lorebookId = lorebook.id,
+                    lorebookName = lorebook.name,
+                    entryCount = entries.size,
+                    entries = entries
+                )
+            }.filter { it.entries.isNotEmpty() }
+            characters to groups
         }
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
@@ -54,7 +62,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 ?: ChatCreateForm(selectedCharacterId = data.first.firstOrNull()?.id),
             characters = data.first,
             selectedCharacterFirstMessages = data.first.firstOrNull()?.getFirstMessageList().orEmpty(),
-            lorebookEntries = data.second
+            lorebookGroups = data.second
         ).setup()
     }
 
@@ -96,7 +104,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: ChatCreateUiIntent.ToggleLorebookEntry) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
-        if (uiState.lorebookEntries.none { it.entry.id == intent.entryId }) return
+        if (uiState.lorebookGroups.none { group -> group.entries.any { it.entry.id == intent.entryId } }) return
         val selectedIds = uiState.form.selectedLorebookEntryIds
         updateForm {
             copy(
@@ -104,6 +112,24 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                     selectedIds - intent.entryId
                 } else {
                     selectedIds + intent.entryId
+                }
+            )
+        }
+    }
+
+    @UiIntentObserver(ChatCreateUiIntent.ToggleLorebook::class)
+    private fun onToggleLorebook(intent: ChatCreateUiIntent.ToggleLorebook) {
+        val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
+        val group = uiState.lorebookGroups.firstOrNull { it.lorebookId == intent.lorebookId } ?: return
+        val entryIds = group.entries.map { it.entry.id }.toSet()
+        if (entryIds.isEmpty()) return
+        val selectedIds = uiState.form.selectedLorebookEntryIds
+        updateForm {
+            copy(
+                selectedLorebookEntryIds = if (entryIds.all { it in selectedIds }) {
+                    selectedIds - entryIds
+                } else {
+                    selectedIds + entryIds
                 }
             )
         }

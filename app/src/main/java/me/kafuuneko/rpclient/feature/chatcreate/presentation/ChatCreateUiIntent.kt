@@ -15,5 +15,7 @@ sealed class ChatCreateUiIntent {
 
     data class ToggleLorebookEntry(val entryId: Long) : ChatCreateUiIntent()
 
+    data class ToggleLorebook(val lorebookId: Long) : ChatCreateUiIntent()
+
     data object CreateChat : ChatCreateUiIntent()
 }

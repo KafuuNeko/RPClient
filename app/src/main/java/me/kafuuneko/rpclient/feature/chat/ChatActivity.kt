@@ -1,15 +1,22 @@
 package me.kafuuneko.rpclient.feature.chat
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 class ChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ChatViewModel>()
@@ -42,6 +49,19 @@ class ChatActivity : CoreActivityWithEvent() {
     override fun onResume() {
         super.onResume()
         mViewModel.emit(ChatUiIntent.Resume)
+    }
+
+    override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        when (viewEvent) {
+            is ChatViewEvent.CopyText -> copyText(viewEvent.text)
+            else -> super.onReceivedViewEvent(viewEvent)
+        }
+    }
+
+    private fun copyText(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.message), text))
+        Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
     }
 
     companion object {

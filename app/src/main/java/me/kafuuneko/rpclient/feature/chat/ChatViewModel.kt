@@ -12,16 +12,17 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
+import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -92,9 +93,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             sessionId = sessionId,
             inputDraft = uiState.inputDraft,
             isExpanded = uiState.isSessionLoreExpanded,
-            dialogState = uiState.dialogState,
             generationState = uiState.generationState,
-            expandedThinkBlockIds = uiState.expandedThinkBlockIds
+            expandedThinkBlockIds = uiState.expandedThinkBlockIds,
+            editingMessageId = uiState.editingMessageId,
+            editingMessageDraft = uiState.editingMessageDraft
         )
     }
 
@@ -209,18 +211,35 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onToggleSessionLoreEntry(intent: ChatUiIntent.ToggleSessionLoreEntry) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        val enabledIds = uiState.session.enabledLorebookEntryIds.toMutableSet()
-        if (!enabledIds.add(intent.entryId)) {
-            enabledIds.remove(intent.entryId)
-        }
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionLorebookEntryIds(sessionId, enabledIds.toList())
-        }
+        if (uiState.lorebookGroups.none { group -> group.entries.any { it.id == intent.entryId } }) return
+        val enabledIds = uiState.session.enabledLorebookEntryIds.toggle(intent.entryId)
+        saveSessionLorebookEntryIds(sessionId, enabledIds)
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.inputDraft,
             isExpanded = uiState.isSessionLoreExpanded,
-            dialogState = uiState.dialogState,
+            generationState = uiState.generationState
+        )
+    }
+
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebook::class)
+    private suspend fun onToggleSessionLorebook(intent: ChatUiIntent.ToggleSessionLorebook) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val group = uiState.lorebookGroups.firstOrNull { it.lorebookId == intent.lorebookId } ?: return
+        val entryIds = group.entries.map { it.id }.toSet()
+        if (entryIds.isEmpty()) return
+        val enabledIds = uiState.session.enabledLorebookEntryIds.toMutableSet()
+        if (entryIds.all { it in enabledIds }) {
+            enabledIds.removeAll(entryIds)
+        } else {
+            enabledIds.addAll(entryIds)
+        }
+        saveSessionLorebookEntryIds(sessionId, enabledIds)
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = uiState.inputDraft,
+            isExpanded = uiState.isSessionLoreExpanded,
             generationState = uiState.generationState
         )
     }
@@ -237,30 +256,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(page = ChatPage.Conversation).setup()
     }
 
-    @UiIntentObserver(ChatUiIntent.EditTitleClick::class)
-    private fun onEditTitleClick() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(dialogState = ChatDialogState.EditTitle(uiState.session.title)).setup()
-    }
-
-    @UiIntentObserver(ChatUiIntent.EditSummaryClick::class)
-    private fun onEditSummaryClick() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(dialogState = ChatDialogState.EditSummary(uiState.session.summarize)).setup()
-    }
-
-    @UiIntentObserver(ChatUiIntent.EditUserNoteClick::class)
-    private fun onEditUserNoteClick() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(dialogState = ChatDialogState.EditUserNote(uiState.session.userNote)).setup()
-    }
-
-    @UiIntentObserver(ChatUiIntent.EditCreatorNotesClick::class)
-    private fun onEditCreatorNotesClick() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(dialogState = ChatDialogState.EditCreatorNotes(uiState.session.creatorNotes)).setup()
-    }
-
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
         val sessionId = mSessionId ?: return
@@ -269,7 +264,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(loadState = ChatLoadState.Saving, dialogState = ChatDialogState.None).setup()
+        uiState.copy(loadState = ChatLoadState.Saving).setup()
         summarizeSession(sessionId, showToast = true)
         refreshUiState(
             sessionId = sessionId,
@@ -285,7 +280,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionTitle(sessionId, intent.value.trim().ifBlank { mContext.getString(R.string.untitled_chat) })
         }
-        refreshUiState(sessionId = sessionId, dialogState = ChatDialogState.None)
+        refreshUiState(sessionId = sessionId)
     }
 
     @UiIntentObserver(ChatUiIntent.SaveSummary::class)
@@ -294,7 +289,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionSummarize(sessionId, intent.value)
         }
-        refreshUiState(sessionId = sessionId, dialogState = ChatDialogState.None)
+        refreshUiState(sessionId = sessionId)
     }
 
     @UiIntentObserver(ChatUiIntent.SaveUserNote::class)
@@ -303,7 +298,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionUserNote(sessionId, intent.value)
         }
-        refreshUiState(sessionId = sessionId, dialogState = ChatDialogState.None)
+        refreshUiState(sessionId = sessionId)
     }
 
     @UiIntentObserver(ChatUiIntent.SaveCreatorNotes::class)
@@ -312,7 +307,61 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionCreatorNotes(sessionId, intent.value)
         }
-        refreshUiState(sessionId = sessionId, dialogState = ChatDialogState.None)
+        refreshUiState(sessionId = sessionId)
+    }
+
+    @UiIntentObserver(ChatUiIntent.CopyMessage::class)
+    private suspend fun onCopyMessage(intent: ChatUiIntent.CopyMessage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val message = uiState.messages.firstOrNull { it.id == intent.messageId } ?: return
+        if (message.content.isBlank()) return
+        ChatViewEvent.CopyText(message.content).emit()
+    }
+
+    @UiIntentObserver(ChatUiIntent.StartEditMessage::class)
+    private fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val message = uiState.messages.firstOrNull { it.id == intent.messageId } ?: return
+        if (message.isStreaming) return
+        uiState.copy(
+            editingMessageId = message.id,
+            editingMessageDraft = message.content
+        ).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ChangeEditingMessageDraft::class)
+    private fun onChangeEditingMessageDraft(intent: ChatUiIntent.ChangeEditingMessageDraft) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.editingMessageId == null) return
+        uiState.copy(editingMessageDraft = intent.value).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.SaveEditingMessage::class)
+    private suspend fun onSaveEditingMessage() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val messageId = uiState.editingMessageId?.toLongOrNull() ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateMessageContent(messageId, uiState.editingMessageDraft)
+        }
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = uiState.inputDraft,
+            isExpanded = uiState.isSessionLoreExpanded,
+            generationState = uiState.generationState,
+            expandedThinkBlockIds = uiState.expandedThinkBlockIds,
+            editingMessageId = null,
+            editingMessageDraft = ""
+        )
+    }
+
+    @UiIntentObserver(ChatUiIntent.CancelEditingMessage::class)
+    private fun onCancelEditingMessage() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(
+            editingMessageId = null,
+            editingMessageDraft = ""
+        ).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.ToggleThinkBlock::class)
@@ -323,12 +372,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ids.remove(intent.blockId)
         }
         uiState.copy(expandedThinkBlockIds = ids).setup()
-    }
-
-    @UiIntentObserver(ChatUiIntent.DismissDialog::class)
-    private fun onDismissDialog() {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(dialogState = ChatDialogState.None).setup()
     }
 
     private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
@@ -499,9 +542,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         page: ChatPage = ChatPage.Conversation,
         isExpanded: Boolean = false,
         loadState: ChatLoadState = ChatLoadState.None,
-        dialogState: ChatDialogState = ChatDialogState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
-        expandedThinkBlockIds: Set<String> = emptySet()
+        expandedThinkBlockIds: Set<String> = emptySet(),
+        editingMessageId: String? = null,
+        editingMessageDraft: String = ""
     ): ChatUiState.Normal? {
         // 所有 UI model 在 ViewModel 中组装，Compose 只负责渲染和发送 intent。
         val session = mChatRepository.getSessionById(sessionId) ?: return null
@@ -513,7 +557,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         return ChatUiState.Normal(
             page = page,
             loadState = loadState,
-            dialogState = dialogState,
             session = session.toUiModel(
                 creatorNotes = effectiveCreatorNotes,
                 messageCount = messages.size,
@@ -521,12 +564,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ),
             character = character.toUiModel(),
             messages = messages.toUiModels(character.name),
-            lorebookEntries = lorebookData.toUiModels(enabledIds),
+            lorebookGroups = lorebookData.toUiGroups(enabledIds),
             isSessionLoreExpanded = isExpanded,
             inputDraft = inputDraft,
             generationState = generationState,
             streamEnabled = AppModel.streamEnabled,
-            expandedThinkBlockIds = expandedThinkBlockIds
+            expandedThinkBlockIds = expandedThinkBlockIds,
+            editingMessageId = editingMessageId,
+            editingMessageDraft = editingMessageDraft
         )
     }
 
@@ -536,9 +581,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         page: ChatPage = getOrNull<ChatUiState.Normal>()?.page ?: ChatPage.Conversation,
         isExpanded: Boolean = getOrNull<ChatUiState.Normal>()?.isSessionLoreExpanded ?: false,
         loadState: ChatLoadState = ChatLoadState.None,
-        dialogState: ChatDialogState = getOrNull<ChatUiState.Normal>()?.dialogState ?: ChatDialogState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()?.generationState ?: ChatGenerationState.Idle,
-        expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()?.expandedThinkBlockIds ?: emptySet()
+        expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()?.expandedThinkBlockIds ?: emptySet(),
+        editingMessageId: String? = getOrNull<ChatUiState.Normal>()?.editingMessageId,
+        editingMessageDraft: String = getOrNull<ChatUiState.Normal>()?.editingMessageDraft.orEmpty()
     ) {
         val nextState = withContext(Dispatchers.IO) {
             loadNormalState(
@@ -547,12 +593,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 page = page,
                 isExpanded = isExpanded,
                 loadState = loadState,
-                dialogState = dialogState,
                 generationState = generationState,
-                expandedThinkBlockIds = expandedThinkBlockIds
+                expandedThinkBlockIds = expandedThinkBlockIds,
+                editingMessageId = editingMessageId,
+                editingMessageDraft = editingMessageDraft
             )
         } ?: return
         nextState.setup()
+    }
+
+    private suspend fun saveSessionLorebookEntryIds(
+        sessionId: Long,
+        enabledIds: Set<Long>
+    ) {
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateSessionLorebookEntryIds(sessionId, enabledIds.toList())
+        }
     }
 
     private suspend fun getAllLorebookEntries(): LorebookEntryData {
@@ -616,22 +672,40 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
-    private fun LorebookEntryData.toUiModels(enabledIds: Set<Long>): List<ChatLorebookEntryItem> {
-        return entries.sortedWith(compareBy<LorebookEntry> { lorebooks[it.lorebookId]?.name.orEmpty() }.thenBy { it.order })
-            .map { entry ->
-                ChatLorebookEntryItem(
-                    id = entry.id,
-                    lorebookId = entry.lorebookId,
-                    lorebookName = lorebooks[entry.lorebookId]?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_lorebook) },
-                    name = entry.name,
-                    keywords = entry.getKeywordList(),
-                    secondaryKeywords = entry.getSecondaryKeywordList(),
-                    order = entry.order,
-                    depth = entry.depth,
-                    content = entry.content,
-                    enabled = entry.id in enabledIds
+    private fun LorebookEntryData.toUiGroups(enabledIds: Set<Long>): List<ChatLorebookGroupItem> {
+        return entries.groupBy { it.lorebookId }
+            .toList()
+            .sortedWith(compareBy<Pair<Long, List<LorebookEntry>>> { lorebooks[it.first]?.name.orEmpty() }.thenBy { it.first })
+            .map { (lorebookId, entries) ->
+                val lorebookName = lorebooks[lorebookId]?.name.orEmpty().ifBlank {
+                    mContext.getString(R.string.unknown_lorebook)
+                }
+                val entryItems = entries.sortedBy { it.order }.map { entry ->
+                    ChatLorebookEntryItem(
+                        id = entry.id,
+                        lorebookId = entry.lorebookId,
+                        lorebookName = lorebookName,
+                        name = entry.name,
+                        keywords = entry.getKeywordList(),
+                        secondaryKeywords = entry.getSecondaryKeywordList(),
+                        order = entry.order,
+                        depth = entry.depth,
+                        content = entry.content,
+                        enabled = entry.id in enabledIds
+                    )
+                }
+                ChatLorebookGroupItem(
+                    lorebookId = lorebookId,
+                    lorebookName = lorebookName,
+                    enabledCount = entryItems.count { it.enabled },
+                    totalCount = entryItems.size,
+                    entries = entryItems
                 )
             }
+    }
+
+    private fun Set<Long>.toggle(id: Long): Set<Long> {
+        return if (id in this) this - id else this + id
     }
 
     private fun List<ChatMessageUiModel>.replaceStreamingMessage(

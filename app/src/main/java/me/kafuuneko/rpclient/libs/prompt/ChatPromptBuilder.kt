@@ -45,7 +45,8 @@ class ChatPromptBuilder(
                 temperature = context.provider?.temperature,
                 maxTokens = context.maxResponseTokens,
                 topP = context.provider?.topP
-            )
+            ),
+            includeReasoningInContent = true
         )
     }
 

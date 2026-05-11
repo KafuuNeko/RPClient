@@ -73,7 +73,8 @@ data class LLMGenerationOptions(
 data class LLMGenerationRequest(
     val messages: List<LLMMessage>,
     val model: String? = null,
-    val options: LLMGenerationOptions = LLMGenerationOptions()
+    val options: LLMGenerationOptions = LLMGenerationOptions(),
+    val includeReasoningInContent: Boolean = false
 )
 
 /**

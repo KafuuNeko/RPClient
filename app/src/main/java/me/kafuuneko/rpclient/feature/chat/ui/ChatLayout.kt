@@ -26,12 +26,9 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,25 +38,28 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -85,7 +85,6 @@ fun ChatLayout(
                 ChatPage.Conversation -> ChatNormal(uiState, emit)
                 ChatPage.Settings -> ChatSettingsPage(uiState, emit)
             }
-            DialogSwitch(uiState.dialogState, emit)
         }
     }
 }
@@ -121,11 +120,17 @@ private fun ChatNormal(
                 }
             }
         )
-        ChatHeader(state)
+        ChatHeader(
+            character = state.character,
+            session = state.session,
+            enabledLorebookCount = state.lorebookGroups.sumOf { it.enabledCount },
+            streamEnabled = state.streamEnabled,
+            statusText = state.statusText()
+        )
         if (state.isSessionLoreExpanded) {
             SessionLorePanel(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                entries = state.lorebookEntries,
+                groups = state.lorebookGroups,
                 emit = emit
             )
         }
@@ -140,6 +145,8 @@ private fun ChatNormal(
                 MessageBubble(
                     message = message,
                     expandedThinkBlockIds = state.expandedThinkBlockIds,
+                    editing = message.id == state.editingMessageId,
+                    editingDraft = state.editingMessageDraft,
                     emit = emit
                 )
             }
@@ -153,7 +160,13 @@ private fun ChatNormal(
 }
 
 @Composable
-private fun ChatHeader(state: ChatUiState.Normal) {
+private fun ChatHeader(
+    character: ChatCharacterItem,
+    session: ChatSessionItem,
+    enabledLorebookCount: Int,
+    streamEnabled: Boolean,
+    statusText: String
+) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
@@ -162,20 +175,18 @@ private fun ChatHeader(state: ChatUiState.Normal) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RpAvatar(state.character.avatarText, Color(state.character.accentColor))
+                RpAvatar(character.avatarText, Color(character.accentColor))
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(state.character.name, style = MaterialTheme.typography.titleMedium)
-                    Text(state.statusText(), style = MaterialTheme.typography.bodySmall)
+                    Text(character.name, style = MaterialTheme.typography.titleMedium)
+                    Text(statusText, style = MaterialTheme.typography.bodySmall)
                 }
             }
             RpMetaRow(
                 listOf(
-                    stringResource(R.string.messages_count, state.session.messageCount),
-                    stringResource(
-                        R.string.world_books_enabled,
-                        state.lorebookEntries.count { it.enabled }),
-                    if (state.streamEnabled) stringResource(R.string.streaming_on) else stringResource(
+                    stringResource(R.string.messages_count, session.messageCount),
+                    stringResource(R.string.world_books_enabled, enabledLorebookCount),
+                    if (streamEnabled) stringResource(R.string.streaming_on) else stringResource(
                         R.string.streaming_off
                     )
                 )
@@ -187,7 +198,7 @@ private fun ChatHeader(state: ChatUiState.Normal) {
 @Composable
 private fun SessionLorePanel(
     modifier: Modifier = Modifier,
-    entries: List<ChatLorebookEntryItem>,
+    groups: List<ChatLorebookGroupItem>,
     emit: ChatUiIntent.() -> Unit
 ) {
     Surface(
@@ -205,15 +216,43 @@ private fun SessionLorePanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
             )
-            if (entries.isEmpty()) {
+            if (groups.isEmpty()) {
                 Text(
                     text = stringResource(R.string.no_world_book_entries),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            entries.forEach { entry ->
-                SessionLoreEntryRow(entry, emit)
+            groups.forEach { group ->
+                SessionLoreGroup(group, emit)
             }
+        }
+    }
+}
+
+@Composable
+private fun SessionLoreGroup(
+    group: ChatLorebookGroupItem,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RpIconBubble(Icons.Rounded.Book)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(group.lorebookName, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(R.string.enabled_entries_count, group.enabledCount, group.totalCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
+                )
+            }
+            Switch(
+                checked = group.isAllEnabled,
+                onCheckedChange = { ChatUiIntent.ToggleSessionLorebook(group.lorebookId).emit() }
+            )
+        }
+        group.entries.forEach { entry ->
+            SessionLoreEntryRow(entry, emit)
         }
     }
 }
@@ -249,6 +288,8 @@ private fun SessionLoreEntryRow(
 private fun MessageBubble(
     message: ChatMessageUiModel,
     expandedThinkBlockIds: Set<String>,
+    editing: Boolean,
+    editingDraft: String,
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
@@ -283,12 +324,20 @@ private fun MessageBubble(
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f)
                     )
                 }
-                MessageContent(
-                    message = message,
-                    expandedThinkBlockIds = expandedThinkBlockIds,
-                    isUser = isUser,
-                    emit = emit
-                )
+                if (editing) {
+                    MessageEditContent(
+                        draft = editingDraft,
+                        isUser = isUser,
+                        emit = emit
+                    )
+                } else {
+                    MessageContent(
+                        message = message,
+                        expandedThinkBlockIds = expandedThinkBlockIds,
+                        isUser = isUser,
+                        emit = emit
+                    )
+                }
                 MessageActions(message, emit)
             }
         }
@@ -319,6 +368,38 @@ private fun MessageContent(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
                     emit = emit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageEditContent(
+    draft: String,
+    isUser: Boolean,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = draft,
+            onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
+            minLines = 3,
+            maxLines = 8,
+            shape = RoundedCornerShape(8.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { ChatUiIntent.SaveEditingMessage.emit() }) {
+                Text(
+                    stringResource(R.string.save),
+                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                )
+            }
+            TextButton(onClick = { ChatUiIntent.CancelEditingMessage.emit() }) {
+                Text(
+                    stringResource(R.string.cancel),
+                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -372,35 +453,38 @@ private fun MessageActions(
     emit: ChatUiIntent.() -> Unit
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+        val isUser = message.role == MessageRole.User
+        val iconColor = if (isUser) {
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+        }
         Icon(
             Icons.Rounded.ContentCopy,
             contentDescription = stringResource(R.string.copy),
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier
+                .size(16.dp)
+                .clickable { ChatUiIntent.CopyMessage(message.id).emit() },
             tint = iconColor
         )
         Icon(
             Icons.Rounded.Edit,
             contentDescription = stringResource(R.string.edit),
-            modifier = Modifier.size(16.dp),
-            tint = iconColor
-        )
-        Icon(
-            Icons.Rounded.Refresh,
-            contentDescription = stringResource(R.string.regenerate),
             modifier = Modifier
                 .size(16.dp)
-                .clickable { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                .clickable { ChatUiIntent.StartEditMessage(message.id).emit() },
             tint = iconColor
         )
-        Icon(
-            imageVector = if (message.isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
-            contentDescription = if (message.isStreaming) stringResource(R.string.stop) else stringResource(
-                R.string.favorite
-            ),
-            modifier = Modifier.size(16.dp),
-            tint = iconColor
-        )
+        if (message.role == MessageRole.Assistant) {
+            Icon(
+                Icons.Rounded.Refresh,
+                contentDescription = stringResource(R.string.regenerate),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                tint = iconColor
+            )
+        }
     }
 }
 
@@ -487,41 +571,50 @@ private fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
-                    MenuAction(
-                        Icons.Rounded.Edit,
-                        stringResource(R.string.title),
-                        state.session.title
-                    ) { ChatUiIntent.EditTitleClick.emit() }
-                    MenuAction(
-                        Icons.Rounded.Edit,
-                        stringResource(R.string.current_summary),
-                        state.session.summarize.ifBlank { stringResource(R.string.no_summary_yet) }) {
-                        ChatUiIntent.EditSummaryClick.emit()
-                    }
-                    MenuAction(
-                        Icons.Rounded.Edit,
-                        stringResource(R.string.user_note),
-                        state.session.userNote.ifBlank { stringResource(R.string.empty) }) {
-                        ChatUiIntent.EditUserNoteClick.emit()
-                    }
-                    MenuAction(
-                        Icons.Rounded.Edit,
-                        stringResource(R.string.creator_notes),
-                        state.session.creatorNotes.ifBlank { stringResource(R.string.using_character_default_or_empty) }) {
-                        ChatUiIntent.EditCreatorNotesClick.emit()
-                    }
+                    AutoSaveTextField(
+                        label = stringResource(R.string.title),
+                        value = state.session.title,
+                        minLines = 1,
+                        maxLines = 1,
+                        singleLine = true,
+                        onSave = { ChatUiIntent.SaveTitle(it).emit() }
+                    )
+                    AutoSaveTextField(
+                        label = stringResource(R.string.current_summary),
+                        value = state.session.summarize,
+                        placeholder = stringResource(R.string.no_summary_yet),
+                        minLines = 3,
+                        maxLines = 8,
+                        onSave = { ChatUiIntent.SaveSummary(it).emit() }
+                    )
+                    AutoSaveTextField(
+                        label = stringResource(R.string.user_note),
+                        value = state.session.userNote,
+                        placeholder = stringResource(R.string.empty),
+                        minLines = 3,
+                        maxLines = 8,
+                        onSave = { ChatUiIntent.SaveUserNote(it).emit() }
+                    )
+                    AutoSaveTextField(
+                        label = stringResource(R.string.creator_notes),
+                        value = state.session.creatorNotes,
+                        placeholder = stringResource(R.string.using_character_default_or_empty),
+                        minLines = 3,
+                        maxLines = 8,
+                        onSave = { ChatUiIntent.SaveCreatorNotes(it).emit() }
+                    )
                 }
             }
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
-                    if (state.lorebookEntries.isEmpty()) {
+                    if (state.lorebookGroups.isEmpty()) {
                         Text(
                             text = stringResource(R.string.no_world_book_entries),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
-                    state.lorebookEntries.forEach { entry ->
-                        SessionLoreEntryRow(entry, emit)
+                    state.lorebookGroups.forEach { group ->
+                        SessionLoreGroup(group, emit)
                     }
                 }
             }
@@ -550,40 +643,47 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun DialogSwitch(
-    dialogState: ChatDialogState,
-    emit: ChatUiIntent.() -> Unit
+private fun AutoSaveTextField(
+    label: String,
+    value: String,
+    placeholder: String? = null,
+    minLines: Int,
+    maxLines: Int,
+    singleLine: Boolean = false,
+    onSave: (String) -> Unit
 ) {
-    when (dialogState) {
-        ChatDialogState.None -> Unit
-        is ChatDialogState.EditTitle -> TextEditDialog(
-            stringResource(R.string.title),
-            dialogState.text,
-            { ChatUiIntent.SaveTitle(it).emit() },
-            emit
-        )
+    var text by remember(label) { mutableStateOf(value) }
+    var isFocused by remember(label) { mutableStateOf(false) }
 
-        is ChatDialogState.EditSummary -> TextEditDialog(
-            stringResource(R.string.current_summary),
-            dialogState.text,
-            { ChatUiIntent.SaveSummary(it).emit() },
-            emit
-        )
-
-        is ChatDialogState.EditUserNote -> TextEditDialog(
-            stringResource(R.string.user_note),
-            dialogState.text,
-            { ChatUiIntent.SaveUserNote(it).emit() },
-            emit
-        )
-
-        is ChatDialogState.EditCreatorNotes -> TextEditDialog(
-            stringResource(R.string.creator_notes),
-            dialogState.text,
-            { ChatUiIntent.SaveCreatorNotes(it).emit() },
-            emit
-        )
+    LaunchedEffect(value, isFocused) {
+        if (!isFocused && text != value) {
+            text = value
+        }
     }
+
+    LaunchedEffect(text, value) {
+        if (text != value) {
+            delay(450)
+            onSave(text)
+        }
+    }
+    val placeholderContent: (@Composable () -> Unit)? = placeholder?.let { placeholderText ->
+        { Text(placeholderText) }
+    }
+
+    OutlinedTextField(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused },
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        placeholder = placeholderContent,
+        minLines = minLines,
+        maxLines = maxLines,
+        singleLine = singleLine,
+        shape = RoundedCornerShape(8.dp)
+    )
 }
 
 @Composable
@@ -618,39 +718,6 @@ private fun MenuAction(
             }
         }
     }
-}
-
-@Composable
-private fun TextEditDialog(
-    title: String,
-    initialText: String,
-    onSave: (String) -> Unit,
-    emit: ChatUiIntent.() -> Unit
-) {
-    var text by remember(initialText) { mutableStateOf(initialText) }
-    AlertDialog(
-        onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                minLines = 3,
-                maxLines = 8,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            Button(onClick = { onSave(text) }) {
-                Text(stringResource(R.string.save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
-    )
 }
 
 private fun ChatGenerationState.isGenerating(): Boolean {
@@ -717,18 +784,26 @@ private fun ChatLayoutPreview() {
                         tokenCount = 12
                     )
                 ),
-                lorebookEntries = listOf(
-                    ChatLorebookEntryItem(
-                        1,
-                        1,
-                        "Fog Harbor",
-                        "Old District",
-                        listOf("rain"),
-                        emptyList(),
-                        0,
-                        0,
-                        "",
-                        true
+                lorebookGroups = listOf(
+                    ChatLorebookGroupItem(
+                        lorebookId = 1,
+                        lorebookName = "Fog Harbor",
+                        enabledCount = 1,
+                        totalCount = 1,
+                        entries = listOf(
+                            ChatLorebookEntryItem(
+                                1,
+                                1,
+                                "Fog Harbor",
+                                "Old District",
+                                listOf("rain"),
+                                emptyList(),
+                                0,
+                                0,
+                                "",
+                                true
+                            )
+                        )
                     )
                 ),
                 isSessionLoreExpanded = true,
