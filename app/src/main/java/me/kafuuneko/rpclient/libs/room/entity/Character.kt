@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.utils.toStringList
 
@@ -18,6 +19,9 @@ data class Character(
     val characterTags: String,
     // 角色描述
     val description: String,
+    // 角色备注
+    @ColumnInfo(defaultValue = "")
+    val creatorNotes: String = "",
     // 核心/性格设定
     val personality: String,
     // 场景设定

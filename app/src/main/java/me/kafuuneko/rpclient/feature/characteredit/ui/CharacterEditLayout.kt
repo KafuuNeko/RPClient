@@ -202,6 +202,12 @@ private fun BasicPanel(
             leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
             onChange = { CharacterEditUiIntent.ChangeDescription(it).emit() }
         )
+        FormTextField(
+            label = stringResource(R.string.character_creator_notes),
+            value = form.creatorNotes,
+            minLines = 3,
+            onChange = { CharacterEditUiIntent.ChangeCreatorNotes(it).emit() }
+        )
     }
 }
 
@@ -534,6 +540,7 @@ private fun CharacterEditLayoutPreview() {
                     name = "Character",
                     tags = listOf("Tag"),
                     description = "Description",
+                    creatorNotes = "Notes",
                     firstMessages = listOf("Hello")
                 )
             ),

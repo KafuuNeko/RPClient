@@ -285,6 +285,7 @@ private fun CharacterListUiState.Normal.filteredCharacters(): List<Character> {
     return characters.filter { character ->
         character.name.contains(keyword, ignoreCase = true) ||
             character.description.contains(keyword, ignoreCase = true) ||
+            character.creatorNotes.contains(keyword, ignoreCase = true) ||
             character.personality.contains(keyword, ignoreCase = true) ||
             character.scenario.contains(keyword, ignoreCase = true) ||
             character.postHistoryInstructions.contains(keyword, ignoreCase = true) ||
@@ -315,6 +316,7 @@ private fun CharacterListLayoutPreview() {
                         avatar = "",
                         characterTags = """["Tag"]""",
                         description = "Description",
+                        creatorNotes = "Notes",
                         personality = "Personality",
                         scenario = "Scenario",
                         firstMessages = "Hello",

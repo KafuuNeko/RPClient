@@ -11,6 +11,7 @@ data class CharacterEditForm(
     val originalAvatar: String = "",
     val tags: List<String> = emptyList(),
     val description: String = "",
+    val creatorNotes: String = "",
     val personality: String = "",
     val scenario: String = "",
     val firstMessages: List<String> = emptyList(),
@@ -28,6 +29,7 @@ data class CharacterEditForm(
             originalAvatar = character.avatar,
             tags = character.getCharacterTagList(),
             description = character.description,
+            creatorNotes = character.creatorNotes,
             personality = character.personality,
             scenario = character.scenario,
             firstMessages = character.getFirstMessageList(),
@@ -43,6 +45,7 @@ data class CharacterEditForm(
             avatar = avatar.trim(),
             characterTags = Gson().toJsonString(tags.map { it.trim() }.filter { it.isNotEmpty() }),
             description = description.trim(),
+            creatorNotes = creatorNotes.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
             firstMessages = firstMessages

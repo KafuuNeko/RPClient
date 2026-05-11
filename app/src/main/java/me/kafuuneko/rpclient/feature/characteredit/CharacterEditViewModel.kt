@@ -116,6 +116,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onChangeDescription(intent: CharacterEditUiIntent.ChangeDescription) =
         updateForm { copy(description = intent.value) }
 
+    @UiIntentObserver(CharacterEditUiIntent.ChangeCreatorNotes::class)
+    private fun onChangeCreatorNotes(intent: CharacterEditUiIntent.ChangeCreatorNotes) =
+        updateForm { copy(creatorNotes = intent.value) }
+
     @UiIntentObserver(CharacterEditUiIntent.ChangePersonality::class)
     private fun onChangePersonality(intent: CharacterEditUiIntent.ChangePersonality) =
         updateForm { copy(personality = intent.value) }
@@ -261,6 +265,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             originalAvatar = originalAvatar.trim(),
             tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
             description = description.trim(),
+            creatorNotes = creatorNotes.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
             firstMessages = firstMessages.map { it.trim() }.filter { it.isNotEmpty() },

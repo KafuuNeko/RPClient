@@ -21,6 +21,8 @@ sealed class CharacterEditUiIntent {
 
     data class ChangeDescription(val value: String) : CharacterEditUiIntent()
 
+    data class ChangeCreatorNotes(val value: String) : CharacterEditUiIntent()
+
     data class ChangePersonality(val value: String) : CharacterEditUiIntent()
 
     data class ChangeScenario(val value: String) : CharacterEditUiIntent()
