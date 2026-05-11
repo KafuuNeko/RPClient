@@ -11,6 +11,8 @@ sealed class MainUiIntent {
 
     data class OpenChat(val sessionId: String) : MainUiIntent()
 
+    data object OpenCreateChat : MainUiIntent()
+
     data object OpenCharacterManager : MainUiIntent()
 
     data object OpenWorldBookManager : MainUiIntent()

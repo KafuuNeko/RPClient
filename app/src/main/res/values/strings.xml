@@ -37,6 +37,9 @@
     <string name="local_first_desc">Chats, characters and world books are saved on device by default</string>
     <string name="streaming_response">Streaming Response</string>
     <string name="streaming_response_desc">Display model output in real-time, support stop generation</string>
+    <string name="new_session_desc">Choose a character, notes and world book entries</string>
+    <string name="no_recent_chats">No recent chats</string>
+    <string name="no_recent_chats_desc">Create a session to start a new conversation.</string>
 
     <!-- Character Layout -->
     <string name="character_manager">Character Manager</string>
@@ -97,6 +100,20 @@
     <string name="input_next_story">Input your next story line</string>
     <string name="send">Send</string>
     <string name="connected">Connected</string>
+
+    <!-- Chat Create Layout -->
+    <string name="create_chat_title">Create Chat</string>
+    <string name="create_chat_subtitle">Bind a character, set user notes and enable world book entries</string>
+    <string name="chat_title">Chat title</string>
+    <string name="default_user_note">Default user note</string>
+    <string name="bind_character">Bind Character</string>
+    <string name="first_messages">First Messages</string>
+    <string name="enabled_world_book_entries">Enabled World Book Entries</string>
+    <string name="no_characters_for_chat">No character cards available. Create a character first.</string>
+    <string name="no_world_book_entries_selectable">No world book entries available.</string>
+    <string name="create_chat">Create Chat</string>
+    <string name="no_character_selected">Please select a character first</string>
+    <string name="first_message_required">Please select a first message</string>
 
     <!-- World Book Layout -->
     <string name="world_book_manager">World Book Manager</string>

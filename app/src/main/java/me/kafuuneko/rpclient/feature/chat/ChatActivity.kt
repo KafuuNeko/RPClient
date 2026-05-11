@@ -32,7 +32,12 @@ class ChatActivity : CoreActivityWithEvent() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mViewModel.emit(ChatUiIntent.Init(intent.getStringExtra(EXTRA_SESSION_ID)))
+        mViewModel.emit(
+            ChatUiIntent.Init(
+                sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
+                firstMessage = intent.getStringExtra(EXTRA_FIRST_MESSAGE)
+            )
+        )
     }
 
     override fun onResume() {
@@ -42,6 +47,6 @@ class ChatActivity : CoreActivityWithEvent() {
 
     companion object {
         const val EXTRA_SESSION_ID = "extra_session_id"
+        const val EXTRA_FIRST_MESSAGE = "extra_first_message"
     }
 }
-

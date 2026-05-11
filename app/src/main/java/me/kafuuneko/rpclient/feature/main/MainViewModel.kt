@@ -1,47 +1,52 @@
 package me.kafuuneko.rpclient.feature.main
 
 import android.os.Bundle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
+import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
-import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
+import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
+import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
 ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
+    private val mChatRepository by inject<ChatRepository>()
+    private val mCharacterRepository by inject<CharacterRepository>()
 
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<MainUiState.None>()) return
         val providers = mLLMRepository.getEnabledProviders()
-        val totalWorldBooks = mLorebookRepository.getAllLorebooks().size
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
-            homeState = MainHomeState(
-                activeCharacter = previewCharacters().first(),
-                recentSessions = previewSessions(),
-                totalCharacters = 24,
-                totalWorldBooks = totalWorldBooks
-            ),
+            homeState = buildHomeState(),
             settingsState = MainSettingsState(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
@@ -59,11 +64,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val providers = mLLMRepository.getEnabledProviders()
-        val totalWorldBooks = mLorebookRepository.getAllLorebooks().size
         val currentId = AppModel.currentLLMProvider
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         uiState.copy(
-            homeState = uiState.homeState.copy(totalWorldBooks = totalWorldBooks),
+            homeState = buildHomeState(),
             settingsState = uiState.settingsState.copy(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
@@ -97,6 +101,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = ChatActivity::class.java,
             extras = Bundle().apply { putString(ChatActivity.EXTRA_SESSION_ID, intent.sessionId) }
         ).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenCreateChat::class)
+    private fun onOpenCreateChat() {
+        AppViewEvent.StartActivity(ChatCreateActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
@@ -139,39 +148,35 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    private fun previewCharacters() = listOf(
-        RpCharacterUiModel(
-            id = "lyra",
-            name = "Lyra",
-            subtitle = "雾港档案管理员",
-            description = "擅长从旧报纸、失踪人口记录和城市传说里找出线索。",
-            avatarText = "L",
-            tags = listOf("悬疑", "慢热", "现代奇幻"),
-            sessions = 12,
-            updatedAt = "18 分钟前",
-            accentColor = 0xFF315EFD
-        )
-    )
+    private suspend fun buildHomeState(): MainHomeState {
+        return withContext(Dispatchers.IO) {
+            val characters = mCharacterRepository.getAllCharacters()
+            val characterMap = characters.associateBy { it.id }
+            val sessions = mChatRepository.getAllSessions()
+            MainHomeState(
+                recentSessions = sessions.map { session ->
+                    session.toUiModel(characterMap[session.characterId])
+                },
+                totalCharacters = characters.size,
+                totalWorldBooks = mLorebookRepository.getAllLorebooks().size
+            )
+        }
+    }
 
-    private fun previewSessions() = listOf(
-        ChatSessionUiModel(
-            id = "session-rain",
-            characterName = "Lyra",
-            title = "雨夜里的第七份卷宗",
-            preview = "你把湿透的外套搭在椅背上，她已经把案卷翻到了失踪名单那一页。",
-            messageCount = 186,
-            branchCount = 3,
-            updatedAt = "刚刚"
-        ),
-        ChatSessionUiModel(
-            id = "session-clinic",
-            characterName = "Noah",
-            title = "越过白盐荒原",
-            preview = "移动诊所的灯在风里摇晃，远处的车队只剩一个模糊的红点。",
-            messageCount = 74,
-            branchCount = 1,
-            updatedAt = "昨天"
+    private suspend fun ChatSession.toUiModel(character: Character?): MainChatSessionItem {
+        val latestMessage = mChatRepository.getLatestMessageBySessionId(id)
+        return MainChatSessionItem(
+            id = id.toString(),
+            characterName = character?.name.orEmpty().ifBlank { "Unknown character" },
+            title = title,
+            preview = latestMessage?.content?.takeIf { it.isNotBlank() } ?: "No messages yet",
+            messageCount = mChatRepository.getMessageCountBySessionId(id),
+            branchCount = 0,
+            updatedAt = latestTime.toDisplayTime()
         )
-    )
+    }
 
+    private fun Long.toDisplayTime(): String {
+        return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
+    }
 }

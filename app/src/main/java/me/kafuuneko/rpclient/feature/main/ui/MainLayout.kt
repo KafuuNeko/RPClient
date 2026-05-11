@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Home
@@ -54,8 +55,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
-import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -148,6 +148,15 @@ private fun HomePage(
         item {
             HomeEntryCard(
                 modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Rounded.AddComment,
+                title = stringResource(R.string.new_session),
+                subtitle = stringResource(R.string.new_session_desc),
+                onClick = { MainUiIntent.OpenCreateChat.emit() }
+            )
+        }
+        item {
+            HomeEntryCard(
+                modifier = Modifier.fillMaxWidth(),
                 icon = Icons.Rounded.Person,
                 title = stringResource(R.string.character),
                 subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
@@ -166,8 +175,18 @@ private fun HomePage(
         item {
             RpSectionHeader(
                 title = stringResource(R.string.recent_chats),
-                action = stringResource(R.string.manage_characters)
-            ) { MainUiIntent.OpenCharacterManager.emit() }
+                action = stringResource(R.string.new_session)
+            ) { MainUiIntent.OpenCreateChat.emit() }
+        }
+        if (state.recentSessions.isEmpty()) {
+            item {
+                RpInfoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.ChatBubble,
+                    title = stringResource(R.string.no_recent_chats),
+                    subtitle = stringResource(R.string.no_recent_chats_desc)
+                )
+            }
         }
         items(state.recentSessions) { session ->
             SessionCard(
@@ -196,7 +215,7 @@ private fun HomeEntryCard(
 
 @Composable
 private fun SessionCard(
-    session: ChatSessionUiModel,
+    session: MainChatSessionItem,
     onClick: () -> Unit
 ) {
     Card(
@@ -466,17 +485,6 @@ private fun MainLayoutPreview() {
         MainLayout(
             uiState = MainUiState.Normal(
                 homeState = MainHomeState(
-                    activeCharacter = RpCharacterUiModel(
-                        "lyra",
-                        "Lyra",
-                        "Fog Harbor Archivist",
-                        "",
-                        "L",
-                        emptyList(),
-                        12,
-                        "Just now",
-                        0xFF315EFD
-                    ),
                     recentSessions = emptyList(),
                     totalCharacters = 24,
                     totalWorldBooks = 7

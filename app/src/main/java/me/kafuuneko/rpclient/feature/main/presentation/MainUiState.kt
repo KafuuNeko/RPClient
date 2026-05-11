@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
-import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
+import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 sealed class MainUiState {
@@ -22,8 +21,7 @@ enum class MainPage {
 }
 
 data class MainHomeState(
-    val activeCharacter: RpCharacterUiModel,
-    val recentSessions: List<ChatSessionUiModel>,
+    val recentSessions: List<MainChatSessionItem>,
     val totalCharacters: Int,
     val totalWorldBooks: Int
 )

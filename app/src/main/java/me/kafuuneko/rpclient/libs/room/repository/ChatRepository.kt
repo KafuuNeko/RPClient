@@ -1,12 +1,16 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
-class ChatRepository(private val mAppDatabase: AppDatabase) {
+class ChatRepository(
+    private val mAppDatabase: AppDatabase,
+    private val mGson: Gson
+) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
@@ -58,6 +62,33 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
     }
 
     /**
+     * 创建新的聊天会话。
+     *
+     * 世界书条目通过 id 列表传入，由仓库统一序列化为持久化字段。
+     */
+    suspend fun createSession(
+        characterId: Long,
+        title: String,
+        userNote: String,
+        lorebookEntryIds: List<Long>,
+        creatorNotes: String? = null,
+        createTime: Long = System.currentTimeMillis()
+    ): Long {
+        return saveSession(
+            ChatSession(
+                characterId = characterId,
+                createTime = createTime,
+                latestTime = createTime,
+                lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
+                title = title,
+                summarize = "",
+                userNote = userNote,
+                creatorNotes = creatorNotes
+            )
+        )
+    }
+
+    /**
      * 更新已有会话。
      *
      * @param session 要更新的会话。
@@ -94,6 +125,28 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
      */
     suspend fun updateSessionLorebookEntrySet(id: Long, lorebookEntrySet: String) {
         mChatSessionDao.updateSessionLorebookEntrySet(id, lorebookEntrySet)
+    }
+
+    /**
+     * 获取指定会话启用的世界书条目 id 列表。
+     */
+    suspend fun getSessionLorebookEntryIds(id: Long): List<Long>? {
+        val session = mChatSessionDao.getSessionById(id) ?: return null
+        return getSessionLorebookEntryIds(session)
+    }
+
+    /**
+     * 获取指定会话启用的世界书条目 id 列表。
+     */
+    fun getSessionLorebookEntryIds(session: ChatSession): List<Long> {
+        return session.lorebookEntrySet.toLorebookEntryIds()
+    }
+
+    /**
+     * 设置指定会话启用的世界书条目 id 列表。
+     */
+    suspend fun updateSessionLorebookEntryIds(id: Long, lorebookEntryIds: List<Long>) {
+        mChatSessionDao.updateSessionLorebookEntrySet(id, lorebookEntryIds.toLorebookEntrySetJson())
     }
 
     /**
@@ -333,6 +386,17 @@ class ChatRepository(private val mAppDatabase: AppDatabase) {
      */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
         mChatMessageDao.deleteMessagesBySessionId(sessionId)
+    }
+
+    private fun String.toLorebookEntryIds(): List<Long> {
+        if (isBlank()) return emptyList()
+        return runCatching {
+            mGson.fromJson(this, Array<Long>::class.java)?.toList().orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
+    private fun List<Long>.toLorebookEntrySetJson(): String {
+        return mGson.toJson(distinct())
     }
 }
 

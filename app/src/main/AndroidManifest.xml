@@ -43,6 +43,10 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.chatcreate.ChatCreateActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.characterlist.CharacterListActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
