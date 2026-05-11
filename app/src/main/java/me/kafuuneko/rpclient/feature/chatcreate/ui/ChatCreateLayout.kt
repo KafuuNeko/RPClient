@@ -106,7 +106,7 @@ private fun ChatCreateNormal(
                 if (state.characters.isEmpty()) {
                     item { EmptyCard(Icons.Rounded.Person, stringResource(R.string.no_characters_for_chat)) }
                 }
-                items(state.characters, key = { it.id }) { character ->
+                items(state.characters) { character ->
                     CharacterOption(
                         character = character,
                         selected = character.id == state.form.selectedCharacterId,
@@ -136,7 +136,7 @@ private fun ChatCreateNormal(
                         )
                     }
                 }
-                items(state.lorebookEntries, key = { it.entry.id }) { item ->
+                items(state.lorebookEntries) { item ->
                     LorebookEntryOption(
                         item = item,
                         selected = item.entry.id in state.form.selectedLorebookEntryIds,

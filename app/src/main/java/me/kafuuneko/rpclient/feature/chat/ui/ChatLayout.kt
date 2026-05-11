@@ -114,7 +114,10 @@ private fun ChatNormal(
                     )
                 }
                 IconButton(onClick = { ChatUiIntent.OpenChatSettings.emit() }) {
-                    Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.generation_params))
+                    Icon(
+                        Icons.Rounded.Tune,
+                        contentDescription = stringResource(R.string.generation_params)
+                    )
                 }
             }
         )
@@ -169,8 +172,12 @@ private fun ChatHeader(state: ChatUiState.Normal) {
             RpMetaRow(
                 listOf(
                     stringResource(R.string.messages_count, state.session.messageCount),
-                    stringResource(R.string.world_books_enabled, state.lorebookEntries.count { it.enabled }),
-                    if (state.streamEnabled) stringResource(R.string.streaming_on) else stringResource(R.string.streaming_off)
+                    stringResource(
+                        R.string.world_books_enabled,
+                        state.lorebookEntries.count { it.enabled }),
+                    if (state.streamEnabled) stringResource(R.string.streaming_on) else stringResource(
+                        R.string.streaming_off
+                    )
                 )
             )
         }
@@ -220,7 +227,10 @@ private fun SessionLoreEntryRow(
         RpIconBubble(Icons.Rounded.Book)
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.name.ifBlank { stringResource(R.string.unnamed_entry) }, style = MaterialTheme.typography.titleSmall)
+            Text(
+                entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                style = MaterialTheme.typography.titleSmall
+            )
             Text(
                 entry.lorebookName,
                 style = MaterialTheme.typography.labelSmall,
@@ -304,6 +314,7 @@ private fun MessageContent(
                         )
                     }
                 }
+
                 is ChatMessageContentPart.Think -> ThinkBlock(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
@@ -362,8 +373,18 @@ private fun MessageActions(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
-        Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy), modifier = Modifier.size(16.dp), tint = iconColor)
-        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp), tint = iconColor)
+        Icon(
+            Icons.Rounded.ContentCopy,
+            contentDescription = stringResource(R.string.copy),
+            modifier = Modifier.size(16.dp),
+            tint = iconColor
+        )
+        Icon(
+            Icons.Rounded.Edit,
+            contentDescription = stringResource(R.string.edit),
+            modifier = Modifier.size(16.dp),
+            tint = iconColor
+        )
         Icon(
             Icons.Rounded.Refresh,
             contentDescription = stringResource(R.string.regenerate),
@@ -374,7 +395,9 @@ private fun MessageActions(
         )
         Icon(
             imageVector = if (message.isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
-            contentDescription = if (message.isStreaming) stringResource(R.string.stop) else stringResource(R.string.favorite),
+            contentDescription = if (message.isStreaming) stringResource(R.string.stop) else stringResource(
+                R.string.favorite
+            ),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
@@ -417,7 +440,9 @@ private fun ChatInputBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         if (isGenerating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(R.string.send),
+                        contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(
+                            R.string.send
+                        ),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -462,14 +487,27 @@ private fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
-                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.title), state.session.title) { ChatUiIntent.EditTitleClick.emit() }
-                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.current_summary), state.session.summarize.ifBlank { stringResource(R.string.no_summary_yet) }) {
+                    MenuAction(
+                        Icons.Rounded.Edit,
+                        stringResource(R.string.title),
+                        state.session.title
+                    ) { ChatUiIntent.EditTitleClick.emit() }
+                    MenuAction(
+                        Icons.Rounded.Edit,
+                        stringResource(R.string.current_summary),
+                        state.session.summarize.ifBlank { stringResource(R.string.no_summary_yet) }) {
                         ChatUiIntent.EditSummaryClick.emit()
                     }
-                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.user_note), state.session.userNote.ifBlank { stringResource(R.string.empty) }) {
+                    MenuAction(
+                        Icons.Rounded.Edit,
+                        stringResource(R.string.user_note),
+                        state.session.userNote.ifBlank { stringResource(R.string.empty) }) {
                         ChatUiIntent.EditUserNoteClick.emit()
                     }
-                    MenuAction(Icons.Rounded.Edit, stringResource(R.string.creator_notes), state.session.creatorNotes.ifBlank { stringResource(R.string.using_character_default_or_empty) }) {
+                    MenuAction(
+                        Icons.Rounded.Edit,
+                        stringResource(R.string.creator_notes),
+                        state.session.creatorNotes.ifBlank { stringResource(R.string.using_character_default_or_empty) }) {
                         ChatUiIntent.EditCreatorNotesClick.emit()
                     }
                 }
@@ -518,10 +556,33 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         ChatDialogState.None -> Unit
-        is ChatDialogState.EditTitle -> TextEditDialog(stringResource(R.string.title), dialogState.text, { ChatUiIntent.SaveTitle(it).emit() }, emit)
-        is ChatDialogState.EditSummary -> TextEditDialog(stringResource(R.string.current_summary), dialogState.text, { ChatUiIntent.SaveSummary(it).emit() }, emit)
-        is ChatDialogState.EditUserNote -> TextEditDialog(stringResource(R.string.user_note), dialogState.text, { ChatUiIntent.SaveUserNote(it).emit() }, emit)
-        is ChatDialogState.EditCreatorNotes -> TextEditDialog(stringResource(R.string.creator_notes), dialogState.text, { ChatUiIntent.SaveCreatorNotes(it).emit() }, emit)
+        is ChatDialogState.EditTitle -> TextEditDialog(
+            stringResource(R.string.title),
+            dialogState.text,
+            { ChatUiIntent.SaveTitle(it).emit() },
+            emit
+        )
+
+        is ChatDialogState.EditSummary -> TextEditDialog(
+            stringResource(R.string.current_summary),
+            dialogState.text,
+            { ChatUiIntent.SaveSummary(it).emit() },
+            emit
+        )
+
+        is ChatDialogState.EditUserNote -> TextEditDialog(
+            stringResource(R.string.user_note),
+            dialogState.text,
+            { ChatUiIntent.SaveUserNote(it).emit() },
+            emit
+        )
+
+        is ChatDialogState.EditCreatorNotes -> TextEditDialog(
+            stringResource(R.string.creator_notes),
+            dialogState.text,
+            { ChatUiIntent.SaveCreatorNotes(it).emit() },
+            emit
+        )
     }
 }
 
@@ -599,7 +660,10 @@ private fun ChatGenerationState.isGenerating(): Boolean {
 @Composable
 private fun ChatGenerationState.label(streamEnabled: Boolean): String {
     return when (this) {
-        ChatGenerationState.Idle -> if (streamEnabled) stringResource(R.string.connected_streaming_enabled) else stringResource(R.string.connected)
+        ChatGenerationState.Idle -> if (streamEnabled) stringResource(R.string.connected_streaming_enabled) else stringResource(
+            R.string.connected
+        )
+
         ChatGenerationState.Requesting -> stringResource(R.string.requesting_model)
         is ChatGenerationState.Streaming -> stringResource(R.string.generating)
         is ChatGenerationState.Failed -> message
@@ -654,7 +718,18 @@ private fun ChatLayoutPreview() {
                     )
                 ),
                 lorebookEntries = listOf(
-                    ChatLorebookEntryItem(1, 1, "Fog Harbor", "Old District", listOf("rain"), emptyList(), 0, 0, "", true)
+                    ChatLorebookEntryItem(
+                        1,
+                        1,
+                        "Fog Harbor",
+                        "Old District",
+                        listOf("rain"),
+                        emptyList(),
+                        0,
+                        0,
+                        "",
+                        true
+                    )
                 ),
                 isSessionLoreExpanded = true,
                 streamEnabled = true
