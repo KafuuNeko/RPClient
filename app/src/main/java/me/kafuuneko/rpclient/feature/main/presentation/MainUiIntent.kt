@@ -21,5 +21,17 @@ sealed class MainUiIntent {
 
     data class SelectProvider(val providerId: String) : MainUiIntent()
 
+    data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
+
+    data class ToggleAutoSummaryEnabled(val enabled: Boolean) : MainUiIntent()
+
+    data class ChangeSummaryTriggerMessageCount(val value: String) : MainUiIntent()
+
+    data class ChangeSummaryWordsLimit(val value: String) : MainUiIntent()
+
+    data class ChangeSummaryMaxMessagesPerRequest(val value: String) : MainUiIntent()
+
+    data class ChangeSummaryResponseTokens(val value: String) : MainUiIntent()
+
     data object OpenPromptPreset : MainUiIntent()
 }

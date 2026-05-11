@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -33,8 +33,19 @@ class OpenAICompatibleLLMClient(
      */
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val model = request.model ?: mProvider.model
-        return mOkHttpClient.streamLines(buildRequest(request, model, stream = true))
-            .mapNotNull { line -> line.toOpenAIStreamEvent() }
+        return flow {
+            var isThinking = false
+            mOkHttpClient.streamLines(buildRequest(request, model, stream = true)).collect { line ->
+                val event = line.toOpenAIStreamEvent(
+                    isThinking = isThinking,
+                    onThinkingStateChange = { isThinking = it }
+                ) ?: return@collect
+                emit(event)
+            }
+            if (isThinking) {
+                emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
+            }
+        }
     }
 
     /**
@@ -86,8 +97,10 @@ class OpenAICompatibleLLMClient(
         val choice = json.getJSONArray("choices").getJSONObject(0)
         val message = choice.optJSONObject("message")
         val usageJson = json.optJSONObject("usage")
+        val reasoningContent = message?.optReasoningContent().orEmpty()
+        val content = message?.optCleanString("content").orEmpty()
         return LLMGenerationResponse(
-            content = message?.optString("content").orEmpty(),
+            content = mergeReasoningContent(reasoningContent, content),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
             usage = usageJson?.let {
@@ -104,18 +117,46 @@ class OpenAICompatibleLLMClient(
     /**
      * 解析 OpenAI-compatible SSE 行。
      */
-    private fun String.toOpenAIStreamEvent(): LLMStreamEvent? {
+    private fun String.toOpenAIStreamEvent(
+        isThinking: Boolean,
+        onThinkingStateChange: (Boolean) -> Unit
+    ): LLMStreamEvent? {
         if (!startsWith("data:")) return null
         val data = removePrefix("data:").trim()
         if (data == "[DONE]") return LLMStreamEvent.Finished(rawChunk = this)
         val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        val delta = json.optJSONArray("choices")
+        val deltaObject = json.optJSONArray("choices")
             ?.optJSONObject(0)
             ?.optJSONObject("delta")
-            ?.optString("content")
-            .orEmpty()
-        if (delta.isBlank()) return null
-        return LLMStreamEvent.Delta(content = delta, rawChunk = data)
+            ?: return null
+        val reasoningContent = deltaObject.optReasoningContent()
+        if (reasoningContent.isNotBlank()) {
+            val content = if (isThinking) reasoningContent else "<think>\n$reasoningContent"
+            onThinkingStateChange(true)
+            return LLMStreamEvent.Delta(content = content, rawChunk = data)
+        }
+        val content = deltaObject.optCleanString("content").orEmpty()
+        if (content.isBlank()) return null
+        val mergedContent = if (isThinking) "\n</think>\n\n$content" else content
+        onThinkingStateChange(false)
+        return LLMStreamEvent.Delta(content = mergedContent, rawChunk = data)
+    }
+
+    private fun JSONObject.optReasoningContent(): String {
+        return optCleanString("reasoning_content")
+            .ifBlank { optCleanString("reasoning") }
+            .ifBlank { optCleanString("reasoningContent") }
+    }
+
+    private fun JSONObject.optCleanString(name: String): String {
+        if (!has(name) || isNull(name)) return ""
+        val value = optString(name).trim()
+        return if (value.equals("null", ignoreCase = true)) "" else value
+    }
+
+    private fun mergeReasoningContent(reasoningContent: String, content: String): String {
+        if (reasoningContent.isBlank()) return content
+        return "<think>\n$reasoningContent\n</think>\n\n$content".trim()
     }
 
     /**

@@ -38,6 +38,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -299,7 +300,8 @@ private fun SettingsPage(
             item { ParameterPanel(state) }
         }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
-        item { PrivacyPanel(state) }
+        item { SummaryPanel(state, emit) }
+        item { PrivacyPanel(state, emit) }
     }
 }
 
@@ -422,7 +424,84 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun PrivacyPanel(state: MainSettingsState) {
+private fun SummaryPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RpSectionHeader(
+                title = "Summary Memory",
+                action = if (state.autoSummaryEnabled) "Auto" else "Manual"
+            )
+            SettingSwitchRow(
+                Icons.Rounded.AutoAwesome,
+                "Auto summarize",
+                "Update chat memory after the configured number of unsummarized messages",
+                state.autoSummaryEnabled,
+                onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
+            )
+            NumberSettingRow(
+                title = "Update every messages",
+                value = state.summaryTriggerMessageCount.toString(),
+                onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
+            )
+            NumberSettingRow(
+                title = "Target words",
+                value = state.summaryWordsLimit.toString(),
+                onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
+            )
+            NumberSettingRow(
+                title = "Max messages per request",
+                value = state.summaryMaxMessagesPerRequest.toString(),
+                helper = "0 lets the context budget decide",
+                onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
+            )
+            NumberSettingRow(
+                title = "Summary response tokens",
+                value = state.summaryResponseTokens.toString(),
+                onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun NumberSettingRow(
+    title: String,
+    value: String,
+    helper: String? = null,
+    onValueChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onValueChange(it.filter { char -> char.isDigit() }) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (!helper.isNullOrBlank()) {
+            Text(
+                helper,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PrivacyPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
     Card(
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
@@ -439,13 +518,15 @@ private fun PrivacyPanel(state: MainSettingsState) {
                 Icons.Rounded.Shield,
                 stringResource(R.string.local_first),
                 stringResource(R.string.local_first_desc),
-                state.localFirstEnabled
+                state.localFirstEnabled,
+                onCheckedChange = {}
             )
             SettingSwitchRow(
                 Icons.Rounded.Refresh,
                 stringResource(R.string.streaming_response),
                 stringResource(R.string.streaming_response_desc),
-                state.streamEnabled
+                state.streamEnabled,
+                onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
             )
         }
     }
@@ -456,7 +537,8 @@ private fun SettingSwitchRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    checked: Boolean
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         RpIconBubble(icon)
@@ -469,7 +551,7 @@ private fun SettingSwitchRow(
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
             )
         }
-        Switch(checked = checked, onCheckedChange = {})
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -489,7 +571,7 @@ private fun MainLayoutPreview() {
                     totalCharacters = 24,
                     totalWorldBooks = 7
                 ),
-                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true)
+                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true, false, 20, 500, 0, 800)
             ),
             emit = {}
         )

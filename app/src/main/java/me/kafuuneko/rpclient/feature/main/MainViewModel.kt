@@ -47,16 +47,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val selectedProvider = providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
         MainUiState.Normal(
             homeState = buildHomeState(),
-            settingsState = MainSettingsState(
-                selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
-                providers = providers,
-                temperature = selectedProvider?.temperature ?: 0.8f,
-                topP = selectedProvider?.topP ?: 1.0f,
-                maxTokens = selectedProvider?.maxTokens ?: 1200,
-                contextTokens = selectedProvider?.contextTokens ?: 8192,
-                localFirstEnabled = true,
-                streamEnabled = true
-            )
+            settingsState = buildSettingsState(providers, selectedProvider)
         ).setup()
     }
 
@@ -74,7 +65,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 temperature = selectedProvider?.temperature ?: 0f,
                 topP = selectedProvider?.topP ?: 0f,
                 maxTokens = selectedProvider?.maxTokens ?: 0,
-                contextTokens = selectedProvider?.contextTokens ?: 0
+                contextTokens = selectedProvider?.contextTokens ?: 0,
+                streamEnabled = AppModel.streamEnabled,
+                autoSummaryEnabled = AppModel.autoSummaryEnabled,
+                summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
+                summaryWordsLimit = AppModel.summaryWordsLimit,
+                summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
+                summaryResponseTokens = AppModel.summaryResponseTokens
             )
         ).setup()
     }
@@ -148,6 +145,56 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    @UiIntentObserver(MainUiIntent.ToggleAutoSummaryEnabled::class)
+    private fun onToggleAutoSummaryEnabled(intent: MainUiIntent.ToggleAutoSummaryEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.autoSummaryEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(autoSummaryEnabled = intent.enabled)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
+    private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
+        updateSummaryInt(intent.value, minimum = 1) {
+            AppModel.summaryTriggerMessageCount = it
+            copy(summaryTriggerMessageCount = it)
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeSummaryWordsLimit::class)
+    private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
+        updateSummaryInt(intent.value, minimum = 50) {
+            AppModel.summaryWordsLimit = it
+            copy(summaryWordsLimit = it)
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeSummaryMaxMessagesPerRequest::class)
+    private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
+        updateSummaryInt(intent.value, minimum = 0) {
+            AppModel.summaryMaxMessagesPerRequest = it
+            copy(summaryMaxMessagesPerRequest = it)
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
+    private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
+        updateSummaryInt(intent.value, minimum = 128) {
+            AppModel.summaryResponseTokens = it
+            copy(summaryResponseTokens = it)
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.ToggleStreamEnabled::class)
+    private fun onToggleStreamEnabled(intent: MainUiIntent.ToggleStreamEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.streamEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(streamEnabled = intent.enabled)
+        ).setup()
+    }
+
     private suspend fun buildHomeState(): MainHomeState {
         return withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
@@ -161,6 +208,39 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 totalWorldBooks = mLorebookRepository.getAllLorebooks().size
             )
         }
+    }
+
+    private fun buildSettingsState(
+        providers: List<me.kafuuneko.rpclient.libs.room.entity.LLMProvider>,
+        selectedProvider: me.kafuuneko.rpclient.libs.room.entity.LLMProvider?
+    ): MainSettingsState {
+        return MainSettingsState(
+            selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
+            providers = providers,
+            temperature = selectedProvider?.temperature ?: 0.8f,
+            topP = selectedProvider?.topP ?: 1.0f,
+            maxTokens = selectedProvider?.maxTokens ?: 1200,
+            contextTokens = selectedProvider?.contextTokens ?: 8192,
+            localFirstEnabled = true,
+            streamEnabled = AppModel.streamEnabled,
+            autoSummaryEnabled = AppModel.autoSummaryEnabled,
+            summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
+            summaryWordsLimit = AppModel.summaryWordsLimit,
+            summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
+            summaryResponseTokens = AppModel.summaryResponseTokens
+        )
+    }
+
+    private fun updateSummaryInt(
+        value: String,
+        minimum: Int,
+        update: MainSettingsState.(Int) -> MainSettingsState
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val intValue = value.toIntOrNull()?.coerceAtLeast(minimum) ?: minimum
+        uiState.copy(
+            settingsState = uiState.settingsState.update(intValue)
+        ).setup()
     }
 
     private suspend fun ChatSession.toUiModel(character: Character?): MainChatSessionItem {

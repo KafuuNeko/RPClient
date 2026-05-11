@@ -34,5 +34,10 @@ data class MainSettingsState(
     val maxTokens: Int,
     val contextTokens: Int,
     val localFirstEnabled: Boolean,
-    val streamEnabled: Boolean
+    val streamEnabled: Boolean,
+    val autoSummaryEnabled: Boolean,
+    val summaryTriggerMessageCount: Int,
+    val summaryWordsLimit: Int,
+    val summaryMaxMessagesPerRequest: Int,
+    val summaryResponseTokens: Int
 )

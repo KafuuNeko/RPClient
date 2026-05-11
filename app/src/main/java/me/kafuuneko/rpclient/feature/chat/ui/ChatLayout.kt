@@ -2,9 +2,11 @@ package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,11 +18,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
@@ -28,7 +30,8 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +39,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,14 +52,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
-import me.kafuuneko.rpclient.libs.model.ChatSessionUiModel
-import me.kafuuneko.rpclient.libs.model.LoreBookUiModel
-import me.kafuuneko.rpclient.libs.model.LoreEntryUiModel
-import me.kafuuneko.rpclient.libs.model.RpCharacterUiModel
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -68,7 +79,13 @@ fun ChatLayout(
     BackHandler { ChatUiIntent.Back.emit() }
     when (uiState) {
         ChatUiState.None, ChatUiState.Finished -> Unit
-        is ChatUiState.Normal -> ChatNormal(uiState, emit)
+        is ChatUiState.Normal -> {
+            when (uiState.page) {
+                ChatPage.Conversation -> ChatNormal(uiState, emit)
+                ChatPage.Settings -> ChatSettingsPage(uiState, emit)
+            }
+            DialogSwitch(uiState.dialogState, emit)
+        }
     }
 }
 
@@ -95,7 +112,7 @@ private fun ChatNormal(
                         else MaterialTheme.colorScheme.onSurface
                     )
                 }
-                IconButton(onClick = {}) {
+                IconButton(onClick = { ChatUiIntent.OpenChatSettings.emit() }) {
                     Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.generation_params))
                 }
             }
@@ -104,7 +121,7 @@ private fun ChatNormal(
         if (state.isSessionLoreExpanded) {
             SessionLorePanel(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                state = state,
+                entries = state.lorebookEntries,
                 emit = emit
             )
         }
@@ -116,10 +133,18 @@ private fun ChatNormal(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(state.messages) { message ->
-                MessageBubble(message)
+                MessageBubble(
+                    message = message,
+                    expandedThinkBlockIds = state.expandedThinkBlockIds,
+                    emit = emit
+                )
             }
         }
-        ChatInputBar(state.inputDraft, emit)
+        ChatInputBar(
+            draft = state.inputDraft,
+            isGenerating = state.generationState.isGenerating(),
+            emit = emit
+        )
     }
 }
 
@@ -137,14 +162,14 @@ private fun ChatHeader(state: ChatUiState.Normal) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(state.character.name, style = MaterialTheme.typography.titleMedium)
-                    Text(state.generationStatus, style = MaterialTheme.typography.bodySmall)
+                    Text(state.statusText(), style = MaterialTheme.typography.bodySmall)
                 }
             }
             RpMetaRow(
                 listOf(
                     stringResource(R.string.messages_count, state.session.messageCount),
-                    stringResource(R.string.branches_count, state.session.branchCount),
-                    stringResource(R.string.world_books_enabled, state.sessionLoreBooks.count { it.enabled })
+                    stringResource(R.string.world_books_enabled, state.lorebookEntries.count { it.enabled }),
+                    if (state.streamEnabled) "Streaming on" else "Streaming off"
                 )
             )
         }
@@ -154,7 +179,7 @@ private fun ChatHeader(state: ChatUiState.Normal) {
 @Composable
 private fun SessionLorePanel(
     modifier: Modifier = Modifier,
-    state: ChatUiState.Normal,
+    entries: List<ChatLorebookEntryItem>,
     emit: ChatUiIntent.() -> Unit
 ) {
     Surface(
@@ -166,20 +191,19 @@ private fun SessionLorePanel(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.session_world_books), action = stringResource(R.string.manage_world_books)) {
-                ChatUiIntent.OpenSessionLore.emit()
-            }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.sessionLoreBooks) { loreBook ->
-                    SessionLoreBookChip(loreBook, emit)
-                }
-            }
+            RpSectionHeader(title = stringResource(R.string.session_world_books))
             Text(
                 text = stringResource(R.string.session_lore_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
             )
-            state.sessionLoreEntries.forEach { entry ->
+            if (entries.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_world_book_entries),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            entries.forEach { entry ->
                 SessionLoreEntryRow(entry, emit)
             }
         }
@@ -187,45 +211,35 @@ private fun SessionLorePanel(
 }
 
 @Composable
-private fun SessionLoreBookChip(
-    loreBook: LoreBookUiModel,
-    emit: ChatUiIntent.() -> Unit
-) {
-    AssistChip(
-        onClick = { ChatUiIntent.ToggleSessionLoreBook(loreBook.id).emit() },
-        label = { Text(if (loreBook.enabled) loreBook.title else "${loreBook.title} ${stringResource(R.string.disabled)}") },
-        leadingIcon = {
-            Icon(
-                Icons.Rounded.Book,
-                contentDescription = null,
-                tint = if (loreBook.enabled) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
-            )
-        }
-    )
-}
-
-@Composable
 private fun SessionLoreEntryRow(
-    entry: LoreEntryUiModel,
+    entry: ChatLorebookEntryItem,
     emit: ChatUiIntent.() -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         RpIconBubble(Icons.Rounded.Book)
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.title, style = MaterialTheme.typography.titleSmall)
+            Text(entry.name.ifBlank { stringResource(R.string.unnamed_entry) }, style = MaterialTheme.typography.titleSmall)
+            Text(
+                entry.lorebookName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
+            )
             RpTagRow(entry.keywords, maxCount = 2)
         }
         Switch(
-            checked = entry.isEnabled,
+            checked = entry.enabled,
             onCheckedChange = { ChatUiIntent.ToggleSessionLoreEntry(entry.id).emit() }
         )
     }
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessageUiModel) {
+private fun MessageBubble(
+    message: ChatMessageUiModel,
+    expandedThinkBlockIds: Set<String>,
+    emit: ChatUiIntent.() -> Unit
+) {
     val isUser = message.role == MessageRole.User
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -258,42 +272,108 @@ private fun MessageBubble(message: ChatMessageUiModel) {
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f)
                     )
                 }
-                Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                MessageContent(
+                    message = message,
+                    expandedThinkBlockIds = expandedThinkBlockIds,
+                    isUser = isUser,
+                    emit = emit
                 )
-                MessageActions(message.isStreaming)
+                MessageActions(message, emit)
             }
         }
     }
 }
 
 @Composable
-private fun MessageActions(isStreaming: Boolean) {
+private fun MessageContent(
+    message: ChatMessageUiModel,
+    expandedThinkBlockIds: Set<String>,
+    isUser: Boolean,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        parseThinkBlocks(message.id, message.content).forEach { part ->
+            when (part) {
+                is MessageContentPart.Text -> {
+                    if (part.content.isNotBlank()) {
+                        Text(
+                            text = part.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                is MessageContentPart.Think -> ThinkBlock(
+                    part = part,
+                    expanded = part.id in expandedThinkBlockIds,
+                    emit = emit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThinkBlock(
+    part: MessageContentPart.Think,
+    expanded: Boolean,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { ChatUiIntent.ToggleThinkBlock(part.id).emit() },
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Thought process",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    if (expanded) "Hide" else "Show",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (expanded) {
+                Text(
+                    part.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageActions(
+    message: ChatMessageUiModel,
+    emit: ChatUiIntent.() -> Unit
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         val iconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
-        Icon(
-            Icons.Rounded.ContentCopy,
-            contentDescription = stringResource(R.string.copy),
-            modifier = Modifier.size(16.dp),
-            tint = iconColor
-        )
-        Icon(
-            Icons.Rounded.Edit,
-            contentDescription = stringResource(R.string.edit),
-            modifier = Modifier.size(16.dp),
-            tint = iconColor
-        )
+        Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.copy), modifier = Modifier.size(16.dp), tint = iconColor)
+        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp), tint = iconColor)
         Icon(
             Icons.Rounded.Refresh,
             contentDescription = stringResource(R.string.regenerate),
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier
+                .size(16.dp)
+                .clickable { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
             tint = iconColor
         )
         Icon(
-            imageVector = if (isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
-            contentDescription = if (isStreaming) stringResource(R.string.stop) else stringResource(R.string.favorite),
+            imageVector = if (message.isStreaming) Icons.Rounded.Stop else Icons.Rounded.Favorite,
+            contentDescription = if (message.isStreaming) stringResource(R.string.stop) else stringResource(R.string.favorite),
             modifier = Modifier.size(16.dp),
             tint = iconColor
         )
@@ -303,6 +383,7 @@ private fun MessageActions(isStreaming: Boolean) {
 @Composable
 private fun ChatInputBar(
     draft: String,
+    isGenerating: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
@@ -315,7 +396,8 @@ private fun ChatInputBar(
             OutlinedTextField(
                 modifier = Modifier.weight(1f),
                 value = draft,
-                onValueChange = {},
+                onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
+                enabled = !isGenerating,
                 minLines = 1,
                 maxLines = 4,
                 shape = RoundedCornerShape(8.dp),
@@ -323,16 +405,18 @@ private fun ChatInputBar(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Surface(
-                modifier = Modifier
-                    .size(52.dp),
+                modifier = Modifier.size(52.dp),
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                onClick = { ChatUiIntent.SendMessage.emit() }
+                color = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                onClick = {
+                    if (isGenerating) ChatUiIntent.StopGeneration.emit()
+                    else ChatUiIntent.SendMessage.emit()
+                }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = stringResource(R.string.send),
+                        if (isGenerating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
+                        contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(R.string.send),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
@@ -341,39 +425,263 @@ private fun ChatInputBar(
     }
 }
 
+@Composable
+private fun ChatSettingsPage(
+    state: ChatUiState.Normal,
+    emit: ChatUiIntent.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+    ) {
+        AppTopBar(
+            title = "Chat Settings",
+            onBack = { ChatUiIntent.CloseChatSettings.emit() }
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                SettingsSection(title = "Actions") {
+                    MenuAction(
+                        icon = Icons.Rounded.Refresh,
+                        title = "Regenerate latest reply",
+                        subtitle = "Delete the latest assistant reply and generate again"
+                    ) { ChatUiIntent.RegenerateLast.emit() }
+                    MenuAction(
+                        icon = Icons.Rounded.AutoAwesome,
+                        title = "Summarize now",
+                        subtitle = "Update this chat's memory using the global summary settings"
+                    ) { ChatUiIntent.SummarizeNow.emit() }
+                }
+            }
+            item {
+                SettingsSection(title = "Session") {
+                    MenuAction(Icons.Rounded.Edit, "Title", state.session.title) { ChatUiIntent.EditTitleClick.emit() }
+                    MenuAction(Icons.Rounded.Edit, "Current summary", state.session.summarize.ifBlank { "No summary yet" }) {
+                        ChatUiIntent.EditSummaryClick.emit()
+                    }
+                    MenuAction(Icons.Rounded.Edit, "User note", state.session.userNote.ifBlank { "Empty" }) {
+                        ChatUiIntent.EditUserNoteClick.emit()
+                    }
+                    MenuAction(Icons.Rounded.Edit, "Creator notes", state.session.creatorNotes.ifBlank { "Using character default or empty" }) {
+                        ChatUiIntent.EditCreatorNotesClick.emit()
+                    }
+                }
+            }
+            item {
+                SettingsSection(title = "World Book") {
+                    if (state.lorebookEntries.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.no_world_book_entries),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    state.lorebookEntries.forEach { entry ->
+                        SessionLoreEntryRow(entry, emit)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RpSectionHeader(title = title)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DialogSwitch(
+    dialogState: ChatDialogState,
+    emit: ChatUiIntent.() -> Unit
+) {
+    when (dialogState) {
+        ChatDialogState.None -> Unit
+        is ChatDialogState.EditTitle -> TextEditDialog("Title", dialogState.text, { ChatUiIntent.SaveTitle(it).emit() }, emit)
+        is ChatDialogState.EditSummary -> TextEditDialog("Summary", dialogState.text, { ChatUiIntent.SaveSummary(it).emit() }, emit)
+        is ChatDialogState.EditUserNote -> TextEditDialog("User Note", dialogState.text, { ChatUiIntent.SaveUserNote(it).emit() }, emit)
+        is ChatDialogState.EditCreatorNotes -> TextEditDialog("Creator Notes", dialogState.text, { ChatUiIntent.SaveCreatorNotes(it).emit() }, emit)
+    }
+}
+
+@Composable
+private fun MenuAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextEditDialog(
+    title: String,
+    initialText: String,
+    onSave: (String) -> Unit,
+    emit: ChatUiIntent.() -> Unit
+) {
+    var text by remember(initialText) { mutableStateOf(initialText) }
+    AlertDialog(
+        onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                minLines = 3,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSave(text) }) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+private fun ChatGenerationState.isGenerating(): Boolean {
+    return this is ChatGenerationState.Requesting || this is ChatGenerationState.Streaming
+}
+
+private fun ChatGenerationState.label(streamEnabled: Boolean): String {
+    return when (this) {
+        ChatGenerationState.Idle -> if (streamEnabled) "Connected, streaming enabled" else "Connected"
+        ChatGenerationState.Requesting -> "Requesting model..."
+        is ChatGenerationState.Streaming -> "Generating..."
+        is ChatGenerationState.Failed -> message
+    }
+}
+
+private fun ChatUiState.Normal.statusText(): String {
+    return if (loadState == ChatLoadState.Saving) {
+        "Updating summary..."
+    } else {
+        generationState.label(streamEnabled)
+    }
+}
+
+private fun parseThinkBlocks(messageId: String, content: String): List<MessageContentPart> {
+    val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
+    val parts = mutableListOf<MessageContentPart>()
+    var cursor = 0
+    regex.findAll(content).forEachIndexed { index, match ->
+        if (match.range.first > cursor) {
+            parts += MessageContentPart.Text(content.substring(cursor, match.range.first))
+        }
+        val thinkContent = match.groupValues[1].trim()
+        if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
+            parts += MessageContentPart.Think(
+                id = "$messageId:$index",
+                content = thinkContent
+            )
+        }
+        cursor = match.range.last + 1
+    }
+    if (cursor < content.length) {
+        parts += MessageContentPart.Text(content.substring(cursor))
+    }
+    return parts.ifEmpty { listOf(MessageContentPart.Text(content)) }
+}
+
+private sealed class MessageContentPart {
+    data class Text(val content: String) : MessageContentPart()
+    data class Think(val id: String, val content: String) : MessageContentPart()
+}
+
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun ChatLayoutPreview() {
     AppTheme(dynamicColor = false) {
         ChatLayout(
             uiState = ChatUiState.Normal(
-                session = ChatSessionUiModel("s", "Lyra", "The Seventh File on a Rainy Night", "", 12, 2, "Just now"),
-                character = RpCharacterUiModel(
-                    "lyra",
-                    "Lyra",
-                    "Fog Harbor Archivist",
-                    "",
-                    "L",
-                    emptyList(),
-                    12,
-                    "Just now",
-                    0xFF315EFD
+                session = ChatSessionItem(
+                    id = 1,
+                    title = "The Seventh File on a Rainy Night",
+                    summarize = "",
+                    userNote = "",
+                    creatorNotes = "",
+                    messageCount = 1,
+                    enabledLorebookEntryIds = setOf(1)
                 ),
-                messages = emptyList(),
-                sessionLoreBooks = listOf(
-                    LoreBookUiModel(
-                        "l",
-                        "Fog Harbor Old District",
-                        "Chat Lore",
-                        18,
-                        true,
-                        "Today"
+                character = ChatCharacterItem(
+                    id = 1,
+                    name = "Lyra",
+                    description = "",
+                    personality = "",
+                    scenario = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                    creatorNotes = "",
+                    avatarText = "L",
+                    accentColor = 0xFF315EFD
+                ),
+                messages = listOf(
+                    ChatMessageUiModel(
+                        id = "1",
+                        role = MessageRole.Assistant,
+                        speaker = "Lyra",
+                        content = "The rain kept tapping on the archive windows.",
+                        time = "02:15",
+                        tokenCount = 12
                     )
                 ),
-                sessionLoreEntries = emptyList(),
+                lorebookEntries = listOf(
+                    ChatLorebookEntryItem(1, 1, "Fog Harbor", "Old District", listOf("rain"), emptyList(), 0, 0, "", true)
+                ),
                 isSessionLoreExpanded = true,
-                inputDraft = "",
-                generationStatus = stringResource(R.string.connected)
+                streamEnabled = true
             ),
             emit = {}
         )
