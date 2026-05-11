@@ -23,6 +23,11 @@ import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+internal data class LLMHttpRequest(
+    val request: Request,
+    val payloadJson: String
+)
+
 /**
  * 执行普通 HTTP 请求并读取完整响应体。
  */
@@ -146,3 +151,9 @@ internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): 
  * 将 JSONObject 转为 JSON 请求体。
  */
 internal fun JSONObject.toRequestBody() = toString().toRequestBody(JsonMediaType)
+
+internal fun Throwable.toErrorJson(): String {
+    return JSONObject()
+        .put("error", message.orEmpty())
+        .toString()
+}

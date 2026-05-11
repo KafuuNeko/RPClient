@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -16,6 +17,7 @@ import org.json.JSONObject
 
 class AnthropicMessagesLLMClient(
     private val mOkHttpClient: OkHttpClient,
+    private val mLLMRequestLogRepository: LLMRequestLogRepository,
     private val mProvider: LLMProviderConfig
 ) : LLMClient {
     /**
@@ -24,7 +26,13 @@ class AnthropicMessagesLLMClient(
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
-        val raw = mOkHttpClient.await(httpRequest)
+        val raw = runCatching {
+            mOkHttpClient.await(httpRequest.request)
+        }.onSuccess {
+            logRequest(model, false, httpRequest.payloadJson, it)
+        }.onFailure {
+            logRequest(model, false, httpRequest.payloadJson, it.toErrorJson())
+        }.getOrThrow()
         return raw.toAnthropicResponse(model)
     }
 
@@ -33,8 +41,21 @@ class AnthropicMessagesLLMClient(
      */
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val model = request.model ?: mProvider.model
-        return mOkHttpClient.streamLines(buildRequest(request, model, stream = true))
-            .mapNotNull { line -> line.toAnthropicStreamEvent() }
+        return flow {
+            val httpRequest = buildRequest(request, model, stream = true)
+            val rawChunks = JSONArray()
+            runCatching {
+                mOkHttpClient.streamLines(httpRequest.request).collect { line ->
+                    rawChunks.put(line)
+                    emit(line.toAnthropicStreamEvent() ?: return@collect)
+                }
+            }.onSuccess {
+                logRequest(model, true, httpRequest.payloadJson, rawChunks.toString())
+            }.onFailure {
+                logRequest(model, true, httpRequest.payloadJson, it.toErrorJson())
+                throw it
+            }
+        }
     }
 
     /**
@@ -44,7 +65,7 @@ class AnthropicMessagesLLMClient(
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean
-    ): Request {
+    ): LLMHttpRequest {
         val payload = JSONObject()
             .put("model", model)
             .put("max_tokens", request.options.maxTokens ?: mProvider.maxTokens)
@@ -58,14 +79,34 @@ class AnthropicMessagesLLMClient(
         if (systemPrompt.isNotBlank()) payload.put("system", systemPrompt)
         if (request.options.stop.isNotEmpty()) payload.put("stop_sequences", request.options.stop.toJsonArray())
 
-        return Request.Builder()
-            .url("${mProvider.normalizedBaseUrl()}/v1/messages")
-            .post(payload.toRequestBody())
-            .header("x-api-key", mProvider.apiKey)
-            .header("anthropic-version", "2023-06-01")
-            .header("Content-Type", "application/json")
-            .applyProviderHeaders(mProvider)
-            .build()
+        return LLMHttpRequest(
+            request = Request.Builder()
+                .url("${mProvider.normalizedBaseUrl()}/v1/messages")
+                .post(payload.toRequestBody())
+                .header("x-api-key", mProvider.apiKey)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .applyProviderHeaders(mProvider)
+                .build(),
+            payloadJson = payload.toString()
+        )
+    }
+
+    private suspend fun logRequest(
+        model: String,
+        isStreaming: Boolean,
+        requestJson: String,
+        responseJson: String
+    ) {
+        runCatching {
+            mLLMRequestLogRepository.saveLog(
+                provider = mProvider,
+                model = model,
+                isStreaming = isStreaming,
+                requestJson = requestJson,
+                responseJson = responseJson
+            )
+        }
     }
 
     /**

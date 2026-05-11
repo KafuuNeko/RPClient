@@ -23,6 +23,8 @@ sealed class MainUiIntent {
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
 
+    data class ToggleDebugModeEnabled(val enabled: Boolean) : MainUiIntent()
+
     data class ToggleAutoSummaryEnabled(val enabled: Boolean) : MainUiIntent()
 
     data class ChangeSummaryTriggerMessageCount(val value: String) : MainUiIntent()
@@ -34,4 +36,6 @@ sealed class MainUiIntent {
     data class ChangeSummaryResponseTokens(val value: String) : MainUiIntent()
 
     data object OpenPromptPreset : MainUiIntent()
+
+    data object OpenRequestLogs : MainUiIntent()
 }

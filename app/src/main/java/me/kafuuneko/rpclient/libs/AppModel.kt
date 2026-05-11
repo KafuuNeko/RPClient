@@ -38,4 +38,7 @@ object AppModel : KotprefModel() {
     // 世界书占 prompt 预算的百分比
     var worldInfoBudgetPercent by intPref(default = 12)
 
+    // 是否启用调试模式
+    var debugModeEnabled by booleanPref(default = false)
+
 }

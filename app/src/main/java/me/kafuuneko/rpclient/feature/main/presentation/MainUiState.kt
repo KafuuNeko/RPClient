@@ -35,6 +35,7 @@ data class MainSettingsState(
     val contextTokens: Int,
     val localFirstEnabled: Boolean,
     val streamEnabled: Boolean,
+    val debugModeEnabled: Boolean,
     val autoSummaryEnabled: Boolean,
     val summaryTriggerMessageCount: Int,
     val summaryWordsLimit: Int,

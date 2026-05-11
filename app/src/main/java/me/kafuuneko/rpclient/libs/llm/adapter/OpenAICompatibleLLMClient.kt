@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -16,6 +17,7 @@ import org.json.JSONObject
 
 class OpenAICompatibleLLMClient(
     private val mOkHttpClient: OkHttpClient,
+    private val mLLMRequestLogRepository: LLMRequestLogRepository,
     private val mProvider: LLMProviderConfig
 ) : LLMClient {
     /**
@@ -24,7 +26,13 @@ class OpenAICompatibleLLMClient(
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
-        val raw = mOkHttpClient.await(httpRequest)
+        val raw = runCatching {
+            mOkHttpClient.await(httpRequest.request)
+        }.onSuccess {
+            logRequest(model, false, httpRequest.payloadJson, it)
+        }.onFailure {
+            logRequest(model, false, httpRequest.payloadJson, it.toErrorJson())
+        }.getOrThrow()
         return raw.toOpenAIResponse(
             fallbackModel = model,
             includeReasoningInContent = request.includeReasoningInContent
@@ -38,16 +46,26 @@ class OpenAICompatibleLLMClient(
         val model = request.model ?: mProvider.model
         return flow {
             var isThinking = false
-            mOkHttpClient.streamLines(buildRequest(request, model, stream = true)).collect { line ->
-                val event = line.toOpenAIStreamEvent(
-                    includeReasoningInContent = request.includeReasoningInContent,
-                    isThinking = isThinking,
-                    onThinkingStateChange = { isThinking = it }
-                ) ?: return@collect
-                emit(event)
-            }
-            if (request.includeReasoningInContent && isThinking) {
-                emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
+            val httpRequest = buildRequest(request, model, stream = true)
+            val rawChunks = JSONArray()
+            runCatching {
+                mOkHttpClient.streamLines(httpRequest.request).collect { line ->
+                    rawChunks.put(line)
+                    val event = line.toOpenAIStreamEvent(
+                        includeReasoningInContent = request.includeReasoningInContent,
+                        isThinking = isThinking,
+                        onThinkingStateChange = { isThinking = it }
+                    ) ?: return@collect
+                    emit(event)
+                }
+                if (request.includeReasoningInContent && isThinking) {
+                    emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
+                }
+            }.onSuccess {
+                logRequest(model, true, httpRequest.payloadJson, rawChunks.toString())
+            }.onFailure {
+                logRequest(model, true, httpRequest.payloadJson, it.toErrorJson())
+                throw it
             }
         }
     }
@@ -59,7 +77,7 @@ class OpenAICompatibleLLMClient(
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean
-    ): Request {
+    ): LLMHttpRequest {
         val payload = JSONObject()
             .put("model", model)
             .put("messages", request.messages.toOpenAIMessages())
@@ -69,13 +87,33 @@ class OpenAICompatibleLLMClient(
             .put("stream", stream)
         if (request.options.stop.isNotEmpty()) payload.put("stop", request.options.stop.toJsonArray())
 
-        return Request.Builder()
+        return LLMHttpRequest(
+            request = Request.Builder()
             .url("${mProvider.normalizedBaseUrl()}/chat/completions")
             .post(payload.toRequestBody())
             .header("Authorization", "Bearer ${mProvider.apiKey}")
             .header("Content-Type", "application/json")
             .applyProviderHeaders(mProvider)
-            .build()
+            .build(),
+            payloadJson = payload.toString()
+        )
+    }
+
+    private suspend fun logRequest(
+        model: String,
+        isStreaming: Boolean,
+        requestJson: String,
+        responseJson: String
+    ) {
+        runCatching {
+            mLLMRequestLogRepository.saveLog(
+                provider = mProvider,
+                model = model,
+                isStreaming = isStreaming,
+                requestJson = requestJson,
+                responseJson = responseJson
+            )
+        }
     }
 
     /**

@@ -52,6 +52,16 @@
     <string name="summary_response_tokens">Summary response tokens</string>
     <string name="unknown_character">Unknown character</string>
     <string name="no_messages_yet">No messages yet</string>
+    <string name="debug_mode">Debug Mode</string>
+    <string name="debug_mode_desc">Record raw LLM request and response JSON in the local database</string>
+    <string name="request_logs">Request Logs</string>
+    <string name="request_logs_subtitle">Raw LLM request and response JSON, newest first</string>
+    <string name="request_logs_entry_subtitle">View and copy raw LLM request records</string>
+    <string name="no_request_logs">No request logs</string>
+    <string name="no_request_logs_desc">Enable debug mode and send an LLM request to create records.</string>
+    <string name="request_json">Request JSON</string>
+    <string name="response_json">Response JSON</string>
+    <string name="request_log_json">Request log JSON</string>
 
     <!-- Character Layout -->
     <string name="character_manager">Character Manager</string>

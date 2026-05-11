@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import okhttp3.OkHttpClient
@@ -66,6 +67,7 @@ private val appModules = module {
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)
     singleOf(::LLMRepository)
+    singleOf(::LLMRequestLogRepository)
     singleOf(::FileRepository)
 
 }

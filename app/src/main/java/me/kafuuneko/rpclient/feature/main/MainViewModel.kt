@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
+import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -70,6 +71,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 maxTokens = selectedProvider?.maxTokens ?: 0,
                 contextTokens = selectedProvider?.contextTokens ?: 0,
                 streamEnabled = AppModel.streamEnabled,
+                debugModeEnabled = AppModel.debugModeEnabled,
                 autoSummaryEnabled = AppModel.autoSummaryEnabled,
                 summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
                 summaryWordsLimit = AppModel.summaryWordsLimit,
@@ -126,6 +128,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
     private fun onOpenPromptPreset() {
         AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenRequestLogs::class)
+    private fun onOpenRequestLogs() {
+        AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
@@ -198,6 +205,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
+    private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.debugModeEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(debugModeEnabled = intent.enabled)
+        ).setup()
+    }
+
     private suspend fun buildHomeState(): MainHomeState {
         return withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
@@ -226,6 +242,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             contextTokens = selectedProvider?.contextTokens ?: 8192,
             localFirstEnabled = true,
             streamEnabled = AppModel.streamEnabled,
+            debugModeEnabled = AppModel.debugModeEnabled,
             autoSummaryEnabled = AppModel.autoSummaryEnabled,
             summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
             summaryWordsLimit = AppModel.summaryWordsLimit,

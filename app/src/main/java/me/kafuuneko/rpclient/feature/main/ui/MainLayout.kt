@@ -25,6 +25,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Person
@@ -302,6 +304,7 @@ private fun SettingsPage(
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { SummaryPanel(state, emit) }
         item { PrivacyPanel(state, emit) }
+        item { DebugPanel(state, emit) }
     }
 }
 
@@ -533,6 +536,41 @@ private fun PrivacyPanel(
 }
 
 @Composable
+private fun DebugPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RpSectionHeader(title = stringResource(R.string.debug_mode))
+            SettingSwitchRow(
+                Icons.Rounded.BugReport,
+                stringResource(R.string.debug_mode),
+                stringResource(R.string.debug_mode_desc),
+                state.debugModeEnabled,
+                onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
+            )
+            if (state.debugModeEnabled) {
+                RpInfoCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { MainUiIntent.OpenRequestLogs.emit() },
+                    icon = Icons.Rounded.DataObject,
+                    title = stringResource(R.string.request_logs),
+                    subtitle = stringResource(R.string.request_logs_entry_subtitle)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingSwitchRow(
     icon: ImageVector,
     title: String,
@@ -571,7 +609,7 @@ private fun MainLayoutPreview() {
                     totalCharacters = 24,
                     totalWorldBooks = 7
                 ),
-                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true, false, 20, 500, 0, 800)
+                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true, false, false, 20, 500, 0, 800)
             ),
             emit = {}
         )
