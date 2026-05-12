@@ -241,9 +241,7 @@ private fun EntryCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 RpTagRow(
-                    tags = entry.keywords.ifEmpty {
-                        listOf(stringResource(R.string.no_keywords))
-                    },
+                    tags = entry.displayTags(stringResource(R.string.entry_constant), stringResource(R.string.no_keywords)),
                     maxCount = 3
                 )
                 Text(
@@ -254,6 +252,17 @@ private fun EntryCard(
             }
             Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.edit))
         }
+    }
+}
+
+private fun WorldBookEntryListItem.displayTags(
+    constantLabel: String,
+    noKeywordsLabel: String
+): List<String> {
+    return buildList {
+        if (constant) add(constantLabel)
+        addAll(keywords)
+        if (isEmpty()) add(noKeywordsLabel)
     }
 }
 
@@ -378,6 +387,7 @@ private fun WorldBookEditLayoutPreview() {
                             id = 1L,
                             name = "Old District",
                             keywords = listOf("district", "railway"),
+                            constant = false,
                             order = 100,
                             depth = 0
                         )
@@ -388,4 +398,3 @@ private fun WorldBookEditLayoutPreview() {
         )
     }
 }
-

@@ -32,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -160,6 +161,31 @@ private fun BasicPanel(
             value = form.name,
             onChange = { WorldBookEntryEditUiIntent.ChangeName(it).emit() }
         )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.entry_constant),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = stringResource(R.string.entry_constant_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                )
+            }
+            Switch(
+                checked = form.constant,
+                enabled = loadState == WorldBookEntryEditLoadState.None,
+                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeConstant(it).emit() }
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.entry_order),
@@ -415,4 +441,3 @@ private fun WorldBookEntryEditLayoutPreview() {
         )
     }
 }
-

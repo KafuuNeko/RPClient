@@ -10,6 +10,7 @@ data class WorldBookEntryEditForm(
     val name: String = "",
     val keywords: List<String> = listOf(""),
     val secondaryKeywords: List<String> = listOf(""),
+    val constant: Boolean = false,
     val order: String = "100",
     val depth: String = "0",
     val category: List<String> = listOf(""),
@@ -26,6 +27,7 @@ data class WorldBookEntryEditForm(
                 name = entry.name,
                 keywords = entry.getKeywordList().ifEmpty { listOf("") },
                 secondaryKeywords = entry.getSecondaryKeywordList().ifEmpty { listOf("") },
+                constant = entry.constant,
                 order = entry.order.toString(),
                 depth = entry.depth.toString(),
                 category = entry.getCategoryList().ifEmpty { listOf("") },
@@ -43,6 +45,7 @@ data class WorldBookEntryEditForm(
             name = name.trim(),
             keywords = Gson().toJsonString(keywords.cleanList()),
             secondaryKeywords = Gson().toJsonString(secondaryKeywords.cleanList()),
+            constant = constant,
             order = orderValue,
             depth = depthValue,
             category = Gson().toJsonString(category.cleanList()),
@@ -56,6 +59,7 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
         name = name.trim(),
         keywords = keywords.cleanList(),
         secondaryKeywords = secondaryKeywords.cleanList(),
+        constant = constant,
         order = order.trim(),
         depth = depth.trim(),
         category = category.cleanList(),
@@ -66,4 +70,3 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
 private fun List<String>.cleanList(): List<String> {
     return map { it.trim() }.filter { it.isNotEmpty() }
 }
-

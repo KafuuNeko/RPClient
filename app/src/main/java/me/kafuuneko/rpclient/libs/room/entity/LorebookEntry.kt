@@ -32,6 +32,8 @@ data class LorebookEntry(
     val keywords: String,
     // 次要关键词(Json)
     val secondaryKeywords: String,
+    // 是否常驻激活；开启后不需要关键词命中也会进入本轮世界书候选结果。
+    val constant: Boolean = false,
     // 插入顺序（数值越小优先级越高）
     val order: Int,
     // 插入深度（0放在最顶端，1插入在最后一条消息和倒数第二条消息之间，2插入在倒数第二条和倒数第三条之间, ...）

@@ -407,13 +407,24 @@ private fun LorebookEntryOption(
                     overflow = TextOverflow.Ellipsis
                 )
                 RpTagRow(
-                    tags = listOf(
-                        item.lorebookName,
-                        stringResource(R.string.entry_order_depth, item.entry.order, item.entry.depth)
+                    tags = item.displayTags(
+                        constantLabel = stringResource(R.string.entry_constant),
+                        orderDepthLabel = stringResource(R.string.entry_order_depth, item.entry.order, item.entry.depth)
                     )
                 )
             }
         }
+    }
+}
+
+private fun ChatCreateLorebookEntryItem.displayTags(
+    constantLabel: String,
+    orderDepthLabel: String
+): List<String> {
+    return buildList {
+        add(lorebookName)
+        if (entry.constant) add(constantLabel)
+        add(orderDepthLabel)
     }
 }
 

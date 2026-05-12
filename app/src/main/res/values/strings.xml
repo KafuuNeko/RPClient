@@ -203,6 +203,8 @@
     <string name="entry_index">Entry %d</string>
     <string name="unnamed_entry">Unnamed entry</string>
     <string name="entry_name">Entry name</string>
+    <string name="entry_constant">Always active</string>
+    <string name="entry_constant_desc">Insert this entry when it is enabled, even without keyword matches</string>
     <string name="entry_order">Order</string>
     <string name="entry_depth">Depth</string>
     <string name="entry_content">Content</string>

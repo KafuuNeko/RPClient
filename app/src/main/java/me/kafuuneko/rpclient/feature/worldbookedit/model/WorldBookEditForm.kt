@@ -33,6 +33,7 @@ data class WorldBookEntryListItem(
     val id: Long,
     val name: String,
     val keywords: List<String>,
+    val constant: Boolean,
     val order: Int,
     val depth: Int
 ) {
@@ -42,6 +43,7 @@ data class WorldBookEntryListItem(
                 id = entry.id,
                 name = entry.name,
                 keywords = entry.getKeywordList(),
+                constant = entry.constant,
                 order = entry.order,
                 depth = entry.depth
             )

@@ -81,6 +81,10 @@ class WorldBookEntryEditViewModel :
     private fun onDeleteSecondaryKeyword(intent: WorldBookEntryEditUiIntent.DeleteSecondaryKeyword) =
         updateForm { copy(secondaryKeywords = secondaryKeywords.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
 
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeConstant::class)
+    private fun onChangeConstant(intent: WorldBookEntryEditUiIntent.ChangeConstant) =
+        updateForm { copy(constant = intent.value) }
+
     @UiIntentObserver(WorldBookEntryEditUiIntent.AddCategory::class)
     private fun onAddCategory() =
         updateForm { copy(category = category + "") }
@@ -188,4 +192,3 @@ class WorldBookEntryEditViewModel :
         return filterIndexed { currentIndex, _ -> currentIndex != index }
     }
 }
-

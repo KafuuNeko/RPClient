@@ -19,6 +19,8 @@ sealed class WorldBookEntryEditUiIntent {
 
     data class DeleteSecondaryKeyword(val index: Int) : WorldBookEntryEditUiIntent()
 
+    data class ChangeConstant(val value: Boolean) : WorldBookEntryEditUiIntent()
+
     data object AddCategory : WorldBookEntryEditUiIntent()
 
     data class ChangeCategory(val index: Int, val value: String) : WorldBookEntryEditUiIntent()
@@ -41,4 +43,3 @@ sealed class WorldBookEntryEditUiIntent {
 
     data object DismissDialog : WorldBookEntryEditUiIntent()
 }
-

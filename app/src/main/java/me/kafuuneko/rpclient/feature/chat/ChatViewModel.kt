@@ -688,6 +688,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         name = entry.name,
                         keywords = entry.getKeywordList(),
                         secondaryKeywords = entry.getSecondaryKeywordList(),
+                        constant = entry.constant,
                         order = entry.order,
                         depth = entry.depth,
                         content = entry.content,

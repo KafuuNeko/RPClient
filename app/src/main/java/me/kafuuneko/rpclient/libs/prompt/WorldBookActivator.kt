@@ -10,9 +10,10 @@ class WorldBookActivator {
      */
     fun activate(context: PromptBuildContext): List<LorebookEntry> {
         val scanBuffer = buildScanBuffer(context)
-        if (scanBuffer.isBlank()) return emptyList()
         return context.candidateLorebookEntries
-            .filter { it.matches(scanBuffer) }
+            .filter { entry ->
+                entry.constant || (scanBuffer.isNotBlank() && entry.matches(scanBuffer))
+            }
             .sortedWith(compareBy<LorebookEntry> { it.order }.thenBy { it.id })
     }
 

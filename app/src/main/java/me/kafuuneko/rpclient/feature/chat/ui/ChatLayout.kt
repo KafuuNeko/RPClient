@@ -331,12 +331,22 @@ private fun SessionLoreEntryRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
             )
-            RpTagRow(entry.keywords, maxCount = 2)
+            RpTagRow(
+                tags = entry.displayTags(stringResource(R.string.entry_constant)),
+                maxCount = 2
+            )
         }
         Switch(
             checked = entry.enabled,
             onCheckedChange = { ChatUiIntent.ToggleSessionLoreEntry(entry.id).emit() }
         )
+    }
+}
+
+private fun ChatLorebookEntryItem.displayTags(constantLabel: String): List<String> {
+    return buildList {
+        if (constant) add(constantLabel)
+        addAll(keywords)
     }
 }
 
@@ -939,6 +949,7 @@ private fun ChatLayoutPreview() {
                                 "Old District",
                                 listOf("rain"),
                                 emptyList(),
+                                false,
                                 0,
                                 0,
                                 "",
