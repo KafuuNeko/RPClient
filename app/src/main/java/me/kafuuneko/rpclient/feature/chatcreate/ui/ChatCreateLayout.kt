@@ -19,9 +19,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
@@ -30,12 +34,17 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -75,6 +84,11 @@ private fun ChatCreateNormal(
     state: ChatCreateUiState.Normal,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
+    var lorebookQuery by remember { mutableStateOf("") }
+    var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
+    val filteredLorebookGroups = state.lorebookGroups.filterForQuery(lorebookQuery)
+    val isSearchingLorebooks = lorebookQuery.isNotBlank()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -130,6 +144,14 @@ private fun ChatCreateNormal(
                 item {
                     RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
                 }
+                if (state.lorebookGroups.isNotEmpty()) {
+                    item {
+                        LorebookSearchField(
+                            query = lorebookQuery,
+                            onQueryChange = { lorebookQuery = it }
+                        )
+                    }
+                }
                 if (state.lorebookGroups.isEmpty()) {
                     item {
                         EmptyCard(
@@ -138,10 +160,29 @@ private fun ChatCreateNormal(
                         )
                     }
                 }
-                items(state.lorebookGroups) { group ->
+                if (state.lorebookGroups.isNotEmpty() && filteredLorebookGroups.isEmpty()) {
+                    item {
+                        EmptyCard(
+                            icon = Icons.Rounded.Search,
+                            text = stringResource(R.string.no_world_book_search_results)
+                        )
+                    }
+                }
+                items(filteredLorebookGroups, key = { it.lorebookId }) { group ->
+                    val expanded = isSearchingLorebooks || group.lorebookId in expandedLorebookIds
+                    val selectedCount = state.lorebookGroups
+                        .firstOrNull { it.lorebookId == group.lorebookId }
+                        ?.entries
+                        ?.count { it.entry.id in state.form.selectedLorebookEntryIds }
+                        ?: 0
                     LorebookGroupOption(
                         group = group,
                         selectedEntryIds = state.form.selectedLorebookEntryIds,
+                        selectedCount = selectedCount,
+                        expanded = expanded,
+                        onExpandedChange = {
+                            expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
+                        },
                         emit = emit
                     )
                 }
@@ -266,6 +307,9 @@ private fun FirstMessageOption(
 private fun LorebookGroupOption(
     group: ChatCreateLorebookGroupItem,
     selectedEntryIds: Set<Long>,
+    selectedCount: Int,
+    expanded: Boolean,
+    onExpandedChange: () -> Unit,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
     Card(
@@ -277,10 +321,20 @@ private fun LorebookGroupOption(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val selectedCount = group.entries.count { it.entry.id in selectedEntryIds }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Checkbox(
-                    checked = selectedCount == group.entryCount,
+                    checked = group.entryCount > 0 && selectedCount == group.entryCount,
                     onCheckedChange = { ChatCreateUiIntent.ToggleLorebook(group.lorebookId).emit() }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -300,12 +354,14 @@ private fun LorebookGroupOption(
                     )
                 }
             }
-            group.entries.forEach { item ->
-                LorebookEntryOption(
-                    item = item,
-                    selected = item.entry.id in selectedEntryIds,
-                    onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.entry.id).emit() }
-                )
+            if (expanded) {
+                group.entries.forEach { item ->
+                    LorebookEntryOption(
+                        item = item,
+                        selected = item.entry.id in selectedEntryIds,
+                        onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.entry.id).emit() }
+                    )
+                }
             }
         }
     }
@@ -391,6 +447,59 @@ private fun LoadingRow() {
     ) {
         CircularProgressIndicator()
     }
+}
+
+@Composable
+private fun LorebookSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        modifier = Modifier.fillMaxWidth(),
+        value = query,
+        onValueChange = onQueryChange,
+        label = { Text(stringResource(R.string.search_world_books)) },
+        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.clear_search)
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(8.dp)
+    )
+}
+
+private fun List<ChatCreateLorebookGroupItem>.filterForQuery(query: String): List<ChatCreateLorebookGroupItem> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return this
+    return mapNotNull { group ->
+        val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
+        val matchingEntries = group.entries.filter { it.matchesQuery(normalizedQuery) }
+        when {
+            groupMatches -> group
+            matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
+            else -> null
+        }
+    }
+}
+
+private fun ChatCreateLorebookEntryItem.matchesQuery(query: String): Boolean {
+    return lorebookName.contains(query, ignoreCase = true) ||
+        entry.name.contains(query, ignoreCase = true) ||
+        entry.content.contains(query, ignoreCase = true) ||
+        entry.keywords.contains(query, ignoreCase = true) ||
+        entry.secondaryKeywords.contains(query, ignoreCase = true) ||
+        entry.category.contains(query, ignoreCase = true)
+}
+
+private fun Set<Long>.toggle(id: Long): Set<Long> {
+    return if (id in this) this - id else this + id
 }
 
 @Composable

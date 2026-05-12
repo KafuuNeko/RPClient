@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,12 +22,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -48,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -201,6 +207,11 @@ private fun SessionLorePanel(
     groups: List<ChatLorebookGroupItem>,
     emit: ChatUiIntent.() -> Unit
 ) {
+    var query by remember { mutableStateOf("") }
+    var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
+    val filteredGroups = groups.filterForQuery(query)
+    val isSearching = query.isNotBlank()
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -216,14 +227,39 @@ private fun SessionLorePanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
             )
+            if (groups.isNotEmpty()) {
+                LorebookSearchField(
+                    query = query,
+                    onQueryChange = { query = it }
+                )
+            }
             if (groups.isEmpty()) {
                 Text(
                     text = stringResource(R.string.no_world_book_entries),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            groups.forEach { group ->
-                SessionLoreGroup(group, emit)
+            if (groups.isNotEmpty() && filteredGroups.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_world_book_search_results),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filteredGroups, key = { it.lorebookId }) { group ->
+                    val expanded = isSearching || group.lorebookId in expandedLorebookIds
+                    SessionLoreGroup(
+                        group = group,
+                        expanded = expanded,
+                        onExpandedChange = {
+                            expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
+                        },
+                        emit = emit
+                    )
+                }
             }
         }
     }
@@ -232,14 +268,32 @@ private fun SessionLorePanel(
 @Composable
 private fun SessionLoreGroup(
     group: ChatLorebookGroupItem,
+    expanded: Boolean,
+    onExpandedChange: () -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onExpandedChange() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
             RpIconBubble(Icons.Rounded.Book)
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(group.lorebookName, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = group.lorebookName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Text(
                     stringResource(R.string.enabled_entries_count, group.enabledCount, group.totalCount),
                     style = MaterialTheme.typography.labelSmall,
@@ -251,8 +305,10 @@ private fun SessionLoreGroup(
                 onCheckedChange = { ChatUiIntent.ToggleSessionLorebook(group.lorebookId).emit() }
             )
         }
-        group.entries.forEach { entry ->
-            SessionLoreEntryRow(entry, emit)
+        if (expanded) {
+            group.entries.forEach { entry ->
+                SessionLoreEntryRow(entry, emit)
+            }
         }
     }
 }
@@ -282,6 +338,58 @@ private fun SessionLoreEntryRow(
             onCheckedChange = { ChatUiIntent.ToggleSessionLoreEntry(entry.id).emit() }
         )
     }
+}
+
+@Composable
+private fun LorebookSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        modifier = Modifier.fillMaxWidth(),
+        value = query,
+        onValueChange = onQueryChange,
+        label = { Text(stringResource(R.string.search_world_books)) },
+        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.clear_search)
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(8.dp)
+    )
+}
+
+private fun List<ChatLorebookGroupItem>.filterForQuery(query: String): List<ChatLorebookGroupItem> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return this
+    return mapNotNull { group ->
+        val groupMatches = group.lorebookName.contains(normalizedQuery, ignoreCase = true)
+        val matchingEntries = group.entries.filter { it.matchesQuery(normalizedQuery) }
+        when {
+            groupMatches -> group
+            matchingEntries.isNotEmpty() -> group.copy(entries = matchingEntries)
+            else -> null
+        }
+    }
+}
+
+private fun ChatLorebookEntryItem.matchesQuery(query: String): Boolean {
+    return lorebookName.contains(query, ignoreCase = true) ||
+        name.contains(query, ignoreCase = true) ||
+        content.contains(query, ignoreCase = true) ||
+        keywords.any { it.contains(query, ignoreCase = true) } ||
+        secondaryKeywords.any { it.contains(query, ignoreCase = true) }
+}
+
+private fun Set<Long>.toggle(id: Long): Set<Long> {
+    return if (id in this) this - id else this + id
 }
 
 @Composable
@@ -607,18 +715,51 @@ private fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
-                    if (state.lorebookGroups.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.no_world_book_entries),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    state.lorebookGroups.forEach { group ->
-                        SessionLoreGroup(group, emit)
-                    }
+                    SessionLoreSettings(groups = state.lorebookGroups, emit = emit)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SessionLoreSettings(
+    groups: List<ChatLorebookGroupItem>,
+    emit: ChatUiIntent.() -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
+    val filteredGroups = groups.filterForQuery(query)
+    val isSearching = query.isNotBlank()
+
+    if (groups.isEmpty()) {
+        Text(
+            text = stringResource(R.string.no_world_book_entries),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        return
+    }
+
+    LorebookSearchField(
+        query = query,
+        onQueryChange = { query = it }
+    )
+    if (filteredGroups.isEmpty()) {
+        Text(
+            text = stringResource(R.string.no_world_book_search_results),
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+    filteredGroups.forEach { group ->
+        val expanded = isSearching || group.lorebookId in expandedLorebookIds
+        SessionLoreGroup(
+            group = group,
+            expanded = expanded,
+            onExpandedChange = {
+                expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
+            },
+            emit = emit
+        )
     }
 }
 

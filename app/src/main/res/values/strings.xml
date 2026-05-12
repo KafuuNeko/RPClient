@@ -115,6 +115,9 @@
     <string name="session_world_books">Session World Books</string>
     <string name="manage_world_books">Manage</string>
     <string name="session_lore_note">Entry toggles only affect the current session, not the world book library itself.</string>
+    <string name="search_world_books">Search world books or entries</string>
+    <string name="clear_search">Clear search</string>
+    <string name="no_world_book_search_results">No matching world books or entries.</string>
     <string name="disabled">disabled</string>
     <string name="copy">Copy</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
