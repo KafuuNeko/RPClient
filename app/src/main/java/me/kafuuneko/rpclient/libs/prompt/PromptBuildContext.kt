@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
 data class PromptBuildContext(
     val userName: String,
+    val userDescription: String,
     val character: Character,
     val session: ChatSession,
     val messages: List<ChatMessage>,

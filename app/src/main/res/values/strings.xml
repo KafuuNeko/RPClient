@@ -62,6 +62,9 @@
     <string name="request_json">Request JSON</string>
     <string name="response_json">Response JSON</string>
     <string name="request_log_json">Request log JSON</string>
+    <string name="user_identity">User Identity</string>
+    <string name="user_display_name">Display name</string>
+    <string name="user_persona_description">Persona description</string>
 
     <!-- Character Layout -->
     <string name="character_manager">Character Manager</string>
@@ -240,6 +243,7 @@
     <string name="entry_case_sensitive">Case Sensitive</string>
     <string name="entry_prevent_recursion">Prevent Recursion</string>
     <string name="entry_delay_until_recursion">Delay Until Recursion</string>
+    <string name="entry_match_persona_description">Match Persona Description</string>
     <string name="entry_match_description">Match Description</string>
     <string name="entry_match_personality">Match Personality</string>
     <string name="entry_match_character_note">Match Character\'s Note</string>

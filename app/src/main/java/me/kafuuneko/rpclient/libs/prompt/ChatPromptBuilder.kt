@@ -83,6 +83,7 @@ class ChatPromptBuilder(
         worldInfo.afterCharacter.forEach {
             beforeHistory += PromptPiece(LLMMessageRole.System, it.content, PromptPieceImportance.Optional)
         }
+        beforeHistory += PromptPiece(LLMMessageRole.System, context.userDescription, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.personality, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.scenario, PromptPieceImportance.Required)

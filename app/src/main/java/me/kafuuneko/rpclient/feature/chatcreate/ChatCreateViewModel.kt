@@ -160,6 +160,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             )
             val context = PromptBuildContext(
                 userName = AppModel.userName,
+                userDescription = AppModel.userDescription,
                 character = character,
                 session = session,
                 messages = emptyList(),

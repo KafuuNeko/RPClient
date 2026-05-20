@@ -27,6 +27,8 @@ data class MainHomeState(
 )
 
 data class MainSettingsState(
+    val userName: String,
+    val userDescription: String,
     val selectedProviderId: String,
     val providers: List<LLMProvider>,
     val temperature: Float,

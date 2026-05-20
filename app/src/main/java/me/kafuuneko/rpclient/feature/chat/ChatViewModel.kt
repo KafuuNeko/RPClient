@@ -489,6 +489,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             if (!showToast && data.messages.size < AppModel.summaryTriggerMessageCount) return
             val request = mSummaryPromptBuilder.build(
                 userName = AppModel.userName,
+                userDescription = AppModel.userDescription,
                 character = data.character,
                 session = data.session,
                 messages = data.messages,
@@ -533,6 +534,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val buildResult = mChatPromptBuilder.buildWithMetadata(
             PromptBuildContext(
                 userName = AppModel.userName,
+                userDescription = AppModel.userDescription,
                 character = character,
                 session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
                 messages = messages,

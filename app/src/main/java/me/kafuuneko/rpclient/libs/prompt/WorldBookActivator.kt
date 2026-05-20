@@ -126,6 +126,7 @@ class WorldBookActivator {
             context.currentUserMessage?.takeIf { it.isNotBlank() }?.let { add(it) }
             recursionBuffer.takeIf { it.isNotBlank() }?.let { add(it) }
             if (entry.matchCharacterDescription) add(context.character.description)
+            if (entry.matchPersonaDescription) add(context.userDescription)
             if (entry.matchCharacterPersonality) add(context.character.personality)
             if (entry.matchCharacterDepthPrompt) add(context.character.depthPromptPrompt)
             if (entry.matchScenario) add(context.character.scenario)

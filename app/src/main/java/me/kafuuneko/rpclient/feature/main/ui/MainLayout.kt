@@ -283,6 +283,7 @@ private fun SettingsPage(
                 subtitle = stringResource(R.string.setting_subtitle)
             )
         }
+        item { UserIdentityPanel(state, emit) }
         item {
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
@@ -305,6 +306,48 @@ private fun SettingsPage(
         item { SummaryPanel(state, emit) }
         item { PrivacyPanel(state, emit) }
         item { DebugPanel(state, emit) }
+    }
+}
+
+@Composable
+private fun UserIdentityPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RpSectionHeader(title = stringResource(R.string.user_identity))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RpIconBubble(Icons.Rounded.Person)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = state.userName,
+                        onValueChange = { MainUiIntent.ChangeUserName(it).emit() },
+                        label = { Text(stringResource(R.string.user_display_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.userDescription,
+                        onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
+                        label = { Text(stringResource(R.string.user_persona_description)) },
+                        minLines = 3,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -609,7 +652,24 @@ private fun MainLayoutPreview() {
                     totalCharacters = 24,
                     totalWorldBooks = 7
                 ),
-                settingsState = MainSettingsState("", emptyList(), 0.8f, 1.0f, 1200, 8192, true, true, false, false, 20, 500, 0, 800)
+                settingsState = MainSettingsState(
+                    userName = "You",
+                    userDescription = "",
+                    selectedProviderId = "",
+                    providers = emptyList(),
+                    temperature = 0.8f,
+                    topP = 1.0f,
+                    maxTokens = 1200,
+                    contextTokens = 8192,
+                    localFirstEnabled = true,
+                    streamEnabled = true,
+                    debugModeEnabled = false,
+                    autoSummaryEnabled = false,
+                    summaryTriggerMessageCount = 20,
+                    summaryWordsLimit = 500,
+                    summaryMaxMessagesPerRequest = 0,
+                    summaryResponseTokens = 800
+                )
             ),
             emit = {}
         )

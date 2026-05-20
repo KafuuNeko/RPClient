@@ -19,6 +19,10 @@ sealed class MainUiIntent {
 
     data object OpenProviderManager : MainUiIntent()
 
+    data class ChangeUserName(val value: String) : MainUiIntent()
+
+    data class ChangeUserDescription(val value: String) : MainUiIntent()
+
     data class SelectProvider(val providerId: String) : MainUiIntent()
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()

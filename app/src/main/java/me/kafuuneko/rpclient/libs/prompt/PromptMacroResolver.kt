@@ -50,7 +50,7 @@ class PromptMacroResolver(
             "description" to context.character.description,
             "personality" to context.character.personality,
             "scenario" to context.character.scenario,
-            "persona" to context.session.userNote,
+            "persona" to context.userDescription,
             "charcreatornotes" to context.character.creatorNotes,
             "creator" to context.character.creator,
             "charversion" to context.character.characterVersion,

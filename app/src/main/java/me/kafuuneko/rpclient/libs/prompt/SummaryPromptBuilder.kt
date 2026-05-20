@@ -22,6 +22,7 @@ class SummaryPromptBuilder(
      */
     fun build(
         userName: String,
+        userDescription: String,
         character: Character,
         session: ChatSession,
         messages: List<ChatMessage>,
@@ -31,6 +32,7 @@ class SummaryPromptBuilder(
         val history = mHistoryBuilder.build(selectedMessages, userName, character.name)
         val context = PromptBuildContext(
             userName = userName,
+            userDescription = userDescription,
             character = character,
             session = session,
             messages = selectedMessages,

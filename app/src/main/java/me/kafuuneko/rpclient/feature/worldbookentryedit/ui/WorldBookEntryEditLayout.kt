@@ -352,6 +352,9 @@ private fun AdvancedPanel(
         ToggleRow(stringResource(R.string.entry_delay_until_recursion), "", form.delayUntilRecursion, loadState == WorldBookEntryEditLoadState.None) {
             WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(it).emit()
         }
+        ToggleRow(stringResource(R.string.entry_match_persona_description), "", form.matchPersonaDescription, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit()
+        }
         ToggleRow(stringResource(R.string.entry_match_description), "", form.matchCharacterDescription, loadState == WorldBookEntryEditLoadState.None) {
             WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit()
         }

@@ -66,6 +66,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             settingsState = uiState.settingsState.copy(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
+                userName = AppModel.userName,
+                userDescription = AppModel.userDescription,
                 temperature = selectedProvider?.temperature ?: 0f,
                 topP = selectedProvider?.topP ?: 0f,
                 maxTokens = selectedProvider?.maxTokens ?: 0,
@@ -133,6 +135,25 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenRequestLogs::class)
     private fun onOpenRequestLogs() {
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeUserName::class)
+    private fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val value = intent.value.trim()
+        AppModel.userName = value.ifBlank { "You" }
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(userName = intent.value)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeUserDescription::class)
+    private fun onChangeUserDescription(intent: MainUiIntent.ChangeUserDescription) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.userDescription = intent.value.trim()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(userDescription = intent.value)
+        ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectProvider::class)
@@ -234,6 +255,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         selectedProvider: me.kafuuneko.rpclient.libs.room.entity.LLMProvider?
     ): MainSettingsState {
         return MainSettingsState(
+            userName = AppModel.userName,
+            userDescription = AppModel.userDescription,
             selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
             providers = providers,
             temperature = selectedProvider?.temperature ?: 0.8f,

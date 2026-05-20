@@ -43,6 +43,9 @@ Chat history to summarize:
     // Prompt 宏中的用户名称
     var userName by stringPref(default = "You")
 
+    // 用户描述
+    var userDescription by stringPref(default = "")
+
     // 总结字数限制
     var summaryWordsLimit by intPref(default = 500)
 

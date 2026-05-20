@@ -61,6 +61,8 @@ sealed class WorldBookEntryEditUiIntent {
 
     data class ChangeOutletName(val value: String) : WorldBookEntryEditUiIntent()
 
+    data class ChangeMatchPersonaDescription(val value: Boolean) : WorldBookEntryEditUiIntent()
+
     data class ChangeMatchCharacterDescription(val value: Boolean) : WorldBookEntryEditUiIntent()
 
     data class ChangeMatchCharacterPersonality(val value: Boolean) : WorldBookEntryEditUiIntent()

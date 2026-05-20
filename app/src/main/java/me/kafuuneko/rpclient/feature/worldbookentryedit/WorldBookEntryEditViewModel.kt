@@ -165,6 +165,10 @@ class WorldBookEntryEditViewModel :
     private fun onChangeOutletName(intent: WorldBookEntryEditUiIntent.ChangeOutletName) =
         updateForm { copy(outletName = intent.value) }
 
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription::class)
+    private fun onChangeMatchPersonaDescription(intent: WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription) =
+        updateForm { copy(matchPersonaDescription = intent.value) }
+
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription::class)
     private fun onChangeMatchCharacterDescription(intent: WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription) =
         updateForm { copy(matchCharacterDescription = intent.value) }

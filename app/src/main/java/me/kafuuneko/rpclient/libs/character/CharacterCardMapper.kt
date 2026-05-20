@@ -167,6 +167,7 @@ class CharacterCardMapper(
             delay = extensions.optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
             triggers = gson.toJsonString(extensions.getAsJsonArray("triggers")?.toStringList().orEmpty()),
+            matchPersonaDescription = extensions.optBoolean("match_persona_description", false),
             matchCharacterDescription = extensions.optBoolean("match_character_description", false),
             matchCharacterPersonality = extensions.optBoolean("match_character_personality", false),
             matchCharacterDepthPrompt = extensions.optBoolean("match_character_depth_prompt", false),
@@ -233,6 +234,7 @@ class CharacterCardMapper(
         extensions.addProperty("outlet_name", outletName)
         extensions.add("triggers", parseArrayOrEmpty(triggers))
         extensions.addProperty("match_character_description", matchCharacterDescription)
+        extensions.addProperty("match_persona_description", matchPersonaDescription)
         extensions.addProperty("match_character_personality", matchCharacterPersonality)
         extensions.addProperty("match_character_depth_prompt", matchCharacterDepthPrompt)
         extensions.addProperty("match_scenario", matchScenario)
