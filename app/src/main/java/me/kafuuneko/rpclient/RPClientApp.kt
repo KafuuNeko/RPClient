@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chibatching.kotpref.Kotpref
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
@@ -60,6 +61,7 @@ private val appModules = module {
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
             .allowMainThreadQueries()
+            .fallbackToDestructiveMigration(true)
             .build()
     }
 
@@ -69,6 +71,7 @@ private val appModules = module {
     singleOf(::LLMRepository)
     singleOf(::LLMRequestLogRepository)
     singleOf(::FileRepository)
+    singleOf(::CharacterCardRepository)
 
 }
 

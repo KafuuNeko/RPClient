@@ -105,6 +105,7 @@ private fun WorldBookEntryEditNormal(
                 item { BasicPanel(state.form, state.loadState, emit) }
                 item { ContentPanel(state.form, emit) }
                 item { KeywordsPanel(state.form, emit) }
+                item { AdvancedPanel(state.form, state.loadState, emit) }
                 item { ActionPanel(state, emit) }
             }
         }
@@ -186,6 +187,13 @@ private fun BasicPanel(
                 onCheckedChange = { WorldBookEntryEditUiIntent.ChangeConstant(it).emit() }
             )
         }
+        ToggleRow(
+            title = stringResource(R.string.entry_disabled),
+            description = stringResource(R.string.entry_disabled_desc),
+            checked = form.disabled,
+            enabled = loadState == WorldBookEntryEditLoadState.None,
+            onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDisabled(it).emit() }
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FormTextField(
                 label = stringResource(R.string.entry_order),
@@ -252,6 +260,120 @@ private fun KeywordsPanel(
 }
 
 @Composable
+private fun AdvancedPanel(
+    form: WorldBookEntryEditForm,
+    loadState: WorldBookEntryEditLoadState,
+    emit: WorldBookEntryEditUiIntent.() -> Unit
+) {
+    Panel {
+        RpSectionHeader(title = stringResource(R.string.advanced_definition))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.entry_position),
+                value = form.position,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangePosition(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_role),
+                value = form.role,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeRole(it).emit() }
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.entry_probability),
+                value = form.probability,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeProbability(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_logic),
+                value = form.selectiveLogic,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeSelectiveLogic(it).emit() }
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.entry_scan_depth),
+                value = form.scanDepth,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeScanDepth(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_outlet),
+                value = form.outletName,
+                modifier = Modifier.weight(1f),
+                onChange = { WorldBookEntryEditUiIntent.ChangeOutletName(it).emit() }
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.entry_sticky),
+                value = form.sticky,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeSticky(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_cooldown),
+                value = form.cooldown,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeCooldown(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.entry_delay),
+                value = form.delay,
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                onChange = { WorldBookEntryEditUiIntent.ChangeDelay(it).emit() }
+            )
+        }
+        ToggleRow(stringResource(R.string.entry_ignore_budget), "", form.ignoreBudget, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeIgnoreBudget(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_whole_words), "", form.matchWholeWords, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchWholeWords(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_case_sensitive), "", form.caseSensitive, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeCaseSensitive(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_prevent_recursion), "", form.preventRecursion, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangePreventRecursion(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_delay_until_recursion), "", form.delayUntilRecursion, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_match_description), "", form.matchCharacterDescription, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_match_personality), "", form.matchCharacterPersonality, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_match_character_note), "", form.matchCharacterDepthPrompt, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(it).emit()
+        }
+        ToggleRow(stringResource(R.string.entry_match_scenario), "", form.matchScenario, loadState == WorldBookEntryEditLoadState.None) {
+            WorldBookEntryEditUiIntent.ChangeMatchScenario(it).emit()
+        }
+        FormTextField(
+            label = stringResource(R.string.extensions_json),
+            value = form.extensionsJson,
+            minLines = 4,
+            onChange = { WorldBookEntryEditUiIntent.ChangeExtensionsJson(it).emit() }
+        )
+    }
+}
+
+@Composable
 private fun StringListPanel(
     title: String,
     values: List<String>,
@@ -263,12 +385,46 @@ private fun StringListPanel(
         RpSectionHeader(title = title, action = stringResource(R.string.add), onAction = onAdd)
         values.forEachIndexed { index, value ->
             ListTextField(
-                label = "$title ${index + 1}",
+                label = stringResource(R.string.indexed_label, title, index + 1),
                 value = value,
                 onValueChange = { onChange(index, it) },
                 onDelete = { onDelete(index) }
             )
         }
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            if (description.isNotBlank()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
     }
 }
 

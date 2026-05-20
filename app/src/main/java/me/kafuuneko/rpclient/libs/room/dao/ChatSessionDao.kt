@@ -88,6 +88,14 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateSessionCreatorNotes(id: Long, creatorNotes: String?)
 
     /**
+     * 更新世界书运行时状态。
+     *
+     * 该字段由 prompt 构建过程写入，用于下一轮请求判断 sticky/cooldown 是否仍然有效。
+     */
+    @Query("UPDATE chat_sessions SET worldInfoStateJson = :worldInfoStateJson WHERE id = :id")
+    suspend fun updateSessionWorldInfoState(id: Long, worldInfoStateJson: String)
+
+    /**
      * 根据会话 id 删除会话。
      *
      * @param id 会话 id。

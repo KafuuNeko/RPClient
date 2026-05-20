@@ -120,6 +120,14 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onChangeCreatorNotes(intent: CharacterEditUiIntent.ChangeCreatorNotes) =
         updateForm { copy(creatorNotes = intent.value) }
 
+    @UiIntentObserver(CharacterEditUiIntent.ChangeCreator::class)
+    private fun onChangeCreator(intent: CharacterEditUiIntent.ChangeCreator) =
+        updateForm { copy(creator = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeCharacterVersion::class)
+    private fun onChangeCharacterVersion(intent: CharacterEditUiIntent.ChangeCharacterVersion) =
+        updateForm { copy(characterVersion = intent.value) }
+
     @UiIntentObserver(CharacterEditUiIntent.ChangePersonality::class)
     private fun onChangePersonality(intent: CharacterEditUiIntent.ChangePersonality) =
         updateForm { copy(personality = intent.value) }
@@ -147,6 +155,38 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     @UiIntentObserver(CharacterEditUiIntent.ChangePostHistoryInstructions::class)
     private fun onChangePostHistoryInstructions(intent: CharacterEditUiIntent.ChangePostHistoryInstructions) =
         updateForm { copy(postHistoryInstructions = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeSystemPrompt::class)
+    private fun onChangeSystemPrompt(intent: CharacterEditUiIntent.ChangeSystemPrompt) =
+        updateForm { copy(systemPrompt = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeDepthPromptPrompt::class)
+    private fun onChangeDepthPromptPrompt(intent: CharacterEditUiIntent.ChangeDepthPromptPrompt) =
+        updateForm { copy(depthPromptPrompt = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeDepthPromptDepth::class)
+    private fun onChangeDepthPromptDepth(intent: CharacterEditUiIntent.ChangeDepthPromptDepth) =
+        updateForm { copy(depthPromptDepth = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeDepthPromptRole::class)
+    private fun onChangeDepthPromptRole(intent: CharacterEditUiIntent.ChangeDepthPromptRole) =
+        updateForm { copy(depthPromptRole = intent.value) }
+
+    @UiIntentObserver(CharacterEditUiIntent.AddAlternateGreeting::class)
+    private fun onAddAlternateGreeting() =
+        updateForm { copy(alternateGreetings = alternateGreetings + "") }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeAlternateGreeting::class)
+    private fun onChangeAlternateGreeting(intent: CharacterEditUiIntent.ChangeAlternateGreeting) =
+        updateForm { copy(alternateGreetings = alternateGreetings.updateAt(intent.index, intent.value)) }
+
+    @UiIntentObserver(CharacterEditUiIntent.DeleteAlternateGreeting::class)
+    private fun onDeleteAlternateGreeting(intent: CharacterEditUiIntent.DeleteAlternateGreeting) =
+        updateForm { copy(alternateGreetings = alternateGreetings.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+
+    @UiIntentObserver(CharacterEditUiIntent.ChangeExtensionsJson::class)
+    private fun onChangeExtensionsJson(intent: CharacterEditUiIntent.ChangeExtensionsJson) =
+        updateForm { copy(extensionsJson = intent.value) }
 
     @UiIntentObserver(CharacterEditUiIntent.SaveCharacter::class)
     private suspend fun onSaveCharacter() {
@@ -254,7 +294,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
         return copy(
             tags = tags.ifEmpty { listOf("") },
-            firstMessages = firstMessages.ifEmpty { listOf("") }
+            firstMessages = firstMessages.ifEmpty { listOf("") },
+            alternateGreetings = alternateGreetings.ifEmpty { listOf("") }
         )
     }
 
@@ -266,11 +307,19 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
             description = description.trim(),
             creatorNotes = creatorNotes.trim(),
+            creator = creator.trim(),
+            characterVersion = characterVersion.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
             firstMessages = firstMessages.map { it.trim() }.filter { it.isNotEmpty() },
             examplesOfDialogue = examplesOfDialogue.trim(),
-            postHistoryInstructions = postHistoryInstructions.trim()
+            postHistoryInstructions = postHistoryInstructions.trim(),
+            systemPrompt = systemPrompt.trim(),
+            alternateGreetings = alternateGreetings.map { it.trim() }.filter { it.isNotEmpty() },
+            extensionsJson = extensionsJson.trim().ifBlank { "{}" },
+            depthPromptPrompt = depthPromptPrompt.trim(),
+            depthPromptDepth = depthPromptDepth.trim(),
+            depthPromptRole = depthPromptRole.trim()
         )
     }
 

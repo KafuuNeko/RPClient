@@ -81,9 +81,7 @@ class GeminiLLMClient(
                         }
                     }
             )
-        val systemInstruction = request.messages
-            .firstOrNull { it.role == LLMMessageRole.System }
-            ?.content
+        val systemInstruction = request.messages.leadingSystemPrompt()
         if (!systemInstruction.isNullOrBlank()) {
             payload.put(
                 "systemInstruction",
@@ -134,14 +132,23 @@ class GeminiLLMClient(
      */
     private fun List<LLMMessage>.toGeminiContents(): JSONArray {
         return JSONArray().also { array ->
-            filter { it.role != LLMMessageRole.System }.forEach { message ->
+            dropWhile { it.role == LLMMessageRole.System }.forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toGeminiRole())
-                        .put("parts", JSONArray().put(JSONObject().put("text", message.content)))
+                        .put("parts", JSONArray().put(JSONObject().put("text", message.toGeminiContent())))
                 )
             }
         }
+    }
+
+    private fun List<LLMMessage>.leadingSystemPrompt(): String {
+        return takeWhile { it.role == LLMMessageRole.System }
+            .joinToString("\n\n") { it.content }
+    }
+
+    private fun LLMMessage.toGeminiContent(): String {
+        return if (role == LLMMessageRole.System) "[System]\n$content" else content
     }
 
     /**

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,6 +26,8 @@ import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -41,6 +44,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
@@ -129,6 +137,7 @@ private fun CharacterEditNormal(
                 item { DefinitionPanel(state.form, emit) }
                 item { FirstMessagesPanel(state.form.firstMessages, emit) }
                 item { DialoguePanel(state.form, emit) }
+                item { AdvancedPanel(state.form, emit) }
                 item { ActionPanel(state.mode, state.loadState, emit) }
             }
         }
@@ -208,6 +217,20 @@ private fun BasicPanel(
             minLines = 3,
             onChange = { CharacterEditUiIntent.ChangeCreatorNotes(it).emit() }
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.character_creator),
+                value = form.creator,
+                modifier = Modifier.weight(1f),
+                onChange = { CharacterEditUiIntent.ChangeCreator(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.character_version),
+                value = form.characterVersion,
+                modifier = Modifier.weight(1f),
+                onChange = { CharacterEditUiIntent.ChangeCharacterVersion(it).emit() }
+            )
+        }
     }
 }
 
@@ -252,12 +275,6 @@ private fun DefinitionPanel(
             minLines = 4,
             onChange = { CharacterEditUiIntent.ChangeScenario(it).emit() }
         )
-        FormTextField(
-            label = stringResource(R.string.character_post_history_instructions),
-            value = form.postHistoryInstructions,
-            minLines = 4,
-            onChange = { CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit() }
-        )
     }
 }
 
@@ -298,6 +315,127 @@ private fun DialoguePanel(
             minLines = 5,
             onChange = { CharacterEditUiIntent.ChangeExamplesOfDialogue(it).emit() }
         )
+    }
+}
+
+@Composable
+private fun AdvancedPanel(
+    form: CharacterEditForm,
+    emit: CharacterEditUiIntent.() -> Unit
+) {
+    var isExtensionsExpanded by rememberSaveable(form.id) { mutableStateOf(false) }
+    Panel {
+        RpSectionHeader(title = stringResource(R.string.advanced_definition))
+        FormTextField(
+            label = stringResource(R.string.character_main_prompt_override),
+            value = form.systemPrompt,
+            minLines = 4,
+            maxLines = 8,
+            onChange = { CharacterEditUiIntent.ChangeSystemPrompt(it).emit() }
+        )
+        FormTextField(
+            label = stringResource(R.string.character_post_history_instructions),
+            value = form.postHistoryInstructions,
+            minLines = 4,
+            maxLines = 8,
+            onChange = { CharacterEditUiIntent.ChangePostHistoryInstructions(it).emit() }
+        )
+        FormTextField(
+            label = stringResource(R.string.character_note),
+            value = form.depthPromptPrompt,
+            minLines = 4,
+            maxLines = 8,
+            onChange = { CharacterEditUiIntent.ChangeDepthPromptPrompt(it).emit() }
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FormTextField(
+                label = stringResource(R.string.character_note_depth),
+                value = form.depthPromptDepth,
+                modifier = Modifier.weight(1f),
+                onChange = { CharacterEditUiIntent.ChangeDepthPromptDepth(it).emit() }
+            )
+            FormTextField(
+                label = stringResource(R.string.character_note_role),
+                value = form.depthPromptRole,
+                modifier = Modifier.weight(1f),
+                onChange = { CharacterEditUiIntent.ChangeDepthPromptRole(it).emit() }
+            )
+        }
+        RpSectionHeader(
+            title = stringResource(R.string.character_alternate_greetings),
+            action = stringResource(R.string.add),
+            onAction = { CharacterEditUiIntent.AddAlternateGreeting.emit() }
+        )
+        form.alternateGreetings.forEachIndexed { index, greeting ->
+            ListTextField(
+                label = stringResource(R.string.character_alternate_greeting_index, index + 1),
+                value = greeting,
+                minLines = 3,
+                maxLines = 6,
+                onValueChange = { CharacterEditUiIntent.ChangeAlternateGreeting(index, it).emit() },
+                onDelete = { CharacterEditUiIntent.DeleteAlternateGreeting(index).emit() }
+            )
+        }
+        RawExtensionsPanel(
+            value = form.extensionsJson,
+            expanded = isExtensionsExpanded,
+            onExpandedChange = { isExtensionsExpanded = it },
+            onChange = { CharacterEditUiIntent.ChangeExtensionsJson(it).emit() }
+        )
+    }
+}
+
+@Composable
+private fun RawExtensionsPanel(
+    value: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onChange: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.extensions_json), style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = stringResource(R.string.extensions_json_size, value.length),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    )
+                }
+                TextButton(onClick = { onExpandedChange(!expanded) }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.Edit,
+                        contentDescription = null
+                    )
+                    Text(if (expanded) stringResource(R.string.hide) else stringResource(R.string.edit))
+                }
+            }
+            if (expanded) {
+                FormTextField(
+                    label = stringResource(R.string.extensions_json),
+                    value = value,
+                    minLines = 4,
+                    maxLines = 8,
+                    onChange = onChange
+                )
+            } else {
+                Text(
+                    text = value.ifBlank { "{}" }.compactPreview(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -415,15 +553,19 @@ private fun FormTextField(
     value: String,
     modifier: Modifier = Modifier,
     minLines: Int = 1,
+    maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     leadingIcon: @Composable (() -> Unit)? = null,
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
         minLines = minLines,
+        maxLines = maxLines.coerceAtLeast(minLines),
         leadingIcon = leadingIcon,
         shape = RoundedCornerShape(8.dp)
     )
@@ -434,17 +576,21 @@ private fun ListTextField(
     label: String,
     value: String,
     minLines: Int = 1,
+    maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     leadingIcon: @Composable (() -> Unit)? = null,
     onValueChange: (String) -> Unit,
     onDelete: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .then(if (maxLines > 1) Modifier.heightIn(max = 220.dp) else Modifier),
             value = value,
             onValueChange = onValueChange,
             label = { Text(label) },
             minLines = minLines,
+            maxLines = maxLines.coerceAtLeast(minLines),
             leadingIcon = leadingIcon,
             shape = RoundedCornerShape(8.dp)
         )
@@ -526,6 +672,11 @@ private fun CharacterEditForm.avatarColor(): Color {
     val seed = if (id == 0L) name.hashCode().toLong() else id
     val colors = listOf(0xFF315EFD, 0xFF0F9F8F, 0xFFB55A12, 0xFF8A4FFF, 0xFFB3261E)
     return Color(colors[kotlin.math.abs(seed % colors.size).toInt()])
+}
+
+private fun String.compactPreview(limit: Int = 240): String {
+    val compact = replace(Regex("\\s+"), " ").trim()
+    return if (compact.length <= limit) compact else compact.take(limit).trimEnd() + "..."
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

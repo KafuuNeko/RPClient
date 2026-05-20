@@ -239,6 +239,15 @@ class ChatRepository(
     }
 
     /**
+     * 保存世界书 sticky/cooldown 等运行时状态。
+     *
+     * 只由 prompt 构建流程调用，避免 UI 层误把它当作用户设置。
+     */
+    suspend fun updateSessionWorldInfoState(id: Long, worldInfoStateJson: String) {
+        mChatSessionDao.updateSessionWorldInfoState(id, worldInfoStateJson)
+    }
+
+    /**
      * 删除会话。
      *
      * @param id 会话 id。

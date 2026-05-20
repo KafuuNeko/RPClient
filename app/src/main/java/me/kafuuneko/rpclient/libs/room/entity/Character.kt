@@ -31,7 +31,34 @@ data class Character(
     // 对话示例
     val examplesOfDialogue: String,
     // 后置提示词
-    val postHistoryInstructions: String
+    val postHistoryInstructions: String,
+    // 角色级 Main Prompt 覆盖；为空时使用 AppModel.mainPrompt，支持 {{original}} 引用全局提示词。
+    @ColumnInfo(defaultValue = "")
+    val systemPrompt: String = "",
+    // Character Card V2 的作者字段，仅作为元数据展示和导出，不参与默认 prompt。
+    @ColumnInfo(defaultValue = "")
+    val creator: String = "",
+    // Character Card V2 的角色版本字段，用于导入导出兼容。
+    @ColumnInfo(defaultValue = "")
+    val characterVersion: String = "",
+    // 备用开场白列表，按 JSON 数组保存，兼容 V2 alternate_greetings。
+    @ColumnInfo(defaultValue = "[]")
+    val alternateGreetings: String = "[]",
+    // 角色卡 extensions 原始兼容数据；未被当前 App 识别的第三方字段会保存在这里。
+    @ColumnInfo(defaultValue = "{}")
+    val extensionsJson: String = "{}",
+    // Character's Note / depth_prompt 的正文，按 depth 插入聊天历史内部。
+    @ColumnInfo(defaultValue = "")
+    val depthPromptPrompt: String = "",
+    // Character's Note 的插入深度；0 表示聊天末尾，1 表示最后一条消息之前。
+    @ColumnInfo(defaultValue = "4")
+    val depthPromptDepth: Int = 4,
+    // Character's Note 的消息角色：0=system，1=user，2=assistant。
+    @ColumnInfo(defaultValue = "0")
+    val depthPromptRole: Int = 0,
+    // 从角色卡 data.character_book 导入并绑定的世界书 ID；0 表示未绑定。
+    @ColumnInfo(defaultValue = "0")
+    val characterLorebookId: Long = 0L
 ) {
     fun getCharacterTagList(): List<String> {
         return Gson().toStringList(characterTags)
@@ -41,5 +68,9 @@ data class Character(
         return firstMessages.split("<START>")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+    }
+
+    fun getAlternateGreetingList(): List<String> {
+        return Gson().toStringList(alternateGreetings)
     }
 }

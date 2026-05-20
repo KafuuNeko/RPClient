@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -86,6 +88,9 @@ private fun CharacterListNormal(
             title = stringResource(R.string.character_manager),
             onBack = { CharacterListUiIntent.Back.emit() },
             actions = {
+                IconButton(onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
+                    Icon(Icons.Rounded.FileUpload, contentDescription = stringResource(R.string.import_character))
+                }
                 IconButton(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
                     Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_character))
                 }
@@ -124,7 +129,8 @@ private fun CharacterListNormal(
                     character = character,
                     avatarFilePath = state.avatarFilePaths[character.avatar],
                     selected = character.id == state.selectedCharacterId,
-                    onClick = { CharacterListUiIntent.SelectCharacter(character.id).emit() }
+                    onClick = { CharacterListUiIntent.SelectCharacter(character.id).emit() },
+                    onExport = { CharacterListUiIntent.ExportCharacterJsonClick(character.id).emit() }
                 )
             }
         }
@@ -196,7 +202,8 @@ private fun CharacterListCard(
     character: Character,
     avatarFilePath: String?,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onExport: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -237,6 +244,12 @@ private fun CharacterListCard(
                         contentDescription = stringResource(R.string.edit),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    IconButton(onClick = onExport) {
+                        Icon(
+                            Icons.Rounded.FileDownload,
+                            contentDescription = stringResource(R.string.export_character)
+                        )
+                    }
                 }
                 Text(
                     character.description.ifBlank { stringResource(R.string.no_description) },

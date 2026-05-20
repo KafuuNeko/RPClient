@@ -85,6 +85,10 @@ class WorldBookEntryEditViewModel :
     private fun onChangeConstant(intent: WorldBookEntryEditUiIntent.ChangeConstant) =
         updateForm { copy(constant = intent.value) }
 
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeDisabled::class)
+    private fun onChangeDisabled(intent: WorldBookEntryEditUiIntent.ChangeDisabled) =
+        updateForm { copy(disabled = intent.value) }
+
     @UiIntentObserver(WorldBookEntryEditUiIntent.AddCategory::class)
     private fun onAddCategory() =
         updateForm { copy(category = category + "") }
@@ -105,6 +109,82 @@ class WorldBookEntryEditViewModel :
     private fun onChangeDepth(intent: WorldBookEntryEditUiIntent.ChangeDepth) =
         updateForm { copy(depth = intent.value) }
 
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangePosition::class)
+    private fun onChangePosition(intent: WorldBookEntryEditUiIntent.ChangePosition) =
+        updateForm { copy(position = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeRole::class)
+    private fun onChangeRole(intent: WorldBookEntryEditUiIntent.ChangeRole) =
+        updateForm { copy(role = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeProbability::class)
+    private fun onChangeProbability(intent: WorldBookEntryEditUiIntent.ChangeProbability) =
+        updateForm { copy(probability = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeSelectiveLogic::class)
+    private fun onChangeSelectiveLogic(intent: WorldBookEntryEditUiIntent.ChangeSelectiveLogic) =
+        updateForm { copy(selectiveLogic = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeIgnoreBudget::class)
+    private fun onChangeIgnoreBudget(intent: WorldBookEntryEditUiIntent.ChangeIgnoreBudget) =
+        updateForm { copy(ignoreBudget = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeScanDepth::class)
+    private fun onChangeScanDepth(intent: WorldBookEntryEditUiIntent.ChangeScanDepth) =
+        updateForm { copy(scanDepth = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchWholeWords::class)
+    private fun onChangeMatchWholeWords(intent: WorldBookEntryEditUiIntent.ChangeMatchWholeWords) =
+        updateForm { copy(matchWholeWords = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeCaseSensitive::class)
+    private fun onChangeCaseSensitive(intent: WorldBookEntryEditUiIntent.ChangeCaseSensitive) =
+        updateForm { copy(caseSensitive = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangePreventRecursion::class)
+    private fun onChangePreventRecursion(intent: WorldBookEntryEditUiIntent.ChangePreventRecursion) =
+        updateForm { copy(preventRecursion = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion::class)
+    private fun onChangeDelayUntilRecursion(intent: WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion) =
+        updateForm { copy(delayUntilRecursion = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeSticky::class)
+    private fun onChangeSticky(intent: WorldBookEntryEditUiIntent.ChangeSticky) =
+        updateForm { copy(sticky = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeCooldown::class)
+    private fun onChangeCooldown(intent: WorldBookEntryEditUiIntent.ChangeCooldown) =
+        updateForm { copy(cooldown = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeDelay::class)
+    private fun onChangeDelay(intent: WorldBookEntryEditUiIntent.ChangeDelay) =
+        updateForm { copy(delay = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeOutletName::class)
+    private fun onChangeOutletName(intent: WorldBookEntryEditUiIntent.ChangeOutletName) =
+        updateForm { copy(outletName = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription::class)
+    private fun onChangeMatchCharacterDescription(intent: WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription) =
+        updateForm { copy(matchCharacterDescription = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality::class)
+    private fun onChangeMatchCharacterPersonality(intent: WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality) =
+        updateForm { copy(matchCharacterPersonality = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt::class)
+    private fun onChangeMatchCharacterDepthPrompt(intent: WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt) =
+        updateForm { copy(matchCharacterDepthPrompt = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeMatchScenario::class)
+    private fun onChangeMatchScenario(intent: WorldBookEntryEditUiIntent.ChangeMatchScenario) =
+        updateForm { copy(matchScenario = intent.value) }
+
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeExtensionsJson::class)
+    private fun onChangeExtensionsJson(intent: WorldBookEntryEditUiIntent.ChangeExtensionsJson) =
+        updateForm { copy(extensionsJson = intent.value) }
+
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeContent::class)
     private fun onChangeContent(intent: WorldBookEntryEditUiIntent.ChangeContent) =
         updateForm { copy(content = intent.value) }
@@ -118,6 +198,15 @@ class WorldBookEntryEditViewModel :
         }
         if (uiState.form.depth.trim().toIntOrNull() == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.world_book_entry_depth_invalid).tryEmit()
+            return
+        }
+        if (
+            uiState.form.position.trim().toIntOrNull() == null ||
+            uiState.form.role.trim().toIntOrNull() == null ||
+            uiState.form.probability.trim().toIntOrNull() == null ||
+            uiState.form.selectiveLogic.trim().toIntOrNull() == null
+        ) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
             return
         }
         val entry = uiState.form.toLorebookEntryOrNull() ?: return

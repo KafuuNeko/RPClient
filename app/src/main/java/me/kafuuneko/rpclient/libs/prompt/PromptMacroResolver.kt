@@ -18,7 +18,8 @@ class PromptMacroResolver(
         template: String,
         context: PromptBuildContext,
         history: String = mHistoryBuilder.build(context.messages, context.userName, context.character.name),
-        original: String = template
+        original: String = template,
+        outlets: Map<String, String>? = null
     ): String {
         val firstMessages = context.character.getFirstMessageList()
         // 兼容旧式 <USER>/<BOT>/<CHAR> 写法，统一转换到 {{...}} 宏格式。
@@ -36,6 +37,9 @@ class PromptMacroResolver(
         result = result.replace(Regex("""\{\{\s*charFirstMessage::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
             firstMessages.getOrNull(it.groupValues[1].toIntOrNull() ?: -1).orEmpty()
         }
+        result = result.replace(Regex("""\{\{\s*outlet::([^}]+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
+            outlets?.get(it.groupValues[1].trim()) ?: if (outlets == null) it.value else ""
+        }
 
         val now = LocalDateTime.now()
         val values = mapOf(
@@ -48,6 +52,11 @@ class PromptMacroResolver(
             "scenario" to context.character.scenario,
             "persona" to context.session.userNote,
             "charcreatornotes" to context.character.creatorNotes,
+            "creator" to context.character.creator,
+            "charversion" to context.character.characterVersion,
+            "character_version" to context.character.characterVersion,
+            "characternote" to context.character.depthPromptPrompt,
+            "depthprompt" to context.character.depthPromptPrompt,
             "mesexamples" to context.character.examplesOfDialogue,
             "mesexamplesraw" to context.character.examplesOfDialogue,
             "charfirstmessage" to firstMessages.firstOrNull().orEmpty(),

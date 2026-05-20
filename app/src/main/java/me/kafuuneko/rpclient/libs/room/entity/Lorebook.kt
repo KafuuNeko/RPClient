@@ -8,5 +8,10 @@ import androidx.room.PrimaryKey
 )
 data class Lorebook(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
-    val name: String
+    val name: String,
+    val description: String = "",
+    val scanDepth: Int = 2,
+    val tokenBudget: Int = 25,
+    val recursiveScanning: Boolean = false,
+    val extensionsJson: String = "{}"
 )

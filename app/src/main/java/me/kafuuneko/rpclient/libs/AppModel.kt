@@ -23,6 +23,7 @@ Existing summary:
 Chat history to summarize:
 {{history}}
 """
+    const val DEFAULT_POST_HISTORY_INSTRUCTIONS = ""
 
     // 当前选中的模型
     var currentLLMProvider by longPref()
@@ -32,6 +33,9 @@ Chat history to summarize:
 
     // 总结提示词（Summarize Prompt）
     var summarizePrompt by stringPref(default = DEFAULT_SUMMARIZE_PROMPT)
+
+    // 全局后置提示词，追加在聊天历史之后；角色卡可通过 {{original}} 覆盖或继承该内容。
+    var postHistoryInstructions by stringPref(default = DEFAULT_POST_HISTORY_INSTRUCTIONS)
 
     // 是否启用流式响应
     var streamEnabled by booleanPref(default = true)
@@ -55,7 +59,7 @@ Chat history to summarize:
     var summaryResponseTokens by intPref(default = 800)
 
     // 世界书占 prompt 预算的百分比
-    var worldInfoBudgetPercent by intPref(default = 12)
+    var worldInfoBudgetPercent by intPref(default = 25)
 
     // 是否启用调试模式
     var debugModeEnabled by booleanPref(default = false)

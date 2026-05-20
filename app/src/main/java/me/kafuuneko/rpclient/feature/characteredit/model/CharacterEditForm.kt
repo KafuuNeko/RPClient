@@ -16,7 +16,16 @@ data class CharacterEditForm(
     val scenario: String = "",
     val firstMessages: List<String> = emptyList(),
     val examplesOfDialogue: String = "",
-    val postHistoryInstructions: String = ""
+    val postHistoryInstructions: String = "",
+    val systemPrompt: String = "",
+    val creator: String = "",
+    val characterVersion: String = "",
+    val alternateGreetings: List<String> = emptyList(),
+    val extensionsJson: String = "{}",
+    val depthPromptPrompt: String = "",
+    val depthPromptDepth: String = "4",
+    val depthPromptRole: String = "0",
+    val characterLorebookId: Long = 0L
 ) {
     val isNew: Boolean
         get() = id == 0L
@@ -34,7 +43,16 @@ data class CharacterEditForm(
             scenario = character.scenario,
             firstMessages = character.getFirstMessageList(),
             examplesOfDialogue = character.examplesOfDialogue,
-            postHistoryInstructions = character.postHistoryInstructions
+            postHistoryInstructions = character.postHistoryInstructions,
+            systemPrompt = character.systemPrompt,
+            creator = character.creator,
+            characterVersion = character.characterVersion,
+            alternateGreetings = character.getAlternateGreetingList(),
+            extensionsJson = character.extensionsJson,
+            depthPromptPrompt = character.depthPromptPrompt,
+            depthPromptDepth = character.depthPromptDepth.toString(),
+            depthPromptRole = character.depthPromptRole.toString(),
+            characterLorebookId = character.characterLorebookId
         )
     }
 
@@ -53,7 +71,16 @@ data class CharacterEditForm(
                 .filter { it.isNotEmpty() }
                 .joinToString("<START>"),
             examplesOfDialogue = examplesOfDialogue.trim(),
-            postHistoryInstructions = postHistoryInstructions.trim()
+            postHistoryInstructions = postHistoryInstructions.trim(),
+            systemPrompt = systemPrompt.trim(),
+            creator = creator.trim(),
+            characterVersion = characterVersion.trim(),
+            alternateGreetings = Gson().toJsonString(alternateGreetings.map { it.trim() }.filter { it.isNotEmpty() }),
+            extensionsJson = extensionsJson.trim().ifBlank { "{}" },
+            depthPromptPrompt = depthPromptPrompt.trim(),
+            depthPromptDepth = depthPromptDepth.trim().toIntOrNull()?.coerceAtLeast(0) ?: 4,
+            depthPromptRole = depthPromptRole.trim().toIntOrNull()?.coerceIn(0, 2) ?: 0,
+            characterLorebookId = characterLorebookId
         )
     }
 }

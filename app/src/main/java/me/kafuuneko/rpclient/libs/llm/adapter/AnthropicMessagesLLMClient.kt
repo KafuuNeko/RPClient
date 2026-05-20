@@ -73,9 +73,7 @@ class AnthropicMessagesLLMClient(
             .put("temperature", request.options.temperature ?: mProvider.temperature)
             .put("messages", request.messages.toAnthropicMessages())
             .put("stream", stream)
-        val systemPrompt = request.messages
-            .filter { it.role == LLMMessageRole.System }
-            .joinToString("\n\n") { it.content }
+        val systemPrompt = request.messages.leadingSystemPrompt()
         if (systemPrompt.isNotBlank()) payload.put("system", systemPrompt)
         if (request.options.stop.isNotEmpty()) payload.put("stop_sequences", request.options.stop.toJsonArray())
 
@@ -114,14 +112,23 @@ class AnthropicMessagesLLMClient(
      */
     private fun List<LLMMessage>.toAnthropicMessages(): JSONArray {
         return JSONArray().also { array ->
-            filter { it.role != LLMMessageRole.System }.forEach { message ->
+            dropWhile { it.role == LLMMessageRole.System }.forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toAnthropicRole())
-                        .put("content", message.content)
+                        .put("content", message.toAnthropicContent())
                 )
             }
         }
+    }
+
+    private fun List<LLMMessage>.leadingSystemPrompt(): String {
+        return takeWhile { it.role == LLMMessageRole.System }
+            .joinToString("\n\n") { it.content }
+    }
+
+    private fun LLMMessage.toAnthropicContent(): String {
+        return if (role == LLMMessageRole.System) "[System]\n$content" else content
     }
 
     /**

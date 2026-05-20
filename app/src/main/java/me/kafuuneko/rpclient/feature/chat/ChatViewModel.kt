@@ -519,9 +519,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
-        val lorebookEntries = getAllLorebookEntries().entries.filter { it.id in enabledIds }
+        val lorebookData = getAllLorebookEntries()
+        val allLorebookEntries = lorebookData.entries
+        val lorebookEntries = (allLorebookEntries.filter { it.id in enabledIds } +
+            allLorebookEntries.filter { character.characterLorebookId != 0L && it.lorebookId == character.characterLorebookId })
+            .distinctBy { it.id }
+        val activeLorebookIds = lorebookEntries.map { it.lorebookId }.toSet()
+        val recursiveLorebookIds = lorebookData.lorebooks.values
+            .filter { it.id in activeLorebookIds && it.recursiveScanning }
+            .map { it.id }
+            .toSet()
         val provider = mLLMRepository.getSelectedProvider() ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
-        return mChatPromptBuilder.build(
+        val buildResult = mChatPromptBuilder.buildWithMetadata(
             PromptBuildContext(
                 userName = AppModel.userName,
                 character = character,
@@ -529,11 +538,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messages = messages,
                 currentUserMessage = null,
                 candidateLorebookEntries = lorebookEntries,
+                recursiveScanningLorebookIds = recursiveLorebookIds,
                 provider = provider,
                 maxContextTokens = provider.contextTokens,
                 maxResponseTokens = provider.maxTokens
             )
         )
+        if (buildResult.worldInfoStateJson != session.worldInfoStateJson) {
+            mChatRepository.updateSessionWorldInfoState(session.id, buildResult.worldInfoStateJson)
+        }
+        return buildResult.request
     }
 
     private suspend fun loadNormalState(

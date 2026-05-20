@@ -13,8 +13,8 @@ data class PromptBuildContext(
     val messages: List<ChatMessage>,
     val currentUserMessage: String?,
     val candidateLorebookEntries: List<LorebookEntry>,
+    val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val provider: LLMProvider?,
     val maxContextTokens: Int,
     val maxResponseTokens: Int
 )
-

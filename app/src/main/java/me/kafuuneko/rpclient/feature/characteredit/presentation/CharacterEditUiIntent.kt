@@ -23,6 +23,10 @@ sealed class CharacterEditUiIntent {
 
     data class ChangeCreatorNotes(val value: String) : CharacterEditUiIntent()
 
+    data class ChangeCreator(val value: String) : CharacterEditUiIntent()
+
+    data class ChangeCharacterVersion(val value: String) : CharacterEditUiIntent()
+
     data class ChangePersonality(val value: String) : CharacterEditUiIntent()
 
     data class ChangeScenario(val value: String) : CharacterEditUiIntent()
@@ -36,6 +40,22 @@ sealed class CharacterEditUiIntent {
     data class ChangeExamplesOfDialogue(val value: String) : CharacterEditUiIntent()
 
     data class ChangePostHistoryInstructions(val value: String) : CharacterEditUiIntent()
+
+    data class ChangeSystemPrompt(val value: String) : CharacterEditUiIntent()
+
+    data class ChangeDepthPromptPrompt(val value: String) : CharacterEditUiIntent()
+
+    data class ChangeDepthPromptDepth(val value: String) : CharacterEditUiIntent()
+
+    data class ChangeDepthPromptRole(val value: String) : CharacterEditUiIntent()
+
+    data object AddAlternateGreeting : CharacterEditUiIntent()
+
+    data class ChangeAlternateGreeting(val index: Int, val value: String) : CharacterEditUiIntent()
+
+    data class DeleteAlternateGreeting(val index: Int) : CharacterEditUiIntent()
+
+    data class ChangeExtensionsJson(val value: String) : CharacterEditUiIntent()
 
     data object SaveCharacter : CharacterEditUiIntent()
 

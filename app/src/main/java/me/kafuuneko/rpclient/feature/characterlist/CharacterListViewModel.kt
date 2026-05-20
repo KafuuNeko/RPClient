@@ -1,12 +1,16 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
 import android.os.Bundle
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
+import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -20,6 +24,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
 ), KoinComponent {
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
+    private val mCharacterCardRepository by inject<CharacterCardRepository>()
+    private val mContext by inject<Context>()
 
     @UiIntentObserver(CharacterListUiIntent.Init::class)
     private suspend fun onInit() {
@@ -61,6 +67,58 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.CreateCharacter::class)
     private fun onCreateCharacter() {
         AppViewEvent.StartActivity(CharacterEditActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(CharacterListUiIntent.ImportCharacterClick::class)
+    private fun onImportCharacterClick() {
+        CharacterListViewEvent.OpenCharacterCardImporter.tryEmit()
+    }
+
+    @UiIntentObserver(CharacterListUiIntent.ImportCharacterCard::class)
+    private suspend fun onImportCharacterCard(intent: CharacterListUiIntent.ImportCharacterCard) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        uiState.copy(loadState = CharacterListLoadState.Loading).setup()
+        val importedId = runCatching {
+            withContext(Dispatchers.IO) { mCharacterCardRepository.importFromUri(intent.uri) }
+        }.getOrElse {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.import_character_failed)).tryEmit()
+            refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
+            return
+        }
+        AppViewEvent.PopupToastMessageByResId(R.string.import_character_success).tryEmit()
+        refreshCharacters(selectedCharacterId = importedId)
+    }
+
+    @UiIntentObserver(CharacterListUiIntent.ExportCharacterJsonClick::class)
+    private suspend fun onExportCharacterJsonClick(intent: CharacterListUiIntent.ExportCharacterJsonClick) {
+        val character = withContext(Dispatchers.IO) {
+            mCharacterRepository.getCharacterById(intent.characterId)
+        } ?: return
+        CharacterListViewEvent.OpenCharacterCardJsonExporter(
+            characterId = intent.characterId,
+            fileName = "${character.name.ifBlank { "character" }}.json"
+        ).tryEmit()
+    }
+
+    @UiIntentObserver(CharacterListUiIntent.ExportCharacterJson::class)
+    private suspend fun onExportCharacterJson(intent: CharacterListUiIntent.ExportCharacterJson) {
+        val json = runCatching {
+            withContext(Dispatchers.IO) { mCharacterCardRepository.exportJson(intent.characterId) }
+        }.getOrElse {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.export_character_failed)).tryEmit()
+            return
+        }
+        runCatching {
+            withContext(Dispatchers.IO) {
+                mContext.contentResolver.openOutputStream(intent.uri)?.use { output ->
+                    output.write(json.toByteArray(Charsets.UTF_8))
+                } ?: error("Cannot open export destination")
+            }
+        }.onSuccess {
+            AppViewEvent.PopupToastMessageByResId(R.string.export_character_success).tryEmit()
+        }.onFailure {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.export_character_failed)).tryEmit()
+        }
     }
 
     private suspend fun refreshCharacters(selectedCharacterId: Long?) {
