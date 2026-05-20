@@ -166,6 +166,7 @@ class WorldBookActivatorTest {
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
+            userDescription = "",
             character = Character(
                 id = 1L,
                 name = "Char",

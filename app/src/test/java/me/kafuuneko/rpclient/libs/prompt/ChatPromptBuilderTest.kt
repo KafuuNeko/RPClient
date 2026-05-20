@@ -126,6 +126,31 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun alternateGreetingsResolveAsFirstMessageChoices() {
+        val resolved = PromptMacroResolver(historyBuilder).resolve(
+            template = "{{charFirstMessage}}|{{charFirstMessage::0}}|{{charFirstMessage::1}}|{{charFirstMessage::2}}",
+            context = context(
+                character = Character(
+                    id = 1L,
+                    name = "Char",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    creatorNotes = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "Primary greeting",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                    alternateGreetings = """["Alt one"," Alt two "]"""
+                )
+            )
+        )
+
+        assertEquals("Primary greeting|Primary greeting|Alt one|Alt two", resolved)
+    }
+
+    @Test
     fun nonConstantWorldInfoWithoutKeywordMatchIsNotInjected() {
         val request = builder.build(
             context(
@@ -168,6 +193,7 @@ class ChatPromptBuilderTest {
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
+            userDescription = "",
             character = character,
             session = session,
             messages = messages,

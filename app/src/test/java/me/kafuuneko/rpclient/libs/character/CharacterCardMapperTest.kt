@@ -69,6 +69,7 @@ class CharacterCardMapperTest {
         assertEquals("Iris", parsed.character.name)
         assertEquals("Maker", parsed.character.creator)
         assertEquals("1.2", parsed.character.characterVersion)
+        assertEquals(listOf("Hello", "Alt"), parsed.character.getChatFirstMessageList())
         assertEquals("Stay close", parsed.character.depthPromptPrompt)
         assertEquals(2, parsed.character.depthPromptDepth)
         assertEquals(LorebookEntry.ROLE_ASSISTANT, parsed.character.depthPromptRole)

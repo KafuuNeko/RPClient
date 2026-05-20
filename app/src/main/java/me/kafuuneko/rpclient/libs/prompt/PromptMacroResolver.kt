@@ -21,7 +21,7 @@ class PromptMacroResolver(
         original: String = template,
         outlets: Map<String, String>? = null
     ): String {
-        val firstMessages = context.character.getFirstMessageList()
+        val firstMessages = context.character.getChatFirstMessageList()
         // 兼容旧式 <USER>/<BOT>/<CHAR> 写法，统一转换到 {{...}} 宏格式。
         var result = template
             .replace("<USER>", "{{user}}", ignoreCase = true)

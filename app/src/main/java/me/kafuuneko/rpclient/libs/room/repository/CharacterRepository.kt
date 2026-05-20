@@ -72,7 +72,7 @@ class CharacterRepository(
      * @return 开场白列表；如果角色不存在或开场白为空则返回空列表。
      */
     suspend fun getCharacterFirstMessages(id: Long): List<String> {
-        return getCharacterById(id)?.getFirstMessageList() ?: emptyList()
+        return getCharacterById(id)?.getChatFirstMessageList() ?: emptyList()
     }
 
     /**

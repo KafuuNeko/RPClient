@@ -72,5 +72,11 @@ data class Character(
 
     fun getAlternateGreetingList(): List<String> {
         return Gson().toStringList(alternateGreetings)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
+
+    fun getChatFirstMessageList(): List<String> {
+        return getFirstMessageList() + getAlternateGreetingList()
     }
 }

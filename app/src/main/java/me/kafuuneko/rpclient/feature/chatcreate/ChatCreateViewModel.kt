@@ -61,7 +61,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 ?.copy(selectedCharacterId = data.first.firstOrNull()?.id)
                 ?: ChatCreateForm(selectedCharacterId = data.first.firstOrNull()?.id),
             characters = data.first,
-            selectedCharacterFirstMessages = data.first.firstOrNull()?.getFirstMessageList().orEmpty(),
+            selectedCharacterFirstMessages = data.first.firstOrNull()?.getChatFirstMessageList().orEmpty(),
             lorebookGroups = data.second
         ).setup()
     }
@@ -80,7 +80,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 selectedCharacterId = intent.characterId,
                 selectedFirstMessageIndex = null
             ),
-            selectedCharacterFirstMessages = character.getFirstMessageList()
+            selectedCharacterFirstMessages = character.getChatFirstMessageList()
         ).setup()
     }
 
