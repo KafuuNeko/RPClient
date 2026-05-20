@@ -474,10 +474,9 @@ private fun MessageContent(
             when (part) {
                 is ChatMessageContentPart.Text -> {
                     if (part.content.isNotBlank()) {
-                        Text(
-                            text = part.content,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        MarkdownMessageText(
+                            content = part.content,
+                            isUser = isUser
                         )
                     }
                 }
@@ -929,8 +928,8 @@ private fun ChatLayoutPreview() {
                         id = "1",
                         role = MessageRole.Assistant,
                         speaker = "Lyra",
-                        content = "The rain kept tapping on the archive windows.",
-                        parts = listOf(ChatMessageContentPart.Text("The rain kept tapping on the archive windows.")),
+                        content = "## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf",
+                        parts = listOf(ChatMessageContentPart.Text("## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf")),
                         time = "02:15",
                         tokenCount = 12
                     )
