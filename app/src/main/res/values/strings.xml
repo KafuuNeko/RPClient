@@ -160,6 +160,9 @@
     <string name="regenerate_latest_reply_desc">Delete the latest assistant reply and generate again</string>
     <string name="summarize_now">Summarize now</string>
     <string name="summarize_now_desc">Update this chat memory using the global summary settings</string>
+    <string name="delete_chat_title">Delete chat</string>
+    <string name="delete_chat_desc">Permanently delete this session and all messages</string>
+    <string name="delete_chat_message">Delete "%s" and all of its messages? This cannot be undone.</string>
     <string name="session">Session</string>
     <string name="title">Title</string>
     <string name="current_summary">Current summary</string>
@@ -175,12 +178,14 @@
     <string name="generation_failed">Generation failed</string>
     <string name="only_latest_assistant_reply_regenerate">Only the latest assistant reply can be regenerated for now</string>
     <string name="stop_generation_before_summarizing">Please stop generation before summarizing</string>
+    <string name="stop_generation_before_deleting">Please stop generation before deleting this chat</string>
     <string name="untitled_chat">Untitled chat</string>
     <string name="no_latest_assistant_reply_to_regenerate">No latest assistant reply to regenerate</string>
     <string name="regenerate_failed">Regenerate failed</string>
     <string name="no_unsummarized_messages">No unsummarized messages</string>
     <string name="summary_updated">Summary updated</string>
     <string name="summary_failed">Summary failed</string>
+    <string name="chat_deleted">Chat deleted</string>
     <string name="character_not_found">Character not found</string>
     <string name="no_enabled_llm_provider_configured">No enabled LLM provider configured</string>
     <string name="system_speaker">System</string>

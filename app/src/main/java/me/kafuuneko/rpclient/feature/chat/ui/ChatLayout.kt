@@ -28,12 +28,14 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +68,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -91,6 +94,7 @@ fun ChatLayout(
                 ChatPage.Conversation -> ChatNormal(uiState, emit)
                 ChatPage.Settings -> ChatSettingsPage(uiState, emit)
             }
+            DialogSwitch(uiState.dialogState, emit)
         }
     }
 }
@@ -684,6 +688,13 @@ private fun ChatSettingsPage(
                         title = stringResource(R.string.summarize_now),
                         subtitle = stringResource(R.string.summarize_now_desc)
                     ) { ChatUiIntent.SummarizeNow.emit() }
+                    MenuAction(
+                        icon = Icons.Rounded.Delete,
+                        title = stringResource(R.string.delete_chat_title),
+                        subtitle = stringResource(R.string.delete_chat_desc),
+                        iconTint = MaterialTheme.colorScheme.error,
+                        enabled = state.loadState != ChatLoadState.Deleting
+                    ) { ChatUiIntent.DeleteSessionClick.emit() }
                 }
             }
             item {
@@ -793,6 +804,31 @@ private fun SettingsSection(
 }
 
 @Composable
+private fun DialogSwitch(
+    dialogState: ChatDialogState,
+    emit: ChatUiIntent.() -> Unit
+) {
+    when (dialogState) {
+        ChatDialogState.None -> Unit
+        is ChatDialogState.DeleteSessionConfirm -> AlertDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.delete_chat_title)) },
+            text = { Text(stringResource(R.string.delete_chat_message, dialogState.sessionTitle)) },
+            confirmButton = {
+                TextButton(onClick = { ChatUiIntent.ConfirmDeleteSession.emit() }) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
 private fun AutoSaveTextField(
     label: String,
     value: String,
@@ -841,12 +877,14 @@ private fun MenuAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(enabled = enabled) { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     ) {
@@ -854,15 +892,23 @@ private fun MenuAction(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.58f else 0.38f)
                     )
                 }
             }

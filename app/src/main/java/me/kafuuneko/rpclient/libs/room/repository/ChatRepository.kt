@@ -253,7 +253,10 @@ class ChatRepository(
      * @param id 会话 id。
      */
     suspend fun deleteSession(id: Long) {
-        mChatSessionDao.deleteSessionById(id)
+        mAppDatabase.withTransaction {
+            mChatMessageDao.deleteMessagesBySessionId(id)
+            mChatSessionDao.deleteSessionById(id)
+        }
     }
 
     /**

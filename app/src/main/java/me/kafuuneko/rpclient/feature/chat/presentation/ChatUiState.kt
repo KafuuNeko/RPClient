@@ -22,7 +22,8 @@ sealed class ChatUiState {
         val streamEnabled: Boolean,
         val expandedThinkBlockIds: Set<String> = emptySet(),
         val editingMessageId: String? = null,
-        val editingMessageDraft: String = ""
+        val editingMessageDraft: String = "",
+        val dialogState: ChatDialogState = ChatDialogState.None
     ) : ChatUiState()
 
     data object Finished : ChatUiState()
@@ -37,4 +38,13 @@ sealed class ChatLoadState {
     data object None : ChatLoadState()
     data object Loading : ChatLoadState()
     data object Saving : ChatLoadState()
+    data object Deleting : ChatLoadState()
+}
+
+sealed class ChatDialogState {
+    data object None : ChatDialogState()
+
+    data class DeleteSessionConfirm(
+        val sessionTitle: String
+    ) : ChatDialogState()
 }

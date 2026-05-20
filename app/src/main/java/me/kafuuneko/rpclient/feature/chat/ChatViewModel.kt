@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -272,6 +273,44 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             isExpanded = uiState.isSessionLoreExpanded,
             expandedThinkBlockIds = uiState.expandedThinkBlockIds
         )
+    }
+
+    @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
+    private fun onDeleteSessionClick() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
+            return
+        }
+        uiState.copy(
+            dialogState = ChatDialogState.DeleteSessionConfirm(uiState.session.title)
+        ).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ConfirmDeleteSession::class)
+    private suspend fun onConfirmDeleteSession() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
+            uiState.copy(dialogState = ChatDialogState.None).setup()
+            return
+        }
+        uiState.copy(
+            loadState = ChatLoadState.Deleting,
+            dialogState = ChatDialogState.None
+        ).setup()
+        withContext(Dispatchers.IO) {
+            mChatRepository.deleteSession(sessionId)
+        }
+        AppViewEvent.PopupToastMessageByResId(R.string.chat_deleted).tryEmit()
+        ChatUiState.Finished.setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.SaveTitle::class)
@@ -561,7 +600,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         generationState: ChatGenerationState = ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: String? = null,
-        editingMessageDraft: String = ""
+        editingMessageDraft: String = "",
+        dialogState: ChatDialogState = ChatDialogState.None
     ): ChatUiState.Normal? {
         // 所有 UI model 在 ViewModel 中组装，Compose 只负责渲染和发送 intent。
         val session = mChatRepository.getSessionById(sessionId) ?: return null
@@ -587,7 +627,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             streamEnabled = AppModel.streamEnabled,
             expandedThinkBlockIds = expandedThinkBlockIds,
             editingMessageId = editingMessageId,
-            editingMessageDraft = editingMessageDraft
+            editingMessageDraft = editingMessageDraft,
+            dialogState = dialogState
         )
     }
 
@@ -600,7 +641,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()?.generationState ?: ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()?.expandedThinkBlockIds ?: emptySet(),
         editingMessageId: String? = getOrNull<ChatUiState.Normal>()?.editingMessageId,
-        editingMessageDraft: String = getOrNull<ChatUiState.Normal>()?.editingMessageDraft.orEmpty()
+        editingMessageDraft: String = getOrNull<ChatUiState.Normal>()?.editingMessageDraft.orEmpty(),
+        dialogState: ChatDialogState = getOrNull<ChatUiState.Normal>()?.dialogState ?: ChatDialogState.None
     ) {
         val nextState = withContext(Dispatchers.IO) {
             loadNormalState(
@@ -612,7 +654,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
-                editingMessageDraft = editingMessageDraft
+                editingMessageDraft = editingMessageDraft,
+                dialogState = dialogState
             )
         } ?: return
         nextState.setup()
