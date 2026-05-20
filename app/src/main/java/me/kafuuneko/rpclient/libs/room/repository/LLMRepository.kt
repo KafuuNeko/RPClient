@@ -65,12 +65,14 @@ class LLMRepository(
     suspend fun saveProvider(provider: LLMProvider): Long {
         val now = System.currentTimeMillis()
         val nextProvider = provider.copy(updateTime = now)
-        return if (provider.id == 0L) {
+        val providerId = if (provider.id == 0L) {
             mLLMProviderDao.insertOrReplace(nextProvider.copy(createTime = now))
         } else {
             mLLMProviderDao.update(nextProvider)
             provider.id
         }
+        syncCurrentProvider(preferredProviderId = providerId.takeIf { nextProvider.isEnabled })
+        return providerId
     }
 
     /**
@@ -85,6 +87,7 @@ class LLMRepository(
      */
     suspend fun updateProviderEnabled(id: Long, isEnabled: Boolean) {
         mLLMProviderDao.updateProviderEnabled(id, isEnabled)
+        syncCurrentProvider(preferredProviderId = id.takeIf { isEnabled })
     }
 
     /**
@@ -92,6 +95,37 @@ class LLMRepository(
      */
     suspend fun deleteProvider(id: Long) {
         mLLMProviderDao.deleteProviderById(id)
+        syncCurrentProvider()
+    }
+
+    /**
+     * 同步当前选中的模型供应商。
+     *
+     * 当已有当前供应商且仍然启用时，不会覆盖用户选择；仅在当前供应商为空、
+     * 已删除或被禁用时，才优先切换到本次启用/保存的供应商，否则回退到第一个已启用供应商。
+     */
+    private suspend fun syncCurrentProvider(preferredProviderId: Long? = null) {
+        preferredProviderId
+            ?.let { mLLMProviderDao.getProviderById(it) }
+            ?.takeIf { it.isEnabled }
+            ?.let { preferredProvider ->
+                val currentProvider = AppModel.currentLLMProvider
+                    .takeIf { it != 0L }
+                    ?.let { mLLMProviderDao.getProviderById(it) }
+                    ?.takeIf { it.isEnabled }
+                if (currentProvider == null) {
+                    AppModel.currentLLMProvider = preferredProvider.id
+                    return
+                }
+            }
+
+        val currentProvider = AppModel.currentLLMProvider
+            .takeIf { it != 0L }
+            ?.let { mLLMProviderDao.getProviderById(it) }
+            ?.takeIf { it.isEnabled }
+        if (currentProvider != null) return
+
+        AppModel.currentLLMProvider = mLLMProviderDao.getEnabledProviders().firstOrNull()?.id ?: 0L
     }
 
     /**
