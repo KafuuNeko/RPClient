@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.text.SimpleDateFormat
@@ -292,7 +293,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             id = id.toString(),
             characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
-            preview = latestMessage?.content?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
+            preview = latestMessage?.content?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
             messageCount = mChatRepository.getMessageCountBySessionId(id),
             branchCount = 0,
             updatedAt = latestTime.toDisplayTime()
