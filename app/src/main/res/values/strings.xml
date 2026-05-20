@@ -333,7 +333,7 @@
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">Send and streaming generation logic coming soon</string>
     <string name="stop_generation_coming_soon">Stop generation logic coming soon</string>
-    <string name="regenerate_creates_branch_coming_soon">Regenerate will create同级 branch, coming soon</string>
+    <string name="regenerate_creates_branch_coming_soon">Regenerate will create a sibling branch, coming soon</string>
 
     <!-- Prompt Preset -->
     <string name="prompt_preset_title">System Prompt Preset</string>
