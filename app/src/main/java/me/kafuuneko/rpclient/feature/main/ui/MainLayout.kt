@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
@@ -45,6 +48,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -141,6 +146,9 @@ private fun HomePage(
     state: MainHomeState,
     emit: MainUiIntent.() -> Unit
 ) {
+    val collapsedCharacterIds = remember { mutableStateListOf<String>() }
+    val sessionGroups = state.recentSessions.groupBy { it.characterId }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -191,11 +199,34 @@ private fun HomePage(
                 )
             }
         }
-        items(state.recentSessions) { session ->
-            SessionCard(
-                session = session,
-                onClick = { MainUiIntent.OpenChat(session.id).emit() }
-            )
+        sessionGroups.forEach { (characterId, sessions) ->
+            val characterName = sessions.firstOrNull()?.characterName.orEmpty()
+            val expanded = characterId !in collapsedCharacterIds
+            item(key = "character-$characterId") {
+                SessionCharacterHeader(
+                    characterName = characterName,
+                    sessionCount = sessions.size,
+                    expanded = expanded,
+                    onClick = {
+                        if (expanded) {
+                            collapsedCharacterIds.add(characterId)
+                        } else {
+                            collapsedCharacterIds.remove(characterId)
+                        }
+                    }
+                )
+            }
+            if (expanded) {
+                items(
+                    items = sessions,
+                    key = { session -> "session-${session.id}" }
+                ) { session ->
+                    SessionCard(
+                        session = session,
+                        onClick = { MainUiIntent.OpenChat(session.id).emit() }
+                    )
+                }
+            }
         }
     }
 }
@@ -214,6 +245,45 @@ private fun HomeEntryCard(
         title = title,
         subtitle = subtitle
     )
+}
+
+@Composable
+private fun SessionCharacterHeader(
+    characterName: String,
+    sessionCount: Int,
+    expanded: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = characterName,
+            modifier = Modifier.weight(1f),
+            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = stringResource(R.string.session_group_count, sessionCount),
+            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha = 0.58f)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Icon(
+            imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = stringResource(
+                if (expanded) R.string.collapse_session_group else R.string.expand_session_group
+            ),
+            modifier = Modifier.size(24.dp),
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
+        )
+    }
 }
 
 @Composable

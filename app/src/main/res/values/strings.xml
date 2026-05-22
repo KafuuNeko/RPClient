@@ -15,6 +15,9 @@
     <string name="manage_characters">Manage</string>
     <string name="message_count">%d messages</string>
     <string name="branch_count">%d branches</string>
+    <string name="session_group_count">%d sessions</string>
+    <string name="expand_session_group">Expand sessions</string>
+    <string name="collapse_session_group">Collapse sessions</string>
     <string name="setting_page_title">Settings</string>
     <string name="setting_subtitle">Provider, generation parameters, local-first and backup</string>
     <string name="model_provider">Model Provider</string>

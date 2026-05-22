@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.main.model
 
 data class MainChatSessionItem(
     val id: String,
+    val characterId: String,
     val characterName: String,
     val title: String,
     val preview: String,
@@ -9,4 +10,3 @@ data class MainChatSessionItem(
     val branchCount: Int,
     val updatedAt: String
 )
-

@@ -14,6 +14,9 @@
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 条消息</string>
     <string name="branch_count">%d 个分支</string>
+    <string name="session_group_count">%d 个会话</string>
+    <string name="expand_session_group">展开会话</string>
+    <string name="collapse_session_group">折叠会话</string>
     <string name="setting_page_title">设置</string>
     <string name="setting_subtitle">提供商、生成参数、本地优先和备份</string>
     <string name="model_provider">模型提供商</string>

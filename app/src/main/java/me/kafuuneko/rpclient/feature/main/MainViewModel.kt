@@ -291,6 +291,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val latestMessage = mChatRepository.getLatestMessageBySessionId(id)
         return MainChatSessionItem(
             id = id.toString(),
+            characterId = characterId.toString(),
             characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
             title = title,
             preview = latestMessage?.content?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
