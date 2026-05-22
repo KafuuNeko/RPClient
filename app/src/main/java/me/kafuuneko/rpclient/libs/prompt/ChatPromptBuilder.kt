@@ -52,6 +52,7 @@ class ChatPromptBuilder(
         val messages = mutableListOf<LLMMessage>()
         fixedMessages.beforeHistory.forEach { messages += it.resolve(context, historyText, outlets) }
         examplePieces.forEach { messages += it.resolve(context, historyText, outlets) }
+        buildNewChatPiece(context, historyText, outlets)?.let { messages += it }
         messages += buildChatMessages(historyMessages, context, historyText, inChatPieces, outlets)
         fixedMessages.afterHistory.forEach { messages += it.resolve(context, historyText, outlets) }
 
@@ -77,25 +78,34 @@ class ChatPromptBuilder(
         val beforeHistory = mutableListOf<PromptPiece>()
         // before/after character 是固定 system 区；creator_notes 只作为元数据保留，不再默认注入。
         worldInfo.beforeCharacter.forEach {
-            beforeHistory += PromptPiece(LLMMessageRole.System, it.content, PromptPieceImportance.Optional)
+            beforeHistory += PromptPiece(LLMMessageRole.System, formatWorldInfo(it.content), PromptPieceImportance.Optional)
         }
         beforeHistory += PromptPiece(LLMMessageRole.System, readCharacterMainPrompt(context), PromptPieceImportance.Required)
         worldInfo.afterCharacter.forEach {
-            beforeHistory += PromptPiece(LLMMessageRole.System, it.content, PromptPieceImportance.Optional)
+            beforeHistory += PromptPiece(LLMMessageRole.System, formatWorldInfo(it.content), PromptPieceImportance.Optional)
         }
         beforeHistory += PromptPiece(LLMMessageRole.System, context.userDescription, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.character.personality, PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.character.scenario, PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(LLMMessageRole.System, formatPersonality(context.character.personality), PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(LLMMessageRole.System, formatScenario(context.character.scenario), PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, context.session.summarize, PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(LLMMessageRole.System, readAuxiliaryPrompt(), PromptPieceImportance.Optional)
 
-        val afterHistory = listOf(
-            PromptPiece(
+        val afterHistory = buildList {
+            add(PromptPiece(
                 role = LLMMessageRole.System,
                 content = readCharacterPostHistoryInstructions(context),
                 importance = PromptPieceImportance.Required
-            )
-        )
+            ))
+            val modePrompt = when (context.generationMode) {
+                PromptGenerationMode.Normal -> ""
+                PromptGenerationMode.Continue -> readContinueNudgePrompt()
+                PromptGenerationMode.Impersonate -> readImpersonationPrompt()
+            }
+            if (modePrompt.isNotBlank()) {
+                add(PromptPiece(LLMMessageRole.System, modePrompt, PromptPieceImportance.Required))
+            }
+        }
 
         return PromptSections(
             beforeHistory = beforeHistory.filter { it.content.isNotBlank() },
@@ -177,7 +187,27 @@ class ChatPromptBuilder(
         }
         return blocks
             .filter { it.isNotBlank() }
-            .map { PromptPiece(LLMMessageRole.System, it, PromptPieceImportance.Optional) }
+            .flatMap { block ->
+                buildList {
+                    val marker = readNewExampleChatPrompt()
+                    if (marker.isNotBlank()) {
+                        add(PromptPiece(LLMMessageRole.System, marker, PromptPieceImportance.Optional))
+                    }
+                    add(PromptPiece(LLMMessageRole.System, block, PromptPieceImportance.Optional))
+                }
+            }
+    }
+
+    private fun buildNewChatPiece(
+        context: PromptBuildContext,
+        history: String,
+        outlets: Map<String, String>
+    ): LLMMessage? {
+        if (context.messages.isEmpty() && context.currentUserMessage.isNullOrBlank()) return null
+        val marker = readNewChatPrompt()
+        if (marker.isBlank()) return null
+        return PromptPiece(LLMMessageRole.System, marker, PromptPieceImportance.Optional)
+            .resolve(context, history, outlets)
     }
 
     private fun fitHistory(messages: List<ChatMessage>, tokenBudget: Int): List<ChatMessage> {
@@ -310,6 +340,56 @@ class ChatPromptBuilder(
 
     private fun readPostHistoryInstructions(): String {
         return runCatching { AppModel.postHistoryInstructions }.getOrDefault("")
+    }
+
+    private fun readAuxiliaryPrompt(): String {
+        return runCatching { AppModel.auxiliaryPrompt }.getOrDefault(AppModel.DEFAULT_AUXILIARY_PROMPT)
+    }
+
+    private fun readImpersonationPrompt(): String {
+        return runCatching { AppModel.impersonationPrompt }.getOrDefault(AppModel.DEFAULT_IMPERSONATION_PROMPT)
+    }
+
+    private fun readNewChatPrompt(): String {
+        return runCatching { AppModel.newChatPrompt }.getOrDefault(AppModel.DEFAULT_NEW_CHAT_PROMPT)
+    }
+
+    private fun readNewExampleChatPrompt(): String {
+        return runCatching { AppModel.newExampleChatPrompt }.getOrDefault(AppModel.DEFAULT_NEW_EXAMPLE_CHAT_PROMPT)
+    }
+
+    private fun readContinueNudgePrompt(): String {
+        return runCatching { AppModel.continueNudgePrompt }.getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
+    }
+
+    private fun formatWorldInfo(content: String): String {
+        return applyFormat(readWorldInfoFormat(), "{0}", content)
+    }
+
+    private fun formatScenario(content: String): String {
+        return applyFormat(readScenarioFormat(), "{{scenario}}", content)
+    }
+
+    private fun formatPersonality(content: String): String {
+        return applyFormat(readPersonalityFormat(), "{{personality}}", content)
+    }
+
+    private fun applyFormat(template: String, marker: String, content: String): String {
+        if (content.isBlank()) return content
+        if (template.isBlank()) return content
+        return if (template.contains(marker)) template.replace(marker, content) else content
+    }
+
+    private fun readWorldInfoFormat(): String {
+        return runCatching { AppModel.worldInfoFormat }.getOrDefault(AppModel.DEFAULT_WORLD_INFO_FORMAT)
+    }
+
+    private fun readScenarioFormat(): String {
+        return runCatching { AppModel.scenarioFormat }.getOrDefault(AppModel.DEFAULT_SCENARIO_FORMAT)
+    }
+
+    private fun readPersonalityFormat(): String {
+        return runCatching { AppModel.personalityFormat }.getOrDefault(AppModel.DEFAULT_PERSONALITY_FORMAT)
     }
 
     private fun readWorldInfoBudgetPercent(): Int {

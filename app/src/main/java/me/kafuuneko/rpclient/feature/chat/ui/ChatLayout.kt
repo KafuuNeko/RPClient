@@ -596,6 +596,14 @@ private fun MessageActions(
                 .clickable { ChatUiIntent.StartEditMessage(message.id).emit() },
             tint = iconColor
         )
+        Icon(
+            Icons.Rounded.Tune,
+            contentDescription = stringResource(R.string.branch_from_message),
+            modifier = Modifier
+                .size(16.dp)
+                .clickable { ChatUiIntent.BranchFromMessage(message.id).emit() },
+            tint = iconColor
+        )
         if (message.role == MessageRole.Assistant) {
             Icon(
                 Icons.Rounded.Refresh,
@@ -683,6 +691,16 @@ private fun ChatSettingsPage(
                         title = stringResource(R.string.regenerate_latest_reply),
                         subtitle = stringResource(R.string.regenerate_latest_reply_desc)
                     ) { ChatUiIntent.RegenerateLast.emit() }
+                    MenuAction(
+                        icon = Icons.Rounded.AutoAwesome,
+                        title = stringResource(R.string.continue_latest_reply),
+                        subtitle = stringResource(R.string.continue_latest_reply_desc)
+                    ) { ChatUiIntent.ContinueLast.emit() }
+                    MenuAction(
+                        icon = Icons.Rounded.Edit,
+                        title = stringResource(R.string.impersonate_user),
+                        subtitle = stringResource(R.string.impersonate_user_desc)
+                    ) { ChatUiIntent.ImpersonateUser.emit() }
                     MenuAction(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.summarize_now),

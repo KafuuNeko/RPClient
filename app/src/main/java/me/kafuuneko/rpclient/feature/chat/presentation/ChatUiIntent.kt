@@ -13,7 +13,13 @@ sealed class ChatUiIntent {
 
     data object RegenerateLast : ChatUiIntent()
 
+    data object ContinueLast : ChatUiIntent()
+
+    data object ImpersonateUser : ChatUiIntent()
+
     data class RegenerateFromMessage(val messageId: String) : ChatUiIntent()
+
+    data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
     data object OpenSessionLore : ChatUiIntent()
 

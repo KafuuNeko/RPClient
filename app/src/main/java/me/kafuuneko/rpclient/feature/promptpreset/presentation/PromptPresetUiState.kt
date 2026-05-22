@@ -6,8 +6,7 @@ sealed class PromptPresetUiState {
     data object None : PromptPresetUiState()
 
     data class Normal(
-        val mainPrompt: String,
-        val summarizePrompt: String,
+        val promptValues: Map<PromptType, String>,
         val dialogState: PromptPresetDialogState = PromptPresetDialogState.None
     ) : PromptPresetUiState()
 

@@ -140,6 +140,7 @@
     <string name="copy">Copy</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="regenerate">Regenerate</string>
+    <string name="branch_from_message">Branch from here</string>
     <string name="stop">Stop</string>
     <string name="favorite">Favorite</string>
     <string name="input_next_story">Input your next story line</string>
@@ -158,6 +159,10 @@
     <string name="chat_settings_actions">Actions</string>
     <string name="regenerate_latest_reply">Regenerate latest reply</string>
     <string name="regenerate_latest_reply_desc">Delete the latest assistant reply and generate again</string>
+    <string name="continue_latest_reply">Continue latest reply</string>
+    <string name="continue_latest_reply_desc">Append more text to the latest assistant reply</string>
+    <string name="impersonate_user">Impersonate user</string>
+    <string name="impersonate_user_desc">Generate the next message from the user perspective</string>
     <string name="summarize_now">Summarize now</string>
     <string name="summarize_now_desc">Update this chat memory using the global summary settings</string>
     <string name="delete_chat_title">Delete chat</string>
@@ -181,11 +186,16 @@
     <string name="stop_generation_before_deleting">Please stop generation before deleting this chat</string>
     <string name="untitled_chat">Untitled chat</string>
     <string name="no_latest_assistant_reply_to_regenerate">No latest assistant reply to regenerate</string>
+    <string name="no_latest_assistant_reply_to_continue">No assistant reply to continue</string>
     <string name="regenerate_failed">Regenerate failed</string>
+    <string name="continue_generation_failed">Continue failed</string>
+    <string name="impersonation_failed">User impersonation failed</string>
     <string name="no_unsummarized_messages">No unsummarized messages</string>
     <string name="summary_updated">Summary updated</string>
     <string name="summary_failed">Summary failed</string>
     <string name="chat_deleted">Chat deleted</string>
+    <string name="branch_session_title">%s (branch)</string>
+    <string name="branch_create_failed">Failed to create branch</string>
     <string name="character_not_found">Character not found</string>
     <string name="no_enabled_llm_provider_configured">No enabled LLM provider configured</string>
     <string name="system_speaker">System</string>
@@ -333,19 +343,42 @@
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">Send and streaming generation logic coming soon</string>
     <string name="stop_generation_coming_soon">Stop generation logic coming soon</string>
-    <string name="regenerate_creates_branch_coming_soon">Regenerate will create a sibling branch, coming soon</string>
 
     <!-- Prompt Preset -->
     <string name="prompt_preset_title">System Prompt Preset</string>
-    <string name="prompt_preset_subtitle">Manage global system prompts used across all sessions</string>
+    <string name="prompt_preset_subtitle">Manage SillyTavern-style system prompts, utilities and templates</string>
     <string name="prompt_preset_section">Prompt Templates</string>
-    <string name="prompt_preset_entry_subtitle">Manage main and summarize system prompts</string>
+    <string name="prompt_preset_entry_subtitle">Manage system prompt presets and utility prompts</string>
+    <string name="prompt_manager_section">Prompt Manager</string>
+    <string name="prompt_utility_section">Utility Prompts</string>
+    <string name="prompt_format_section">Format Templates</string>
+    <string name="prompt_summary_section">Summary</string>
     <string name="prompt_main_title">Main Prompt</string>
     <string name="prompt_main_desc">Primary system prompt injected at the start of every session</string>
+    <string name="prompt_auxiliary_title">Auxiliary Prompt</string>
+    <string name="prompt_auxiliary_desc">Additional system prompt placed with character definitions before chat history</string>
+    <string name="prompt_post_history_title">Post-History Instructions</string>
+    <string name="prompt_post_history_desc">Final system instructions appended after chat history</string>
     <string name="prompt_summarize_title">Summarize Prompt</string>
     <string name="prompt_summarize_desc">Prompt used to condense long context into a short summary</string>
-    <string name="prompt_empty_hint">Tap to set a prompt…</string>
+    <string name="prompt_impersonation_title">Impersonation Prompt</string>
+    <string name="prompt_impersonation_desc">Used when generating a reply from the user persona perspective</string>
+    <string name="prompt_new_chat_title">New Chat Prompt</string>
+    <string name="prompt_new_chat_desc">Marker sent before a fresh chat history</string>
+    <string name="prompt_new_example_chat_title">New Example Chat Prompt</string>
+    <string name="prompt_new_example_chat_desc">Marker sent before example dialogue blocks</string>
+    <string name="prompt_continue_nudge_title">Continue Nudge</string>
+    <string name="prompt_continue_nudge_desc">Instruction used when continuing the previous assistant message</string>
+    <string name="prompt_replace_empty_message_title">Replace Empty Message</string>
+    <string name="prompt_replace_empty_message_desc">Text to send when the input box is empty</string>
+    <string name="prompt_world_info_format_title">World Info Format</string>
+    <string name="prompt_world_info_format_desc">Template for activated world info entries; use {0} as the marker</string>
+    <string name="prompt_scenario_format_title">Scenario Format</string>
+    <string name="prompt_scenario_format_desc">Template for character scenario; use {{scenario}} as the marker</string>
+    <string name="prompt_personality_format_title">Personality Format</string>
+    <string name="prompt_personality_format_desc">Template for character personality; use {{personality}} as the marker</string>
+    <string name="prompt_empty_hint">Tap to set a prompt...</string>
     <string name="prompt_edit_hint">Tap to edit</string>
     <string name="prompt_editor_label">Prompt Content</string>
-    <string name="prompt_editor_placeholder">Enter your system prompt here…</string>
+    <string name="prompt_editor_placeholder">Enter your system prompt here...</string>
 </resources>

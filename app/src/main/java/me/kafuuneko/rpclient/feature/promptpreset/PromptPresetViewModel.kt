@@ -16,8 +16,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     private fun onInit() {
         if (!isStateOf<PromptPresetUiState.None>()) return
         PromptPresetUiState.Normal(
-            mainPrompt = AppModel.mainPrompt,
-            summarizePrompt = AppModel.summarizePrompt
+            promptValues = readPromptValues()
         ).setup()
     }
 
@@ -29,14 +28,10 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     @UiIntentObserver(PromptPresetUiIntent.EditPromptClick::class)
     private fun onEditPromptClick(intent: PromptPresetUiIntent.EditPromptClick) {
         val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
-        val currentText = when (intent.type) {
-            PromptType.Main -> uiState.mainPrompt
-            PromptType.Summarize -> uiState.summarizePrompt
-        }
         uiState.copy(
             dialogState = PromptPresetDialogState.EditPrompt(
                 type = intent.type,
-                currentText = currentText
+                currentText = uiState.promptValues[intent.type].orEmpty()
             )
         ).setup()
     }
@@ -45,13 +40,9 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     private fun onSavePrompt(intent: PromptPresetUiIntent.SavePrompt) {
         val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? PromptPresetDialogState.EditPrompt ?: return
-        when (dialog.type) {
-            PromptType.Main -> AppModel.mainPrompt = intent.text
-            PromptType.Summarize -> AppModel.summarizePrompt = intent.text
-        }
+        writePrompt(dialog.type, intent.text)
         uiState.copy(
-            mainPrompt = AppModel.mainPrompt,
-            summarizePrompt = AppModel.summarizePrompt,
+            promptValues = readPromptValues(),
             dialogState = PromptPresetDialogState.None
         ).setup()
     }
@@ -60,5 +51,43 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     private fun onDismissPromptDialog() {
         val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
         uiState.copy(dialogState = PromptPresetDialogState.None).setup()
+    }
+
+    private fun readPromptValues(): Map<PromptType, String> {
+        return PromptType.values().associateWith { readPrompt(it) }
+    }
+
+    private fun readPrompt(type: PromptType): String {
+        return when (type) {
+            PromptType.Main -> AppModel.mainPrompt
+            PromptType.Auxiliary -> AppModel.auxiliaryPrompt
+            PromptType.PostHistory -> AppModel.postHistoryInstructions
+            PromptType.Summarize -> AppModel.summarizePrompt
+            PromptType.Impersonation -> AppModel.impersonationPrompt
+            PromptType.NewChat -> AppModel.newChatPrompt
+            PromptType.NewExampleChat -> AppModel.newExampleChatPrompt
+            PromptType.ContinueNudge -> AppModel.continueNudgePrompt
+            PromptType.ReplaceEmptyMessage -> AppModel.replaceEmptyMessagePrompt
+            PromptType.WorldInfoFormat -> AppModel.worldInfoFormat
+            PromptType.ScenarioFormat -> AppModel.scenarioFormat
+            PromptType.PersonalityFormat -> AppModel.personalityFormat
+        }
+    }
+
+    private fun writePrompt(type: PromptType, text: String) {
+        when (type) {
+            PromptType.Main -> AppModel.mainPrompt = text
+            PromptType.Auxiliary -> AppModel.auxiliaryPrompt = text
+            PromptType.PostHistory -> AppModel.postHistoryInstructions = text
+            PromptType.Summarize -> AppModel.summarizePrompt = text
+            PromptType.Impersonation -> AppModel.impersonationPrompt = text
+            PromptType.NewChat -> AppModel.newChatPrompt = text
+            PromptType.NewExampleChat -> AppModel.newExampleChatPrompt = text
+            PromptType.ContinueNudge -> AppModel.continueNudgePrompt = text
+            PromptType.ReplaceEmptyMessage -> AppModel.replaceEmptyMessagePrompt = text
+            PromptType.WorldInfoFormat -> AppModel.worldInfoFormat = text
+            PromptType.ScenarioFormat -> AppModel.scenarioFormat = text
+            PromptType.PersonalityFormat -> AppModel.personalityFormat = text
+        }
     }
 }

@@ -111,26 +111,21 @@ private fun NormalView(
                     subtitle = stringResource(R.string.prompt_preset_subtitle)
                 )
             }
-            item {
-                RpSectionHeader(title = stringResource(R.string.prompt_preset_section))
-            }
-            item {
-                PromptCard(
-                    icon = Icons.Rounded.AutoAwesome,
-                    title = stringResource(R.string.prompt_main_title),
-                    description = stringResource(R.string.prompt_main_desc),
-                    promptPreview = uiState.mainPrompt,
-                    onClick = { PromptPresetUiIntent.EditPromptClick(PromptType.Main).emit() }
-                )
-            }
-            item {
-                PromptCard(
-                    icon = Icons.Rounded.Compress,
-                    title = stringResource(R.string.prompt_summarize_title),
-                    description = stringResource(R.string.prompt_summarize_desc),
-                    promptPreview = uiState.summarizePrompt,
-                    onClick = { PromptPresetUiIntent.EditPromptClick(PromptType.Summarize).emit() }
-                )
+            promptGroups.forEach { group ->
+                item {
+                    RpSectionHeader(title = stringResource(group.titleRes))
+                }
+                group.types.forEach { type ->
+                    item {
+                        PromptCard(
+                            icon = type.icon(),
+                            title = stringResource(type.titleRes()),
+                            description = stringResource(type.descriptionRes()),
+                            promptPreview = uiState.promptValues[type].orEmpty(),
+                            onClick = { PromptPresetUiIntent.EditPromptClick(type).emit() }
+                        )
+                    }
+                }
             }
         }
     }
@@ -208,7 +203,7 @@ private fun PromptCard(
             ) {
                 Text(
                     text = if (hasContent)
-                        promptPreview.take(120).let { if (promptPreview.length > 120) "$it…" else it }
+                        promptPreview.take(120).let { if (promptPreview.length > 120) "$it..." else it }
                     else
                         stringResource(R.string.prompt_empty_hint),
                     style = MaterialTheme.typography.bodySmall,
@@ -241,6 +236,85 @@ private fun PromptCard(
     }
 }
 
+private data class PromptGroup(
+    val titleRes: Int,
+    val types: List<PromptType>
+)
+
+private val promptGroups = listOf(
+    PromptGroup(
+        titleRes = R.string.prompt_manager_section,
+        types = listOf(
+            PromptType.Main,
+            PromptType.Auxiliary,
+            PromptType.PostHistory
+        )
+    ),
+    PromptGroup(
+        titleRes = R.string.prompt_utility_section,
+        types = listOf(
+            PromptType.Impersonation,
+            PromptType.NewChat,
+            PromptType.NewExampleChat,
+            PromptType.ContinueNudge,
+            PromptType.ReplaceEmptyMessage
+        )
+    ),
+    PromptGroup(
+        titleRes = R.string.prompt_format_section,
+        types = listOf(
+            PromptType.WorldInfoFormat,
+            PromptType.ScenarioFormat,
+            PromptType.PersonalityFormat
+        )
+    ),
+    PromptGroup(
+        titleRes = R.string.prompt_summary_section,
+        types = listOf(PromptType.Summarize)
+    )
+)
+
+private fun PromptType.icon(): ImageVector {
+    return when (this) {
+        PromptType.Summarize -> Icons.Rounded.Compress
+        else -> Icons.Rounded.AutoAwesome
+    }
+}
+
+private fun PromptType.titleRes(): Int {
+    return when (this) {
+        PromptType.Main -> R.string.prompt_main_title
+        PromptType.Auxiliary -> R.string.prompt_auxiliary_title
+        PromptType.PostHistory -> R.string.prompt_post_history_title
+        PromptType.Summarize -> R.string.prompt_summarize_title
+        PromptType.Impersonation -> R.string.prompt_impersonation_title
+        PromptType.NewChat -> R.string.prompt_new_chat_title
+        PromptType.NewExampleChat -> R.string.prompt_new_example_chat_title
+        PromptType.ContinueNudge -> R.string.prompt_continue_nudge_title
+        PromptType.ReplaceEmptyMessage -> R.string.prompt_replace_empty_message_title
+        PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_title
+        PromptType.ScenarioFormat -> R.string.prompt_scenario_format_title
+        PromptType.PersonalityFormat -> R.string.prompt_personality_format_title
+    }
+}
+
+private fun PromptType.descriptionRes(): Int {
+    return when (this) {
+        PromptType.Main -> R.string.prompt_main_desc
+        PromptType.Auxiliary -> R.string.prompt_auxiliary_desc
+        PromptType.PostHistory -> R.string.prompt_post_history_desc
+        PromptType.Summarize -> R.string.prompt_summarize_desc
+        PromptType.Impersonation -> R.string.prompt_impersonation_desc
+        PromptType.NewChat -> R.string.prompt_new_chat_desc
+        PromptType.NewExampleChat -> R.string.prompt_new_example_chat_desc
+        PromptType.ContinueNudge -> R.string.prompt_continue_nudge_desc
+        PromptType.ReplaceEmptyMessage -> R.string.prompt_replace_empty_message_desc
+        PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_desc
+        PromptType.ScenarioFormat -> R.string.prompt_scenario_format_desc
+        PromptType.PersonalityFormat -> R.string.prompt_personality_format_desc
+    }
+}
+
 @Composable
 private fun DialogSwitch(
     dialogState: PromptPresetDialogState,
@@ -262,14 +336,11 @@ private fun EditPromptDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    var textFieldValue by remember(dialogState.type) {
+    var textFieldValue by remember(dialogState.type, dialogState.currentText) {
         mutableStateOf(TextFieldValue(dialogState.currentText))
     }
 
-    val titleRes = when (dialogState.type) {
-        PromptType.Main -> R.string.prompt_main_title
-        PromptType.Summarize -> R.string.prompt_summarize_title
-    }
+    val titleRes = dialogState.type.titleRes()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -380,8 +451,10 @@ private fun PromptPresetLayoutPreview() {
     AppTheme(dynamicColor = false) {
         PromptPresetLayout(
             uiState = PromptPresetUiState.Normal(
-                mainPrompt = "You are a creative roleplay assistant. Stay in character and respond naturally...",
-                summarizePrompt = ""
+                promptValues = mapOf(
+                    PromptType.Main to "You are a creative roleplay assistant. Stay in character and respond naturally...",
+                    PromptType.Summarize to ""
+                )
             )
         )
     }

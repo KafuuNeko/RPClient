@@ -139,6 +139,7 @@
     <string name="copy">复制</string>
     <string name="copied_to_clipboard">已复制到剪贴板</string>
     <string name="regenerate">重新生成</string>
+    <string name="branch_from_message">从这里分支</string>
     <string name="stop">停止</string>
     <string name="favorite">收藏</string>
     <string name="input_next_story">输入下一段故事</string>
@@ -157,6 +158,10 @@
     <string name="chat_settings_actions">操作</string>
     <string name="regenerate_latest_reply">重新生成最新回复</string>
     <string name="regenerate_latest_reply_desc">删除最新的助手回复并重新生成</string>
+    <string name="continue_latest_reply">续写最新回复</string>
+    <string name="continue_latest_reply_desc">在最新助手回复后继续追加内容</string>
+    <string name="impersonate_user">扮演用户</string>
+    <string name="impersonate_user_desc">从用户视角生成下一条消息</string>
     <string name="summarize_now">立即摘要</string>
     <string name="summarize_now_desc">使用全局摘要设置更新此聊天记忆</string>
     <string name="delete_chat_title">删除聊天</string>
@@ -180,11 +185,16 @@
     <string name="stop_generation_before_deleting">请先停止生成再删除此聊天</string>
     <string name="untitled_chat">未命名聊天</string>
     <string name="no_latest_assistant_reply_to_regenerate">没有可重新生成的最新助手回复</string>
+    <string name="no_latest_assistant_reply_to_continue">没有可续写的助手回复</string>
     <string name="regenerate_failed">重新生成失败</string>
+    <string name="continue_generation_failed">续写失败</string>
+    <string name="impersonation_failed">扮演用户生成失败</string>
     <string name="no_unsummarized_messages">没有未摘要的消息</string>
     <string name="summary_updated">摘要已更新</string>
     <string name="summary_failed">摘要失败</string>
     <string name="chat_deleted">聊天已删除</string>
+    <string name="branch_session_title">%s（分支）</string>
+    <string name="branch_create_failed">创建分支失败</string>
     <string name="character_not_found">未找到角色</string>
     <string name="no_enabled_llm_provider_configured">未配置已启用的 LLM 提供商</string>
     <string name="system_speaker">系统</string>
@@ -332,19 +342,42 @@
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">发送与流式生成逻辑即将推出</string>
     <string name="stop_generation_coming_soon">停止生成逻辑即将推出</string>
-    <string name="regenerate_creates_branch_coming_soon">重新生成将创建同级分支，即将推出</string>
 
     <!-- Prompt Preset -->
     <string name="prompt_preset_title">系统提示词预设</string>
-    <string name="prompt_preset_subtitle">管理所有会话使用的全局系统提示词</string>
+    <string name="prompt_preset_subtitle">管理 SillyTavern 风格的系统提示词、工具提示词和格式模板</string>
     <string name="prompt_preset_section">提示词模板</string>
-    <string name="prompt_preset_entry_subtitle">管理主提示词和摘要系统提示词</string>
+    <string name="prompt_preset_entry_subtitle">管理系统提示词预设和工具提示词</string>
+    <string name="prompt_manager_section">Prompt Manager</string>
+    <string name="prompt_utility_section">工具提示词</string>
+    <string name="prompt_format_section">格式模板</string>
+    <string name="prompt_summary_section">摘要</string>
     <string name="prompt_main_title">主提示词</string>
     <string name="prompt_main_desc">注入每个会话开头的主要系统提示词</string>
+    <string name="prompt_auxiliary_title">辅助提示词</string>
+    <string name="prompt_auxiliary_desc">随角色定义一起放在聊天历史之前的附加系统提示词</string>
+    <string name="prompt_post_history_title">历史后指令</string>
+    <string name="prompt_post_history_desc">追加在聊天历史之后的最终系统指令</string>
     <string name="prompt_summarize_title">摘要提示词</string>
     <string name="prompt_summarize_desc">用于将长上下文压缩为短摘要的提示词</string>
-    <string name="prompt_empty_hint">点击设置提示词…</string>
+    <string name="prompt_impersonation_title">扮演用户提示词</string>
+    <string name="prompt_impersonation_desc">从用户人格视角生成回复时使用</string>
+    <string name="prompt_new_chat_title">新聊天提示词</string>
+    <string name="prompt_new_chat_desc">放在新聊天历史之前的标记</string>
+    <string name="prompt_new_example_chat_title">新示例聊天提示词</string>
+    <string name="prompt_new_example_chat_desc">放在示例对话块之前的标记</string>
+    <string name="prompt_continue_nudge_title">续写提示词</string>
+    <string name="prompt_continue_nudge_desc">继续上一条助手消息时使用的指令</string>
+    <string name="prompt_replace_empty_message_title">空消息替换</string>
+    <string name="prompt_replace_empty_message_desc">输入框为空时发送的文本</string>
+    <string name="prompt_world_info_format_title">世界书格式</string>
+    <string name="prompt_world_info_format_desc">激活世界书条目的包装模板；使用 {0} 作为占位符</string>
+    <string name="prompt_scenario_format_title">场景格式</string>
+    <string name="prompt_scenario_format_desc">角色场景的包装模板；使用 {{scenario}} 作为占位符</string>
+    <string name="prompt_personality_format_title">性格格式</string>
+    <string name="prompt_personality_format_desc">角色性格的包装模板；使用 {{personality}} 作为占位符</string>
+    <string name="prompt_empty_hint">点击设置提示词...</string>
     <string name="prompt_edit_hint">点击编辑</string>
     <string name="prompt_editor_label">提示词内容</string>
-    <string name="prompt_editor_placeholder">在此输入系统提示词…</string>
+    <string name="prompt_editor_placeholder">在此输入系统提示词...</string>
 </resources>

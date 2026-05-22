@@ -4,4 +4,6 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 sealed class ChatViewEvent : IViewEvent {
     data class CopyText(val text: String) : ChatViewEvent()
+
+    data class OpenSession(val sessionId: String) : ChatViewEvent()
 }

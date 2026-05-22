@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chat
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -54,6 +55,7 @@ class ChatActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             is ChatViewEvent.CopyText -> copyText(viewEvent.text)
+            is ChatViewEvent.OpenSession -> openSession(viewEvent.sessionId)
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }
@@ -62,6 +64,15 @@ class ChatActivity : CoreActivityWithEvent() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.message), text))
         Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun openSession(sessionId: String) {
+        startActivity(
+            Intent(this, ChatActivity::class.java).apply {
+                putExtra(EXTRA_SESSION_ID, sessionId)
+            }
+        )
+        finish()
     }
 
     companion object {

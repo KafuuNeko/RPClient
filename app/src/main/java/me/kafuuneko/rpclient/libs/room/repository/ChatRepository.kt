@@ -129,6 +129,48 @@ class ChatRepository(
     }
 
     /**
+     * 从已有会话复制一段消息前缀，创建一个新的独立会话作为分支。
+     *
+     * 新分支只复制到指定消息为止的历史；摘要和世界书运行时状态会清空，避免带入回溯点之后的信息。
+     */
+    suspend fun createBranchSession(
+        sourceSessionId: Long,
+        throughMessageId: Long,
+        title: String,
+        createTime: Long = System.currentTimeMillis()
+    ): Long {
+        return mAppDatabase.withTransaction {
+            val sourceSession = mChatSessionDao.getSessionById(sourceSessionId) ?: return@withTransaction 0L
+            val sourceMessages = mChatMessageDao.getMessagesBySessionId(sourceSessionId)
+            val branchMessages = sourceMessages.takeWhileInclusive { it.id != throughMessageId }
+            if (branchMessages.none { it.id == throughMessageId }) return@withTransaction 0L
+
+            val branchSessionId = mChatSessionDao.insertOrReplace(
+                sourceSession.copy(
+                    id = 0L,
+                    createTime = createTime,
+                    latestTime = createTime,
+                    title = title,
+                    summarize = "",
+                    worldInfoStateJson = "{}"
+                ).withNormalizedCreatorNotes()
+            )
+            val copiedMessages = branchMessages.mapIndexed { index, message ->
+                message.copy(
+                    id = 0L,
+                    sessionId = branchSessionId,
+                    createTime = createTime + index,
+                    isSummarized = false
+                )
+            }
+            if (copiedMessages.isNotEmpty()) {
+                mChatMessageDao.insertOrReplaceAll(copiedMessages)
+            }
+            branchSessionId
+        }
+    }
+
+    /**
      * 更新已有会话。
      *
      * @param session 要更新的会话。
@@ -449,6 +491,15 @@ class ChatRepository(
 
     private fun List<Long>.toLorebookEntrySetJson(): String {
         return mGson.toJson(distinct())
+    }
+
+    private fun <T> List<T>.takeWhileInclusive(predicate: (T) -> Boolean): List<T> {
+        val result = mutableListOf<T>()
+        for (item in this) {
+            result += item
+            if (!predicate(item)) break
+        }
+        return result
     }
 }
 

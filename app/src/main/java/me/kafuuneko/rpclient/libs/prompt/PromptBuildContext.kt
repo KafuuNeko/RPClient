@@ -17,5 +17,12 @@ data class PromptBuildContext(
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val provider: LLMProvider?,
     val maxContextTokens: Int,
-    val maxResponseTokens: Int
+    val maxResponseTokens: Int,
+    val generationMode: PromptGenerationMode = PromptGenerationMode.Normal
 )
+
+enum class PromptGenerationMode {
+    Normal,
+    Continue,
+    Impersonate
+}

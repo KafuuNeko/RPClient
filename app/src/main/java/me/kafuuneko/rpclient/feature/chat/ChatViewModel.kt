@@ -28,9 +28,11 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -63,6 +65,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mGenerationJob: Job? = null
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
+    private var mStreamingCreatedMessage: Boolean = false
 
     /**
      * 初始化真实会话数据。
@@ -123,6 +126,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         val input = uiState.inputDraft.trim()
+            .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
         if (input.isBlank()) return
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
@@ -143,9 +147,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
                 val request = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request)
+                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
                 } else {
-                    generateOnce(sessionId, request)
+                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -173,12 +177,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             if (messageId != null && content.isNotBlank()) {
                 mChatRepository.updateMessageContent(messageId, content)
+            } else if (messageId != null && mStreamingCreatedMessage) {
+                mChatRepository.deleteMessage(messageId)
             } else if (content.isNotBlank()) {
                 mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, content)
             }
         }
         mStreamingMessageId = null
         mStreamingContent = ""
+        mStreamingCreatedMessage = false
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
@@ -186,6 +193,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onRegenerateLast() {
         val sessionId = mSessionId ?: return
         regenerateLastAssistantMessage(sessionId)
+    }
+
+    @UiIntentObserver(ChatUiIntent.ContinueLast::class)
+    private suspend fun onContinueLast() {
+        val sessionId = mSessionId ?: return
+        continueLastAssistantMessage(sessionId)
+    }
+
+    @UiIntentObserver(ChatUiIntent.ImpersonateUser::class)
+    private suspend fun onImpersonateUser() {
+        val sessionId = mSessionId ?: return
+        generateUserImpersonation(sessionId)
     }
 
     @UiIntentObserver(ChatUiIntent.RegenerateFromMessage::class)
@@ -201,6 +220,32 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         regenerateLastAssistantMessage(sessionId)
     }
+
+    @UiIntentObserver(ChatUiIntent.BranchFromMessage::class)
+    private suspend fun onBranchFromMessage(intent: ChatUiIntent.BranchFromMessage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val messageId = intent.messageId.toLongOrNull() ?: return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
+            return
+        }
+        uiState.copy(loadState = ChatLoadState.Saving).setup()
+        val branchId = withContext(Dispatchers.IO) {
+            mChatRepository.createBranchSession(
+                sourceSessionId = sessionId,
+                throughMessageId = messageId,
+                title = mContext.getString(R.string.branch_session_title, uiState.session.title.ifBlank { mContext.getString(R.string.untitled_chat) })
+            )
+        }
+        if (branchId == 0L) {
+            AppViewEvent.PopupToastMessageByResId(R.string.branch_create_failed).tryEmit()
+            refreshUiState(sessionId = sessionId)
+            return
+        }
+        ChatViewEvent.OpenSession(branchId.toString()).emit()
+    }
+
 
     @UiIntentObserver(ChatUiIntent.OpenSessionLore::class)
     private fun onOpenSessionLore() {
@@ -442,9 +487,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
                 val request = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request)
+                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
                 } else {
-                    generateOnce(sessionId, request)
+                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -455,31 +500,117 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
+    private suspend fun continueLastAssistantMessage(sessionId: Long) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(page = ChatPage.Conversation).setup()
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
+            return
+        }
+        val latestAssistantMessage = withContext(Dispatchers.IO) {
+            val messages = mChatRepository.getMessagesBySessionId(sessionId)
+            messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
+        }
+        if (latestAssistantMessage == null) {
+            AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_continue).tryEmit()
+            return
+        }
+        mGenerationJob = viewModelScope.launch {
+            runCatching {
+                refreshUiState(
+                    sessionId = sessionId,
+                    inputDraft = uiState.inputDraft,
+                    isExpanded = uiState.isSessionLoreExpanded,
+                    generationState = ChatGenerationState.Requesting,
+                    expandedThinkBlockIds = uiState.expandedThinkBlockIds
+                )
+                val request = withContext(Dispatchers.IO) {
+                    buildGenerationRequest(sessionId, PromptGenerationMode.Continue)
+                }
+                if (AppModel.streamEnabled) {
+                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                } else {
+                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                }
+                maybeAutoSummarize(sessionId)
+            }.onFailure { throwable ->
+                if (throwable is CancellationException) return@onFailure
+                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(R.string.continue_generation_failed)).tryEmit()
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(R.string.continue_generation_failed)))
+            }
+        }
+    }
+
+    private suspend fun generateUserImpersonation(sessionId: Long) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(page = ChatPage.Conversation).setup()
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
+            return
+        }
+        mGenerationJob = viewModelScope.launch {
+            runCatching {
+                refreshUiState(
+                    sessionId = sessionId,
+                    inputDraft = uiState.inputDraft,
+                    page = ChatPage.Conversation,
+                    isExpanded = uiState.isSessionLoreExpanded,
+                    generationState = ChatGenerationState.Requesting,
+                    expandedThinkBlockIds = uiState.expandedThinkBlockIds
+                )
+                val request = withContext(Dispatchers.IO) {
+                    buildGenerationRequest(sessionId, PromptGenerationMode.Impersonate)
+                }
+                if (AppModel.streamEnabled) {
+                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.User))
+                } else {
+                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.User))
+                }
+                maybeAutoSummarize(sessionId)
+            }.onFailure { throwable ->
+                if (throwable is CancellationException) return@onFailure
+                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(R.string.impersonation_failed)).tryEmit()
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(R.string.impersonation_failed)))
+            }
+        }
+    }
+
     private suspend fun generateOnce(
         sessionId: Long,
-        request: me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+        request: LLMGenerationRequest,
+        output: GenerationOutput
     ) {
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithSelectedProvider(request)
         }
         withContext(Dispatchers.IO) {
-            mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, response.content)
+            when (output) {
+                is GenerationOutput.Create -> {
+                    mChatRepository.createMessage(sessionId, output.source, response.content)
+                }
+            }
         }
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
     private suspend fun generateStreaming(
         sessionId: Long,
-        request: me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+        request: LLMGenerationRequest,
+        output: GenerationOutput
     ) {
         // 先插入空 assistant 消息作为流式占位，后续 delta 只更新 UI，完成或停止时再持久化完整内容。
-        mStreamingMessageId = withContext(Dispatchers.IO) {
-            mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, "")
+        when (output) {
+            is GenerationOutput.Create -> {
+                mStreamingMessageId = withContext(Dispatchers.IO) {
+                    mChatRepository.createMessage(sessionId, output.source, "")
+                }
+                mStreamingContent = ""
+                mStreamingCreatedMessage = true
+            }
         }
-        mStreamingContent = ""
         refreshUiState(
             sessionId = sessionId,
-            generationState = ChatGenerationState.Streaming(mStreamingMessageId, "")
+            generationState = ChatGenerationState.Streaming(mStreamingMessageId, mStreamingContent)
         )
         mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
             currentCoroutineContext().ensureActive()
@@ -500,10 +631,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             if (messageId != null) {
                 mChatRepository.updateMessageContent(messageId, finalContent)
+                mChatRepository.updateSessionLatestTime(sessionId)
             }
         }
         mStreamingMessageId = null
         mStreamingContent = ""
+        mStreamingCreatedMessage = false
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
@@ -553,7 +686,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
-    private suspend fun buildGenerationRequest(sessionId: Long): me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest {
+    private suspend fun buildGenerationRequest(
+        sessionId: Long,
+        generationMode: PromptGenerationMode = PromptGenerationMode.Normal
+    ): LLMGenerationRequest {
         // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
@@ -582,7 +718,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 recursiveScanningLorebookIds = recursiveLorebookIds,
                 provider = provider,
                 maxContextTokens = provider.contextTokens,
-                maxResponseTokens = provider.maxTokens
+                maxResponseTokens = provider.maxTokens,
+                generationMode = generationMode
             )
         )
         if (buildResult.worldInfoStateJson != session.worldInfoStateJson) {
@@ -830,4 +967,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val messages: List<ChatMessage>,
         val provider: LLMProvider?
     )
+
+    private sealed class GenerationOutput {
+        data class Create(val source: ChatMessage.Source) : GenerationOutput()
+    }
 }
