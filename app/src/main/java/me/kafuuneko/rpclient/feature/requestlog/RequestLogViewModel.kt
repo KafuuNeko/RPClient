@@ -44,6 +44,18 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         RequestLogViewEvent.CopyText(log.responseJson).emit()
     }
 
+    @UiIntentObserver(RequestLogUiIntent.OpenRequestJson::class)
+    private suspend fun onOpenRequestJson(intent: RequestLogUiIntent.OpenRequestJson) {
+        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId } ?: return
+        RequestLogViewEvent.OpenJson(title = "${log.title} / ${intent.title}", json = log.requestJson).emit()
+    }
+
+    @UiIntentObserver(RequestLogUiIntent.OpenResponseJson::class)
+    private suspend fun onOpenResponseJson(intent: RequestLogUiIntent.OpenResponseJson) {
+        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId } ?: return
+        RequestLogViewEvent.OpenJson(title = "${log.title} / ${intent.title}", json = log.responseJson).emit()
+    }
+
     private suspend fun loadLogs(): List<RequestLogItem> {
         return withContext(Dispatchers.IO) {
             mLLMRequestLogRepository.getAllLogs().map { it.toUiModel() }

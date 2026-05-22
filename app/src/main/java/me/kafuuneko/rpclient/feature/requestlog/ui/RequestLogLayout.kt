@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.requestlog.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,7 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -132,15 +135,19 @@ private fun RequestLogCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
                 )
             }
+            val requestJsonTitle = stringResource(R.string.request_json)
+            val responseJsonTitle = stringResource(R.string.response_json)
             JsonBlock(
-                title = stringResource(R.string.request_json),
+                title = requestJsonTitle,
                 json = log.requestJson,
-                onCopy = { RequestLogUiIntent.CopyRequestJson(log.id).emit() }
+                onCopy = { RequestLogUiIntent.CopyRequestJson(log.id).emit() },
+                onOpen = { RequestLogUiIntent.OpenRequestJson(log.id, requestJsonTitle).emit() }
             )
             JsonBlock(
-                title = stringResource(R.string.response_json),
+                title = responseJsonTitle,
                 json = log.responseJson,
-                onCopy = { RequestLogUiIntent.CopyResponseJson(log.id).emit() }
+                onCopy = { RequestLogUiIntent.CopyResponseJson(log.id).emit() },
+                onOpen = { RequestLogUiIntent.OpenResponseJson(log.id, responseJsonTitle).emit() }
             )
         }
     }
@@ -150,16 +157,22 @@ private fun RequestLogCard(
 private fun JsonBlock(
     title: String,
     json: String,
-    onCopy: () -> Unit
+    onCopy: () -> Unit,
+    onOpen: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = title,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
             )
+            TextButton(onClick = onOpen) {
+                Icon(Icons.Rounded.DataObject, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.view_json))
+            }
             OutlinedButton(
                 onClick = onCopy,
                 shape = RoundedCornerShape(8.dp),
@@ -175,6 +188,7 @@ private fun JsonBlock(
             text = json,
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onOpen)
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))
                 .padding(10.dp),

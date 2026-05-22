@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.jsonviewer.JsonViewerActivity
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogViewEvent
@@ -45,6 +46,7 @@ class RequestLogActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             is RequestLogViewEvent.CopyText -> copyText(viewEvent.text)
+            is RequestLogViewEvent.OpenJson -> openJson(viewEvent.title, viewEvent.json)
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }
@@ -53,5 +55,9 @@ class RequestLogActivity : CoreActivityWithEvent() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.request_log_json), text))
         Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun openJson(title: String, json: String) {
+        startActivity(JsonViewerActivity.newIntent(this, title, json))
     }
 }

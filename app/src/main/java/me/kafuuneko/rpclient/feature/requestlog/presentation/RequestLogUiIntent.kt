@@ -8,4 +8,8 @@ sealed class RequestLogUiIntent {
     data class CopyRequestJson(val logId: Long) : RequestLogUiIntent()
 
     data class CopyResponseJson(val logId: Long) : RequestLogUiIntent()
+
+    data class OpenRequestJson(val logId: Long, val title: String) : RequestLogUiIntent()
+
+    data class OpenResponseJson(val logId: Long, val title: String) : RequestLogUiIntent()
 }
