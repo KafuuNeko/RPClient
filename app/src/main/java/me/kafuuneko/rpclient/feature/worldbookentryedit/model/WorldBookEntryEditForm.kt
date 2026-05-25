@@ -164,6 +164,10 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
     )
 }
 
+fun WorldBookEntryEditForm.hasUnsavedChangesFrom(initialForm: WorldBookEntryEditForm): Boolean {
+    return toComparableForm() != initialForm.toComparableForm()
+}
+
 private fun List<String>.cleanList(): List<String> {
     return trimmedNotBlank()
 }

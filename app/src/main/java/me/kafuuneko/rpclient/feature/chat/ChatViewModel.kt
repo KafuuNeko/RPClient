@@ -10,20 +10,19 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
-import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
-import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
-import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
+import me.kafuuneko.rpclient.feature.chat.utils.ChatLorebookEntryData
+import me.kafuuneko.rpclient.feature.chat.utils.replaceStreamingMessage
+import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
+import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
+import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
+import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -38,13 +37,10 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.entity.Lorebook
-import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
@@ -745,14 +741,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         return ChatUiState.Normal(
             page = page,
             loadState = loadState,
-            session = session.toUiModel(
+            session = session.toChatSessionItem(
                 creatorNotes = effectiveCreatorNotes,
                 messageCount = messages.size,
                 enabledIds = enabledIds
             ),
-            character = character.toUiModel(),
-            messages = messages.toUiModels(character.name),
-            lorebookGroups = lorebookData.toUiGroups(enabledIds),
+            character = character.toChatCharacterItem(),
+            messages = messages.toChatMessageItems(
+                characterName = character.name,
+                userName = AppModel.userName,
+                systemSpeaker = mContext.getString(R.string.system_speaker),
+                streamingMessageId = mStreamingMessageId
+            ),
+            lorebookGroups = lorebookData.toChatLorebookGroupItems(
+                enabledIds = enabledIds,
+                unknownLorebookName = mContext.getString(R.string.unknown_lorebook)
+            ),
             isSessionLoreExpanded = isExpanded,
             inputDraft = inputDraft,
             generationState = generationState,
@@ -802,151 +806,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
-    private suspend fun getAllLorebookEntries(): LorebookEntryData {
+    private suspend fun getAllLorebookEntries(): ChatLorebookEntryData {
         val lorebooks = mLorebookRepository.getAllLorebooks()
         val entries = lorebooks.flatMap { mLorebookRepository.getEntriesByLorebookId(it.id) }
-        return LorebookEntryData(lorebooks.associateBy { it.id }, entries)
-    }
-
-    private fun ChatSession.toUiModel(
-        creatorNotes: String,
-        messageCount: Int,
-        enabledIds: Set<Long>
-    ): ChatSessionItem {
-        return ChatSessionItem(
-            id = id,
-            title = title,
-            summarize = summarize,
-            userNote = userNote,
-            creatorNotes = creatorNotes,
-            messageCount = messageCount,
-            enabledLorebookEntryIds = enabledIds
-        )
-    }
-
-    private fun Character.toUiModel(): ChatCharacterItem {
-        return ChatCharacterItem(
-            id = id,
-            name = name,
-            description = description,
-            personality = personality,
-            scenario = scenario,
-            examplesOfDialogue = examplesOfDialogue,
-            postHistoryInstructions = postHistoryInstructions,
-            creatorNotes = creatorNotes,
-            avatarText = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-            accentColor = 0xFF315EFD
-        )
-    }
-
-    private fun List<ChatMessage>.toUiModels(characterName: String): List<ChatMessageUiModel> {
-        return map { message ->
-            val role = when (message.source) {
-                ChatMessage.Source.User -> MessageRole.User
-                ChatMessage.Source.Char -> MessageRole.Assistant
-                ChatMessage.Source.System -> MessageRole.Narrator
-            }
-            ChatMessageUiModel(
-                id = message.id.toString(),
-                role = role,
-                speaker = when (message.source) {
-                    ChatMessage.Source.User -> AppModel.userName
-                    ChatMessage.Source.Char -> characterName
-                    ChatMessage.Source.System -> mContext.getString(R.string.system_speaker)
-                },
-                content = message.content,
-                parts = message.content.toContentParts(message.id.toString()),
-                time = message.createTime.formatTimestamp("HH:mm"),
-                tokenCount = (message.content.length / 3).coerceAtLeast(1),
-                isStreaming = message.id == mStreamingMessageId
-            )
-        }
-    }
-
-    private fun LorebookEntryData.toUiGroups(enabledIds: Set<Long>): List<ChatLorebookGroupItem> {
-        return entries.groupBy { it.lorebookId }
-            .toList()
-            .sortedWith(compareBy<Pair<Long, List<LorebookEntry>>> { lorebooks[it.first]?.name.orEmpty() }.thenBy { it.first })
-            .map { (lorebookId, entries) ->
-                val lorebookName = lorebooks[lorebookId]?.name.orEmpty().ifBlank {
-                    mContext.getString(R.string.unknown_lorebook)
-                }
-                val entryItems = entries.sortedBy { it.order }.map { entry ->
-                    ChatLorebookEntryItem(
-                        id = entry.id,
-                        lorebookId = entry.lorebookId,
-                        lorebookName = lorebookName,
-                        name = entry.name,
-                        keywords = entry.getKeywordList(),
-                        secondaryKeywords = entry.getSecondaryKeywordList(),
-                        constant = entry.constant,
-                        order = entry.order,
-                        depth = entry.depth,
-                        content = entry.content,
-                        enabled = entry.id in enabledIds
-                    )
-                }
-                ChatLorebookGroupItem(
-                    lorebookId = lorebookId,
-                    lorebookName = lorebookName,
-                    enabledCount = entryItems.count { it.enabled },
-                    totalCount = entryItems.size,
-                    entries = entryItems
-                )
-            }
-    }
-
-    private fun List<ChatMessageUiModel>.replaceStreamingMessage(
-        messageId: Long?,
-        content: String
-    ): List<ChatMessageUiModel> {
-        if (messageId == null) return this
-        return map {
-            if (it.id == messageId.toString()) {
-                it.copy(
-                    content = content,
-                    parts = content.toContentParts(it.id),
-                    isStreaming = true
-                )
-            } else {
-                it
-            }
-        }
-    }
-
-    private fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
-        // 推理模型的 reasoning 会被适配器包成 <think>，这里预拆成 UI 可直接渲染的结构。
-        val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
-        val parts = mutableListOf<ChatMessageContentPart>()
-        var cursor = 0
-        regex.findAll(this).forEachIndexed { index, match ->
-            if (match.range.first > cursor) {
-                parts += ChatMessageContentPart.Text(substring(cursor, match.range.first))
-            }
-            val thinkContent = match.groupValues[1].trim()
-            if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
-                parts += ChatMessageContentPart.Think(
-                    id = "$messageId:$index",
-                    content = thinkContent
-                )
-            }
-            cursor = match.range.last + 1
-        }
-        if (cursor < length) {
-            parts += ChatMessageContentPart.Text(substring(cursor))
-        }
-        return parts.ifEmpty { listOf(ChatMessageContentPart.Text(this)) }
+        return ChatLorebookEntryData(lorebooks.associateBy { it.id }, entries)
     }
 
     private fun finishWithToast(messageResId: Int) {
         AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
         ChatUiState.Finished.setup()
     }
-
-    private data class LorebookEntryData(
-        val lorebooks: Map<Long, Lorebook>,
-        val entries: List<LorebookEntry>
-    )
 
     private data class AutoSummaryData(
         val session: ChatSession,

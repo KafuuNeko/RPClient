@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.feature.characteredit
 
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
+import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
@@ -19,7 +19,6 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.utils.orSingleBlank
 import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
-import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.libs.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -291,39 +290,11 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         CharacterEditUiState.Finished.setup()
     }
 
-    private fun CharacterEditForm.hasUnsavedChangesFrom(initialForm: CharacterEditForm): Boolean {
-        return toComparableForm() != initialForm.toComparableForm()
-    }
-
     private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
         return copy(
             tags = tags.orSingleBlank(),
             firstMessages = firstMessages.orSingleBlank(),
             alternateGreetings = alternateGreetings.orSingleBlank()
-        )
-    }
-
-    private fun CharacterEditForm.toComparableForm(): CharacterEditForm {
-        return copy(
-            name = name.trim(),
-            avatar = avatar.trim(),
-            originalAvatar = originalAvatar.trim(),
-            tags = tags.trimmedNotBlank(),
-            description = description.trim(),
-            creatorNotes = creatorNotes.trim(),
-            creator = creator.trim(),
-            characterVersion = characterVersion.trim(),
-            personality = personality.trim(),
-            scenario = scenario.trim(),
-            firstMessages = firstMessages.trimmedNotBlank(),
-            examplesOfDialogue = examplesOfDialogue.trim(),
-            postHistoryInstructions = postHistoryInstructions.trim(),
-            systemPrompt = systemPrompt.trim(),
-            alternateGreetings = alternateGreetings.trimmedNotBlank(),
-            extensionsJson = extensionsJson.trim().ifBlank { "{}" },
-            depthPromptPrompt = depthPromptPrompt.trim(),
-            depthPromptDepth = depthPromptDepth.trim(),
-            depthPromptRole = depthPromptRole.trim()
         )
     }
 

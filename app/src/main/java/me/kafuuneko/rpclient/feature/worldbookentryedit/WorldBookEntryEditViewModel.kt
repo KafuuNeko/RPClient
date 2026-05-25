@@ -4,7 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.worldbookentryedit.model.WorldBookEntryEditForm
-import me.kafuuneko.rpclient.feature.worldbookentryedit.model.toComparableForm
+import me.kafuuneko.rpclient.feature.worldbookentryedit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditDialogState
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditLoadState
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditMode
@@ -270,10 +270,6 @@ class WorldBookEntryEditViewModel :
     private fun updateForm(block: WorldBookEntryEditForm.() -> WorldBookEntryEditForm) {
         val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
         uiState.copy(form = uiState.form.block()).setup()
-    }
-
-    private fun WorldBookEntryEditForm.hasUnsavedChangesFrom(initialForm: WorldBookEntryEditForm): Boolean {
-        return toComparableForm() != initialForm.toComparableForm()
     }
 
 }

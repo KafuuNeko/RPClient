@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
@@ -175,21 +176,4 @@ class LLMProviderEditViewModel :
         return provider
     }
 
-    private fun LLMProviderEditForm.hasUnsavedChangesFrom(initialForm: LLMProviderEditForm): Boolean {
-        return toComparableForm() != initialForm.toComparableForm()
-    }
-
-    private fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
-        return copy(
-            name = name.trim(),
-            baseUrl = baseUrl.trim(),
-            apiKey = apiKey.trim(),
-            model = model.trim(),
-            customHeadersJson = customHeadersJson.trim(),
-            temperature = temperature.trim(),
-            topP = topP.trim(),
-            maxTokens = maxTokens.trim(),
-            contextTokens = contextTokens.trim()
-        )
-    }
 }

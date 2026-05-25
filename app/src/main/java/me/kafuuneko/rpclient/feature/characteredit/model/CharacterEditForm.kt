@@ -84,3 +84,31 @@ data class CharacterEditForm(
         )
     }
 }
+
+fun CharacterEditForm.hasUnsavedChangesFrom(initialForm: CharacterEditForm): Boolean {
+    return toComparableForm() != initialForm.toComparableForm()
+}
+
+fun CharacterEditForm.toComparableForm(): CharacterEditForm {
+    return copy(
+        name = name.trim(),
+        avatar = avatar.trim(),
+        originalAvatar = originalAvatar.trim(),
+        tags = tags.trimmedNotBlank(),
+        description = description.trim(),
+        creatorNotes = creatorNotes.trim(),
+        creator = creator.trim(),
+        characterVersion = characterVersion.trim(),
+        personality = personality.trim(),
+        scenario = scenario.trim(),
+        firstMessages = firstMessages.trimmedNotBlank(),
+        examplesOfDialogue = examplesOfDialogue.trim(),
+        postHistoryInstructions = postHistoryInstructions.trim(),
+        systemPrompt = systemPrompt.trim(),
+        alternateGreetings = alternateGreetings.trimmedNotBlank(),
+        extensionsJson = extensionsJson.trim().ifBlank { "{}" },
+        depthPromptPrompt = depthPromptPrompt.trim(),
+        depthPromptDepth = depthPromptDepth.trim(),
+        depthPromptRole = depthPromptRole.trim()
+    )
+}

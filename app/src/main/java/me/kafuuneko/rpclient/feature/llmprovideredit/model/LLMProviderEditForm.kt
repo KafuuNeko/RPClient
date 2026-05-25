@@ -62,3 +62,21 @@ data class LLMProviderEditForm(
         )
     }
 }
+
+fun LLMProviderEditForm.hasUnsavedChangesFrom(initialForm: LLMProviderEditForm): Boolean {
+    return toComparableForm() != initialForm.toComparableForm()
+}
+
+fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
+    return copy(
+        name = name.trim(),
+        baseUrl = baseUrl.trim(),
+        apiKey = apiKey.trim(),
+        model = model.trim(),
+        customHeadersJson = customHeadersJson.trim(),
+        temperature = temperature.trim(),
+        topP = topP.trim(),
+        maxTokens = maxTokens.trim(),
+        contextTokens = contextTokens.trim()
+    )
+}

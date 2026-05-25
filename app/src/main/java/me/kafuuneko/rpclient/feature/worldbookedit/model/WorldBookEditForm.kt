@@ -56,3 +56,7 @@ fun WorldBookEditForm.toComparableForm(): WorldBookEditForm {
         name = name.trim()
     )
 }
+
+fun WorldBookEditForm.hasUnsavedChangesFrom(initialForm: WorldBookEditForm): Boolean {
+    return toComparableForm() != initialForm.toComparableForm()
+}
