@@ -23,6 +23,8 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.utils.toggle
+import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -108,11 +110,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val selectedIds = uiState.form.selectedLorebookEntryIds
         updateForm {
             copy(
-                selectedLorebookEntryIds = if (intent.entryId in selectedIds) {
-                    selectedIds - intent.entryId
-                } else {
-                    selectedIds + intent.entryId
-                }
+                selectedLorebookEntryIds = selectedIds.toggle(intent.entryId)
             )
         }
     }
@@ -126,11 +124,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val selectedIds = uiState.form.selectedLorebookEntryIds
         updateForm {
             copy(
-                selectedLorebookEntryIds = if (entryIds.all { it in selectedIds }) {
-                    selectedIds - entryIds
-                } else {
-                    selectedIds + entryIds
-                }
+                selectedLorebookEntryIds = selectedIds.toggleAll(entryIds)
             )
         }
     }

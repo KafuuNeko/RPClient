@@ -44,11 +44,11 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.utils.formatTimestamp
+import me.kafuuneko.rpclient.libs.utils.toggle
+import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ChatUiState.None
@@ -275,12 +275,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val group = uiState.lorebookGroups.firstOrNull { it.lorebookId == intent.lorebookId } ?: return
         val entryIds = group.entries.map { it.id }.toSet()
         if (entryIds.isEmpty()) return
-        val enabledIds = uiState.session.enabledLorebookEntryIds.toMutableSet()
-        if (entryIds.all { it in enabledIds }) {
-            enabledIds.removeAll(entryIds)
-        } else {
-            enabledIds.addAll(entryIds)
-        }
+        val enabledIds = uiState.session.enabledLorebookEntryIds.toggleAll(entryIds)
         saveSessionLorebookEntryIds(sessionId, enabledIds)
         refreshUiState(
             sessionId = sessionId,
@@ -861,7 +856,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 },
                 content = message.content,
                 parts = message.content.toContentParts(message.id.toString()),
-                time = message.createTime.toDisplayTime(),
+                time = message.createTime.formatTimestamp("HH:mm"),
                 tokenCount = (message.content.length / 3).coerceAtLeast(1),
                 isStreaming = message.id == mStreamingMessageId
             )
@@ -899,10 +894,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     entries = entryItems
                 )
             }
-    }
-
-    private fun Set<Long>.toggle(id: Long): Set<Long> {
-        return if (id in this) this - id else this + id
     }
 
     private fun List<ChatMessageUiModel>.replaceStreamingMessage(
@@ -945,10 +936,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             parts += ChatMessageContentPart.Text(substring(cursor))
         }
         return parts.ifEmpty { listOf(ChatMessageContentPart.Text(this)) }
-    }
-
-    private fun Long.toDisplayTime(): String {
-        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(this))
     }
 
     private fun finishWithToast(messageResId: Int) {

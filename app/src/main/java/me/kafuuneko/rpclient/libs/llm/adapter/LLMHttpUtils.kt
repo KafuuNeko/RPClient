@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -88,6 +89,17 @@ internal fun List<String>.toJsonArray(): JSONArray {
     return JSONArray().also { array -> forEach { array.put(it) } }
 }
 
+internal fun JSONArray.joinTextFields(type: String? = null): String {
+    return buildString {
+        for (index in 0 until length()) {
+            val block = optJSONObject(index) ?: continue
+            if (type == null || block.optString("type") == type) {
+                append(block.optString("text"))
+            }
+        }
+    }
+}
+
 /**
  * 转换为 OpenAI-compatible 协议角色。
  */
@@ -121,6 +133,15 @@ internal fun LLMMessage.toGeminiRole(): String {
     }
 }
 
+internal fun List<LLMMessage>.leadingSystemPrompt(): String {
+    return takeWhile { it.role == LLMMessageRole.System }
+        .joinToString("\n\n") { it.content }
+}
+
+internal fun LLMMessage.contentWithSystemPrefix(): String {
+    return if (role == LLMMessageRole.System) "[System]\n$content" else content
+}
+
 /**
  * 标准化 Provider baseUrl，避免拼接路径时出现重复斜杠。
  */
@@ -145,6 +166,24 @@ internal fun LLMProviderConfig.customHeaders(): Map<String, String> {
 internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): Request.Builder {
     provider.customHeaders().forEach { (key, value) -> header(key, value) }
     return this
+}
+
+internal suspend fun LLMRequestLogRepository.trySaveLog(
+    provider: LLMProviderConfig,
+    model: String,
+    isStreaming: Boolean,
+    requestJson: String,
+    responseJson: String
+) {
+    runCatching {
+        saveLog(
+            provider = provider,
+            model = model,
+            isStreaming = isStreaming,
+            requestJson = requestJson,
+            responseJson = responseJson
+        )
+    }
 }
 
 /**

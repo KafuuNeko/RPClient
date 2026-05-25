@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.libs.core.CoreViewModel
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.utils.toPreview
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -178,15 +179,9 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         }
     }
 
-    private fun String.toPreview(maxLength: Int = 0): String {
-        if (maxLength == 0 || length <= maxLength) return this
-        return take(maxLength) + "..."
-    }
-
     private data class JsonPathStep(
         val label: String,
         val objectKey: String?,
         val arrayIndex: Int?
     )
 }
-

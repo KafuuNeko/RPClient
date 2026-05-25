@@ -80,6 +80,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.libs.utils.toggle
 
 @Composable
 fun ChatLayout(
@@ -400,10 +401,6 @@ private fun ChatLorebookEntryItem.matchesQuery(query: String): Boolean {
         content.contains(query, ignoreCase = true) ||
         keywords.any { it.contains(query, ignoreCase = true) } ||
         secondaryKeywords.any { it.contains(query, ignoreCase = true) }
-}
-
-private fun Set<Long>.toggle(id: Long): Set<Long> {
-    return if (id in this) this - id else this + id
 }
 
 @Composable

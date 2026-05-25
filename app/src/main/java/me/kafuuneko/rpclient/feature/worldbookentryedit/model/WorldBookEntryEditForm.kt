@@ -2,6 +2,8 @@ package me.kafuuneko.rpclient.feature.worldbookentryedit.model
 
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.utils.orSingleBlank
+import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
 
 data class WorldBookEntryEditForm(
@@ -51,12 +53,12 @@ data class WorldBookEntryEditForm(
                 id = entry.id,
                 lorebookId = entry.lorebookId,
                 name = entry.name,
-                keywords = entry.getKeywordList().ifEmpty { listOf("") },
-                secondaryKeywords = entry.getSecondaryKeywordList().ifEmpty { listOf("") },
+                keywords = entry.getKeywordList().orSingleBlank(),
+                secondaryKeywords = entry.getSecondaryKeywordList().orSingleBlank(),
                 constant = entry.constant,
                 order = entry.order.toString(),
                 depth = entry.depth.toString(),
-                category = entry.getCategoryList().ifEmpty { listOf("") },
+                category = entry.getCategoryList().orSingleBlank(),
                 content = entry.content,
                 disabled = entry.disabled,
                 position = entry.position.toString(),
@@ -77,7 +79,7 @@ data class WorldBookEntryEditForm(
                 cooldown = entry.cooldown?.toString().orEmpty(),
                 delay = entry.delay?.toString().orEmpty(),
                 outletName = entry.outletName,
-                triggers = entry.getTriggerList().ifEmpty { listOf("") },
+                triggers = entry.getTriggerList().orSingleBlank(),
                 matchPersonaDescription = entry.matchPersonaDescription,
                 matchCharacterDescription = entry.matchCharacterDescription,
                 matchCharacterPersonality = entry.matchCharacterPersonality,
@@ -163,5 +165,5 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
 }
 
 private fun List<String>.cleanList(): List<String> {
-    return map { it.trim() }.filter { it.isNotEmpty() }
+    return trimmedNotBlank()
 }

@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.characteredit.model
 
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
 
 data class CharacterEditForm(
@@ -61,21 +62,20 @@ data class CharacterEditForm(
             id = id,
             name = name.trim(),
             avatar = avatar.trim(),
-            characterTags = Gson().toJsonString(tags.map { it.trim() }.filter { it.isNotEmpty() }),
+            characterTags = Gson().toJsonString(tags.trimmedNotBlank()),
             description = description.trim(),
             creatorNotes = creatorNotes.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
             firstMessages = firstMessages
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+                .trimmedNotBlank()
                 .joinToString("<START>"),
             examplesOfDialogue = examplesOfDialogue.trim(),
             postHistoryInstructions = postHistoryInstructions.trim(),
             systemPrompt = systemPrompt.trim(),
             creator = creator.trim(),
             characterVersion = characterVersion.trim(),
-            alternateGreetings = Gson().toJsonString(alternateGreetings.map { it.trim() }.filter { it.isNotEmpty() }),
+            alternateGreetings = Gson().toJsonString(alternateGreetings.trimmedNotBlank()),
             extensionsJson = extensionsJson.trim().ifBlank { "{}" },
             depthPromptPrompt = depthPromptPrompt.trim(),
             depthPromptDepth = depthPromptDepth.trim().toIntOrNull()?.coerceAtLeast(0) ?: 4,

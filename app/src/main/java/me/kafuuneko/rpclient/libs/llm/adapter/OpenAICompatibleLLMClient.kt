@@ -29,9 +29,9 @@ class OpenAICompatibleLLMClient(
         val raw = runCatching {
             mOkHttpClient.await(httpRequest.request)
         }.onSuccess {
-            logRequest(model, false, httpRequest.payloadJson, it)
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
         }.onFailure {
-            logRequest(model, false, httpRequest.payloadJson, it.toErrorJson())
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
         }.getOrThrow()
         return raw.toOpenAIResponse(
             fallbackModel = model,
@@ -62,9 +62,9 @@ class OpenAICompatibleLLMClient(
                     emit(LLMStreamEvent.Delta(content = "\n</think>\n\n", rawChunk = "reasoning_close"))
                 }
             }.onSuccess {
-                logRequest(model, true, httpRequest.payloadJson, rawChunks.toString())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
-                logRequest(model, true, httpRequest.payloadJson, it.toErrorJson())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
                 throw it
             }
         }
@@ -97,23 +97,6 @@ class OpenAICompatibleLLMClient(
             .build(),
             payloadJson = payload.toString()
         )
-    }
-
-    private suspend fun logRequest(
-        model: String,
-        isStreaming: Boolean,
-        requestJson: String,
-        responseJson: String
-    ) {
-        runCatching {
-            mLLMRequestLogRepository.saveLog(
-                provider = mProvider,
-                model = model,
-                isStreaming = isStreaming,
-                requestJson = requestJson,
-                responseJson = responseJson
-            )
-        }
     }
 
     /**

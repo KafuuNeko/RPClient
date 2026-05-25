@@ -17,6 +17,10 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.utils.orSingleBlank
+import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
+import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
+import me.kafuuneko.rpclient.libs.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -110,7 +114,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     @UiIntentObserver(CharacterEditUiIntent.DeleteTag::class)
     private fun onDeleteTag(intent: CharacterEditUiIntent.DeleteTag) =
-        updateForm { copy(tags = tags.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(tags = tags.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(CharacterEditUiIntent.ChangeDescription::class)
     private fun onChangeDescription(intent: CharacterEditUiIntent.ChangeDescription) =
@@ -146,7 +150,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     @UiIntentObserver(CharacterEditUiIntent.DeleteFirstMessage::class)
     private fun onDeleteFirstMessage(intent: CharacterEditUiIntent.DeleteFirstMessage) =
-        updateForm { copy(firstMessages = firstMessages.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(firstMessages = firstMessages.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(CharacterEditUiIntent.ChangeExamplesOfDialogue::class)
     private fun onChangeExamplesOfDialogue(intent: CharacterEditUiIntent.ChangeExamplesOfDialogue) =
@@ -182,7 +186,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     @UiIntentObserver(CharacterEditUiIntent.DeleteAlternateGreeting::class)
     private fun onDeleteAlternateGreeting(intent: CharacterEditUiIntent.DeleteAlternateGreeting) =
-        updateForm { copy(alternateGreetings = alternateGreetings.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(alternateGreetings = alternateGreetings.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(CharacterEditUiIntent.ChangeExtensionsJson::class)
     private fun onChangeExtensionsJson(intent: CharacterEditUiIntent.ChangeExtensionsJson) =
@@ -293,9 +297,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
         return copy(
-            tags = tags.ifEmpty { listOf("") },
-            firstMessages = firstMessages.ifEmpty { listOf("") },
-            alternateGreetings = alternateGreetings.ifEmpty { listOf("") }
+            tags = tags.orSingleBlank(),
+            firstMessages = firstMessages.orSingleBlank(),
+            alternateGreetings = alternateGreetings.orSingleBlank()
         )
     }
 
@@ -304,18 +308,18 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             name = name.trim(),
             avatar = avatar.trim(),
             originalAvatar = originalAvatar.trim(),
-            tags = tags.map { it.trim() }.filter { it.isNotEmpty() },
+            tags = tags.trimmedNotBlank(),
             description = description.trim(),
             creatorNotes = creatorNotes.trim(),
             creator = creator.trim(),
             characterVersion = characterVersion.trim(),
             personality = personality.trim(),
             scenario = scenario.trim(),
-            firstMessages = firstMessages.map { it.trim() }.filter { it.isNotEmpty() },
+            firstMessages = firstMessages.trimmedNotBlank(),
             examplesOfDialogue = examplesOfDialogue.trim(),
             postHistoryInstructions = postHistoryInstructions.trim(),
             systemPrompt = systemPrompt.trim(),
-            alternateGreetings = alternateGreetings.map { it.trim() }.filter { it.isNotEmpty() },
+            alternateGreetings = alternateGreetings.trimmedNotBlank(),
             extensionsJson = extensionsJson.trim().ifBlank { "{}" },
             depthPromptPrompt = depthPromptPrompt.trim(),
             depthPromptDepth = depthPromptDepth.trim(),
@@ -323,15 +327,4 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         )
     }
 
-    private fun List<String>.updateAt(index: Int, value: String): List<String> {
-        if (index !in indices) return this
-        return mapIndexed { currentIndex, item ->
-            if (currentIndex == index) value else item
-        }
-    }
-
-    private fun List<String>.removeAtOrSelf(index: Int): List<String> {
-        if (index !in indices) return this
-        return filterIndexed { currentIndex, _ -> currentIndex != index }
-    }
 }

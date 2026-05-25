@@ -60,6 +60,7 @@ import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -507,10 +508,6 @@ private fun ChatCreateLorebookEntryItem.matchesQuery(query: String): Boolean {
         entry.keywords.contains(query, ignoreCase = true) ||
         entry.secondaryKeywords.contains(query, ignoreCase = true) ||
         entry.category.contains(query, ignoreCase = true)
-}
-
-private fun Set<Long>.toggle(id: Long): Set<Long> {
-    return if (id in this) this - id else this + id
 }
 
 @Composable

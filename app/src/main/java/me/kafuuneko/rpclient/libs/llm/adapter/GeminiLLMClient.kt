@@ -30,9 +30,9 @@ class GeminiLLMClient(
         val raw = runCatching {
             mOkHttpClient.await(httpRequest.request)
         }.onSuccess {
-            logRequest(model, false, httpRequest.payloadJson, it)
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
         }.onFailure {
-            logRequest(model, false, httpRequest.payloadJson, it.toErrorJson())
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
         }.getOrThrow()
         return raw.toGeminiResponse(model)
     }
@@ -51,9 +51,9 @@ class GeminiLLMClient(
                     emit(line.toGeminiStreamEvent() ?: return@collect)
                 }
             }.onSuccess {
-                logRequest(model, true, httpRequest.payloadJson, rawChunks.toString())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
-                logRequest(model, true, httpRequest.payloadJson, it.toErrorJson())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
                 throw it
             }
         }
@@ -110,23 +110,6 @@ class GeminiLLMClient(
         )
     }
 
-    private suspend fun logRequest(
-        model: String,
-        isStreaming: Boolean,
-        requestJson: String,
-        responseJson: String
-    ) {
-        runCatching {
-            mLLMRequestLogRepository.saveLog(
-                provider = mProvider,
-                model = model,
-                isStreaming = isStreaming,
-                requestJson = requestJson,
-                responseJson = responseJson
-            )
-        }
-    }
-
     /**
      * 转换通用消息为 Gemini contents 数组。
      */
@@ -136,19 +119,10 @@ class GeminiLLMClient(
                 array.put(
                     JSONObject()
                         .put("role", message.toGeminiRole())
-                        .put("parts", JSONArray().put(JSONObject().put("text", message.toGeminiContent())))
+                        .put("parts", JSONArray().put(JSONObject().put("text", message.contentWithSystemPrefix())))
                 )
             }
         }
-    }
-
-    private fun List<LLMMessage>.leadingSystemPrompt(): String {
-        return takeWhile { it.role == LLMMessageRole.System }
-            .joinToString("\n\n") { it.content }
-    }
-
-    private fun LLMMessage.toGeminiContent(): String {
-        return if (role == LLMMessageRole.System) "[System]\n$content" else content
     }
 
     /**
@@ -161,7 +135,7 @@ class GeminiLLMClient(
             ?.optJSONObject(0)
             ?.optJSONObject("content")
             ?.optJSONArray("parts")
-            ?.joinText()
+            ?.joinTextFields()
             .orEmpty()
         return LLMGenerationResponse(
             content = content,
@@ -182,20 +156,10 @@ class GeminiLLMClient(
             ?.optJSONObject(0)
             ?.optJSONObject("content")
             ?.optJSONArray("parts")
-            ?.joinText()
+            ?.joinTextFields()
             .orEmpty()
         if (text.isBlank()) return null
         return LLMStreamEvent.Delta(content = text, rawChunk = data)
     }
 
-    /**
-     * 拼接 Gemini parts 中的 text 字段。
-     */
-    private fun JSONArray.joinText(): String {
-        return buildString {
-            for (index in 0 until length()) {
-                append(optJSONObject(index)?.optString("text").orEmpty())
-            }
-        }
-    }
 }

@@ -29,12 +29,10 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
@@ -325,11 +323,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             preview = latestMessage?.content?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
             messageCount = mChatRepository.getMessageCountBySessionId(id),
             branchCount = 0,
-            updatedAt = latestTime.toDisplayTime()
+            updatedAt = latestTime.formatTimestamp("MM-dd HH:mm")
         )
-    }
-
-    private fun Long.toDisplayTime(): String {
-        return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))
     }
 }

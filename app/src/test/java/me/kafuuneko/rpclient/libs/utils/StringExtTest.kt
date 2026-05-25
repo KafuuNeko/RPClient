@@ -24,4 +24,14 @@ class StringExtTest {
 
         assertEquals("hello\n\nworld", content.stripThinkBlocks())
     }
+
+    @Test
+    fun toPreview_truncatesWhenLongerThanMaxLength() {
+        assertEquals("abc...", "abcdef".toPreview(3))
+    }
+
+    @Test
+    fun toPreview_keepsFullStringWhenMaxLengthIsZero() {
+        assertEquals("abcdef", "abcdef".toPreview())
+    }
 }

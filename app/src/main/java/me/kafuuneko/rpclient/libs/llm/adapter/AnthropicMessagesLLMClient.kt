@@ -29,9 +29,9 @@ class AnthropicMessagesLLMClient(
         val raw = runCatching {
             mOkHttpClient.await(httpRequest.request)
         }.onSuccess {
-            logRequest(model, false, httpRequest.payloadJson, it)
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
         }.onFailure {
-            logRequest(model, false, httpRequest.payloadJson, it.toErrorJson())
+            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
         }.getOrThrow()
         return raw.toAnthropicResponse(model)
     }
@@ -50,9 +50,9 @@ class AnthropicMessagesLLMClient(
                     emit(line.toAnthropicStreamEvent() ?: return@collect)
                 }
             }.onSuccess {
-                logRequest(model, true, httpRequest.payloadJson, rawChunks.toString())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
-                logRequest(model, true, httpRequest.payloadJson, it.toErrorJson())
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
                 throw it
             }
         }
@@ -90,23 +90,6 @@ class AnthropicMessagesLLMClient(
         )
     }
 
-    private suspend fun logRequest(
-        model: String,
-        isStreaming: Boolean,
-        requestJson: String,
-        responseJson: String
-    ) {
-        runCatching {
-            mLLMRequestLogRepository.saveLog(
-                provider = mProvider,
-                model = model,
-                isStreaming = isStreaming,
-                requestJson = requestJson,
-                responseJson = responseJson
-            )
-        }
-    }
-
     /**
      * 转换通用消息为 Anthropic messages 数组。
      */
@@ -116,19 +99,10 @@ class AnthropicMessagesLLMClient(
                 array.put(
                     JSONObject()
                         .put("role", message.toAnthropicRole())
-                        .put("content", message.toAnthropicContent())
+                        .put("content", message.contentWithSystemPrefix())
                 )
             }
         }
-    }
-
-    private fun List<LLMMessage>.leadingSystemPrompt(): String {
-        return takeWhile { it.role == LLMMessageRole.System }
-            .joinToString("\n\n") { it.content }
-    }
-
-    private fun LLMMessage.toAnthropicContent(): String {
-        return if (role == LLMMessageRole.System) "[System]\n$content" else content
     }
 
     /**
@@ -137,7 +111,7 @@ class AnthropicMessagesLLMClient(
     private fun String.toAnthropicResponse(fallbackModel: String): LLMGenerationResponse {
         val json = JSONObject(this)
         return LLMGenerationResponse(
-            content = json.optJSONArray("content")?.joinText().orEmpty(),
+            content = json.optJSONArray("content")?.joinTextFields(type = "text").orEmpty(),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
             rawResponse = this
@@ -160,15 +134,4 @@ class AnthropicMessagesLLMClient(
         return LLMStreamEvent.Delta(content = text, rawChunk = data)
     }
 
-    /**
-     * 拼接 Anthropic content block 中的 text 字段。
-     */
-    private fun JSONArray.joinText(): String {
-        return buildString {
-            for (index in 0 until length()) {
-                val block = optJSONObject(index) ?: continue
-                if (block.optString("type") == "text") append(block.optString("text"))
-            }
-        }
-    }
 }

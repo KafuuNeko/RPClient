@@ -10,11 +10,9 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
+import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLogUiState>(
     RequestLogUiState.None
@@ -67,13 +65,9 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         return RequestLogItem(
             id = id,
             title = "$providerName / $model",
-            subtitle = "${createTime.toDisplayTime()} · ${protocol.name} · $mode",
+            subtitle = "${createTime.formatTimestamp("MM-dd HH:mm:ss")} · ${protocol.name} · $mode",
             requestJson = requestJson,
             responseJson = responseJson
         )
-    }
-
-    private fun Long.toDisplayTime(): String {
-        return SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date(this))
     }
 }

@@ -14,6 +14,9 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.utils.orSingleBlank
+import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
+import me.kafuuneko.rpclient.libs.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -67,7 +70,7 @@ class WorldBookEntryEditViewModel :
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteKeyword::class)
     private fun onDeleteKeyword(intent: WorldBookEntryEditUiIntent.DeleteKeyword) =
-        updateForm { copy(keywords = keywords.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(keywords = keywords.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.AddSecondaryKeyword::class)
     private fun onAddSecondaryKeyword() =
@@ -79,7 +82,7 @@ class WorldBookEntryEditViewModel :
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteSecondaryKeyword::class)
     private fun onDeleteSecondaryKeyword(intent: WorldBookEntryEditUiIntent.DeleteSecondaryKeyword) =
-        updateForm { copy(secondaryKeywords = secondaryKeywords.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(secondaryKeywords = secondaryKeywords.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeConstant::class)
     private fun onChangeConstant(intent: WorldBookEntryEditUiIntent.ChangeConstant) =
@@ -99,7 +102,7 @@ class WorldBookEntryEditViewModel :
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteCategory::class)
     private fun onDeleteCategory(intent: WorldBookEntryEditUiIntent.DeleteCategory) =
-        updateForm { copy(category = category.removeAtOrSelf(intent.index).ifEmpty { listOf("") }) }
+        updateForm { copy(category = category.removeAtOrSelf(intent.index).orSingleBlank()) }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeOrder::class)
     private fun onChangeOrder(intent: WorldBookEntryEditUiIntent.ChangeOrder) =
@@ -273,15 +276,4 @@ class WorldBookEntryEditViewModel :
         return toComparableForm() != initialForm.toComparableForm()
     }
 
-    private fun List<String>.updateAt(index: Int, value: String): List<String> {
-        if (index !in indices) return this
-        return mapIndexed { currentIndex, item ->
-            if (currentIndex == index) value else item
-        }
-    }
-
-    private fun <T> List<T>.removeAtOrSelf(index: Int): List<T> {
-        if (index !in indices) return this
-        return filterIndexed { currentIndex, _ -> currentIndex != index }
-    }
 }
