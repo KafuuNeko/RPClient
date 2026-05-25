@@ -22,6 +22,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -74,6 +75,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 maxTokens = selectedProvider?.maxTokens ?: 0,
                 contextTokens = selectedProvider?.contextTokens ?: 0,
                 streamEnabled = AppModel.streamEnabled,
+                promptPostProcessingMode = readPromptPostProcessingMode(),
+                includeThinkInContext = AppModel.includeThinkInContext,
                 debugModeEnabled = AppModel.debugModeEnabled,
                 autoSummaryEnabled = AppModel.autoSummaryEnabled,
                 summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
@@ -227,6 +230,24 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
+    private fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.promptPostProcessingMode = intent.mode.ordinal
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(promptPostProcessingMode = intent.mode)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ToggleIncludeThinkInContext::class)
+    private fun onToggleIncludeThinkInContext(intent: MainUiIntent.ToggleIncludeThinkInContext) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.includeThinkInContext = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(includeThinkInContext = intent.enabled)
+        ).setup()
+    }
+
     @UiIntentObserver(MainUiIntent.ToggleDebugModeEnabled::class)
     private fun onToggleDebugModeEnabled(intent: MainUiIntent.ToggleDebugModeEnabled) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -266,6 +287,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             contextTokens = selectedProvider?.contextTokens ?: 8192,
             localFirstEnabled = true,
             streamEnabled = AppModel.streamEnabled,
+            promptPostProcessingMode = readPromptPostProcessingMode(),
+            includeThinkInContext = AppModel.includeThinkInContext,
             debugModeEnabled = AppModel.debugModeEnabled,
             autoSummaryEnabled = AppModel.autoSummaryEnabled,
             summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
@@ -273,6 +296,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
             summaryResponseTokens = AppModel.summaryResponseTokens
         )
+    }
+
+    private fun readPromptPostProcessingMode(): PromptPostProcessingMode {
+        // 配置以 ordinal 保存，读取时容错回退到 None，避免枚举变更导致启动失败。
+        return PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
     }
 
     private fun updateSummaryInt(

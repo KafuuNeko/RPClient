@@ -367,6 +367,7 @@
     <string name="prompt_preset_subtitle">Manage SillyTavern-style system prompts, utilities and templates</string>
     <string name="prompt_preset_section">Prompt Templates</string>
     <string name="prompt_preset_entry_subtitle">Manage system prompt presets and utility prompts</string>
+    <string name="prompt_behavior_section">Request Behavior</string>
     <string name="prompt_manager_section">Prompt Manager</string>
     <string name="prompt_utility_section">Utility Prompts</string>
     <string name="prompt_format_section">Format Templates</string>
@@ -399,4 +400,17 @@
     <string name="prompt_edit_hint">Tap to edit</string>
     <string name="prompt_editor_label">Prompt Content</string>
     <string name="prompt_editor_placeholder">Enter your system prompt here...</string>
+    <string name="prompt_post_processing_desc">Rewrite outgoing messages before any provider adapter sends them.</string>
+    <string name="prompt_post_processing_none">None</string>
+    <string name="prompt_post_processing_none_desc">Send messages exactly as built.</string>
+    <string name="prompt_post_processing_merge">Merge</string>
+    <string name="prompt_post_processing_merge_desc">Merge consecutive messages with the same role.</string>
+    <string name="prompt_post_processing_semi_strict">Semi-strict</string>
+    <string name="prompt_post_processing_semi_strict_desc">Move all system content into one leading system message.</string>
+    <string name="prompt_post_processing_strict">Strict</string>
+    <string name="prompt_post_processing_strict_desc">Use one leading system message and ensure the chat body starts with a user message.</string>
+    <string name="prompt_post_processing_single_user">Single user message</string>
+    <string name="prompt_post_processing_single_user_desc">Flatten every role into one user message for maximum compatibility.</string>
+    <string name="prompt_include_think_context_title">Include think blocks in context</string>
+    <string name="prompt_include_think_context_desc">When disabled, saved &lt;think&gt;...&lt;/think&gt; blocks are stripped from future prompts.</string>
 </resources>

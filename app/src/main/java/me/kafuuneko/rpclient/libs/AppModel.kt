@@ -125,6 +125,12 @@ Chat history to summarize:
     // 世界书占 prompt 预算的百分比。
     var worldInfoBudgetPercent by intPref(default = 25)
 
+    // 所有协议适配器发送前的通用 Prompt Post-Processing 模式。
+    var promptPostProcessingMode by intPref(default = 0)
+
+    // 是否把已保存消息中的 <think>...</think> 思考块继续纳入后续上下文。
+    var includeThinkInContext by booleanPref(default = false)
+
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)
 }

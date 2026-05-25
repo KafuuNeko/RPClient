@@ -366,6 +366,7 @@
     <string name="prompt_preset_subtitle">管理 SillyTavern 风格的系统提示词、工具提示词和格式模板</string>
     <string name="prompt_preset_section">提示词模板</string>
     <string name="prompt_preset_entry_subtitle">管理系统提示词预设和工具提示词</string>
+    <string name="prompt_behavior_section">请求行为</string>
     <string name="prompt_manager_section">Prompt Manager</string>
     <string name="prompt_utility_section">工具提示词</string>
     <string name="prompt_format_section">格式模板</string>
@@ -398,4 +399,17 @@
     <string name="prompt_edit_hint">点击编辑</string>
     <string name="prompt_editor_label">提示词内容</string>
     <string name="prompt_editor_placeholder">在此输入系统提示词...</string>
+    <string name="prompt_post_processing_desc">在任何提供商适配器发送前改写 messages 结构。</string>
+    <string name="prompt_post_processing_none">None</string>
+    <string name="prompt_post_processing_none_desc">按构建结果原样发送 messages。</string>
+    <string name="prompt_post_processing_merge">Merge</string>
+    <string name="prompt_post_processing_merge_desc">合并连续相同 role 的消息。</string>
+    <string name="prompt_post_processing_semi_strict">Semi-strict</string>
+    <string name="prompt_post_processing_semi_strict_desc">把全部 system 内容合并到开头的一条 system 消息。</string>
+    <string name="prompt_post_processing_strict">Strict</string>
+    <string name="prompt_post_processing_strict_desc">使用开头单条 system，并确保聊天正文从 user 消息开始。</string>
+    <string name="prompt_post_processing_single_user">Single user message</string>
+    <string name="prompt_post_processing_single_user_desc">把所有 role 展平成一条 user 消息，以获得最高兼容性。</string>
+    <string name="prompt_include_think_context_title">上下文包含 think 块</string>
+    <string name="prompt_include_think_context_desc">关闭后，后续 prompt 会剥离已保存消息中的 &lt;think&gt;...&lt;/think&gt; 内容。</string>
 </resources>

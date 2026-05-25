@@ -28,6 +28,8 @@ import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Key
@@ -41,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -64,6 +67,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -372,6 +376,7 @@ private fun SettingsPage(
             }
             item { ParameterPanel(state) }
         }
+        item { PromptBehaviorPanel(state, emit) }
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { SummaryPanel(state, emit) }
         item { PrivacyPanel(state, emit) }
@@ -416,6 +421,100 @@ private fun UserIdentityPanel(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromptBehaviorPanel(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    // 请求行为是全局 prompt 管线设置，放在首页设置页而不是提示词模板编辑页。
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RpSectionHeader(title = stringResource(R.string.prompt_behavior_section))
+            Text(
+                text = stringResource(R.string.prompt_post_processing_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            )
+            PromptPostProcessingMode.entries.forEach { mode ->
+                PromptPostProcessingModeRow(
+                    mode = mode,
+                    selected = mode == state.promptPostProcessingMode,
+                    onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
+                )
+            }
+            SettingSwitchRow(
+                icon = Icons.Rounded.Compress,
+                title = stringResource(R.string.prompt_include_think_context_title),
+                subtitle = stringResource(R.string.prompt_include_think_context_desc),
+                checked = state.includeThinkInContext,
+                onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PromptPostProcessingModeRow(
+    mode: PromptPostProcessingMode,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    // 使用整行可点击卡片，方便在手机上切换五个互斥模式。
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+            }
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(mode.titleRes()),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(mode.descriptionRes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
@@ -706,6 +805,26 @@ private fun SettingSwitchRow(
     }
 }
 
+private fun PromptPostProcessingMode.titleRes(): Int {
+    return when (this) {
+        PromptPostProcessingMode.None -> R.string.prompt_post_processing_none
+        PromptPostProcessingMode.Merge -> R.string.prompt_post_processing_merge
+        PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict
+        PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict
+        PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user
+    }
+}
+
+private fun PromptPostProcessingMode.descriptionRes(): Int {
+    return when (this) {
+        PromptPostProcessingMode.None -> R.string.prompt_post_processing_none_desc
+        PromptPostProcessingMode.Merge -> R.string.prompt_post_processing_merge_desc
+        PromptPostProcessingMode.SemiStrict -> R.string.prompt_post_processing_semi_strict_desc
+        PromptPostProcessingMode.Strict -> R.string.prompt_post_processing_strict_desc
+        PromptPostProcessingMode.SingleUserMessage -> R.string.prompt_post_processing_single_user_desc
+    }
+}
+
 private object MaterialThemeLike {
     @Composable
     fun background() = androidx.compose.material3.MaterialTheme.colorScheme.background
@@ -733,6 +852,8 @@ private fun MainLayoutPreview() {
                     contextTokens = 8192,
                     localFirstEnabled = true,
                     streamEnabled = true,
+                    promptPostProcessingMode = PromptPostProcessingMode.None,
+                    includeThinkInContext = false,
                     debugModeEnabled = false,
                     autoSummaryEnabled = false,
                     summaryTriggerMessageCount = 20,

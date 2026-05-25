@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 sealed class MainUiState {
@@ -37,6 +38,8 @@ data class MainSettingsState(
     val contextTokens: Int,
     val localFirstEnabled: Boolean,
     val streamEnabled: Boolean,
+    val promptPostProcessingMode: PromptPostProcessingMode,
+    val includeThinkInContext: Boolean,
     val debugModeEnabled: Boolean,
     val autoSummaryEnabled: Boolean,
     val summaryTriggerMessageCount: Int,

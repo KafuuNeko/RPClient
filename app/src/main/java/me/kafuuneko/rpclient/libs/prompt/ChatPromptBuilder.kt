@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 
 class ChatPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
@@ -46,7 +47,7 @@ class ChatPromptBuilder(
             examplePieces.sumOf { estimateTokens(it.content) }
         // 固定段和注入段先占预算，剩余 token 再留给聊天历史，避免历史挤掉角色定义。
         val historyBudget = (maxPromptTokens - fixedTokenCount).coerceAtLeast(MIN_HISTORY_BUDGET)
-        val historyMessages = fitHistory(context.messages, historyBudget)
+        val historyMessages = fitHistory(context.messages, historyBudget).sanitizeThinkBlocks()
         val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name)
 
         val messages = mutableListOf<LLMMessage>()
@@ -322,6 +323,19 @@ class ChatPromptBuilder(
             ChatMessage.Source.System -> LLMMessageRole.System
         }
         return LLMMessage(role, content)
+    }
+
+    private fun List<ChatMessage>.sanitizeThinkBlocks(): List<ChatMessage> {
+        if (runCatching { AppModel.includeThinkInContext }.getOrDefault(false)) return this
+        // 已保存的推理块只用于 UI 展示；默认不再带回后续上下文，避免模型复读或继承旧思路。
+        return mapNotNull { message ->
+            val cleaned = message.content.stripThinkBlocks().trim()
+            when {
+                cleaned.isBlank() -> null
+                cleaned == message.content -> message
+                else -> message.copy(content = cleaned)
+            }
+        }
     }
 
     private fun trimToTokenLimit(text: String, maxTokens: Int): String {

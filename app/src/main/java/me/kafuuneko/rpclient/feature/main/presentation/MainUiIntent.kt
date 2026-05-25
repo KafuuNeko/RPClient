@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+
 sealed class MainUiIntent {
     data object Init : MainUiIntent()
 
@@ -26,6 +28,10 @@ sealed class MainUiIntent {
     data class SelectProvider(val providerId: String) : MainUiIntent()
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
+
+    data class SelectPostProcessingMode(val mode: PromptPostProcessingMode) : MainUiIntent()
+
+    data class ToggleIncludeThinkInContext(val enabled: Boolean) : MainUiIntent()
 
     data class ToggleDebugModeEnabled(val enabled: Boolean) : MainUiIntent()
 
