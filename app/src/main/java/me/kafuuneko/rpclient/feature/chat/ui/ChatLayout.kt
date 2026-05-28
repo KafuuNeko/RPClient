@@ -1,6 +1,10 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -36,10 +42,13 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -52,9 +61,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -77,6 +90,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -111,32 +125,10 @@ private fun ChatNormal(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
-        AppTopBar(
-            title = state.session.title,
+        CustomChatTopBar(
+            state = state,
             onBack = { ChatUiIntent.Back.emit() },
-            actions = {
-                IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
-                    Icon(
-                        Icons.Rounded.Book,
-                        contentDescription = stringResource(R.string.session_world_book),
-                        tint = if (state.isSessionLoreExpanded) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                IconButton(onClick = { ChatUiIntent.OpenChatSettings.emit() }) {
-                    Icon(
-                        Icons.Rounded.Tune,
-                        contentDescription = stringResource(R.string.generation_params)
-                    )
-                }
-            }
-        )
-        ChatHeader(
-            character = state.character,
-            session = state.session,
-            enabledLorebookCount = state.lorebookGroups.sumOf { it.enabledCount },
-            streamEnabled = state.streamEnabled,
-            statusText = state.statusText()
+            emit = emit
         )
         if (state.isSessionLoreExpanded) {
             SessionLorePanel(
@@ -152,9 +144,13 @@ private fun ChatNormal(
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                ConversationStartHeader(state = state)
+            }
             items(state.messages) { message ->
                 MessageBubble(
                     message = message,
+                    character = state.character,
                     expandedThinkBlockIds = state.expandedThinkBlockIds,
                     editing = message.id == state.editingMessageId,
                     editingDraft = state.editingMessageDraft,
@@ -171,37 +167,149 @@ private fun ChatNormal(
 }
 
 @Composable
-private fun ChatHeader(
-    character: ChatCharacterItem,
-    session: ChatSessionItem,
-    enabledLorebookCount: Int,
-    streamEnabled: Boolean,
-    statusText: String
+private fun CustomChatTopBar(
+    state: ChatUiState.Normal,
+    onBack: () -> Unit,
+    emit: ChatUiIntent.() -> Unit
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.back),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            RpAvatar(
+                text = state.character.avatarText,
+                color = Color(state.character.accentColor),
+                modifier = Modifier.size(36.dp)
+            )
+            
+            Spacer(modifier = Modifier.width(10.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.character.name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = buildString {
+                        append(state.session.title)
+                        val status = state.statusText()
+                        if (status.isNotBlank()) {
+                            append(" • ")
+                            append(status)
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
+            IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
+                Icon(
+                    Icons.Rounded.Book,
+                    contentDescription = stringResource(R.string.session_world_book),
+                    tint = if (state.isSessionLoreExpanded) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                )
+            }
+            IconButton(onClick = { ChatUiIntent.OpenChatSettings.emit() }) {
+                Icon(
+                    Icons.Rounded.Tune,
+                    contentDescription = stringResource(R.string.generation_params),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConversationStartHeader(
+    state: ChatUiState.Normal,
+    modifier: Modifier = Modifier
+) {
+    val enabledLorebookCount = state.lorebookGroups.sumOf { it.enabledCount }
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+        )
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RpAvatar(character.avatarText, Color(character.accentColor))
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(character.name, style = MaterialTheme.typography.titleMedium)
-                    Text(statusText, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            RpMetaRow(
-                listOf(
-                    stringResource(R.string.messages_count, session.messageCount),
-                    stringResource(R.string.world_books_enabled, enabledLorebookCount),
-                    if (streamEnabled) stringResource(R.string.streaming_on) else stringResource(
-                        R.string.streaming_off
-                    )
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color(state.character.accentColor).copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = state.character.avatarText,
+                    color = Color(state.character.accentColor),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black)
                 )
+            }
+            
+            Text(
+                text = state.character.name,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
             )
+            
+            if (state.character.description.isNotBlank()) {
+                Text(
+                    text = state.character.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RpMetaPill(stringResource(R.string.messages_count, state.session.messageCount))
+                RpMetaPill(stringResource(R.string.world_books_enabled, enabledLorebookCount))
+                RpMetaPill(
+                    if (state.streamEnabled) stringResource(R.string.streaming_on)
+                    else stringResource(R.string.streaming_off)
+                )
+            }
         }
     }
 }
@@ -406,36 +514,77 @@ private fun ChatLorebookEntryItem.matchesQuery(query: String): Boolean {
 @Composable
 private fun MessageBubble(
     message: ChatMessageUiModel,
+    character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
     editing: Boolean,
     editingDraft: String,
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
+    var showActions by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Top
     ) {
+        if (!isUser) {
+            RpAvatar(
+                text = if (message.speaker == character.name) character.avatarText else message.speaker.take(1).uppercase(),
+                color = if (message.speaker == character.name) Color(character.accentColor) else Color.Gray,
+                modifier = Modifier
+                    .padding(end = 8.dp, top = 4.dp)
+                    .size(32.dp)
+            )
+        }
+        
         Surface(
-            modifier = Modifier.widthIn(max = 310.dp),
-            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .widthIn(max = if (isUser) 300.dp else 268.dp)
+                .clickable {
+                    if (!editing) {
+                        showActions = !showActions
+                    }
+                },
+            shape = when (message.role) {
+                MessageRole.User -> RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = 16.dp,
+                    bottomEnd = 4.dp
+                )
+                MessageRole.Assistant -> RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = 4.dp,
+                    bottomEnd = 16.dp
+                )
+                MessageRole.Narrator -> RoundedCornerShape(12.dp)
+            },
             color = when (message.role) {
                 MessageRole.User -> MaterialTheme.colorScheme.primary
                 MessageRole.Assistant -> MaterialTheme.colorScheme.surface
-                MessageRole.Narrator -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)
-            }
+                MessageRole.Narrator -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+            },
+            border = if (message.role == MessageRole.Assistant) {
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            } else null
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = message.speaker,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = message.time,
                         style = MaterialTheme.typography.labelSmall,
@@ -457,7 +606,26 @@ private fun MessageBubble(
                         emit = emit
                     )
                 }
-                MessageActions(message, emit)
+                
+                AnimatedVisibility(
+                    visible = showActions && !editing,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isUser) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            MessageActions(message, emit)
+                        }
+                    }
+                }
             }
         }
     }
@@ -570,44 +738,45 @@ private fun MessageActions(
     message: ChatMessageUiModel,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val isUser = message.role == MessageRole.User
         val iconColor = if (isUser) {
-            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
         } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         }
+        
+        val actionModifier = @Composable { onClick: () -> Unit ->
+            Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClick)
+                .padding(6.dp)
+        }
+        
         Icon(
             Icons.Rounded.ContentCopy,
             contentDescription = stringResource(R.string.copy),
-            modifier = Modifier
-                .size(16.dp)
-                .clickable { ChatUiIntent.CopyMessage(message.id).emit() },
+            modifier = actionModifier { ChatUiIntent.CopyMessage(message.id).emit() },
             tint = iconColor
         )
         Icon(
             Icons.Rounded.Edit,
             contentDescription = stringResource(R.string.edit),
-            modifier = Modifier
-                .size(16.dp)
-                .clickable { ChatUiIntent.StartEditMessage(message.id).emit() },
+            modifier = actionModifier { ChatUiIntent.StartEditMessage(message.id).emit() },
             tint = iconColor
         )
         Icon(
             Icons.Rounded.Tune,
             contentDescription = stringResource(R.string.branch_from_message),
-            modifier = Modifier
-                .size(16.dp)
-                .clickable { ChatUiIntent.BranchFromMessage(message.id).emit() },
+            modifier = actionModifier { ChatUiIntent.BranchFromMessage(message.id).emit() },
             tint = iconColor
         )
         if (message.role == MessageRole.Assistant) {
             Icon(
                 Icons.Rounded.Refresh,
                 contentDescription = stringResource(R.string.regenerate),
-                modifier = Modifier
-                    .size(16.dp)
-                    .clickable { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                modifier = actionModifier { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
                 tint = iconColor
             )
         }
@@ -620,41 +789,69 @@ private fun ChatInputBar(
     isGenerating: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            OutlinedTextField(
-                modifier = Modifier.weight(1f),
-                value = draft,
-                onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
-                enabled = !isGenerating,
-                minLines = 1,
-                maxLines = 4,
-                shape = RoundedCornerShape(8.dp),
-                placeholder = { Text(stringResource(R.string.input_next_story)) }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp,
+        shadowElevation = 4.dp
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    .height(0.8.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                modifier = Modifier.size(52.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                onClick = {
-                    if (isGenerating) ChatUiIntent.StopGeneration.emit()
-                    else ChatUiIntent.SendMessage.emit()
-                }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        if (isGenerating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(
-                            R.string.send
-                        ),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
+                OutlinedTextField(
+                    modifier = Modifier.weight(1f),
+                    value = draft,
+                    onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
+                    enabled = !isGenerating,
+                    minLines = 1,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(24.dp),
+                    placeholder = { 
+                        Text(
+                            stringResource(R.string.input_next_story),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                        ) 
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 2.dp,
+                    onClick = {
+                        if (isGenerating) ChatUiIntent.StopGeneration.emit()
+                        else ChatUiIntent.SendMessage.emit()
+                    }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isGenerating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
+                            contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(
+                                R.string.send
+                            ),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
