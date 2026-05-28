@@ -2,6 +2,8 @@
     <string name="back">返回</string>
     <string name="about">关于</string>
     <string name="unknown_version">未知版本</string>
+    <string name="developer_contact">开发者邮箱</string>
+    <string name="tech_stack_label">技术栈</string>
 
     <!-- Main Layout -->
     <string name="home">首页</string>

@@ -80,7 +80,6 @@ private fun LLMProviderEditNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = if (state.mode == LLMProviderEditMode.Create) stringResource(R.string.create_model_title) else stringResource(R.string.edit_model_title),
@@ -335,7 +334,7 @@ private fun FormTextField(
         minLines = minLines,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = visualTransformation,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 

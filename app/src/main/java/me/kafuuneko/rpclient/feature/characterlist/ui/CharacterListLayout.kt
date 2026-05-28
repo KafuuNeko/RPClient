@@ -82,7 +82,6 @@ private fun CharacterListNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = stringResource(R.string.character_manager),
@@ -149,7 +148,7 @@ private fun SearchField(
         label = { Text(stringResource(R.string.search_placeholder)) },
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
         singleLine = true,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -168,7 +167,7 @@ private fun EmptyCharacterCard(
     emit: CharacterListUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -209,11 +208,11 @@ private fun CharacterListCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        border = if (selected) BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-        ) else null,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -278,7 +277,8 @@ private fun AvatarPreview(
         RpAvatar(
             text = avatarText,
             color = avatarColor,
-            modifier = Modifier.size(size.dp)
+            modifier = Modifier.size(size.dp),
+            shape = RoundedCornerShape(12.dp)
         )
     } else {
         Image(
@@ -286,7 +286,7 @@ private fun AvatarPreview(
             contentDescription = null,
             modifier = Modifier
                 .size(size.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
         )
     }

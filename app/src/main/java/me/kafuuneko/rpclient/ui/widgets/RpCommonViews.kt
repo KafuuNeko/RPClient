@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,12 +78,13 @@ fun RpSectionHeader(
 fun RpAvatar(
     text: String,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    shape: Shape = CircleShape
 ) {
     Box(
         modifier = modifier
             .size(46.dp)
-            .clip(CircleShape)
+            .clip(shape)
             .background(color.copy(alpha = 0.16f)),
         contentAlignment = Alignment.Center
     ) {
@@ -97,7 +99,7 @@ fun RpIconBubble(
 ) {
     Surface(
         modifier = modifier.size(38.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -127,7 +129,7 @@ fun RpTagRow(
 @Composable
 fun RpTagPill(text: String) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Text(
@@ -152,7 +154,7 @@ fun RpMetaRow(items: List<String>) {
 @Composable
 fun RpMetaPill(text: String) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Text(
@@ -174,7 +176,7 @@ fun RpInfoCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -209,7 +211,7 @@ fun RpInfoCard(
 @Composable
 fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(

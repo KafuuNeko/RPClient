@@ -77,7 +77,6 @@ private fun WorldBookEntryEditNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = if (state.mode == WorldBookEntryEditMode.Create) stringResource(R.string.create_world_book_entry) else stringResource(R.string.edit_world_book_entry),
@@ -437,6 +436,7 @@ private fun ActionPanel(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEntryEditLoadState.None,
             onClick = { WorldBookEntryEditUiIntent.Back.emit() }
         ) {
@@ -444,6 +444,7 @@ private fun ActionPanel(
         }
         Button(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEntryEditLoadState.None,
             onClick = { WorldBookEntryEditUiIntent.SaveEntry.emit() }
         ) {
@@ -535,7 +536,7 @@ private fun FormTextField(
         label = { Text(label) },
         minLines = minLines,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -553,7 +554,7 @@ private fun ListTextField(
             onValueChange = onValueChange,
             label = { Text(label) },
             leadingIcon = { Icon(Icons.Rounded.Tag, contentDescription = null) },
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp)
         )
         IconButton(onClick = onDelete) {
             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.delete))

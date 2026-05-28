@@ -66,8 +66,7 @@ private fun NormalView(
 ) {
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+            .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -115,7 +114,7 @@ private fun RequestLogCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -175,7 +174,7 @@ private fun JsonBlock(
             }
             OutlinedButton(
                 onClick = onCopy,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
             ) {
@@ -189,7 +188,7 @@ private fun JsonBlock(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onOpen)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))
                 .padding(10.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),

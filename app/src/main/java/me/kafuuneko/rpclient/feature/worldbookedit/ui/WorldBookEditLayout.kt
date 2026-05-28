@@ -82,7 +82,6 @@ private fun WorldBookEditNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(R.string.edit_world_book_title),
@@ -176,7 +175,7 @@ private fun BasicPanel(
             value = form.name,
             onValueChange = { WorldBookEditUiIntent.ChangeName(it).emit() },
             label = { Text(stringResource(R.string.name)) },
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp)
         )
     }
 }
@@ -220,8 +219,8 @@ private fun EntryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -274,6 +273,7 @@ private fun ActionPanel(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEditLoadState.None,
             onClick = { WorldBookEditUiIntent.Back.emit() }
         ) {
@@ -281,6 +281,7 @@ private fun ActionPanel(
         }
         Button(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEditLoadState.None,
             onClick = { WorldBookEditUiIntent.SaveWorldBook.emit() }
         ) {

@@ -363,7 +363,11 @@ private fun SessionLorePanel(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         color = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -525,7 +529,7 @@ private fun LorebookSearchField(
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -657,7 +661,7 @@ private fun MessageBubble(
                     exit = fadeOut()
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (isUser) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.fillMaxWidth()
@@ -717,7 +721,7 @@ private fun MessageEditContent(
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
             minLines = 3,
             maxLines = 8,
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { ChatUiIntent.SaveEditingMessage.emit() }) {
@@ -746,7 +750,7 @@ private fun ThinkBlock(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { ChatUiIntent.ToggleThinkBlock(part.id).emit() },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
     ) {
         Column(
@@ -793,7 +797,7 @@ private fun MessageActions(
         val actionModifier = @Composable { onClick: () -> Unit ->
             Modifier
                 .size(32.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(CircleShape)
                 .clickable(onClick = onClick)
                 .padding(6.dp)
         }
@@ -917,7 +921,6 @@ private fun ChatSettingsPage(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = stringResource(R.string.chat_settings),
@@ -1052,7 +1055,11 @@ private fun SettingsSection(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         color = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -1130,7 +1137,7 @@ private fun AutoSaveTextField(
         minLines = minLines,
         maxLines = maxLines,
         singleLine = singleLine,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -1147,7 +1154,7 @@ private fun MenuAction(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) { onClick() },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     ) {
         Row(

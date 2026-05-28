@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -48,6 +52,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,10 +102,8 @@ private fun MainNormal(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
-            .statusBarsPadding(),
-        contentWindowInsets = WindowInsets(0.dp),
-        bottomBar = { MainBottomBar(uiState.selectedPage, emit) }
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.background),
+        contentWindowInsets = WindowInsets(0.dp)
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -112,36 +115,177 @@ private fun MainNormal(
                 MainPage.Home -> HomePage(uiState.homeState, emit)
                 MainPage.Settings -> SettingsPage(uiState.settingsState, emit)
             }
+
+            MainBottomBar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .navigationBarsPadding(),
+                selectedPage = uiState.selectedPage,
+                emit = emit
+            )
         }
     }
 }
 
 @Composable
 private fun MainBottomBar(
+    modifier: Modifier = Modifier,
     selectedPage: MainPage,
     emit: MainUiIntent.() -> Unit
 ) {
-    NavigationBar(
-        modifier = Modifier.navigationBarsPadding(),
-        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
+        shadowElevation = 8.dp
     ) {
-        NavigationBarItem(
-            selected = selectedPage == MainPage.Home,
-            onClick = { MainUiIntent.SelectPage(MainPage.Home).emit() },
-            icon = { Icon(Icons.Rounded.Home, contentDescription = stringResource(R.string.home)) },
-            label = { Text(stringResource(R.string.home)) }
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MainBottomBarItem(
+                selected = selectedPage == MainPage.Home,
+                onClick = { MainUiIntent.SelectPage(MainPage.Home).emit() },
+                icon = Icons.Rounded.Home,
+                label = stringResource(R.string.home),
+                modifier = Modifier.weight(1f)
+            )
+            MainBottomBarItem(
+                selected = selectedPage == MainPage.Settings,
+                onClick = { MainUiIntent.SelectPage(MainPage.Settings).emit() },
+                icon = Icons.Rounded.Settings,
+                label = stringResource(R.string.settings),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainBottomBarItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+    } else {
+        androidx.compose.ui.graphics.Color.Transparent
+    }
+
+    Box(
+        modifier = modifier
+            .clickable(
+                onClick = onClick,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            )
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .background(containerColor, CircleShape)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = contentColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+private fun getMacaronColor(name: String): androidx.compose.ui.graphics.Color {
+    val hash = name.hashCode()
+    val hue = kotlin.math.abs(hash % 360).toFloat()
+    val saturation = 0.65f
+    val lightness = 0.82f
+    return androidx.compose.ui.graphics.Color.hsl(hue, saturation, lightness)
+}
+
+@Composable
+private fun HeroEntryCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
         )
-        NavigationBarItem(
-            selected = selectedPage == MainPage.Settings,
-            onClick = { MainUiIntent.SelectPage(MainPage.Settings).emit() },
-            icon = {
-                Icon(
-                    Icons.Rounded.Settings,
-                    contentDescription = stringResource(R.string.settings)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.AddComment,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-            },
-            label = { Text(stringResource(R.string.settings)) }
-        )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 
@@ -157,35 +301,39 @@ private fun HomePage(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 18.dp),
-        contentPadding = PaddingValues(top = 18.dp, bottom = 22.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            HomeEntryCard(
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Rounded.AddComment,
+            Spacer(modifier = Modifier.statusBarsPadding())
+        }
+        item {
+            HeroEntryCard(
                 title = stringResource(R.string.new_session),
                 subtitle = stringResource(R.string.new_session_desc),
                 onClick = { MainUiIntent.OpenCreateChat.emit() }
             )
         }
         item {
-            HomeEntryCard(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Rounded.Person,
-                title = stringResource(R.string.character),
-                subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
-                onClick = { MainUiIntent.OpenCharacterManager.emit() }
-            )
-        }
-        item {
-            HomeEntryCard(
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Rounded.Book,
-                title = stringResource(R.string.world_book),
-                subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
-                onClick = { MainUiIntent.OpenWorldBookManager.emit() }
-            )
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HomeEntryCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Rounded.Person,
+                    title = stringResource(R.string.character),
+                    subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
+                    onClick = { MainUiIntent.OpenCharacterManager.emit() }
+                )
+                HomeEntryCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Rounded.Book,
+                    title = stringResource(R.string.world_book),
+                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
+                    onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+                )
+            }
         }
         item {
             RpSectionHeader(
@@ -208,6 +356,7 @@ private fun HomePage(
             val expanded = characterId !in collapsedCharacterIds
             item(key = "character-$characterId") {
                 SessionCharacterHeader(
+                    modifier = Modifier.animateItem(),
                     characterName = characterName,
                     sessionCount = sessions.size,
                     expanded = expanded,
@@ -226,6 +375,7 @@ private fun HomePage(
                     key = { session -> "session-${session.id}" }
                 ) { session ->
                     SessionCard(
+                        modifier = Modifier.animateItem(),
                         session = session,
                         onClick = { MainUiIntent.OpenChat(session.id).emit() }
                     )
@@ -253,13 +403,14 @@ private fun HomeEntryCard(
 
 @Composable
 private fun SessionCharacterHeader(
+    modifier: Modifier = Modifier,
     characterName: String,
     sessionCount: Int,
     expanded: Boolean,
     onClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(horizontal = 4.dp, vertical = 2.dp),
@@ -292,49 +443,69 @@ private fun SessionCharacterHeader(
 
 @Composable
 private fun SessionCard(
+    modifier: Modifier = Modifier,
     session: MainChatSessionItem,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RpIconBubble(Icons.Rounded.ChatBubble)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = session.title,
-                        style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = session.preview,
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
-                            alpha = 0.62f
-                        ),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            RpMetaRow(
-                items = listOf(
-                    session.characterName,
-                    stringResource(R.string.message_count, session.messageCount),
-                    stringResource(R.string.branch_count, session.branchCount),
-                    session.updatedAt
-                )
+            val accentColor = remember(session.characterName) { getMacaronColor(session.characterName) }
+            Box(
+                modifier = Modifier
+                    .padding(start = 14.dp, top = 14.dp, bottom = 14.dp)
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(accentColor, RoundedCornerShape(2.dp))
             )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RpIconBubble(Icons.Rounded.ChatBubble)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = session.title,
+                            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = session.preview,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = 0.62f
+                            ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                RpMetaRow(
+                    items = listOf(
+                        session.characterName,
+                        stringResource(R.string.message_count, session.messageCount),
+                        stringResource(R.string.branch_count, session.branchCount),
+                        session.updatedAt
+                    )
+                )
+            }
         }
     }
 }
@@ -348,9 +519,12 @@ private fun SettingsPage(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 18.dp),
-        contentPadding = PaddingValues(top = 18.dp, bottom = 22.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        item {
+            Spacer(modifier = Modifier.statusBarsPadding())
+        }
         item {
             RpPageTitle(
                 title = stringResource(R.string.setting_page_title),
@@ -390,7 +564,11 @@ private fun UserIdentityPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -431,9 +609,12 @@ private fun PromptBehaviorPanel(
     state: MainSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    // 请求行为是全局 prompt 管线设置，放在首页设置页而不是提示词模板编辑页。
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -470,12 +651,11 @@ private fun PromptPostProcessingModeRow(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    // 使用整行可点击卡片，方便在手机上切换五个互斥模式。
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = 1.dp,
             color = if (selected) {
@@ -544,11 +724,11 @@ private fun ProviderCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        border = if (selected) BorderStroke(
-            2.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.primary
-        ) else null,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -576,15 +756,32 @@ private fun ProviderCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            RpTagRow(
-                tags = listOf(
-                    when {
-                        !provider.isEnabled -> stringResource(R.string.not_enabled)
-                        provider.apiKey.isBlank() -> stringResource(R.string.pending_config)
-                        else -> stringResource(R.string.available)
-                    }
-                ), maxCount = 1
-            )
+            
+            val dotColor = when {
+                !provider.isEnabled -> androidx.compose.ui.graphics.Color(0xFFE53935)
+                provider.apiKey.isBlank() -> androidx.compose.ui.graphics.Color(0xFFFFB300)
+                else -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
+            }
+            val statusText = when {
+                !provider.isEnabled -> stringResource(R.string.not_enabled)
+                provider.apiKey.isBlank() -> stringResource(R.string.pending_config)
+                else -> stringResource(R.string.available)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(dotColor, CircleShape)
+                )
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }
@@ -592,7 +789,11 @@ private fun ProviderCard(
 @Composable
 private fun ParameterPanel(state: MainSettingsState) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -644,7 +845,11 @@ private fun SummaryPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -694,21 +899,38 @@ private fun NumberSettingRow(
     helper: String? = null,
     onValueChange: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(
+            modifier = Modifier.weight(1f).padding(end = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                title,
+                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+            )
+            if (!helper.isNullOrBlank()) {
+                Text(
+                    helper,
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                )
+            }
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        if (!helper.isNullOrBlank()) {
-            Text(
-                helper,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            modifier = Modifier.width(100.dp),
+            shape = RoundedCornerShape(12.dp),
+            textStyle = androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-        }
+        )
     }
 }
 
@@ -718,7 +940,11 @@ private fun PrivacyPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -753,7 +979,11 @@ private fun DebugPanel(
     emit: MainUiIntent.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
         colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
     ) {
         Column(

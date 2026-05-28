@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -144,7 +145,7 @@ private fun MarkdownCodeBlock(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = backgroundColor
     ) {
         Column(
@@ -177,7 +178,7 @@ private fun MarkdownQuoteBlock(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = backgroundColor
     ) {
         Row(
@@ -188,7 +189,7 @@ private fun MarkdownQuoteBlock(
                 modifier = Modifier
                     .width(3.dp)
                     .heightIn(min = 22.dp)
-                    .background(color.copy(alpha = 0.62f), RoundedCornerShape(3.dp))
+                    .background(color.copy(alpha = 0.62f), CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
             MarkdownInlineText(

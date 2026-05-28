@@ -3,6 +3,8 @@
     <string name="back">Back</string>
     <string name="about">About</string>
     <string name="unknown_version">Unknown version</string>
+    <string name="developer_contact">Developer Contact</string>
+    <string name="tech_stack_label">Technology Stack</string>
 
     <!-- Main Layout -->
     <string name="home">Home</string>

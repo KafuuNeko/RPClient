@@ -86,8 +86,7 @@ private fun NormalView(
 ) {
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+            .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -143,7 +142,7 @@ private fun PromptCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -154,7 +153,7 @@ private fun PromptCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     modifier = Modifier.size(38.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -192,7 +191,7 @@ private fun PromptCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(
                         if (hasContent)
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -371,7 +370,7 @@ private fun EditPromptDialog(
                     ) {
                         OutlinedButton(
                             onClick = onDismiss,
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(stringResource(R.string.cancel))
                         }
@@ -385,7 +384,7 @@ private fun EditPromptDialog(
                         Spacer(modifier = Modifier.weight(1f))
                         Button(
                             onClick = { onSave(textFieldValue.text) },
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,

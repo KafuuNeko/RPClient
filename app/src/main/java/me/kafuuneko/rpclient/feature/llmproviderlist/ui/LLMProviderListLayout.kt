@@ -72,7 +72,6 @@ private fun LLMProviderListNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = stringResource(R.string.model_provider_title),
@@ -145,11 +144,11 @@ private fun ProviderListCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        border = if (provider.isEnabled) BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-        ) else null,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = if (provider.isEnabled) 2.dp else 1.dp,
+            color = if (provider.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(

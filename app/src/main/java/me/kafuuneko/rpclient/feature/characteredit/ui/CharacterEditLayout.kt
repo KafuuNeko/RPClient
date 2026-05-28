@@ -94,7 +94,6 @@ private fun CharacterEditNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         AppTopBar(
             title = if (state.mode == CharacterEditMode.Create) {
@@ -392,7 +391,7 @@ private fun RawExtensionsPanel(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     ) {
         Column(
@@ -446,6 +445,7 @@ private fun ActionPanel(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         OutlinedButton(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
             onClick = { CharacterEditUiIntent.Back.emit() }
         ) {
@@ -453,6 +453,7 @@ private fun ActionPanel(
         }
         Button(
             modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp),
             enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
             onClick = { CharacterEditUiIntent.SaveCharacter.emit() }
         ) {
@@ -549,7 +550,7 @@ private fun FormTextField(
         minLines = minLines,
         maxLines = maxLines.coerceAtLeast(minLines),
         leadingIcon = leadingIcon,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -574,7 +575,7 @@ private fun ListTextField(
             minLines = minLines,
             maxLines = maxLines.coerceAtLeast(minLines),
             leadingIcon = leadingIcon,
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp)
         )
         IconButton(onClick = onDelete) {
             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.delete))
@@ -592,7 +593,7 @@ private fun AvatarPicker(
         modifier = Modifier
             .size(72.dp)
             .clickable { CharacterEditUiIntent.PickAvatarClick.emit() },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -604,7 +605,7 @@ private fun AvatarPicker(
             )
             Surface(
                 modifier = Modifier.align(Alignment.BottomEnd),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
@@ -632,7 +633,8 @@ private fun AvatarPreview(
         RpAvatar(
             text = avatarText,
             color = avatarColor,
-            modifier = Modifier.size(size.dp)
+            modifier = Modifier.size(size.dp),
+            shape = RoundedCornerShape(12.dp)
         )
     } else {
         Image(
@@ -640,7 +642,7 @@ private fun AvatarPreview(
             contentDescription = null,
             modifier = Modifier
                 .size(size.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
         )
     }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -66,8 +67,7 @@ private fun NormalView(
 ) {
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+            .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -127,8 +127,7 @@ private fun ErrorView(
 ) {
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+            .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -167,7 +166,7 @@ private fun ErrorView(
 private fun JsonPathBar(path: List<String>) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     ) {
@@ -202,7 +201,7 @@ private fun JsonSummaryCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -229,7 +228,7 @@ private fun JsonEntryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = entry.hasChildren, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 1.dp
@@ -288,7 +287,7 @@ private fun JsonRawPreview(rawPreview: String) {
             .fillMaxWidth()
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(12.dp)
             )
             .padding(12.dp),
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -317,7 +316,7 @@ private fun JsonTypeChip(type: JsonViewerNodeType) {
     }
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = CircleShape,
         color = containerColor,
         contentColor = contentColor
     ) {
