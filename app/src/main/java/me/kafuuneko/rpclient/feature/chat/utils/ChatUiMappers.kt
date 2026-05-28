@@ -35,7 +35,7 @@ fun ChatSession.toChatSessionItem(
     )
 }
 
-fun Character.toChatCharacterItem(): ChatCharacterItem {
+fun Character.toChatCharacterItem(avatarFilePath: String? = null): ChatCharacterItem {
     return ChatCharacterItem(
         id = id,
         name = name,
@@ -46,7 +46,8 @@ fun Character.toChatCharacterItem(): ChatCharacterItem {
         postHistoryInstructions = postHistoryInstructions,
         creatorNotes = creatorNotes,
         avatarText = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-        accentColor = 0xFF315EFD
+        accentColor = 0xFF315EFD,
+        avatarFilePath = avatarFilePath
     )
 }
 

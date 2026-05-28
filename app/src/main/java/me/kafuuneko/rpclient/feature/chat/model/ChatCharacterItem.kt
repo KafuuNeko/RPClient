@@ -10,6 +10,7 @@ data class ChatCharacterItem(
     val postHistoryInstructions: String,
     val creatorNotes: String,
     val avatarText: String,
-    val accentColor: Long
+    val accentColor: Long,
+    val avatarFilePath: String? = null
 )
 

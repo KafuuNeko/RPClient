@@ -41,6 +41,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
@@ -53,6 +54,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+    private val mFileRepository by inject<FileRepository>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mContext by inject<Context>()
@@ -738,6 +740,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
+        val avatarFilePath = character.avatar.takeIf { it.isNotBlank() }?.let {
+            mFileRepository.getFile(it)?.absolutePath
+        }
         return ChatUiState.Normal(
             page = page,
             loadState = loadState,
@@ -746,7 +751,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messageCount = messages.size,
                 enabledIds = enabledIds
             ),
-            character = character.toChatCharacterItem(),
+            character = character.toChatCharacterItem(avatarFilePath),
             messages = messages.toChatMessageItems(
                 characterName = character.name,
                 userName = AppModel.userName,

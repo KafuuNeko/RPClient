@@ -1,10 +1,12 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +68,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +92,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -95,7 +100,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
-import me.kafuuneko.rpclient.libs.utils.toggle
 
 @Composable
 fun ChatLayout(
@@ -104,7 +108,12 @@ fun ChatLayout(
 ) {
     BackHandler { ChatUiIntent.Back.emit() }
     when (uiState) {
-        ChatUiState.None, ChatUiState.Finished -> Unit
+        ChatUiState.None, ChatUiState.Finished -> {
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background))
+        }
+
         is ChatUiState.Normal -> {
             when (uiState.page) {
                 ChatPage.Conversation -> ChatNormal(uiState, emit)
@@ -122,6 +131,7 @@ private fun ChatNormal(
 ) {
     val listState = rememberLazyListState()
     var wasAtBottom by remember { mutableStateOf(true) }
+    var isFirstLoad by remember { mutableStateOf(true) }
 
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -142,8 +152,11 @@ private fun ChatNormal(
         state.messages.lastOrNull()?.content ?: ""
     }
     LaunchedEffect(state.messages.size, lastMessageContent) {
-        if (wasAtBottom && state.messages.isNotEmpty()) {
-            listState.scrollToItem(state.messages.size)
+        if (state.messages.isNotEmpty()) {
+            if (isFirstLoad || wasAtBottom) {
+                listState.scrollToItem(state.messages.size)
+                isFirstLoad = false
+            }
         }
     }
 
@@ -151,7 +164,6 @@ private fun ChatNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         CustomChatTopBar(
             state = state,
@@ -210,6 +222,7 @@ private fun CustomChatTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -220,15 +233,16 @@ private fun CustomChatTopBar(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
-            
-            RpAvatar(
-                text = state.character.avatarText,
-                color = Color(state.character.accentColor),
-                modifier = Modifier.size(36.dp)
+
+            AvatarPreview(
+                avatarText = state.character.avatarText,
+                avatarColor = Color(state.character.accentColor),
+                imagePath = state.character.avatarFilePath,
+                size = 36
             )
-            
+
             Spacer(modifier = Modifier.width(10.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = state.character.name,
@@ -252,7 +266,7 @@ private fun CustomChatTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            
+
             IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
                 Icon(
                     Icons.Rounded.Book,
@@ -294,26 +308,19 @@ private fun ConversationStartHeader(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(Color(state.character.accentColor).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = state.character.avatarText,
-                    color = Color(state.character.accentColor),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black)
-                )
-            }
-            
+            AvatarPreview(
+                avatarText = state.character.avatarText,
+                avatarColor = Color(state.character.accentColor),
+                imagePath = state.character.avatarFilePath,
+                size = 64
+            )
+
             Text(
                 text = state.character.name,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             if (state.character.description.isNotBlank()) {
                 Text(
                     text = state.character.description,
@@ -325,9 +332,9 @@ private fun ConversationStartHeader(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -437,7 +444,11 @@ private fun SessionLoreGroup(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    stringResource(R.string.enabled_entries_count, group.enabledCount, group.totalCount),
+                    stringResource(
+                        R.string.enabled_entries_count,
+                        group.enabledCount,
+                        group.totalCount
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
                 )
@@ -534,10 +545,10 @@ private fun List<ChatLorebookGroupItem>.filterForQuery(query: String): List<Chat
 
 private fun ChatLorebookEntryItem.matchesQuery(query: String): Boolean {
     return lorebookName.contains(query, ignoreCase = true) ||
-        name.contains(query, ignoreCase = true) ||
-        content.contains(query, ignoreCase = true) ||
-        keywords.any { it.contains(query, ignoreCase = true) } ||
-        secondaryKeywords.any { it.contains(query, ignoreCase = true) }
+            name.contains(query, ignoreCase = true) ||
+            content.contains(query, ignoreCase = true) ||
+            keywords.any { it.contains(query, ignoreCase = true) } ||
+            secondaryKeywords.any { it.contains(query, ignoreCase = true) }
 }
 
 @Composable
@@ -558,15 +569,17 @@ private fun MessageBubble(
         verticalAlignment = Alignment.Top
     ) {
         if (!isUser) {
-            RpAvatar(
-                text = if (message.speaker == character.name) character.avatarText else message.speaker.take(1).uppercase(),
-                color = if (message.speaker == character.name) Color(character.accentColor) else Color.Gray,
-                modifier = Modifier
-                    .padding(end = 8.dp, top = 4.dp)
-                    .size(32.dp)
+            AvatarPreview(
+                avatarText = if (message.speaker == character.name) character.avatarText else message.speaker.take(
+                    1
+                ).uppercase(),
+                avatarColor = if (message.speaker == character.name) Color(character.accentColor) else Color.Gray,
+                imagePath = if (message.speaker == character.name) character.avatarFilePath else null,
+                size = 32,
+                modifier = Modifier.padding(end = 8.dp, top = 4.dp)
             )
         }
-        
+
         Surface(
             modifier = Modifier
                 .widthIn(max = if (isUser) 300.dp else 268.dp)
@@ -582,12 +595,14 @@ private fun MessageBubble(
                     bottomStart = 16.dp,
                     bottomEnd = 4.dp
                 )
+
                 MessageRole.Assistant -> RoundedCornerShape(
                     topStart = 16.dp,
                     topEnd = 16.dp,
                     bottomStart = 4.dp,
                     bottomEnd = 16.dp
                 )
+
                 MessageRole.Narrator -> RoundedCornerShape(12.dp)
             },
             color = when (message.role) {
@@ -635,7 +650,7 @@ private fun MessageBubble(
                         emit = emit
                     )
                 }
-                
+
                 AnimatedVisibility(
                     visible = showActions && !editing,
                     enter = fadeIn(),
@@ -644,7 +659,7 @@ private fun MessageBubble(
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (isUser) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -774,7 +789,7 @@ private fun MessageActions(
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         }
-        
+
         val actionModifier = @Composable { onClick: () -> Unit ->
             Modifier
                 .size(32.dp)
@@ -782,7 +797,7 @@ private fun MessageActions(
                 .clickable(onClick = onClick)
                 .padding(6.dp)
         }
-        
+
         Icon(
             Icons.Rounded.ContentCopy,
             contentDescription = stringResource(R.string.copy),
@@ -844,18 +859,24 @@ private fun ChatInputBar(
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
-                    placeholder = { 
+                    placeholder = {
                         Text(
                             stringResource(R.string.input_next_story),
-                            style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-                        ) 
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.5f
+                                )
+                            )
+                        )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                         disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = 0.15f
+                        )
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
@@ -1143,7 +1164,9 @@ private fun MenuAction(
                 Text(
                     title,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.38f
+                    )
                 )
                 if (!subtitle.isNullOrBlank()) {
                     Text(
@@ -1248,6 +1271,35 @@ private fun ChatLayoutPreview() {
                 streamEnabled = true
             ),
             emit = {}
+        )
+    }
+}
+
+@Composable
+private fun AvatarPreview(
+    avatarText: String,
+    avatarColor: Color,
+    imagePath: String?,
+    size: Int,
+    modifier: Modifier = Modifier
+) {
+    val bitmap = remember(imagePath) {
+        imagePath?.let { BitmapFactory.decodeFile(it) }
+    }
+    if (bitmap == null) {
+        RpAvatar(
+            text = avatarText,
+            color = avatarColor,
+            modifier = modifier.size(size.dp)
+        )
+    } else {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier
+                .size(size.dp)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
         )
     }
 }
