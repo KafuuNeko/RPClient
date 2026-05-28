@@ -1,9 +1,12 @@
 <resources>
     <string name="back">返回</string>
     <string name="about">关于</string>
+    <string name="about_desc">应用版本、联系邮箱与开源仓库</string>
     <string name="unknown_version">未知版本</string>
     <string name="developer_contact">开发者邮箱</string>
     <string name="tech_stack_label">技术栈</string>
+    <string name="github_repo_label">开源仓库</string>
+    <string name="visit_repo">前往查看</string>
 
     <!-- Main Layout -->
     <string name="home">首页</string>

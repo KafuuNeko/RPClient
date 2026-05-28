@@ -6,6 +6,9 @@ object AppModel : KotprefModel() {
     // 应用联系邮箱。
     const val EMAIL = "kafuuneko@gmail.com"
 
+    // 仓库地址。
+    const val GITHUB_REPO = "https://github.com/KafuuNeko/RPClient"
+
     // 默认主提示词，作为普通对话生成时的全局系统指令。
     const val DEFAULT_MAIN_PROMPT = """
 Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.

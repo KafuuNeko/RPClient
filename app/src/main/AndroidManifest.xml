@@ -15,6 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient">
         <activity
+            android:name=".feature.about.AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.jsonviewer.JsonViewerActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />

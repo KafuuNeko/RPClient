@@ -2,9 +2,12 @@
     <string name="app_name" translatable="false">RPClient</string>
     <string name="back">Back</string>
     <string name="about">About</string>
+    <string name="about_desc">App version, email and repository</string>
     <string name="unknown_version">Unknown version</string>
     <string name="developer_contact">Developer Contact</string>
     <string name="tech_stack_label">Technology Stack</string>
+    <string name="github_repo_label">GitHub Repository</string>
+    <string name="visit_repo">Visit</string>
 
     <!-- Main Layout -->
     <string name="home">Home</string>

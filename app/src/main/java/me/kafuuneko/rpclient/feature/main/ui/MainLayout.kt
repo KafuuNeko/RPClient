@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
@@ -555,6 +556,7 @@ private fun SettingsPage(
         item { SummaryPanel(state, emit) }
         item { PrivacyPanel(state, emit) }
         item { DebugPanel(state, emit) }
+        item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
     }
 }
 
@@ -1008,6 +1010,47 @@ private fun DebugPanel(
                     subtitle = stringResource(R.string.request_logs_entry_subtitle)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AboutEntryCard(
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            1.dp,
+            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RpIconBubble(Icons.Rounded.Info)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.about),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = stringResource(R.string.about_desc),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+            )
         }
     }
 }

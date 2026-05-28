@@ -48,4 +48,6 @@ sealed class MainUiIntent {
     data object OpenPromptPreset : MainUiIntent()
 
     data object OpenRequestLogs : MainUiIntent()
+
+    data object OpenAbout : MainUiIntent()
 }
