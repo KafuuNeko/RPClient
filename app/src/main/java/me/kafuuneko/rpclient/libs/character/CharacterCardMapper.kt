@@ -20,11 +20,11 @@ class CharacterCardMapper(
      */
     fun parseCharacter(json: String, avatar: String = "", characterLorebookId: Long = 0L): CharacterCardImport {
         val root = JsonParser.parseString(json).asJsonObject
-        val data = root.getAsJsonObject("data")
+        val data = root.optJsonObject("data")
         return if (data != null) {
             CharacterCardImport(
                 character = data.toCharacter(avatar, characterLorebookId),
-                embeddedLorebook = data.getAsJsonObject("character_book")?.toLorebookImport()
+                embeddedLorebook = data.optJsonObject("character_book")?.toLorebookImport()
             )
         } else {
             CharacterCardImport(
@@ -70,8 +70,8 @@ class CharacterCardMapper(
         avatar: String,
         characterLorebookId: Long
     ): Character {
-        val extensions = getAsJsonObject("extensions") ?: JsonObject()
-        val depthPrompt = extensions.getAsJsonObject("depth_prompt") ?: JsonObject()
+        val extensions = optJsonObject("extensions") ?: JsonObject()
+        val depthPrompt = extensions.optJsonObject("depth_prompt") ?: JsonObject()
         val firstMes = optString("first_mes")
         val alternates = getAsJsonArray("alternate_greetings")?.toStringList().orEmpty()
         return Character(
@@ -125,7 +125,7 @@ class CharacterCardMapper(
             scanDepth = optInt("scan_depth", 2),
             tokenBudget = optInt("token_budget", 25),
             recursiveScanning = optBoolean("recursive_scanning", false),
-            extensionsJson = gson.toJson(getAsJsonObject("extensions") ?: JsonObject())
+            extensionsJson = gson.toJson(optJsonObject("extensions") ?: JsonObject())
         )
         val entries = getAsJsonArray("entries")?.mapIndexed { index, element ->
             val entry = element.asJsonObject
@@ -135,7 +135,7 @@ class CharacterCardMapper(
     }
 
     private fun JsonObject.toLorebookEntry(index: Int): LorebookEntry {
-        val extensions = getAsJsonObject("extensions") ?: JsonObject()
+        val extensions = optJsonObject("extensions") ?: JsonObject()
         // ST 世界书条目的许多高级字段没有统一顶层字段，这里优先从 extensions 读取。
         return LorebookEntry(
             lorebookId = 0L,
@@ -243,7 +243,7 @@ class CharacterCardMapper(
     }
 
     private fun JsonObject.withDepthPrompt(character: Character): JsonObject {
-        val depthPrompt = getAsJsonObject("depth_prompt") ?: JsonObject()
+        val depthPrompt = optJsonObject("depth_prompt") ?: JsonObject()
         depthPrompt.addProperty("prompt", character.depthPromptPrompt)
         depthPrompt.addProperty("depth", character.depthPromptDepth)
         depthPrompt.addProperty("role", when (character.depthPromptRole) {
@@ -273,6 +273,11 @@ class CharacterCardMapper(
                 else -> LorebookEntry.ROLE_SYSTEM
             }
         }
+    }
+
+    private fun JsonObject.optJsonObject(name: String): JsonObject? {
+        val element = get(name) ?: return null
+        return if (element.isJsonNull) null else element.asJsonObject
     }
 
     private fun JsonObject.optString(name: String): String {

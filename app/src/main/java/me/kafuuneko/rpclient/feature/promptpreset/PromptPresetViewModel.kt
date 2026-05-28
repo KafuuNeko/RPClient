@@ -54,7 +54,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     }
 
     private fun readPromptValues(): Map<PromptType, String> {
-        return PromptType.values().associateWith { readPrompt(it) }
+        return PromptType.entries.associateWith { readPrompt(it) }
     }
 
     private fun readPrompt(type: PromptType): String {

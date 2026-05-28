@@ -99,6 +99,37 @@ class CharacterCardMapperTest {
         assertEquals("Png Card", parsed.character.name)
     }
 
+    @Test
+    fun v2JsonWithNullCharacterBookDoesNotCrash() {
+        val json = """
+            {
+              "spec": "chara_card_v2",
+              "spec_version": "2.0",
+              "data": {
+                "name": "Fuka",
+                "description": "Desc",
+                "personality": "",
+                "scenario": "",
+                "first_mes": "Hello",
+                "mes_example": "",
+                "creator_notes": "",
+                "system_prompt": "",
+                "post_history_instructions": "",
+                "alternate_greetings": [],
+                "tags": [],
+                "creator": "test",
+                "character_version": "main",
+                "extensions": {},
+                "character_book": null
+              }
+            }
+        """.trimIndent()
+
+        val parsed = mapper.parseCharacter(json)
+        assertEquals("Fuka", parsed.character.name)
+        assertEquals(null, parsed.embeddedLorebook)
+    }
+
     private companion object {
         val OnePixelPng = byteArrayOf(
             0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
