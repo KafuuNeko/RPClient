@@ -19,7 +19,6 @@
     <string name="recent_chats">Recent Chats</string>
     <string name="manage_characters">Manage</string>
     <string name="message_count">%d messages</string>
-    <string name="branch_count">%d branches</string>
     <string name="session_group_count">%d sessions</string>
     <string name="expand_session_group">Expand sessions</string>
     <string name="collapse_session_group">Collapse sessions</string>
@@ -150,7 +149,6 @@
     <string name="session_world_book">Session World Book</string>
     <string name="generation_params">Generation params</string>
     <string name="messages_count">%d messages</string>
-    <string name="branches_count">%d branches</string>
     <string name="world_books_enabled">World book entries enabled: %d</string>
     <string name="enabled_entries_count">%1$d/%2$d enabled</string>
     <string name="session_world_books">Session World Books</string>

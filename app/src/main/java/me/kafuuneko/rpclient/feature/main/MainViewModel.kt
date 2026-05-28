@@ -328,7 +328,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             title = title,
             preview = latestMessage?.content?.stripThinkBlocks()?.takeIf { it.isNotBlank() } ?: mContext.getString(R.string.no_messages_yet),
             messageCount = mChatRepository.getMessageCountBySessionId(id),
-            branchCount = 0,
             updatedAt = latestTime.formatTimestamp("MM-dd HH:mm")
         )
     }

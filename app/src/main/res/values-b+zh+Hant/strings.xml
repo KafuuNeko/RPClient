@@ -17,7 +17,6 @@
     <string name="recent_chats">最近聊天</string>
     <string name="manage_characters">管理</string>
     <string name="message_count">%d 則訊息</string>
-    <string name="branch_count">%d 個分支</string>
     <string name="session_group_count">%d 個會話</string>
     <string name="expand_session_group">展開會話</string>
     <string name="collapse_session_group">折疊會話</string>
@@ -148,7 +147,6 @@
     <string name="session_world_book">會話世界書</string>
     <string name="generation_params">生成參數</string>
     <string name="messages_count">%d 則訊息</string>
-    <string name="branches_count">%d 個分支</string>
     <string name="world_books_enabled">已啟用世界書條目：%d</string>
     <string name="enabled_entries_count">已啟用 %1$d/%2$d</string>
     <string name="session_world_books">會話世界書</string>

@@ -502,7 +502,6 @@ private fun SessionCard(
                     items = listOf(
                         session.characterName,
                         stringResource(R.string.message_count, session.messageCount),
-                        stringResource(R.string.branch_count, session.branchCount),
                         session.updatedAt
                     )
                 )

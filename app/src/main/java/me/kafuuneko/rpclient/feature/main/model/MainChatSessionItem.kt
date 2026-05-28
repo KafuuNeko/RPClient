@@ -7,6 +7,5 @@ data class MainChatSessionItem(
     val title: String,
     val preview: String,
     val messageCount: Int,
-    val branchCount: Int,
     val updatedAt: String
 )
