@@ -60,4 +60,8 @@ sealed class ChatUiIntent {
     data object CancelEditingMessage : ChatUiIntent()
 
     data class ToggleThinkBlock(val blockId: String) : ChatUiIntent()
+
+    data class DeleteMessageClick(val messageId: String) : ChatUiIntent()
+
+    data class ConfirmDeleteMessage(val messageId: String) : ChatUiIntent()
 }

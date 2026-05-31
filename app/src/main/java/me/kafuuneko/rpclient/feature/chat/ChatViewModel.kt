@@ -348,6 +348,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ChatUiState.Finished.setup()
     }
 
+    @UiIntentObserver(ChatUiIntent.DeleteMessageClick::class)
+    private fun onDeleteMessageClick(intent: ChatUiIntent.DeleteMessageClick) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
+            return
+        }
+        uiState.copy(
+            dialogState = ChatDialogState.DeleteMessageConfirm(intent.messageId)
+        ).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ConfirmDeleteMessage::class)
+    private suspend fun onConfirmDeleteMessage(intent: ChatUiIntent.ConfirmDeleteMessage) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        if (mGenerationJob?.isActive == true) {
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
+            uiState.copy(dialogState = ChatDialogState.None).setup()
+            return
+        }
+        uiState.copy(dialogState = ChatDialogState.None).setup()
+        val messageId = intent.messageId.toLongOrNull() ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.deleteMessage(messageId)
+        }
+        AppViewEvent.PopupToastMessageByResId(R.string.message_deleted).tryEmit()
+        refreshUiState(sessionId = sessionId)
+    }
+
     @UiIntentObserver(ChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return

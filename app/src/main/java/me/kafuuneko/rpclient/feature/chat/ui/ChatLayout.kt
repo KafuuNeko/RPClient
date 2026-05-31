@@ -828,6 +828,12 @@ private fun MessageActions(
                 tint = iconColor
             )
         }
+        Icon(
+            Icons.Rounded.Delete,
+            contentDescription = stringResource(R.string.delete),
+            modifier = actionModifier { ChatUiIntent.DeleteMessageClick(message.id).emit() },
+            tint = iconColor
+        )
     }
 }
 
@@ -1085,6 +1091,21 @@ private fun DialogSwitch(
             text = { Text(stringResource(R.string.delete_chat_message, dialogState.sessionTitle)) },
             confirmButton = {
                 TextButton(onClick = { ChatUiIntent.ConfirmDeleteSession.emit() }) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { ChatUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+        is ChatDialogState.DeleteMessageConfirm -> AlertDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.delete_message_title)) },
+            text = { Text(stringResource(R.string.delete_message_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() }) {
                     Text(stringResource(R.string.delete))
                 }
             },

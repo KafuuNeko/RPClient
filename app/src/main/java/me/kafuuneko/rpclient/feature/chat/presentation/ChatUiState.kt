@@ -47,4 +47,8 @@ sealed class ChatDialogState {
     data class DeleteSessionConfirm(
         val sessionTitle: String
     ) : ChatDialogState()
+
+    data class DeleteMessageConfirm(
+        val messageId: String
+    ) : ChatDialogState()
 }

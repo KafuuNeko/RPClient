@@ -415,4 +415,8 @@
     <string name="prompt_post_processing_single_user_desc">把所有 role 展平成一条 user 消息，以获得最高兼容性。</string>
     <string name="prompt_include_think_context_title">上下文包含 think 块</string>
     <string name="prompt_include_think_context_desc">关闭后，后续 prompt 会剥离已保存消息中的 &lt;think&gt;...&lt;/think&gt; 内容。</string>
+    <string name="delete_message_title">删除消息</string>
+    <string name="delete_message_confirm">确定要删除这条消息吗？此操作无法撤销。</string>
+    <string name="stop_generation_before_deleting_message">请在删除消息前停止生成</string>
+    <string name="message_deleted">消息已删除</string>
 </resources>
