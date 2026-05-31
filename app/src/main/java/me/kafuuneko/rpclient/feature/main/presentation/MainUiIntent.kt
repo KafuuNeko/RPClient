@@ -50,4 +50,16 @@ sealed class MainUiIntent {
     data object OpenRequestLogs : MainUiIntent()
 
     data object OpenAbout : MainUiIntent()
+
+    data class EnterMultiSelect(val sessionId: String) : MainUiIntent()
+
+    data class ToggleSessionSelection(val sessionId: String) : MainUiIntent()
+
+    data object ExitMultiSelect : MainUiIntent()
+
+    data object ShowDeleteSelectedDialog : MainUiIntent()
+
+    data object ConfirmDeleteSelected : MainUiIntent()
+
+    data object DismissDialog : MainUiIntent()
 }

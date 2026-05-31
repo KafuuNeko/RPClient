@@ -10,10 +10,18 @@ sealed class MainUiState {
     data class Normal(
         val selectedPage: MainPage = MainPage.Home,
         val homeState: MainHomeState,
-        val settingsState: MainSettingsState
+        val settingsState: MainSettingsState,
+        val dialogState: MainDialogState = MainDialogState.None
     ) : MainUiState()
 
     data object Finished : MainUiState()
+}
+
+sealed class MainDialogState {
+    data object None : MainDialogState()
+    data class DeleteSelectedSessions(
+        val count: Int
+    ) : MainDialogState()
 }
 
 enum class MainPage {
@@ -24,7 +32,9 @@ enum class MainPage {
 data class MainHomeState(
     val recentSessions: List<MainChatSessionItem>,
     val totalCharacters: Int,
-    val totalWorldBooks: Int
+    val totalWorldBooks: Int,
+    val multiSelectMode: Boolean = false,
+    val selectedSessionIds: Set<String> = emptySet()
 )
 
 data class MainSettingsState(

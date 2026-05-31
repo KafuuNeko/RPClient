@@ -416,6 +416,9 @@
     <string name="prompt_post_processing_single_user_desc">Flatten every role into one user message for maximum compatibility.</string>
     <string name="prompt_include_think_context_title">Include think blocks in context</string>
     <string name="prompt_include_think_context_desc">When disabled, saved &lt;think&gt;...&lt;/think&gt; blocks are stripped from future prompts.</string>
+    <string name="selected_count">%d selected</string>
+    <string name="delete_selected_sessions_title">Delete selected sessions</string>
+    <string name="delete_selected_sessions_message">Delete %d selected sessions and all their messages? This cannot be undone.</string>
     <string name="delete_message_title">Delete message</string>
     <string name="delete_message_confirm">Are you sure you want to delete this message? This cannot be undone.</string>
     <string name="stop_generation_before_deleting_message">Please stop generation before deleting messages</string>

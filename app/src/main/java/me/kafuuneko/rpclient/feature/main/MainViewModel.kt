@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
@@ -89,11 +90,90 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.homeState.multiSelectMode) {
+            uiState.copy(
+                homeState = uiState.homeState.copy(
+                    multiSelectMode = false,
+                    selectedSessionIds = emptySet()
+                )
+            ).setup()
+            return
+        }
         if (uiState.selectedPage != MainPage.Home) {
             uiState.copy(selectedPage = MainPage.Home).setup()
             return
         }
         MainUiState.Finished.setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.EnterMultiSelect::class)
+    private fun onEnterMultiSelect(intent: MainUiIntent.EnterMultiSelect) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.homeState.multiSelectMode) return
+        uiState.copy(
+            homeState = uiState.homeState.copy(
+                multiSelectMode = true,
+                selectedSessionIds = setOf(intent.sessionId)
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ToggleSessionSelection::class)
+    private fun onToggleSessionSelection(intent: MainUiIntent.ToggleSessionSelection) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (!uiState.homeState.multiSelectMode) return
+        val current = uiState.homeState.selectedSessionIds
+        val updated = if (intent.sessionId in current) {
+            current - intent.sessionId
+        } else {
+            current + intent.sessionId
+        }
+        uiState.copy(
+            homeState = uiState.homeState.copy(selectedSessionIds = updated)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ExitMultiSelect::class)
+    private fun onExitMultiSelect() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        uiState.copy(
+            homeState = uiState.homeState.copy(
+                multiSelectMode = false,
+                selectedSessionIds = emptySet()
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ShowDeleteSelectedDialog::class)
+    private fun onShowDeleteSelectedDialog() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val count = uiState.homeState.selectedSessionIds.size
+        if (count == 0) return
+        uiState.copy(
+            dialogState = MainDialogState.DeleteSelectedSessions(count = count)
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ConfirmDeleteSelected::class)
+    private suspend fun onConfirmDeleteSelected() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? MainDialogState.DeleteSelectedSessions ?: return
+        val ids = uiState.homeState.selectedSessionIds
+        withContext(Dispatchers.IO) {
+            ids.forEach { id ->
+                id.toLongOrNull()?.let { mChatRepository.deleteSession(it) }
+            }
+        }
+        uiState.copy(
+            dialogState = MainDialogState.None,
+            homeState = buildHomeState()
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        uiState.copy(dialogState = MainDialogState.None).setup()
     }
 
     @UiIntentObserver(MainUiIntent.SelectPage::class)

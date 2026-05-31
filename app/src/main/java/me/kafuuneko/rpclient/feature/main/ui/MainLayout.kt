@@ -1,9 +1,12 @@
 package me.kafuuneko.rpclient.feature.main.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,8 +36,10 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DataObject
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
@@ -44,8 +49,10 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,12 +63,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,6 +81,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
@@ -117,16 +129,29 @@ private fun MainNormal(
                 MainPage.Settings -> SettingsPage(uiState.settingsState, emit)
             }
 
-            MainBottomBar(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .navigationBarsPadding(),
-                selectedPage = uiState.selectedPage,
-                emit = emit
-            )
+            if (uiState.homeState.multiSelectMode && uiState.selectedPage == MainPage.Home) {
+                MultiSelectBottomBar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .navigationBarsPadding(),
+                    selectedCount = uiState.homeState.selectedSessionIds.size,
+                    emit = emit
+                )
+            } else {
+                MainBottomBar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .navigationBarsPadding(),
+                    selectedPage = uiState.selectedPage,
+                    emit = emit
+                )
+            }
         }
     }
+
+    DialogSwitch(uiState.dialogState, emit)
 }
 
 @Composable
@@ -171,17 +196,88 @@ private fun MainBottomBar(
 }
 
 @Composable
+private fun MultiSelectBottomBar(
+    modifier: Modifier = Modifier,
+    selectedCount: Int,
+    emit: MainUiIntent.() -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MainBottomBarItem(
+                selected = false,
+                onClick = { MainUiIntent.ExitMultiSelect.emit() },
+                icon = Icons.Rounded.Close,
+                label = stringResource(R.string.cancel),
+                modifier = Modifier.weight(1f)
+            )
+            MainBottomBarItem(
+                selected = false,
+                onClick = { MainUiIntent.ShowDeleteSelectedDialog.emit() },
+                icon = Icons.Rounded.Delete,
+                label = stringResource(R.string.delete),
+                modifier = Modifier.weight(1f),
+                enabled = selectedCount > 0
+            )
+        }
+    }
+}
+
+@Composable
+private fun DialogSwitch(
+    dialogState: MainDialogState,
+    emit: MainUiIntent.() -> Unit
+) {
+    when (dialogState) {
+        is MainDialogState.None -> Unit
+        is MainDialogState.DeleteSelectedSessions -> AlertDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.delete_selected_sessions_title)) },
+            text = { Text(stringResource(R.string.delete_selected_sessions_message, dialogState.count)) },
+            confirmButton = {
+                TextButton(onClick = { MainUiIntent.ConfirmDeleteSelected.emit() }) {
+                    Text(
+                        stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { MainUiIntent.DismissDialog.emit() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
 private fun MainBottomBarItem(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     
     val containerColor = if (selected) {
@@ -194,6 +290,7 @@ private fun MainBottomBarItem(
         modifier = modifier
             .clickable(
                 onClick = onClick,
+                enabled = enabled,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                 indication = null
             )
@@ -305,42 +402,57 @@ private fun HomePage(
         contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.statusBarsPadding())
-        }
-        item {
-            HeroEntryCard(
-                title = stringResource(R.string.new_session),
-                subtitle = stringResource(R.string.new_session_desc),
-                onClick = { MainUiIntent.OpenCreateChat.emit() }
-            )
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                HomeEntryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.Person,
-                    title = stringResource(R.string.character),
-                    subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
-                    onClick = { MainUiIntent.OpenCharacterManager.emit() }
+        if (state.multiSelectMode) {
+            item {
+                Spacer(modifier = Modifier.statusBarsPadding())
+            }
+            item {
+                Text(
+                    text = stringResource(R.string.selected_count, state.selectedSessionIds.size),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                 )
-                HomeEntryCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.Book,
-                    title = stringResource(R.string.world_book),
-                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
-                    onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+            }
+        } else {
+            item {
+                Spacer(modifier = Modifier.statusBarsPadding())
+            }
+            item {
+                HeroEntryCard(
+                    title = stringResource(R.string.new_session),
+                    subtitle = stringResource(R.string.new_session_desc),
+                    onClick = { MainUiIntent.OpenCreateChat.emit() }
                 )
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    HomeEntryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.Person,
+                        title = stringResource(R.string.character),
+                        subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
+                        onClick = { MainUiIntent.OpenCharacterManager.emit() }
+                    )
+                    HomeEntryCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Rounded.Book,
+                        title = stringResource(R.string.world_book),
+                        subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
+                        onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+                    )
+                }
             }
         }
         item {
             RpSectionHeader(
                 title = stringResource(R.string.recent_chats),
-                action = stringResource(R.string.new_session)
-            ) { MainUiIntent.OpenCreateChat.emit() }
+                action = if (state.multiSelectMode) "" else stringResource(R.string.new_session)
+            ) { if (!state.multiSelectMode) MainUiIntent.OpenCreateChat.emit() }
         }
         if (state.recentSessions.isEmpty()) {
             item {
@@ -378,7 +490,20 @@ private fun HomePage(
                     SessionCard(
                         modifier = Modifier.animateItem(),
                         session = session,
-                        onClick = { MainUiIntent.OpenChat(session.id).emit() }
+                        multiSelectMode = state.multiSelectMode,
+                        selected = session.id in state.selectedSessionIds,
+                        onClick = {
+                            if (state.multiSelectMode) {
+                                MainUiIntent.ToggleSessionSelection(session.id).emit()
+                            } else {
+                                MainUiIntent.OpenChat(session.id).emit()
+                            }
+                        },
+                        onLongClick = {
+                            if (!state.multiSelectMode) {
+                                MainUiIntent.EnterMultiSelect(session.id).emit()
+                            }
+                        }
                     )
                 }
             }
@@ -442,21 +567,49 @@ private fun SessionCharacterHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionCard(
     modifier: Modifier = Modifier,
     session: MainChatSessionItem,
-    onClick: () -> Unit
+    multiSelectMode: Boolean = false,
+    selected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        },
+        label = "sessionCardBorder"
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        label = "sessionCardContainer"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                }
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(
-            1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            if (selected) 2.dp else 1.dp,
+            borderColor
         )
     ) {
         Row(
@@ -483,14 +636,14 @@ private fun SessionCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = session.title,
-                            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = session.preview,
-                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(
                                 alpha = 0.62f
                             ),
                             maxLines = 2,
@@ -504,6 +657,13 @@ private fun SessionCard(
                         stringResource(R.string.message_count, session.messageCount),
                         session.updatedAt
                     )
+                )
+            }
+            if (multiSelectMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.padding(end = 8.dp)
                 )
             }
         }
