@@ -125,7 +125,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val input = uiState.inputDraft.trim()
             .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
-        if (input.isBlank()) return
+        if (input.isBlank()) {
+            continueLastAssistantMessage(sessionId)
+            return
+        }
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
@@ -500,14 +503,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
-        val latestAssistantMessage = withContext(Dispatchers.IO) {
-            val messages = mChatRepository.getMessagesBySessionId(sessionId)
-            messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
+        val latestMessage = withContext(Dispatchers.IO) {
+            mChatRepository.getMessagesBySessionId(sessionId).lastOrNull()
         }
-        if (latestAssistantMessage == null) {
+        if (latestMessage == null || (latestMessage.source != ChatMessage.Source.User && latestMessage.source != ChatMessage.Source.Char)) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_continue).tryEmit()
             return
         }
+        val isLastUser = latestMessage.source == ChatMessage.Source.User
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 refreshUiState(
@@ -517,8 +520,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.expandedThinkBlockIds
                 )
+                val generationMode = if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
                 val request = withContext(Dispatchers.IO) {
-                    buildGenerationRequest(sessionId, PromptGenerationMode.Continue)
+                    buildGenerationRequest(sessionId, generationMode)
                 }
                 if (AppModel.streamEnabled) {
                     generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
@@ -528,8 +532,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 if (throwable is CancellationException) return@onFailure
-                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(R.string.continue_generation_failed)).tryEmit()
-                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(R.string.continue_generation_failed)))
+                val errorResId = if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
+                AppViewEvent.PopupToastMessage(throwable.message ?: mContext.getString(errorResId)).tryEmit()
+                refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(throwable.message ?: mContext.getString(errorResId)))
             }
         }
     }
@@ -605,31 +610,42 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             sessionId = sessionId,
             generationState = ChatGenerationState.Streaming(mStreamingMessageId, mStreamingContent)
         )
-        mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
-            currentCoroutineContext().ensureActive()
-            when (event) {
-                is LLMStreamEvent.Delta -> {
-                    mStreamingContent += event.content
-                    val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
-                    uiState.copy(
-                        generationState = ChatGenerationState.Streaming(mStreamingMessageId, mStreamingContent),
-                        messages = uiState.messages.replaceStreamingMessage(mStreamingMessageId, mStreamingContent)
-                    ).setup()
+        try {
+            mLLMRepository.streamGenerateWithSelectedProvider(request).collect { event ->
+                currentCoroutineContext().ensureActive()
+                when (event) {
+                    is LLMStreamEvent.Delta -> {
+                        mStreamingContent += event.content
+                        val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
+                        uiState.copy(
+                            generationState = ChatGenerationState.Streaming(mStreamingMessageId, mStreamingContent),
+                            messages = uiState.messages.replaceStreamingMessage(mStreamingMessageId, mStreamingContent)
+                        ).setup()
+                    }
+                    is LLMStreamEvent.Finished -> Unit
                 }
-                is LLMStreamEvent.Finished -> Unit
             }
-        }
-        val finalContent = mStreamingContent
-        val messageId = mStreamingMessageId
-        withContext(Dispatchers.IO) {
-            if (messageId != null) {
-                mChatRepository.updateMessageContent(messageId, finalContent)
-                mChatRepository.updateSessionLatestTime(sessionId)
+            val finalContent = mStreamingContent
+            val messageId = mStreamingMessageId
+            withContext(Dispatchers.IO) {
+                if (messageId != null) {
+                    mChatRepository.updateMessageContent(messageId, finalContent)
+                    mChatRepository.updateSessionLatestTime(sessionId)
+                }
             }
+        } catch (e: Exception) {
+            val messageId = mStreamingMessageId
+            if (messageId != null && mStreamingCreatedMessage) {
+                withContext(Dispatchers.IO) {
+                    mChatRepository.deleteMessage(messageId)
+                }
+            }
+            throw e
+        } finally {
+            mStreamingMessageId = null
+            mStreamingContent = ""
+            mStreamingCreatedMessage = false
         }
-        mStreamingMessageId = null
-        mStreamingContent = ""
-        mStreamingCreatedMessage = false
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 

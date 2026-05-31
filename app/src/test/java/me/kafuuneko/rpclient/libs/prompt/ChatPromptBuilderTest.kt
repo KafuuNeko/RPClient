@@ -173,6 +173,47 @@ class ChatPromptBuilderTest {
         assertEquals(false, request.messages.any { it.content == "Should stay out" })
     }
 
+    @Test
+    fun impersonateModeSwapsMainPromptMacrosAndPlacesImpersonateNudgeAsUserRole() {
+        val request = builder.build(
+            context(
+                character = Character(
+                    id = 1L,
+                    name = "Fuka",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    creatorNotes = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                    systemPrompt = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}."
+                ),
+                generationMode = PromptGenerationMode.Impersonate
+            )
+        )
+
+        val mainPromptMessage = request.messages.first { it.role == LLMMessageRole.System && it.content.startsWith("Write") }
+        assertEquals("Write User's next reply in a fictional chat between User and Fuka.", mainPromptMessage.content)
+
+        val nudgeMessage = request.messages.first { it.content.contains("point of view of User") }
+        assertEquals(LLMMessageRole.User, nudgeMessage.role)
+    }
+
+    @Test
+    fun continueModePlacesContinueNudgeAsUserRole() {
+        val request = builder.build(
+            context(
+                generationMode = PromptGenerationMode.Continue
+            )
+        )
+
+        val nudgeMessage = request.messages.first { it.content.contains("Continue your last message") }
+        assertEquals(LLMMessageRole.User, nudgeMessage.role)
+    }
+
     private fun context(
         character: Character = Character(
             id = 1L,
@@ -189,7 +230,8 @@ class ChatPromptBuilderTest {
         ),
         session: ChatSession = session(),
         messages: List<ChatMessage> = emptyList(),
-        entries: List<LorebookEntry> = emptyList()
+        entries: List<LorebookEntry> = emptyList(),
+        generationMode: PromptGenerationMode = PromptGenerationMode.Normal
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -201,7 +243,8 @@ class ChatPromptBuilderTest {
             candidateLorebookEntries = entries,
             provider = null,
             maxContextTokens = 4096,
-            maxResponseTokens = 512
+            maxResponseTokens = 512,
+            generationMode = generationMode
         )
     }
 

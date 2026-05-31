@@ -104,7 +104,15 @@ class ChatPromptBuilder(
                 PromptGenerationMode.Impersonate -> readImpersonationPrompt()
             }
             if (modePrompt.isNotBlank()) {
-                add(PromptPiece(LLMMessageRole.System, modePrompt, PromptPieceImportance.Required))
+                val role = if (
+                    context.generationMode == PromptGenerationMode.Continue ||
+                    context.generationMode == PromptGenerationMode.Impersonate
+                    ) {
+                    LLMMessageRole.User
+                } else {
+                    LLMMessageRole.System
+                }
+                add(PromptPiece(role, modePrompt, PromptPieceImportance.Required))
             }
         }
 
@@ -413,15 +421,38 @@ class ChatPromptBuilder(
     private fun readCharacterMainPrompt(context: PromptBuildContext): String {
         val original = readMainPrompt()
         val override = context.character.systemPrompt.trim()
-        if (override.isBlank()) return original
-        return mMacroResolver.resolve(override, context, original = original)
+        val systemPrompt = override.ifBlank { original }
+        val processed = if (context.generationMode == PromptGenerationMode.Impersonate) {
+            systemPrompt.swapCharAndUser()
+        } else {
+            systemPrompt
+        }
+        return mMacroResolver.resolve(processed, context, original = original)
     }
 
     private fun readCharacterPostHistoryInstructions(context: PromptBuildContext): String {
         val original = readPostHistoryInstructions()
         val override = context.character.postHistoryInstructions.trim()
-        if (override.isBlank()) return original
-        return mMacroResolver.resolve(override, context, original = original)
+        val instructions = override.ifBlank { original }
+        val processed = if (context.generationMode == PromptGenerationMode.Impersonate) {
+            instructions.swapCharAndUser()
+        } else {
+            instructions
+        }
+        return mMacroResolver.resolve(processed, context, original = original)
+    }
+
+    private fun String.swapCharAndUser(): String {
+        return this
+            .replace("{{char}}", "__USER_TEMP__", ignoreCase = true)
+            .replace("{{user}}", "__CHAR_TEMP__", ignoreCase = true)
+            .replace("__USER_TEMP__", "{{user}}")
+            .replace("__CHAR_TEMP__", "{{char}}")
+            .replace("<CHAR>", "__USER_TEMP__", ignoreCase = true)
+            .replace("<BOT>", "__USER_TEMP__", ignoreCase = true)
+            .replace("<USER>", "__CHAR_TEMP__", ignoreCase = true)
+            .replace("__USER_TEMP__", "<USER>")
+            .replace("__CHAR_TEMP__", "<CHAR>")
     }
 
     private data class PromptSections(
