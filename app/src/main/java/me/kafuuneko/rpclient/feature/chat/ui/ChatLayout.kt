@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -188,13 +189,14 @@ private fun ChatNormal(
             item {
                 ConversationStartHeader(state = state)
             }
-            items(state.messages) { message ->
+            itemsIndexed(state.messages) { index, message ->
                 MessageBubble(
                     message = message,
                     character = state.character,
                     expandedThinkBlockIds = state.expandedThinkBlockIds,
                     editing = message.id == state.editingMessageId,
                     editingDraft = state.editingMessageDraft,
+                    isFirstMessage = index == 0,
                     emit = emit
                 )
             }
@@ -562,6 +564,7 @@ private fun MessageBubble(
     expandedThinkBlockIds: Set<String>,
     editing: Boolean,
     editingDraft: String,
+    isFirstMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
@@ -670,7 +673,7 @@ private fun MessageBubble(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            MessageActions(message, emit)
+                            MessageActions(message, isFirstMessage, emit)
                         }
                     }
                 }
@@ -784,6 +787,7 @@ private fun ThinkBlock(
 @Composable
 private fun MessageActions(
     message: ChatMessageUiModel,
+    isFirstMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -814,26 +818,28 @@ private fun MessageActions(
             modifier = actionModifier { ChatUiIntent.StartEditMessage(message.id).emit() },
             tint = iconColor
         )
-        Icon(
-            Icons.Rounded.Tune,
-            contentDescription = stringResource(R.string.branch_from_message),
-            modifier = actionModifier { ChatUiIntent.BranchFromMessage(message.id).emit() },
-            tint = iconColor
-        )
-        if (message.role == MessageRole.Assistant) {
+        if (!isFirstMessage) {
             Icon(
-                Icons.Rounded.Refresh,
-                contentDescription = stringResource(R.string.regenerate),
-                modifier = actionModifier { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                Icons.Rounded.Tune,
+                contentDescription = stringResource(R.string.branch_from_message),
+                modifier = actionModifier { ChatUiIntent.BranchFromMessage(message.id).emit() },
+                tint = iconColor
+            )
+            if (message.role == MessageRole.Assistant) {
+                Icon(
+                    Icons.Rounded.Refresh,
+                    contentDescription = stringResource(R.string.regenerate),
+                    modifier = actionModifier { ChatUiIntent.RegenerateFromMessage(message.id).emit() },
+                    tint = iconColor
+                )
+            }
+            Icon(
+                Icons.Rounded.Delete,
+                contentDescription = stringResource(R.string.delete),
+                modifier = actionModifier { ChatUiIntent.DeleteMessageClick(message.id).emit() },
                 tint = iconColor
             )
         }
-        Icon(
-            Icons.Rounded.Delete,
-            contentDescription = stringResource(R.string.delete),
-            modifier = actionModifier { ChatUiIntent.DeleteMessageClick(message.id).emit() },
-            tint = iconColor
-        )
     }
 }
 
