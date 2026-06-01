@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,8 +57,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -70,6 +69,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -115,7 +115,7 @@ private fun MainNormal(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background),
         contentWindowInsets = WindowInsets(0.dp)
     ) { paddingValues ->
         Box(
@@ -283,7 +283,7 @@ private fun MainBottomBarItem(
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
     } else {
-        androidx.compose.ui.graphics.Color.Transparent
+        Color.Transparent
     }
 
     Box(
@@ -291,7 +291,7 @@ private fun MainBottomBarItem(
             .clickable(
                 onClick = onClick,
                 enabled = enabled,
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                interactionSource = remember { MutableInteractionSource() },
                 indication = null
             )
             .padding(vertical = 4.dp),
@@ -427,25 +427,22 @@ private fun HomePage(
                 )
             }
             item {
-                Row(
+                HomeEntryCard(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    HomeEntryCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Rounded.Person,
-                        title = stringResource(R.string.character),
-                        subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
-                        onClick = { MainUiIntent.OpenCharacterManager.emit() }
-                    )
-                    HomeEntryCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Rounded.Book,
-                        title = stringResource(R.string.world_book),
-                        subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
-                        onClick = { MainUiIntent.OpenWorldBookManager.emit() }
-                    )
-                }
+                    icon = Icons.Rounded.Person,
+                    title = stringResource(R.string.character),
+                    subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
+                    onClick = { MainUiIntent.OpenCharacterManager.emit() }
+                )
+            }
+            item {
+                HomeEntryCard(
+                    modifier = Modifier.fillMaxWidth(1f),
+                    icon = Icons.Rounded.Book,
+                    title = stringResource(R.string.world_book),
+                    subtitle = stringResource(R.string.lorebook_count, state.totalWorldBooks),
+                    onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+                )
             }
         }
         item {
@@ -545,15 +542,15 @@ private fun SessionCharacterHeader(
         Text(
             text = characterName,
             modifier = Modifier.weight(1f),
-            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
             text = stringResource(R.string.session_group_count, sessionCount),
-            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha = 0.58f)
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.58f)
         )
         Spacer(modifier = Modifier.width(6.dp))
         Icon(
@@ -562,7 +559,7 @@ private fun SessionCharacterHeader(
                 if (expanded) R.string.collapse_session_group else R.string.expand_session_group
             ),
             modifier = Modifier.size(24.dp),
-            tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
         )
     }
 }
@@ -728,9 +725,9 @@ private fun UserIdentityPanel(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -774,7 +771,7 @@ private fun PromptBehaviorPanel(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -890,7 +887,7 @@ private fun ProviderCard(
             width = if (selected) 2.dp else 1.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -901,16 +898,16 @@ private fun ProviderCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     provider.name,
-                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall
                 )
                 Text(
                     provider.model,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall
                 )
                 Text(
                     provider.baseUrl,
-                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = 0.48f
                     ),
                     maxLines = 1,
@@ -953,9 +950,9 @@ private fun ParameterPanel(state: MainSettingsState) {
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -982,7 +979,7 @@ private fun ParameterRow(label: String, value: String) {
         Text(
             label,
             modifier = Modifier.weight(1f),
-            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium
         )
         FilterChip(selected = true, onClick = {}, label = { Text(value) })
     }
@@ -1009,9 +1006,9 @@ private fun SummaryPanel(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1071,14 +1068,14 @@ private fun NumberSettingRow(
         ) {
             Text(
                 title,
-                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (!helper.isNullOrBlank()) {
                 Text(
                     helper,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
                 )
             }
         }
@@ -1088,7 +1085,7 @@ private fun NumberSettingRow(
             singleLine = true,
             modifier = Modifier.width(100.dp),
             shape = RoundedCornerShape(12.dp),
-            textStyle = androidx.compose.material3.MaterialTheme.typography.bodyMedium.copy(
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         )
@@ -1104,9 +1101,9 @@ private fun PrivacyPanel(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1143,9 +1140,9 @@ private fun DebugPanel(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1184,9 +1181,9 @@ private fun AboutEntryCard(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             1.dp,
-            androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
         ),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -1197,18 +1194,18 @@ private fun AboutEntryCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.about),
-                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall
                 )
                 Text(
                     text = stringResource(R.string.about_desc),
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
             )
         }
     }
@@ -1226,11 +1223,11 @@ private fun SettingSwitchRow(
         RpIconBubble(icon)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+            Text(title, style = MaterialTheme.typography.titleSmall)
             Text(
                 subtitle,
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
@@ -1259,7 +1256,7 @@ private fun PromptPostProcessingMode.descriptionRes(): Int {
 
 private object MaterialThemeLike {
     @Composable
-    fun background() = androidx.compose.material3.MaterialTheme.colorScheme.background
+    fun background() = MaterialTheme.colorScheme.background
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
@@ -526,6 +527,7 @@ private fun FormTextField(
     value: String,
     modifier: Modifier = Modifier,
     minLines: Int = 1,
+    singleLine: Boolean = minLines == 1,
     keyboardType: KeyboardType = KeyboardType.Text,
     onChange: (String) -> Unit
 ) {
@@ -533,8 +535,9 @@ private fun FormTextField(
         modifier = modifier.fillMaxWidth(),
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         minLines = minLines,
+        singleLine = singleLine,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(12.dp)
     )
@@ -552,8 +555,9 @@ private fun ListTextField(
             modifier = Modifier.weight(1f),
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label) },
+            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Rounded.Tag, contentDescription = null) },
+            singleLine = true,
             shape = RoundedCornerShape(12.dp)
         )
         IconButton(onClick = onDelete) {

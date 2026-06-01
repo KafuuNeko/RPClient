@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -340,84 +342,82 @@ private fun EditPromptDialog(
     }
 
     val titleRes = dialogState.type.titleRes()
+    val descRes = dialogState.type.descriptionRes()
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            usePlatformDefaultWidth = true,
+            decorFitsSystemWindows = true
         )
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-            color = MaterialTheme.colorScheme.background
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 顶部栏
-                Surface(
-                    color = MaterialTheme.colorScheme.background,
-                    shadowElevation = 0.dp
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 头部标题与图标
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        modifier = Modifier.size(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = stringResource(titleRes),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Button(
-                            onClick = { onSave(textFieldValue.text) },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Rounded.Check,
+                                imageVector = dialogState.type.icon(),
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.save))
                         }
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(titleRes),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
 
+                // 描述文本
+                Text(
+                    text = stringResource(descRes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
                 // 编辑区
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 18.dp, vertical = 12.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = stringResource(R.string.prompt_editor_label),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .fillMaxWidth()
+                            .heightIn(min = 160.dp, max = 280.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                             .border(
                                 width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                                shape = RoundedCornerShape(12.dp)
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(16.dp)
                             )
                             .padding(14.dp)
                     ) {
@@ -437,6 +437,35 @@ private fun EditPromptDialog(
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                         )
+                    }
+                }
+
+                // 底部操作按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(40.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = { onSave(textFieldValue.text) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.height(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.save))
                     }
                 }
             }
