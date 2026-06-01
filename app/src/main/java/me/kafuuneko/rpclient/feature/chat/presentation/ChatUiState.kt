@@ -44,6 +44,8 @@ sealed class ChatLoadState {
 sealed class ChatDialogState {
     data object None : ChatDialogState()
 
+    data object Summarizing : ChatDialogState()
+
     data class DeleteSessionConfirm(
         val sessionTitle: String
     ) : ChatDialogState()

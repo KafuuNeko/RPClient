@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -61,6 +62,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private var mSessionId: Long? = null
     private var mGenerationJob: Job? = null
+    private var mSummaryJob: Job? = null
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
     private var mStreamingCreatedMessage: Boolean = false
@@ -305,15 +307,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(loadState = ChatLoadState.Saving).setup()
-        summarizeSession(sessionId, showToast = true)
-        refreshUiState(
-            sessionId = sessionId,
-            inputDraft = uiState.inputDraft,
-            isExpanded = uiState.isSessionLoreExpanded,
-            expandedThinkBlockIds = uiState.expandedThinkBlockIds
-        )
+        launchSummaryJob(sessionId, showToast = true)
+    }
+
+    @UiIntentObserver(ChatUiIntent.CancelSummary::class)
+    private fun onCancelSummary() {
+        mSummaryJob?.cancel()
     }
 
     @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
@@ -679,9 +678,41 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
+    private fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
+        mSummaryJob?.cancel()
+        val job = viewModelScope.launch {
+            try {
+                summarizeSession(sessionId, showToast)
+            } finally {
+                withContext(NonCancellable) {
+                    val currentState = getOrNull<ChatUiState.Normal>()
+                    if (currentState != null && currentState.dialogState is ChatDialogState.Summarizing) {
+                        refreshUiState(
+                            sessionId = sessionId,
+                            inputDraft = currentState.inputDraft,
+                            isExpanded = currentState.isSessionLoreExpanded,
+                            expandedThinkBlockIds = currentState.expandedThinkBlockIds,
+                            dialogState = ChatDialogState.None
+                        )
+                    }
+                }
+            }
+        }
+        mSummaryJob = job
+        return job
+    }
+
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
-        summarizeSession(sessionId, showToast = false)
+        val shouldSummarize = withContext(Dispatchers.IO) {
+            val session = mChatRepository.getSessionById(sessionId) ?: return@withContext false
+            val messages = mChatRepository.getUnsummarizedMessagesBySessionId(sessionId)
+            messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
+        }
+        if (shouldSummarize) {
+            val job = launchSummaryJob(sessionId, showToast = false)
+            job.join()
+        }
     }
 
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
@@ -698,6 +729,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 return
             }
             if (!showToast && data.messages.size < AppModel.summaryTriggerMessageCount) return
+
+            val uiState = getOrNull<ChatUiState.Normal>() ?: return
+            uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
+
             val request = mSummaryPromptBuilder.build(
                 userName = AppModel.userName,
                 userDescription = AppModel.userDescription,
@@ -709,9 +744,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // SummaryPromptBuilder 会按上下文预算选择真正提交的消息，只标记这部分为已总结。
             val summarizedIds = mSummaryPromptBuilder.selectSummarizedMessageIds(data.messages, data.provider)
             if (summarizedIds.isEmpty()) return
+
+            currentCoroutineContext().ensureActive()
+
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithSelectedProvider(request)
             }
+
+            currentCoroutineContext().ensureActive()
+
             withContext(Dispatchers.IO) {
                 mChatRepository.saveSessionSummarize(
                     sessionId = sessionId,
@@ -721,6 +762,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure {
+            if (it is CancellationException) {
+                throw it
+            }
             AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.summary_failed)).tryEmit()
         }
     }

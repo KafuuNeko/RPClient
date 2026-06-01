@@ -35,6 +35,8 @@ sealed class ChatUiIntent {
 
     data object SummarizeNow : ChatUiIntent()
 
+    data object CancelSummary : ChatUiIntent()
+
     data object DeleteSessionClick : ChatUiIntent()
 
     data object ConfirmDeleteSession : ChatUiIntent()
