@@ -99,6 +99,12 @@
     <string name="import_character_failed">キャラクターのインポートに失敗しました</string>
     <string name="export_character_success">キャラクターをエクスポートしました</string>
     <string name="export_character_failed">キャラクターのエクスポートに失敗しました</string>
+    <string name="import_world_book">ワールドブックをインポート</string>
+    <string name="export_world_book">ワールドブックをエクスポート</string>
+    <string name="import_world_book_success">ワールドブックをインポートしました</string>
+    <string name="import_world_book_failed">ワールドブックのインポートに失敗しました</string>
+    <string name="export_world_book_success">ワールドブックをエクスポートしました</string>
+    <string name="export_world_book_failed">ワールドブックのエクスポートに失敗しました</string>
     <string name="create_character">キャラクターを作成</string>
     <string name="character_cards_title">キャラクターカード</string>
     <string name="character_cards_subtitle">キャラクター定義と詳細設定の作成および編集を行います</string>

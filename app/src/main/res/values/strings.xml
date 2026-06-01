@@ -98,6 +98,12 @@
     <string name="import_character_failed">Failed to import character</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
+    <string name="import_world_book">Import world book</string>
+    <string name="export_world_book">Export world book</string>
+    <string name="import_world_book_success">World book imported</string>
+    <string name="import_world_book_failed">Failed to import world book</string>
+    <string name="export_world_book_success">World book exported</string>
+    <string name="export_world_book_failed">Failed to export world book</string>
     <string name="create_character">Create character</string>
     <string name="character_cards_title">Character Cards</string>
     <string name="character_cards_subtitle">Create and edit character definitions and advanced settings</string>

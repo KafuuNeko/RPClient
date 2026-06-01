@@ -8,10 +8,13 @@ import me.kafuuneko.rpclient.feature.worldbooklist.model.WorldBookListItem
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListLoadState
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
+import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListViewEvent
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.R
+import android.content.Context
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -19,6 +22,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
     WorldBookListUiState.None
 ), KoinComponent {
     private val mLorebookRepository by inject<LorebookRepository>()
+    private val mContext by inject<Context>()
 
     @UiIntentObserver(WorldBookListUiIntent.Init::class)
     private suspend fun onInit() {
@@ -67,6 +71,62 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
             loadState = WorldBookListLoadState.None,
             lorebooks = items
         ).setup()
+    }
+
+    @UiIntentObserver(WorldBookListUiIntent.ImportWorldBookClick::class)
+    private fun onImportWorldBookClick() {
+        WorldBookListViewEvent.OpenWorldBookImporter.tryEmit()
+    }
+
+    @UiIntentObserver(WorldBookListUiIntent.ImportWorldBook::class)
+    private suspend fun onImportWorldBook(intent: WorldBookListUiIntent.ImportWorldBook) {
+        val uiState = getOrNull<WorldBookListUiState.Normal>() ?: return
+        uiState.copy(loadState = WorldBookListLoadState.Loading).setup()
+        
+        runCatching {
+            withContext(Dispatchers.IO) { mLorebookRepository.importFromUri(intent.uri) }
+        }.getOrElse {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.import_world_book_failed)).tryEmit()
+            refreshLorebooks()
+            return
+        }
+        
+        AppViewEvent.PopupToastMessageByResId(R.string.import_world_book_success).tryEmit()
+        refreshLorebooks()
+    }
+
+    @UiIntentObserver(WorldBookListUiIntent.ExportWorldBookClick::class)
+    private suspend fun onExportWorldBookClick(intent: WorldBookListUiIntent.ExportWorldBookClick) {
+        val lorebook = withContext(Dispatchers.IO) {
+            mLorebookRepository.getLorebookById(intent.lorebookId)
+        } ?: return
+        
+        WorldBookListViewEvent.OpenWorldBookExporter(
+            lorebookId = intent.lorebookId,
+            fileName = "${lorebook.name.ifBlank { "worldbook" }}.json"
+        ).tryEmit()
+    }
+
+    @UiIntentObserver(WorldBookListUiIntent.ExportWorldBook::class)
+    private suspend fun onExportWorldBook(intent: WorldBookListUiIntent.ExportWorldBook) {
+        val json = runCatching {
+            withContext(Dispatchers.IO) { mLorebookRepository.exportJson(intent.lorebookId) }
+        }.getOrElse {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.export_world_book_failed)).tryEmit()
+            return
+        }
+        
+        runCatching {
+            withContext(Dispatchers.IO) {
+                mContext.contentResolver.openOutputStream(intent.uri)?.use { output ->
+                    output.write(json.toByteArray(Charsets.UTF_8))
+                } ?: error("Cannot open export destination")
+            }
+        }.onSuccess {
+            AppViewEvent.PopupToastMessageByResId(R.string.export_world_book_success).tryEmit()
+        }.onFailure {
+            AppViewEvent.PopupToastMessage(it.message ?: mContext.getString(R.string.export_world_book_failed)).tryEmit()
+        }
     }
 }
 

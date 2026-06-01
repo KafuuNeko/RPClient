@@ -10,5 +10,13 @@ sealed class WorldBookListUiIntent {
     data object CreateWorldBook : WorldBookListUiIntent()
 
     data class EditWorldBook(val lorebookId: Long) : WorldBookListUiIntent()
+
+    data object ImportWorldBookClick : WorldBookListUiIntent()
+
+    data class ImportWorldBook(val uri: android.net.Uri) : WorldBookListUiIntent()
+
+    data class ExportWorldBookClick(val lorebookId: Long) : WorldBookListUiIntent()
+
+    data class ExportWorldBook(val lorebookId: Long, val uri: android.net.Uri) : WorldBookListUiIntent()
 }
 

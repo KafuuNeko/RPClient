@@ -1,7 +1,12 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import android.content.Context
+import android.net.Uri
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.character.LorebookCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -10,7 +15,8 @@ import me.kafuuneko.rpclient.utils.toStringList
 
 class LorebookRepository(
     private val mAppDatabase: AppDatabase,
-    private val mGson: Gson
+    private val mGson: Gson,
+    private val mContext: Context
 ) {
     private val mLorebookDao = mAppDatabase.getLorebookDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
@@ -206,5 +212,27 @@ class LorebookRepository(
         val entry = getEntryById(id) ?: return false
         updateEntry(entry.copy(category = mGson.toJsonString(category)))
         return true
+    }
+
+    /**
+     * 导入世界书条目
+     */
+    suspend fun importFromUri(uri: Uri): Long = withContext(Dispatchers.IO) {
+        val bytes = mContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Cannot read world book file")
+        val json = bytes.toString(Charsets.UTF_8)
+        val codec = LorebookCodec(mGson)
+        val parsed = codec.parseLorebook(json)
+
+        val bookId = saveLorebook(parsed.lorebook)
+        parsed.entries.forEach { entry -> saveEntry(entry.copy(lorebookId = bookId)) }
+        bookId
+    }
+
+    suspend fun exportJson(lorebookId: Long): String = withContext(Dispatchers.IO) {
+        val lorebook = getLorebookById(lorebookId) ?: error("World book not found")
+        val entries = getEntriesByLorebookId(lorebookId)
+        val codec = LorebookCodec(mGson)
+        codec.toLorebookJson(lorebook, entries)
     }
 }

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -88,7 +87,7 @@ private fun CharacterListNormal(
             onBack = { CharacterListUiIntent.Back.emit() },
             actions = {
                 IconButton(onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
-                    Icon(Icons.Rounded.FileUpload, contentDescription = stringResource(R.string.import_character))
+                    Icon(Icons.Rounded.FileDownload, contentDescription = stringResource(R.string.import_character))
                 }
                 IconButton(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
                     Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.create_character))
@@ -245,7 +244,7 @@ private fun CharacterListCard(
                     )
                     IconButton(onClick = onExport) {
                         Icon(
-                            Icons.Rounded.FileDownload,
+                            Icons.Rounded.FileUpload,
                             contentDescription = stringResource(R.string.export_character)
                         )
                     }

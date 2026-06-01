@@ -97,6 +97,12 @@
     <string name="import_character_failed">导入角色失败</string>
     <string name="export_character_success">角色已导出</string>
     <string name="export_character_failed">导出角色失败</string>
+    <string name="import_world_book">导入世界书</string>
+    <string name="export_world_book">导出世界书</string>
+    <string name="import_world_book_success">世界书已导入</string>
+    <string name="import_world_book_failed">导入世界书失败</string>
+    <string name="export_world_book_success">世界书已导出</string>
+    <string name="export_world_book_failed">导出世界书失败</string>
     <string name="create_character">创建角色</string>
     <string name="character_cards_title">角色卡</string>
     <string name="character_cards_subtitle">创建和编辑角色定义与高级设置</string>

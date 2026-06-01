@@ -22,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,6 +76,12 @@ private fun WorldBookListNormal(
             title = stringResource(R.string.world_book_manager),
             onBack = { WorldBookListUiIntent.Back.emit() },
             actions = {
+                IconButton(onClick = { WorldBookListUiIntent.ImportWorldBookClick.emit() }) {
+                    Icon(
+                        Icons.Rounded.FileDownload,
+                        contentDescription = stringResource(R.string.import_world_book)
+                    )
+                }
                 IconButton(onClick = { WorldBookListUiIntent.CreateWorldBook.emit() }) {
                     Icon(
                         Icons.Rounded.Add,
@@ -110,7 +118,8 @@ private fun WorldBookListNormal(
             items(state.lorebooks) { lorebook ->
                 WorldBookCard(
                     lorebook = lorebook,
-                    onClick = { WorldBookListUiIntent.EditWorldBook(lorebook.id).emit() }
+                    onClick = { WorldBookListUiIntent.EditWorldBook(lorebook.id).emit() },
+                    onExport = { WorldBookListUiIntent.ExportWorldBookClick(lorebook.id).emit() }
                 )
             }
         }
@@ -159,7 +168,8 @@ private fun EmptyPanel() {
 @Composable
 private fun WorldBookCard(
     lorebook: WorldBookListItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onExport: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -192,6 +202,12 @@ private fun WorldBookCard(
                         contentDescription = stringResource(R.string.edit),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    IconButton(onClick = onExport) {
+                        Icon(
+                            Icons.Rounded.FileUpload,
+                            contentDescription = stringResource(R.string.export_world_book)
+                        )
+                    }
                 }
                 RpTagRow(tags = listOf(stringResource(R.string.entry_count, lorebook.entryCount)))
             }
