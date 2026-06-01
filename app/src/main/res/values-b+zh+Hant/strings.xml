@@ -64,6 +64,8 @@
     <string name="request_logs_entry_subtitle">檢視並複製原始 LLM 請求記錄</string>
     <string name="no_request_logs">暫無請求記錄</string>
     <string name="no_request_logs_desc">啟用偵錯模式並傳送一次 LLM 請求後會建立記錄。</string>
+    <string name="clear_logs">清空記錄</string>
+    <string name="clear_logs_confirm">確定要清空所有請求記錄嗎？此操作無法復原。</string>
     <string name="request_json">請求 JSON</string>
     <string name="response_json">回應 JSON</string>
     <string name="request_log_json">請求記錄 JSON</string>

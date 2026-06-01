@@ -66,6 +66,8 @@
     <string name="request_logs_entry_subtitle">View and copy raw LLM request records</string>
     <string name="no_request_logs">No request logs</string>
     <string name="no_request_logs_desc">Enable debug mode and send an LLM request to create records.</string>
+    <string name="clear_logs">Clear Logs</string>
+    <string name="clear_logs_confirm">Are you sure you want to clear all request logs? This cannot be undone.</string>
     <string name="request_json">Request JSON</string>
     <string name="response_json">Response JSON</string>
     <string name="request_log_json">Request log JSON</string>

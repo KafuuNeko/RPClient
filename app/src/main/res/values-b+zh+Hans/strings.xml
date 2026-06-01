@@ -65,6 +65,8 @@
     <string name="request_logs_entry_subtitle">查看并复制原始 LLM 请求记录</string>
     <string name="no_request_logs">暂无请求日志</string>
     <string name="no_request_logs_desc">启用调试模式并发送一次 LLM 请求后会创建记录。</string>
+    <string name="clear_logs">清空日志</string>
+    <string name="clear_logs_confirm">确定要清空所有请求日志吗？此操作无法撤销。</string>
     <string name="request_json">请求 JSON</string>
     <string name="response_json">响应 JSON</string>
     <string name="request_log_json">请求日志 JSON</string>

@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.requestlog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
+import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogDialogState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogViewEvent
@@ -52,6 +53,27 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     private suspend fun onOpenResponseJson(intent: RequestLogUiIntent.OpenResponseJson) {
         val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId } ?: return
         RequestLogViewEvent.OpenJson(title = "${log.title} / ${intent.title}", json = log.responseJson).emit()
+    }
+
+    @UiIntentObserver(RequestLogUiIntent.ShowClearConfirmDialog::class)
+    private fun onShowClearConfirmDialog() {
+        val uiState = getOrNull<RequestLogUiState.Normal>() ?: return
+        uiState.copy(dialogState = RequestLogDialogState.ClearConfirm).setup()
+    }
+
+    @UiIntentObserver(RequestLogUiIntent.ConfirmClearLogs::class)
+    private suspend fun onConfirmClearLogs() {
+        val uiState = getOrNull<RequestLogUiState.Normal>() ?: return
+        withContext(Dispatchers.IO) {
+            mLLMRequestLogRepository.deleteAll()
+        }
+        uiState.copy(logs = emptyList(), dialogState = RequestLogDialogState.None).setup()
+    }
+
+    @UiIntentObserver(RequestLogUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<RequestLogUiState.Normal>() ?: return
+        uiState.copy(dialogState = RequestLogDialogState.None).setup()
     }
 
     private suspend fun loadLogs(): List<RequestLogItem> {

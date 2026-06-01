@@ -12,4 +12,10 @@ sealed class RequestLogUiIntent {
     data class OpenRequestJson(val logId: Long, val title: String) : RequestLogUiIntent()
 
     data class OpenResponseJson(val logId: Long, val title: String) : RequestLogUiIntent()
+
+    data object ShowClearConfirmDialog : RequestLogUiIntent()
+
+    data object ConfirmClearLogs : RequestLogUiIntent()
+
+    data object DismissDialog : RequestLogUiIntent()
 }
