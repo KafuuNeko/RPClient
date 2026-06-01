@@ -100,8 +100,11 @@
     <string name="export_world_book">匯出世界書</string>
     <string name="import_world_book_success">世界書已匯入</string>
     <string name="import_world_book_failed">匯入世界書失敗</string>
-    <string name="export_world_book_success">世界书已匯出</string>
+    <string name="export_world_book_success">世界書已匯出</string>
     <string name="export_world_book_failed">匯出世界書失敗</string>
+    <string name="associated_world_book">關聯世界書</string>
+    <string name="unknown_world_book">未知世界書</string>
+    <string name="none">無</string>
     <string name="create_character">建立角色</string>
     <string name="character_cards_title">角色卡</string>
     <string name="character_cards_subtitle">建立和編輯角色定義與進階設定</string>

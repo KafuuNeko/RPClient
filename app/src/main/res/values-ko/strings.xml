@@ -98,6 +98,15 @@
     <string name="import_character_failed">캐릭터 가져오기 실패</string>
     <string name="export_character_success">캐릭터를 내보냈습니다</string>
     <string name="export_character_failed">캐릭터 내보내기 실패</string>
+    <string name="import_world_book">월드북 가져오기</string>
+    <string name="export_world_book">월드북 내보내기</string>
+    <string name="import_world_book_success">월드북을 가져왔습니다</string>
+    <string name="import_world_book_failed">월드북 가져오기 실패</string>
+    <string name="export_world_book_success">월드북을 내보냈습니다</string>
+    <string name="export_world_book_failed">월드북 내보내기 실패</string>
+    <string name="associated_world_book">연동된 월드북</string>
+    <string name="unknown_world_book">알 수 없는 월드북</string>
+    <string name="none">없음</string>
     <string name="create_character">캐릭터 생성</string>
     <string name="character_cards_title">캐릭터 카드</string>
     <string name="character_cards_subtitle">캐릭터 정의 및 고급 설정 생성/편집</string>

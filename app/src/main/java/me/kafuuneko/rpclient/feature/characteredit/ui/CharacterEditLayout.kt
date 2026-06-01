@@ -39,6 +39,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -55,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
@@ -134,7 +139,7 @@ private fun CharacterEditNormal(
                 item { DefinitionPanel(state.form, emit) }
                 item { FirstMessagesPanel(state.form.firstMessages, emit) }
                 item { DialoguePanel(state.form, emit) }
-                item { AdvancedPanel(state.form, emit) }
+                item { AdvancedPanel(state.form, state.availableLorebooks, emit) }
                 item { ActionPanel(state.mode, state.loadState, emit) }
             }
         }
@@ -318,11 +323,17 @@ private fun DialoguePanel(
 @Composable
 private fun AdvancedPanel(
     form: CharacterEditForm,
+    availableLorebooks: List<Lorebook>,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
     var isExtensionsExpanded by rememberSaveable(form.id) { mutableStateOf(false) }
     Panel {
         RpSectionHeader(title = stringResource(R.string.advanced_definition))
+        LorebookSelector(
+            selectedId = form.characterLorebookId,
+            availableLorebooks = availableLorebooks,
+            onSelect = { CharacterEditUiIntent.UpdateCharacterLorebook(it).emit() }
+        )
         FormTextField(
             label = stringResource(R.string.character_main_prompt_override),
             value = form.systemPrompt,
@@ -613,6 +624,56 @@ private fun AvatarPicker(
                     contentDescription = stringResource(R.string.choose_character_avatar),
                     modifier = Modifier.padding(4.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LorebookSelector(
+    selectedId: Long,
+    availableLorebooks: List<Lorebook>,
+    onSelect: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = if (selectedId == 0L) stringResource(R.string.none)
+    else availableLorebooks.find { it.id == selectedId }?.name ?: stringResource(R.string.unknown_world_book)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.associated_world_book)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.none)) },
+                onClick = {
+                    onSelect(0L)
+                    expanded = false
+                }
+            )
+            availableLorebooks.forEach { lorebook ->
+                DropdownMenuItem(
+                    text = { Text(lorebook.name.ifBlank { "Untitled" }) },
+                    onClick = {
+                        onSelect(lorebook.id)
+                        expanded = false
+                    }
                 )
             }
         }

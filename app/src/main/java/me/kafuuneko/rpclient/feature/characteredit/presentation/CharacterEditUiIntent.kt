@@ -11,6 +11,8 @@ sealed class CharacterEditUiIntent {
 
     data class AvatarSelected(val uri: Uri) : CharacterEditUiIntent()
 
+    data class UpdateCharacterLorebook(val lorebookId: Long) : CharacterEditUiIntent()
+
     data class ChangeName(val value: String) : CharacterEditUiIntent()
 
     data object AddTag : CharacterEditUiIntent()

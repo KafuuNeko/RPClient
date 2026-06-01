@@ -104,6 +104,9 @@
     <string name="import_world_book_failed">Failed to import world book</string>
     <string name="export_world_book_success">World book exported</string>
     <string name="export_world_book_failed">Failed to export world book</string>
+    <string name="associated_world_book">Associated World Book</string>
+    <string name="unknown_world_book">Unknown World Book</string>
+    <string name="none">None</string>
     <string name="create_character">Create character</string>
     <string name="character_cards_title">Character Cards</string>
     <string name="character_cards_subtitle">Create and edit character definitions and advanced settings</string>

@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.utils.orSingleBlank
 import me.kafuuneko.rpclient.libs.utils.removeAtOrSelf
 import me.kafuuneko.rpclient.libs.utils.updateAt
@@ -28,15 +29,14 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 ), KoinComponent {
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
+    private val mLorebookRepository by inject<LorebookRepository>()
 
     @UiIntentObserver(CharacterEditUiIntent.Init::class)
     private suspend fun onInit(intent: CharacterEditUiIntent.Init) {
         if (!isStateOf<CharacterEditUiState.None>()) return
-        CharacterEditUiState.Normal(
-            mode = if (intent.characterId == null) CharacterEditMode.Create else CharacterEditMode.Edit,
-            form = CharacterEditForm(),
-            loadState = CharacterEditLoadState.Loading
-        ).setup()
+        val lorebooks = withContext(Dispatchers.IO) {
+            mLorebookRepository.getAllLorebooks()
+        }
         val character = intent.characterId?.let {
             withContext(Dispatchers.IO) { mCharacterRepository.getCharacterById(it) }
         }
@@ -44,7 +44,17 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         CharacterEditUiState.Normal(
             mode = if (character == null) CharacterEditMode.Create else CharacterEditMode.Edit,
             form = form.ensureListInputs(),
-            avatarFilePath = form.resolveAvatarPath()
+            avatarFilePath = form.resolveAvatarPath(),
+            availableLorebooks = lorebooks,
+            loadState = CharacterEditLoadState.None
+        ).setup()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterLorebook::class)
+    private fun onUpdateCharacterLorebook(intent: CharacterEditUiIntent.UpdateCharacterLorebook) {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        uiState.copy(
+            form = uiState.form.copy(characterLorebookId = intent.lorebookId)
         ).setup()
     }
 

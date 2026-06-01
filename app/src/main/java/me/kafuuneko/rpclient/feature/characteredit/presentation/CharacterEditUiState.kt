@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 
 sealed class CharacterEditUiState {
     data object None : CharacterEditUiState()
@@ -11,7 +12,8 @@ sealed class CharacterEditUiState {
         val initialForm: CharacterEditForm = form,
         val loadState: CharacterEditLoadState = CharacterEditLoadState.None,
         val dialogState: CharacterEditDialogState = CharacterEditDialogState.None,
-        val avatarFilePath: String? = null
+        val avatarFilePath: String? = null,
+        val availableLorebooks: List<Lorebook> = emptyList()
     ) : CharacterEditUiState()
 
     data object Finished : CharacterEditUiState()

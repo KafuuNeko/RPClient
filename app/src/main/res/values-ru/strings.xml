@@ -98,6 +98,15 @@
     <string name="import_character_failed">Не удалось импортировать персонажа</string>
     <string name="export_character_success">Персонаж экспортирован</string>
     <string name="export_character_failed">Не удалось экспортировать персонажа</string>
+    <string name="import_world_book">Импортировать книгу мира</string>
+    <string name="export_world_book">Экспортировать книгу мира</string>
+    <string name="import_world_book_success">Книга мира импортирована</string>
+    <string name="import_world_book_failed">Не удалось импортировать книгу мира</string>
+    <string name="export_world_book_success">Книга мира экспортирована</string>
+    <string name="export_world_book_failed">Не удалось экспортировать книгу мира</string>
+    <string name="associated_world_book">Связанная книга мира</string>
+    <string name="unknown_world_book">Неизвестная книга мира</string>
+    <string name="none">Нет</string>
     <string name="create_character">Создать персонажа</string>
     <string name="character_cards_title">Карточки персонажей</string>
     <string name="character_cards_subtitle">Создание и редактирование описаний персонажей и расширенных настроек</string>

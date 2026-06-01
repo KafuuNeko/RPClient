@@ -98,6 +98,15 @@
     <string name="import_character_failed">Échec de l\'importation du personnage</string>
     <string name="export_character_success">Personnage exporté</string>
     <string name="export_character_failed">Échec de l\'exportation du personnage</string>
+    <string name="import_world_book">Importer le livre d\'univers</string>
+    <string name="export_world_book">Exporter le livre d\'univers</string>
+    <string name="import_world_book_success">Livre d\'univers importé</string>
+    <string name="import_world_book_failed">Échec de l\'importation du livre d\'univers</string>
+    <string name="export_world_book_success">Livre d\'univers exporté</string>
+    <string name="export_world_book_failed">Échec de l\'exportation du livre d\'univers</string>
+    <string name="associated_world_book">Livre d\'univers associé</string>
+    <string name="unknown_world_book">Livre d\'univers inconnu</string>
+    <string name="none">Aucun</string>
     <string name="create_character">Créer un personnage</string>
     <string name="character_cards_title">Cartes de personnage</string>
     <string name="character_cards_subtitle">Créer et modifier les définitions de personnages et les paramètres avancés</string>

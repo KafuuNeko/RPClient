@@ -105,6 +105,9 @@
     <string name="import_world_book_failed">ワールドブックのインポートに失敗しました</string>
     <string name="export_world_book_success">ワールドブックをエクスポートしました</string>
     <string name="export_world_book_failed">ワールドブックのエクスポートに失敗しました</string>
+    <string name="associated_world_book">関連付けられたワールドブック</string>
+    <string name="unknown_world_book">不明なワールドブック</string>
+    <string name="none">なし</string>
     <string name="create_character">キャラクターを作成</string>
     <string name="character_cards_title">キャラクターカード</string>
     <string name="character_cards_subtitle">キャラクター定義と詳細設定の作成および編集を行います</string>

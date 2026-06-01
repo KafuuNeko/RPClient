@@ -99,6 +99,15 @@
     <string name="import_character_failed">Import des Charakters fehlgeschlagen</string>
     <string name="export_character_success">Charakter exportiert</string>
     <string name="export_character_failed">Export des Charakters fehlgeschlagen</string>
+    <string name="import_world_book">Weltbuch importieren</string>
+    <string name="export_world_book">Weltbuch exportieren</string>
+    <string name="import_world_book_success">Weltbuch importiert</string>
+    <string name="import_world_book_failed">Import des Weltbuchs fehlgeschlagen</string>
+    <string name="export_world_book_success">Weltbuch exportiert</string>
+    <string name="export_world_book_failed">Export des Weltbuchs fehlgeschlagen</string>
+    <string name="associated_world_book">Verknüpftes Weltbuch</string>
+    <string name="unknown_world_book">Unbekanntes Weltbuch</string>
+    <string name="none">Keines</string>
     <string name="create_character">Charakter erstellen</string>
     <string name="character_cards_title">Charakterkarten</string>
     <string name="character_cards_subtitle">Charakterdefinitionen und erweiterte Einstellungen erstellen und bearbeiten</string>
