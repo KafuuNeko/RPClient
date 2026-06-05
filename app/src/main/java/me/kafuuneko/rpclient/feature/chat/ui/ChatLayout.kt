@@ -154,10 +154,7 @@ private fun ChatNormal(
         }
     }
 
-    val lastMessageContent = remember(state.messages) {
-        state.messages.lastOrNull()?.content ?: ""
-    }
-    LaunchedEffect(state.messages.size, lastMessageContent) {
+    LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             if (isFirstLoad || wasAtBottom) {
                 listState.scrollToItem(state.messages.size)
@@ -191,10 +188,14 @@ private fun ChatNormal(
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
+            item(key = "conversation-start") {
                 ConversationStartHeader(state = state)
             }
-            itemsIndexed(state.messages) { index, message ->
+            itemsIndexed(
+                items = state.messages,
+                key = { _, message -> message.id },
+                contentType = { _, message -> message.role }
+            ) { index, message ->
                 MessageBubble(
                     message = message,
                     character = state.character,
@@ -573,7 +574,7 @@ private fun MessageBubble(
     emit: ChatUiIntent.() -> Unit
 ) {
     val isUser = message.role == MessageRole.User
-    var showActions by remember { mutableStateOf(false) }
+    var showActions by remember(message.id) { mutableStateOf(false) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -729,7 +730,14 @@ private fun MessageEditContent(
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
             minLines = 3,
             maxLines = 8,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                cursorColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                focusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
+            )
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { ChatUiIntent.SaveEditingMessage.emit() }) {

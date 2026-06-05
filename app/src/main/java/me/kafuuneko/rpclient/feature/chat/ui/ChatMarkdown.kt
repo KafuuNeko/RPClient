@@ -43,6 +43,7 @@ internal fun MarkdownMessageText(
     val blocks = remember(content) { content.parseMarkdownBlocks() }
     val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     val linkColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
     val subtleColor = textColor.copy(alpha = if (isUser) 0.72f else 0.58f)
     val blockColor = if (isUser) {
         textColor.copy(alpha = 0.12f)
@@ -60,6 +61,7 @@ internal fun MarkdownMessageText(
                     content = block.content,
                     color = textColor,
                     linkColor = linkColor,
+                    strongColor = strongColor,
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -67,6 +69,7 @@ internal fun MarkdownMessageText(
                     content = block.content,
                     color = textColor,
                     linkColor = linkColor,
+                    strongColor = strongColor,
                     style = block.headingStyle()
                 )
 
@@ -81,6 +84,7 @@ internal fun MarkdownMessageText(
                     content = block.content,
                     color = textColor,
                     linkColor = linkColor,
+                    strongColor = strongColor,
                     backgroundColor = blockColor
                 )
 
@@ -88,6 +92,7 @@ internal fun MarkdownMessageText(
                     block = block,
                     color = textColor,
                     linkColor = linkColor,
+                    strongColor = strongColor,
                     markerColor = subtleColor
                 )
 
@@ -116,15 +121,17 @@ private fun MarkdownInlineText(
     content: String,
     color: Color,
     linkColor: Color,
+    strongColor: Color,
     style: TextStyle,
     modifier: Modifier = Modifier
 ) {
-    val text = remember(content, color, linkColor) {
+    val text = remember(content, color, linkColor, strongColor) {
         buildAnnotatedString {
             appendMarkdownInline(
                 source = content,
                 textColor = color,
-                linkColor = linkColor
+                linkColor = linkColor,
+                strongColor = strongColor
             )
         }
     }
@@ -174,6 +181,7 @@ private fun MarkdownQuoteBlock(
     content: String,
     color: Color,
     linkColor: Color,
+    strongColor: Color,
     backgroundColor: Color
 ) {
     Surface(
@@ -197,6 +205,7 @@ private fun MarkdownQuoteBlock(
                 content = content,
                 color = color,
                 linkColor = linkColor,
+                strongColor = strongColor,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -208,6 +217,7 @@ private fun MarkdownListBlock(
     block: MarkdownBlock.ListBlock,
     color: Color,
     linkColor: Color,
+    strongColor: Color,
     markerColor: Color
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -224,6 +234,7 @@ private fun MarkdownListBlock(
                     content = item.content,
                     color = color,
                     linkColor = linkColor,
+                    strongColor = strongColor,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -348,7 +359,8 @@ private fun String.isListLine(): Boolean {
 private fun AnnotatedString.Builder.appendMarkdownInline(
     source: String,
     textColor: Color,
-    linkColor: Color
+    linkColor: Color,
+    strongColor: Color
 ) {
     var index = 0
     while (index < source.length) {
@@ -372,31 +384,39 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
             }
 
             source.startsWith("**", index) -> {
-                index = appendDelimitedMarkdown(source, index, "**", textColor, linkColor) {
-                    SpanStyle(fontWeight = FontWeight.Bold)
+                index = appendDelimitedMarkdown(source, index, "**", textColor, linkColor, strongColor) {
+                    SpanStyle(
+                        color = strongColor,
+                        fontWeight = FontWeight.Black,
+                        background = strongColor.copy(alpha = 0.12f)
+                    )
                 }
             }
 
             source.startsWith("__", index) -> {
-                index = appendDelimitedMarkdown(source, index, "__", textColor, linkColor) {
-                    SpanStyle(fontWeight = FontWeight.Bold)
+                index = appendDelimitedMarkdown(source, index, "__", textColor, linkColor, strongColor) {
+                    SpanStyle(
+                        color = strongColor,
+                        fontWeight = FontWeight.Black,
+                        background = strongColor.copy(alpha = 0.12f)
+                    )
                 }
             }
 
             source.startsWith("~~", index) -> {
-                index = appendDelimitedMarkdown(source, index, "~~", textColor, linkColor) {
+                index = appendDelimitedMarkdown(source, index, "~~", textColor, linkColor, strongColor) {
                     SpanStyle(textDecoration = TextDecoration.LineThrough)
                 }
             }
 
             source[index] == '*' -> {
-                index = appendDelimitedMarkdown(source, index, "*", textColor, linkColor) {
+                index = appendDelimitedMarkdown(source, index, "*", textColor, linkColor, strongColor) {
                     SpanStyle(fontStyle = FontStyle.Italic)
                 }
             }
 
             source[index] == '_' -> {
-                index = appendDelimitedMarkdown(source, index, "_", textColor, linkColor) {
+                index = appendDelimitedMarkdown(source, index, "_", textColor, linkColor, strongColor) {
                     SpanStyle(fontStyle = FontStyle.Italic)
                 }
             }
@@ -408,7 +428,12 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
                     val urlEnd = source.indexOf(')', startIndex = urlStart + 1)
                     if (urlEnd != -1) {
                         withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
-                            appendMarkdownInline(source.substring(index + 1, labelEnd), textColor, linkColor)
+                            appendMarkdownInline(
+                                source = source.substring(index + 1, labelEnd),
+                                textColor = textColor,
+                                linkColor = linkColor,
+                                strongColor = strongColor
+                            )
                         }
                         index = urlEnd + 1
                     } else {
@@ -435,6 +460,7 @@ private fun AnnotatedString.Builder.appendDelimitedMarkdown(
     delimiter: String,
     textColor: Color,
     linkColor: Color,
+    strongColor: Color,
     style: () -> SpanStyle
 ): Int {
     val contentStart = start + delimiter.length
@@ -444,7 +470,7 @@ private fun AnnotatedString.Builder.appendDelimitedMarkdown(
         start + 1
     } else {
         withStyle(style()) {
-            appendMarkdownInline(source.substring(contentStart, end), textColor, linkColor)
+            appendMarkdownInline(source.substring(contentStart, end), textColor, linkColor, strongColor)
         }
         end + delimiter.length
     }
