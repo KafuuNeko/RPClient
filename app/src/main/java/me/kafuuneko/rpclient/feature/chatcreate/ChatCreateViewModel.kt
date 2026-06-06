@@ -57,13 +57,25 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             }.filter { it.entries.isNotEmpty() }
             characters to groups
         }
+        val selectedCharacter = data.first.firstOrNull()
+        val selectedLorebookEntryIds = selectedCharacter
+            ?.defaultLorebookEntryIds(data.second)
+            .orEmpty()
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
             form = getOrNull<ChatCreateUiState.Normal>()?.form
-                ?.copy(selectedCharacterId = data.first.firstOrNull()?.id)
-                ?: ChatCreateForm(selectedCharacterId = data.first.firstOrNull()?.id),
+                ?.let { form ->
+                    form.copy(
+                        selectedCharacterId = selectedCharacter?.id,
+                        selectedLorebookEntryIds = form.selectedLorebookEntryIds + selectedLorebookEntryIds
+                    )
+                }
+                ?: ChatCreateForm(
+                    selectedCharacterId = selectedCharacter?.id,
+                    selectedLorebookEntryIds = selectedLorebookEntryIds
+                ),
             characters = data.first,
-            selectedCharacterFirstMessages = data.first.firstOrNull()?.getChatFirstMessageList().orEmpty(),
+            selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty(),
             lorebookGroups = data.second
         ).setup()
     }
@@ -80,7 +92,9 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         uiState.copy(
             form = uiState.form.copy(
                 selectedCharacterId = intent.characterId,
-                selectedFirstMessageIndex = null
+                selectedFirstMessageIndex = null,
+                selectedLorebookEntryIds = uiState.form.selectedLorebookEntryIds +
+                    character.defaultLorebookEntryIds(uiState.lorebookGroups)
             ),
             selectedCharacterFirstMessages = character.getChatFirstMessageList()
         ).setup()
@@ -209,6 +223,17 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         character: Character
     ): String {
         return title.trim().ifBlank { "Chat with ${character.name}" }
+    }
+
+    private fun Character.defaultLorebookEntryIds(
+        lorebookGroups: List<ChatCreateLorebookGroupItem>
+    ): Set<Long> {
+        if (characterLorebookId == 0L) return emptySet()
+        return lorebookGroups
+            .firstOrNull { it.lorebookId == characterLorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { it.entry.id }
+            .orEmpty()
     }
 
     private data class FirstMessageSelection(val value: String?)

@@ -790,9 +790,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookData = getAllLorebookEntries()
         val allLorebookEntries = lorebookData.entries
-        val lorebookEntries = (allLorebookEntries.filter { it.id in enabledIds } +
-            allLorebookEntries.filter { character.characterLorebookId != 0L && it.lorebookId == character.characterLorebookId })
-            .distinctBy { it.id }
+        val lorebookEntries = allLorebookEntries.filter { it.id in enabledIds }
         val activeLorebookIds = lorebookEntries.map { it.lorebookId }.toSet()
         val recursiveLorebookIds = lorebookData.lorebooks.values
             .filter { it.id in activeLorebookIds && it.recursiveScanning }
