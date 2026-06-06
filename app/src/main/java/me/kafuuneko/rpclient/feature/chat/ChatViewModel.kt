@@ -719,13 +719,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val data = withContext(Dispatchers.IO) {
                 val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
                 val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
-                val summaryContext = mChatRepository.getSummaryContext(sessionId)
+                val summaryContext = mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    allowRefreshLatest = showToast
+                )
                 val provider = mLLMRepository.getSelectedProvider()
                 AutoSummaryData(
                     session = session,
                     character = character,
-                    summary = summaryContext.summary?.content.orEmpty(),
-                    messages = summaryContext.messagesAfterSummary,
+                    summary = summaryContext.existingSummary,
+                    messages = summaryContext.messages,
+                    summaryIdToUpdate = summaryContext.summaryToUpdate?.id,
                     provider = provider
                 )
             } ?: return
@@ -762,7 +766,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mChatRepository.saveSummary(
                     sessionId = sessionId,
                     content = response.content,
-                    coveredMessageId = selectedMessages.last().id
+                    coveredMessageId = selectedMessages.last().id,
+                    summaryIdToUpdate = data.summaryIdToUpdate
                 )
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
@@ -926,6 +931,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val character: Character,
         val summary: String,
         val messages: List<ChatMessage>,
+        val summaryIdToUpdate: Long?,
         val provider: LLMProvider?
     )
 

@@ -87,6 +87,31 @@ class ChatRepositorySummaryTest {
         assertEquals(10, repository.getMessageCountBySessionId(sessionId))
         assertEquals("message-10", repository.getLatestMessageBySessionId(sessionId)?.content)
 
+        val refreshContext = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            allowRefreshLatest = true
+        )
+        assertEquals("summary-through-5", refreshContext.existingSummary)
+        assertEquals(
+            listOf("message-6", "message-7", "message-8", "message-9", "message-10"),
+            refreshContext.messages.map { it.content }
+        )
+        val refreshedSummaryId = repository.saveSummary(
+            sessionId = sessionId,
+            content = "refreshed-summary-through-10",
+            coveredMessageId = laterMessages.last(),
+            summaryIdToUpdate = refreshContext.summaryToUpdate?.id
+        )
+        assertEquals(refreshContext.summaryToUpdate?.id, refreshedSummaryId)
+        assertEquals("refreshed-summary-through-10", repository.getLatestSummary(sessionId)?.content)
+
+        val automaticContext = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            allowRefreshLatest = false
+        )
+        assertTrue(automaticContext.messages.isEmpty())
+        assertEquals(null, automaticContext.summaryToUpdate)
+
         val branchId = repository.createBranchSession(
             sourceSessionId = sessionId,
             throughMessageId = firstMessages[5],
@@ -107,6 +132,18 @@ class ChatRepositorySummaryTest {
             contextAfterEdit.messagesAfterSummary.map { it.content }
         )
         assertTrue(contextAfterEdit.messagesAfterSummary.none { it.source == ChatMessage.Source.Summary })
+
+        repository.updateCurrentSummary(sessionId, "manual-summary-with-new-messages")
+        val contextAfterManualInsert = repository.getSummaryContext(sessionId)
+        assertEquals("manual-summary-with-new-messages", contextAfterManualInsert.summary?.content)
+        assertEquals(laterMessages.last(), contextAfterManualInsert.summary?.coveredMessageId)
+        assertTrue(contextAfterManualInsert.messagesAfterSummary.isEmpty())
+
+        val insertedSummaryId = contextAfterManualInsert.summary?.id
+        repository.updateCurrentSummary(sessionId, "edited-current-summary")
+        val contextAfterManualEdit = repository.getSummaryContext(sessionId)
+        assertEquals(insertedSummaryId, contextAfterManualEdit.summary?.id)
+        assertEquals("edited-current-summary", contextAfterManualEdit.summary?.content)
 
         repository.updateCurrentSummary(sessionId, "")
         val contextAfterClear = repository.getSummaryContext(sessionId)

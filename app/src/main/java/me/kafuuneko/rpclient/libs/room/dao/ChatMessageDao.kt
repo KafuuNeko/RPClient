@@ -35,6 +35,30 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getMessagesAfterId(sessionId: Long, coveredMessageId: Long): List<ChatMessage>
 
     /**
+     * 获取两个消息边界之间的普通消息。
+     *
+     * @param sessionId 会话 id。
+     * @param afterMessageId 起始边界，该消息本身不包含在结果中。
+     * @param throughMessageId 结束边界，该消息包含在结果中。
+     * @return 按创建时间正序排列的普通消息。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+        ORDER BY createTime ASC, id ASC
+        """
+    )
+    suspend fun getMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long
+    ): List<ChatMessage>
+
+    /**
      * 获取指定会话最新写入的总结快照。
      *
      * @param sessionId 会话 id。
@@ -49,6 +73,28 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         """
     )
     suspend fun getLatestSummaryBySessionId(sessionId: Long): ChatMessage?
+
+    /**
+     * 获取覆盖边界严格早于指定位置的最新总结。
+     *
+     * @param sessionId 会话 id。
+     * @param coveredMessageId 当前总结的覆盖边界。
+     * @return 可作为重新总结基础的上一条总结；不存在时返回 null。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source = 'Summary'
+          AND coveredMessageId < :coveredMessageId
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPreviousSummaryBeforeBoundary(
+        sessionId: Long,
+        coveredMessageId: Long
+    ): ChatMessage?
 
     /**
      * 获取在指定普通消息位置仍然有效的最新总结快照。
@@ -104,6 +150,22 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      */
     @Query("UPDATE chat_messages SET content = :content WHERE id = :id")
     suspend fun updateMessageContent(id: Long, content: String)
+
+    /**
+     * 更新总结快照的正文和实际覆盖边界。
+     *
+     * @param id 总结快照 id。
+     * @param content 新的总结正文。
+     * @param coveredMessageId 本次请求实际覆盖到的最后一条普通消息 id。
+     */
+    @Query(
+        """
+        UPDATE chat_messages
+        SET content = :content, coveredMessageId = :coveredMessageId
+        WHERE id = :id AND source = 'Summary'
+        """
+    )
+    suspend fun updateSummary(id: Long, content: String, coveredMessageId: Long)
 
     /**
      * 删除所有覆盖了指定普通消息的总结快照。
