@@ -23,7 +23,7 @@ class WorldBookActivator {
      * 概率、sticky/cooldown、递归等规则判断。
      */
     fun activateStructured(context: PromptBuildContext): WorldBookActivationResult {
-        val messageCount = context.messages.size + if (context.currentUserMessage.isNullOrBlank()) 0 else 1
+        val messageCount = context.totalMessageCount
         val state = TimedWorldInfoState.fromJson(context.session.worldInfoStateJson, gson)
             .discardIfChatRewound(messageCount)
         val activated = linkedMapOf<Long, LorebookEntry>()

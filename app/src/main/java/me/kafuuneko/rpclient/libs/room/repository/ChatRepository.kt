@@ -7,6 +7,19 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
+/**
+ * 构建对话上下文时使用的总结快照及其后的普通消息。
+ *
+ * @property summary 当前生效的最新总结快照。
+ * @property messagesAfterSummary 未被该总结覆盖的普通消息。
+ * @property totalMessageCount 会话中的普通消息总数。
+ */
+data class ChatSummaryContext(
+    val summary: ChatMessage?,
+    val messagesAfterSummary: List<ChatMessage>,
+    val totalMessageCount: Int
+)
+
 class ChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson
@@ -81,7 +94,6 @@ class ChatRepository(
                     latestTime = createTime,
                     lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
                     title = title,
-                    summarize = "",
                     userNote = userNote,
                     creatorNotes = creatorNotes
                 )
@@ -92,8 +104,7 @@ class ChatRepository(
                         sessionId = sessionId,
                         createTime = createTime,
                         source = ChatMessage.Source.Char,
-                        content = it,
-                        isSummarized = false
+                        content = it
                     )
                 )
             }
@@ -121,7 +132,6 @@ class ChatRepository(
                 latestTime = createTime,
                 lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
                 title = title,
-                summarize = "",
                 userNote = userNote,
                 creatorNotes = creatorNotes
             )
@@ -131,7 +141,7 @@ class ChatRepository(
     /**
      * 从已有会话复制一段消息前缀，创建一个新的独立会话作为分支。
      *
-     * 新分支只复制到指定消息为止的历史；摘要和世界书运行时状态会清空，避免带入回溯点之后的信息。
+     * 新分支只复制到指定消息为止的历史，并复制该位置有效的最新摘要快照。
      */
     suspend fun createBranchSession(
         sourceSessionId: Long,
@@ -144,6 +154,7 @@ class ChatRepository(
             val sourceMessages = mChatMessageDao.getMessagesBySessionId(sourceSessionId)
             val branchMessages = sourceMessages.takeWhileInclusive { it.id != throughMessageId }
             if (branchMessages.none { it.id == throughMessageId }) return@withTransaction 0L
+            val sourceSummary = mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
 
             val branchSessionId = mChatSessionDao.insertOrReplace(
                 sourceSession.copy(
@@ -151,7 +162,6 @@ class ChatRepository(
                     createTime = createTime,
                     latestTime = createTime,
                     title = title,
-                    summarize = "",
                     worldInfoStateJson = "{}"
                 ).withNormalizedCreatorNotes()
             )
@@ -160,11 +170,28 @@ class ChatRepository(
                     id = 0L,
                     sessionId = branchSessionId,
                     createTime = createTime + index,
-                    isSummarized = false
+                    coveredMessageId = null
                 )
             }
-            if (copiedMessages.isNotEmpty()) {
+            val insertedMessageIds = if (copiedMessages.isNotEmpty()) {
                 mChatMessageDao.insertOrReplaceAll(copiedMessages)
+            } else {
+                emptyList()
+            }
+            val copiedIdBySourceId = branchMessages.map { it.id }.zip(insertedMessageIds).toMap()
+            if (sourceSummary != null) {
+                val copiedBoundaryId = sourceSummary.coveredMessageId
+                    ?.takeIf { it != 0L }
+                    ?.let(copiedIdBySourceId::get)
+                    ?: 0L
+                mChatMessageDao.insertOrReplace(
+                    sourceSummary.copy(
+                        id = 0L,
+                        sessionId = branchSessionId,
+                        createTime = createTime + copiedMessages.size,
+                        coveredMessageId = copiedBoundaryId
+                    )
+                )
             }
             branchSessionId
         }
@@ -229,16 +256,6 @@ class ChatRepository(
      */
     suspend fun updateSessionLorebookEntryIds(id: Long, lorebookEntryIds: List<Long>) {
         mChatSessionDao.updateSessionLorebookEntrySet(id, lorebookEntryIds.toLorebookEntrySetJson())
-    }
-
-    /**
-     * 修改会话总结。
-     *
-     * @param id 会话 id。
-     * @param summarize 新的会话总结。
-     */
-    suspend fun updateSessionSummarize(id: Long, summarize: String) {
-        mChatSessionDao.updateSessionSummarize(id, summarize)
     }
 
     /**
@@ -322,13 +339,54 @@ class ChatRepository(
     }
 
     /**
-     * 获取指定会话下尚未纳入总结的消息。
+     * 获取会话当前生效的最新总结快照。
      *
      * @param sessionId 会话 id。
-     * @return 按创建时间正序排列的消息列表。
+     * @return 最新总结快照；不存在时返回 null。
      */
-    suspend fun getUnsummarizedMessagesBySessionId(sessionId: Long): List<ChatMessage> {
-        return mChatMessageDao.getUnsummarizedMessagesBySessionId(sessionId)
+    suspend fun getLatestSummary(sessionId: Long): ChatMessage? {
+        return mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+    }
+
+    /**
+     * 获取在指定普通消息位置仍然有效的最新总结快照。
+     *
+     * @param sessionId 会话 id。
+     * @param messageId 分支或回溯位置的普通消息 id。
+     * @return 覆盖边界不晚于指定消息的最新总结快照；不存在时返回 null。
+     */
+    suspend fun getLatestSummaryAtOrBefore(sessionId: Long, messageId: Long): ChatMessage? {
+        return mChatMessageDao.getLatestSummaryAtOrBefore(sessionId, messageId)
+    }
+
+    /**
+     * 获取最新总结之后尚未被覆盖的普通消息。
+     *
+     * @param sessionId 会话 id。
+     * @return 按时间正序排列的普通消息。
+     */
+    suspend fun getMessagesAfterLatestSummary(sessionId: Long): List<ChatMessage> {
+        return getSummaryContext(sessionId).messagesAfterSummary
+    }
+
+    /**
+     * 在同一事务中读取最新总结及其后的普通消息，避免两次查询间快照发生变化。
+     *
+     * @param sessionId 会话 id。
+     * @return 当前总结上下文。
+     */
+    suspend fun getSummaryContext(sessionId: Long): ChatSummaryContext {
+        return mAppDatabase.withTransaction {
+            val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            ChatSummaryContext(
+                summary = summary,
+                messagesAfterSummary = mChatMessageDao.getMessagesAfterId(
+                    sessionId = sessionId,
+                    coveredMessageId = summary?.coveredMessageId ?: 0L
+                ),
+                totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+            )
+        }
     }
 
     /**
@@ -368,7 +426,7 @@ class ChatRepository(
      * @param source 消息来源。
      * @param content 消息正文。
      * @param createTime 消息创建时间。
-     * @param isSummarized 是否已被总结。
+     * @param coveredMessageId Summary 消息的覆盖边界；普通消息应传入 null。
      * @return 新创建的消息 id。
      */
     suspend fun createMessage(
@@ -376,8 +434,11 @@ class ChatRepository(
         source: ChatMessage.Source,
         content: String,
         createTime: Long = System.currentTimeMillis(),
-        isSummarized: Boolean = false
+        coveredMessageId: Long? = null
     ): Long {
+        require(source != ChatMessage.Source.Summary || coveredMessageId != null) {
+            "Summary messages require a covered message id"
+        }
         return mAppDatabase.withTransaction {
             val messageId = mChatMessageDao.insertOrReplace(
                 ChatMessage(
@@ -385,7 +446,7 @@ class ChatRepository(
                     createTime = createTime,
                     source = source,
                     content = content,
-                    isSummarized = isSummarized
+                    coveredMessageId = coveredMessageId
                 )
             )
             mChatSessionDao.updateSessionLatestTime(sessionId, createTime)
@@ -408,10 +469,10 @@ class ChatRepository(
                 source = message.source,
                 content = message.content,
                 createTime = message.createTime,
-                isSummarized = message.isSummarized
+                coveredMessageId = message.coveredMessageId
             )
         }
-        mChatMessageDao.update(message)
+        updateMessage(message)
         return message.id
     }
 
@@ -421,7 +482,13 @@ class ChatRepository(
      * @param message 要更新的消息。
      */
     suspend fun updateMessage(message: ChatMessage) {
-        mChatMessageDao.update(message)
+        mAppDatabase.withTransaction {
+            val current = mChatMessageDao.getMessageById(message.id)
+            mChatMessageDao.update(message)
+            if (current != null && current.source != ChatMessage.Source.Summary) {
+                mChatMessageDao.deleteSummariesCoveringMessage(current.sessionId, current.id)
+            }
+        }
     }
 
     /**
@@ -431,35 +498,90 @@ class ChatRepository(
      * @param content 新的消息正文。
      */
     suspend fun updateMessageContent(id: Long, content: String) {
-        mChatMessageDao.updateMessageContent(id, content)
+        mAppDatabase.withTransaction {
+            val message = mChatMessageDao.getMessageById(id) ?: return@withTransaction
+            mChatMessageDao.updateMessageContent(id, content)
+            if (message.source != ChatMessage.Source.Summary) {
+                mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
+            }
+        }
     }
 
     /**
-     * 修改消息是否已被总结。
-     *
-     * @param id 消息 id。
-     * @param isSummarized 是否已被总结。
-     */
-    suspend fun updateMessageSummarized(id: Long, isSummarized: Boolean) {
-        mChatMessageDao.updateMessageSummarized(id, isSummarized)
-    }
-
-    /**
-     * 保存会话总结，并批量标记已纳入总结的消息。
+     * 新增一条总结快照，并记录其覆盖到的最后一条普通消息。
      *
      * @param sessionId 会话 id。
-     * @param summarize 新的会话总结。
-     * @param summarizedMessageIds 已纳入总结的消息 id 列表。
+     * @param content 总结正文。
+     * @param coveredMessageId 总结覆盖到的最后一条普通消息 id。
+     * @param createTime 总结快照创建时间。
+     * @return 新总结快照的消息 id。
      */
-    suspend fun saveSessionSummarize(
+    suspend fun saveSummary(
         sessionId: Long,
-        summarize: String,
-        summarizedMessageIds: List<Long>
+        content: String,
+        coveredMessageId: Long,
+        createTime: Long = System.currentTimeMillis()
+    ): Long {
+        return mAppDatabase.withTransaction {
+            val coveredMessage = mChatMessageDao.getMessageById(coveredMessageId)
+            require(
+                coveredMessage?.sessionId == sessionId &&
+                    coveredMessage.source != ChatMessage.Source.Summary
+            ) {
+                "Summary boundary must reference a regular message in the same session"
+            }
+            mChatMessageDao.insertOrReplace(
+                ChatMessage(
+                    sessionId = sessionId,
+                    createTime = createTime,
+                    source = ChatMessage.Source.Summary,
+                    content = content,
+                    coveredMessageId = coveredMessageId
+                )
+            )
+        }
+    }
+
+    /**
+     * 更新用户当前看到的总结。
+     *
+     * 清空总结时写入边界为 0 的空快照，防止更早的总结重新生效；首次手动填写总结时，
+     * 默认覆盖到会话当前最后一条普通消息。
+     *
+     * @param sessionId 会话 id。
+     * @param content 新的总结正文。
+     * @param createTime 新建快照时使用的创建时间。
+     */
+    suspend fun updateCurrentSummary(
+        sessionId: Long,
+        content: String,
+        createTime: Long = System.currentTimeMillis()
     ) {
         mAppDatabase.withTransaction {
-            mChatSessionDao.updateSessionSummarize(sessionId, summarize)
-            if (summarizedMessageIds.isNotEmpty()) {
-                mChatMessageDao.markMessagesSummarized(summarizedMessageIds)
+            val current = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            if (content.isBlank()) {
+                mChatMessageDao.insertOrReplace(
+                    ChatMessage(
+                        sessionId = sessionId,
+                        createTime = createTime,
+                        source = ChatMessage.Source.Summary,
+                        content = "",
+                        coveredMessageId = 0L
+                    )
+                )
+            } else if (current != null && current.coveredMessageId != 0L) {
+                mChatMessageDao.updateMessageContent(current.id, content)
+            } else {
+                val coveredMessageId = mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
+                mChatMessageDao.insertOrReplace(
+                    ChatMessage(
+                        sessionId = sessionId,
+                        createTime = createTime,
+                        source = ChatMessage.Source.Summary,
+                        content = content,
+                        coveredMessageId = coveredMessageId
+                    )
+                )
             }
         }
     }
@@ -470,7 +592,13 @@ class ChatRepository(
      * @param id 消息 id。
      */
     suspend fun deleteMessage(id: Long) {
-        mChatMessageDao.deleteMessageById(id)
+        mAppDatabase.withTransaction {
+            val message = mChatMessageDao.getMessageById(id) ?: return@withTransaction
+            if (message.source != ChatMessage.Source.Summary) {
+                mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
+            }
+            mChatMessageDao.deleteMessageById(id)
+        }
     }
 
     /**

@@ -25,6 +25,7 @@ class SummaryPromptBuilder(
         userDescription: String,
         character: Character,
         session: ChatSession,
+        existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?
     ): LLMGenerationRequest {
@@ -35,6 +36,7 @@ class SummaryPromptBuilder(
             userDescription = userDescription,
             character = character,
             session = session,
+            summary = existingSummary,
             messages = selectedMessages,
             currentUserMessage = null,
             candidateLorebookEntries = emptyList(),
@@ -59,12 +61,18 @@ class SummaryPromptBuilder(
         )
     }
 
-    fun selectSummarizedMessageIds(
+    /**
+     * 按单次总结数量和上下文预算选择本次实际提交的连续消息前缀。
+     *
+     * @param messages 最新总结之后尚未覆盖的普通消息。
+     * @param provider 当前模型供应商，用于确定上下文容量。
+     * @return 本次总结会覆盖的消息；顺序与输入保持一致。
+     */
+    fun selectMessagesToSummarize(
         messages: List<ChatMessage>,
         provider: LLMProvider?
-    ): List<Long> {
-        // 与 build() 使用相同裁剪逻辑，确保只标记实际送入总结请求的消息。
-        return fitSummaryMessages(messages, provider).map { it.id }
+    ): List<ChatMessage> {
+        return fitSummaryMessages(messages, provider)
     }
 
     private fun fitSummaryMessages(
@@ -73,17 +81,30 @@ class SummaryPromptBuilder(
     ): List<ChatMessage> {
         // 增量总结按时间顺序选择尚未总结的旧消息，超出预算时保留已纳入的前段。
         val maxMessages = AppModel.summaryMaxMessagesPerRequest
-        val limitedByCount = if (maxMessages > 0) messages.take(maxMessages) else messages
         val tokenBudget = ((provider?.contextTokens ?: 8192) - AppModel.summaryResponseTokens)
             .coerceAtLeast(1024)
+        return selectSummaryMessagePrefix(messages, maxMessages, tokenBudget)
+    }
+}
+
+/**
+ * 选择不跨越预算缺口的连续消息前缀，确保总结边界不会覆盖未提交的中间消息。
+ */
+internal fun selectSummaryMessagePrefix(
+    messages: List<ChatMessage>,
+    maxMessages: Int,
+    tokenBudget: Int
+): List<ChatMessage> {
+    val limitedByCount = if (maxMessages > 0) messages.take(maxMessages) else messages
+    return buildList {
         val selected = mutableListOf<ChatMessage>()
         var usedTokens = 0
-        limitedByCount.forEach { message ->
+        for (message in limitedByCount) {
             val nextTokens = (message.content.length / 3).coerceAtLeast(1)
-            if (selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) return@forEach
+            if (selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) break
             selected += message
             usedTokens += nextTokens
         }
-        return selected
+        addAll(selected)
     }
 }

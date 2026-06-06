@@ -63,7 +63,7 @@ class PromptMacroResolver(
             "charinstruction" to context.character.postHistoryInstructions,
             "original" to original,
             "history" to history,
-            "summary" to context.session.summarize,
+            "summary" to context.summary,
             "lastmessage" to context.messages.lastOrNull()?.content.orEmpty(),
             "lastmessageid" to context.messages.lastOrNull()?.id?.toString().orEmpty(),
             "lastusermessage" to context.messages.lastOrNull { it.source.name.equals("User", ignoreCase = true) }?.content.orEmpty(),

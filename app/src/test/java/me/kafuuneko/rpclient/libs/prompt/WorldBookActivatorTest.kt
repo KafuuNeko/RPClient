@@ -148,6 +148,35 @@ class WorldBookActivatorTest {
     }
 
     @Test
+    fun summarizedHistoryDoesNotResetTimedEffects() {
+        val entry = lorebookEntry(
+            id = 1L,
+            keywords = """["harbor"]""",
+            sticky = 2
+        )
+        val activated = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("harbor")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+                totalMessageCount = 20
+            )
+        )
+
+        val afterSummary = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("no key")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+                worldInfoStateJson = activated.nextStateJson,
+                totalMessageCount = 21
+            )
+        )
+
+        assertEquals(listOf(entry), afterSummary.activatedEntries)
+    }
+
+    @Test
     fun inclusionGroupKeepsOnlyPrioritizedEntry() {
         val low = lorebookEntry(id = 1L, constant = true, order = 10, group = "weather", groupOverride = true)
         val high = lorebookEntry(id = 2L, constant = true, order = 30, group = "weather", groupOverride = true)
@@ -162,7 +191,8 @@ class WorldBookActivatorTest {
         currentUserMessage: String?,
         entries: List<LorebookEntry>,
         worldInfoStateJson: String = "{}",
-        recursiveScanningLorebookIds: Set<Long> = emptySet()
+        recursiveScanningLorebookIds: Set<Long> = emptySet(),
+        totalMessageCount: Int = messages.size + if (currentUserMessage.isNullOrBlank()) 0 else 1
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -187,13 +217,14 @@ class WorldBookActivatorTest {
                 latestTime = 0L,
                 lorebookEntrySet = "[]",
                 title = "",
-                summarize = "",
                 userNote = "",
                 creatorNotes = null,
                 worldInfoStateJson = worldInfoStateJson
             ),
+            summary = "",
             messages = messages,
             currentUserMessage = currentUserMessage,
+            totalMessageCount = totalMessageCount,
             candidateLorebookEntries = entries,
             recursiveScanningLorebookIds = recursiveScanningLorebookIds,
             provider = null,
@@ -208,8 +239,7 @@ class WorldBookActivatorTest {
             sessionId = 1L,
             createTime = 0L,
             source = ChatMessage.Source.User,
-            content = content,
-            isSummarized = false
+            content = content
         )
     }
 

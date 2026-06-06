@@ -61,15 +61,6 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateSessionLorebookEntrySet(id: Long, lorebookEntrySet: String)
 
     /**
-     * 修改会话总结。
-     *
-     * @param id 会话 id。
-     * @param summarize 新的会话总结。
-     */
-    @Query("UPDATE chat_sessions SET summarize = :summarize WHERE id = :id")
-    suspend fun updateSessionSummarize(id: Long, summarize: String)
-
-    /**
      * 修改用户笔记。
      *
      * @param id 会话 id。

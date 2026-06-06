@@ -238,6 +238,7 @@ class ChatPromptBuilderTest {
             userDescription = "",
             character = character,
             session = session,
+            summary = "",
             messages = messages,
             currentUserMessage = null,
             candidateLorebookEntries = entries,
@@ -256,7 +257,6 @@ class ChatPromptBuilderTest {
             latestTime = 0L,
             lorebookEntrySet = "[]",
             title = "",
-            summarize = "",
             userNote = userNote,
             creatorNotes = null
         )
@@ -268,8 +268,7 @@ class ChatPromptBuilderTest {
             sessionId = 1L,
             createTime = id,
             source = source,
-            content = content,
-            isSummarized = false
+            content = content
         )
     }
 

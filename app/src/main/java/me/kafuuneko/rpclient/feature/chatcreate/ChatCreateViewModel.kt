@@ -148,7 +148,6 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 latestTime = System.currentTimeMillis(),
                 lorebookEntrySet = "",
                 title = uiState.form.normalizedTitle(character),
-                summarize = "",
                 userNote = uiState.form.userNote.trim(),
                 creatorNotes = null
             )
@@ -157,6 +156,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 userDescription = AppModel.userDescription,
                 character = character,
                 session = session,
+                summary = "",
                 messages = emptyList(),
                 currentUserMessage = null,
                 candidateLorebookEntries = emptyList(),

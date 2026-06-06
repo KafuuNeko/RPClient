@@ -82,8 +82,7 @@ class ChatUiMappersTest {
             sessionId = 1,
             createTime = 0,
             source = source,
-            content = content,
-            isSummarized = false
+            content = content
         )
     }
 }

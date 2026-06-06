@@ -16,7 +16,8 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index("sessionId")
+        Index("sessionId"),
+        Index(value = ["sessionId", "source"])
     ]
 )
 data class ChatMessage(
@@ -30,8 +31,8 @@ data class ChatMessage(
     val source: Source,
     // 消息内容
     val content: String,
-    // 当前Message是否已被总结
-    val isSummarized: Boolean,
+    // Summary 消息覆盖到的最后一条普通消息 id；普通消息固定为 null，0 表示空总结不覆盖消息。
+    val coveredMessageId: Long? = null,
 ) {
-    enum class Source { Char, User, System }
+    enum class Source { Char, User, System, Summary }
 }

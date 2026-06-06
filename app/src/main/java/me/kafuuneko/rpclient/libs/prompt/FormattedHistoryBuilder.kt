@@ -16,6 +16,7 @@ class FormattedHistoryBuilder {
                 ChatMessage.Source.User -> userName
                 ChatMessage.Source.Char -> characterName
                 ChatMessage.Source.System -> "System"
+                ChatMessage.Source.Summary -> error("Summary snapshots must not be formatted as chat history")
             }
             "$speaker: ${message.content}"
         }

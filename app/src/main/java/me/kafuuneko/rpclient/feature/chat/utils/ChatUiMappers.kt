@@ -20,6 +20,7 @@ data class ChatLorebookEntryData(
 )
 
 fun ChatSession.toChatSessionItem(
+    summary: String,
     creatorNotes: String,
     messageCount: Int,
     enabledIds: Set<Long>
@@ -27,7 +28,7 @@ fun ChatSession.toChatSessionItem(
     return ChatSessionItem(
         id = id,
         title = title,
-        summarize = summarize,
+        summarize = summary,
         userNote = userNote,
         creatorNotes = creatorNotes,
         messageCount = messageCount,
@@ -62,6 +63,7 @@ fun List<ChatMessage>.toChatMessageItems(
             ChatMessage.Source.User -> MessageRole.User
             ChatMessage.Source.Char -> MessageRole.Assistant
             ChatMessage.Source.System -> MessageRole.Narrator
+            ChatMessage.Source.Summary -> error("Summary snapshots are not rendered as chat messages")
         }
         ChatMessageUiModel(
             id = message.id.toString(),
@@ -70,6 +72,7 @@ fun List<ChatMessage>.toChatMessageItems(
                 ChatMessage.Source.User -> userName
                 ChatMessage.Source.Char -> characterName
                 ChatMessage.Source.System -> systemSpeaker
+                ChatMessage.Source.Summary -> error("Summary snapshots are not rendered as chat messages")
             },
             content = message.content,
             parts = message.content.toContentParts(message.id.toString()),

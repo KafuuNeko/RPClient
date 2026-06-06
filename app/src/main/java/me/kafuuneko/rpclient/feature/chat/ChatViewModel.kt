@@ -396,7 +396,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSaveSummary(intent: ChatUiIntent.SaveSummary) {
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionSummarize(sessionId, intent.value)
+            mChatRepository.updateCurrentSummary(sessionId, intent.value)
         }
         refreshUiState(sessionId = sessionId)
     }
@@ -705,8 +705,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
-            val session = mChatRepository.getSessionById(sessionId) ?: return@withContext false
-            val messages = mChatRepository.getUnsummarizedMessagesBySessionId(sessionId)
+            val messages = mChatRepository.getMessagesAfterLatestSummary(sessionId)
             messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
@@ -720,9 +719,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val data = withContext(Dispatchers.IO) {
                 val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
                 val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
-                val messages = mChatRepository.getUnsummarizedMessagesBySessionId(sessionId)
+                val summaryContext = mChatRepository.getSummaryContext(sessionId)
                 val provider = mLLMRepository.getSelectedProvider()
-                AutoSummaryData(session, character, messages, provider)
+                AutoSummaryData(
+                    session = session,
+                    character = character,
+                    summary = summaryContext.summary?.content.orEmpty(),
+                    messages = summaryContext.messagesAfterSummary,
+                    provider = provider
+                )
             } ?: return
             if (data.messages.isEmpty()) {
                 if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
@@ -733,17 +738,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
             uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
 
+            val selectedMessages = mSummaryPromptBuilder.selectMessagesToSummarize(data.messages, data.provider)
+            if (selectedMessages.isEmpty()) return
             val request = mSummaryPromptBuilder.build(
                 userName = AppModel.userName,
                 userDescription = AppModel.userDescription,
                 character = data.character,
                 session = data.session,
-                messages = data.messages,
+                existingSummary = data.summary,
+                messages = selectedMessages,
                 provider = data.provider
             )
-            // SummaryPromptBuilder 会按上下文预算选择真正提交的消息，只标记这部分为已总结。
-            val summarizedIds = mSummaryPromptBuilder.selectSummarizedMessageIds(data.messages, data.provider)
-            if (summarizedIds.isEmpty()) return
 
             currentCoroutineContext().ensureActive()
 
@@ -754,10 +759,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             currentCoroutineContext().ensureActive()
 
             withContext(Dispatchers.IO) {
-                mChatRepository.saveSessionSummarize(
+                mChatRepository.saveSummary(
                     sessionId = sessionId,
-                    summarize = response.content,
-                    summarizedMessageIds = summarizedIds
+                    content = response.content,
+                    coveredMessageId = selectedMessages.last().id
                 )
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
@@ -776,7 +781,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
-        val messages = mChatRepository.getMessagesBySessionId(sessionId)
+        val summaryContext = mChatRepository.getSummaryContext(sessionId)
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookData = getAllLorebookEntries()
         val allLorebookEntries = lorebookData.entries
@@ -795,8 +800,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 userDescription = AppModel.userDescription,
                 character = character,
                 session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
-                messages = messages,
+                summary = summaryContext.summary?.content.orEmpty(),
+                messages = summaryContext.messagesAfterSummary,
                 currentUserMessage = null,
+                totalMessageCount = summaryContext.totalMessageCount,
                 candidateLorebookEntries = lorebookEntries,
                 recursiveScanningLorebookIds = recursiveLorebookIds,
                 provider = provider,
@@ -827,6 +834,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
+        val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
@@ -837,6 +845,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             page = page,
             loadState = loadState,
             session = session.toChatSessionItem(
+                summary = summary,
                 creatorNotes = effectiveCreatorNotes,
                 messageCount = messages.size,
                 enabledIds = enabledIds
@@ -915,6 +924,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private data class AutoSummaryData(
         val session: ChatSession,
         val character: Character,
+        val summary: String,
         val messages: List<ChatMessage>,
         val provider: LLMProvider?
     )

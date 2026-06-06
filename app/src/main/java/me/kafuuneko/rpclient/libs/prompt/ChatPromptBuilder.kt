@@ -89,7 +89,7 @@ class ChatPromptBuilder(
         beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, formatPersonality(context.character.personality), PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, formatScenario(context.character.scenario), PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.session.summarize, PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(LLMMessageRole.System, context.summary, PromptPieceImportance.Required)
         beforeHistory += PromptPiece(LLMMessageRole.System, readAuxiliaryPrompt(), PromptPieceImportance.Optional)
 
         val afterHistory = buildList {
@@ -329,6 +329,7 @@ class ChatPromptBuilder(
             ChatMessage.Source.User -> LLMMessageRole.User
             ChatMessage.Source.Char -> LLMMessageRole.Assistant
             ChatMessage.Source.System -> LLMMessageRole.System
+            ChatMessage.Source.Summary -> error("Summary snapshots must not be added to chat history")
         }
         return LLMMessage(role, content)
     }
