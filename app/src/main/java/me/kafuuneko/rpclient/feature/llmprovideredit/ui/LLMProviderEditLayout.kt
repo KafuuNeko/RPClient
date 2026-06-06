@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -246,11 +247,20 @@ private fun TestPanel(
                 )
             }
             OutlinedButton(
-                enabled = testState !is LLMProviderEditTestState.Testing,
-                onClick = { LLMProviderEditUiIntent.TestClick.emit() }
+                onClick = {
+                    if (testState is LLMProviderEditTestState.Testing) {
+                        LLMProviderEditUiIntent.CancelTest.emit()
+                    } else {
+                        LLMProviderEditUiIntent.TestClick.emit()
+                    }
+                }
             ) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.test))
-                Text(stringResource(R.string.test))
+                val isTesting = testState is LLMProviderEditTestState.Testing
+                Icon(
+                    imageVector = if (isTesting) Icons.Rounded.Close else Icons.Rounded.PlayArrow,
+                    contentDescription = stringResource(if (isTesting) R.string.cancel else R.string.test)
+                )
+                Text(stringResource(if (isTesting) R.string.cancel else R.string.test))
             }
         }
     }

@@ -1,6 +1,11 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
@@ -27,6 +32,7 @@ class LLMProviderEditViewModel :
     ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
     private val mLLMClientFactory by inject<LLMClientFactory>()
+    private var mTestJob: Job? = null
 
     @UiIntentObserver(LLMProviderEditUiIntent.Init::class)
     private suspend fun onInit(intent: LLMProviderEditUiIntent.Init) {
@@ -43,8 +49,12 @@ class LLMProviderEditViewModel :
     private fun onBack() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         if (uiState.loadState is LLMProviderEditLoadState.Saving) return
+        cancelTest()
         if (uiState.form.hasUnsavedChangesFrom(uiState.initialForm)) {
-            uiState.copy(dialogState = LLMProviderEditDialogState.UnsavedChangesConfirm).setup()
+            uiState.copy(
+                testState = LLMProviderEditTestState.None,
+                dialogState = LLMProviderEditDialogState.UnsavedChangesConfirm
+            ).setup()
             return
         }
         LLMProviderEditUiState.Finished.setup()
@@ -102,6 +112,7 @@ class LLMProviderEditViewModel :
     private suspend fun onSaveClick() {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         val provider = uiState.form.toProviderOrNullWithToast() ?: return
+        cancelTest()
         uiState.copy(loadState = LLMProviderEditLoadState.Saving).setup()
         withContext(Dispatchers.IO) { mLLMRepository.saveProvider(provider) }
         AppViewEvent.PopupToastMessageByResId(
@@ -111,28 +122,62 @@ class LLMProviderEditViewModel :
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.TestClick::class)
-    private suspend fun onTestClick() {
+    private fun onTestClick() {
+        if (mTestJob?.isActive == true) return
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         val provider = uiState.form.toProviderOrNullWithToast() ?: return
         uiState.copy(testState = LLMProviderEditTestState.Testing).setup()
-        val result = runCatching {
-            withContext(Dispatchers.IO) {
-                mLLMClientFactory.create(provider.toConfig()).generate(
-                    "Please reply with a short English sentence: Model test successful."
-                )
+        mTestJob = viewModelScope.launch {
+            val runningJob = currentCoroutineContext()[Job]
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    mLLMClientFactory.create(provider.toConfig()).generate(
+                        "Please reply with a short English sentence: Model test successful."
+                    )
+                }
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                latestState.copy(
+                    testState = LLMProviderEditTestState.Success(
+                        response.content.ifBlank { "Model test successful" }
+                    )
+                ).setup()
+            } catch (_: CancellationException) {
+                // Cancellation is an expected user action and should not be shown as a failure.
+            } catch (throwable: Throwable) {
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                latestState.copy(
+                    testState = LLMProviderEditTestState.Failed(
+                        throwable.message ?: "Test failed"
+                    )
+                ).setup()
+            } finally {
+                if (mTestJob === runningJob) mTestJob = null
             }
         }
-        val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
-        latestState.copy(
-            testState = result.fold(
-                onSuccess = { LLMProviderEditTestState.Success(it.content.ifBlank { "Model test successful" }) },
-                onFailure = { LLMProviderEditTestState.Failed(it.message ?: "Test failed") }
-            )
-        ).setup()
+    }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.CancelTest::class)
+    private fun onCancelTest() {
+        cancelTest()
+        val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        if (uiState.testState is LLMProviderEditTestState.Testing) {
+            uiState.copy(testState = LLMProviderEditTestState.None).setup()
+        }
+    }
+
+    private fun cancelTest() {
+        mTestJob?.cancel()
+        mTestJob = null
+    }
+
+    override fun onCleared() {
+        cancelTest()
+        super.onCleared()
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ConfirmDiscardChanges::class)
     private fun onConfirmDiscardChanges() {
+        cancelTest()
         LLMProviderEditUiState.Finished.setup()
     }
 
@@ -147,6 +192,7 @@ class LLMProviderEditViewModel :
      */
     private fun updateForm(block: LLMProviderEditForm.() -> LLMProviderEditForm) {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        cancelTest()
         uiState.copy(
             form = uiState.form.block(),
             testState = LLMProviderEditTestState.None

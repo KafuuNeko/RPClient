@@ -36,6 +36,8 @@ sealed class LLMProviderEditUiIntent {
 
     data object TestClick : LLMProviderEditUiIntent()
 
+    data object CancelTest : LLMProviderEditUiIntent()
+
     data object ConfirmDiscardChanges : LLMProviderEditUiIntent()
 
     data object DismissDialog : LLMProviderEditUiIntent()
