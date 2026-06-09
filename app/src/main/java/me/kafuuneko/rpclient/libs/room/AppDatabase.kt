@@ -31,7 +31,7 @@ import me.kafuuneko.rpclient.libs.room.dao.FileDao
         FileEntity::class,
         LLMRequestLog::class
     ],
-    version = 2,
+    version = 1,
     autoMigrations = [],
     exportSchema = false
 )

@@ -3,12 +3,36 @@ package me.kafuuneko.rpclient.feature.chat.utils
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatUiMappersTest {
+    @Test
+    fun toChatSessionItem_keepsSessionUserIdentity() {
+        val item = ChatSession(
+            id = 1,
+            characterId = 2,
+            createTime = 3,
+            latestTime = 4,
+            lorebookEntrySet = "[]",
+            title = "Session",
+            userNote = "",
+            userName = "Alice",
+            userDescription = "An investigator"
+        ).toChatSessionItem(
+            summary = "",
+            creatorNotes = "",
+            messageCount = 0,
+            enabledIds = emptySet()
+        )
+
+        assertEquals("Alice", item.userName)
+        assertEquals("An investigator", item.userDescription)
+    }
+
     @Test
     fun toContentParts_splitsThinkBlocksFromVisibleText() {
         val parts = "hello<think>reasoning</think>world".toContentParts("42")

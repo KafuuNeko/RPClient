@@ -49,6 +49,10 @@ sealed class ChatUiIntent {
 
     data class SaveUserNote(val value: String) : ChatUiIntent()
 
+    data class SaveUserName(val value: String) : ChatUiIntent()
+
+    data class SaveUserDescription(val value: String) : ChatUiIntent()
+
     data class SaveCreatorNotes(val value: String) : ChatUiIntent()
 
     data class CopyMessage(val messageId: String) : ChatUiIntent()

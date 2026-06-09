@@ -94,6 +94,8 @@ class ChatRepository(
         characterId: Long,
         title: String,
         userNote: String,
+        userName: String,
+        userDescription: String,
         lorebookEntryIds: List<Long>,
         firstMessageContent: String?,
         creatorNotes: String? = null,
@@ -108,6 +110,8 @@ class ChatRepository(
                     lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
                     title = title,
                     userNote = userNote,
+                    userName = userName,
+                    userDescription = userDescription,
                     creatorNotes = creatorNotes
                 )
             )
@@ -134,6 +138,8 @@ class ChatRepository(
         characterId: Long,
         title: String,
         userNote: String,
+        userName: String,
+        userDescription: String,
         lorebookEntryIds: List<Long>,
         creatorNotes: String? = null,
         createTime: Long = System.currentTimeMillis()
@@ -146,6 +152,8 @@ class ChatRepository(
                 lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
                 title = title,
                 userNote = userNote,
+                userName = userName,
+                userDescription = userDescription,
                 creatorNotes = creatorNotes
             )
         )
@@ -279,6 +287,26 @@ class ChatRepository(
      */
     suspend fun updateSessionUserNote(id: Long, userNote: String) {
         mChatSessionDao.updateSessionUserNote(id, userNote)
+    }
+
+    /**
+     * 修改当前会话使用的用户名称。
+     *
+     * @param id 会话 id。
+     * @param userName 新的用户名称。
+     */
+    suspend fun updateSessionUserName(id: Long, userName: String) {
+        mChatSessionDao.updateSessionUserName(id, userName)
+    }
+
+    /**
+     * 修改当前会话使用的用户描述。
+     *
+     * @param id 会话 id。
+     * @param userDescription 新的用户描述。
+     */
+    suspend fun updateSessionUserDescription(id: Long, userDescription: String) {
+        mChatSessionDao.updateSessionUserDescription(id, userDescription)
     }
 
     /**

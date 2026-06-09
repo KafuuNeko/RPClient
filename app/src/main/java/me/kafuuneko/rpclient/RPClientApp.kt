@@ -62,6 +62,7 @@ private val appModules = module {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
             .allowMainThreadQueries()
             .fallbackToDestructiveMigration(true)
+            .fallbackToDestructiveMigrationOnDowngrade(true)
             .build()
     }
 

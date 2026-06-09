@@ -50,7 +50,9 @@ class ChatRepositorySummaryTest {
                 latestTime = 1L,
                 lorebookEntrySet = "[]",
                 title = "Test",
-                userNote = ""
+                userNote = "",
+                userName = "Alice",
+                userDescription = "An investigator"
             )
         )
     }
@@ -119,6 +121,9 @@ class ChatRepositorySummaryTest {
             createTime = 100L
         )
         val branchContext = repository.getSummaryContext(branchId)
+        val branchSession = repository.getSessionById(branchId)
+        assertEquals("Alice", branchSession?.userName)
+        assertEquals("An investigator", branchSession?.userDescription)
         assertEquals("summary-through-5", branchContext.summary?.content)
         assertEquals(listOf("message-6"), branchContext.messagesAfterSummary.map { it.content })
         assertEquals(6, repository.getMessageCountBySessionId(branchId))

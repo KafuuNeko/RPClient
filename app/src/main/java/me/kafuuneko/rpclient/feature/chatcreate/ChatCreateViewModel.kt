@@ -153,6 +153,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         }
         val firstMessageSelection = uiState.resolveFirstMessageSelection() ?: return
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
+        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val userDescription = AppModel.userDescription.trim()
 
         val firstMessageContent = firstMessageSelection.value?.let { rawFirstMessage ->
             val session = ChatSession(
@@ -163,11 +165,13 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 lorebookEntrySet = "",
                 title = uiState.form.normalizedTitle(character),
                 userNote = uiState.form.userNote.trim(),
+                userName = userName,
+                userDescription = userDescription,
                 creatorNotes = null
             )
             val context = PromptBuildContext(
-                userName = AppModel.userName,
-                userDescription = AppModel.userDescription,
+                userName = userName,
+                userDescription = userDescription,
                 character = character,
                 session = session,
                 summary = "",
@@ -186,6 +190,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 characterId = character.id,
                 title = uiState.form.normalizedTitle(character),
                 userNote = uiState.form.userNote.trim(),
+                userName = userName,
+                userDescription = userDescription,
                 lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
                 firstMessageContent = firstMessageContent
             )

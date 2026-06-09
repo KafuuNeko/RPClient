@@ -1014,6 +1014,22 @@ private fun ChatSettingsPage(
                         onSave = { ChatUiIntent.SaveUserNote(it).emit() }
                     )
                     AutoSaveTextField(
+                        label = stringResource(R.string.user_display_name),
+                        value = state.session.userName,
+                        minLines = 1,
+                        maxLines = 1,
+                        singleLine = true,
+                        onSave = { ChatUiIntent.SaveUserName(it).emit() }
+                    )
+                    AutoSaveTextField(
+                        label = stringResource(R.string.user_persona_description),
+                        value = state.session.userDescription,
+                        placeholder = stringResource(R.string.empty),
+                        minLines = 3,
+                        maxLines = 8,
+                        onSave = { ChatUiIntent.SaveUserDescription(it).emit() }
+                    )
+                    AutoSaveTextField(
                         label = stringResource(R.string.creator_notes),
                         value = state.session.creatorNotes,
                         placeholder = stringResource(R.string.using_character_default_or_empty),
@@ -1342,6 +1358,8 @@ private fun ChatLayoutPreview() {
                     title = "The Seventh File on a Rainy Night",
                     summarize = "",
                     userNote = "",
+                    userName = "You",
+                    userDescription = "",
                     creatorNotes = "",
                     messageCount = 1,
                     enabledLorebookEntryIds = setOf(1)

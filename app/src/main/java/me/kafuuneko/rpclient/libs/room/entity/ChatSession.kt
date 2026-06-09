@@ -35,6 +35,10 @@ data class ChatSession(
     val title: String,
     // 用户笔记
     val userNote: String,
+    // 用户名
+    val userName: String = "You",
+    // 用户描述
+    val userDescription: String = "",
     // 当前对话的角色备注覆盖值，为空时使用关联角色的 creatorNotes
     val creatorNotes: String? = null,
     // 世界书 timed effects 运行时状态，保存 sticky/cooldown 的有效期；不是用户可编辑内容。

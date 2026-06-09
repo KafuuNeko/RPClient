@@ -410,6 +410,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId)
     }
 
+    /**
+     * 保存当前会话的用户名称。
+     *
+     * 空白名称统一保存为默认值 `You`，避免生成 prompt 和消息署名出现空名称。
+     */
+    @UiIntentObserver(ChatUiIntent.SaveUserName::class)
+    private suspend fun onSaveUserName(intent: ChatUiIntent.SaveUserName) {
+        val sessionId = mSessionId ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateSessionUserName(sessionId, intent.value.trim().ifBlank { "You" })
+        }
+        refreshUiState(sessionId = sessionId)
+    }
+
+    /**
+     * 保存当前会话的用户描述。
+     *
+     * 用户描述仅影响当前会话，并在保存前移除首尾空白。
+     */
+    @UiIntentObserver(ChatUiIntent.SaveUserDescription::class)
+    private suspend fun onSaveUserDescription(intent: ChatUiIntent.SaveUserDescription) {
+        val sessionId = mSessionId ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateSessionUserDescription(sessionId, intent.value.trim())
+        }
+        refreshUiState(sessionId = sessionId)
+    }
+
     @UiIntentObserver(ChatUiIntent.SaveCreatorNotes::class)
     private suspend fun onSaveCreatorNotes(intent: ChatUiIntent.SaveCreatorNotes) {
         val sessionId = mSessionId ?: return
@@ -745,8 +773,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val selectedMessages = mSummaryPromptBuilder.selectMessagesToSummarize(data.messages, data.provider)
             if (selectedMessages.isEmpty()) return
             val request = mSummaryPromptBuilder.build(
-                userName = AppModel.userName,
-                userDescription = AppModel.userDescription,
+                userName = data.session.userName,
+                userDescription = data.session.userDescription,
                 character = data.character,
                 session = data.session,
                 existingSummary = data.summary,
@@ -799,8 +827,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val provider = mLLMRepository.getSelectedProvider() ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
         val buildResult = mChatPromptBuilder.buildWithMetadata(
             PromptBuildContext(
-                userName = AppModel.userName,
-                userDescription = AppModel.userDescription,
+                userName = session.userName,
+                userDescription = session.userDescription,
                 character = character,
                 session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
                 summary = summaryContext.summary?.content.orEmpty(),
@@ -856,7 +884,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             character = character.toChatCharacterItem(avatarFilePath),
             messages = messages.toChatMessageItems(
                 characterName = character.name,
-                userName = AppModel.userName,
+                userName = session.userName,
                 systemSpeaker = mContext.getString(R.string.system_speaker),
                 streamingMessageId = mStreamingMessageId
             ),

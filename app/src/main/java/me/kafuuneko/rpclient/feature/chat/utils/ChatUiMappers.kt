@@ -30,6 +30,8 @@ fun ChatSession.toChatSessionItem(
         title = title,
         summarize = summary,
         userNote = userNote,
+        userName = userName,
+        userDescription = userDescription,
         creatorNotes = creatorNotes,
         messageCount = messageCount,
         enabledLorebookEntryIds = enabledIds

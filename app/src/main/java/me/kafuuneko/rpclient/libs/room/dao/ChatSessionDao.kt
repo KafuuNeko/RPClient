@@ -70,6 +70,24 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateSessionUserNote(id: Long, userNote: String)
 
     /**
+     * 修改当前会话使用的用户名称。
+     *
+     * @param id 会话 id。
+     * @param userName 新的用户名称。
+     */
+    @Query("UPDATE chat_sessions SET userName = :userName WHERE id = :id")
+    suspend fun updateSessionUserName(id: Long, userName: String)
+
+    /**
+     * 修改当前会话使用的用户描述。
+     *
+     * @param id 会话 id。
+     * @param userDescription 新的用户描述。
+     */
+    @Query("UPDATE chat_sessions SET userDescription = :userDescription WHERE id = :id")
+    suspend fun updateSessionUserDescription(id: Long, userDescription: String)
+
+    /**
      * 修改角色笔记。
      *
      * @param id 会话 id。
