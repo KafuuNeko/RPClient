@@ -9,10 +9,13 @@ import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
+import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
+import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
@@ -31,6 +34,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
@@ -43,6 +47,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
+    private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mContext by inject<Context>()
 
     @UiIntentObserver(MainUiIntent.Init::class)
@@ -193,6 +198,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenCreateChat::class)
     private fun onOpenCreateChat() {
         AppViewEvent.StartActivity(ChatCreateActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenGroupChat::class)
+    private fun onOpenGroupChat(intent: MainUiIntent.OpenGroupChat) {
+        AppViewEvent.StartActivity(
+            activity = GroupChatActivity::class.java,
+            extras = Bundle().apply {
+                putString(GroupChatActivity.EXTRA_SESSION_ID, intent.sessionId)
+            }
+        ).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenCreateGroupChat::class)
+    private fun onOpenCreateGroupChat() {
+        AppViewEvent.StartActivity(GroupChatCreateActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenCharacterManager::class)
@@ -346,9 +366,26 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val characters = mCharacterRepository.getAllCharacters()
             val characterMap = characters.associateBy { it.id }
             val sessions = mChatRepository.getAllSessions()
+            val groupSessions = mGroupChatRepository.getAllSessions()
             MainHomeState(
                 recentSessions = sessions.map { session ->
                     session.toUiModel(characterMap[session.characterId])
+                },
+                groupChatSessions = groupSessions.map { session ->
+                    val data = mGroupChatRepository.getGroupChatData(session.id)
+                    MainGroupChatSessionItem(
+                        id = session.id.toString(),
+                        title = session.title,
+                        memberNames = data?.members
+                            ?.joinToString(", ") { it.character.name }
+                            .orEmpty(),
+                        preview = data?.messages?.lastOrNull()?.content
+                            ?.stripThinkBlocks()
+                            ?.takeIf { it.isNotBlank() }
+                            ?: mContext.getString(R.string.no_messages_yet),
+                        messageCount = data?.messages?.size ?: 0,
+                        updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm")
+                    )
                 },
                 totalCharacters = characters.size,
                 totalWorldBooks = mLorebookRepository.getAllLorebooks().size

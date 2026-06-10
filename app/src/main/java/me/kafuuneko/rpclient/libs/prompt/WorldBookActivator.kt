@@ -23,8 +23,28 @@ class WorldBookActivator {
      * 概率、sticky/cooldown、递归等规则判断。
      */
     fun activateStructured(context: PromptBuildContext): WorldBookActivationResult {
+        return activateStructured(
+            WorldBookScanContext(
+                messages = context.messages.map { it.content },
+                currentUserMessage = context.currentUserMessage,
+                totalMessageCount = context.totalMessageCount,
+                worldInfoStateJson = context.session.worldInfoStateJson,
+                candidateLorebookEntries = context.candidateLorebookEntries,
+                recursiveScanningLorebookIds = context.recursiveScanningLorebookIds,
+                characterDescription = context.character.description,
+                userDescription = context.userDescription,
+                characterPersonality = context.character.personality,
+                characterDepthPrompt = context.character.depthPromptPrompt,
+                scenario = context.character.scenario,
+                creatorNotes = context.character.creatorNotes
+            )
+        )
+    }
+
+    /** 使用与具体聊天实体解耦的扫描上下文激活世界书。 */
+    fun activateStructured(context: WorldBookScanContext): WorldBookActivationResult {
         val messageCount = context.totalMessageCount
-        val state = TimedWorldInfoState.fromJson(context.session.worldInfoStateJson, gson)
+        val state = TimedWorldInfoState.fromJson(context.worldInfoStateJson, gson)
             .discardIfChatRewound(messageCount)
         val activated = linkedMapOf<Long, LorebookEntry>()
         val timedStickyIds = mutableSetOf<Long>()
@@ -81,7 +101,7 @@ class WorldBookActivator {
     }
 
     private fun LorebookEntry.shouldActivate(
-        context: PromptBuildContext,
+        context: WorldBookScanContext,
         recursionBuffer: String,
         messageCount: Int
     ): Boolean {
@@ -113,24 +133,24 @@ class WorldBookActivator {
     }
 
     private fun buildScanBuffer(
-        context: PromptBuildContext,
+        context: WorldBookScanContext,
         entry: LorebookEntry,
         recursionBuffer: String
     ): String {
         val depth = entry.scanDepth ?: DEFAULT_SCAN_DEPTH
         val recentMessages = context.messages.takeLast(depth.coerceAtLeast(0))
-            .joinToString("\n") { it.content }
+            .joinToString("\n")
         // 附加扫描源默认关闭，只在条目显式声明时扫描角色描述、场景等静态字段。
         return buildList {
             if (recentMessages.isNotBlank()) add(recentMessages)
             context.currentUserMessage?.takeIf { it.isNotBlank() }?.let { add(it) }
             recursionBuffer.takeIf { it.isNotBlank() }?.let { add(it) }
-            if (entry.matchCharacterDescription) add(context.character.description)
+            if (entry.matchCharacterDescription) add(context.characterDescription)
             if (entry.matchPersonaDescription) add(context.userDescription)
-            if (entry.matchCharacterPersonality) add(context.character.personality)
-            if (entry.matchCharacterDepthPrompt) add(context.character.depthPromptPrompt)
-            if (entry.matchScenario) add(context.character.scenario)
-            if (entry.matchCreatorNotes) add(context.character.creatorNotes)
+            if (entry.matchCharacterPersonality) add(context.characterPersonality)
+            if (entry.matchCharacterDepthPrompt) add(context.characterDepthPrompt)
+            if (entry.matchScenario) add(context.scenario)
+            if (entry.matchCreatorNotes) add(context.creatorNotes)
         }.filter { it.isNotBlank() }.joinToString("\n")
     }
 
@@ -325,10 +345,28 @@ class WorldBookActivator {
     }
 
     private companion object {
+        // 条目未指定扫描深度时使用的默认消息数。
         const val DEFAULT_SCAN_DEPTH = 2
+        // 递归扫描上限，避免世界书条目之间形成无限激活。
         const val MAX_RECURSION_STEPS = 5
     }
 }
+
+/** 世界书激活器使用的通用扫描上下文，可供单聊与群聊复用。 */
+data class WorldBookScanContext(
+    val messages: List<String>,
+    val currentUserMessage: String?,
+    val totalMessageCount: Int,
+    val worldInfoStateJson: String,
+    val candidateLorebookEntries: List<LorebookEntry>,
+    val recursiveScanningLorebookIds: Set<Long> = emptySet(),
+    val characterDescription: String = "",
+    val userDescription: String = "",
+    val characterPersonality: String = "",
+    val characterDepthPrompt: String = "",
+    val scenario: String = "",
+    val creatorNotes: String = ""
+)
 
 data class WorldBookActivationResult(
     val activatedEntries: List<LorebookEntry>,

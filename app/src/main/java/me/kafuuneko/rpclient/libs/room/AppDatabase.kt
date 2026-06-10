@@ -19,6 +19,14 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMRequestLog
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 import me.kafuuneko.rpclient.libs.room.dao.FileDao
+import me.kafuuneko.rpclient.libs.room.dao.GroupChatMemberDao
+import me.kafuuneko.rpclient.libs.room.dao.GroupChatMessageDao
+import me.kafuuneko.rpclient.libs.room.dao.GroupChatSessionDao
+import me.kafuuneko.rpclient.libs.room.dao.GroupChatSummaryDao
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 
 @Database(
     entities = [
@@ -29,7 +37,11 @@ import me.kafuuneko.rpclient.libs.room.dao.FileDao
         ChatMessage::class,
         LLMProvider::class,
         FileEntity::class,
-        LLMRequestLog::class
+        LLMRequestLog::class,
+        GroupChatSession::class,
+        GroupChatMember::class,
+        GroupChatMessage::class,
+        GroupChatSummary::class
     ],
     version = 1,
     autoMigrations = [],
@@ -45,5 +57,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getLLMProviderDao(): LLMProviderDao
     abstract fun getFileDao(): FileDao
     abstract fun getLLMRequestLogDao(): LLMRequestLogDao
+    abstract fun getGroupChatSessionDao(): GroupChatSessionDao
+    abstract fun getGroupChatMemberDao(): GroupChatMemberDao
+    abstract fun getGroupChatMessageDao(): GroupChatMessageDao
+    abstract fun getGroupChatSummaryDao(): GroupChatSummaryDao
 
 }

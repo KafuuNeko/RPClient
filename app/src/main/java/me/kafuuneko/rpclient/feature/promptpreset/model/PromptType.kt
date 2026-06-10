@@ -12,5 +12,8 @@ enum class PromptType {
     ReplaceEmptyMessage,
     WorldInfoFormat,
     ScenarioFormat,
-    PersonalityFormat
+    PersonalityFormat,
+    GroupNudge,
+    NewGroupChat,
+    GroupSummarize
 }

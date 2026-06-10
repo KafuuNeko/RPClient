@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -85,6 +86,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -425,6 +427,15 @@ private fun HomePage(
             item {
                 HomeEntryCard(
                     modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.Groups,
+                    title = stringResource(R.string.group_chat),
+                    subtitle = stringResource(R.string.group_chat_home_desc),
+                    onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
+                )
+            }
+            item {
+                HomeEntryCard(
+                    modifier = Modifier.fillMaxWidth(),
                     icon = Icons.Rounded.Person,
                     title = stringResource(R.string.character),
                     subtitle = stringResource(R.string.character_cards_count, state.totalCharacters),
@@ -500,6 +511,97 @@ private fun HomePage(
                     )
                 }
             }
+        }
+        if (!state.multiSelectMode) {
+            item {
+                RpSectionHeader(
+                    title = stringResource(R.string.recent_group_chats),
+                    action = stringResource(R.string.new_group_chat)
+                ) {
+                    MainUiIntent.OpenCreateGroupChat.emit()
+                }
+            }
+            if (state.groupChatSessions.isEmpty()) {
+                item {
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.Groups,
+                        title = stringResource(R.string.no_group_chats),
+                        subtitle = stringResource(R.string.no_group_chats_desc)
+                    )
+                }
+            }
+            items(
+                items = state.groupChatSessions,
+                key = { "group-session-${it.id}" }
+            ) { session ->
+                GroupSessionCard(
+                    modifier = Modifier.animateItem(),
+                    session = session,
+                    onClick = { MainUiIntent.OpenGroupChat(session.id).emit() }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupSessionCard(
+    modifier: Modifier = Modifier,
+    session: MainGroupChatSessionItem,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RpIconBubble(Icons.Rounded.Groups)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = session.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = session.preview,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                RpMetaRow(
+                    listOf(
+                        session.memberNames,
+                        stringResource(R.string.message_count, session.messageCount),
+                        session.updatedAt
+                    )
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

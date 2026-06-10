@@ -1,0 +1,48 @@
+package me.kafuuneko.rpclient.feature.groupchat.presentation
+
+sealed class GroupChatUiIntent {
+    data class Init(val sessionId: String?) : GroupChatUiIntent()
+    data object Resume : GroupChatUiIntent()
+    data object Back : GroupChatUiIntent()
+    data object OpenSettings : GroupChatUiIntent()
+    data object CloseSettings : GroupChatUiIntent()
+    data class ChangeInputDraft(val value: String) : GroupChatUiIntent()
+    data class SelectSpeaker(val characterId: Long) : GroupChatUiIntent()
+    data class ToggleMemberMuted(val characterId: Long) : GroupChatUiIntent()
+    data object SendMessage : GroupChatUiIntent()
+    data object StopGeneration : GroupChatUiIntent()
+    data object SummarizeNow : GroupChatUiIntent()
+    data class ChangeTitle(val value: String) : GroupChatUiIntent()
+    data class ChangeScenario(val value: String) : GroupChatUiIntent()
+    data class ChangeUserNote(val value: String) : GroupChatUiIntent()
+    data class ChangeSummary(val value: String) : GroupChatUiIntent()
+    data class ChangeSystemPrompt(val value: String) : GroupChatUiIntent()
+    data class ChangeGroupNudgePrompt(val value: String) : GroupChatUiIntent()
+    data class ChangeNewGroupChatPrompt(val value: String) : GroupChatUiIntent()
+    data object SaveSettings : GroupChatUiIntent()
+    data class SelectActivationStrategy(
+        val strategy: me.kafuuneko.rpclient.libs.room.entity.GroupChatSession.ActivationStrategy
+    ) : GroupChatUiIntent()
+    data class SelectCharacterCardMode(
+        val mode: me.kafuuneko.rpclient.libs.room.entity.GroupChatSession.CharacterCardMode
+    ) : GroupChatUiIntent()
+    data class ToggleIncludeMutedCards(val enabled: Boolean) : GroupChatUiIntent()
+    data class ToggleAutoMode(val enabled: Boolean) : GroupChatUiIntent()
+    data class ToggleTrimOtherSpeakers(val enabled: Boolean) : GroupChatUiIntent()
+    data class ToggleAllowSelfResponses(val enabled: Boolean) : GroupChatUiIntent()
+    data class ToggleLorebook(val lorebookId: Long) : GroupChatUiIntent()
+    data class ToggleLorebookEntry(val entryId: Long) : GroupChatUiIntent()
+    data class AddMember(val characterId: Long) : GroupChatUiIntent()
+    data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
+    data class MoveMember(val characterId: Long, val offset: Int) : GroupChatUiIntent()
+    data class StartEditMessage(val messageId: Long) : GroupChatUiIntent()
+    data class ChangeEditingMessageDraft(val value: String) : GroupChatUiIntent()
+    data object SaveEditingMessage : GroupChatUiIntent()
+    data object CancelEditingMessage : GroupChatUiIntent()
+    data class DeleteMessage(val messageId: Long) : GroupChatUiIntent()
+    data class RegenerateMessage(val messageId: Long) : GroupChatUiIntent()
+    data object ContinueLast : GroupChatUiIntent()
+    data object DeleteSessionClick : GroupChatUiIntent()
+    data object ConfirmDeleteSession : GroupChatUiIntent()
+    data object DismissDialog : GroupChatUiIntent()
+}

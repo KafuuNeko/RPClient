@@ -59,6 +59,14 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.groupchat.GroupChatActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
+            android:name=".feature.groupchatcreate.GroupChatCreateActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.characterlist.CharacterListActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />

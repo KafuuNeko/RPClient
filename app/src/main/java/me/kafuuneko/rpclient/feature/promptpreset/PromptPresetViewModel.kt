@@ -71,6 +71,9 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> AppModel.worldInfoFormat
             PromptType.ScenarioFormat -> AppModel.scenarioFormat
             PromptType.PersonalityFormat -> AppModel.personalityFormat
+            PromptType.GroupNudge -> AppModel.groupNudgePrompt
+            PromptType.NewGroupChat -> AppModel.newGroupChatPrompt
+            PromptType.GroupSummarize -> AppModel.groupSummarizePrompt
         }
     }
 
@@ -88,6 +91,9 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.WorldInfoFormat -> AppModel.worldInfoFormat = text
             PromptType.ScenarioFormat -> AppModel.scenarioFormat = text
             PromptType.PersonalityFormat -> AppModel.personalityFormat = text
+            PromptType.GroupNudge -> AppModel.groupNudgePrompt = text
+            PromptType.NewGroupChat -> AppModel.newGroupChatPrompt = text
+            PromptType.GroupSummarize -> AppModel.groupSummarizePrompt = text
         }
     }
 }

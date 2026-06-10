@@ -62,6 +62,36 @@ Chat history to summarize:
     // 默认性格格式模板，{{personality}} 会替换为角色性格。
     const val DEFAULT_PERSONALITY_FORMAT = "{{personality}}"
 
+    // 群聊生成尾部提示词，约束模型只输出当前角色的回复。
+    const val DEFAULT_GROUP_NUDGE_PROMPT = """
+Write only {{char}}'s next reply.
+Stay in character. Do not speak for {{user}} or other group members.
+Do not prefix the reply with a speaker name.
+"""
+
+    // 已有消息的群聊开始提示词，用于明确本轮参与成员。
+    const val DEFAULT_NEW_GROUP_CHAT_PROMPT = "[Start a new group chat with {{group}}]"
+
+    // 群聊摘要提示词，保留事件归属、关系状态和未解决事项。
+    const val DEFAULT_GROUP_SUMMARIZE_PROMPT = """
+Summarize the following group chat into concise story memory.
+You are a memory summarizer, not a roleplay participant.
+Rules:
+- Only summarize events actually stated or confirmed in the chat.
+- Preserve who said or did each important thing.
+- Preserve relationships, promises, injuries, locations, goals, unresolved conflicts, current scene state and character-specific knowledge.
+- Mark plans, suspicions and hypotheses as unconfirmed.
+- Do not add character-card lore, world info or writing instructions as events.
+- Keep it within {{words}} words.
+
+Group members: {{group}}
+Existing summary:
+{{summary}}
+
+Chat history to summarize:
+{{history}}
+"""
+
     // 当前选中的模型供应商 ID。
     var currentLLMProvider by longPref()
 
@@ -100,6 +130,15 @@ Chat history to summarize:
 
     // 性格格式模板，使用 {{personality}} 包装角色性格文本。
     var personalityFormat by stringPref(default = DEFAULT_PERSONALITY_FORMAT)
+
+    // 全局群聊生成尾部提示词，可由具体群聊会话覆盖。
+    var groupNudgePrompt by stringPref(default = DEFAULT_GROUP_NUDGE_PROMPT)
+
+    // 全局群聊开始提示词，可由具体群聊会话覆盖。
+    var newGroupChatPrompt by stringPref(default = DEFAULT_NEW_GROUP_CHAT_PROMPT)
+
+    // 群聊专用摘要提示词。
+    var groupSummarizePrompt by stringPref(default = DEFAULT_GROUP_SUMMARIZE_PROMPT)
 
     // 是否启用流式响应。
     var streamEnabled by booleanPref(default = true)

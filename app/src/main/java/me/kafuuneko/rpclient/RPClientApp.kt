@@ -2,27 +2,30 @@ package me.kafuuneko.rpclient
 
 import android.app.Application
 import androidx.room.Room
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chibatching.kotpref.Kotpref
-import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.room.AppDatabase
-import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
-import com.google.gson.Gson
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
@@ -57,6 +60,10 @@ private val appModules = module {
     singleOf(::WorldBookActivator)
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
+    singleOf(::GroupChatPromptBuilder)
+    singleOf(::GroupChatSpeakerSelector)
+    singleOf(::GroupChatSummaryPromptBuilder)
+    singleOf(::GroupChatOutputSanitizer)
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
@@ -73,6 +80,7 @@ private val appModules = module {
     singleOf(::LLMRequestLogRepository)
     singleOf(::FileRepository)
     singleOf(::CharacterCardRepository)
+    singleOf(::GroupChatRepository)
 
 }
 

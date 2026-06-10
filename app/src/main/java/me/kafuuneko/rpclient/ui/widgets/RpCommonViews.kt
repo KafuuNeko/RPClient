@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -129,6 +131,7 @@ fun RpTagRow(
 @Composable
 fun RpTagPill(text: String) {
     Surface(
+        modifier = Modifier.widthIn(max = 240.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
@@ -137,14 +140,20 @@ fun RpTagPill(text: String) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RpMetaRow(items: List<String>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         items.forEach { item ->
             RpMetaPill(item)
         }
@@ -154,6 +163,7 @@ fun RpMetaRow(items: List<String>) {
 @Composable
 fun RpMetaPill(text: String) {
     Surface(
+        modifier = Modifier.widthIn(max = 240.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
@@ -161,7 +171,10 @@ fun RpMetaPill(text: String) {
             text = text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

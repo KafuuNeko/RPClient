@@ -258,7 +258,9 @@ private val promptGroups = listOf(
             PromptType.NewChat,
             PromptType.NewExampleChat,
             PromptType.ContinueNudge,
-            PromptType.ReplaceEmptyMessage
+            PromptType.ReplaceEmptyMessage,
+            PromptType.GroupNudge,
+            PromptType.NewGroupChat
         )
     ),
     PromptGroup(
@@ -271,13 +273,14 @@ private val promptGroups = listOf(
     ),
     PromptGroup(
         titleRes = R.string.prompt_summary_section,
-        types = listOf(PromptType.Summarize)
+        types = listOf(PromptType.Summarize, PromptType.GroupSummarize)
     )
 )
 
 private fun PromptType.icon(): ImageVector {
     return when (this) {
         PromptType.Summarize -> Icons.Rounded.Compress
+        PromptType.GroupSummarize -> Icons.Rounded.Compress
         else -> Icons.Rounded.AutoAwesome
     }
 }
@@ -296,6 +299,9 @@ private fun PromptType.titleRes(): Int {
         PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_title
         PromptType.ScenarioFormat -> R.string.prompt_scenario_format_title
         PromptType.PersonalityFormat -> R.string.prompt_personality_format_title
+        PromptType.GroupNudge -> R.string.prompt_group_nudge_title
+        PromptType.NewGroupChat -> R.string.prompt_new_group_chat_title
+        PromptType.GroupSummarize -> R.string.prompt_group_summarize_title
     }
 }
 
@@ -313,6 +319,9 @@ private fun PromptType.descriptionRes(): Int {
         PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_desc
         PromptType.ScenarioFormat -> R.string.prompt_scenario_format_desc
         PromptType.PersonalityFormat -> R.string.prompt_personality_format_desc
+        PromptType.GroupNudge -> R.string.prompt_group_nudge_desc
+        PromptType.NewGroupChat -> R.string.prompt_new_group_chat_desc
+        PromptType.GroupSummarize -> R.string.prompt_group_summarize_desc
     }
 }
 

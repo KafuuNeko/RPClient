@@ -4,6 +4,8 @@ import androidx.room.TypeConverter
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
 class Converters {
     @TypeConverter
@@ -13,6 +15,36 @@ class Converters {
 
     @TypeConverter
     fun fromChatMessageSource(value: ChatMessage.Source): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toGroupChatMessageSource(value: String): GroupChatMessage.Source {
+        return GroupChatMessage.Source.valueOf(value)
+    }
+
+    @TypeConverter
+    fun fromGroupChatMessageSource(value: GroupChatMessage.Source): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toGroupChatActivationStrategy(value: String): GroupChatSession.ActivationStrategy {
+        return GroupChatSession.ActivationStrategy.valueOf(value)
+    }
+
+    @TypeConverter
+    fun fromGroupChatActivationStrategy(value: GroupChatSession.ActivationStrategy): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toGroupChatCharacterCardMode(value: String): GroupChatSession.CharacterCardMode {
+        return GroupChatSession.CharacterCardMode.valueOf(value)
+    }
+
+    @TypeConverter
+    fun fromGroupChatCharacterCardMode(value: GroupChatSession.CharacterCardMode): String {
         return value.name
     }
 

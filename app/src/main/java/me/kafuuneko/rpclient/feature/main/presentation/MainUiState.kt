@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
@@ -31,6 +32,7 @@ enum class MainPage {
 
 data class MainHomeState(
     val recentSessions: List<MainChatSessionItem>,
+    val groupChatSessions: List<MainGroupChatSessionItem> = emptyList(),
     val totalCharacters: Int,
     val totalWorldBooks: Int,
     val multiSelectMode: Boolean = false,
