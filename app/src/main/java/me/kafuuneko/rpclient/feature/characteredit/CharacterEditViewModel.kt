@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMod
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
+import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -56,6 +57,26 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         uiState.copy(
             form = uiState.form.copy(characterLorebookId = intent.lorebookId)
         ).setup()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.Resume::class)
+    private suspend fun onResume() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val lorebooks = withContext(Dispatchers.IO) {
+            mLorebookRepository.getAllLorebooks()
+        }
+        val availableIds = lorebooks.mapTo(mutableSetOf()) { it.id }
+        uiState.copy(
+            form = uiState.form.withValidLorebookAssociation(availableIds),
+            initialForm = uiState.initialForm.withValidLorebookAssociation(availableIds),
+            availableLorebooks = lorebooks
+        ).setup()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.OpenWorldBookManager::class)
+    private fun onOpenWorldBookManager() {
+        if (!isStateOf<CharacterEditUiState.Normal>()) return
+        AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(CharacterEditUiIntent.Back::class)
@@ -226,15 +247,57 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             CharacterEditUiState.Finished.setup()
             return
         }
+        val savedCharacter = withContext(Dispatchers.IO) {
+            mCharacterRepository.getCharacterById(uiState.form.id)
+        } ?: run {
+            CharacterEditUiState.Finished.setup()
+            return
+        }
+        val associatedLorebook = savedCharacter.characterLorebookId
+            .takeIf { it != 0L }
+            ?.let { lorebookId ->
+                withContext(Dispatchers.IO) {
+                    mLorebookRepository.getLorebookById(lorebookId)
+                }
+            }
         uiState.copy(
-            dialogState = CharacterEditDialogState.DeleteConfirm(
-                characterName = uiState.form.name
-            )
+            dialogState = if (associatedLorebook == null) {
+                CharacterEditDialogState.DeleteConfirm(
+                    characterName = savedCharacter.name
+                )
+            } else {
+                CharacterEditDialogState.DeleteWithLorebookConfirm(
+                    characterName = savedCharacter.name,
+                    lorebookId = associatedLorebook.id,
+                    lorebookName = associatedLorebook.name
+                )
+            }
         ).setup()
     }
 
     @UiIntentObserver(CharacterEditUiIntent.ConfirmDeleteCharacter::class)
     private suspend fun onConfirmDeleteCharacter() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is CharacterEditDialogState.DeleteConfirm) return
+        deleteCharacter()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmDeleteCharacterOnly::class)
+    private suspend fun onConfirmDeleteCharacterOnly() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is CharacterEditDialogState.DeleteWithLorebookConfirm) return
+        deleteCharacter()
+    }
+
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmDeleteCharacterWithLorebook::class)
+    private suspend fun onConfirmDeleteCharacterWithLorebook() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? CharacterEditDialogState.DeleteWithLorebookConfirm
+            ?: return
+        deleteCharacter(lorebookId = dialogState.lorebookId)
+    }
+
+    private suspend fun deleteCharacter(lorebookId: Long? = null) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (uiState.form.isNew) return
         uiState.copy(
@@ -245,6 +308,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             .takeIf { it.isNotBlank() && it != uiState.form.originalAvatar }
         withContext(Dispatchers.IO) {
             val character = mCharacterRepository.getCharacterById(uiState.form.id)
+            lorebookId?.let {
+                mLorebookRepository.deleteLorebook(it)
+            }
             mCharacterRepository.deleteCharacter(uiState.form.id)
             character?.avatar?.takeIf { it.isNotBlank() }?.let {
                 mFileRepository.deleteFile(it)
@@ -306,6 +372,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             firstMessages = firstMessages.orSingleBlank(),
             alternateGreetings = alternateGreetings.orSingleBlank()
         )
+    }
+
+    private fun CharacterEditForm.withValidLorebookAssociation(
+        availableLorebookIds: Set<Long>
+    ): CharacterEditForm {
+        if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
+        return copy(characterLorebookId = 0L)
     }
 
 }

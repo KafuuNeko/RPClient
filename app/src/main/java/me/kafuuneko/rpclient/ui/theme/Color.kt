@@ -58,3 +58,27 @@ val MarkColor = Color(0x1A000000)
 
 // 暗色背景上的遮罩颜色
 val MarkDarkColor = Color(0x1AFFFFFF)
+
+// 角色头像颜色
+val CharacterAccentColors = listOf(
+    Color(0xFF315EFD),
+    Color(0xFF0F9F8F),
+    Color(0xFFB55A12),
+    Color(0xFF8A4FFF),
+    Color(0xFFB3261E)
+)
+val DefaultCharacterAccentColor = CharacterAccentColors.first()
+val NarratorAvatarColor = Color.Gray
+
+// 模型 Provider 状态颜色
+val ProviderDisabledColor = Color(0xFFE53935)
+val ProviderPendingColor = Color(0xFFFFB300)
+val ProviderAvailableColor = Color(0xFF4CAF50)
+
+/**
+ * 根据名称稳定生成会话列表使用的浅色强调色。
+ */
+fun getMacaronColor(name: String): Color {
+    val hue = kotlin.math.abs(name.hashCode() % 360).toFloat()
+    return Color.hsl(hue, saturation = 0.65f, lightness = 0.82f)
+}

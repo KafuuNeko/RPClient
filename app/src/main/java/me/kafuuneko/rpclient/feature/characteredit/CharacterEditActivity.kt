@@ -42,6 +42,11 @@ class CharacterEditActivity : CoreActivityWithEvent() {
         mViewModel.emit(CharacterEditUiIntent.Init(characterId))
     }
 
+    override fun onResume() {
+        super.onResume()
+        mViewModel.emit(CharacterEditUiIntent.Resume)
+    }
+
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {

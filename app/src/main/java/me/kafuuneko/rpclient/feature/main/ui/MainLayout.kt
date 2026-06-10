@@ -88,6 +88,10 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
+import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
+import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
+import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
@@ -311,14 +315,6 @@ private fun MainBottomBarItem(
             )
         }
     }
-}
-
-private fun getMacaronColor(name: String): androidx.compose.ui.graphics.Color {
-    val hash = name.hashCode()
-    val hue = kotlin.math.abs(hash % 360).toFloat()
-    val saturation = 0.65f
-    val lightness = 0.82f
-    return androidx.compose.ui.graphics.Color.hsl(hue, saturation, lightness)
 }
 
 @Composable
@@ -916,9 +912,9 @@ private fun ProviderCard(
             }
             
             val dotColor = when {
-                !provider.isEnabled -> androidx.compose.ui.graphics.Color(0xFFE53935)
-                provider.apiKey.isBlank() -> androidx.compose.ui.graphics.Color(0xFFFFB300)
-                else -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                !provider.isEnabled -> ProviderDisabledColor
+                provider.apiKey.isBlank() -> ProviderPendingColor
+                else -> ProviderAvailableColor
             }
             val statusText = when {
                 !provider.isEnabled -> stringResource(R.string.not_enabled)

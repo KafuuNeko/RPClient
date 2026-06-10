@@ -155,6 +155,10 @@
     <string name="saving">저장 중…</string>
     <string name="delete_character_title">캐릭터 삭제</string>
     <string name="delete_character_message">“%s”을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
+    <string name="delete_character_with_world_book_title">연결된 월드북도 삭제하시겠습니까?</string>
+    <string name="delete_character_with_world_book_message">“%1$s”은(는) “%2$s”과(와) 연결되어 있습니다. 월드북도 삭제하시겠습니까?</string>
+    <string name="delete_character_and_world_book">둘 다 삭제</string>
+    <string name="delete_character_only">캐릭터만 삭제</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">세션 월드북</string>
@@ -218,6 +222,7 @@
     <string name="stop_generation_before_deleting">대화를 삭제하기 전에 생성을 중단해주세요</string>
     <string name="untitled_chat">제목 없는 대화</string>
     <string name="no_latest_assistant_reply_to_regenerate">다시 생성할 마지막 어시스턴트 답변이 없습니다</string>
+    <string name="cannot_regenerate_only_first_message">첫 메시지만 다시 생성할 수 없습니다</string>
     <string name="no_latest_assistant_reply_to_continue">이어 쓸 어시스턴트 답변이 없습니다</string>
     <string name="regenerate_failed">다시 생성 실패</string>
     <string name="continue_generation_failed">이어 쓰기 실패</string>

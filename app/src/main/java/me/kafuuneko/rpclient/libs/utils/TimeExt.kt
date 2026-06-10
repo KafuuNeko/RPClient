@@ -10,3 +10,7 @@ fun Long.formatTimestamp(
 ): String {
     return SimpleDateFormat(pattern, locale).format(Date(this))
 }
+
+fun Long.toDefaultChatTitle(): String {
+    return formatTimestamp("yyyyMMdd-HHmm", Locale.ROOT)
+}

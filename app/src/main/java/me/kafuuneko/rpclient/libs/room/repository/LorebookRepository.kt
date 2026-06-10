@@ -20,6 +20,7 @@ class LorebookRepository(
 ) {
     private val mLorebookDao = mAppDatabase.getLorebookDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
+    private val mCharacterDao = mAppDatabase.getCharacterDao()
 
     /**
      * 获取所有世界书。
@@ -103,6 +104,7 @@ class LorebookRepository(
      */
     suspend fun deleteLorebook(id: Long) {
         mAppDatabase.withTransaction {
+            mCharacterDao.clearLorebookAssociations(id)
             mLorebookEntryDao.deleteEntriesByLorebookId(id)
             mLorebookDao.deleteLorebookById(id)
         }

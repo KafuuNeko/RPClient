@@ -32,4 +32,12 @@ interface CharacterDao : MutableDao<Character> {
     @Query("DELETE FROM character WHERE id = :id")
     suspend fun deleteCharacterById(id: Long)
 
+    /**
+     * 清除所有绑定到指定世界书的角色关联。
+     *
+     * @param lorebookId 已删除的世界书 id。
+     */
+    @Query("UPDATE character SET characterLorebookId = 0 WHERE characterLorebookId = :lorebookId")
+    suspend fun clearLorebookAssociations(lorebookId: Long)
+
 }

@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
+import androidx.compose.ui.graphics.Color
+
 data class ChatCharacterItem(
     val id: Long,
     val name: String,
@@ -10,7 +12,7 @@ data class ChatCharacterItem(
     val postHistoryInstructions: String,
     val creatorNotes: String,
     val avatarText: String,
-    val accentColor: Long,
+    val accentColor: Color,
     val avatarFilePath: String? = null
 )
 

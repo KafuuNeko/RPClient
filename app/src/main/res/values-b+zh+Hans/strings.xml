@@ -154,6 +154,10 @@
     <string name="saving">保存中…</string>
     <string name="delete_character_title">删除角色</string>
     <string name="delete_character_message">删除“%s”？此操作无法撤销。</string>
+    <string name="delete_character_with_world_book_title">同时删除关联世界书？</string>
+    <string name="delete_character_with_world_book_message">“%1$s”关联了世界书“%2$s”。是否同时删除该世界书？</string>
+    <string name="delete_character_and_world_book">全部删除</string>
+    <string name="delete_character_only">仅删除角色</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">会话世界书</string>
@@ -189,7 +193,7 @@
     <string name="chat_settings">聊天设置</string>
     <string name="chat_settings_actions">操作</string>
     <string name="regenerate_latest_reply">重新生成最新回复</string>
-    <string name="regenerate_latest_reply_desc">删除最新的助手回复并重新生成</string>
+    <string name="regenerate_latest_reply_desc">重新生成最新的助手回复</string>
     <string name="continue_latest_reply">续写最新回复</string>
     <string name="continue_latest_reply_desc">在最新助手回复后继续追加内容</string>
     <string name="impersonate_user">扮演用户</string>
@@ -217,6 +221,7 @@
     <string name="stop_generation_before_deleting">请先停止生成再删除此聊天</string>
     <string name="untitled_chat">未命名聊天</string>
     <string name="no_latest_assistant_reply_to_regenerate">没有可重新生成的最新助手回复</string>
+    <string name="cannot_regenerate_only_first_message">只有一条首条消息时无法重新生成</string>
     <string name="no_latest_assistant_reply_to_continue">没有可续写的助手回复</string>
     <string name="regenerate_failed">重新生成失败</string>
     <string name="continue_generation_failed">续写失败</string>

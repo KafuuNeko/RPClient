@@ -40,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,6 +69,7 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMod
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
@@ -332,7 +334,8 @@ private fun AdvancedPanel(
         LorebookSelector(
             selectedId = form.characterLorebookId,
             availableLorebooks = availableLorebooks,
-            onSelect = { CharacterEditUiIntent.UpdateCharacterLorebook(it).emit() }
+            onSelect = { CharacterEditUiIntent.UpdateCharacterLorebook(it).emit() },
+            onManage = { CharacterEditUiIntent.OpenWorldBookManager.emit() }
         )
         FormTextField(
             label = stringResource(R.string.character_main_prompt_override),
@@ -523,6 +526,29 @@ private fun DialogSwitch(
                 }
             }
         )
+        is CharacterEditDialogState.DeleteWithLorebookConfirm -> AlertDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = { Text(stringResource(R.string.delete_character_with_world_book_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.delete_character_with_world_book_message,
+                        dialogState.characterName,
+                        dialogState.lorebookName
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacterWithLorebook.emit() }) {
+                    Text(stringResource(R.string.delete_character_and_world_book))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { CharacterEditUiIntent.ConfirmDeleteCharacterOnly.emit() }) {
+                    Text(stringResource(R.string.delete_character_only))
+                }
+            }
+        )
         CharacterEditDialogState.UnsavedChangesConfirm -> AlertDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
             title = { Text(stringResource(R.string.unsaved_changes_title)) },
@@ -635,47 +661,62 @@ private fun AvatarPicker(
 private fun LorebookSelector(
     selectedId: Long,
     availableLorebooks: List<Lorebook>,
-    onSelect: (Long) -> Unit
+    onSelect: (Long) -> Unit,
+    onManage: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedName = if (selectedId == 0L) stringResource(R.string.none)
     else availableLorebooks.find { it.id == selectedId }?.name ?: stringResource(R.string.unknown_world_book)
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedTextField(
-            value = selectedName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.associated_world_book)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            shape = RoundedCornerShape(12.dp)
-        )
-        ExposedDropdownMenu(
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onExpandedChange = { expanded = it },
+            modifier = Modifier.weight(1f)
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.none)) },
-                onClick = {
-                    onSelect(0L)
-                    expanded = false
-                }
+            OutlinedTextField(
+                value = selectedName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.associated_world_book)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                shape = RoundedCornerShape(12.dp)
             )
-            availableLorebooks.forEach { lorebook ->
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
                 DropdownMenuItem(
-                    text = { Text(lorebook.name.ifBlank { "Untitled" }) },
+                    text = { Text(stringResource(R.string.none)) },
                     onClick = {
-                        onSelect(lorebook.id)
+                        onSelect(0L)
                         expanded = false
                     }
                 )
+                availableLorebooks.forEach { lorebook ->
+                    DropdownMenuItem(
+                        text = { Text(lorebook.name.ifBlank { "Untitled" }) },
+                        onClick = {
+                            onSelect(lorebook.id)
+                            expanded = false
+                        }
+                    )
+                }
             }
+        }
+        OutlinedButton(
+            onClick = onManage,
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)
+        ) {
+            Text(stringResource(R.string.manage_world_books))
         }
     }
 }
@@ -715,8 +756,7 @@ private fun CharacterEditForm.avatarText(): String {
 
 private fun CharacterEditForm.avatarColor(): Color {
     val seed = if (id == 0L) name.hashCode().toLong() else id
-    val colors = listOf(0xFF315EFD, 0xFF0F9F8F, 0xFFB55A12, 0xFF8A4FFF, 0xFFB3261E)
-    return Color(colors[kotlin.math.abs(seed % colors.size).toInt()])
+    return CharacterAccentColors[kotlin.math.abs(seed % CharacterAccentColors.size).toInt()]
 }
 
 private fun String.compactPreview(limit: Int = 240): String {

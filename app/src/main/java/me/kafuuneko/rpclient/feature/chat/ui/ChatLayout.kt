@@ -100,6 +100,8 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
+import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -189,7 +191,7 @@ private fun ChatNormal(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "conversation-start") {
-                ConversationStartHeader(state = state)
+                ConversationStartHeader(state = state, emit = emit)
             }
             itemsIndexed(
                 items = state.messages,
@@ -244,7 +246,7 @@ private fun CustomChatTopBar(
 
             AvatarPreview(
                 avatarText = state.character.avatarText,
-                avatarColor = Color(state.character.accentColor),
+                avatarColor = state.character.accentColor,
                 imagePath = state.character.avatarFilePath,
                 size = 36
             )
@@ -297,6 +299,7 @@ private fun CustomChatTopBar(
 @Composable
 private fun ConversationStartHeader(
     state: ChatUiState.Normal,
+    emit: ChatUiIntent.() -> Unit,
     modifier: Modifier = Modifier
 ) {
     val enabledLorebookCount = state.lorebookGroups.sumOf { it.enabledCount }
@@ -318,7 +321,7 @@ private fun ConversationStartHeader(
         ) {
             AvatarPreview(
                 avatarText = state.character.avatarText,
-                avatarColor = Color(state.character.accentColor),
+                avatarColor = state.character.accentColor,
                 imagePath = state.character.avatarFilePath,
                 size = 64
             )
@@ -354,6 +357,14 @@ private fun ConversationStartHeader(
                     else stringResource(R.string.streaming_off)
                 )
             }
+            OutlinedButton(
+                onClick = { ChatUiIntent.OpenCharacterEditor.emit() },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Rounded.Edit, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.edit_character_title))
+            }
         }
     }
 }
@@ -382,7 +393,11 @@ private fun SessionLorePanel(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            RpSectionHeader(title = stringResource(R.string.session_world_books))
+            RpSectionHeader(
+                title = stringResource(R.string.session_world_books),
+                action = stringResource(R.string.manage_world_books),
+                onAction = { ChatUiIntent.OpenWorldBookManager.emit() }
+            )
             Text(
                 text = stringResource(R.string.session_lore_note),
                 style = MaterialTheme.typography.bodySmall,
@@ -586,7 +601,7 @@ private fun MessageBubble(
                 avatarText = if (message.speaker == character.name) character.avatarText else message.speaker.take(
                     1
                 ).uppercase(),
-                avatarColor = if (message.speaker == character.name) Color(character.accentColor) else Color.Gray,
+                avatarColor = if (message.speaker == character.name) character.accentColor else NarratorAvatarColor,
                 imagePath = if (message.speaker == character.name) character.avatarFilePath else null,
                 size = 32,
                 modifier = Modifier.padding(end = 8.dp, top = 4.dp)
@@ -1041,6 +1056,11 @@ private fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
+                    MenuAction(
+                        icon = Icons.Rounded.Book,
+                        title = stringResource(R.string.world_book_manager),
+                        subtitle = stringResource(R.string.world_book_subtitle)
+                    ) { ChatUiIntent.OpenWorldBookManager.emit() }
                     SessionLoreSettings(groups = state.lorebookGroups, emit = emit)
                 }
             }
@@ -1374,7 +1394,7 @@ private fun ChatLayoutPreview() {
                     postHistoryInstructions = "",
                     creatorNotes = "",
                     avatarText = "L",
-                    accentColor = 0xFF315EFD
+                    accentColor = DefaultCharacterAccentColor
                 ),
                 messages = listOf(
                     ChatMessageUiModel(

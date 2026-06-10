@@ -38,5 +38,11 @@ sealed class CharacterEditDialogState {
         val characterName: String
     ) : CharacterEditDialogState()
 
+    data class DeleteWithLorebookConfirm(
+        val characterName: String,
+        val lorebookId: Long,
+        val lorebookName: String
+    ) : CharacterEditDialogState()
+
     data object UnsavedChangesConfirm : CharacterEditDialogState()
 }

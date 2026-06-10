@@ -155,6 +155,10 @@
     <string name="saving">Сохранение…</string>
     <string name="delete_character_title">Удалить персонажа</string>
     <string name="delete_character_message">Удалить «%s»? Это действие нельзя отменить.</string>
+    <string name="delete_character_with_world_book_title">Удалить связанную книгу мира?</string>
+    <string name="delete_character_with_world_book_message">«%1$s» связан с книгой «%2$s». Удалить также эту книгу мира?</string>
+    <string name="delete_character_and_world_book">Удалить оба</string>
+    <string name="delete_character_only">Только персонажа</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">Книга мира сессии</string>
@@ -218,6 +222,7 @@
     <string name="stop_generation_before_deleting">Пожалуйста, остановите генерацию перед удалением этого чата</string>
     <string name="untitled_chat">Чат без названия</string>
     <string name="no_latest_assistant_reply_to_regenerate">Нет последнего ответа ассистента для перегенерации</string>
+    <string name="cannot_regenerate_only_first_message">Нельзя перегенерировать только первое сообщение</string>
     <string name="no_latest_assistant_reply_to_continue">Нет ответа ассистента для продолжения</string>
     <string name="regenerate_failed">Не удалось перегенерировать</string>
     <string name="continue_generation_failed">Не удалось продолжить</string>

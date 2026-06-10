@@ -23,6 +23,10 @@ sealed class ChatUiIntent {
 
     data object OpenSessionLore : ChatUiIntent()
 
+    data object OpenWorldBookManager : ChatUiIntent()
+
+    data object OpenCharacterEditor : ChatUiIntent()
+
     data class ChangeInputDraft(val value: String) : ChatUiIntent()
 
     data class ToggleSessionLoreEntry(val entryId: Long) : ChatUiIntent()

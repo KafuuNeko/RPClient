@@ -155,6 +155,10 @@
     <string name="saving">Enregistrement…</string>
     <string name="delete_character_title">Supprimer le personnage</string>
     <string name="delete_character_message">Supprimer “%s” ? Cette action est irréversible.</string>
+    <string name="delete_character_with_world_book_title">Supprimer le livre d\'univers associé ?</string>
+    <string name="delete_character_with_world_book_message">“%1$s” est associé à “%2$s”. Supprimer également ce livre d\'univers ?</string>
+    <string name="delete_character_and_world_book">Supprimer les deux</string>
+    <string name="delete_character_only">Personnage uniquement</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">Livre d\'univers de la session</string>
@@ -218,6 +222,7 @@
     <string name="stop_generation_before_deleting">Veuillez arrêter la génération avant de supprimer cette discussion</string>
     <string name="untitled_chat">Discussion sans titre</string>
     <string name="no_latest_assistant_reply_to_regenerate">Aucune réponse de l\'assistant récente à régénérer</string>
+    <string name="cannot_regenerate_only_first_message">Le premier message ne peut pas être régénéré seul</string>
     <string name="no_latest_assistant_reply_to_continue">Aucune réponse de l\'assistant à continuer</string>
     <string name="regenerate_failed">Échec de la régénération</string>
     <string name="continue_generation_failed">Échec de la continuation</string>

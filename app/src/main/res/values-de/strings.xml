@@ -156,6 +156,10 @@
     <string name="saving">Speichern…</string>
     <string name="delete_character_title">Charakter löschen</string>
     <string name="delete_character_message">Möchtest du „%s“ löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_character_with_world_book_title">Verknüpftes Weltbuch löschen?</string>
+    <string name="delete_character_with_world_book_message">„%1$s“ ist mit „%2$s“ verknüpft. Soll das Weltbuch ebenfalls gelöscht werden?</string>
+    <string name="delete_character_and_world_book">Beide löschen</string>
+    <string name="delete_character_only">Nur Charakter</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">Sitzungs-Weltbuch</string>
@@ -219,6 +223,7 @@
     <string name="stop_generation_before_deleting">Bitte stoppe die Generierung vor dem Löschen dieses Chats</string>
     <string name="untitled_chat">Unbenannter Chat</string>
     <string name="no_latest_assistant_reply_to_regenerate">Keine letzte Antwort des Assistenten zum Regenerieren vorhanden</string>
+    <string name="cannot_regenerate_only_first_message">Die erste Nachricht kann nicht allein neu generiert werden</string>
     <string name="no_latest_assistant_reply_to_continue">Keine Antwort des Assistenten zum Fortsetzen vorhanden</string>
     <string name="regenerate_failed">Regenerierung fehlgeschlagen</string>
     <string name="continue_generation_failed">Fortsetzen fehlgeschlagen</string>

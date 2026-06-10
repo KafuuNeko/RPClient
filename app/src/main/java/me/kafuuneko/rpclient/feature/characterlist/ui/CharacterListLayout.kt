@@ -53,6 +53,7 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiI
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -310,8 +311,7 @@ private fun Character.avatarText(): String {
 }
 
 private fun Character.avatarColor(): Color {
-    val colors = listOf(0xFF315EFD, 0xFF0F9F8F, 0xFFB55A12, 0xFF8A4FFF, 0xFFB3261E)
-    return Color(colors[(id % colors.size).toInt()])
+    return CharacterAccentColors[(id % CharacterAccentColors.size).toInt()]
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

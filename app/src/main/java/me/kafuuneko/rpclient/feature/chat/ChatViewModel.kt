@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat
 
 import android.content.Context
+import android.os.Bundle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,8 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
+import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -45,6 +48,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
+import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -93,15 +97,26 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onResume() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        refreshUiState(
-            sessionId = sessionId,
-            inputDraft = uiState.inputDraft,
-            isExpanded = uiState.isSessionLoreExpanded,
-            generationState = uiState.generationState,
-            expandedThinkBlockIds = uiState.expandedThinkBlockIds,
-            editingMessageId = uiState.editingMessageId,
-            editingMessageDraft = uiState.editingMessageDraft
-        )
+        val refreshed = withContext(Dispatchers.IO) {
+            loadNormalState(
+                sessionId = sessionId,
+                inputDraft = uiState.inputDraft,
+                page = uiState.page,
+                isExpanded = uiState.isSessionLoreExpanded,
+                loadState = uiState.loadState,
+                generationState = uiState.generationState,
+                expandedThinkBlockIds = uiState.expandedThinkBlockIds,
+                editingMessageId = uiState.editingMessageId,
+                editingMessageDraft = uiState.editingMessageDraft,
+                dialogState = uiState.dialogState
+            )
+        }
+        if (refreshed == null) {
+            mGenerationJob?.cancel()
+            ChatUiState.Finished.setup()
+            return
+        }
+        refreshed.setup()
     }
 
     @UiIntentObserver(ChatUiIntent.Back::class)
@@ -234,11 +249,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         uiState.copy(loadState = ChatLoadState.Saving).setup()
+        val branchCreateTime = System.currentTimeMillis()
         val branchId = withContext(Dispatchers.IO) {
             mChatRepository.createBranchSession(
                 sourceSessionId = sessionId,
                 throughMessageId = messageId,
-                title = mContext.getString(R.string.branch_session_title, uiState.session.title.ifBlank { mContext.getString(R.string.untitled_chat) })
+                title = branchCreateTime.toDefaultChatTitle(),
+                createTime = branchCreateTime
             )
         }
         if (branchId == 0L) {
@@ -410,6 +427,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(sessionId = sessionId)
     }
 
+    @UiIntentObserver(ChatUiIntent.OpenWorldBookManager::class)
+    private fun onOpenWorldBookManager() {
+        if (!isStateOf<ChatUiState.Normal>()) return
+        AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(ChatUiIntent.OpenCharacterEditor::class)
+    private fun onOpenCharacterEditor() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        AppViewEvent.StartActivity(
+            activity = CharacterEditActivity::class.java,
+            extras = Bundle().apply {
+                putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, uiState.character.id)
+            }
+        ).tryEmit()
+    }
+
     /**
      * 保存当前会话的用户名称。
      *
@@ -513,36 +547,44 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(page = ChatPage.Conversation).setup()
         if (mGenerationJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
         // 当前数据结构尚未支持 swipe/branch，只允许重生成最后一条角色回复，避免破坏中间历史。
-        val latestAssistantMessage = withContext(Dispatchers.IO) {
-            val messages = mChatRepository.getMessagesBySessionId(sessionId)
-            messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
+        val messages = withContext(Dispatchers.IO) {
+            mChatRepository.getMessagesBySessionId(sessionId)
         }
+        val latestAssistantMessage = messages.lastOrNull().takeIf { it?.source == ChatMessage.Source.Char }
         if (latestAssistantMessage == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_regenerate).tryEmit()
             return
         }
+        if (messages.size == 1) {
+            AppViewEvent.PopupToastMessageByResId(R.string.cannot_regenerate_only_first_message).tryEmit()
+            return
+        }
         mGenerationJob = viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) {
-                    mChatRepository.deleteMessage(latestAssistantMessage.id)
-                }
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = uiState.inputDraft,
+                    page = ChatPage.Conversation,
                     isExpanded = uiState.isSessionLoreExpanded,
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.expandedThinkBlockIds
                 )
-                val request = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+                val request = withContext(Dispatchers.IO) {
+                    buildGenerationRequest(
+                        sessionId = sessionId,
+                        excludedMessageId = latestAssistantMessage.id
+                    )
+                }
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateStreaming(sessionId, request, GenerationOutput.Update(latestAssistantMessage.id))
                 } else {
-                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateOnce(sessionId, request, GenerationOutput.Update(latestAssistantMessage.id))
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -643,6 +685,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 is GenerationOutput.Create -> {
                     mChatRepository.createMessage(sessionId, output.source, response.content)
                 }
+                is GenerationOutput.Update -> {
+                    mChatRepository.updateMessageContent(output.messageId, response.content)
+                    mChatRepository.updateSessionLatestTime(sessionId)
+                }
             }
         }
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
@@ -661,6 +707,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
                 mStreamingContent = ""
                 mStreamingCreatedMessage = true
+            }
+            is GenerationOutput.Update -> {
+                mStreamingMessageId = output.messageId
+                mStreamingContent = ""
+                mStreamingCreatedMessage = false
             }
         }
         refreshUiState(
@@ -809,12 +860,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private suspend fun buildGenerationRequest(
         sessionId: Long,
-        generationMode: PromptGenerationMode = PromptGenerationMode.Normal
+        generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+        excludedMessageId: Long? = null
     ): LLMGenerationRequest {
         // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
         val summaryContext = mChatRepository.getSummaryContext(sessionId)
+        val generationHistory = if (
+            excludedMessageId != null &&
+            summaryContext.summary?.coveredMessageId == excludedMessageId &&
+            summaryContext.messagesAfterSummary.isEmpty()
+        ) {
+            val regenerationContext = mChatRepository.getSummaryGenerationContext(
+                sessionId = sessionId,
+                allowRefreshLatest = true
+            )
+            GenerationHistory(
+                summary = regenerationContext.existingSummary,
+                messages = regenerationContext.messages.filterNot { it.id == excludedMessageId },
+                totalMessageCount = (summaryContext.totalMessageCount - 1).coerceAtLeast(0)
+            )
+        } else {
+            GenerationHistory(
+                summary = summaryContext.summary?.content.orEmpty(),
+                messages = summaryContext.messagesAfterSummary.filterNot { it.id == excludedMessageId },
+                totalMessageCount = (
+                    summaryContext.totalMessageCount - if (excludedMessageId == null) 0 else 1
+                ).coerceAtLeast(0)
+            )
+        }
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookData = getAllLorebookEntries()
         val allLorebookEntries = lorebookData.entries
@@ -831,10 +906,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 userDescription = session.userDescription,
                 character = character,
                 session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
-                summary = summaryContext.summary?.content.orEmpty(),
-                messages = summaryContext.messagesAfterSummary,
+                summary = generationHistory.summary,
+                messages = generationHistory.messages,
                 currentUserMessage = null,
-                totalMessageCount = summaryContext.totalMessageCount,
+                totalMessageCount = generationHistory.totalMessageCount,
                 candidateLorebookEntries = lorebookEntries,
                 recursiveScanningLorebookIds = recursiveLorebookIds,
                 provider = provider,
@@ -961,7 +1036,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val provider: LLMProvider?
     )
 
+    private data class GenerationHistory(
+        val summary: String,
+        val messages: List<ChatMessage>,
+        val totalMessageCount: Int
+    )
+
     private sealed class GenerationOutput {
         data class Create(val source: ChatMessage.Source) : GenerationOutput()
+        data class Update(val messageId: Long) : GenerationOutput()
     }
 }

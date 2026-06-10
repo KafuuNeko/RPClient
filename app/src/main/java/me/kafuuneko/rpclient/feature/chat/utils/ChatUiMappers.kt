@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
+import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 
 data class ChatLorebookEntryData(
     val lorebooks: Map<Long, Lorebook>,
@@ -49,7 +50,7 @@ fun Character.toChatCharacterItem(avatarFilePath: String? = null): ChatCharacter
         postHistoryInstructions = postHistoryInstructions,
         creatorNotes = creatorNotes,
         avatarText = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-        accentColor = 0xFF315EFD,
+        accentColor = DefaultCharacterAccentColor,
         avatarFilePath = avatarFilePath
     )
 }

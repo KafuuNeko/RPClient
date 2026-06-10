@@ -5,6 +5,8 @@ import android.net.Uri
 sealed class CharacterEditUiIntent {
     data class Init(val characterId: Long?) : CharacterEditUiIntent()
 
+    data object Resume : CharacterEditUiIntent()
+
     data object Back : CharacterEditUiIntent()
 
     data object PickAvatarClick : CharacterEditUiIntent()
@@ -12,6 +14,8 @@ sealed class CharacterEditUiIntent {
     data class AvatarSelected(val uri: Uri) : CharacterEditUiIntent()
 
     data class UpdateCharacterLorebook(val lorebookId: Long) : CharacterEditUiIntent()
+
+    data object OpenWorldBookManager : CharacterEditUiIntent()
 
     data class ChangeName(val value: String) : CharacterEditUiIntent()
 
@@ -64,6 +68,10 @@ sealed class CharacterEditUiIntent {
     data object DeleteCharacterClick : CharacterEditUiIntent()
 
     data object ConfirmDeleteCharacter : CharacterEditUiIntent()
+
+    data object ConfirmDeleteCharacterOnly : CharacterEditUiIntent()
+
+    data object ConfirmDeleteCharacterWithLorebook : CharacterEditUiIntent()
 
     data object ConfirmDiscardChanges : CharacterEditUiIntent()
 

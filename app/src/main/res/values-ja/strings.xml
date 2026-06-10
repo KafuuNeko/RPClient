@@ -156,6 +156,10 @@
     <string name="saving">保存中…</string>
     <string name="delete_character_title">キャラクターを削除</string>
     <string name="delete_character_message">「%s」を削除しますか？この操作は取り消せません。</string>
+    <string name="delete_character_with_world_book_title">関連ワールドブックも削除しますか？</string>
+    <string name="delete_character_with_world_book_message">「%1$s」は「%2$s」に関連付けられています。ワールドブックも削除しますか？</string>
+    <string name="delete_character_and_world_book">両方削除</string>
+    <string name="delete_character_only">キャラクターのみ</string>
 
     <!-- Chat Layout -->
     <string name="session_world_book">セッションのワールドブック</string>
@@ -219,6 +223,7 @@
     <string name="stop_generation_before_deleting">このチャットを削除する前に生成を停止してください</string>
     <string name="untitled_chat">無題のチャット</string>
     <string name="no_latest_assistant_reply_to_regenerate">再生成する最新のアシスタントの返信がありません</string>
+    <string name="cannot_regenerate_only_first_message">最初のメッセージだけを再生成することはできません</string>
     <string name="no_latest_assistant_reply_to_continue">続行するアシスタントの返信がありません</string>
     <string name="regenerate_failed">再生成に失敗しました</string>
     <string name="continue_generation_failed">続行に失敗しました</string>

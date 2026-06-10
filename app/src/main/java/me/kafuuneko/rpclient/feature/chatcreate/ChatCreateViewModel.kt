@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.libs.utils.toggleAll
+import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -155,15 +156,17 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
         val userName = AppModel.userName.trim().ifBlank { "You" }
         val userDescription = AppModel.userDescription.trim()
+        val createTime = System.currentTimeMillis()
+        val sessionTitle = uiState.form.normalizedTitle(createTime)
 
         val firstMessageContent = firstMessageSelection.value?.let { rawFirstMessage ->
             val session = ChatSession(
                 id = 0L,
                 characterId = character.id,
-                createTime = System.currentTimeMillis(),
-                latestTime = System.currentTimeMillis(),
+                createTime = createTime,
+                latestTime = createTime,
                 lorebookEntrySet = "",
-                title = uiState.form.normalizedTitle(character),
+                title = sessionTitle,
                 userNote = uiState.form.userNote.trim(),
                 userName = userName,
                 userDescription = userDescription,
@@ -188,12 +191,13 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val sessionId = withContext(Dispatchers.IO) {
             mChatRepository.createSessionWithFirstMessage(
                 characterId = character.id,
-                title = uiState.form.normalizedTitle(character),
+                title = sessionTitle,
                 userNote = uiState.form.userNote.trim(),
                 userName = userName,
                 userDescription = userDescription,
                 lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
-                firstMessageContent = firstMessageContent
+                firstMessageContent = firstMessageContent,
+                createTime = createTime
             )
         }
         AppViewEvent.StartActivity(
@@ -225,10 +229,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         return FirstMessageSelection(selectedCharacterFirstMessages[selectedIndex])
     }
 
-    private fun ChatCreateForm.normalizedTitle(
-        character: Character
-    ): String {
-        return title.trim().ifBlank { "Chat with ${character.name}" }
+    private fun ChatCreateForm.normalizedTitle(createTime: Long): String {
+        return title.trim().ifBlank { createTime.toDefaultChatTitle() }
     }
 
     private fun Character.defaultLorebookEntryIds(
