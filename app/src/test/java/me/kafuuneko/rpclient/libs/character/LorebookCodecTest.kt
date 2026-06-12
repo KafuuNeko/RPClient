@@ -40,6 +40,7 @@ class LorebookCodecTest {
                   "disable": false,
                   "depth": 2,
                   "role": 0,
+                  "triggers": ["continue"],
                   "matchWholeWords": null,
                   "custom_top_level": {
                     "preserve": true
@@ -82,6 +83,8 @@ class LorebookCodecTest {
         assertTrue(exportedEntry.getAsJsonObject("custom_top_level").get("preserve").asBoolean)
         assertTrue(exportedEntry.get("matchWholeWords")?.isJsonNull != false)
         assertFalse(exportedEntry.has("caseSensitive"))
+        assertEquals("continue", exportedEntry.getAsJsonArray("triggers")[0].asString)
+        assertEquals("continue", extensions.getAsJsonArray("triggers")[0].asString)
         assertTrue(extensions.get("match_creator_notes").asBoolean)
         assertEquals("kept", extensions.get("custom_extension").asString)
     }

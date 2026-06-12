@@ -171,13 +171,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generateStreaming(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char)
+                        GenerationOutput.Create(ChatMessage.Source.Char),
+                        built.worldInfoStateJson
                     )
                 } else {
                     generateOnce(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char)
+                        GenerationOutput.Create(ChatMessage.Source.Char),
+                        built.worldInfoStateJson
                     )
                 }
                 maybeAutoSummarize(sessionId)
@@ -600,6 +602,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(
                         sessionId = sessionId,
+                        generationMode = PromptGenerationMode.Regenerate,
                         excludedMessageId = latestAssistantMessage.id
                     )
                 }
@@ -608,13 +611,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generateStreaming(
                         sessionId,
                         built.request,
-                        GenerationOutput.Update(latestAssistantMessage.id)
+                        GenerationOutput.Update(latestAssistantMessage.id),
+                        built.worldInfoStateJson
                     )
                 } else {
                     generateOnce(
                         sessionId,
                         built.request,
-                        GenerationOutput.Update(latestAssistantMessage.id)
+                        GenerationOutput.Update(latestAssistantMessage.id),
+                        built.worldInfoStateJson
                     )
                 }
                 maybeAutoSummarize(sessionId)
@@ -659,13 +664,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generateStreaming(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char)
+                        GenerationOutput.Create(ChatMessage.Source.Char),
+                        built.worldInfoStateJson
                     )
                 } else {
                     generateOnce(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char)
+                        GenerationOutput.Create(ChatMessage.Source.Char),
+                        built.worldInfoStateJson
                     )
                 }
                 maybeAutoSummarize(sessionId)
@@ -703,13 +710,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generateStreaming(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.User)
+                        GenerationOutput.Create(ChatMessage.Source.User),
+                        built.worldInfoStateJson
                     )
                 } else {
                     generateOnce(
                         sessionId,
                         built.request,
-                        GenerationOutput.Create(ChatMessage.Source.User)
+                        GenerationOutput.Create(ChatMessage.Source.User),
+                        built.worldInfoStateJson
                     )
                 }
                 maybeAutoSummarize(sessionId)
@@ -724,7 +733,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun generateOnce(
         sessionId: Long,
         request: LLMGenerationRequest,
-        output: GenerationOutput
+        output: GenerationOutput,
+        worldInfoStateJson: String
     ) {
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithSelectedProvider(request)
@@ -739,6 +749,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     mChatRepository.updateSessionLatestTime(sessionId)
                 }
             }
+            mChatRepository.updateSessionWorldInfoState(sessionId, worldInfoStateJson)
         }
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
@@ -746,7 +757,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun generateStreaming(
         sessionId: Long,
         request: LLMGenerationRequest,
-        output: GenerationOutput
+        output: GenerationOutput,
+        worldInfoStateJson: String
     ) {
         // 先插入空 assistant 消息作为流式占位，后续 delta 只更新 UI，完成或停止时再持久化完整内容。
         when (output) {
@@ -789,6 +801,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     mChatRepository.updateMessageContent(messageId, finalContent)
                     mChatRepository.updateSessionLatestTime(sessionId)
                 }
+                mChatRepository.updateSessionWorldInfoState(sessionId, worldInfoStateJson)
             }
         } catch (e: Exception) {
             val messageId = mStreamingMessageId
@@ -944,8 +957,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val allLorebookEntries = lorebookData.entries
         val lorebookEntries = allLorebookEntries.filter { it.id in enabledIds }
         val activeLorebookIds = lorebookEntries.map { it.lorebookId }.toSet()
-        val recursiveLorebookIds = lorebookData.lorebooks.values
-            .filter { it.id in activeLorebookIds && it.recursiveScanning }
+        val activeLorebooks = lorebookData.lorebooks
+            .filterKeys { it in activeLorebookIds }
+        val recursiveLorebookIds = activeLorebooks.values
+            .filter { it.recursiveScanning }
             .map { it.id }
             .toSet()
         val provider = mLLMRepository.getSelectedProvider() ?: error(mContext.getString(R.string.no_enabled_llm_provider_configured))
@@ -960,6 +975,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 currentUserMessage = null,
                 totalMessageCount = generationHistory.totalMessageCount,
                 candidateLorebookEntries = lorebookEntries,
+                candidateLorebooks = activeLorebooks,
                 recursiveScanningLorebookIds = recursiveLorebookIds,
                 provider = provider,
                 maxContextTokens = provider.contextTokens,
@@ -967,10 +983,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generationMode = generationMode
             )
         )
-        if (buildResult.worldInfoStateJson != session.worldInfoStateJson) {
-            mChatRepository.updateSessionWorldInfoState(session.id, buildResult.worldInfoStateJson)
-        }
-        return BuiltGenerationRequest(buildResult.request, buildResult.inspection)
+        return BuiltGenerationRequest(
+            request = buildResult.request,
+            inspection = buildResult.inspection,
+            worldInfoStateJson = buildResult.worldInfoStateJson
+        )
     }
 
     private fun recordPromptInspection(inspection: PromptInspection) {
@@ -1088,7 +1105,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private data class BuiltGenerationRequest(
         val request: LLMGenerationRequest,
-        val inspection: PromptInspection
+        val inspection: PromptInspection,
+        val worldInfoStateJson: String
     )
 
     private data class AutoSummaryData(

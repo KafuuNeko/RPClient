@@ -31,6 +31,21 @@ class CharacterCardMapperTest {
                 "character_version": "1.2",
                 "extensions": {
                   "third_party": {"kept": true},
+                  "regex_scripts": [{
+                    "id": "regex-1",
+                    "scriptName": "Hide metadata",
+                    "findRegex": "/<meta>.*?<\\/meta>/gs",
+                    "replaceString": "",
+                    "trimStrings": [],
+                    "placement": [2],
+                    "disabled": false,
+                    "markdownOnly": true,
+                    "promptOnly": false,
+                    "runOnEdit": true,
+                    "substituteRegex": 0,
+                    "minDepth": null,
+                    "maxDepth": null
+                  }],
                   "depth_prompt": {"prompt": "Stay close", "depth": 2, "role": "assistant"}
                 },
                 "character_book": {
@@ -54,6 +69,7 @@ class CharacterCardMapperTest {
                         "depth": 3,
                         "role": "user",
                         "probability": 80,
+                        "use_group_scoring": true,
                         "custom_entry": true
                       }
                     }
@@ -77,7 +93,17 @@ class CharacterCardMapperTest {
         assertEquals("""["harbor"]""", entry.keywords)
         assertEquals(LorebookEntry.ROLE_USER, entry.role)
         assertEquals(80, entry.probability)
+        assertEquals(true, entry.useGroupScoring)
         assertEquals(true, JsonParser.parseString(parsed.character.extensionsJson).asJsonObject.has("third_party"))
+        assertEquals(
+            "Hide metadata",
+            JsonParser.parseString(parsed.character.extensionsJson)
+                .asJsonObject
+                .getAsJsonArray("regex_scripts")[0]
+                .asJsonObject
+                .get("scriptName")
+                .asString
+        )
 
         val exported = JsonParser.parseString(
             mapper.toV2Json(parsed.character, parsed.embeddedLorebook.lorebook, parsed.embeddedLorebook.entries)
@@ -86,7 +112,24 @@ class CharacterCardMapperTest {
 
         assertEquals("chara_card_v2", exported.get("spec").asString)
         assertEquals(true, data.getAsJsonObject("extensions").has("third_party"))
+        assertEquals(
+            "/<meta>.*?<\\/meta>/gs",
+            data.getAsJsonObject("extensions")
+                .getAsJsonArray("regex_scripts")[0]
+                .asJsonObject
+                .get("findRegex")
+                .asString
+        )
         assertEquals(true, data.getAsJsonObject("character_book").getAsJsonArray("entries").size() == 1)
+        assertEquals(
+            true,
+            data.getAsJsonObject("character_book")
+                .getAsJsonArray("entries")[0]
+                .asJsonObject
+                .getAsJsonObject("extensions")
+                .get("use_group_scoring")
+                .asBoolean
+        )
     }
 
     @Test

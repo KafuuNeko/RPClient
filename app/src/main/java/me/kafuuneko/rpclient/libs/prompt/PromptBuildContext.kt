@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
 data class PromptBuildContext(
@@ -17,6 +18,7 @@ data class PromptBuildContext(
     // 会话中的普通消息总数，不受总结后历史裁剪影响。
     val totalMessageCount: Int = messages.size + if (currentUserMessage.isNullOrBlank()) 0 else 1,
     val candidateLorebookEntries: List<LorebookEntry>,
+    val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val provider: LLMProvider?,
     val maxContextTokens: Int,
@@ -27,5 +29,6 @@ data class PromptBuildContext(
 enum class PromptGenerationMode {
     Normal,
     Continue,
-    Impersonate
+    Impersonate,
+    Regenerate
 }

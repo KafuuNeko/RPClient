@@ -52,11 +52,11 @@ data class LorebookEntry(
     val probability: Int = 100,
     // 是否忽略世界书预算；开启后该条目不计入 worldInfoBudgetPercent 裁剪。
     val ignoreBudget: Boolean = false,
-    // 条目级扫描深度；为空时使用默认扫描深度。
+    // 条目级扫描深度；为空时继承所属世界书的扫描深度。
     val scanDepth: Int? = null,
     // secondaryKeywords 的判定逻辑，见 LOGIC_* 常量。
     val selectiveLogic: Int = LOGIC_AND_ANY,
-    // 是否整词匹配；为空表示沿用默认的普通包含匹配。
+    // 是否整词匹配；为空时继承默认开启的整词匹配设置。
     val matchWholeWords: Boolean? = null,
     // 是否大小写敏感；为空或 false 时按忽略大小写处理。
     val caseSensitive: Boolean? = null,
@@ -77,7 +77,7 @@ data class LorebookEntry(
     val delay: Int? = null,
     // outlet 名称；position=POSITION_OUTLET 时通过 {{outlet::name}} 注入。
     val outletName: String = "",
-    // 额外触发词列表，按 JSON 数组保存，导入部分 ST 扩展时使用。
+    // 允许激活该条目的生成类型列表，空数组表示允许全部类型。
     val triggers: String = "[]",
     // 是否把用户 persona 描述纳入扫描；当前单角色场景暂未接入 persona 源。
     val matchPersonaDescription: Boolean = false,

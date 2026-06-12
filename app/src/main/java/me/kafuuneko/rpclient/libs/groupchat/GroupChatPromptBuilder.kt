@@ -7,20 +7,22 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptMessageDraft
-import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
-import me.kafuuneko.rpclient.libs.prompt.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
@@ -34,6 +36,7 @@ data class GroupChatPromptContext(
     val provider: LLMProvider,
     val summary: String = "",
     val candidateLorebookEntries: List<LorebookEntry> = emptyList(),
+    val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
 )
@@ -41,7 +44,8 @@ data class GroupChatPromptContext(
 /** 群聊回复的生成模式。 */
 enum class GroupChatGenerationMode {
     Normal,
-    Continue
+    Continue,
+    Regenerate
 }
 
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
@@ -67,9 +71,11 @@ class GroupChatPromptBuilder(
         ).coerceAtLeast(0)
         val worldBudget =
             maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
-        val worldSelection = fitWorldInfo(
+        val worldSelection = fitWorldInfoToBudget(
             result = activateWorldInfo(context),
-            tokenBudget = worldBudget,
+            globalTokenBudget = worldBudget,
+            promptTokenBudget = maxPromptTokens,
+            lorebooks = context.candidateLorebooks,
             tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
         )
         val worldInfo = worldSelection.result
@@ -106,9 +112,12 @@ class GroupChatPromptBuilder(
                 .ifBlank { AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
         )
+        val stateResult = mWorldBookActivator.resolveNextState(
+            worldInfo.retainStateEntries(finalized.inspection)
+        )
         return GroupChatPromptBuildResult(
             request = finalized.request,
-            worldInfoStateJson = worldInfo.nextStateJson,
+            worldInfoStateJson = stateResult.nextStateJson,
             inspection = finalized.inspection
         )
     }
@@ -119,13 +128,19 @@ class GroupChatPromptBuilder(
         return mWorldBookActivator.activateStructured(
             WorldBookScanContext(
                 messages = context.messages.map {
-                    "${it.speakerNameSnapshot}: ${it.content}"
+                    WorldBookScanMessage(it.speakerNameSnapshot, it.content)
                 },
                 currentUserMessage = null,
                 totalMessageCount = context.messages.size,
                 worldInfoStateJson = context.session.worldInfoStateJson,
                 candidateLorebookEntries = context.candidateLorebookEntries,
+                candidateLorebooks = context.candidateLorebooks,
                 recursiveScanningLorebookIds = context.recursiveScanningLorebookIds,
+                generationType = when (context.generationMode) {
+                    GroupChatGenerationMode.Normal -> WorldBookGenerationType.Normal
+                    GroupChatGenerationMode.Continue -> WorldBookGenerationType.Continue
+                    GroupChatGenerationMode.Regenerate -> WorldBookGenerationType.Regenerate
+                },
                 characterDescription = cardMembers.joinToString("\n") {
                     "${it.character.name}: ${it.character.description}"
                 },
@@ -160,7 +175,7 @@ class GroupChatPromptBuilder(
         worldInfo.beforeCharacter.forEach {
             before += optionalSystem(
                 formatWorldInfo(it.content),
-                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 PRIORITY_WORLD_INFO
             )
         }
@@ -169,7 +184,7 @@ class GroupChatPromptBuilder(
         worldInfo.afterCharacter.forEach {
             before += optionalSystem(
                 formatWorldInfo(it.content),
-                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 PRIORITY_WORLD_INFO
             )
         }
@@ -192,7 +207,7 @@ class GroupChatPromptBuilder(
         worldInfo.exampleBefore.forEach {
             before += optionalSystem(
                 formatWorldInfo(it.content),
-                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 PRIORITY_EXAMPLE
             )
         }
@@ -200,7 +215,7 @@ class GroupChatPromptBuilder(
         worldInfo.exampleAfter.forEach {
             before += optionalSystem(
                 formatWorldInfo(it.content),
-                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 PRIORITY_EXAMPLE
             )
         }
@@ -338,7 +353,7 @@ class GroupChatPromptBuilder(
             pieces += InChatPiece(
                 message = optionalSystem(
                     it.content,
-                    PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                     PRIORITY_WORLD_INFO
                 ),
                 depth = USER_NOTE_DEPTH,
@@ -362,7 +377,7 @@ class GroupChatPromptBuilder(
             pieces += InChatPiece(
                 message = optionalSystem(
                     it.content,
-                    PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                     PRIORITY_WORLD_INFO
                 ),
                 depth = USER_NOTE_DEPTH,
@@ -376,7 +391,7 @@ class GroupChatPromptBuilder(
                     PromptMessageDraft(
                         role = group.role,
                         content = it.content,
-                        source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                        source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                         retentionPriority = PRIORITY_WORLD_INFO,
                         canDrop = true
                     ),
@@ -425,52 +440,6 @@ class GroupChatPromptBuilder(
             }.trim()
             if (cleaned.isBlank()) null else message.copy(content = cleaned)
         }
-    }
-
-    /** 按世界书预算裁剪条目，并同步过滤各注入位置的结果。 */
-    private fun fitWorldInfo(
-        result: WorldBookActivationResult,
-        tokenBudget: Int,
-        tokenizer: PromptTokenizer
-    ): WorldInfoSelection {
-        val selected = mutableListOf<LorebookEntry>()
-        val omitted = mutableListOf<PromptOmittedItem>()
-        var usedTokens = 0
-        result.activatedEntries
-            .sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
-            .forEach { entry ->
-                val nextTokens = tokenizer.countText(entry.content)
-                if (!entry.ignoreBudget && usedTokens + nextTokens > tokenBudget) {
-                    omitted += PromptOmittedItem(
-                        source = PromptSource(PromptSourceKind.WorldInfo, entry.name),
-                        tokenCount = nextTokens,
-                        reason = PromptOmissionReason.WorldInfoBudget
-                    )
-                    return@forEach
-                }
-                selected += entry
-                if (!entry.ignoreBudget) usedTokens += nextTokens
-            }
-        val ids = selected.map { it.id }.toSet()
-        return WorldInfoSelection(
-            result = result.copy(
-                activatedEntries = result.activatedEntries.filter { it.id in ids },
-                beforeCharacter = result.beforeCharacter.filter { it.id in ids },
-                afterCharacter = result.afterCharacter.filter { it.id in ids },
-                exampleBefore = result.exampleBefore.filter { it.id in ids },
-                exampleAfter = result.exampleAfter.filter { it.id in ids },
-                anTop = result.anTop.filter { it.id in ids },
-                anBottom = result.anBottom.filter { it.id in ids },
-                depthEntries = result.depthEntries.mapNotNull { group ->
-                    val entries = group.entries.filter { it.id in ids }.toMutableList()
-                    if (entries.isEmpty()) null else group.copy(entries = entries)
-                },
-                outletEntries = result.outletEntries.mapValues { (_, entries) ->
-                    entries.filter { it.id in ids }
-                }.filterValues { it.isNotEmpty() }
-            ),
-            omittedItems = omitted
-        )
     }
 
     /** 根据角色卡模式和静音设置确定本轮注入的成员卡。 */
@@ -627,11 +596,6 @@ class GroupChatPromptBuilder(
         val depth: Int,
         val order: Int,
         val tieBreaker: Long
-    )
-
-    private data class WorldInfoSelection(
-        val result: WorldBookActivationResult,
-        val omittedItems: List<PromptOmittedItem>
     )
 
     private companion object {

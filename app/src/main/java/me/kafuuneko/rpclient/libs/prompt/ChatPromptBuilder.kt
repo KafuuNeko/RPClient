@@ -36,9 +36,11 @@ class ChatPromptBuilder(
         val maxPromptTokens = (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(0)
         val worldBudget = maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
         val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
-        val worldSelection = fitWorldInfo(
+        val worldSelection = fitWorldInfoToBudget(
             result = mWorldBookActivator.activateStructured(context),
-            tokenBudget = worldBudget,
+            globalTokenBudget = worldBudget,
+            promptTokenBudget = maxPromptTokens,
+            lorebooks = context.candidateLorebooks,
             tokenizer = tokenizer
         )
         val worldInfo = worldSelection.result
@@ -100,9 +102,12 @@ class ChatPromptBuilder(
                 .ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
         )
+        val stateResult = mWorldBookActivator.resolveNextState(
+            worldInfo.retainStateEntries(finalized.inspection)
+        )
         return PromptBuildResult(
             request = finalized.request,
-            worldInfoStateJson = worldInfo.nextStateJson,
+            worldInfoStateJson = stateResult.nextStateJson,
             inspection = finalized.inspection
         )
     }
@@ -117,7 +122,7 @@ class ChatPromptBuilder(
             beforeHistory += PromptPiece(
                 role = LLMMessageRole.System,
                 content = formatWorldInfo(it.content),
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 retentionPriority = PRIORITY_WORLD_INFO,
                 canDrop = true
             )
@@ -133,7 +138,7 @@ class ChatPromptBuilder(
             beforeHistory += PromptPiece(
                 role = LLMMessageRole.System,
                 content = formatWorldInfo(it.content),
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 retentionPriority = PRIORITY_WORLD_INFO,
                 canDrop = true
             )
@@ -180,7 +185,8 @@ class ChatPromptBuilder(
                 )
             )
             val modePrompt = when (context.generationMode) {
-                PromptGenerationMode.Normal -> ""
+                PromptGenerationMode.Normal,
+                PromptGenerationMode.Regenerate -> ""
                 PromptGenerationMode.Continue -> readContinueNudgePrompt()
                 PromptGenerationMode.Impersonate -> readImpersonationPrompt()
             }
@@ -218,7 +224,7 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = it.content,
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 retentionPriority = PRIORITY_WORLD_INFO,
                 canDrop = true,
                 depth = USER_NOTE_DEPTH,
@@ -242,7 +248,7 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = it.content,
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                 retentionPriority = PRIORITY_WORLD_INFO,
                 canDrop = true,
                 depth = USER_NOTE_DEPTH,
@@ -268,7 +274,7 @@ class ChatPromptBuilder(
                 pieces += InChatPromptPiece(
                     role = group.role,
                     content = it.content,
-                    source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
                     retentionPriority = PRIORITY_WORLD_INFO,
                     canDrop = true,
                     depth = group.depth.coerceAtLeast(0),
@@ -335,51 +341,6 @@ class ChatPromptBuilder(
             true
         )
             .resolve(context, history, outlets)
-    }
-
-    private fun fitWorldInfo(
-        result: WorldBookActivationResult,
-        tokenBudget: Int,
-        tokenizer: PromptTokenizer
-    ): WorldInfoSelection {
-        val selected = mutableListOf<LorebookEntry>()
-        val omitted = mutableListOf<PromptOmittedItem>()
-        var usedTokens = 0
-        // 世界书预算只裁剪已触发条目；ignoreBudget 条目仍可越过该限制。
-        result.activatedEntries.sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
-            .forEach { entry ->
-                val nextTokens = tokenizer.countText(entry.content)
-                if (!entry.ignoreBudget && usedTokens + nextTokens > tokenBudget) {
-                    omitted += PromptOmittedItem(
-                        source = PromptSource(PromptSourceKind.WorldInfo, entry.name),
-                        tokenCount = nextTokens,
-                        reason = PromptOmissionReason.WorldInfoBudget
-                    )
-                    return@forEach
-                }
-                selected += entry
-                if (!entry.ignoreBudget) usedTokens += nextTokens
-            }
-        val selectedIds = selected.map { it.id }.toSet()
-        return WorldInfoSelection(
-            result = result.copy(
-                activatedEntries = result.activatedEntries.filter { it.id in selectedIds },
-                beforeCharacter = result.beforeCharacter.filter { it.id in selectedIds },
-                afterCharacter = result.afterCharacter.filter { it.id in selectedIds },
-                exampleBefore = result.exampleBefore.filter { it.id in selectedIds },
-                exampleAfter = result.exampleAfter.filter { it.id in selectedIds },
-                anTop = result.anTop.filter { it.id in selectedIds },
-                anBottom = result.anBottom.filter { it.id in selectedIds },
-                depthEntries = result.depthEntries.mapNotNull { group ->
-                    val entries = group.entries.filter { it.id in selectedIds }.toMutableList()
-                    if (entries.isEmpty()) null else group.copy(entries = entries)
-                },
-                outletEntries = result.outletEntries.mapValues { (_, entries) ->
-                    entries.filter { it.id in selectedIds }
-                }.filterValues { it.isNotEmpty() }
-            ),
-            omittedItems = omitted
-        )
     }
 
     private fun buildChatMessages(
@@ -655,11 +616,6 @@ class ChatPromptBuilder(
         val depth: Int,
         val order: Int,
         val tieBreaker: Long
-    )
-
-    private data class WorldInfoSelection(
-        val result: WorldBookActivationResult,
-        val omittedItems: List<PromptOmittedItem>
     )
 
     private companion object {

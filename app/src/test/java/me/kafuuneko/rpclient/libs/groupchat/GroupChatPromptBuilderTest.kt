@@ -7,7 +7,9 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -73,6 +75,51 @@ class GroupChatPromptBuilderTest {
         assertTrue(result.inspection.finalTokenCount <= 900)
         assertTrue(result.request.messages.any { it.content.contains("Alex: Latest") })
         assertTrue(result.inspection.omittedItems.isNotEmpty())
+    }
+
+    @Test
+    fun regenerateGenerationModeActivatesMatchingWorldInfoTrigger() {
+        val lyra = character(1, "Lyra")
+        val session = GroupChatSession(
+            id = 1,
+            title = "Crew",
+            createTime = 1,
+            latestTime = 1,
+            userName = "Alex",
+            userDescription = ""
+        )
+        val entry = LorebookEntry(
+            id = 1,
+            lorebookId = 1,
+            name = "Regenerate entry",
+            keywords = """["station"]""",
+            secondaryKeywords = "[]",
+            constant = false,
+            order = 100,
+            depth = 0,
+            category = "[]",
+            content = "Regenerate-only lore",
+            position = LorebookEntry.POSITION_BEFORE,
+            triggers = """["regenerate"]"""
+        )
+        val baseContext = GroupChatPromptContext(
+            session = session,
+            members = listOf(member(lyra, 0)),
+            speaker = lyra,
+            messages = listOf(
+                message(GroupChatMessage.Source.User, "Alex", "Approach the station.")
+            ),
+            provider = provider(),
+            candidateLorebookEntries = listOf(entry)
+        )
+
+        val normal = GroupChatPromptBuilder().build(baseContext)
+        val regenerated = GroupChatPromptBuilder().build(
+            baseContext.copy(generationMode = GroupChatGenerationMode.Regenerate)
+        )
+
+        assertFalse(normal.messages.any { it.content.contains(entry.content) })
+        assertTrue(regenerated.messages.any { it.content.contains(entry.content) })
     }
 
     private fun character(id: Long, name: String): Character {

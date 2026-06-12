@@ -28,7 +28,9 @@ enum class PromptSourceKind {
 
 data class PromptSource(
     val kind: PromptSourceKind,
-    val detail: String = ""
+    val detail: String = "",
+    /** 领域对象的稳定 ID，用于在后处理和预算裁剪后追踪来源。 */
+    val referenceId: Long? = null
 )
 
 enum class PromptOmissionReason {

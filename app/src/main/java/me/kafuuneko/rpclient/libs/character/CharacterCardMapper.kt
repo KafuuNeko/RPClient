@@ -223,6 +223,7 @@ class CharacterCardMapper(
         scanDepth?.let { extensions.addProperty("scan_depth", it) }
         matchWholeWords?.let { extensions.addProperty("match_whole_words", it) }
         caseSensitive?.let { extensions.addProperty("case_sensitive", it) }
+        extensions.addProperty("use_group_scoring", useGroupScoring)
         extensions.addProperty("group", group)
         extensions.addProperty("group_override", groupOverride)
         groupWeight?.let { extensions.addProperty("group_weight", it) }

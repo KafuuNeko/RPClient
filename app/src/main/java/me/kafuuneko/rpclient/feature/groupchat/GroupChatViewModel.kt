@@ -543,7 +543,11 @@ class GroupChatViewModel :
                 total = 1
             )
         )
-        launchGeneration(uiState.sessionId, listOf(speaker))
+        launchGeneration(
+            sessionId = uiState.sessionId,
+            speakers = listOf(speaker),
+            generationMode = GroupChatGenerationMode.Regenerate
+        )
     }
 
     @UiIntentObserver(GroupChatUiIntent.ContinueLast::class)
@@ -568,7 +572,8 @@ class GroupChatViewModel :
                     batchId = batchId,
                     current = 1,
                     total = 1,
-                    continueMessage = last
+                    continueMessage = last,
+                    generationMode = GroupChatGenerationMode.Continue
                 )
                 refreshState(generationState = GroupChatGenerationState.Idle)
             }.onFailure {
@@ -617,12 +622,14 @@ class GroupChatViewModel :
     /** 启动一轮或自动连续多轮的成员回复生成。 */
     private fun launchGeneration(
         sessionId: Long,
-        speakers: List<GroupChatMemberData>
+        speakers: List<GroupChatMemberData>,
+        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
     ) {
         val batchId = UUID.randomUUID().toString()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 var pendingSpeakers = speakers
+                var nextGenerationMode = generationMode
                 while (pendingSpeakers.isNotEmpty()) {
                     pendingSpeakers.forEachIndexed { index, speaker ->
                         currentCoroutineContext().ensureActive()
@@ -631,8 +638,10 @@ class GroupChatViewModel :
                             speaker = speaker,
                             batchId = batchId,
                             current = index + 1,
-                            total = pendingSpeakers.size
+                            total = pendingSpeakers.size,
+                            generationMode = nextGenerationMode
                         )
+                        nextGenerationMode = GroupChatGenerationMode.Normal
                     }
                     val nextData = withContext(Dispatchers.IO) {
                         mGroupChatRepository.getGroupChatData(sessionId)
@@ -678,7 +687,8 @@ class GroupChatViewModel :
         batchId: String,
         current: Int,
         total: Int,
-        continueMessage: GroupChatMessage? = null
+        continueMessage: GroupChatMessage? = null,
+        generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
     ) {
         val data = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatData(sessionId)
@@ -698,25 +708,14 @@ class GroupChatViewModel :
                     messages = data.messages,
                     summary = data.summary?.content.orEmpty(),
                     candidateLorebookEntries = lorebookContext.entries,
+                    candidateLorebooks = lorebookContext.lorebooks,
                     recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
                     provider = provider,
-                    generationMode = if (continueMessage == null) {
-                        GroupChatGenerationMode.Normal
-                    } else {
-                        GroupChatGenerationMode.Continue
-                    }
+                    generationMode = generationMode
                 )
             )
         }
         recordPromptInspection(buildResult.inspection)
-        if (buildResult.worldInfoStateJson != data.session.worldInfoStateJson) {
-            withContext(Dispatchers.IO) {
-                mGroupChatRepository.updateWorldInfoState(
-                    sessionId,
-                    buildResult.worldInfoStateJson
-                )
-            }
-        }
         val request = buildResult.request
         mStreamingMessageId = continueMessage?.id ?: withContext(Dispatchers.IO) {
             mGroupChatRepository.createMessage(
@@ -756,6 +755,12 @@ class GroupChatViewModel :
         )
         mStreamingContent = existingContent + sanitizedPart
         persistOrDeleteStreamingMessage()
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.updateWorldInfoState(
+                sessionId,
+                buildResult.worldInfoStateJson
+            )
+        }
         refreshState(
             generationState = GroupChatGenerationState.Generating(
                 speakerName = speaker.character.name,
@@ -894,11 +899,16 @@ class GroupChatViewModel :
             it.id in selectedEntryIds || it.lorebookId in characterLorebookIds
         }
         val activeLorebookIds = entries.map { it.lorebookId }.toSet()
+        val activeLorebooks = lorebooks
+            .filter { it.id in activeLorebookIds }
+            .associateBy { it.id }
         return GroupLorebookContext(
             entries = entries,
-            recursiveLorebookIds = lorebooks.filter {
-                it.id in activeLorebookIds && it.recursiveScanning
-            }.map { it.id }.toSet()
+            lorebooks = activeLorebooks,
+            recursiveLorebookIds = activeLorebooks.values
+                .filter { it.recursiveScanning }
+                .map { it.id }
+                .toSet()
         )
     }
 
@@ -1067,6 +1077,7 @@ class GroupChatViewModel :
 
     private data class GroupLorebookContext(
         val entries: List<me.kafuuneko.rpclient.libs.room.entity.LorebookEntry>,
+        val lorebooks: Map<Long, me.kafuuneko.rpclient.libs.room.entity.Lorebook>,
         val recursiveLorebookIds: Set<Long>
     )
 

@@ -66,7 +66,10 @@ class LorebookCodec(
             position = optInt("position", LorebookEntry.POSITION_AT_DEPTH),
             role = optInt("role", LorebookEntry.ROLE_SYSTEM),
             probability = optInt("probability", 100),
-            ignoreBudget = extensions.optBoolean("ignore_budget", false),
+            ignoreBudget = optBoolean(
+                "ignoreBudget",
+                extensions.optBoolean("ignore_budget", false)
+            ),
             scanDepth = optNullableInt("scanDepth"),
             selectiveLogic = optInt("selectiveLogic", LorebookEntry.LOGIC_AND_ANY),
             matchWholeWords = optNullableBoolean("matchWholeWords"),
@@ -81,7 +84,11 @@ class LorebookCodec(
             cooldown = optNullableInt("cooldown"),
             delay = optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
-            triggers = gson.toJson(extensions.getAsJsonArray("triggers")?.toStringList().orEmpty()),
+            triggers = gson.toJson(
+                (getAsJsonArray("triggers") ?: extensions.getAsJsonArray("triggers"))
+                    ?.toStringList()
+                    .orEmpty()
+            ),
             matchPersonaDescription = extensions.optBoolean("match_persona_description", false),
             matchCharacterDescription = extensions.optBoolean("match_character_description", false),
             matchCharacterPersonality = extensions.optBoolean("match_character_personality", false),
@@ -108,6 +115,7 @@ class LorebookCodec(
         entry.addProperty("order", order)
         entry.addProperty("position", position)
         entry.addProperty("disable", disabled)
+        entry.addProperty("ignoreBudget", ignoreBudget)
         entry.addProperty("excludeRecursion", false)
         entry.addProperty("preventRecursion", preventRecursion)
         entry.addProperty("delayUntilRecursion", delayUntilRecursion)
@@ -121,6 +129,7 @@ class LorebookCodec(
         caseSensitive?.let { entry.addProperty("caseSensitive", it) }
         matchWholeWords?.let { entry.addProperty("matchWholeWords", it) }
         entry.addProperty("useGroupScoring", useGroupScoring)
+        entry.add("triggers", parseArrayOrEmpty(triggers))
         entry.addProperty("automationId", "")
         entry.addProperty("role", role)
         sticky?.let { entry.addProperty("sticky", it) }
