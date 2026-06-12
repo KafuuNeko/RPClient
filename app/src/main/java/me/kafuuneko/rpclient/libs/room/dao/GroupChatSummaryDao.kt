@@ -11,7 +11,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         """
         SELECT * FROM group_chat_summaries
         WHERE sessionId = :sessionId
-        ORDER BY coveredMessageId DESC, id DESC
+        ORDER BY id DESC
         LIMIT 1
         """
     )

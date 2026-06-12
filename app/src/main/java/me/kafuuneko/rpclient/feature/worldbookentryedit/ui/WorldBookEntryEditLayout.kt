@@ -338,10 +338,10 @@ private fun AdvancedPanel(
         ToggleRow(stringResource(R.string.entry_ignore_budget), "", form.ignoreBudget, loadState == WorldBookEntryEditLoadState.None) {
             WorldBookEntryEditUiIntent.ChangeIgnoreBudget(it).emit()
         }
-        ToggleRow(stringResource(R.string.entry_whole_words), "", form.matchWholeWords, loadState == WorldBookEntryEditLoadState.None) {
+        ToggleRow(stringResource(R.string.entry_whole_words), "", form.matchWholeWords == true, loadState == WorldBookEntryEditLoadState.None) {
             WorldBookEntryEditUiIntent.ChangeMatchWholeWords(it).emit()
         }
-        ToggleRow(stringResource(R.string.entry_case_sensitive), "", form.caseSensitive, loadState == WorldBookEntryEditLoadState.None) {
+        ToggleRow(stringResource(R.string.entry_case_sensitive), "", form.caseSensitive == true, loadState == WorldBookEntryEditLoadState.None) {
             WorldBookEntryEditUiIntent.ChangeCaseSensitive(it).emit()
         }
         ToggleRow(stringResource(R.string.entry_prevent_recursion), "", form.preventRecursion, loadState == WorldBookEntryEditLoadState.None) {

@@ -24,8 +24,8 @@ data class WorldBookEntryEditForm(
     val ignoreBudget: Boolean = false,
     val scanDepth: String = "",
     val selectiveLogic: String = LorebookEntry.LOGIC_AND_ANY.toString(),
-    val matchWholeWords: Boolean = false,
-    val caseSensitive: Boolean = false,
+    val matchWholeWords: Boolean? = null,
+    val caseSensitive: Boolean? = null,
     val useGroupScoring: Boolean = false,
     val group: String = "",
     val groupOverride: Boolean = false,
@@ -42,7 +42,9 @@ data class WorldBookEntryEditForm(
     val matchCharacterPersonality: Boolean = false,
     val matchCharacterDepthPrompt: Boolean = false,
     val matchScenario: Boolean = false,
-    val extensionsJson: String = "{}"
+    val matchCreatorNotes: Boolean = false,
+    val extensionsJson: String = "{}",
+    val rawJson: String = "{}"
 ) {
     val isNew: Boolean
         get() = id == 0L
@@ -67,8 +69,8 @@ data class WorldBookEntryEditForm(
                 ignoreBudget = entry.ignoreBudget,
                 scanDepth = entry.scanDepth?.toString().orEmpty(),
                 selectiveLogic = entry.selectiveLogic.toString(),
-                matchWholeWords = entry.matchWholeWords == true,
-                caseSensitive = entry.caseSensitive == true,
+                matchWholeWords = entry.matchWholeWords,
+                caseSensitive = entry.caseSensitive,
                 useGroupScoring = entry.useGroupScoring,
                 group = entry.group,
                 groupOverride = entry.groupOverride,
@@ -85,7 +87,9 @@ data class WorldBookEntryEditForm(
                 matchCharacterPersonality = entry.matchCharacterPersonality,
                 matchCharacterDepthPrompt = entry.matchCharacterDepthPrompt,
                 matchScenario = entry.matchScenario,
-                extensionsJson = entry.extensionsJson
+                matchCreatorNotes = entry.matchCreatorNotes,
+                extensionsJson = entry.extensionsJson,
+                rawJson = entry.rawJson
             )
         }
     }
@@ -133,7 +137,9 @@ data class WorldBookEntryEditForm(
             matchCharacterPersonality = matchCharacterPersonality,
             matchCharacterDepthPrompt = matchCharacterDepthPrompt,
             matchScenario = matchScenario,
-            extensionsJson = extensionsJson.trim().ifBlank { "{}" }
+            matchCreatorNotes = matchCreatorNotes,
+            extensionsJson = extensionsJson.trim().ifBlank { "{}" },
+            rawJson = rawJson
         )
     }
 }

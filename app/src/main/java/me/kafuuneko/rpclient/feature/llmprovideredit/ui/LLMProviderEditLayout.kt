@@ -376,7 +376,7 @@ private fun LLMProviderEditLayoutPreview() {
                 form = LLMProviderEditForm(
                     name = "OpenRouter",
                     baseUrl = "https://openrouter.ai/api/v1",
-                    model = "anthropic/claude-3.5-sonnet"
+                    model = "~anthropic/claude-sonnet-latest"
                 )
             ),
             emit = {}

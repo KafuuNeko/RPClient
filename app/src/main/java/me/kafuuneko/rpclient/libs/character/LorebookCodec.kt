@@ -94,7 +94,7 @@ class LorebookCodec(
     }
 
     private fun LorebookEntry.toStWorldBookEntry(uid: Int): JsonObject {
-        val entry = JsonObject()
+        val entry = parseObjectOrEmpty(rawJson)
         entry.addProperty("uid", uid)
         entry.add("key", parseArrayOrEmpty(keywords))
         entry.add("keysecondary", parseArrayOrEmpty(secondaryKeywords))

@@ -285,23 +285,47 @@ class GroupChatRepository(
         )
     }
 
-    /** 保存用户编辑的当前摘要，并以最新消息作为覆盖边界。 */
-    suspend fun updateCurrentSummary(sessionId: Long, content: String) {
+    /**
+     * 保存用户编辑的当前摘要。
+     *
+     * 清空摘要时写入边界为 0 的空快照，使全部普通消息重新进入上下文。非空内容仅在
+     * 当前快照已覆盖最后一条消息时原地更新，否则插入覆盖到最新消息的新快照。
+     */
+    suspend fun updateCurrentSummary(
+        sessionId: Long,
+        content: String,
+        createTime: Long = System.currentTimeMillis()
+    ) {
         mAppDatabase.withTransaction {
             val latest = mSummaryDao.getLatest(sessionId)
+            if (content.isBlank()) {
+                if (latest?.coveredMessageId == 0L) {
+                    mSummaryDao.updateContent(latest.id, "", 0L, createTime)
+                    return@withTransaction
+                }
+                mSummaryDao.insertOrReplace(
+                    GroupChatSummary(
+                        sessionId = sessionId,
+                        createTime = createTime,
+                        content = "",
+                        coveredMessageId = 0L
+                    )
+                )
+                return@withTransaction
+            }
             val latestMessageId = mMessageDao.getLatestMessage(sessionId)?.id ?: 0L
             if (latest != null && latest.coveredMessageId == latestMessageId) {
                 mSummaryDao.updateContent(
                     latest.id,
                     content,
                     latestMessageId,
-                    System.currentTimeMillis()
+                    createTime
                 )
             } else {
                 mSummaryDao.insertOrReplace(
                     GroupChatSummary(
                         sessionId = sessionId,
-                        createTime = System.currentTimeMillis(),
+                        createTime = createTime,
                         content = content,
                         coveredMessageId = latestMessageId
                     )

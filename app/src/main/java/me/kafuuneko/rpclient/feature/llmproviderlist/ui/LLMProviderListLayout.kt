@@ -222,7 +222,7 @@ private fun LLMProviderListLayoutPreview() {
                         providerType = LLMProviderType.OpenRouter,
                         protocol = LLMProviderProtocol.OpenAICompatible,
                         baseUrl = "https://openrouter.ai/api/v1",
-                        model = "anthropic/claude",
+                        model = "~anthropic/claude-sonnet-latest",
                         isEnabled = true
                     ),
                     LLMProvider(
@@ -231,7 +231,7 @@ private fun LLMProviderListLayoutPreview() {
                         providerType = LLMProviderType.Gemini,
                         protocol = LLMProviderProtocol.Gemini,
                         baseUrl = "https://generativelanguage.googleapis.com",
-                        model = "gemini-1.5-flash",
+                        model = "gemini-3.5-flash",
                         isEnabled = false
                     )
                 )

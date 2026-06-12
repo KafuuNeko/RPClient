@@ -6,6 +6,11 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 data class WorldBookEditForm(
     val id: Long = 0L,
     val name: String = "",
+    val description: String = "",
+    val scanDepth: Int = 2,
+    val tokenBudget: Int = 25,
+    val recursiveScanning: Boolean = false,
+    val extensionsJson: String = "{}",
     val entries: List<WorldBookEntryListItem> = emptyList()
 ) {
     val isNew: Boolean
@@ -16,6 +21,11 @@ data class WorldBookEditForm(
             return WorldBookEditForm(
                 id = lorebook.id,
                 name = lorebook.name,
+                description = lorebook.description,
+                scanDepth = lorebook.scanDepth,
+                tokenBudget = lorebook.tokenBudget,
+                recursiveScanning = lorebook.recursiveScanning,
+                extensionsJson = lorebook.extensionsJson,
                 entries = entries.map { WorldBookEntryListItem.from(it) }
             )
         }
@@ -24,7 +34,12 @@ data class WorldBookEditForm(
     fun toLorebook(): Lorebook {
         return Lorebook(
             id = id,
-            name = name.trim()
+            name = name.trim(),
+            description = description,
+            scanDepth = scanDepth,
+            tokenBudget = tokenBudget,
+            recursiveScanning = recursiveScanning,
+            extensionsJson = extensionsJson
         )
     }
 }

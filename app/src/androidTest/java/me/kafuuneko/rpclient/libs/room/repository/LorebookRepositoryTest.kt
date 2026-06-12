@@ -5,8 +5,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEditForm
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -56,5 +58,27 @@ class LorebookRepositoryTest {
             0L,
             database.getCharacterDao().getCharacterById(characterId)?.characterLorebookId
         )
+    }
+
+    @Test
+    fun renamingLorebookThroughEditFormPreservesStoredFields() = runBlocking {
+        val original = Lorebook(
+            name = "Imported",
+            description = "Description",
+            scanDepth = 8,
+            tokenBudget = 320,
+            recursiveScanning = true,
+            extensionsJson = """{"custom":true}"""
+        )
+        val lorebookId = repository.saveLorebook(original)
+        val stored = repository.getLorebookById(lorebookId)
+            ?: error("Lorebook should exist")
+        val edited = WorldBookEditForm.from(stored, emptyList())
+            .copy(name = "Renamed")
+            .toLorebook()
+
+        repository.saveLorebook(edited)
+
+        assertEquals(stored.copy(name = "Renamed"), repository.getLorebookById(lorebookId))
     }
 }

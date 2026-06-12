@@ -15,6 +15,10 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 
+internal const val DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+internal const val DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6"
+internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
+
 class LLMRepository(
     private val mAppDatabase: AppDatabase,
     private val mLLMClientFactory: LLMClientFactory
@@ -195,66 +199,67 @@ class LLMRepository(
         if (mLLMProviderDao.getAllProviders().isNotEmpty()) return
         mAppDatabase.withTransaction {
             if (mLLMProviderDao.getAllProviders().isNotEmpty()) return@withTransaction
-            mLLMProviderDao.insertOrReplaceAll(defaultProviders())
+            mLLMProviderDao.insertOrReplaceAll(createDefaultLLMProviders())
         }
     }
+}
 
-    /**
-     * 默认供应商列表。API Key 留空，用户配置后即可启用真实请求。
-     */
-    private fun defaultProviders(): List<LLMProvider> {
-        val now = System.currentTimeMillis()
-        return listOf(
-            LLMProvider(
-                name = "ChatGPT",
-                providerType = LLMProviderType.ChatGPT,
-                protocol = LLMProviderProtocol.OpenAICompatible,
-                baseUrl = "https://api.openai.com/v1",
-                model = "gpt-4o-mini",
-                createTime = now,
-                updateTime = now,
-                isEnabled = false
-            ),
-            LLMProvider(
-                name = "Gemini",
-                providerType = LLMProviderType.Gemini,
-                protocol = LLMProviderProtocol.Gemini,
-                baseUrl = "https://generativelanguage.googleapis.com",
-                model = "gemini-1.5-flash",
-                createTime = now,
-                updateTime = now,
-                isEnabled = false
-            ),
-            LLMProvider(
-                name = "Claude",
-                providerType = LLMProviderType.Claude,
-                protocol = LLMProviderProtocol.AnthropicMessages,
-                baseUrl = "https://api.anthropic.com",
-                model = "claude-3-5-sonnet-latest",
-                createTime = now,
-                updateTime = now,
-                isEnabled = false
-            ),
-            LLMProvider(
-                name = "DeepSeek",
-                providerType = LLMProviderType.DeepSeek,
-                protocol = LLMProviderProtocol.OpenAICompatible,
-                baseUrl = "https://api.deepseek.com",
-                model = "deepseek-chat",
-                createTime = now,
-                updateTime = now,
-                isEnabled = false
-            ),
-            LLMProvider(
-                name = "OpenRouter",
-                providerType = LLMProviderType.OpenRouter,
-                protocol = LLMProviderProtocol.OpenAICompatible,
-                baseUrl = "https://openrouter.ai/api/v1",
-                model = "anthropic/claude-3.5-sonnet",
-                createTime = now,
-                updateTime = now,
-                isEnabled = false
-            )
+/**
+ * 默认供应商列表。API Key 留空，用户配置后即可启用真实请求。
+ */
+internal fun createDefaultLLMProviders(
+    now: Long = System.currentTimeMillis()
+): List<LLMProvider> {
+    return listOf(
+        LLMProvider(
+            name = "ChatGPT",
+            providerType = LLMProviderType.ChatGPT,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://api.openai.com/v1",
+            model = "gpt-4o-mini",
+            createTime = now,
+            updateTime = now,
+            isEnabled = false
+        ),
+        LLMProvider(
+            name = "Gemini",
+            providerType = LLMProviderType.Gemini,
+            protocol = LLMProviderProtocol.Gemini,
+            baseUrl = "https://generativelanguage.googleapis.com",
+            model = DEFAULT_GEMINI_MODEL,
+            createTime = now,
+            updateTime = now,
+            isEnabled = false
+        ),
+        LLMProvider(
+            name = "Claude",
+            providerType = LLMProviderType.Claude,
+            protocol = LLMProviderProtocol.AnthropicMessages,
+            baseUrl = "https://api.anthropic.com",
+            model = DEFAULT_CLAUDE_MODEL,
+            createTime = now,
+            updateTime = now,
+            isEnabled = false
+        ),
+        LLMProvider(
+            name = "DeepSeek",
+            providerType = LLMProviderType.DeepSeek,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://api.deepseek.com",
+            model = "deepseek-chat",
+            createTime = now,
+            updateTime = now,
+            isEnabled = false
+        ),
+        LLMProvider(
+            name = "OpenRouter",
+            providerType = LLMProviderType.OpenRouter,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://openrouter.ai/api/v1",
+            model = DEFAULT_OPENROUTER_MODEL,
+            createTime = now,
+            updateTime = now,
+            isEnabled = false
         )
-    }
+    )
 }
