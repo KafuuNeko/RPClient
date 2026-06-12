@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.StopCircle
@@ -89,6 +90,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import androidx.compose.ui.res.stringResource
@@ -128,6 +130,15 @@ private fun GroupChatNormalView(
                 title = state.title,
                 onBack = { emitIntent(GroupChatUiIntent.Back) },
                 actions = {
+                    IconButton(
+                        onClick = { emitIntent(GroupChatUiIntent.OpenPromptInspector) },
+                        enabled = state.hasPromptInspection
+                    ) {
+                        Icon(
+                            Icons.Rounded.Info,
+                            contentDescription = stringResource(R.string.prompt_inspector_title)
+                        )
+                    }
                     IconButton(
                         onClick = { emitIntent(GroupChatUiIntent.OpenSettings) },
                         enabled = !generating
@@ -1151,6 +1162,10 @@ private fun DialogSwitch(
 ) {
     when (dialogState) {
         GroupChatDialogState.None -> Unit
+        is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
+            inspection = dialogState.inspection,
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) }
+        )
         is GroupChatDialogState.DeleteSessionConfirm -> AlertDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },

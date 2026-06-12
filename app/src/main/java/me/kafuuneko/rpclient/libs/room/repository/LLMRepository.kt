@@ -186,6 +186,7 @@ class LLMRepository(
      * 在所有协议适配器之前统一执行 Prompt Post-Processing。
      */
     private fun LLMGenerationRequest.postProcessPrompt(): LLMGenerationRequest {
+        if (isPromptFinalized) return this
         return withPostProcessedMessages(
             mode = PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode),
             strictPromptPlaceholder = AppModel.newChatPrompt.ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT }

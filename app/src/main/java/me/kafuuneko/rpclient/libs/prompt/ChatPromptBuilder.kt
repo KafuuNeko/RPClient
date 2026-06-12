@@ -12,7 +12,8 @@ import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 class ChatPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
-    private val mWorldBookActivator: WorldBookActivator
+    private val mWorldBookActivator: WorldBookActivator,
+    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /**
      * 构建最终提交给模型的请求。
@@ -32,43 +33,77 @@ class ChatPromptBuilder(
      * 4. 尾部指令区：post-history instructions。
      */
     fun buildWithMetadata(context: PromptBuildContext): PromptBuildResult {
-        val maxPromptTokens = (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(MIN_PROMPT_TOKENS)
-        val worldBudget = (maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100)
-            .coerceAtLeast(MIN_WORLD_BUDGET)
-        val worldInfo = fitWorldInfo(mWorldBookActivator.activateStructured(context), worldBudget)
+        val maxPromptTokens = (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(0)
+        val worldBudget = maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
+        val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+        val worldSelection = fitWorldInfo(
+            result = mWorldBookActivator.activateStructured(context),
+            tokenBudget = worldBudget,
+            tokenizer = tokenizer
+        )
+        val worldInfo = worldSelection.result
         val outlets = worldInfo.outletEntries.mapValues { (_, entries) ->
             entries.sortedBy { it.order }.joinToString("\n") { it.content }
         }
         val fixedMessages = buildFixedMessages(context, worldInfo)
         val inChatPieces = buildInChatPieces(context, worldInfo)
         val examplePieces = buildExamplePieces(context, worldInfo)
-        val fixedTokenCount = fixedMessages.sumOf { estimateTokens(it.content) } +
-            inChatPieces.sumOf { estimateTokens(it.content) } +
-            examplePieces.sumOf { estimateTokens(it.content) }
-        // 固定段和注入段先占预算，剩余 token 再留给聊天历史，避免历史挤掉角色定义。
-        val historyBudget = (maxPromptTokens - fixedTokenCount).coerceAtLeast(MIN_HISTORY_BUDGET)
-        val historyMessages = fitHistory(context.messages, historyBudget).sanitizeThinkBlocks()
+        val historyMessages = context.messages.sanitizeThinkBlocks()
         val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name)
 
-        val messages = mutableListOf<LLMMessage>()
-        fixedMessages.beforeHistory.forEach { messages += it.resolve(context, historyText, outlets) }
-        examplePieces.forEach { messages += it.resolve(context, historyText, outlets) }
-        buildNewChatPiece(context, historyText, outlets)?.let { messages += it }
-        messages += buildChatMessages(historyMessages, context, historyText, inChatPieces, outlets)
-        fixedMessages.afterHistory.forEach { messages += it.resolve(context, historyText, outlets) }
-
-        return PromptBuildResult(
-            request = LLMGenerationRequest(
-                messages = messages.ifEmpty { listOf(LLMMessage(LLMMessageRole.System, readMainPrompt())) },
-                model = context.provider?.model,
-                options = LLMGenerationOptions(
-                    temperature = context.provider?.temperature,
-                    maxTokens = context.maxResponseTokens,
-                    topP = context.provider?.topP
-                ),
-                includeReasoningInContent = true
+        val drafts = buildList {
+            fixedMessages.beforeHistory.forEach {
+                add(it.resolve(context, historyText, outlets))
+            }
+            examplePieces.forEach {
+                add(it.resolve(context, historyText, outlets))
+            }
+            buildNewChatPiece(context, historyText, outlets)?.let(::add)
+            addAll(
+                buildChatMessages(
+                    historyMessages,
+                    context,
+                    historyText,
+                    inChatPieces,
+                    outlets
+                )
+            )
+            fixedMessages.afterHistory.forEach {
+                add(it.resolve(context, historyText, outlets))
+            }
+        }
+        val fallbackDrafts = drafts.ifEmpty {
+            listOf(
+                PromptMessageDraft(
+                    role = LLMMessageRole.System,
+                    content = readMainPrompt(),
+                    source = PromptSource(PromptSourceKind.MainPrompt),
+                    retentionPriority = PRIORITY_ESSENTIAL,
+                    canDrop = false
+                )
+            )
+        }
+        val finalized = mRequestFinalizer.finalize(
+            drafts = fallbackDrafts,
+            provider = context.provider,
+            model = context.provider?.model,
+            options = LLMGenerationOptions(
+                temperature = context.provider?.temperature,
+                maxTokens = context.maxResponseTokens,
+                topP = context.provider?.topP
             ),
-            worldInfoStateJson = worldInfo.nextStateJson
+            includeReasoningInContent = true,
+            maxContextTokens = context.maxContextTokens,
+            maxResponseTokens = context.maxResponseTokens,
+            postProcessingMode = readPostProcessingMode(),
+            strictPromptPlaceholder = readNewChatPrompt()
+                .ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT },
+            preOmittedItems = worldSelection.omittedItems
+        )
+        return PromptBuildResult(
+            request = finalized.request,
+            worldInfoStateJson = worldInfo.nextStateJson,
+            inspection = finalized.inspection
         )
     }
 
@@ -79,25 +114,71 @@ class ChatPromptBuilder(
         val beforeHistory = mutableListOf<PromptPiece>()
         // before/after character 是固定 system 区；creator_notes 只作为元数据保留，不再默认注入。
         worldInfo.beforeCharacter.forEach {
-            beforeHistory += PromptPiece(LLMMessageRole.System, formatWorldInfo(it.content), PromptPieceImportance.Optional)
+            beforeHistory += PromptPiece(
+                role = LLMMessageRole.System,
+                content = formatWorldInfo(it.content),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                retentionPriority = PRIORITY_WORLD_INFO,
+                canDrop = true
+            )
         }
-        beforeHistory += PromptPiece(LLMMessageRole.System, readCharacterMainPrompt(context), PromptPieceImportance.Required)
+        beforeHistory += PromptPiece(
+            LLMMessageRole.System,
+            readCharacterMainPrompt(context),
+            PromptSource(PromptSourceKind.MainPrompt),
+            PRIORITY_ESSENTIAL,
+            false
+        )
         worldInfo.afterCharacter.forEach {
-            beforeHistory += PromptPiece(LLMMessageRole.System, formatWorldInfo(it.content), PromptPieceImportance.Optional)
+            beforeHistory += PromptPiece(
+                role = LLMMessageRole.System,
+                content = formatWorldInfo(it.content),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                retentionPriority = PRIORITY_WORLD_INFO,
+                canDrop = true
+            )
         }
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.userDescription, PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.character.description, PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, formatPersonality(context.character.personality), PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, formatScenario(context.character.scenario), PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, context.summary, PromptPieceImportance.Required)
-        beforeHistory += PromptPiece(LLMMessageRole.System, readAuxiliaryPrompt(), PromptPieceImportance.Optional)
+        beforeHistory += PromptPiece.required(
+            LLMMessageRole.System,
+            context.userDescription,
+            PromptSourceKind.UserPersona
+        )
+        beforeHistory += PromptPiece.required(
+            LLMMessageRole.System,
+            context.character.description,
+            PromptSourceKind.CharacterDescription
+        )
+        beforeHistory += PromptPiece.required(
+            LLMMessageRole.System,
+            formatPersonality(context.character.personality),
+            PromptSourceKind.CharacterPersonality
+        )
+        beforeHistory += PromptPiece.required(
+            LLMMessageRole.System,
+            formatScenario(context.character.scenario),
+            PromptSourceKind.Scenario
+        )
+        beforeHistory += PromptPiece.required(
+            LLMMessageRole.System,
+            context.summary,
+            PromptSourceKind.Summary
+        )
+        beforeHistory += PromptPiece(
+            LLMMessageRole.System,
+            readAuxiliaryPrompt(),
+            PromptSource(PromptSourceKind.AuxiliaryPrompt),
+            PRIORITY_AUXILIARY,
+            true
+        )
 
         val afterHistory = buildList {
-            add(PromptPiece(
-                role = LLMMessageRole.System,
-                content = readCharacterPostHistoryInstructions(context),
-                importance = PromptPieceImportance.Required
-            ))
+            add(
+                PromptPiece.required(
+                    role = LLMMessageRole.System,
+                    content = readCharacterPostHistoryInstructions(context),
+                    sourceKind = PromptSourceKind.PostHistoryInstructions
+                )
+            )
             val modePrompt = when (context.generationMode) {
                 PromptGenerationMode.Normal -> ""
                 PromptGenerationMode.Continue -> readContinueNudgePrompt()
@@ -112,7 +193,12 @@ class ChatPromptBuilder(
                 } else {
                     LLMMessageRole.System
                 }
-                add(PromptPiece(role, modePrompt, PromptPieceImportance.Required))
+                val sourceKind = if (context.generationMode == PromptGenerationMode.Continue) {
+                    PromptSourceKind.ContinueNudge
+                } else {
+                    PromptSourceKind.ImpersonationNudge
+                }
+                add(PromptPiece.required(role, modePrompt, sourceKind))
             }
         }
 
@@ -132,7 +218,9 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = it.content,
-                importance = PromptPieceImportance.Optional,
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                retentionPriority = PRIORITY_WORLD_INFO,
+                canDrop = true,
                 depth = USER_NOTE_DEPTH,
                 order = AN_TOP_ORDER,
                 tieBreaker = it.id
@@ -142,7 +230,9 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = it,
-                importance = PromptPieceImportance.Optional,
+                source = PromptSource(PromptSourceKind.UserNote),
+                retentionPriority = PRIORITY_USER_NOTE,
+                canDrop = true,
                 depth = USER_NOTE_DEPTH,
                 order = USER_NOTE_ORDER,
                 tieBreaker = Long.MIN_VALUE
@@ -152,7 +242,9 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = it.content,
-                importance = PromptPieceImportance.Optional,
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                retentionPriority = PRIORITY_WORLD_INFO,
+                canDrop = true,
                 depth = USER_NOTE_DEPTH,
                 order = AN_BOTTOM_ORDER,
                 tieBreaker = it.id
@@ -162,7 +254,9 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = context.character.depthPromptRole.toMessageRole(),
                 content = it,
-                importance = PromptPieceImportance.Optional,
+                source = PromptSource(PromptSourceKind.CharacterNote),
+                retentionPriority = PRIORITY_CHARACTER_NOTE,
+                canDrop = true,
                 depth = context.character.depthPromptDepth.coerceAtLeast(0),
                 order = CHARACTER_NOTE_ORDER,
                 tieBreaker = Long.MIN_VALUE + 1
@@ -174,7 +268,9 @@ class ChatPromptBuilder(
                 pieces += InChatPromptPiece(
                     role = group.role,
                     content = it.content,
-                    importance = PromptPieceImportance.Optional,
+                    source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    retentionPriority = PRIORITY_WORLD_INFO,
+                    canDrop = true,
                     depth = group.depth.coerceAtLeast(0),
                     order = it.order,
                     tieBreaker = it.id
@@ -200,9 +296,25 @@ class ChatPromptBuilder(
                 buildList {
                     val marker = readNewExampleChatPrompt()
                     if (marker.isNotBlank()) {
-                        add(PromptPiece(LLMMessageRole.System, marker, PromptPieceImportance.Optional))
+                        add(
+                            PromptPiece(
+                                LLMMessageRole.System,
+                                marker,
+                                PromptSource(PromptSourceKind.ExampleDialogue),
+                                PRIORITY_EXAMPLE,
+                                true
+                            )
+                        )
                     }
-                    add(PromptPiece(LLMMessageRole.System, block, PromptPieceImportance.Optional))
+                    add(
+                        PromptPiece(
+                            LLMMessageRole.System,
+                            block,
+                            PromptSource(PromptSourceKind.ExampleDialogue),
+                            PRIORITY_EXAMPLE,
+                            true
+                        )
+                    )
                 }
             }
     }
@@ -211,53 +323,62 @@ class ChatPromptBuilder(
         context: PromptBuildContext,
         history: String,
         outlets: Map<String, String>
-    ): LLMMessage? {
+    ): PromptMessageDraft? {
         if (context.messages.isEmpty() && context.currentUserMessage.isNullOrBlank()) return null
         val marker = readNewChatPrompt()
         if (marker.isBlank()) return null
-        return PromptPiece(LLMMessageRole.System, marker, PromptPieceImportance.Optional)
+        return PromptPiece(
+            LLMMessageRole.System,
+            marker,
+            PromptSource(PromptSourceKind.NewChatMarker),
+            PRIORITY_NEW_CHAT,
+            true
+        )
             .resolve(context, history, outlets)
     }
 
-    private fun fitHistory(messages: List<ChatMessage>, tokenBudget: Int): List<ChatMessage> {
-        val selected = ArrayDeque<ChatMessage>()
-        var usedTokens = 0
-        // 从最新消息向前取，保证当前上下文优先保留最近对话。
-        messages.asReversed().forEach { message ->
-            val nextTokens = estimateTokens(message.content)
-            if (selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) return@forEach
-            selected.addFirst(message)
-            usedTokens += nextTokens
-        }
-        return selected.toList()
-    }
-
-    private fun fitWorldInfo(result: WorldBookActivationResult, tokenBudget: Int): WorldBookActivationResult {
+    private fun fitWorldInfo(
+        result: WorldBookActivationResult,
+        tokenBudget: Int,
+        tokenizer: PromptTokenizer
+    ): WorldInfoSelection {
         val selected = mutableListOf<LorebookEntry>()
+        val omitted = mutableListOf<PromptOmittedItem>()
         var usedTokens = 0
         // 世界书预算只裁剪已触发条目；ignoreBudget 条目仍可越过该限制。
         result.activatedEntries.sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
             .forEach { entry ->
-                val nextTokens = estimateTokens(entry.content)
-                if (!entry.ignoreBudget && selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) return@forEach
+                val nextTokens = tokenizer.countText(entry.content)
+                if (!entry.ignoreBudget && usedTokens + nextTokens > tokenBudget) {
+                    omitted += PromptOmittedItem(
+                        source = PromptSource(PromptSourceKind.WorldInfo, entry.name),
+                        tokenCount = nextTokens,
+                        reason = PromptOmissionReason.WorldInfoBudget
+                    )
+                    return@forEach
+                }
                 selected += entry
                 if (!entry.ignoreBudget) usedTokens += nextTokens
             }
         val selectedIds = selected.map { it.id }.toSet()
-        return result.copy(
-            activatedEntries = result.activatedEntries.filter { it.id in selectedIds },
-            beforeCharacter = result.beforeCharacter.filter { it.id in selectedIds },
-            afterCharacter = result.afterCharacter.filter { it.id in selectedIds },
-            exampleBefore = result.exampleBefore.filter { it.id in selectedIds },
-            exampleAfter = result.exampleAfter.filter { it.id in selectedIds },
-            anTop = result.anTop.filter { it.id in selectedIds },
-            anBottom = result.anBottom.filter { it.id in selectedIds },
-            depthEntries = result.depthEntries.mapNotNull { group ->
-                val entries = group.entries.filter { it.id in selectedIds }.toMutableList()
-                if (entries.isEmpty()) null else group.copy(entries = entries)
-            },
-            outletEntries = result.outletEntries.mapValues { (_, entries) -> entries.filter { it.id in selectedIds } }
-                .filterValues { it.isNotEmpty() }
+        return WorldInfoSelection(
+            result = result.copy(
+                activatedEntries = result.activatedEntries.filter { it.id in selectedIds },
+                beforeCharacter = result.beforeCharacter.filter { it.id in selectedIds },
+                afterCharacter = result.afterCharacter.filter { it.id in selectedIds },
+                exampleBefore = result.exampleBefore.filter { it.id in selectedIds },
+                exampleAfter = result.exampleAfter.filter { it.id in selectedIds },
+                anTop = result.anTop.filter { it.id in selectedIds },
+                anBottom = result.anBottom.filter { it.id in selectedIds },
+                depthEntries = result.depthEntries.mapNotNull { group ->
+                    val entries = group.entries.filter { it.id in selectedIds }.toMutableList()
+                    if (entries.isEmpty()) null else group.copy(entries = entries)
+                },
+                outletEntries = result.outletEntries.mapValues { (_, entries) ->
+                    entries.filter { it.id in selectedIds }
+                }.filterValues { it.isNotEmpty() }
+            ),
+            omittedItems = omitted
         )
     }
 
@@ -267,10 +388,22 @@ class ChatPromptBuilder(
         historyText: String,
         inChatPieces: List<InChatPromptPiece>,
         outlets: Map<String, String>
-    ): List<LLMMessage> {
-        val chatMessages = historyMessages.map { it.toLlmMessage() }.toMutableList()
+    ): List<PromptMessageDraft> {
+        val lastHistoryIndex = historyMessages.lastIndex
+        val chatMessages = historyMessages.mapIndexed { index, message ->
+            message.toPromptDraft(
+                retentionPriority = PRIORITY_HISTORY_BASE + index,
+                canDrop = index != lastHistoryIndex
+            )
+        }.toMutableList()
         context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {
-            chatMessages += LLMMessage(LLMMessageRole.User, resolve(it, context, historyText, it, outlets))
+            chatMessages += PromptMessageDraft(
+                role = LLMMessageRole.User,
+                content = resolve(it, context, historyText, it, outlets),
+                source = PromptSource(PromptSourceKind.ChatHistory, "Current user message"),
+                retentionPriority = PRIORITY_ESSENTIAL,
+                canDrop = false
+            )
         }
         if (chatMessages.isEmpty() || inChatPieces.isEmpty()) return chatMessages
 
@@ -281,7 +414,11 @@ class ChatPromptBuilder(
             }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, pieces) ->
-                pieces.sortedWith(compareBy<Pair<InChatPromptPiece, LLMMessage>> { it.first.order }.thenBy { it.first.tieBreaker })
+                pieces.sortedWith(
+                    compareBy<Pair<InChatPromptPiece, PromptMessageDraft>> {
+                        it.first.order
+                    }.thenBy { it.first.tieBreaker }
+                )
                     .map { it.second }
             }
 
@@ -293,7 +430,7 @@ class ChatPromptBuilder(
         }
     }
 
-    private fun InChatPromptPiece.insertionIndex(chatMessages: List<LLMMessage>): Int {
+    private fun InChatPromptPiece.insertionIndex(chatMessages: List<PromptMessageDraft>): Int {
         // depth=0 表示追加到聊天末尾；depth=1 表示插入到最后一条消息之前，以此类推。
         return if (tieBreaker == Long.MIN_VALUE && chatMessages.lastOrNull()?.role != LLMMessageRole.User) {
             chatMessages.size
@@ -302,16 +439,34 @@ class ChatPromptBuilder(
         }
     }
 
-    private fun PromptPiece.resolve(context: PromptBuildContext, history: String, outlets: Map<String, String>): LLMMessage {
+    private fun PromptPiece.resolve(
+        context: PromptBuildContext,
+        history: String,
+        outlets: Map<String, String>
+    ): PromptMessageDraft {
         val resolved = resolve(content, context, history, original, outlets).trim()
-        val maxTokens = if (importance == PromptPieceImportance.Required) REQUIRED_PIECE_MAX_TOKENS else OPTIONAL_PIECE_MAX_TOKENS
-        return LLMMessage(role, trimToTokenLimit(resolved, maxTokens))
+        return PromptMessageDraft(
+            role = role,
+            content = resolved,
+            source = source,
+            retentionPriority = retentionPriority,
+            canDrop = canDrop
+        )
     }
 
-    private fun InChatPromptPiece.resolve(context: PromptBuildContext, history: String, outlets: Map<String, String>): LLMMessage {
+    private fun InChatPromptPiece.resolve(
+        context: PromptBuildContext,
+        history: String,
+        outlets: Map<String, String>
+    ): PromptMessageDraft {
         val resolved = resolve(content, context, history, content, outlets).trim()
-        val maxTokens = if (importance == PromptPieceImportance.Required) REQUIRED_PIECE_MAX_TOKENS else OPTIONAL_PIECE_MAX_TOKENS
-        return LLMMessage(role, trimToTokenLimit(resolved, maxTokens))
+        return PromptMessageDraft(
+            role = role,
+            content = resolved,
+            source = source,
+            retentionPriority = retentionPriority,
+            canDrop = canDrop
+        )
     }
 
     private fun resolve(
@@ -324,14 +479,23 @@ class ChatPromptBuilder(
         return mMacroResolver.resolve(text, context, history, original, outlets)
     }
 
-    private fun ChatMessage.toLlmMessage(): LLMMessage {
+    private fun ChatMessage.toPromptDraft(
+        retentionPriority: Int,
+        canDrop: Boolean
+    ): PromptMessageDraft {
         val role = when (source) {
             ChatMessage.Source.User -> LLMMessageRole.User
             ChatMessage.Source.Char -> LLMMessageRole.Assistant
             ChatMessage.Source.System -> LLMMessageRole.System
             ChatMessage.Source.Summary -> error("Summary snapshots must not be added to chat history")
         }
-        return LLMMessage(role, content)
+        return PromptMessageDraft(
+            role = role,
+            content = content,
+            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
+            retentionPriority = retentionPriority,
+            canDrop = canDrop
+        )
     }
 
     private fun List<ChatMessage>.sanitizeThinkBlocks(): List<ChatMessage> {
@@ -345,16 +509,6 @@ class ChatPromptBuilder(
                 else -> message.copy(content = cleaned)
             }
         }
-    }
-
-    private fun trimToTokenLimit(text: String, maxTokens: Int): String {
-        if (estimateTokens(text) <= maxTokens) return text
-        val maxChars = (maxTokens * 3).coerceAtLeast(120)
-        return text.take(maxChars).trimEnd() + "\n[Truncated to fit context]"
-    }
-
-    private fun estimateTokens(text: String): Int {
-        return (text.length / 3).coerceAtLeast(1)
     }
 
     private fun readMainPrompt(): String {
@@ -383,6 +537,12 @@ class ChatPromptBuilder(
 
     private fun readContinueNudgePrompt(): String {
         return runCatching { AppModel.continueNudgePrompt }.getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
+    }
+
+    private fun readPostProcessingMode(): PromptPostProcessingMode {
+        return runCatching {
+            PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
+        }.getOrDefault(PromptPostProcessingMode.None)
     }
 
     private fun formatWorldInfo(content: String): String {
@@ -459,41 +619,59 @@ class ChatPromptBuilder(
     private data class PromptSections(
         val beforeHistory: List<PromptPiece>,
         val afterHistory: List<PromptPiece>
-    ) {
-        fun sumOf(selector: (LLMMessage) -> Int): Int {
-            return beforeHistory.sumOf { selector(LLMMessage(it.role, it.content)) } +
-                afterHistory.sumOf { selector(LLMMessage(it.role, it.content)) }
-        }
-    }
+    )
 
     private data class PromptPiece(
         val role: LLMMessageRole,
         val content: String,
-        val importance: PromptPieceImportance,
+        val source: PromptSource,
+        val retentionPriority: Int,
+        val canDrop: Boolean,
         val original: String = content
-    )
+    ) {
+        companion object {
+            fun required(
+                role: LLMMessageRole,
+                content: String,
+                sourceKind: PromptSourceKind
+            ): PromptPiece {
+                return PromptPiece(
+                    role = role,
+                    content = content,
+                    source = PromptSource(sourceKind),
+                    retentionPriority = PRIORITY_ESSENTIAL,
+                    canDrop = false
+                )
+            }
+        }
+    }
 
     private data class InChatPromptPiece(
         val role: LLMMessageRole,
         val content: String,
-        val importance: PromptPieceImportance,
+        val source: PromptSource,
+        val retentionPriority: Int,
+        val canDrop: Boolean,
         val depth: Int,
         val order: Int,
         val tieBreaker: Long
     )
 
-    private enum class PromptPieceImportance {
-        Required,
-        Optional
-    }
+    private data class WorldInfoSelection(
+        val result: WorldBookActivationResult,
+        val omittedItems: List<PromptOmittedItem>
+    )
 
     private companion object {
-        const val MIN_PROMPT_TOKENS = 1024
-        const val MIN_HISTORY_BUDGET = 512
-        const val MIN_WORLD_BUDGET = 128
-        const val REQUIRED_PIECE_MAX_TOKENS = 1600
-        const val OPTIONAL_PIECE_MAX_TOKENS = 900
         const val DEFAULT_WORLD_INFO_BUDGET_PERCENT = 25
+        const val PRIORITY_EXAMPLE = 10
+        const val PRIORITY_AUXILIARY = 20
+        const val PRIORITY_NEW_CHAT = 30
+        const val PRIORITY_WORLD_INFO = 40
+        const val PRIORITY_HISTORY_BASE = 100
+        const val PRIORITY_USER_NOTE = 300
+        const val PRIORITY_CHARACTER_NOTE = 310
+        const val PRIORITY_ESSENTIAL = 1_000
         const val USER_NOTE_DEPTH = 1
         const val AN_TOP_ORDER = Int.MIN_VALUE
         const val USER_NOTE_ORDER = Int.MIN_VALUE + 1
@@ -506,7 +684,9 @@ data class PromptBuildResult(
     /** 实际提交给模型的请求。 */
     val request: LLMGenerationRequest,
     /** 本次构建后的世界书 timed effects 状态，需要由会话持久化。 */
-    val worldInfoStateJson: String
+    val worldInfoStateJson: String,
+    /** 宏展开、后处理和最终预算完成后的可解释 Prompt 明细。 */
+    val inspection: PromptInspection
 )
 
 private fun Int.toMessageRole(): LLMMessageRole {

@@ -6,6 +6,8 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatPromptBuilderTest {
@@ -214,6 +216,81 @@ class ChatPromptBuilderTest {
         assertEquals(LLMMessageRole.User, nudgeMessage.role)
     }
 
+    @Test
+    fun chineseHistoryIsTrimmedByFinalTokenizerBudget() {
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(
+                        id = 1L,
+                        source = ChatMessage.Source.User,
+                        content = "旧".repeat(300)
+                    ),
+                    chatMessage(
+                        id = 2L,
+                        source = ChatMessage.Source.Char,
+                        content = "更早".repeat(200)
+                    ),
+                    chatMessage(
+                        id = 3L,
+                        source = ChatMessage.Source.User,
+                        content = "最新消息"
+                    )
+                ),
+                maxContextTokens = 500,
+                maxResponseTokens = 100
+            )
+        )
+
+        assertTrue(result.inspection.finalTokenCount <= 400)
+        assertTrue(result.request.messages.any { it.content == "最新消息" })
+        assertTrue(
+            result.inspection.omittedItems.any {
+                it.reason == PromptOmissionReason.ContextBudget
+            }
+        )
+    }
+
+    @Test
+    fun expandedHistoryMacroCannotBypassFinalBudget() {
+        val character = Character(
+            id = 1L,
+            name = "Char",
+            avatar = "",
+            characterTags = "[]",
+            description = "",
+            creatorNotes = "",
+            personality = "",
+            scenario = "",
+            firstMessages = "",
+            examplesOfDialogue = "",
+            postHistoryInstructions = "",
+            systemPrompt = "{{history}}"
+        )
+
+        assertThrows(PromptBudgetExceededException::class.java) {
+            builder.buildWithMetadata(
+                context(
+                    character = character,
+                    messages = listOf(
+                        chatMessage(
+                            id = 1L,
+                            source = ChatMessage.Source.User,
+                            content = "历史".repeat(300)
+                        ),
+                        chatMessage(
+                            id = 2L,
+                            source = ChatMessage.Source.User,
+                            content = "最新消息"
+                        )
+                    ),
+                    maxContextTokens = 500,
+                    maxResponseTokens = 100
+                )
+            )
+        }
+    }
+
     private fun context(
         character: Character = Character(
             id = 1L,
@@ -231,7 +308,9 @@ class ChatPromptBuilderTest {
         session: ChatSession = session(),
         messages: List<ChatMessage> = emptyList(),
         entries: List<LorebookEntry> = emptyList(),
-        generationMode: PromptGenerationMode = PromptGenerationMode.Normal
+        generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+        maxContextTokens: Int = 4096,
+        maxResponseTokens: Int = 512
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -243,8 +322,8 @@ class ChatPromptBuilderTest {
             currentUserMessage = null,
             candidateLorebookEntries = entries,
             provider = null,
-            maxContextTokens = 4096,
-            maxResponseTokens = 512,
+            maxContextTokens = maxContextTokens,
+            maxResponseTokens = maxResponseTokens,
             generationMode = generationMode
         )
     }

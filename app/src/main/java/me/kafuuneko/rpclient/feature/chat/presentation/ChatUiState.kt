@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 
 sealed class ChatUiState {
     data object None : ChatUiState()
@@ -20,6 +21,7 @@ sealed class ChatUiState {
         val inputDraft: String = "",
         val generationState: ChatGenerationState = ChatGenerationState.Idle,
         val streamEnabled: Boolean,
+        val hasPromptInspection: Boolean = false,
         val expandedThinkBlockIds: Set<String> = emptySet(),
         val editingMessageId: String? = null,
         val editingMessageDraft: String = "",
@@ -45,6 +47,10 @@ sealed class ChatDialogState {
     data object None : ChatDialogState()
 
     data object Summarizing : ChatDialogState()
+
+    data class PromptInspector(
+        val inspection: PromptInspection
+    ) : ChatDialogState()
 
     data class DeleteSessionConfirm(
         val sessionTitle: String

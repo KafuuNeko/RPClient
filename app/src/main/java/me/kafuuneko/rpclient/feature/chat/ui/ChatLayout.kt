@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -103,6 +104,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
@@ -277,6 +279,20 @@ private fun CustomChatTopBar(
                 )
             }
 
+            IconButton(
+                onClick = { ChatUiIntent.OpenPromptInspector.emit() },
+                enabled = state.hasPromptInspection
+            ) {
+                Icon(
+                    Icons.Rounded.Info,
+                    contentDescription = stringResource(R.string.prompt_inspector_title),
+                    tint = if (state.hasPromptInspection) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    }
+                )
+            }
             IconButton(onClick = { ChatUiIntent.OpenSessionLore.emit() }) {
                 Icon(
                     Icons.Rounded.Book,
@@ -1142,6 +1158,10 @@ private fun DialogSwitch(
         ChatDialogState.None -> Unit
         ChatDialogState.Summarizing -> SummarizingDialog(
             onCancel = { ChatUiIntent.CancelSummary.emit() }
+        )
+        is ChatDialogState.PromptInspector -> PromptInspectorDialog(
+            inspection = dialogState.inspection,
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
         )
         is ChatDialogState.DeleteSessionConfirm -> AlertDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },

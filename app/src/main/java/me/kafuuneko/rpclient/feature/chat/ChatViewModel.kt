@@ -36,6 +36,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptGenerationMode
+import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -70,6 +71,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
     private var mStreamingCreatedMessage: Boolean = false
+    private var mLastPromptInspection: PromptInspection? = null
 
     /**
      * 初始化真实会话数据。
@@ -163,11 +165,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     isExpanded = uiState.isSessionLoreExpanded,
                     generationState = ChatGenerationState.Requesting
                 )
-                val request = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+                val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+                recordPromptInspection(built.inspection)
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateStreaming(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.Char)
+                    )
                 } else {
-                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateOnce(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.Char)
+                    )
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -309,6 +320,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onOpenChatSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Settings).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.OpenPromptInspector::class)
+    private fun onOpenPromptInspector() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val inspection = mLastPromptInspection
+        if (inspection == null) {
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_inspector_unavailable).tryEmit()
+            return
+        }
+        uiState.copy(dialogState = ChatDialogState.PromptInspector(inspection)).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.CloseChatSettings::class)
@@ -575,16 +597,25 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.expandedThinkBlockIds
                 )
-                val request = withContext(Dispatchers.IO) {
+                val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(
                         sessionId = sessionId,
                         excludedMessageId = latestAssistantMessage.id
                     )
                 }
+                recordPromptInspection(built.inspection)
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request, GenerationOutput.Update(latestAssistantMessage.id))
+                    generateStreaming(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Update(latestAssistantMessage.id)
+                    )
                 } else {
-                    generateOnce(sessionId, request, GenerationOutput.Update(latestAssistantMessage.id))
+                    generateOnce(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Update(latestAssistantMessage.id)
+                    )
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -620,13 +651,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     expandedThinkBlockIds = uiState.expandedThinkBlockIds
                 )
                 val generationMode = if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
-                val request = withContext(Dispatchers.IO) {
+                val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(sessionId, generationMode)
                 }
+                recordPromptInspection(built.inspection)
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateStreaming(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.Char)
+                    )
                 } else {
-                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.Char))
+                    generateOnce(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.Char)
+                    )
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -655,13 +695,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.expandedThinkBlockIds
                 )
-                val request = withContext(Dispatchers.IO) {
+                val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(sessionId, PromptGenerationMode.Impersonate)
                 }
+                recordPromptInspection(built.inspection)
                 if (AppModel.streamEnabled) {
-                    generateStreaming(sessionId, request, GenerationOutput.Create(ChatMessage.Source.User))
+                    generateStreaming(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.User)
+                    )
                 } else {
-                    generateOnce(sessionId, request, GenerationOutput.Create(ChatMessage.Source.User))
+                    generateOnce(
+                        sessionId,
+                        built.request,
+                        GenerationOutput.Create(ChatMessage.Source.User)
+                    )
                 }
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
@@ -862,7 +911,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         sessionId: Long,
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         excludedMessageId: Long? = null
-    ): LLMGenerationRequest {
+    ): BuiltGenerationRequest {
         // ViewModel 只收集构建 prompt 所需的领域数据，具体排序、宏替换和预算裁剪交给 libs/prompt。
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
@@ -921,7 +970,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (buildResult.worldInfoStateJson != session.worldInfoStateJson) {
             mChatRepository.updateSessionWorldInfoState(session.id, buildResult.worldInfoStateJson)
         }
-        return buildResult.request
+        return BuiltGenerationRequest(buildResult.request, buildResult.inspection)
+    }
+
+    private fun recordPromptInspection(inspection: PromptInspection) {
+        mLastPromptInspection = inspection
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(hasPromptInspection = true).setup()
+        if (inspection.hasOmissions) {
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_trimmed_warning).tryEmit()
+        }
     }
 
     private suspend fun loadNormalState(
@@ -971,6 +1029,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             inputDraft = inputDraft,
             generationState = generationState,
             streamEnabled = AppModel.streamEnabled,
+            hasPromptInspection = mLastPromptInspection != null,
             expandedThinkBlockIds = expandedThinkBlockIds,
             editingMessageId = editingMessageId,
             editingMessageDraft = editingMessageDraft,
@@ -1026,6 +1085,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
         ChatUiState.Finished.setup()
     }
+
+    private data class BuiltGenerationRequest(
+        val request: LLMGenerationRequest,
+        val inspection: PromptInspection
+    )
 
     private data class AutoSummaryData(
         val session: ChatSession,

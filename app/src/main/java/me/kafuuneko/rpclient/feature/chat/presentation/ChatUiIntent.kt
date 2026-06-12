@@ -35,6 +35,8 @@ sealed class ChatUiIntent {
 
     data object OpenChatSettings : ChatUiIntent()
 
+    data object OpenPromptInspector : ChatUiIntent()
+
     data object CloseChatSettings : ChatUiIntent()
 
     data object SummarizeNow : ChatUiIntent()

@@ -44,6 +44,8 @@ data class LLMProviderEditForm(
         val parsedTopP = topP.toFloatOrNull() ?: return null
         val parsedMaxTokens = maxTokens.toIntOrNull() ?: return null
         val parsedContextTokens = contextTokens.toIntOrNull() ?: return null
+        if (parsedMaxTokens <= 0 || parsedContextTokens <= 0) return null
+        if (parsedMaxTokens >= parsedContextTokens) return null
         return LLMProvider(
             id = id,
             name = name.trim(),

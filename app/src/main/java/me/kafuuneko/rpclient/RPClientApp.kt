@@ -13,6 +13,8 @@ import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -58,6 +60,8 @@ private val appModules = module {
     singleOf(::FormattedHistoryBuilder)
     singleOf(::PromptMacroResolver)
     singleOf(::WorldBookActivator)
+    singleOf(::PromptTokenizerRegistry)
+    single { PromptRequestFinalizer(get<PromptTokenizerRegistry>()) }
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::GroupChatPromptBuilder)
@@ -83,4 +87,3 @@ private val appModules = module {
     singleOf(::GroupChatRepository)
 
 }
-

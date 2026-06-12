@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacter
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
+import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
 sealed class GroupChatUiState {
@@ -36,6 +37,7 @@ sealed class GroupChatUiState {
         val selectedSpeakerId: Long?,
         val inputDraft: String = "",
         val generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
+        val hasPromptInspection: Boolean = false,
         val editingMessageId: Long? = null,
         val editingMessageDraft: String = "",
         val dialogState: GroupChatDialogState = GroupChatDialogState.None
@@ -54,6 +56,7 @@ sealed class GroupChatLoadState {
 
 sealed class GroupChatDialogState {
     data object None : GroupChatDialogState()
+    data class PromptInspector(val inspection: PromptInspection) : GroupChatDialogState()
     data class DeleteSessionConfirm(val title: String) : GroupChatDialogState()
 }
 

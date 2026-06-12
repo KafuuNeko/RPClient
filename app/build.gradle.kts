@@ -78,4 +78,7 @@ dependencies {
     // gson
     implementation(libs.gson)
 
+    // model-aware local tokenization
+    implementation(libs.jtokkit)
+
 }

@@ -34,6 +34,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
@@ -65,6 +66,7 @@ class GroupChatViewModel :
     private var mGenerationJob: Job? = null
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
+    private var mLastPromptInspection: PromptInspection? = null
 
     @UiIntentObserver(GroupChatUiIntent.Init::class)
     private suspend fun onInit(intent: GroupChatUiIntent.Init) {
@@ -115,6 +117,19 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         uiState.copy(page = GroupChatPage.Settings).setup()
+    }
+
+    @UiIntentObserver(GroupChatUiIntent.OpenPromptInspector::class)
+    private fun onOpenPromptInspector() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val inspection = mLastPromptInspection
+        if (inspection == null) {
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_inspector_unavailable).tryEmit()
+            return
+        }
+        uiState.copy(
+            dialogState = GroupChatDialogState.PromptInspector(inspection)
+        ).setup()
     }
 
     @UiIntentObserver(GroupChatUiIntent.CloseSettings::class)
@@ -674,23 +689,26 @@ class GroupChatViewModel :
         val lorebookContext = withContext(Dispatchers.IO) {
             loadLorebookContext(data, speaker)
         }
-        val buildResult = mPromptBuilder.buildWithMetadata(
-            GroupChatPromptContext(
-                session = data.session,
-                members = data.members,
-                speaker = speaker.character,
-                messages = data.messages,
-                summary = data.summary?.content.orEmpty(),
-                candidateLorebookEntries = lorebookContext.entries,
-                recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
-                provider = provider,
-                generationMode = if (continueMessage == null) {
-                    GroupChatGenerationMode.Normal
-                } else {
-                    GroupChatGenerationMode.Continue
-                }
+        val buildResult = withContext(Dispatchers.Default) {
+            mPromptBuilder.buildWithMetadata(
+                GroupChatPromptContext(
+                    session = data.session,
+                    members = data.members,
+                    speaker = speaker.character,
+                    messages = data.messages,
+                    summary = data.summary?.content.orEmpty(),
+                    candidateLorebookEntries = lorebookContext.entries,
+                    recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
+                    provider = provider,
+                    generationMode = if (continueMessage == null) {
+                        GroupChatGenerationMode.Normal
+                    } else {
+                        GroupChatGenerationMode.Continue
+                    }
+                )
             )
-        )
+        }
+        recordPromptInspection(buildResult.inspection)
         if (buildResult.worldInfoStateJson != data.session.worldInfoStateJson) {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.updateWorldInfoState(
@@ -1003,10 +1021,20 @@ class GroupChatViewModel :
             selectedSpeakerId = effectiveSpeakerId,
             inputDraft = inputDraft,
             generationState = generationState,
+            hasPromptInspection = mLastPromptInspection != null,
             editingMessageId = editingMessageId,
             editingMessageDraft = editingMessageDraft,
             dialogState = dialogState
         )
+    }
+
+    private fun recordPromptInspection(inspection: PromptInspection) {
+        mLastPromptInspection = inspection
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        uiState.copy(hasPromptInspection = true).setup()
+        if (inspection.hasOmissions) {
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_trimmed_warning).tryEmit()
+        }
     }
 
     /** 将数据库消息转换为页面消息，并标记当前流式占位项。 */

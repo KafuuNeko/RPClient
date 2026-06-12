@@ -5,6 +5,15 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.PromptMessageDraft
+import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.PromptOmittedItem
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptSource
+import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
@@ -38,11 +47,13 @@ enum class GroupChatGenerationMode {
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
 data class GroupChatPromptBuildResult(
     val request: LLMGenerationRequest,
-    val worldInfoStateJson: String
+    val worldInfoStateJson: String,
+    val inspection: PromptInspection
 )
 
 class GroupChatPromptBuilder(
-    private val mWorldBookActivator: WorldBookActivator = WorldBookActivator()
+    private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
+    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /** 构建可直接发送给模型的群聊生成请求。 */
     fun build(context: GroupChatPromptContext): LLMGenerationRequest {
@@ -53,42 +64,52 @@ class GroupChatPromptBuilder(
     fun buildWithMetadata(context: GroupChatPromptContext): GroupChatPromptBuildResult {
         val maxPromptTokens = (
             context.provider.contextTokens - context.provider.maxTokens
-        ).coerceAtLeast(MIN_PROMPT_TOKENS)
-        val worldBudget = (
+        ).coerceAtLeast(0)
+        val worldBudget =
             maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
-        ).coerceAtLeast(MIN_WORLD_BUDGET)
-        val worldInfo = fitWorldInfo(activateWorldInfo(context), worldBudget)
+        val worldSelection = fitWorldInfo(
+            result = activateWorldInfo(context),
+            tokenBudget = worldBudget,
+            tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+        )
+        val worldInfo = worldSelection.result
         val fixedMessages = buildFixedMessages(context, worldInfo)
         val inChatPieces = buildInChatPieces(context, worldInfo)
-        val fixedTokens = (
-            fixedMessages.beforeHistory + fixedMessages.afterHistory
-        ).sumOf { estimateTokens(it.content) } +
-            inChatPieces.sumOf { estimateTokens(it.message.content) }
-        val history = fitHistory(
-            messages = context.messages,
-            tokenBudget = (maxPromptTokens - fixedTokens).coerceAtLeast(MIN_HISTORY_TOKENS)
-        )
-        val historyMessages = history.map {
-            it.toLlmMessage(context.session.userName)
+        val history = sanitizeHistory(context.messages)
+        val historyMessages = history.mapIndexed { index, message ->
+            message.toPromptDraft(
+                userName = context.session.userName,
+                retentionPriority = PRIORITY_HISTORY_BASE + index,
+                canDrop = index != history.lastIndex
+            )
         }.toMutableList()
         insertInChatPieces(historyMessages, inChatPieces)
 
-        return GroupChatPromptBuildResult(
-            request = LLMGenerationRequest(
-                messages = buildList {
-                    addAll(fixedMessages.beforeHistory)
-                    addAll(historyMessages)
-                    addAll(fixedMessages.afterHistory)
-                },
-                model = context.provider.model,
-                options = LLMGenerationOptions(
-                    temperature = context.provider.temperature,
-                    maxTokens = context.provider.maxTokens,
-                    topP = context.provider.topP
-                ),
-                includeReasoningInContent = true
+        val finalized = mRequestFinalizer.finalize(
+            drafts = buildList {
+                addAll(fixedMessages.beforeHistory)
+                addAll(historyMessages)
+                addAll(fixedMessages.afterHistory)
+            },
+            provider = context.provider,
+            model = context.provider.model,
+            options = LLMGenerationOptions(
+                temperature = context.provider.temperature,
+                maxTokens = context.provider.maxTokens,
+                topP = context.provider.topP
             ),
-            worldInfoStateJson = worldInfo.nextStateJson
+            includeReasoningInContent = true,
+            maxContextTokens = context.provider.contextTokens,
+            maxResponseTokens = context.provider.maxTokens,
+            postProcessingMode = readPostProcessingMode(),
+            strictPromptPlaceholder = readNewGroupChatPrompt()
+                .ifBlank { AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT },
+            preOmittedItems = worldSelection.omittedItems
+        )
+        return GroupChatPromptBuildResult(
+            request = finalized.request,
+            worldInfoStateJson = worldInfo.nextStateJson,
+            inspection = finalized.inspection
         )
     }
 
@@ -128,41 +149,87 @@ class GroupChatPromptBuilder(
         context: GroupChatPromptContext,
         worldInfo: WorldBookActivationResult
     ): PromptSections {
-        val before = mutableListOf<LLMMessage>()
-        val after = mutableListOf<LLMMessage>()
+        val before = mutableListOf<PromptMessageDraft>()
+        val after = mutableListOf<PromptMessageDraft>()
         val memberNames = context.members.joinToString(", ") { it.character.name }
 
-        before += system(context.mainPrompt().resolve(context, memberNames))
-        worldInfo.beforeCharacter.forEach { before += system(formatWorldInfo(it.content)) }
-        before += system(buildGroupIdentity(context, memberNames))
+        before += requiredSystem(
+            context.mainPrompt().resolve(context, memberNames),
+            PromptSourceKind.MainPrompt
+        )
+        worldInfo.beforeCharacter.forEach {
+            before += optionalSystem(
+                formatWorldInfo(it.content),
+                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PRIORITY_WORLD_INFO
+            )
+        }
+        before += requiredSystem(buildGroupIdentity(context, memberNames), PromptSourceKind.GroupIdentity)
         before += buildCharacterCards(context)
-        worldInfo.afterCharacter.forEach { before += system(formatWorldInfo(it.content)) }
+        worldInfo.afterCharacter.forEach {
+            before += optionalSystem(
+                formatWorldInfo(it.content),
+                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PRIORITY_WORLD_INFO
+            )
+        }
         context.session.userDescription.takeIf { it.isNotBlank() }?.let {
-            before += system("User persona:\n$it")
+            before += requiredSystem("User persona:\n$it", PromptSourceKind.UserPersona)
         }
         context.session.scenario.takeIf { it.isNotBlank() }?.let {
-            before += system("Group scenario:\n$it")
+            before += requiredSystem("Group scenario:\n$it", PromptSourceKind.Scenario)
         }
         context.summary.takeIf { it.isNotBlank() }?.let {
-            before += system("Story memory:\n$it")
+            before += requiredSystem("Story memory:\n$it", PromptSourceKind.Summary)
         }
         readAuxiliaryPrompt().takeIf { it.isNotBlank() }?.let {
-            before += system(it.resolve(context, memberNames))
+            before += optionalSystem(
+                it.resolve(context, memberNames),
+                PromptSource(PromptSourceKind.AuxiliaryPrompt),
+                PRIORITY_AUXILIARY
+            )
         }
-        worldInfo.exampleBefore.forEach { before += system(formatWorldInfo(it.content)) }
+        worldInfo.exampleBefore.forEach {
+            before += optionalSystem(
+                formatWorldInfo(it.content),
+                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PRIORITY_EXAMPLE
+            )
+        }
         buildExamples(context).forEach { before += it }
-        worldInfo.exampleAfter.forEach { before += system(formatWorldInfo(it.content)) }
+        worldInfo.exampleAfter.forEach {
+            before += optionalSystem(
+                formatWorldInfo(it.content),
+                PromptSource(PromptSourceKind.WorldInfo, it.name),
+                PRIORITY_EXAMPLE
+            )
+        }
         context.newGroupChatPrompt().takeIf {
             it.isNotBlank() && context.messages.isNotEmpty()
-        }?.let { before += system(it.resolve(context, memberNames)) }
+        }?.let {
+            before += optionalSystem(
+                it.resolve(context, memberNames),
+                PromptSource(PromptSourceKind.NewChatMarker),
+                PRIORITY_NEW_CHAT
+            )
+        }
 
         context.speaker.postHistoryInstructions.takeIf { it.isNotBlank() }?.let {
-            after += system(it.resolve(context, memberNames))
+            after += requiredSystem(
+                it.resolve(context, memberNames),
+                PromptSourceKind.PostHistoryInstructions
+            )
         }
         if (context.generationMode == GroupChatGenerationMode.Continue) {
-            after += system(readContinueNudgePrompt().resolve(context, memberNames))
+            after += requiredSystem(
+                readContinueNudgePrompt().resolve(context, memberNames),
+                PromptSourceKind.ContinueNudge
+            )
         }
-        after += system(context.groupNudgePrompt().resolve(context, memberNames))
+        after += requiredSystem(
+            context.groupNudgePrompt().resolve(context, memberNames),
+            PromptSourceKind.GroupNudge
+        )
         return PromptSections(
             beforeHistory = before.filter { it.content.isNotBlank() },
             afterHistory = after.filter { it.content.isNotBlank() }
@@ -170,33 +237,63 @@ class GroupChatPromptBuilder(
     }
 
     /** 根据角色卡模式拼装本轮可见的角色设定。 */
-    private fun buildCharacterCards(context: GroupChatPromptContext): List<LLMMessage> {
+    private fun buildCharacterCards(context: GroupChatPromptContext): List<PromptMessageDraft> {
         return context.cardMembers().flatMap { member ->
             val character = member.character
             buildList {
                 character.description.takeIf { it.isNotBlank() }?.let {
-                    add(system("<character name=\"${character.name}\">\nDescription:\n$it"))
+                    add(
+                        requiredSystem(
+                            "<character name=\"${character.name}\">\nDescription:\n$it",
+                            PromptSourceKind.CharacterCard,
+                            character.name
+                        )
+                    )
                 }
                 character.personality.takeIf { it.isNotBlank() }?.let {
-                    add(system("${character.name}'s personality:\n$it"))
+                    add(
+                        requiredSystem(
+                            "${character.name}'s personality:\n$it",
+                            PromptSourceKind.CharacterCard,
+                            character.name
+                        )
+                    )
                 }
                 if (context.session.scenario.isBlank()) {
                     character.scenario.takeIf { it.isNotBlank() }?.let {
-                        add(system("${character.name}'s scenario:\n$it"))
+                        add(
+                            requiredSystem(
+                                "${character.name}'s scenario:\n$it",
+                                PromptSourceKind.CharacterCard,
+                                character.name
+                            )
+                        )
                     }
                 }
                 character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
-                    add(system(it.resolve(context, context.memberNames())))
+                    add(
+                        optionalSystem(
+                            it.resolve(context, context.memberNames()),
+                            PromptSource(PromptSourceKind.CharacterNote, character.name),
+                            PRIORITY_CHARACTER_NOTE
+                        )
+                    )
                 }
                 if (character.description.isNotBlank()) {
-                    add(system("</character>"))
+                    add(
+                        requiredSystem(
+                            "</character>",
+                            PromptSourceKind.CharacterCard,
+                            character.name
+                        )
+                    )
                 }
             }
         }
     }
 
     /** 将成员角色卡中的示例对话转换为模型消息。 */
-    private fun buildExamples(context: GroupChatPromptContext): List<LLMMessage> {
+    private fun buildExamples(context: GroupChatPromptContext): List<PromptMessageDraft> {
         return context.cardMembers().flatMap { member ->
             member.character.examplesOfDialogue
                 .split("<START>")
@@ -205,9 +302,27 @@ class GroupChatPromptBuilder(
                 .flatMap { block ->
                     buildList {
                         readNewExampleChatPrompt().takeIf { it.isNotBlank() }?.let {
-                            add(system(it))
+                            add(
+                                optionalSystem(
+                                    it,
+                                    PromptSource(
+                                        PromptSourceKind.ExampleDialogue,
+                                        member.character.name
+                                    ),
+                                    PRIORITY_EXAMPLE
+                                )
+                            )
                         }
-                        add(system("${member.character.name} example:\n$block"))
+                        add(
+                            optionalSystem(
+                                "${member.character.name} example:\n$block",
+                                PromptSource(
+                                    PromptSourceKind.ExampleDialogue,
+                                    member.character.name
+                                ),
+                                PRIORITY_EXAMPLE
+                            )
+                        )
                     }
                 }
         }
@@ -220,23 +335,51 @@ class GroupChatPromptBuilder(
     ): List<InChatPiece> {
         val pieces = mutableListOf<InChatPiece>()
         worldInfo.anTop.forEach {
-            pieces += InChatPiece(system(it.content), USER_NOTE_DEPTH, it.order, it.id)
+            pieces += InChatPiece(
+                message = optionalSystem(
+                    it.content,
+                    PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    PRIORITY_WORLD_INFO
+                ),
+                depth = USER_NOTE_DEPTH,
+                order = it.order,
+                tieBreaker = it.id
+            )
         }
         context.session.userNote.takeIf { it.isNotBlank() }?.let {
             pieces += InChatPiece(
-                system(it.resolve(context, context.memberNames())),
+                optionalSystem(
+                    it.resolve(context, context.memberNames()),
+                    PromptSource(PromptSourceKind.UserNote),
+                    PRIORITY_USER_NOTE
+                ),
                 USER_NOTE_DEPTH,
                 USER_NOTE_ORDER,
                 Long.MIN_VALUE
             )
         }
         worldInfo.anBottom.forEach {
-            pieces += InChatPiece(system(it.content), USER_NOTE_DEPTH, it.order, it.id)
+            pieces += InChatPiece(
+                message = optionalSystem(
+                    it.content,
+                    PromptSource(PromptSourceKind.WorldInfo, it.name),
+                    PRIORITY_WORLD_INFO
+                ),
+                depth = USER_NOTE_DEPTH,
+                order = it.order,
+                tieBreaker = it.id
+            )
         }
         worldInfo.depthEntries.forEach { group ->
             group.entries.forEach {
                 pieces += InChatPiece(
-                    LLMMessage(group.role, it.content),
+                    PromptMessageDraft(
+                        role = group.role,
+                        content = it.content,
+                        source = PromptSource(PromptSourceKind.WorldInfo, it.name),
+                        retentionPriority = PRIORITY_WORLD_INFO,
+                        canDrop = true
+                    ),
                     group.depth,
                     it.order,
                     it.id
@@ -248,7 +391,7 @@ class GroupChatPromptBuilder(
 
     /** 按深度、顺序和稳定键将动态片段插入聊天历史。 */
     private fun insertInChatPieces(
-        messages: MutableList<LLMMessage>,
+        messages: MutableList<PromptMessageDraft>,
         pieces: List<InChatPiece>
     ) {
         pieces.sortedWith(
@@ -273,65 +416,60 @@ class GroupChatPromptBuilder(
         """.trimIndent()
     }
 
-    /** 从最新消息向前截取符合上下文预算的历史。 */
-    private fun fitHistory(
-        messages: List<GroupChatMessage>,
-        tokenBudget: Int
-    ): List<GroupChatMessage> {
-        val selected = ArrayDeque<GroupChatMessage>()
-        var usedTokens = 0
-        messages.asReversed().forEach { message ->
+    private fun sanitizeHistory(messages: List<GroupChatMessage>): List<GroupChatMessage> {
+        return messages.mapNotNull { message ->
             val cleaned = if (readIncludeThinkInContext()) {
                 message.content
             } else {
                 message.content.stripThinkBlocks()
             }.trim()
-            if (cleaned.isBlank()) return@forEach
-            val nextTokens = estimateTokens(cleaned)
-            if (selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) return@forEach
-            selected.addFirst(message.copy(content = cleaned))
-            usedTokens += nextTokens
+            if (cleaned.isBlank()) null else message.copy(content = cleaned)
         }
-        return selected.toList()
     }
 
     /** 按世界书预算裁剪条目，并同步过滤各注入位置的结果。 */
     private fun fitWorldInfo(
         result: WorldBookActivationResult,
-        tokenBudget: Int
-    ): WorldBookActivationResult {
+        tokenBudget: Int,
+        tokenizer: PromptTokenizer
+    ): WorldInfoSelection {
         val selected = mutableListOf<LorebookEntry>()
+        val omitted = mutableListOf<PromptOmittedItem>()
         var usedTokens = 0
         result.activatedEntries
             .sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
             .forEach { entry ->
-                val nextTokens = estimateTokens(entry.content)
-                if (
-                    !entry.ignoreBudget &&
-                    selected.isNotEmpty() &&
-                    usedTokens + nextTokens > tokenBudget
-                ) {
+                val nextTokens = tokenizer.countText(entry.content)
+                if (!entry.ignoreBudget && usedTokens + nextTokens > tokenBudget) {
+                    omitted += PromptOmittedItem(
+                        source = PromptSource(PromptSourceKind.WorldInfo, entry.name),
+                        tokenCount = nextTokens,
+                        reason = PromptOmissionReason.WorldInfoBudget
+                    )
                     return@forEach
                 }
                 selected += entry
                 if (!entry.ignoreBudget) usedTokens += nextTokens
             }
         val ids = selected.map { it.id }.toSet()
-        return result.copy(
-            activatedEntries = result.activatedEntries.filter { it.id in ids },
-            beforeCharacter = result.beforeCharacter.filter { it.id in ids },
-            afterCharacter = result.afterCharacter.filter { it.id in ids },
-            exampleBefore = result.exampleBefore.filter { it.id in ids },
-            exampleAfter = result.exampleAfter.filter { it.id in ids },
-            anTop = result.anTop.filter { it.id in ids },
-            anBottom = result.anBottom.filter { it.id in ids },
-            depthEntries = result.depthEntries.mapNotNull { group ->
-                val entries = group.entries.filter { it.id in ids }.toMutableList()
-                if (entries.isEmpty()) null else group.copy(entries = entries)
-            },
-            outletEntries = result.outletEntries.mapValues { (_, entries) ->
-                entries.filter { it.id in ids }
-            }.filterValues { it.isNotEmpty() }
+        return WorldInfoSelection(
+            result = result.copy(
+                activatedEntries = result.activatedEntries.filter { it.id in ids },
+                beforeCharacter = result.beforeCharacter.filter { it.id in ids },
+                afterCharacter = result.afterCharacter.filter { it.id in ids },
+                exampleBefore = result.exampleBefore.filter { it.id in ids },
+                exampleAfter = result.exampleAfter.filter { it.id in ids },
+                anTop = result.anTop.filter { it.id in ids },
+                anBottom = result.anBottom.filter { it.id in ids },
+                depthEntries = result.depthEntries.mapNotNull { group ->
+                    val entries = group.entries.filter { it.id in ids }.toMutableList()
+                    if (entries.isEmpty()) null else group.copy(entries = entries)
+                },
+                outletEntries = result.outletEntries.mapValues { (_, entries) ->
+                    entries.filter { it.id in ids }
+                }.filterValues { it.isNotEmpty() }
+            ),
+            omittedItems = omitted
         )
     }
 
@@ -368,7 +506,11 @@ class GroupChatPromptBuilder(
             .ifBlank { readNewGroupChatPrompt() }
     }
 
-    private fun GroupChatMessage.toLlmMessage(userName: String): LLMMessage {
+    private fun GroupChatMessage.toPromptDraft(
+        userName: String,
+        retentionPriority: Int,
+        canDrop: Boolean
+    ): PromptMessageDraft {
         val role = when (source) {
             GroupChatMessage.Source.User -> LLMMessageRole.User
             GroupChatMessage.Source.Character -> LLMMessageRole.Assistant
@@ -379,7 +521,13 @@ class GroupChatPromptBuilder(
         } else {
             speakerNameSnapshot
         }
-        return LLMMessage(role, "$speaker: $content")
+        return PromptMessageDraft(
+            role = role,
+            content = "$speaker: $content",
+            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
+            retentionPriority = retentionPriority,
+            canDrop = canDrop
+        )
     }
 
     /** 替换群聊提示词支持的角色、用户、场景与成员宏。 */
@@ -435,33 +583,66 @@ class GroupChatPromptBuilder(
     private fun readIncludeThinkInContext(): Boolean =
         runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
 
-    private fun system(content: String): LLMMessage {
-        return LLMMessage(LLMMessageRole.System, content)
+    private fun readPostProcessingMode(): PromptPostProcessingMode {
+        return runCatching {
+            PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
+        }.getOrDefault(PromptPostProcessingMode.None)
     }
 
-    private fun estimateTokens(text: String): Int {
-        return (text.length / 3).coerceAtLeast(1)
+    private fun requiredSystem(
+        content: String,
+        sourceKind: PromptSourceKind,
+        detail: String = ""
+    ): PromptMessageDraft {
+        return PromptMessageDraft(
+            role = LLMMessageRole.System,
+            content = content,
+            source = PromptSource(sourceKind, detail),
+            retentionPriority = PRIORITY_ESSENTIAL,
+            canDrop = false
+        )
+    }
+
+    private fun optionalSystem(
+        content: String,
+        source: PromptSource,
+        retentionPriority: Int
+    ): PromptMessageDraft {
+        return PromptMessageDraft(
+            role = LLMMessageRole.System,
+            content = content,
+            source = source,
+            retentionPriority = retentionPriority,
+            canDrop = true
+        )
     }
 
     private data class PromptSections(
-        val beforeHistory: List<LLMMessage>,
-        val afterHistory: List<LLMMessage>
+        val beforeHistory: List<PromptMessageDraft>,
+        val afterHistory: List<PromptMessageDraft>
     )
 
     private data class InChatPiece(
-        val message: LLMMessage,
+        val message: PromptMessageDraft,
         val depth: Int,
         val order: Int,
         val tieBreaker: Long
     )
 
+    private data class WorldInfoSelection(
+        val result: WorldBookActivationResult,
+        val omittedItems: List<PromptOmittedItem>
+    )
+
     private companion object {
-        // 提示词预算下限，避免小上下文模型完全丢失固定提示。
-        const val MIN_PROMPT_TOKENS = 1024
-        // 历史消息至少保留的估算 Token 预算。
-        const val MIN_HISTORY_TOKENS = 512
-        // 世界书至少可使用的估算 Token 预算。
-        const val MIN_WORLD_BUDGET = 128
+        const val PRIORITY_EXAMPLE = 10
+        const val PRIORITY_AUXILIARY = 20
+        const val PRIORITY_NEW_CHAT = 30
+        const val PRIORITY_WORLD_INFO = 40
+        const val PRIORITY_HISTORY_BASE = 100
+        const val PRIORITY_USER_NOTE = 300
+        const val PRIORITY_CHARACTER_NOTE = 310
+        const val PRIORITY_ESSENTIAL = 1_000
         // 作者注释在聊天历史中的默认插入深度。
         const val USER_NOTE_DEPTH = 4
         // 同深度片段中作者注释的排序值。

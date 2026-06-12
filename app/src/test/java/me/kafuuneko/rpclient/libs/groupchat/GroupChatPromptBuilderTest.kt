@@ -45,6 +45,36 @@ class GroupChatPromptBuilderTest {
         assertTrue(content.contains("Write only Mina's next reply"))
     }
 
+    @Test
+    fun finalGroupPromptStaysWithinBudgetAndExplainsRemovedHistory() {
+        val lyra = character(1, "Lyra")
+        val mina = character(2, "Mina")
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0), member(mina, 1)),
+                speaker = mina,
+                messages = listOf(
+                    message(GroupChatMessage.Source.User, "Alex", "旧".repeat(300)),
+                    message(GroupChatMessage.Source.Character, "Lyra", "早".repeat(300)),
+                    message(GroupChatMessage.Source.User, "Alex", "Latest")
+                ),
+                provider = provider(contextTokens = 1_000, maxTokens = 100)
+            )
+        )
+
+        assertTrue(result.inspection.finalTokenCount <= 900)
+        assertTrue(result.request.messages.any { it.content.contains("Alex: Latest") })
+        assertTrue(result.inspection.omittedItems.isNotEmpty())
+    }
+
     private fun character(id: Long, name: String): Character {
         return Character(
             id = id,
@@ -82,15 +112,18 @@ class GroupChatPromptBuilderTest {
         )
     }
 
-    private fun provider(): LLMProvider {
+    private fun provider(
+        contextTokens: Int = 8192,
+        maxTokens: Int = 512
+    ): LLMProvider {
         return LLMProvider(
             name = "Test",
             providerType = LLMProviderType.Custom,
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://example.com",
             model = "test",
-            contextTokens = 8192,
-            maxTokens = 512,
+            contextTokens = contextTokens,
+            maxTokens = maxTokens,
             createTime = 1,
             updateTime = 1,
             isEnabled = true

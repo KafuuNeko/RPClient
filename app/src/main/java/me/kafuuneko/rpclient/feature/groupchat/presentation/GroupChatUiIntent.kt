@@ -5,6 +5,7 @@ sealed class GroupChatUiIntent {
     data object Resume : GroupChatUiIntent()
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
+    data object OpenPromptInspector : GroupChatUiIntent()
     data object CloseSettings : GroupChatUiIntent()
     data class ChangeInputDraft(val value: String) : GroupChatUiIntent()
     data class SelectSpeaker(val characterId: Long) : GroupChatUiIntent()
