@@ -17,7 +17,15 @@ import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
 import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.filterEntries
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
+import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -38,7 +46,8 @@ data class GroupChatPromptContext(
     val candidateLorebookEntries: List<LorebookEntry> = emptyList(),
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
-    val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
+    val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
+    val regexScripts: List<ScopedRegexScript> = emptyList()
 )
 
 /** 群聊回复的生成模式。 */
@@ -57,6 +66,9 @@ data class GroupChatPromptBuildResult(
 
 class GroupChatPromptBuilder(
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
+    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
+        me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
+    ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /** 构建可直接发送给模型的群聊生成请求。 */
@@ -71,8 +83,30 @@ class GroupChatPromptBuilder(
         ).coerceAtLeast(0)
         val worldBudget =
             maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
+        val regexHits = mutableListOf<RegexExecutionHit>()
+        val regexErrors = mutableListOf<RegexExecutionError>()
+        val regexMacros = RegexScriptRuntime.macros(
+            userName = context.session.userName,
+            characterName = context.speaker.name,
+            userDescription = context.session.userDescription,
+            scenario = context.session.scenario,
+            groupNames = context.memberNames()
+        )
+        val rawWorldInfo = activateWorldInfo(context)
+        val activatedWorldInfo = rawWorldInfo.mapEntryContent { entry ->
+            val result = mRegexRuntime.execute(
+                input = entry.content,
+                scripts = context.regexScripts,
+                placement = RegexPlacement.WorldInfo,
+                mode = RegexExecutionMode.Prompt,
+                macros = regexMacros
+            )
+            regexHits += result.hits
+            regexErrors += result.errors
+            entry.copy(content = result.text)
+        }
         val worldSelection = fitWorldInfoToBudget(
-            result = activateWorldInfo(context),
+            result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
             promptTokenBudget = maxPromptTokens,
             lorebooks = context.candidateLorebooks,
@@ -81,7 +115,34 @@ class GroupChatPromptBuilder(
         val worldInfo = worldSelection.result
         val fixedMessages = buildFixedMessages(context, worldInfo)
         val inChatPieces = buildInChatPieces(context, worldInfo)
-        val history = sanitizeHistory(context.messages)
+        val history = sanitizeHistory(context.messages).mapIndexed { index, message ->
+            val depth = context.messages.lastIndex - index
+            val result = when (message.source) {
+                GroupChatMessage.Source.User -> mRegexRuntime.execute(
+                    input = message.content,
+                    scripts = context.regexScripts,
+                    placement = RegexPlacement.UserInput,
+                    mode = RegexExecutionMode.Prompt,
+                    macros = regexMacros,
+                    depth = depth
+                )
+                GroupChatMessage.Source.Character -> mRegexRuntime.executeAiMessage(
+                    input = message.content,
+                    scripts = context.regexScripts,
+                    mode = RegexExecutionMode.Prompt,
+                    macros = regexMacros,
+                    depth = depth
+                )
+                GroupChatMessage.Source.System -> null
+            }
+            if (result == null) {
+                message
+            } else {
+                regexHits += result.hits
+                regexErrors += result.errors
+                message.copy(content = result.text)
+            }
+        }
         val historyMessages = history.mapIndexed { index, message ->
             message.toPromptDraft(
                 userName = context.session.userName,
@@ -112,13 +173,20 @@ class GroupChatPromptBuilder(
                 .ifBlank { AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
         )
+        val inspection = finalized.inspection.copy(
+            regexExecutions = regexHits,
+            regexErrors = regexErrors
+        )
+        val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         val stateResult = mWorldBookActivator.resolveNextState(
-            worldInfo.retainStateEntries(finalized.inspection)
+            rawWorldInfo
+                .filterEntries(selectedWorldInfoIds)
+                .retainStateEntries(inspection)
         )
         return GroupChatPromptBuildResult(
             request = finalized.request,
             worldInfoStateJson = stateResult.nextStateJson,
-            inspection = finalized.inspection
+            inspection = inspection
         )
     }
 

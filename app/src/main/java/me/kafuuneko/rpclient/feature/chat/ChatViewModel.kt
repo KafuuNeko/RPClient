@@ -38,6 +38,11 @@ import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -63,6 +68,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mFileRepository by inject<FileRepository>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
+    private val mRegexRepository by inject<RegexScriptRepository>()
+    private val mRegexRuntime by inject<RegexScriptRuntime>()
     private val mContext by inject<Context>()
 
     private var mSessionId: Long? = null
@@ -71,6 +78,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
     private var mStreamingCreatedMessage: Boolean = false
+    private var mStreamingOutput: GenerationOutput? = null
+    private var mStreamingRegexScripts: List<ScopedRegexScript> = emptyList()
+    private var mStreamingRegexMacros: Map<String, String> = emptyMap()
     private var mLastPromptInspection: PromptInspection? = null
 
     /**
@@ -142,9 +152,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSendMessage() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        val input = uiState.inputDraft.trim()
+        val rawInput = uiState.inputDraft.trim()
             .ifBlank { AppModel.replaceEmptyMessagePrompt.trim() }
-        if (input.isBlank()) {
+        if (rawInput.isBlank()) {
             continueLastAssistantMessage(sessionId)
             return
         }
@@ -156,6 +166,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 发送流程不使用 CoreViewModel 的状态回滚式任务队列，因为流式停止时需要保留 partial 内容。
         mGenerationJob = viewModelScope.launch {
             runCatching {
+                val input = withContext(Dispatchers.IO) {
+                    applyUserRegex(sessionId, rawInput)
+                }
                 withContext(Dispatchers.IO) {
                     mChatRepository.createMessage(sessionId, ChatMessage.Source.User, input)
                 }
@@ -204,19 +217,30 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         job.cancel()
         val messageId = mStreamingMessageId
         val content = mStreamingContent
+        val output = mStreamingOutput
         // 用户停止生成时，已经收到的流式片段仍然是有效剧情内容，需要写回当前 assistant 消息。
         withContext(Dispatchers.IO) {
-            if (messageId != null && content.isNotBlank()) {
-                mChatRepository.updateMessageContent(messageId, content)
+            val processedContent = content.takeIf { it.isNotBlank() }
+                ?.let { applyGeneratedRegex(sessionId, it, output) }
+                .orEmpty()
+            if (messageId != null && processedContent.isNotBlank()) {
+                mChatRepository.updateMessageContent(messageId, processedContent)
             } else if (messageId != null && mStreamingCreatedMessage) {
                 mChatRepository.deleteMessage(messageId)
-            } else if (content.isNotBlank()) {
-                mChatRepository.createMessage(sessionId, ChatMessage.Source.Char, content)
+            } else if (messageId == null && processedContent.isNotBlank()) {
+                mChatRepository.createMessage(
+                    sessionId,
+                    ChatMessage.Source.Char,
+                    processedContent
+                )
             }
         }
         mStreamingMessageId = null
         mStreamingContent = ""
         mStreamingCreatedMessage = false
+        mStreamingOutput = null
+        mStreamingRegexScripts = emptyList()
+        mStreamingRegexMacros = emptyMap()
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
 
@@ -514,13 +538,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     @UiIntentObserver(ChatUiIntent.StartEditMessage::class)
-    private fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
+    private suspend fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.messages.firstOrNull { it.id == intent.messageId } ?: return
         if (message.isStreaming) return
+        val rawContent = withContext(Dispatchers.IO) {
+            val sessionId = mSessionId ?: return@withContext null
+            mChatRepository.getMessagesBySessionId(sessionId)
+                .firstOrNull { it.id.toString() == intent.messageId }
+                ?.content
+        } ?: return
         uiState.copy(
             editingMessageId = message.id,
-            editingMessageDraft = message.content
+            editingMessageDraft = rawContent
         ).setup()
     }
 
@@ -537,7 +567,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val messageId = uiState.editingMessageId?.toLongOrNull() ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateMessageContent(messageId, uiState.editingMessageDraft)
+            val message = mChatRepository.getMessagesBySessionId(sessionId)
+                .firstOrNull { it.id == messageId } ?: return@withContext
+            val content = when (message.source) {
+                ChatMessage.Source.User -> applyUserRegex(
+                    sessionId,
+                    uiState.editingMessageDraft,
+                    isEdit = true
+                )
+                ChatMessage.Source.Char -> applyAiRegex(
+                    sessionId,
+                    uiState.editingMessageDraft,
+                    isEdit = true
+                )
+                ChatMessage.Source.System,
+                ChatMessage.Source.Summary -> uiState.editingMessageDraft
+            }
+            mChatRepository.updateMessageContent(messageId, content)
         }
         refreshUiState(
             sessionId = sessionId,
@@ -739,13 +785,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithSelectedProvider(request)
         }
+        val processedContent = withContext(Dispatchers.IO) {
+            applyGeneratedRegex(sessionId, response.content, output)
+        }
+        if (processedContent.isBlank()) {
+            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
+            return
+        }
         withContext(Dispatchers.IO) {
             when (output) {
                 is GenerationOutput.Create -> {
-                    mChatRepository.createMessage(sessionId, output.source, response.content)
+                    mChatRepository.createMessage(sessionId, output.source, processedContent)
                 }
                 is GenerationOutput.Update -> {
-                    mChatRepository.updateMessageContent(output.messageId, response.content)
+                    mChatRepository.updateMessageContent(output.messageId, processedContent)
                     mChatRepository.updateSessionLatestTime(sessionId)
                 }
             }
@@ -760,6 +813,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         output: GenerationOutput,
         worldInfoStateJson: String
     ) {
+        mStreamingOutput = output
+        withContext(Dispatchers.IO) {
+            val session = mChatRepository.getSessionById(sessionId)
+            val character = session?.let {
+                mCharacterRepository.getCharacterById(it.characterId)
+            }
+            if (session != null && character != null) {
+                mStreamingRegexScripts = mRegexRepository.activeScripts(listOf(character))
+                mStreamingRegexMacros = RegexScriptRuntime.macros(
+                    session.userName,
+                    character.name,
+                    session.userDescription,
+                    character.scenario
+                )
+            }
+        }
         // 先插入空 assistant 消息作为流式占位，后续 delta 只更新 UI，完成或停止时再持久化完整内容。
         when (output) {
             is GenerationOutput.Create -> {
@@ -785,23 +854,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 when (event) {
                     is LLMStreamEvent.Delta -> {
                         mStreamingContent += event.content
+                        val displayContent = applyStreamingDisplayRegex(
+                            mStreamingContent,
+                            output
+                        )
                         val uiState = getOrNull<ChatUiState.Normal>() ?: return@collect
                         uiState.copy(
                             generationState = ChatGenerationState.Streaming(mStreamingMessageId, mStreamingContent),
-                            messages = uiState.messages.replaceStreamingMessage(mStreamingMessageId, mStreamingContent)
+                            messages = uiState.messages.replaceStreamingMessage(
+                                mStreamingMessageId,
+                                displayContent
+                            )
                         ).setup()
                     }
                     is LLMStreamEvent.Finished -> Unit
                 }
             }
-            val finalContent = mStreamingContent
+            val finalContent = withContext(Dispatchers.IO) {
+                applyGeneratedRegex(sessionId, mStreamingContent, output)
+            }
             val messageId = mStreamingMessageId
             withContext(Dispatchers.IO) {
-                if (messageId != null) {
+                if (messageId != null && finalContent.isNotBlank()) {
                     mChatRepository.updateMessageContent(messageId, finalContent)
                     mChatRepository.updateSessionLatestTime(sessionId)
+                    mChatRepository.updateSessionWorldInfoState(sessionId, worldInfoStateJson)
+                } else if (messageId != null && mStreamingCreatedMessage) {
+                    mChatRepository.deleteMessage(messageId)
                 }
-                mChatRepository.updateSessionWorldInfoState(sessionId, worldInfoStateJson)
             }
         } catch (e: Exception) {
             val messageId = mStreamingMessageId
@@ -815,6 +895,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mStreamingMessageId = null
             mStreamingContent = ""
             mStreamingCreatedMessage = false
+            mStreamingOutput = null
+            mStreamingRegexScripts = emptyList()
+            mStreamingRegexMacros = emptyMap()
         }
         refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
     }
@@ -980,7 +1063,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 provider = provider,
                 maxContextTokens = provider.contextTokens,
                 maxResponseTokens = provider.maxTokens,
-                generationMode = generationMode
+                generationMode = generationMode,
+                regexScripts = mRegexRepository.activeScripts(listOf(character))
             )
         )
         return BuiltGenerationRequest(
@@ -1015,6 +1099,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
         val messages = mChatRepository.getMessagesBySessionId(sessionId)
+        val regexScripts = mRegexRepository.activeScripts(listOf(character))
+        val regexMacros = RegexScriptRuntime.macros(
+            userName = session.userName,
+            characterName = character.name,
+            userDescription = session.userDescription,
+            scenario = character.scenario
+        )
+        val displayMessages = messages.mapIndexed { index, message ->
+            val depth = messages.lastIndex - index
+            val result = when (message.source) {
+                ChatMessage.Source.User -> mRegexRuntime.executeDisplayMessage(
+                    message.content,
+                    regexScripts,
+                    regexMacros,
+                    depth,
+                    RegexPlacement.UserInput
+                )
+                ChatMessage.Source.Char -> mRegexRuntime.executeDisplayMessage(
+                    message.content,
+                    regexScripts,
+                    regexMacros,
+                    depth
+                )
+                ChatMessage.Source.System,
+                ChatMessage.Source.Summary -> null
+            }
+            if (result == null) message else message.copy(content = result.text)
+        }
         val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
@@ -1032,7 +1144,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 enabledIds = enabledIds
             ),
             character = character.toChatCharacterItem(avatarFilePath),
-            messages = messages.toChatMessageItems(
+            messages = displayMessages.toChatMessageItems(
                 characterName = character.name,
                 userName = session.userName,
                 systemSpeaker = mContext.getString(R.string.system_speaker),
@@ -1108,6 +1220,95 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val inspection: PromptInspection,
         val worldInfoStateJson: String
     )
+
+    private suspend fun applyUserRegex(
+        sessionId: Long,
+        input: String,
+        isEdit: Boolean = false
+    ): String {
+        val session = mChatRepository.getSessionById(sessionId) ?: return input
+        val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
+        val scripts = mRegexRepository.activeScripts(listOf(character))
+        val macros = RegexScriptRuntime.macros(
+            session.userName,
+            character.name,
+            session.userDescription,
+            character.scenario
+        )
+        val slashProcessed = if (input.startsWith('/')) {
+            mRegexRuntime.execute(
+                input,
+                scripts,
+                RegexPlacement.SlashCommand,
+                RegexExecutionMode.Source,
+                macros,
+                isEdit = isEdit
+            ).text
+        } else {
+            input
+        }
+        return mRegexRuntime.execute(
+            slashProcessed,
+            scripts,
+            RegexPlacement.UserInput,
+            RegexExecutionMode.Source,
+            macros,
+            isEdit = isEdit
+        ).text
+    }
+
+    private suspend fun applyAiRegex(
+        sessionId: Long,
+        input: String,
+        isEdit: Boolean = false
+    ): String {
+        val session = mChatRepository.getSessionById(sessionId) ?: return input
+        val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
+        return mRegexRuntime.executeAiMessage(
+            input = input,
+            scripts = mRegexRepository.activeScripts(listOf(character)),
+            mode = RegexExecutionMode.Source,
+            macros = RegexScriptRuntime.macros(
+                session.userName,
+                character.name,
+                session.userDescription,
+                character.scenario
+            ),
+            isEdit = isEdit
+        ).text
+    }
+
+    private suspend fun applyGeneratedRegex(
+        sessionId: Long,
+        input: String,
+        output: GenerationOutput?
+    ): String {
+        return if (output is GenerationOutput.Create && output.source == ChatMessage.Source.User) {
+            applyUserRegex(sessionId, input)
+        } else {
+            applyAiRegex(sessionId, input)
+        }
+    }
+
+    private fun applyStreamingDisplayRegex(
+        input: String,
+        output: GenerationOutput
+    ): String {
+        return if (output is GenerationOutput.Create && output.source == ChatMessage.Source.User) {
+            mRegexRuntime.executeDisplayMessage(
+                input,
+                mStreamingRegexScripts,
+                mStreamingRegexMacros,
+                bodyPlacement = RegexPlacement.UserInput
+            ).text
+        } else {
+            mRegexRuntime.executeDisplayMessage(
+                input,
+                mStreamingRegexScripts,
+                mStreamingRegexMacros
+            ).text
+        }
+    }
 
     private data class AutoSummaryData(
         val session: ChatSession,

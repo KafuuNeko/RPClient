@@ -22,6 +22,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
+import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -233,6 +234,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
     private fun onOpenPromptPreset() {
         AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.OpenRegexScripts::class)
+    private fun onOpenRegexScripts() {
+        AppViewEvent.StartActivity(RegexScriptActivity::class.java).tryEmit()
     }
 
     @UiIntentObserver(MainUiIntent.OpenRequestLogs::class)

@@ -27,6 +27,10 @@
             android:exported="false"
             android:theme="@style/Theme.RPClient" />
         <activity
+            android:name=".feature.regexscript.RegexScriptActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient" />
+        <activity
             android:name=".feature.characteredit.CharacterEditActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient" />

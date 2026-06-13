@@ -82,6 +82,61 @@ fun PromptInspectorDialog(
                         }
                         items(inspection.omittedItems) { OmittedItemCard(it) }
                     }
+                    if (inspection.regexExecutions.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(
+                                    R.string.prompt_inspector_regex_title,
+                                    inspection.regexExecutions.size
+                                ),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        items(inspection.regexExecutions) { hit ->
+                            Card(
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                )
+                            ) {
+                                Text(
+                                    text = "${hit.scriptName} · ${hit.scope.name} · " +
+                                        "${hit.placement.name} · ${hit.mode.name} · " +
+                                        stringResource(
+                                            if (hit.persisted) {
+                                                R.string.regex_persisted
+                                            } else {
+                                                R.string.regex_temporary
+                                            }
+                                        ) + " · " +
+                                        if (hit.changed) "changed" else "matched",
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                    if (inspection.regexErrors.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(
+                                    R.string.prompt_inspector_regex_errors,
+                                    inspection.regexErrors.size
+                                ),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        items(inspection.regexErrors) { error ->
+                            Text(
+                                text = "${error.scriptName}: ${error.message}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
                     item {
                         Text(
                             text = stringResource(R.string.prompt_inspector_final_messages),

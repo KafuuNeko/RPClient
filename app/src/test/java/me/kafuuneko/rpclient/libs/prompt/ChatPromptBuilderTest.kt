@@ -5,6 +5,10 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -17,6 +21,76 @@ class ChatPromptBuilderTest {
         mHistoryBuilder = historyBuilder,
         mWorldBookActivator = WorldBookActivator()
     )
+
+    @Test
+    fun promptOnlyRegexChangesOutboundHistoryAndIsInspected() {
+        val script = ScopedRegexScript(
+            script = RegexScript(
+                id = "prompt",
+                scriptName = "Prompt rewrite",
+                findRegex = "/secret/g",
+                replaceString = "visible",
+                placement = listOf(RegexPlacement.UserInput.value),
+                promptOnly = true
+            ),
+            scope = RegexScriptScope.Global
+        )
+
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "secret")
+                ),
+                regexScripts = listOf(script)
+            )
+        )
+
+        assertTrue(result.request.messages.any { it.content == "visible" })
+        assertEquals(listOf("prompt"), result.inspection.regexExecutions.map { it.scriptId })
+    }
+
+    @Test
+    fun worldInfoPromptRegexDoesNotInvalidateStickySignature() {
+        val entry = lorebookEntry(
+            id = 9L,
+            order = 100,
+            depth = 0,
+            content = "raw lore",
+            keywords = """["harbor"]""",
+            constant = false
+        ).copy(sticky = 2, position = LorebookEntry.POSITION_BEFORE)
+        val script = ScopedRegexScript(
+            RegexScript(
+                id = "world",
+                scriptName = "World rewrite",
+                findRegex = "/raw/g",
+                replaceString = "regexed",
+                placement = listOf(RegexPlacement.WorldInfo.value),
+                promptOnly = true
+            ),
+            RegexScriptScope.Global
+        )
+        val first = builder.buildWithMetadata(
+            context(
+                messages = listOf(chatMessage(1L, ChatMessage.Source.User, "harbor")),
+                entries = listOf(entry),
+                regexScripts = listOf(script)
+            )
+        )
+        val second = builder.buildWithMetadata(
+            context(
+                session = session().copy(worldInfoStateJson = first.worldInfoStateJson),
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "harbor"),
+                    chatMessage(2L, ChatMessage.Source.Char, "No key")
+                ),
+                entries = listOf(entry),
+                regexScripts = listOf(script)
+            )
+        )
+
+        assertTrue(second.request.messages.any { it.content.contains("regexed lore") })
+    }
 
     @Test
     fun userNoteIsInsertedBeforeCurrentUserMessage() {
@@ -310,7 +384,8 @@ class ChatPromptBuilderTest {
         entries: List<LorebookEntry> = emptyList(),
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         maxContextTokens: Int = 4096,
-        maxResponseTokens: Int = 512
+        maxResponseTokens: Int = 512,
+        regexScripts: List<ScopedRegexScript> = emptyList()
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -324,7 +399,8 @@ class ChatPromptBuilderTest {
             provider = null,
             maxContextTokens = maxContextTokens,
             maxResponseTokens = maxResponseTokens,
-            generationMode = generationMode
+            generationMode = generationMode,
+            regexScripts = regexScripts
         )
     }
 

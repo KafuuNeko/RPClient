@@ -9,11 +9,54 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GroupChatPromptBuilderTest {
+    @Test
+    fun groupPromptUsesSamePromptOnlyRegexPipeline() {
+        val lyra = character(1, "Lyra")
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.Character, "Lyra", "secret answer")
+                ),
+                provider = provider(),
+                regexScripts = listOf(
+                    ScopedRegexScript(
+                        RegexScript(
+                            id = "reasoning",
+                            scriptName = "AI rewrite",
+                            findRegex = "/secret/g",
+                            replaceString = "hidden",
+                            placement = listOf(RegexPlacement.AiResponse.value),
+                            promptOnly = true
+                        ),
+                        RegexScriptScope.Global
+                    )
+                )
+            )
+        )
+
+        assertTrue(result.request.messages.any { it.content.contains("hidden answer") })
+        assertTrue(result.inspection.regexExecutions.any { it.scriptId == "reasoning" })
+    }
+
     @Test
     fun promptIdentifiesCurrentSpeakerAndEveryHistoricalSpeaker() {
         val lyra = character(1, "Lyra")

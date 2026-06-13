@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 
 data class PromptBuildContext(
     val userName: String,
@@ -23,7 +24,8 @@ data class PromptBuildContext(
     val provider: LLMProvider?,
     val maxContextTokens: Int,
     val maxResponseTokens: Int,
-    val generationMode: PromptGenerationMode = PromptGenerationMode.Normal
+    val generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+    val regexScripts: List<ScopedRegexScript> = emptyList()
 )
 
 enum class PromptGenerationMode {

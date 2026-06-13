@@ -91,7 +91,7 @@ internal fun WorldBookActivationResult.retainStateEntries(
     )
 }
 
-private fun WorldBookActivationResult.filterEntries(
+internal fun WorldBookActivationResult.filterEntries(
     selectedIds: Set<Long>
 ): WorldBookActivationResult {
     return copy(

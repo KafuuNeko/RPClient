@@ -7,12 +7,20 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 
 class ChatPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
     private val mWorldBookActivator: WorldBookActivator,
+    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
+        me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
+    ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
     /**
@@ -36,8 +44,30 @@ class ChatPromptBuilder(
         val maxPromptTokens = (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(0)
         val worldBudget = maxPromptTokens * readWorldInfoBudgetPercent().coerceIn(0, 40) / 100
         val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
+        val regexHits = mutableListOf<RegexExecutionHit>()
+        val regexErrors = mutableListOf<RegexExecutionError>()
+        val regexMacros = RegexScriptRuntime.macros(
+            userName = context.userName,
+            characterName = context.character.name,
+            userDescription = context.userDescription,
+            scenario = context.character.scenario
+        )
+        val rawWorldInfo = mWorldBookActivator.activateStructured(context)
+        val activatedWorldInfo = rawWorldInfo
+            .mapEntryContent { entry ->
+                val result = mRegexRuntime.execute(
+                    input = entry.content,
+                    scripts = context.regexScripts,
+                    placement = RegexPlacement.WorldInfo,
+                    mode = RegexExecutionMode.Prompt,
+                    macros = regexMacros
+                )
+                regexHits += result.hits
+                regexErrors += result.errors
+                entry.copy(content = result.text)
+            }
         val worldSelection = fitWorldInfoToBudget(
-            result = mWorldBookActivator.activateStructured(context),
+            result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
             promptTokenBudget = maxPromptTokens,
             lorebooks = context.candidateLorebooks,
@@ -50,7 +80,35 @@ class ChatPromptBuilder(
         val fixedMessages = buildFixedMessages(context, worldInfo)
         val inChatPieces = buildInChatPieces(context, worldInfo)
         val examplePieces = buildExamplePieces(context, worldInfo)
-        val historyMessages = context.messages.sanitizeThinkBlocks()
+        val historyMessages = context.messages.sanitizeThinkBlocks().mapIndexed { index, message ->
+            val depth = context.messages.lastIndex - index
+            val result = when (message.source) {
+                ChatMessage.Source.User -> mRegexRuntime.execute(
+                    input = message.content,
+                    scripts = context.regexScripts,
+                    placement = RegexPlacement.UserInput,
+                    mode = RegexExecutionMode.Prompt,
+                    macros = regexMacros,
+                    depth = depth
+                )
+                ChatMessage.Source.Char -> mRegexRuntime.executeAiMessage(
+                    input = message.content,
+                    scripts = context.regexScripts,
+                    mode = RegexExecutionMode.Prompt,
+                    macros = regexMacros,
+                    depth = depth
+                )
+                ChatMessage.Source.System,
+                ChatMessage.Source.Summary -> null
+            }
+            if (result == null) {
+                message
+            } else {
+                regexHits += result.hits
+                regexErrors += result.errors
+                message.copy(content = result.text)
+            }
+        }
         val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name)
 
         val drafts = buildList {
@@ -102,13 +160,20 @@ class ChatPromptBuilder(
                 .ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
         )
+        val inspection = finalized.inspection.copy(
+            regexExecutions = regexHits,
+            regexErrors = regexErrors
+        )
+        val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         val stateResult = mWorldBookActivator.resolveNextState(
-            worldInfo.retainStateEntries(finalized.inspection)
+            rawWorldInfo
+                .filterEntries(selectedWorldInfoIds)
+                .retainStateEntries(inspection)
         )
         return PromptBuildResult(
             request = finalized.request,
             worldInfoStateJson = stateResult.nextStateJson,
-            inspection = finalized.inspection
+            inspection = inspection
         )
     }
 
@@ -358,9 +423,22 @@ class ChatPromptBuilder(
             )
         }.toMutableList()
         context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {
+            val regexResult = mRegexRuntime.execute(
+                input = it,
+                scripts = context.regexScripts,
+                placement = RegexPlacement.UserInput,
+                mode = RegexExecutionMode.Prompt,
+                macros = RegexScriptRuntime.macros(
+                    context.userName,
+                    context.character.name,
+                    context.userDescription,
+                    context.character.scenario
+                ),
+                depth = 0
+            )
             chatMessages += PromptMessageDraft(
                 role = LLMMessageRole.User,
-                content = resolve(it, context, historyText, it, outlets),
+                content = resolve(regexResult.text, context, historyText, it, outlets),
                 source = PromptSource(PromptSourceKind.ChatHistory, "Current user message"),
                 retentionPriority = PRIORITY_ESSENTIAL,
                 canDrop = false

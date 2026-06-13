@@ -175,4 +175,16 @@ Chat history to summarize:
 
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)
+
+    // 全局 Regex 脚本，使用 SillyTavern RegexScriptData 数组格式保存。
+    var globalRegexScriptsJson by stringPref(default = "[]")
+
+    // 当前 Prompt 预设携带的 Regex 脚本。
+    var presetRegexScriptsJson by stringPref(default = "[]")
+
+    // 预设脚本必须由用户显式授权后才进入执行管线。
+    var presetRegexScriptsAuthorized by booleanPref(default = false)
+
+    // 已授权执行内嵌 Regex 脚本的角色 ID 列表。
+    var authorizedCharacterRegexIdsJson by stringPref(default = "[]")
 }

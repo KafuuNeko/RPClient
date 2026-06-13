@@ -447,13 +447,13 @@ class WorldBookActivator {
         if (disabled) return false
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
-        return item.stickyUntil >= messageCount
+        return messageCount < item.stickyUntil
     }
 
     private fun LorebookEntry.isOnCooldown(state: TimedWorldInfoState, messageCount: Int): Boolean {
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
-        return item.stickyUntil < messageCount && item.cooldownUntil >= messageCount
+        return messageCount >= item.stickyUntil && messageCount < item.cooldownUntil
     }
 
     private fun LorebookEntry.hasTimedEffect(): Boolean {
@@ -514,7 +514,7 @@ class WorldBookActivator {
         freshTimedIds: Set<Long>
     ): TimedWorldInfoState {
         val nextEntries = this.entries
-            .filterValues { it.cooldownUntil >= messageCount || it.stickyUntil >= messageCount }
+            .filterValues { it.cooldownUntil > messageCount || it.stickyUntil > messageCount }
             .toMutableMap()
 
         entries.forEach { entry ->

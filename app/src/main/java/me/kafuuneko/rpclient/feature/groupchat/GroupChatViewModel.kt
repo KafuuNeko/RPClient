@@ -35,6 +35,11 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
@@ -60,12 +65,18 @@ class GroupChatViewModel :
     private val mSummaryPromptBuilder by inject<GroupChatSummaryPromptBuilder>()
     private val mOutputSanitizer by inject<GroupChatOutputSanitizer>()
     private val mLorebookRepository by inject<LorebookRepository>()
+    private val mRegexRepository by inject<RegexScriptRepository>()
+    private val mRegexRuntime by inject<RegexScriptRuntime>()
     private val mContext by inject<Context>()
 
     private var mSessionId: Long? = null
     private var mGenerationJob: Job? = null
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
+    private var mStreamingExistingContent: String = ""
+    private var mStreamingRegexScripts: List<ScopedRegexScript> = emptyList()
+    private var mStreamingRegexMacros: Map<String, String> = emptyMap()
+    private var mStreamingRegexApplied: Boolean = false
     private var mLastPromptInspection: PromptInspection? = null
 
     @UiIntentObserver(GroupChatUiIntent.Init::class)
@@ -202,10 +213,11 @@ class GroupChatViewModel :
             return
         }
         val sessionId = mSessionId ?: return
-        val input = uiState.inputDraft.trim()
+        val rawInput = uiState.inputDraft.trim()
         val initialData = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatData(sessionId)
         } ?: return
+        val input = applyUserRegex(initialData, rawInput)
         val speakers = mSpeakerSelector.select(
             session = initialData.session,
             members = initialData.members,
@@ -247,6 +259,7 @@ class GroupChatViewModel :
         val job = mGenerationJob ?: return
         if (!job.isActive) return
         job.cancel()
+        applyStreamingAiRegex()
         persistOrDeleteStreamingMessage()
         refreshState(generationState = GroupChatGenerationState.Idle)
     }
@@ -469,13 +482,19 @@ class GroupChatViewModel :
     }
 
     @UiIntentObserver(GroupChatUiIntent.StartEditMessage::class)
-    private fun onStartEditMessage(intent: GroupChatUiIntent.StartEditMessage) {
+    private suspend fun onStartEditMessage(intent: GroupChatUiIntent.StartEditMessage) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         val message = uiState.messages.firstOrNull { it.id == intent.messageId } ?: return
+        val rawContent = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getGroupChatData(uiState.sessionId)
+                ?.messages
+                ?.firstOrNull { it.id == intent.messageId }
+                ?.content
+        } ?: return
         uiState.copy(
             editingMessageId = message.id,
-            editingMessageDraft = message.content
+            editingMessageDraft = rawContent
         ).setup()
     }
 
@@ -494,9 +513,27 @@ class GroupChatViewModel :
         val messageId = uiState.editingMessageId ?: return
         if (uiState.editingMessageDraft.isBlank()) return
         withContext(Dispatchers.IO) {
+            val data = mGroupChatRepository.getGroupChatData(uiState.sessionId)
+                ?: return@withContext
+            val message = data.messages.firstOrNull { it.id == messageId }
+                ?: return@withContext
+            val content = when (message.source) {
+                GroupChatMessage.Source.User -> applyUserRegex(
+                    data,
+                    uiState.editingMessageDraft.trim(),
+                    isEdit = true
+                )
+                GroupChatMessage.Source.Character -> applyAiRegex(
+                    data,
+                    uiState.editingMessageDraft.trim(),
+                    message.speakerNameSnapshot,
+                    isEdit = true
+                )
+                GroupChatMessage.Source.System -> uiState.editingMessageDraft.trim()
+            }
             mGroupChatRepository.updateMessageContent(
                 messageId,
-                uiState.editingMessageDraft.trim()
+                content
             )
         }
         refreshState(editingMessageId = null, editingMessageDraft = "")
@@ -711,7 +748,10 @@ class GroupChatViewModel :
                     candidateLorebooks = lorebookContext.lorebooks,
                     recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
                     provider = provider,
-                    generationMode = generationMode
+                    generationMode = generationMode,
+                    regexScripts = mRegexRepository.activeScripts(
+                        data.members.map { it.character }
+                    )
                 )
             )
         }
@@ -729,6 +769,12 @@ class GroupChatViewModel :
         }
         val existingContent = continueMessage?.content.orEmpty()
         mStreamingContent = existingContent
+        mStreamingExistingContent = existingContent
+        mStreamingRegexScripts = mRegexRepository.activeScripts(
+            data.members.map { it.character }
+        )
+        mStreamingRegexMacros = groupRegexMacros(data, speaker.character.name)
+        mStreamingRegexApplied = false
         refreshState(
             generationState = GroupChatGenerationState.Generating(
                 speakerName = speaker.character.name,
@@ -753,13 +799,22 @@ class GroupChatViewModel :
                 .filterNot { it == speaker.character.name },
             trimOtherSpeakers = data.session.trimOtherSpeakers
         )
-        mStreamingContent = existingContent + sanitizedPart
-        persistOrDeleteStreamingMessage()
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.updateWorldInfoState(
-                sessionId,
-                buildResult.worldInfoStateJson
-            )
+        val regexedPart = mRegexRuntime.executeAiMessage(
+            input = sanitizedPart,
+            scripts = mStreamingRegexScripts,
+            mode = RegexExecutionMode.Source,
+            macros = mStreamingRegexMacros
+        ).text
+        mStreamingContent = existingContent + regexedPart
+        mStreamingRegexApplied = true
+        val persisted = persistOrDeleteStreamingMessage()
+        if (persisted && regexedPart.isNotBlank()) {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.updateWorldInfoState(
+                    sessionId,
+                    buildResult.worldInfoStateJson
+                )
+            }
         }
         refreshState(
             generationState = GroupChatGenerationState.Generating(
@@ -787,10 +842,15 @@ class GroupChatViewModel :
     private fun updateStreamingState(content: String) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val messageId = mStreamingMessageId ?: return
+        val displayContent = mRegexRuntime.executeDisplayMessage(
+            input = content,
+            scripts = mStreamingRegexScripts,
+            macros = mStreamingRegexMacros
+        ).text
         uiState.copy(
             messages = uiState.messages.map {
                 if (it.id == messageId) {
-                    it.copy(content = content, isStreaming = true)
+                    it.copy(content = displayContent, isStreaming = true)
                 } else {
                     it
                 }
@@ -799,11 +859,13 @@ class GroupChatViewModel :
     }
 
     /** 在生成结束或取消时落库，空回复则删除占位消息。 */
-    private suspend fun persistOrDeleteStreamingMessage() {
-        val messageId = mStreamingMessageId ?: return
+    private suspend fun persistOrDeleteStreamingMessage(): Boolean {
+        val messageId = mStreamingMessageId ?: return false
+        applyStreamingAiRegex()
         val content = mStreamingContent
+        val persisted = content.isNotBlank()
         withContext(Dispatchers.IO) {
-            if (content.isBlank()) {
+            if (!persisted) {
                 mGroupChatRepository.deleteMessage(messageId)
             } else {
                 mGroupChatRepository.updateMessageContent(messageId, content)
@@ -811,6 +873,11 @@ class GroupChatViewModel :
         }
         mStreamingMessageId = null
         mStreamingContent = ""
+        mStreamingExistingContent = ""
+        mStreamingRegexScripts = emptyList()
+        mStreamingRegexMacros = emptyMap()
+        mStreamingRegexApplied = false
+        return persisted
     }
 
     /** 达到全局触发阈值后自动更新群聊摘要。 */
@@ -1049,16 +1116,113 @@ class GroupChatViewModel :
 
     /** 将数据库消息转换为页面消息，并标记当前流式占位项。 */
     private fun GroupChatData.toMessageItems(): List<GroupChatMessageItem> {
-        return messages.map {
+        val scripts = mRegexRepository.activeScripts(members.map { it.character })
+        return messages.mapIndexed { index, message ->
+            val characterName = if (message.source == GroupChatMessage.Source.Character) {
+                message.speakerNameSnapshot
+            } else {
+                members.firstOrNull()?.character?.name.orEmpty()
+            }
+            val macros = groupRegexMacros(this, characterName)
+            val depth = messages.lastIndex - index
+            val displayContent = when (message.source) {
+                GroupChatMessage.Source.User -> mRegexRuntime.executeDisplayMessage(
+                    message.content,
+                    scripts,
+                    macros,
+                    depth,
+                    RegexPlacement.UserInput
+                ).text
+                GroupChatMessage.Source.Character -> mRegexRuntime.executeDisplayMessage(
+                    message.content,
+                    scripts,
+                    macros,
+                    depth
+                ).text
+                GroupChatMessage.Source.System -> message.content
+            }
             GroupChatMessageItem(
-                id = it.id,
-                source = it.source,
-                speakerName = it.speakerNameSnapshot,
-                content = it.content,
-                time = it.createTime.formatTimestamp("HH:mm"),
-                isStreaming = it.id == mStreamingMessageId
+                id = message.id,
+                source = message.source,
+                speakerName = message.speakerNameSnapshot,
+                content = displayContent,
+                time = message.createTime.formatTimestamp("HH:mm"),
+                isStreaming = message.id == mStreamingMessageId
             )
         }
+    }
+
+    private fun applyUserRegex(
+        data: GroupChatData,
+        input: String,
+        isEdit: Boolean = false
+    ): String {
+        val scripts = mRegexRepository.activeScripts(data.members.map { it.character })
+        val macros = groupRegexMacros(
+            data,
+            data.members.firstOrNull()?.character?.name.orEmpty()
+        )
+        val slashProcessed = if (input.startsWith('/')) {
+            mRegexRuntime.execute(
+                input,
+                scripts,
+                RegexPlacement.SlashCommand,
+                RegexExecutionMode.Source,
+                macros,
+                isEdit = isEdit
+            ).text
+        } else {
+            input
+        }
+        return mRegexRuntime.execute(
+            slashProcessed,
+            scripts,
+            RegexPlacement.UserInput,
+            RegexExecutionMode.Source,
+            macros,
+            isEdit = isEdit
+        ).text
+    }
+
+    private fun applyAiRegex(
+        data: GroupChatData,
+        input: String,
+        characterName: String,
+        isEdit: Boolean = false
+    ): String {
+        return mRegexRuntime.executeAiMessage(
+            input,
+            mRegexRepository.activeScripts(data.members.map { it.character }),
+            RegexExecutionMode.Source,
+            groupRegexMacros(data, characterName),
+            isEdit = isEdit
+        ).text
+    }
+
+    private fun applyStreamingAiRegex() {
+        if (mStreamingRegexApplied || mStreamingContent.isBlank()) return
+        val generatedPart = mStreamingContent.removePrefix(mStreamingExistingContent)
+        val processed = mRegexRuntime.executeAiMessage(
+            generatedPart,
+            mStreamingRegexScripts,
+            RegexExecutionMode.Source,
+            mStreamingRegexMacros
+        ).text
+        mStreamingContent = mStreamingExistingContent + processed
+        mStreamingRegexApplied = true
+    }
+
+    private fun groupRegexMacros(
+        data: GroupChatData,
+        characterName: String
+    ): Map<String, String> {
+        return RegexScriptRuntime.macros(
+            userName = data.session.userName,
+            characterName = characterName,
+            userDescription = data.session.userDescription,
+            scenario = data.session.scenario,
+            groupNames = data.members.joinToString(", ") { it.character.name }
+        )
     }
 
     private fun finishWithToast(messageResId: Int) {

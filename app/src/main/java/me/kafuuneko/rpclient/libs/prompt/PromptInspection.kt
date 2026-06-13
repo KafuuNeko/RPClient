@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 
 enum class PromptSourceKind {
     MainPrompt,
@@ -67,7 +69,9 @@ data class PromptInspection(
     val promptBudget: Int,
     val finalTokenCount: Int,
     val items: List<PromptInspectionItem>,
-    val omittedItems: List<PromptOmittedItem>
+    val omittedItems: List<PromptOmittedItem>,
+    val regexExecutions: List<RegexExecutionHit> = emptyList(),
+    val regexErrors: List<RegexExecutionError> = emptyList()
 ) {
     val hasOmissions: Boolean
         get() = omittedItems.isNotEmpty()

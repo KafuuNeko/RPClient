@@ -431,20 +431,20 @@ Prompt 构建完成后、真正请求模型前就保存 timed effects：
 
 对普通非思维模型影响有限，但使用新 reasoning 模型时可能出现思维丢失、上下文不连续或不符合 Provider 要求。
 
-### P3-2 SillyTavern Regex 扩展尚未实现
+### P3-2 SillyTavern Regex 扩展（已于 2026-06-13 完成）
 
-当前项目中的正则能力仅包括：
+项目已新增独立 Regex 领域层、统一执行入口和符合 MVI 规范的管理页面，现已支持：
 
-- 世界书关键词使用 `/pattern/flags` 触发条目；
-- Markdown、思维块清理和宏解析等项目内部固定正则。
+- SillyTavern `regex_scripts` 格式、未知字段往返保留及 JSON 导入导出；
+- JavaScript 风格 `/pattern/flags` 的 `g/i/m/s/u/y`、`{{match}}`、编号/命名捕获组、Trim Out 和 Find Regex 宏模式；
+- User Input、AI Response、Slash Command、World Info、Reasoning、聊天显示和出站 Prompt placement；
+- Source、Markdown Display、Prompt 三种执行模式，显示/Prompt 临时变换不回写数据库；
+- Run on Edit、Min/Max Depth、稳定排序、启停、全局/预设/角色卡作用域；
+- 角色卡内嵌脚本默认不执行，只有用户显式授权后进入单聊或群聊执行管线；
+- 脚本创建、复制、删除、拖动排序、即时校验、测试，以及 Prompt Inspector 命中阶段和持久化状态展示；
+- 无效脚本隔离，单条错误不会中断后续脚本或生成流程。
 
-这不等同于 SillyTavern 的内置 Regex 扩展。角色卡中的 `data.extensions.regex_scripts` 会通过 `Character.extensionsJson` 原样保留并在导出时写回，但项目没有正则脚本的数据模型、管理界面或执行管线，因此这些脚本不会对用户输入、AI 回复、Slash Command、World Info、reasoning、聊天显示或出站 Prompt 生效。
-
-缺失能力还包括全局/角色卡/预设作用域、脚本排序和启停、导入导出、`{{match}}`、编号及命名捕获组、Trim Out、宏替换模式、Min/Max Depth、Run on Edit，以及仅修改显示或仅修改出站 Prompt 的临时执行语义。
-
-**影响**
-
-从 SillyTavern 导入包含 `regex_scripts` 的角色卡时数据不会丢失，但运行效果会静默缺失。依赖正则清洗、格式化、隐藏内容或 Prompt 改写的角色卡会出现显示和生成行为差异。
+兼容层使用 Kotlin Regex 模拟 JavaScript RegExp；已覆盖 SillyTavern 脚本常用语义，但极少数依赖 JavaScript 引擎特有正则语法的脚本仍可能被判定为无效，并会在测试页或 Prompt Inspector 中显示错误。
 
 ## 8. 与 SillyTavern 的主要能力差异
 
@@ -460,7 +460,7 @@ Prompt 构建完成后、真正请求模型前就保存 timed effects：
 | 长期记忆 | 总结 | 总结、Chat Vectorization、Data Bank/RAG | 长对话检索能力较弱 |
 | 消息分支 | regenerate 替换 | swipe 候选、分支与回退 | 试回复和比较成本更高 |
 | 群聊 | 基础选择策略、强制发言、自动模式 | mute、成员排序、自回复控制、场景覆盖等 | 群聊编排能力较少 |
-| Regex 脚本 | 仅保留角色卡原始字段，不执行 | 全局/角色/预设脚本、作用范围、深度和临时执行模式 | 导入脚本静默失效，显示和 Prompt 与原卡不一致 |
+| Regex 脚本 | 已支持全局/角色/预设脚本、作用范围、深度、临时模式和授权执行 | 全局/角色/预设脚本、作用范围、深度和临时执行模式 | 常用脚本语义已对齐；JavaScript 引擎特有语法仍可能不兼容 |
 | 扩展自动化 | 无对应完整体系 | STscript、Quick Replies、扩展和函数调用 | 高级工作流迁移困难 |
 | 推理内容 | `<think>` 混入正文 | reasoning 独立展示和配置 | 摘要、导出和上下文易污染 |
 
@@ -504,15 +504,20 @@ Prompt 构建完成后、真正请求模型前就保存 timed effects：
 4. 实现逗号多 group、group scoring 和 Constant 预算优先。
 5. 成功生成后再提交 timed effects 状态。
 
-### 第四阶段：实现完整 Regex 脚本体系
+**2026-06-13 审计补充**
 
-1. 在 `libs/regex/` 建立独立领域层，定义 RegexScript、作用域、placement、宏替换模式和临时执行模式；执行引擎保持纯函数，按脚本顺序稳定运行。
-2. 兼容 SillyTavern 脚本格式及 JavaScript 风格 `/pattern/flags`，实现 `g/i/m/s/u/y`、`{{match}}`、编号/命名捕获组、Trim Out 和 Find Regex 宏的 Raw/Escaped/Disabled 模式。
-3. 接入 User Input、AI Response、World Info、Reasoning、聊天显示和出站 Prompt；实现 Run on Edit、Min/Max Depth、仅显示、仅 Prompt 及不落盘临时执行语义。
-4. 支持全局、角色卡和预设作用域，保留稳定排序、启停与授权状态；角色卡内嵌 `extensions.regex_scripts` 默认只保留，用户授权后才执行。
-5. 按 MVI 规范新增脚本列表、编辑器和测试模式，使用 UiState/UiIntent/ViewEvent 单向数据流；支持创建、复制、删除、拖动排序、即时校验及 JSON 导入导出。
-6. 单聊、群聊、编辑消息、重新生成和 Prompt Inspector 使用同一 Regex 执行入口，并显示命中的脚本、阶段及文本是否持久化。
-7. 增加格式往返、脚本顺序、flags、捕获组、宏、深度、placement、临时模式、授权和异常正则隔离测试，确保单条无效脚本不会阻断生成。
+- 修复 sticky/cooldown 结束边界晚一轮的问题，结束轮次现在与 SillyTavern 的半开区间语义一致。
+- 空回复或被 Source Regex 清空的回复不再推进世界书 timed effects；流式占位消息会删除，重新生成时保留原消息。
+
+### 第四阶段：实现完整 Regex 脚本体系（已完成）
+
+1. 已在 `libs/regex/` 建立独立领域层，定义 RegexScript、作用域、placement、宏替换模式和临时执行模式；执行引擎保持纯函数并按脚本顺序稳定运行。
+2. 已兼容 SillyTavern 脚本格式及 JavaScript 风格 `/pattern/flags`，实现 `g/i/m/s/u/y`、`{{match}}`、编号/命名捕获组、Trim Out 和 Find Regex 宏的 Raw/Escaped/Disabled 模式。
+3. 已接入 User Input、AI Response、Slash Command、World Info、Reasoning、聊天显示和出站 Prompt，并实现 Run on Edit、Min/Max Depth、仅显示、仅 Prompt 及不落盘临时执行语义。
+4. 已支持全局、角色卡和预设作用域，保留稳定排序、启停与授权状态；角色卡内嵌 `extensions.regex_scripts` 默认只保留，用户授权后才执行。
+5. 已按 MVI 规范新增脚本列表、编辑器和测试模式，使用 UiState/UiIntent/ViewEvent 单向数据流；支持创建、复制、删除、拖动排序、即时校验及 JSON 导入导出。
+6. 单聊、群聊、编辑消息、重新生成和 Prompt Inspector 已使用同一 Regex 执行入口，并显示命中的脚本、阶段及文本是否持久化。
+7. 已增加格式往返、脚本顺序、flags、捕获组、宏、深度、placement、临时模式、Prompt 管线和异常正则隔离测试，确保单条无效脚本不会阻断生成。
 
 ### 第五阶段：完善总结和 Provider
 

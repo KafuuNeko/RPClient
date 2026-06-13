@@ -17,6 +17,10 @@ import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
+import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -68,6 +72,9 @@ private val appModules = module {
     singleOf(::GroupChatSpeakerSelector)
     singleOf(::GroupChatSummaryPromptBuilder)
     singleOf(::GroupChatOutputSanitizer)
+    singleOf(::RegexScriptCodec)
+    singleOf(::RegexScriptEngine)
+    singleOf(::RegexScriptRuntime)
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
@@ -85,5 +92,6 @@ private val appModules = module {
     singleOf(::FileRepository)
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
+    singleOf(::RegexScriptRepository)
 
 }

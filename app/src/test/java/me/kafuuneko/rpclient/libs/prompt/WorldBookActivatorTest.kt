@@ -125,7 +125,7 @@ class WorldBookActivatorTest {
                 entries = listOf(entry)
             )
         )
-        val sticky = activator.activateStructured(
+        val cooldown = activator.activateStructured(
             context(
                 messages = listOf(chatMessage("setup"), chatMessage("harbor"), chatMessage("no key")),
                 currentUserMessage = null,
@@ -133,19 +133,19 @@ class WorldBookActivatorTest {
                 worldInfoStateJson = activated.nextStateJson
             )
         )
-        val cooldown = activator.activateStructured(
+        val availableAgain = activator.activateStructured(
             context(
                 messages = listOf(chatMessage("setup"), chatMessage("harbor"), chatMessage("no key"), chatMessage("harbor")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                worldInfoStateJson = sticky.nextStateJson
+                worldInfoStateJson = cooldown.nextStateJson
             )
         )
 
         assertEquals(emptyList<LorebookEntry>(), delayed.activatedEntries)
         assertEquals(listOf(entry), activated.activatedEntries)
-        assertEquals(listOf(entry), sticky.activatedEntries)
         assertEquals(emptyList<LorebookEntry>(), cooldown.activatedEntries)
+        assertEquals(listOf(entry), availableAgain.activatedEntries)
     }
 
     @Test
