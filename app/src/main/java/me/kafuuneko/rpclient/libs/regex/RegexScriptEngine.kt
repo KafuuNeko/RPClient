@@ -276,6 +276,6 @@ class RegexScriptEngine {
         val SUPPORTED_FLAGS = setOf('g', 'i', 'm', 's', 'u', 'y')
         val MATCH_MACRO = Regex("""\{\{match\}\}""", RegexOption.IGNORE_CASE)
         val GROUP_REFERENCE = Regex("""\$(\d+)|\$<([^>]+)>""")
-        val MACRO = Regex("""\{\{([^{}]+)}}""", RegexOption.IGNORE_CASE)
+        val MACRO = Regex("""\{\{([^{}]+)\}\}""", RegexOption.IGNORE_CASE)
     }
 }

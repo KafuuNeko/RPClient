@@ -69,6 +69,23 @@ class RegexScriptEngineTest {
     }
 
     @Test
+    fun replacementMacrosIgnoreCaseAndPreserveUnknownMacros() {
+        val script = script(
+            id = "replacement-macros",
+            find = "/input/g",
+            replacement = "{{UsEr}}/{{missing}}"
+        )
+
+        val result = engine.execute(
+            "input",
+            listOf(scoped(script)),
+            context(macros = mapOf("user" to "Alice"))
+        )
+
+        assertEquals("Alice/{{missing}}", result.text)
+    }
+
+    @Test
     fun modeDepthAndRunOnEditAreRespected() {
         val script = script("mode", "/x/g", "y").copy(
             promptOnly = true,
