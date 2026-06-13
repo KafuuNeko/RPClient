@@ -64,6 +64,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.Auxiliary -> AppModel.auxiliaryPrompt
             PromptType.PostHistory -> AppModel.postHistoryInstructions
             PromptType.Summarize -> AppModel.summarizePrompt
+            PromptType.SummaryInjection -> AppModel.summaryInjectionTemplate
             PromptType.Impersonation -> AppModel.impersonationPrompt
             PromptType.NewChat -> AppModel.newChatPrompt
             PromptType.NewExampleChat -> AppModel.newExampleChatPrompt
@@ -84,6 +85,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
             PromptType.Auxiliary -> AppModel.auxiliaryPrompt = text
             PromptType.PostHistory -> AppModel.postHistoryInstructions = text
             PromptType.Summarize -> AppModel.summarizePrompt = text
+            PromptType.SummaryInjection -> AppModel.summaryInjectionTemplate = text
             PromptType.Impersonation -> AppModel.impersonationPrompt = text
             PromptType.NewChat -> AppModel.newChatPrompt = text
             PromptType.NewExampleChat -> AppModel.newExampleChatPrompt = text

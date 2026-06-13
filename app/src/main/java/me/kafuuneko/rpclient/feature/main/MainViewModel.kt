@@ -97,7 +97,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 summaryWordsLimit = AppModel.summaryWordsLimit,
                 summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
                 summaryResponseTokens = AppModel.summaryResponseTokens,
-                summaryInjectionTemplate = AppModel.summaryInjectionTemplate,
                 summaryInjectionPosition = readSummaryInjectionPosition()
             )
         ).setup()
@@ -343,19 +342,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
-    @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionTemplate::class)
-    private fun onChangeSummaryInjectionTemplate(
-        intent: MainUiIntent.ChangeSummaryInjectionTemplate
-    ) {
-        val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.summaryInjectionTemplate = intent.value
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                summaryInjectionTemplate = intent.value
-            )
-        ).setup()
-    }
-
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
     private fun onSelectSummaryInjectionPosition(
         intent: MainUiIntent.SelectSummaryInjectionPosition
@@ -471,7 +457,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             summaryWordsLimit = AppModel.summaryWordsLimit,
             summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
             summaryResponseTokens = AppModel.summaryResponseTokens,
-            summaryInjectionTemplate = AppModel.summaryInjectionTemplate,
             summaryInjectionPosition = readSummaryInjectionPosition()
         )
     }

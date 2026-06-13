@@ -64,6 +64,5 @@ data class MainSettingsState(
     val summaryWordsLimit: Int,
     val summaryMaxMessagesPerRequest: Int,
     val summaryResponseTokens: Int,
-    val summaryInjectionTemplate: String,
     val summaryInjectionPosition: SummaryInjectionPosition
 )

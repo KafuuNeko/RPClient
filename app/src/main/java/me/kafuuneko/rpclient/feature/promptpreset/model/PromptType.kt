@@ -10,6 +10,7 @@ enum class PromptType {
     Auxiliary,
     PostHistory,
     Summarize,
+    SummaryInjection,
     Impersonation,
     NewChat,
     NewExampleChat,

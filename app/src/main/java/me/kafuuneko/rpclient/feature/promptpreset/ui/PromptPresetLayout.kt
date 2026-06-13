@@ -274,7 +274,11 @@ private val promptGroups = listOf(
     ),
     PromptGroup(
         titleRes = R.string.prompt_summary_section,
-        types = listOf(PromptType.Summarize, PromptType.GroupSummarize)
+        types = listOf(
+            PromptType.Summarize,
+            PromptType.GroupSummarize,
+            PromptType.SummaryInjection
+        )
     )
 )
 
@@ -282,6 +286,7 @@ private fun PromptType.icon(): ImageVector {
     return when (this) {
         PromptType.Summarize -> Icons.Rounded.Compress
         PromptType.GroupSummarize -> Icons.Rounded.Compress
+        PromptType.SummaryInjection -> Icons.Rounded.Compress
         else -> Icons.Rounded.AutoAwesome
     }
 }
@@ -292,6 +297,7 @@ private fun PromptType.titleRes(): Int {
         PromptType.Auxiliary -> R.string.prompt_auxiliary_title
         PromptType.PostHistory -> R.string.prompt_post_history_title
         PromptType.Summarize -> R.string.prompt_summarize_title
+        PromptType.SummaryInjection -> R.string.summary_injection_template
         PromptType.Impersonation -> R.string.prompt_impersonation_title
         PromptType.NewChat -> R.string.prompt_new_chat_title
         PromptType.NewExampleChat -> R.string.prompt_new_example_chat_title
@@ -312,6 +318,7 @@ private fun PromptType.descriptionRes(): Int {
         PromptType.Auxiliary -> R.string.prompt_auxiliary_desc
         PromptType.PostHistory -> R.string.prompt_post_history_desc
         PromptType.Summarize -> R.string.prompt_summarize_desc
+        PromptType.SummaryInjection -> R.string.summary_injection_template_desc
         PromptType.Impersonation -> R.string.prompt_impersonation_desc
         PromptType.NewChat -> R.string.prompt_new_chat_desc
         PromptType.NewExampleChat -> R.string.prompt_new_example_chat_desc
@@ -491,7 +498,8 @@ private fun PromptPresetLayoutPreview() {
             uiState = PromptPresetUiState.Normal(
                 promptValues = mapOf(
                     PromptType.Main to "You are a creative roleplay assistant. Stay in character and respond naturally...",
-                    PromptType.Summarize to ""
+                    PromptType.Summarize to "",
+                    PromptType.SummaryInjection to "Story memory:\n{{summary}}"
                 )
             )
         )

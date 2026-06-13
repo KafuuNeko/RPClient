@@ -51,8 +51,6 @@ sealed class MainUiIntent {
 
     data class ChangeSummaryResponseTokens(val value: String) : MainUiIntent()
 
-    data class ChangeSummaryInjectionTemplate(val value: String) : MainUiIntent()
-
     data class SelectSummaryInjectionPosition(
         val position: SummaryInjectionPosition
     ) : MainUiIntent()
