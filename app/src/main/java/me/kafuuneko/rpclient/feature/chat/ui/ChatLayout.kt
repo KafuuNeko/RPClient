@@ -1011,6 +1011,11 @@ private fun ChatSettingsPage(
                         subtitle = stringResource(R.string.summarize_now_desc)
                     ) { ChatUiIntent.SummarizeNow.emit() }
                     MenuAction(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.restore_previous_summary),
+                        subtitle = stringResource(R.string.restore_previous_summary_desc)
+                    ) { ChatUiIntent.RestorePreviousSummary.emit() }
+                    MenuAction(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.delete_chat_title),
                         subtitle = stringResource(R.string.delete_chat_desc),
@@ -1021,6 +1026,12 @@ private fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
+                    SummaryPauseRow(
+                        paused = state.session.autoSummaryPaused,
+                        onPausedChange = {
+                            ChatUiIntent.ToggleAutoSummaryPaused(it).emit()
+                        }
+                    )
                     AutoSaveTextField(
                         label = stringResource(R.string.title),
                         value = state.session.title,
@@ -1082,6 +1093,27 @@ private fun ChatSettingsPage(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryPauseRow(
+    paused: Boolean,
+    onPausedChange: (Boolean) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.pause_auto_summary),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = stringResource(R.string.pause_auto_summary_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+            )
+        }
+        Switch(checked = paused, onCheckedChange = onPausedChange)
     }
 }
 
@@ -1402,6 +1434,7 @@ private fun ChatLayoutPreview() {
                     userName = "You",
                     userDescription = "",
                     creatorNotes = "",
+                    autoSummaryPaused = false,
                     messageCount = 1,
                     enabledLorebookEntryIds = setOf(1)
                 ),

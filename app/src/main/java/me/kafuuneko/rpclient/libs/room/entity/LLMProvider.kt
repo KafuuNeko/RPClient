@@ -33,6 +33,12 @@ data class LLMProvider(
     val maxTokens: Int = 1200,
     // 默认上下文 Token 预算
     val contextTokens: Int = 8192,
+    // 是否在请求中显式发送 temperature。
+    val sendTemperature: Boolean = true,
+    // 是否在请求中显式发送 top_p。
+    val sendTopP: Boolean = true,
+    // 当前 Provider 独立使用的 Prompt 后处理模式 ordinal。
+    val promptPostProcessingMode: Int = 0,
     // 是否启用
     val isEnabled: Boolean = true,
     // 创建时间
@@ -53,5 +59,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     temperature = temperature,
     topP = topP,
     maxTokens = maxTokens,
-    contextTokens = contextTokens
+    contextTokens = contextTokens,
+    sendTemperature = sendTemperature,
+    sendTopP = sendTopP
 )

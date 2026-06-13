@@ -29,7 +29,8 @@ data class GroupChatSession(
     val characterCardMode: CharacterCardMode = CharacterCardMode.Swap,
     val includeMutedCards: Boolean = false,
     val autoModeEnabled: Boolean = false,
-    val trimOtherSpeakers: Boolean = true
+    val trimOtherSpeakers: Boolean = true,
+    val autoSummaryPaused: Boolean = false
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

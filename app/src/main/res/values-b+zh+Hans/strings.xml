@@ -56,6 +56,17 @@
     <string name="summary_max_messages_per_request">每次请求最大消息数</string>
     <string name="summary_max_messages_helper">0 表示由上下文预算决定</string>
     <string name="summary_response_tokens">摘要响应 Tokens</string>
+    <string name="summary_injection_template">摘要注入模板</string>
+    <string name="summary_injection_template_desc">使用 {{summary}} 作为记忆占位符。</string>
+    <string name="summary_injection_position">摘要注入位置</string>
+    <string name="summary_position_before_character">角色定义之前</string>
+    <string name="summary_position_after_character">角色定义之后</string>
+    <string name="summary_position_before_history">聊天历史之前</string>
+    <string name="summary_position_after_history">聊天历史之后</string>
+    <string name="pause_auto_summary">暂停此会话自动摘要</string>
+    <string name="pause_auto_summary_desc">仍可继续手动生成摘要。</string>
+    <string name="restore_previous_summary">恢复上一版摘要</string>
+    <string name="restore_previous_summary_desc">丢弃最新快照并恢复前一份记忆。</string>
     <string name="unknown_character">未知角色</string>
     <string name="no_messages_yet">暂无消息</string>
     <string name="debug_mode">调试模式</string>
@@ -229,6 +240,8 @@
     <string name="no_unsummarized_messages">没有未摘要的消息</string>
     <string name="summary_updated">摘要已更新</string>
     <string name="summary_failed">摘要失败</string>
+    <string name="summary_restored">已恢复上一版摘要</string>
+    <string name="no_previous_summary">没有可恢复的摘要快照</string>
     <string name="chat_deleted">聊天已删除</string>
     <string name="branch_session_title">%s（分支）</string>
     <string name="branch_create_failed">创建分支失败</string>
@@ -343,6 +356,9 @@
     <string name="enabled_desc">启用后会显示在首页设置中</string>
     <string name="protocol">协议</string>
     <string name="provider_type">提供商类型</string>
+    <string name="provider_send_temperature">发送 temperature</string>
+    <string name="provider_send_top_p">发送 top_p</string>
+    <string name="prompt_post_processing_provider_title">提供商 Prompt 后处理</string>
     <string name="custom_headers_json">自定义请求头 JSON</string>
     <string name="save">保存</string>
     <string name="model_test">模型测试</string>

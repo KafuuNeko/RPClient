@@ -96,6 +96,22 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         coveredMessageId: Long
     ): ChatMessage?
 
+    /** 按快照写入顺序读取上一份总结，供“恢复上一版”使用。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source = 'Summary'
+          AND id < :summaryId
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPreviousSummaryBeforeId(
+        sessionId: Long,
+        summaryId: Long
+    ): ChatMessage?
+
     /**
      * 获取在指定普通消息位置仍然有效的最新总结快照。
      *

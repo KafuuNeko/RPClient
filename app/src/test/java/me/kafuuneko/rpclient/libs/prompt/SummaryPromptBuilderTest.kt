@@ -1,34 +1,40 @@
 package me.kafuuneko.rpclient.libs.prompt
 
-import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class SummaryPromptBuilderTest {
     @Test
-    fun selectionStopsAtFirstMessageThatExceedsBudget() {
-        val messages = listOf(
-            message(id = 1L, content = "a".repeat(3)),
-            message(id = 2L, content = "b".repeat(3_600)),
-            message(id = 3L, content = "c".repeat(3))
-        )
+    fun selectionCountsTemplateAndFormattingOverheadForEveryPrefix() {
+        val messages = listOf("one", "two", "three")
 
-        val selected = selectSummaryMessagePrefix(
-            messages = messages,
-            maxMessages = 0,
-            tokenBudget = 1_024
-        )
+        val selected = selectSummaryPrefix(
+            items = messages,
+            promptBudget = 18
+        ) { prefix ->
+            10 + prefix.sumOf { it.length + 1 }
+        }
 
-        assertEquals(listOf(1L), selected.map { it.id })
+        assertEquals(listOf("one", "two"), selected)
     }
 
-    private fun message(id: Long, content: String): ChatMessage {
-        return ChatMessage(
-            id = id,
-            sessionId = 1L,
-            createTime = id,
-            source = ChatMessage.Source.User,
-            content = content
-        )
+    @Test
+    fun selectionRejectsFirstMessageWhenCompleteRequestExceedsBudget() {
+        val selected = selectSummaryPrefix(
+            items = listOf("oversized"),
+            promptBudget = 8
+        ) { 9 }
+
+        assertEquals(emptyList<String>(), selected)
+    }
+
+    @Test
+    fun summaryContentAlwaysRemovesReasoningBlocks() {
+        val content = "<think>private chain</think>\nVisible event"
+            .summarySafeContent()
+
+        assertEquals("Visible event", content)
+        assertFalse(content.contains("private chain"))
     }
 }

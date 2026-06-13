@@ -87,7 +87,9 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
@@ -1158,6 +1160,32 @@ private fun SummaryPanel(
                 value = state.summaryResponseTokens.toString(),
                 onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
             )
+            OutlinedTextField(
+                value = state.summaryInjectionTemplate,
+                onValueChange = {
+                    MainUiIntent.ChangeSummaryInjectionTemplate(it).emit()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.summary_injection_template)) },
+                supportingText = {
+                    Text(stringResource(R.string.summary_injection_template_desc))
+                },
+                minLines = 3,
+                maxLines = 6
+            )
+            Text(
+                text = stringResource(R.string.summary_injection_position),
+                style = MaterialTheme.typography.titleSmall
+            )
+            SummaryInjectionPosition.entries.forEach { position ->
+                FilterChip(
+                    selected = position == state.summaryInjectionPosition,
+                    onClick = {
+                        MainUiIntent.SelectSummaryInjectionPosition(position).emit()
+                    },
+                    label = { Text(stringResource(position.titleRes())) }
+                )
+            }
         }
     }
 }
@@ -1366,6 +1394,19 @@ private fun PromptPostProcessingMode.descriptionRes(): Int {
     }
 }
 
+private fun SummaryInjectionPosition.titleRes(): Int {
+    return when (this) {
+        SummaryInjectionPosition.BeforeCharacter ->
+            R.string.summary_position_before_character
+        SummaryInjectionPosition.AfterCharacter ->
+            R.string.summary_position_after_character
+        SummaryInjectionPosition.BeforeHistory ->
+            R.string.summary_position_before_history
+        SummaryInjectionPosition.AfterHistory ->
+            R.string.summary_position_after_history
+    }
+}
+
 private object MaterialThemeLike {
     @Composable
     fun background() = MaterialTheme.colorScheme.background
@@ -1400,7 +1441,9 @@ private fun MainLayoutPreview() {
                     summaryTriggerMessageCount = 20,
                     summaryWordsLimit = 500,
                     summaryMaxMessagesPerRequest = 0,
-                    summaryResponseTokens = 800
+                    summaryResponseTokens = 800,
+                    summaryInjectionTemplate = AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE,
+                    summaryInjectionPosition = SummaryInjectionPosition.AfterCharacter
                 )
             ),
             emit = {}

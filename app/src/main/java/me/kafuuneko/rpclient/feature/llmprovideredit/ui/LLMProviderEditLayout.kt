@@ -50,6 +50,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -187,6 +188,7 @@ private fun ParameterPanel(
                 label = stringResource(R.string.temperature),
                 value = form.temperature,
                 modifier = Modifier.weight(1f),
+                enabled = form.sendTemperature,
                 keyboardType = KeyboardType.Decimal,
                 onChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
             )
@@ -194,10 +196,23 @@ private fun ParameterPanel(
                 label = stringResource(R.string.top_p),
                 value = form.topP,
                 modifier = Modifier.weight(1f),
+                enabled = form.sendTopP,
                 keyboardType = KeyboardType.Decimal,
                 onChange = { LLMProviderEditUiIntent.ChangeTopP(it).emit() }
             )
         }
+        ParameterSwitchRow(
+            title = stringResource(R.string.provider_send_temperature),
+            checked = form.sendTemperature,
+            onCheckedChange = {
+                LLMProviderEditUiIntent.ToggleSendTemperature(it).emit()
+            }
+        )
+        ParameterSwitchRow(
+            title = stringResource(R.string.provider_send_top_p),
+            checked = form.sendTopP,
+            onCheckedChange = { LLMProviderEditUiIntent.ToggleSendTopP(it).emit() }
+        )
         FormTextField(
             label = stringResource(R.string.max_tokens),
             value = form.maxTokens,
@@ -212,6 +227,34 @@ private fun ParameterPanel(
             keyboardType = KeyboardType.Number,
             onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
         )
+        Text(
+            text = stringResource(R.string.prompt_post_processing_provider_title),
+            style = MaterialTheme.typography.titleSmall
+        )
+        EnumChipRow(
+            values = PromptPostProcessingMode.entries,
+            selected = form.promptPostProcessingMode,
+            label = { it.name },
+            onSelect = {
+                LLMProviderEditUiIntent.SelectPostProcessingMode(it).emit()
+            }
+        )
+    }
+}
+
+@Composable
+private fun ParameterSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -334,12 +377,14 @@ private fun FormTextField(
     modifier: Modifier = Modifier,
     minLines: Int = 1,
     keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
         modifier = modifier,
         value = value,
+        enabled = enabled,
         onValueChange = onChange,
         label = { Text(label) },
         minLines = minLines,

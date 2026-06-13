@@ -353,6 +353,11 @@ class ChatRepository(
         mChatSessionDao.updateSessionWorldInfoState(id, worldInfoStateJson)
     }
 
+    /** 暂停或恢复当前单聊的自动总结。 */
+    suspend fun updateAutoSummaryPaused(id: Long, paused: Boolean) {
+        mChatSessionDao.updateAutoSummaryPaused(id, paused)
+    }
+
     /**
      * 删除会话。
      *
@@ -699,6 +704,22 @@ class ChatRepository(
                     )
                 )
             }
+        }
+    }
+
+    /**
+     * 删除最新总结快照，使上一份快照重新成为当前记忆。
+     *
+     * @return 存在上一份快照并成功恢复时为 true。
+     */
+    suspend fun restorePreviousSummary(sessionId: Long): Boolean {
+        return mAppDatabase.withTransaction {
+            val latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+                ?: return@withTransaction false
+            val previous = mChatMessageDao.getPreviousSummaryBeforeId(sessionId, latest.id)
+                ?: return@withTransaction false
+            mChatMessageDao.delete(latest)
+            previous.id > 0L
         }
     }
 

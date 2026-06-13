@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,16 +73,17 @@ class AnthropicMessagesLLMClient(
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        val options = request.options.resolveFor(mProvider)
         val payload = JSONObject()
             .put("model", model)
-            .put("max_tokens", request.options.maxTokens ?: mProvider.maxTokens)
-            .put("top_p", request.options.topP ?: mProvider.topP)
-            .put("temperature", request.options.temperature ?: mProvider.temperature)
+            .put("max_tokens", options.maxTokens)
             .put("messages", request.messages.toAnthropicMessages())
             .put("stream", stream)
+        options.temperature?.let { payload.put("temperature", it) }
+        options.topP?.let { payload.put("top_p", it) }
         val systemPrompt = request.messages.leadingSystemPrompt()
         if (systemPrompt.isNotBlank()) payload.put("system", systemPrompt)
-        if (request.options.stop.isNotEmpty()) payload.put("stop_sequences", request.options.stop.toJsonArray())
+        if (options.stop.isNotEmpty()) payload.put("stop_sequences", options.stop.toJsonArray())
 
         return LLMHttpRequest(
             request = Request.Builder()

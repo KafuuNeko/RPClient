@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -84,14 +85,15 @@ class OpenAICompatibleLLMClient(
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        val options = request.options.resolveFor(mProvider)
         val payload = JSONObject()
             .put("model", model)
             .put("messages", request.messages.toOpenAIMessages())
-            .put("top_p", request.options.topP ?: mProvider.topP)
-            .put("temperature", request.options.temperature ?: mProvider.temperature)
-            .put("max_tokens", request.options.maxTokens ?: mProvider.maxTokens)
+            .put("max_tokens", options.maxTokens)
             .put("stream", stream)
-        if (request.options.stop.isNotEmpty()) payload.put("stop", request.options.stop.toJsonArray())
+        options.temperature?.let { payload.put("temperature", it) }
+        options.topP?.let { payload.put("top_p", it) }
+        if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
 
         return LLMHttpRequest(
             request = Request.Builder()

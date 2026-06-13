@@ -349,6 +349,18 @@ class GroupChatRepository(
         }
     }
 
+    /** 删除最新群聊摘要快照，使上一份摘要重新生效。 */
+    suspend fun restorePreviousSummary(sessionId: Long): Boolean {
+        return mAppDatabase.withTransaction {
+            val latest = mSummaryDao.getLatest(sessionId)
+                ?: return@withTransaction false
+            val previous = mSummaryDao.getPreviousById(sessionId, latest.id)
+                ?: return@withTransaction false
+            mSummaryDao.delete(latest)
+            previous.id > 0L
+        }
+    }
+
     suspend fun deleteSession(id: Long) {
         mSessionDao.deleteById(id)
     }

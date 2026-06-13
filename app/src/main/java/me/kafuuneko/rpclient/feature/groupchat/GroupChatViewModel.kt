@@ -35,6 +35,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
@@ -288,6 +289,19 @@ class GroupChatViewModel :
         )
     }
 
+    @UiIntentObserver(GroupChatUiIntent.RestorePreviousSummary::class)
+    private suspend fun onRestorePreviousSummary() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (mGenerationJob?.isActive == true) return
+        val restored = withContext(Dispatchers.IO) {
+            mGroupChatRepository.restorePreviousSummary(uiState.sessionId)
+        }
+        AppViewEvent.PopupToastMessageByResId(
+            if (restored) R.string.summary_restored else R.string.no_previous_summary
+        ).tryEmit()
+        refreshState(page = GroupChatPage.Settings)
+    }
+
     @UiIntentObserver(GroupChatUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: GroupChatUiIntent.ChangeTitle) {
         updateSettingsState { copy(titleDraft = intent.value) }
@@ -306,6 +320,13 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ChangeSummary::class)
     private fun onChangeSummary(intent: GroupChatUiIntent.ChangeSummary) {
         updateSettingsState { copy(summaryDraft = intent.value) }
+    }
+
+    @UiIntentObserver(GroupChatUiIntent.ToggleAutoSummaryPaused::class)
+    private fun onToggleAutoSummaryPaused(
+        intent: GroupChatUiIntent.ToggleAutoSummaryPaused
+    ) {
+        updateSettingsState { copy(autoSummaryPaused = intent.paused) }
     }
 
     @UiIntentObserver(GroupChatUiIntent.ChangeSystemPrompt::class)
@@ -385,6 +406,7 @@ class GroupChatViewModel :
                     includeMutedCards = uiState.includeMutedCards,
                     autoModeEnabled = uiState.autoModeEnabled,
                     trimOtherSpeakers = uiState.trimOtherSpeakers,
+                    autoSummaryPaused = uiState.autoSummaryPaused,
                     systemPromptOverride = uiState.systemPromptDraft.trim(),
                     groupNudgePromptOverride = uiState.groupNudgePromptDraft.trim(),
                     newGroupChatPromptOverride = uiState.newGroupChatPromptDraft.trim()
@@ -895,6 +917,10 @@ class GroupChatViewModel :
     /** 达到全局触发阈值后自动更新群聊摘要。 */
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
+        val session = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getSessionById(sessionId)
+        } ?: return
+        if (session.autoSummaryPaused) return
         val messages = withContext(Dispatchers.IO) {
             mGroupChatRepository.getMessagesAfterLatestSummary(sessionId)
         }
@@ -914,26 +940,26 @@ class GroupChatViewModel :
             val unsummarized = data.messages.filter {
                 it.id > (data.summary?.coveredMessageId ?: 0L)
             }
-            val selected = mSummaryPromptBuilder.selectMessagesToSummarize(
-                unsummarized,
-                provider
-            )
-            if (selected.isEmpty()) return
-            val request = mSummaryPromptBuilder.build(
+            val built = mSummaryPromptBuilder.buildWithSelection(
                 session = data.session,
                 memberNames = data.members.map { it.character.name },
                 existingSummary = data.summary?.content.orEmpty(),
-                messages = selected,
+                messages = unsummarized,
                 provider = provider
             )
+            if (built.selectedMessages.isEmpty()) return
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(request)
+                mLLMRepository.generateWithSelectedProvider(built.request)
+            }
+            val summaryContent = response.content.summarySafeContent()
+            if (summaryContent.isBlank()) {
+                error(mContext.getString(R.string.summary_failed))
             }
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.saveSummary(
                     sessionId = sessionId,
-                    content = response.content,
-                    coveredMessageId = selected.last().id
+                    content = summaryContent,
+                    coveredMessageId = built.selectedMessages.last().id
                 )
             }
             if (showToast) {
@@ -1099,6 +1125,7 @@ class GroupChatViewModel :
             scenarioDraft = data.session.scenario,
             userNoteDraft = data.session.userNote,
             summaryDraft = data.summary?.content.orEmpty(),
+            autoSummaryPaused = data.session.autoSummaryPaused,
             systemPromptDraft = data.session.systemPromptOverride,
             groupNudgePromptDraft = data.session.groupNudgePromptOverride,
             newGroupChatPromptDraft = data.session.newGroupChatPromptOverride,

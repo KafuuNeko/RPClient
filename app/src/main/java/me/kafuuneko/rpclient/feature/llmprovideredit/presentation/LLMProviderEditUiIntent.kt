@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
 /** LLM Provider 编辑页的字段变更、连接测试和保存意图。 */
 sealed class LLMProviderEditUiIntent {
@@ -30,6 +31,14 @@ sealed class LLMProviderEditUiIntent {
     data class ChangeMaxTokens(val value: String) : LLMProviderEditUiIntent()
 
     data class ChangeContextTokens(val value: String) : LLMProviderEditUiIntent()
+
+    data class ToggleSendTemperature(val value: Boolean) : LLMProviderEditUiIntent()
+
+    data class ToggleSendTopP(val value: Boolean) : LLMProviderEditUiIntent()
+
+    data class SelectPostProcessingMode(
+        val value: PromptPostProcessingMode
+    ) : LLMProviderEditUiIntent()
 
     data class ToggleEnabled(val value: Boolean) : LLMProviderEditUiIntent()
 

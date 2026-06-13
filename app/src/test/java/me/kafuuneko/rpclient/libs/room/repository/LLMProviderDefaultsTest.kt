@@ -12,6 +12,7 @@ class LLMProviderDefaultsTest {
         assertEquals(DEFAULT_GEMINI_MODEL, providers.getValue("Gemini").model)
         assertEquals(DEFAULT_CLAUDE_MODEL, providers.getValue("Claude").model)
         assertEquals(DEFAULT_OPENROUTER_MODEL, providers.getValue("OpenRouter").model)
+        assertFalse(providers.getValue("Claude").sendTopP)
         assertFalse(providers.values.any { it.isEnabled })
         assertEquals(setOf(123L), providers.values.map { it.createTime }.toSet())
         assertEquals(setOf(123L), providers.values.map { it.updateTime }.toSet())

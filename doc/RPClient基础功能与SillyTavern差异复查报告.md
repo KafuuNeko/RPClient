@@ -519,13 +519,22 @@ Prompt 构建完成后、真正请求模型前就保存 timed effects：
 6. 单聊、群聊、编辑消息、重新生成和 Prompt Inspector 已使用同一 Regex 执行入口，并显示命中的脚本、阶段及文本是否持久化。
 7. 已增加格式往返、脚本顺序、flags、捕获组、宏、深度、placement、临时模式、Prompt 管线和异常正则隔离测试，确保单条无效脚本不会阻断生成。
 
-### 第五阶段：完善总结和 Provider
+### 第五阶段：完善总结和 Provider（已完成）
 
-1. 总结预算计入模板、已有总结和格式开销。
-2. 总结路径统一过滤 reasoning。
-3. 增加恢复、暂停、模板和位置设置。
-4. Provider 参数按能力发送，并保存为 per-provider 配置。
-5. 单人异常中断保留 partial response。
+1. 单聊与群聊总结均改为使用当前 Provider tokenizer 对完整请求逐前缀计数，预算已包含总结模板、已有总结、宏展开、角色标签、消息 role 与格式开销；第一条消息超预算时不再强行提交，写回边界与实际入选消息保持一致。
+2. 总结输入、已有总结和模型返回正文统一过滤 `<think>` reasoning；总结请求默认不将独立 reasoning 字段合并进正文，过滤后为空则拒绝写入摘要快照。
+3. 单聊与群聊均增加 Restore Previous 和会话级自动总结暂停；常规聊天 Prompt 支持总结包装模板，以及角色设定前、角色设定后、历史前、历史后四种注入位置。
+4. Provider 增加 temperature/top_p 显式发送开关、协议范围校验与保守能力默认值；请求适配器仅序列化启用参数，Prompt Post-Processing 模式改为按 Provider 持久化和执行。
+5. 单聊流式生成异常时，对已收到的非空 partial response 执行与成功路径一致的 Regex 后处理并落盘；仅空白的新建占位消息会删除，失败请求不提交世界书运行时状态。
+
+**2026-06-13 第五阶段代码审计**
+
+- MVI 复核：新增设置均由 UiIntent 进入 ViewModel，UiState 负责渲染，Compose UI 未直接执行数据库、网络或总结领域逻辑。
+- 数据一致性复核：恢复操作在 Room 事务内删除最新快照且要求上一快照存在；暂停标记为单聊/群聊会话字段，自动总结触发前读取会话状态。
+- Provider 复核：OpenAI-compatible、Anthropic Messages、Gemini 三个适配器共用参数解析入口；Anthropic 默认不发送 top_p，Provider 独立后处理配置覆盖生成与流式请求。
+- 异常流复核：用户主动取消仍沿用停止生成路径，网络或协议异常才进入 partial response 保留分支，避免重复保存或误提交成功态。
+- 数据库仍保持 Room `version = 1`；应用尚未发布，本阶段按破坏性 schema 更新处理，不增加旧版迁移。
+- JVM 单元测试通过；Android instrumentation 测试源码编译通过。Lint 基线仍存在既有问题，本阶段改动文件未出现在本次 Lint 报错列表中。
 
 ### 第六阶段：提高与 SillyTavern 的高级兼容
 

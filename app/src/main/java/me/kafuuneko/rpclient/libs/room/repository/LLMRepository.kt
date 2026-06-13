@@ -148,7 +148,9 @@ class LLMRepository(
     suspend fun generate(providerId: Long, request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).generate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).generate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
@@ -156,14 +158,18 @@ class LLMRepository(
      */
     suspend fun generateWithSelectedProvider(request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
-        return mLLMClientFactory.create(provider.toConfig()).generate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).generate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
      * 使用临时供应商配置进行一次性生成，适合编辑页保存前测试。
      */
     suspend fun generateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): LLMGenerationResponse {
-        return mLLMClientFactory.create(provider.toConfig()).generate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).generate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
@@ -172,7 +178,9 @@ class LLMRepository(
     suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
@@ -180,23 +188,31 @@ class LLMRepository(
      */
     suspend fun streamGenerateWithSelectedProvider(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
      * 使用临时供应商配置进行流式生成，适合编辑页保存前测试。
      */
     fun streamGenerateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(request.postProcessPrompt())
+        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
+            request.postProcessPrompt(provider)
+        )
     }
 
     /**
      * 在所有协议适配器之前统一执行 Prompt Post-Processing。
      */
-    private fun LLMGenerationRequest.postProcessPrompt(): LLMGenerationRequest {
+    private fun LLMGenerationRequest.postProcessPrompt(
+        provider: LLMProvider
+    ): LLMGenerationRequest {
         if (isPromptFinalized) return this
         return withPostProcessedMessages(
-            mode = PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode),
+            mode = PromptPostProcessingMode.fromOrdinal(
+                provider.promptPostProcessingMode
+            ),
             strictPromptPlaceholder = AppModel.newChatPrompt.ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT }
         )
     }
@@ -246,6 +262,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.AnthropicMessages,
             baseUrl = "https://api.anthropic.com",
             model = DEFAULT_CLAUDE_MODEL,
+            sendTopP = false,
             createTime = now,
             updateTime = now,
             isEnabled = false

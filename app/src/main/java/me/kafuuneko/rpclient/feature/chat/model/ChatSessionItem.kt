@@ -9,6 +9,7 @@ data class ChatSessionItem(
     val userName: String,
     val userDescription: String,
     val creatorNotes: String,
+    val autoSummaryPaused: Boolean,
     val messageCount: Int,
     val enabledLorebookEntryIds: Set<Long>
 )

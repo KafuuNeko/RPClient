@@ -159,5 +159,13 @@ class ChatRepositorySummaryTest {
         val contextAfterManualSummary = repository.getSummaryContext(sessionId)
         assertEquals("manual-summary", contextAfterManualSummary.summary?.content)
         assertTrue(contextAfterManualSummary.messagesAfterSummary.isEmpty())
+
+        assertTrue(repository.restorePreviousSummary(sessionId))
+        val contextAfterRestore = repository.getSummaryContext(sessionId)
+        assertEquals("", contextAfterRestore.summary?.content)
+        assertEquals(10, contextAfterRestore.messagesAfterSummary.size)
+
+        repository.updateAutoSummaryPaused(sessionId, true)
+        assertEquals(true, repository.getSessionById(sessionId)?.autoSummaryPaused)
     }
 }

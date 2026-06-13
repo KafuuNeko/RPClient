@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
@@ -86,6 +87,8 @@ class ChatPromptBuilder(
         val fixedMessages = buildFixedMessages(context, worldInfo)
         val inChatPieces = buildInChatPieces(context, worldInfo)
         val examplePieces = buildExamplePieces(context, worldInfo)
+        val summaryPiece = buildSummaryPiece(context)
+        val summaryPosition = readSummaryInjectionPosition()
         val historyMessages = context.messages.sanitizeThinkBlocks().mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
@@ -125,6 +128,9 @@ class ChatPromptBuilder(
                 add(it.resolve(context, historyText, outlets))
             }
             buildNewChatPiece(context, historyText, outlets)?.let(::add)
+            if (summaryPosition == SummaryInjectionPosition.BeforeHistory) {
+                summaryPiece?.resolve(context, historyText, outlets)?.let(::add)
+            }
             addAll(
                 buildChatMessages(
                     historyMessages,
@@ -134,6 +140,9 @@ class ChatPromptBuilder(
                     outlets
                 )
             )
+            if (summaryPosition == SummaryInjectionPosition.AfterHistory) {
+                summaryPiece?.resolve(context, historyText, outlets)?.let(::add)
+            }
             fixedMessages.afterHistory.forEach {
                 add(it.resolve(context, historyText, outlets))
             }
@@ -161,7 +170,7 @@ class ChatPromptBuilder(
             includeReasoningInContent = true,
             maxContextTokens = context.maxContextTokens,
             maxResponseTokens = context.maxResponseTokens,
-            postProcessingMode = readPostProcessingMode(),
+            postProcessingMode = readPostProcessingMode(context.provider),
             strictPromptPlaceholder = readNewChatPrompt()
                 .ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
@@ -214,6 +223,9 @@ class ChatPromptBuilder(
                 canDrop = true
             )
         }
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.BeforeCharacter) {
+            buildSummaryPiece(context)?.let { beforeHistory += it }
+        }
         beforeHistory += PromptPiece.required(
             LLMMessageRole.System,
             context.userDescription,
@@ -234,11 +246,9 @@ class ChatPromptBuilder(
             formatScenario(context.character.scenario),
             PromptSourceKind.Scenario
         )
-        beforeHistory += PromptPiece.required(
-            LLMMessageRole.System,
-            context.summary,
-            PromptSourceKind.Summary
-        )
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.AfterCharacter) {
+            buildSummaryPiece(context)?.let { beforeHistory += it }
+        }
         beforeHistory += PromptPiece(
             LLMMessageRole.System,
             readAuxiliaryPrompt(),
@@ -584,10 +594,33 @@ class ChatPromptBuilder(
         return runCatching { AppModel.continueNudgePrompt }.getOrDefault(AppModel.DEFAULT_CONTINUE_NUDGE_PROMPT)
     }
 
-    private fun readPostProcessingMode(): PromptPostProcessingMode {
-        return runCatching {
-            PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
-        }.getOrDefault(PromptPostProcessingMode.None)
+    private fun readPostProcessingMode(provider: LLMProvider?): PromptPostProcessingMode {
+        val ordinal = provider?.promptPostProcessingMode
+            ?: PromptPostProcessingMode.None.ordinal
+        return PromptPostProcessingMode.fromOrdinal(ordinal)
+    }
+
+    private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
+        return SummaryInjectionPosition.fromOrdinal(
+            runCatching { AppModel.summaryInjectionPosition }
+                .getOrDefault(SummaryInjectionPosition.AfterCharacter.ordinal)
+        )
+    }
+
+    private fun buildSummaryPiece(context: PromptBuildContext): PromptPiece? {
+        if (context.summary.isBlank()) return null
+        val template = runCatching { AppModel.summaryInjectionTemplate }
+            .getOrDefault(AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+        val content = if (template.contains("{{summary}}", ignoreCase = true)) {
+            template.replace("{{summary}}", context.summary, ignoreCase = true)
+        } else {
+            listOf(template, context.summary).filter { it.isNotBlank() }.joinToString("\n")
+        }
+        return PromptPiece.required(
+            role = LLMMessageRole.System,
+            content = content,
+            sourceKind = PromptSourceKind.Summary
+        )
     }
 
     private fun formatWorldInfo(content: String): String {

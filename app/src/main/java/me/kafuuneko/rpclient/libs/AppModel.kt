@@ -37,6 +37,12 @@ Chat history to summarize:
 {{history}}
 """
 
+    // 默认总结记忆包装模板，避免模型把剧情记忆与角色设定混为一谈。
+    const val DEFAULT_SUMMARY_INJECTION_TEMPLATE = """
+Story memory:
+{{summary}}
+"""
+
     // 默认历史后指令，追加在聊天历史之后。
     const val DEFAULT_POST_HISTORY_INSTRUCTIONS = ""
 
@@ -169,11 +175,14 @@ Chat history to summarize:
     // 摘要请求的最大输出 token 数。
     var summaryResponseTokens by intPref(default = 800)
 
+    // 总结记忆注入常规聊天 Prompt 时使用的包装模板。
+    var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+
+    // 总结记忆在常规聊天 Prompt 中的注入位置，对应 SummaryInjectionPosition ordinal。
+    var summaryInjectionPosition by intPref(default = 1)
+
     // 世界书占 prompt 预算的百分比。
     var worldInfoBudgetPercent by intPref(default = 25)
-
-    // 所有协议适配器发送前的通用 Prompt Post-Processing 模式。
-    var promptPostProcessingMode by intPref(default = 0)
 
     // 是否把已保存消息中的 <think>...</think> 思考块继续纳入后续上下文。
     var includeThinkInContext by booleanPref(default = false)

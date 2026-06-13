@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -72,7 +73,14 @@ class LLMProviderEditViewModel :
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeProtocol::class)
     private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) =
-        updateForm { copy(protocol = intent.value) }
+        updateForm {
+            val capabilities = LLMProviderCapabilities.forProtocol(intent.value)
+            copy(
+                protocol = intent.value,
+                sendTemperature = capabilities.defaultSendTemperature,
+                sendTopP = capabilities.defaultSendTopP
+            )
+        }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeBaseUrl::class)
     private fun onChangeBaseUrl(intent: LLMProviderEditUiIntent.ChangeBaseUrl) =
@@ -105,6 +113,19 @@ class LLMProviderEditViewModel :
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeContextTokens::class)
     private fun onChangeContextTokens(intent: LLMProviderEditUiIntent.ChangeContextTokens) =
         updateForm { copy(contextTokens = intent.value) }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ToggleSendTemperature::class)
+    private fun onToggleSendTemperature(intent: LLMProviderEditUiIntent.ToggleSendTemperature) =
+        updateForm { copy(sendTemperature = intent.value) }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.ToggleSendTopP::class)
+    private fun onToggleSendTopP(intent: LLMProviderEditUiIntent.ToggleSendTopP) =
+        updateForm { copy(sendTopP = intent.value) }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectPostProcessingMode::class)
+    private fun onSelectPostProcessingMode(
+        intent: LLMProviderEditUiIntent.SelectPostProcessingMode
+    ) = updateForm { copy(promptPostProcessingMode = intent.value) }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleEnabled::class)
     private fun onToggleEnabled(intent: LLMProviderEditUiIntent.ToggleEnabled) =

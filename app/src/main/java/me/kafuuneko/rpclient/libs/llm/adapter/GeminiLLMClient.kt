@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -73,20 +74,17 @@ class GeminiLLMClient(
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        val options = request.options.resolveFor(mProvider)
+        val generationConfig = JSONObject()
+            .put("maxOutputTokens", options.maxTokens)
+        options.temperature?.let { generationConfig.put("temperature", it) }
+        options.topP?.let { generationConfig.put("topP", it) }
+        if (options.stop.isNotEmpty()) {
+            generationConfig.put("stopSequences", options.stop.toJsonArray())
+        }
         val payload = JSONObject()
             .put("contents", request.messages.toGeminiContents())
-            .put(
-                "generationConfig",
-                JSONObject()
-                    .put("topP", request.options.topP ?: mProvider.topP)
-                    .put("temperature", request.options.temperature ?: mProvider.temperature)
-                    .put("maxOutputTokens", request.options.maxTokens ?: mProvider.maxTokens)
-                    .also { config ->
-                        if (request.options.stop.isNotEmpty()) {
-                            config.put("stopSequences", request.options.stop.toJsonArray())
-                        }
-                    }
-            )
+            .put("generationConfig", generationConfig)
         val systemInstruction = request.messages.leadingSystemPrompt()
         if (!systemInstruction.isNullOrBlank()) {
             payload.put(

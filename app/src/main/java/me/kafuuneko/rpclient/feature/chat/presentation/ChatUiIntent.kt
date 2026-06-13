@@ -42,6 +42,10 @@ sealed class ChatUiIntent {
 
     data object SummarizeNow : ChatUiIntent()
 
+    data object RestorePreviousSummary : ChatUiIntent()
+
+    data class ToggleAutoSummaryPaused(val paused: Boolean) : ChatUiIntent()
+
     data object CancelSummary : ChatUiIntent()
 
     data object DeleteSessionClick : ChatUiIntent()

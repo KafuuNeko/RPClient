@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
@@ -174,7 +175,7 @@ class GroupChatPromptBuilder(
             includeReasoningInContent = true,
             maxContextTokens = context.provider.contextTokens,
             maxResponseTokens = context.provider.maxTokens,
-            postProcessingMode = readPostProcessingMode(),
+            postProcessingMode = readPostProcessingMode(context.provider),
             strictPromptPlaceholder = readNewGroupChatPrompt()
                 .ifBlank { AppModel.DEFAULT_NEW_GROUP_CHAT_PROMPT },
             preOmittedItems = worldSelection.omittedItems
@@ -253,6 +254,9 @@ class GroupChatPromptBuilder(
                 PRIORITY_WORLD_INFO
             )
         }
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.BeforeCharacter) {
+            summaryDraft(context)?.let { before += it }
+        }
         before += requiredSystem(buildGroupIdentity(context, memberNames), PromptSourceKind.GroupIdentity)
         before += buildCharacterCards(context)
         worldInfo.afterCharacter.forEach {
@@ -268,8 +272,8 @@ class GroupChatPromptBuilder(
         context.session.scenario.takeIf { it.isNotBlank() }?.let {
             before += requiredSystem("Group scenario:\n$it", PromptSourceKind.Scenario)
         }
-        context.summary.takeIf { it.isNotBlank() }?.let {
-            before += requiredSystem("Story memory:\n$it", PromptSourceKind.Summary)
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.AfterCharacter) {
+            summaryDraft(context)?.let { before += it }
         }
         readAuxiliaryPrompt().takeIf { it.isNotBlank() }?.let {
             before += optionalSystem(
@@ -302,7 +306,13 @@ class GroupChatPromptBuilder(
                 PRIORITY_NEW_CHAT
             )
         }
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.BeforeHistory) {
+            summaryDraft(context)?.let { before += it }
+        }
 
+        if (readSummaryInjectionPosition() == SummaryInjectionPosition.AfterHistory) {
+            summaryDraft(context)?.let { after += it }
+        }
         context.speaker.postHistoryInstructions.takeIf { it.isNotBlank() }?.let {
             after += requiredSystem(
                 it.resolve(context, memberNames),
@@ -626,10 +636,27 @@ class GroupChatPromptBuilder(
     private fun readIncludeThinkInContext(): Boolean =
         runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
 
-    private fun readPostProcessingMode(): PromptPostProcessingMode {
-        return runCatching {
-            PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
-        }.getOrDefault(PromptPostProcessingMode.None)
+    private fun readPostProcessingMode(provider: LLMProvider): PromptPostProcessingMode {
+        return PromptPostProcessingMode.fromOrdinal(provider.promptPostProcessingMode)
+    }
+
+    private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
+        return SummaryInjectionPosition.fromOrdinal(
+            runCatching { AppModel.summaryInjectionPosition }
+                .getOrDefault(SummaryInjectionPosition.AfterCharacter.ordinal)
+        )
+    }
+
+    private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
+        if (context.summary.isBlank()) return null
+        val template = runCatching { AppModel.summaryInjectionTemplate }
+            .getOrDefault(AppModel.DEFAULT_SUMMARY_INJECTION_TEMPLATE)
+        val content = if (template.contains("{{summary}}", ignoreCase = true)) {
+            template.replace("{{summary}}", context.summary, ignoreCase = true)
+        } else {
+            listOf(template, context.summary).filter { it.isNotBlank() }.joinToString("\n")
+        }
+        return requiredSystem(content, PromptSourceKind.Summary)
     }
 
     private fun requiredSystem(

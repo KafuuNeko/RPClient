@@ -37,7 +37,9 @@ data class LLMProviderConfig(
     val temperature: Float = 0.8f,
     val topP: Float = 1.0f,
     val maxTokens: Int = 1200,
-    val contextTokens: Int = 8192
+    val contextTokens: Int = 8192,
+    val sendTemperature: Boolean = true,
+    val sendTopP: Boolean = true
 )
 
 /**
@@ -66,6 +68,30 @@ data class LLMGenerationOptions(
     val topP: Float? = null,
     val stop: List<String> = emptyList()
 )
+
+/** 已按 Provider 能力开关收敛的实际请求参数。 */
+data class ResolvedLLMGenerationOptions(
+    val temperature: Float?,
+    val maxTokens: Int,
+    val topP: Float?,
+    val stop: List<String>
+)
+
+/** 将业务请求参数与 Provider 默认值合并，并过滤未启用的可选参数。 */
+fun LLMGenerationOptions.resolveFor(
+    provider: LLMProviderConfig
+): ResolvedLLMGenerationOptions {
+    return ResolvedLLMGenerationOptions(
+        temperature = if (provider.sendTemperature) {
+            temperature ?: provider.temperature
+        } else {
+            null
+        },
+        maxTokens = maxTokens ?: provider.maxTokens,
+        topP = if (provider.sendTopP) topP ?: provider.topP else null,
+        stop = stop
+    )
+}
 
 /**
  * 通用生成请求，非流式与流式接口共用同一个请求模型。

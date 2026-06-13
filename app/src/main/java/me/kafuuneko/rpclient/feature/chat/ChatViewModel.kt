@@ -38,6 +38,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
@@ -386,6 +387,30 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         launchSummaryJob(sessionId, showToast = true)
+    }
+
+    @UiIntentObserver(ChatUiIntent.RestorePreviousSummary::class)
+    private suspend fun onRestorePreviousSummary() {
+        val sessionId = mSessionId ?: return
+        if (mGenerationJob?.isActive == true || mSummaryJob?.isActive == true) return
+        val restored = withContext(Dispatchers.IO) {
+            mChatRepository.restorePreviousSummary(sessionId)
+        }
+        AppViewEvent.PopupToastMessageByResId(
+            if (restored) R.string.summary_restored else R.string.no_previous_summary
+        ).tryEmit()
+        if (restored) refreshUiState(sessionId = sessionId)
+    }
+
+    @UiIntentObserver(ChatUiIntent.ToggleAutoSummaryPaused::class)
+    private suspend fun onToggleAutoSummaryPaused(
+        intent: ChatUiIntent.ToggleAutoSummaryPaused
+    ) {
+        val sessionId = mSessionId ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateAutoSummaryPaused(sessionId, intent.paused)
+        }
+        refreshUiState(sessionId = sessionId, page = ChatPage.Settings)
     }
 
     @UiIntentObserver(ChatUiIntent.CancelSummary::class)
@@ -897,9 +922,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             val messageId = mStreamingMessageId
-            if (messageId != null && mStreamingCreatedMessage) {
-                withContext(Dispatchers.IO) {
+            val partialContent = withContext(Dispatchers.IO) {
+                mStreamingContent.takeIf { it.isNotBlank() }
+                    ?.let { applyGeneratedRegex(sessionId, it, output) }
+                    .orEmpty()
+            }
+            withContext(Dispatchers.IO) {
+                if (messageId != null && partialContent.isNotBlank()) {
+                    mChatRepository.updateMessageContent(messageId, partialContent)
+                    mChatRepository.updateSessionLatestTime(sessionId)
+                } else if (messageId != null && mStreamingCreatedMessage) {
                     mChatRepository.deleteMessage(messageId)
                 }
             }
@@ -942,6 +976,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
+            val session = mChatRepository.getSessionById(sessionId)
+            if (session?.autoSummaryPaused != false) return@withContext false
             val messages = mChatRepository.getMessagesAfterLatestSummary(sessionId)
             messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
         }
@@ -979,22 +1015,25 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
             uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
 
-            val selectedMessages = mSummaryPromptBuilder.selectMessagesToSummarize(data.messages, data.provider)
-            if (selectedMessages.isEmpty()) return
-            val request = mSummaryPromptBuilder.build(
+            val built = mSummaryPromptBuilder.buildWithSelection(
                 userName = data.session.userName,
                 userDescription = data.session.userDescription,
                 character = data.character,
                 session = data.session,
                 existingSummary = data.summary,
-                messages = selectedMessages,
+                messages = data.messages,
                 provider = data.provider
             )
+            if (built.selectedMessages.isEmpty()) return
 
             currentCoroutineContext().ensureActive()
 
             val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithSelectedProvider(request)
+                mLLMRepository.generateWithSelectedProvider(built.request)
+            }
+            val summaryContent = response.content.summarySafeContent()
+            if (summaryContent.isBlank()) {
+                error(mContext.getString(R.string.summary_failed))
             }
 
             currentCoroutineContext().ensureActive()
@@ -1002,8 +1041,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             withContext(Dispatchers.IO) {
                 mChatRepository.saveSummary(
                     sessionId = sessionId,
-                    content = response.content,
-                    coveredMessageId = selectedMessages.last().id,
+                    content = summaryContent,
+                    coveredMessageId = built.selectedMessages.last().id,
                     summaryIdToUpdate = data.summaryIdToUpdate
                 )
             }

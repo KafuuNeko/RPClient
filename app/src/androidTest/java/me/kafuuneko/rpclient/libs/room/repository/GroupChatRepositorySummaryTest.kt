@@ -87,5 +87,11 @@ class GroupChatRepositorySummaryTest {
         assertEquals("manual-summary", dataAfterManualSummary.summary?.content)
         assertEquals(messageIds.last(), dataAfterManualSummary.summary?.coveredMessageId)
         assertTrue(repository.getMessagesAfterLatestSummary(sessionId).isEmpty())
+
+        assertTrue(repository.restorePreviousSummary(sessionId))
+        val dataAfterRestore = repository.getGroupChatData(sessionId)
+            ?: error("Group chat should exist")
+        assertEquals("", dataAfterRestore.summary?.content)
+        assertEquals(0L, dataAfterRestore.summary?.coveredMessageId)
     }
 }

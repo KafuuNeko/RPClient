@@ -278,6 +278,22 @@ private fun GroupChatSettingsView(
                         subtitle = stringResource(R.string.summarize_now_desc),
                         onClick = { emitIntent(GroupChatUiIntent.SummarizeNow) }
                     )
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.restore_previous_summary),
+                        subtitle = stringResource(R.string.restore_previous_summary_desc),
+                        onClick = {
+                            emitIntent(GroupChatUiIntent.RestorePreviousSummary)
+                        }
+                    )
+                    SettingsSwitchRow(
+                        title = stringResource(R.string.pause_auto_summary),
+                        subtitle = stringResource(R.string.pause_auto_summary_desc),
+                        checked = state.autoSummaryPaused,
+                        onCheckedChange = {
+                            emitIntent(GroupChatUiIntent.ToggleAutoSummaryPaused(it))
+                        }
+                    )
                 }
             }
             item {
@@ -533,6 +549,26 @@ private fun SettingsActionRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

@@ -33,6 +33,20 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         coveredMessageId: Long
     ): GroupChatSummary?
 
+    /** 按快照写入顺序读取上一份摘要。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_summaries
+        WHERE sessionId = :sessionId AND id < :summaryId
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPreviousById(
+        sessionId: Long,
+        summaryId: Long
+    ): GroupChatSummary?
+
     /** 原位更新摘要内容、覆盖边界和生成时间。 */
     @Query(
         """

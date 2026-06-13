@@ -34,6 +34,7 @@ sealed class GroupChatUiState {
         val scenarioDraft: String = "",
         val userNoteDraft: String = "",
         val summaryDraft: String = "",
+        val autoSummaryPaused: Boolean = false,
         val systemPromptDraft: String = "",
         val groupNudgePromptDraft: String = "",
         val newGroupChatPromptDraft: String = "",

@@ -1,7 +1,9 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /**
@@ -24,6 +26,9 @@ data class LLMProviderEditForm(
     val topP: String = "1.0",
     val maxTokens: String = "1200",
     val contextTokens: String = "8192",
+    val sendTemperature: Boolean = true,
+    val sendTopP: Boolean = true,
+    val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     val isEnabled: Boolean = true
 ) {
     companion object {
@@ -42,6 +47,11 @@ data class LLMProviderEditForm(
             topP = obj.topP.toString(),
             maxTokens = obj.maxTokens.toString(),
             contextTokens = obj.contextTokens.toString(),
+            sendTemperature = obj.sendTemperature,
+            sendTopP = obj.sendTopP,
+            promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(
+                obj.promptPostProcessingMode
+            ),
             isEnabled = obj.isEnabled
         )
     }
@@ -52,8 +62,11 @@ data class LLMProviderEditForm(
         val parsedTopP = topP.toFloatOrNull() ?: return null
         val parsedMaxTokens = maxTokens.toIntOrNull() ?: return null
         val parsedContextTokens = contextTokens.toIntOrNull() ?: return null
+        val capabilities = LLMProviderCapabilities.forProtocol(protocol)
         if (parsedMaxTokens <= 0 || parsedContextTokens <= 0) return null
         if (parsedMaxTokens >= parsedContextTokens) return null
+        if (sendTemperature && parsedTemperature !in capabilities.temperatureRange) return null
+        if (sendTopP && parsedTopP !in capabilities.topPRange) return null
         return LLMProvider(
             id = id,
             name = name.trim(),
@@ -67,6 +80,9 @@ data class LLMProviderEditForm(
             topP = parsedTopP,
             maxTokens = parsedMaxTokens,
             contextTokens = parsedContextTokens,
+            sendTemperature = sendTemperature,
+            sendTopP = sendTopP,
+            promptPostProcessingMode = promptPostProcessingMode.ordinal,
             isEnabled = isEnabled,
             createTime = createTime
         )

@@ -29,8 +29,10 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -86,14 +88,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 maxTokens = selectedProvider?.maxTokens ?: 0,
                 contextTokens = selectedProvider?.contextTokens ?: 0,
                 streamEnabled = AppModel.streamEnabled,
-                promptPostProcessingMode = readPromptPostProcessingMode(),
+                promptPostProcessingMode = selectedProvider?.postProcessingMode()
+                    ?: PromptPostProcessingMode.None,
                 includeThinkInContext = AppModel.includeThinkInContext,
                 debugModeEnabled = AppModel.debugModeEnabled,
                 autoSummaryEnabled = AppModel.autoSummaryEnabled,
                 summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
                 summaryWordsLimit = AppModel.summaryWordsLimit,
                 summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
-                summaryResponseTokens = AppModel.summaryResponseTokens
+                summaryResponseTokens = AppModel.summaryResponseTokens,
+                summaryInjectionTemplate = AppModel.summaryInjectionTemplate,
+                summaryInjectionPosition = readSummaryInjectionPosition()
             )
         ).setup()
     }
@@ -290,7 +295,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 temperature = selectedProvider?.temperature ?: uiState.settingsState.temperature,
                 topP = selectedProvider?.topP ?: uiState.settingsState.topP,
                 maxTokens = selectedProvider?.maxTokens ?: uiState.settingsState.maxTokens,
-                contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens
+                contextTokens = selectedProvider?.contextTokens ?: uiState.settingsState.contextTokens,
+                promptPostProcessingMode = selectedProvider?.postProcessingMode()
+                    ?: PromptPostProcessingMode.None
             )
         ).setup()
     }
@@ -336,6 +343,32 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionTemplate::class)
+    private fun onChangeSummaryInjectionTemplate(
+        intent: MainUiIntent.ChangeSummaryInjectionTemplate
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.summaryInjectionTemplate = intent.value
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryInjectionTemplate = intent.value
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
+    private fun onSelectSummaryInjectionPosition(
+        intent: MainUiIntent.SelectSummaryInjectionPosition
+    ) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.summaryInjectionPosition = intent.position.ordinal
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryInjectionPosition = intent.position
+            )
+        ).setup()
+    }
+
     @UiIntentObserver(MainUiIntent.ToggleStreamEnabled::class)
     private fun onToggleStreamEnabled(intent: MainUiIntent.ToggleStreamEnabled) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
@@ -346,11 +379,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     }
 
     @UiIntentObserver(MainUiIntent.SelectPostProcessingMode::class)
-    private fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
+    private suspend fun onSelectPostProcessingMode(intent: MainUiIntent.SelectPostProcessingMode) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.promptPostProcessingMode = intent.mode.ordinal
+        val providerId = uiState.settingsState.selectedProviderId.toLongOrNull() ?: return
+        val provider = uiState.settingsState.providers.firstOrNull { it.id == providerId } ?: return
+        val updatedProvider = provider.copy(promptPostProcessingMode = intent.mode.ordinal)
+        withContext(Dispatchers.IO) {
+            mLLMRepository.saveProvider(updatedProvider)
+        }
         uiState.copy(
-            settingsState = uiState.settingsState.copy(promptPostProcessingMode = intent.mode)
+            settingsState = uiState.settingsState.copy(
+                providers = uiState.settingsState.providers.map {
+                    if (it.id == providerId) updatedProvider else it
+                },
+                promptPostProcessingMode = intent.mode
+            )
         ).setup()
     }
 
@@ -405,8 +448,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     }
 
     private fun buildSettingsState(
-        providers: List<me.kafuuneko.rpclient.libs.room.entity.LLMProvider>,
-        selectedProvider: me.kafuuneko.rpclient.libs.room.entity.LLMProvider?
+        providers: List<LLMProvider>,
+        selectedProvider: LLMProvider?
     ): MainSettingsState {
         return MainSettingsState(
             userName = AppModel.userName,
@@ -419,20 +462,26 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             contextTokens = selectedProvider?.contextTokens ?: 8192,
             localFirstEnabled = true,
             streamEnabled = AppModel.streamEnabled,
-            promptPostProcessingMode = readPromptPostProcessingMode(),
+            promptPostProcessingMode = selectedProvider?.postProcessingMode()
+                ?: PromptPostProcessingMode.None,
             includeThinkInContext = AppModel.includeThinkInContext,
             debugModeEnabled = AppModel.debugModeEnabled,
             autoSummaryEnabled = AppModel.autoSummaryEnabled,
             summaryTriggerMessageCount = AppModel.summaryTriggerMessageCount,
             summaryWordsLimit = AppModel.summaryWordsLimit,
             summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
-            summaryResponseTokens = AppModel.summaryResponseTokens
+            summaryResponseTokens = AppModel.summaryResponseTokens,
+            summaryInjectionTemplate = AppModel.summaryInjectionTemplate,
+            summaryInjectionPosition = readSummaryInjectionPosition()
         )
     }
 
-    private fun readPromptPostProcessingMode(): PromptPostProcessingMode {
-        // 配置以 ordinal 保存，读取时容错回退到 None，避免枚举变更导致启动失败。
-        return PromptPostProcessingMode.fromOrdinal(AppModel.promptPostProcessingMode)
+    private fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
+        return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
+    }
+
+    private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
+        return SummaryInjectionPosition.fromOrdinal(AppModel.summaryInjectionPosition)
     }
 
     private fun updateSummaryInt(

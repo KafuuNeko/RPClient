@@ -9,19 +9,26 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
+
+/** 单聊总结请求与其实际覆盖消息使用同一次预算选择结果。 */
+data class SummaryPromptBuildResult(
+    val request: LLMGenerationRequest,
+    val selectedMessages: List<ChatMessage>
+)
 
 /** 构建不含角色扮演设定的增量聊天摘要请求。 */
 class SummaryPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
-    private val mHistoryBuilder: FormattedHistoryBuilder
+    private val mHistoryBuilder: FormattedHistoryBuilder,
+    private val mRequestFinalizer: PromptRequestFinalizer
 ) {
     /**
      * 构建独立的总结请求。
      *
-     * 总结不走正常角色扮演 prompt 栈，只提交已有摘要与待总结聊天历史，避免世界书、
-     * 角色卡或作者注释把未发生的设定污染进剧情记忆。
+     * 预算按最终单条 user 消息计算，已包含模板、已有总结、宏展开、角色标签和消息格式开销。
      */
-    fun build(
+    fun buildWithSelection(
         userName: String,
         userDescription: String,
         character: Character,
@@ -29,83 +36,149 @@ class SummaryPromptBuilder(
         existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?
-    ): LLMGenerationRequest {
-        val selectedMessages = fitSummaryMessages(messages, provider)
-        val history = mHistoryBuilder.build(selectedMessages, userName, character.name)
+    ): SummaryPromptBuildResult {
+        val maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS
+        val responseTokens = AppModel.summaryResponseTokens
+        val promptBudget = maxContextTokens - responseTokens
+        require(promptBudget > 0) {
+            "Summary response token reserve must be smaller than the context token limit."
+        }
+        val tokenizer = mRequestFinalizer.tokenizerFor(provider)
+        val limited = messages.limitSummaryCount(AppModel.summaryMaxMessagesPerRequest)
+        val safeExistingSummary = existingSummary.summarySafeContent()
+        val sanitizedById = limited.associate { message ->
+            message.id to message.copy(content = message.content.summarySafeContent())
+        }
+        val selected = selectSummaryPrefix(
+            items = limited,
+            promptBudget = promptBudget
+        ) { prefix ->
+            val sanitized = prefix.map { sanitizedById.getValue(it.id) }
+            tokenizer.countMessages(
+                listOf(
+                    LLMMessage(
+                        role = LLMMessageRole.User,
+                        content = renderPrompt(
+                            userName = userName,
+                            userDescription = userDescription,
+                            character = character,
+                            session = session,
+                            existingSummary = safeExistingSummary,
+                            messages = sanitized,
+                            provider = provider
+                        )
+                    )
+                )
+            )
+        }
+        if (limited.isNotEmpty() && selected.isEmpty()) {
+            val required = tokenizer.countMessages(
+                listOf(
+                    LLMMessage(
+                        LLMMessageRole.User,
+                        renderPrompt(
+                            userName,
+                            userDescription,
+                            character,
+                            session,
+                            safeExistingSummary,
+                            listOf(sanitizedById.getValue(limited.first().id)),
+                            provider
+                        )
+                    )
+                )
+            )
+            throw PromptBudgetExceededException(required, promptBudget)
+        }
+        val sanitizedSelected = selected.map { sanitizedById.getValue(it.id) }
+        val request = LLMGenerationRequest(
+            messages = listOf(
+                LLMMessage(
+                    LLMMessageRole.User,
+                    renderPrompt(
+                        userName,
+                        userDescription,
+                        character,
+                        session,
+                        safeExistingSummary,
+                        sanitizedSelected,
+                        provider
+                    )
+                )
+            ),
+            model = provider?.model,
+            options = LLMGenerationOptions(
+                temperature = provider?.temperature,
+                maxTokens = responseTokens,
+                topP = provider?.topP
+            ),
+            isPromptFinalized = true
+        )
+        return SummaryPromptBuildResult(request, selected)
+    }
+
+    private fun renderPrompt(
+        userName: String,
+        userDescription: String,
+        character: Character,
+        session: ChatSession,
+        existingSummary: String,
+        messages: List<ChatMessage>,
+        provider: LLMProvider?
+    ): String {
+        val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
             userName = userName,
             userDescription = userDescription,
             character = character,
             session = session,
             summary = existingSummary,
-            messages = selectedMessages,
+            messages = messages,
             currentUserMessage = null,
             candidateLorebookEntries = emptyList(),
             provider = provider,
-            maxContextTokens = provider?.contextTokens ?: 8192,
+            maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
             maxResponseTokens = AppModel.summaryResponseTokens
         )
-        val prompt = mMacroResolver.resolve(
+        return mMacroResolver.resolve(
             template = AppModel.summarizePrompt,
             context = context,
             history = history
-        ).replace("{{words}}", AppModel.summaryWordsLimit.toString(), ignoreCase = true)
-
-        return LLMGenerationRequest(
-            messages = listOf(LLMMessage(LLMMessageRole.User, prompt)),
-            model = provider?.model,
-            options = LLMGenerationOptions(
-                temperature = provider?.temperature,
-                maxTokens = AppModel.summaryResponseTokens,
-                topP = provider?.topP
-            )
+        ).replace(
+            "{{words}}",
+            AppModel.summaryWordsLimit.toString(),
+            ignoreCase = true
         )
     }
 
-    /**
-     * 按单次总结数量和上下文预算选择本次实际提交的连续消息前缀。
-     *
-     * @param messages 最新总结之后尚未覆盖的普通消息。
-     * @param provider 当前模型供应商，用于确定上下文容量。
-     * @return 本次总结会覆盖的消息；顺序与输入保持一致。
-     */
-    fun selectMessagesToSummarize(
-        messages: List<ChatMessage>,
-        provider: LLMProvider?
-    ): List<ChatMessage> {
-        return fitSummaryMessages(messages, provider)
-    }
-
-    private fun fitSummaryMessages(
-        messages: List<ChatMessage>,
-        provider: LLMProvider?
-    ): List<ChatMessage> {
-        // 增量总结按时间顺序选择尚未总结的旧消息，超出预算时保留已纳入的前段。
-        val maxMessages = AppModel.summaryMaxMessagesPerRequest
-        val tokenBudget = ((provider?.contextTokens ?: 8192) - AppModel.summaryResponseTokens)
-            .coerceAtLeast(1024)
-        return selectSummaryMessagePrefix(messages, maxMessages, tokenBudget)
+    private companion object {
+        const val DEFAULT_CONTEXT_TOKENS = 8192
     }
 }
 
+/** 按数量限制保留连续消息前缀。 */
+private fun <T> List<T>.limitSummaryCount(maxMessages: Int): List<T> {
+    return if (maxMessages > 0) take(maxMessages) else this
+}
+
 /**
- * 选择不跨越预算缺口的连续消息前缀，确保总结边界不会覆盖未提交的中间消息。
+ * 用完整前缀请求的 Token 数选择连续消息，第一条超预算时也不会被强行纳入。
  */
-internal fun selectSummaryMessagePrefix(
-    messages: List<ChatMessage>,
-    maxMessages: Int,
-    tokenBudget: Int
-): List<ChatMessage> {
-    val limitedByCount = if (maxMessages > 0) messages.take(maxMessages) else messages
-    return buildList {
-        val selected = mutableListOf<ChatMessage>()
-        var usedTokens = 0
-        for (message in limitedByCount) {
-            val nextTokens = (message.content.length / 3).coerceAtLeast(1)
-            if (selected.isNotEmpty() && usedTokens + nextTokens > tokenBudget) break
-            selected += message
-            usedTokens += nextTokens
-        }
-        addAll(selected)
+internal fun <T> selectSummaryPrefix(
+    items: List<T>,
+    promptBudget: Int,
+    countPrefixTokens: (List<T>) -> Int
+): List<T> {
+    val selected = mutableListOf<T>()
+    for (item in items) {
+        val candidate = selected + item
+        if (countPrefixTokens(candidate) > promptBudget) break
+        selected += item
     }
+    return selected
+}
+
+/** 总结路径始终排除 reasoning，不受普通聊天上下文展示设置影响。 */
+internal fun String.summarySafeContent(): String {
+    return stripThinkBlocks()
 }

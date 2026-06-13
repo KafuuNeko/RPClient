@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 应用首页状态树，组合最近会话、全局设置和批量操作对话框。 */
@@ -62,5 +63,7 @@ data class MainSettingsState(
     val summaryTriggerMessageCount: Int,
     val summaryWordsLimit: Int,
     val summaryMaxMessagesPerRequest: Int,
-    val summaryResponseTokens: Int
+    val summaryResponseTokens: Int,
+    val summaryInjectionTemplate: String,
+    val summaryInjectionPosition: SummaryInjectionPosition
 )

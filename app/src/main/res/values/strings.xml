@@ -57,6 +57,17 @@
     <string name="summary_max_messages_per_request">Max messages per request</string>
     <string name="summary_max_messages_helper">0 lets the context budget decide</string>
     <string name="summary_response_tokens">Summary response tokens</string>
+    <string name="summary_injection_template">Summary injection template</string>
+    <string name="summary_injection_template_desc">Use {{summary}} as the memory placeholder.</string>
+    <string name="summary_injection_position">Summary injection position</string>
+    <string name="summary_position_before_character">Before character definition</string>
+    <string name="summary_position_after_character">After character definition</string>
+    <string name="summary_position_before_history">Immediately before chat history</string>
+    <string name="summary_position_after_history">Immediately after chat history</string>
+    <string name="pause_auto_summary">Pause auto summary for this chat</string>
+    <string name="pause_auto_summary_desc">Manual summaries remain available.</string>
+    <string name="restore_previous_summary">Restore previous summary</string>
+    <string name="restore_previous_summary_desc">Discard the latest snapshot and restore the preceding memory.</string>
     <string name="unknown_character">Unknown character</string>
     <string name="no_messages_yet">No messages yet</string>
     <string name="debug_mode">Debug Mode</string>
@@ -230,6 +241,8 @@
     <string name="no_unsummarized_messages">No unsummarized messages</string>
     <string name="summary_updated">Summary updated</string>
     <string name="summary_failed">Summary failed</string>
+    <string name="summary_restored">Previous summary restored</string>
+    <string name="no_previous_summary">No previous summary snapshot</string>
     <string name="chat_deleted">Chat deleted</string>
     <string name="branch_session_title">%s (branch)</string>
     <string name="branch_create_failed">Failed to create branch</string>
@@ -344,6 +357,9 @@
     <string name="enabled_desc">Will appear in main page settings after enabling</string>
     <string name="protocol">Protocol</string>
     <string name="provider_type">Provider Type</string>
+    <string name="provider_send_temperature">Send temperature</string>
+    <string name="provider_send_top_p">Send top_p</string>
+    <string name="prompt_post_processing_provider_title">Provider prompt post-processing</string>
     <string name="custom_headers_json">Custom Request Headers JSON</string>
     <string name="save">Save</string>
     <string name="model_test">Model Test</string>
