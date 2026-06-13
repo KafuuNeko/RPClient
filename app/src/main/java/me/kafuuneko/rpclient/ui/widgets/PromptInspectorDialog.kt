@@ -43,6 +43,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerStrategy
 
+/** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的调试对话框。 */
 @Composable
 fun PromptInspectorDialog(
     inspection: PromptInspection,

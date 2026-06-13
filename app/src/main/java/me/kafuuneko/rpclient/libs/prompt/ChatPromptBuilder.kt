@@ -14,6 +14,12 @@ import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 
+/**
+ * 单角色聊天 Prompt 构建器。
+ *
+ * 负责宏展开、世界书激活与位置插入、Regex Prompt 处理和消息草稿组装，
+ * 最终预算及协议消息约束由 [PromptRequestFinalizer] 统一完成。
+ */
 class ChatPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
@@ -714,6 +720,7 @@ class ChatPromptBuilder(
     }
 }
 
+/** 单聊 Prompt 构建结果及需要回写会话的运行时元数据。 */
 data class PromptBuildResult(
     /** 实际提交给模型的请求。 */
     val request: LLMGenerationRequest,

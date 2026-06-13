@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.requestlog.presentation
 
+/** 请求日志页的用户意图。 */
 sealed class RequestLogUiIntent {
     data object Init : RequestLogUiIntent()
 

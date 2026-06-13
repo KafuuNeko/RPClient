@@ -9,6 +9,12 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.utils.toJsonString
 
+/**
+ * Tavern 角色卡 JSON 与本地实体之间的兼容映射器。
+ *
+ * 支持 V1/V2 导入，导出统一生成 V2；第三方 extensions 和世界书原始字段
+ * 会尽可能保留，避免一次导入导出破坏本项目尚未支持的配置。
+ */
 class CharacterCardMapper(
     private val gson: Gson
 ) {
@@ -34,6 +40,7 @@ class CharacterCardMapper(
         }
     }
 
+    /** 将本地角色及其可选绑定世界书导出为 Character Card V2 JSON。 */
     fun toV2Json(
         character: Character,
         lorebook: Lorebook? = null,
@@ -314,11 +321,13 @@ class CharacterCardMapper(
     }
 }
 
+/** 角色卡导入的聚合结果，嵌入世界书尚未写入数据库。 */
 data class CharacterCardImport(
     val character: Character,
     val embeddedLorebook: CharacterBookImport?
 )
 
+/** 从角色卡或独立文件解析出的、尚未持久化的世界书数据。 */
 data class CharacterBookImport(
     val lorebook: Lorebook,
     val entries: List<LorebookEntry>

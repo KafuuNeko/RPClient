@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.feature.characterlist.ui.CharacterListLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
+/** 角色列表页面宿主，桥接角色卡导入导出文件选择器。 */
 class CharacterListActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterListViewModel>()
     private var pendingExportCharacterId: Long? = null

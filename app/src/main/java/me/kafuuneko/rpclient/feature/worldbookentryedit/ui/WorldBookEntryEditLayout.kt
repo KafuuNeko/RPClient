@@ -54,6 +54,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
+/** 世界书条目完整兼容字段编辑页 Compose 入口。 */
 @Composable
 fun WorldBookEntryEditLayout(
     uiState: WorldBookEntryEditUiState,

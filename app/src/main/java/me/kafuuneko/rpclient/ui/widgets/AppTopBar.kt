@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 
+/** 项目统一顶部栏，按需显示返回按钮和右侧操作区。 */
 @Composable
 fun AppTopBar(
     modifier: Modifier = Modifier,

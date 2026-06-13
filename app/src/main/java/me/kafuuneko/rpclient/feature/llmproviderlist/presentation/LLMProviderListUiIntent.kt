@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmproviderlist.presentation
 
+/** 模型供应商列表页的用户意图。 */
 sealed class LLMProviderListUiIntent {
     data object Init : LLMProviderListUiIntent()
 

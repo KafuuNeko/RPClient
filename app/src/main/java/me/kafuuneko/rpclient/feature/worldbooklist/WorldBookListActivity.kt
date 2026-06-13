@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 世界书列表页面宿主，桥接 JSON 导入导出文件选择器。 */
 class WorldBookListActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<WorldBookListViewModel>()
     private var mPendingExportLorebookId: Long? = null
@@ -81,4 +82,3 @@ class WorldBookListActivity : CoreActivityWithEvent() {
         }
     }
 }
-

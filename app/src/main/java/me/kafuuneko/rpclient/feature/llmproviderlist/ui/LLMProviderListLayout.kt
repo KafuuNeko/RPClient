@@ -51,6 +51,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 模型供应商列表页 Compose 入口。 */
 @Composable
 fun LLMProviderListLayout(
     uiState: LLMProviderListUiState,

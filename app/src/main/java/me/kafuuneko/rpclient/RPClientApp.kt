@@ -36,6 +36,7 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import java.util.concurrent.TimeUnit
 
+/** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
 class RPClientApp : Application() {
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +48,11 @@ class RPClientApp : Application() {
     }
 }
 
+/**
+ * 应用级单例依赖。
+ *
+ * 业务对象保持无 Activity 引用；页面 ViewModel 通过 KoinComponent 按需获取这些实例。
+ */
 private val appModules = module {
     singleOf(::AppLibs)
 

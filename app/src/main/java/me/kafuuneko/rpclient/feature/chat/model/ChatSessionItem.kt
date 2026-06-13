@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
+/** 单聊页面使用的会话设置快照，不直接暴露 Room 实体。 */
 data class ChatSessionItem(
     val id: Long,
     val title: String,

@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 
+/** Prompt 内容来源，用于检查器展示、预算裁剪记录和领域对象追踪。 */
 enum class PromptSourceKind {
     MainPrompt,
     WorldInfo,
@@ -28,6 +29,12 @@ enum class PromptSourceKind {
     Other
 }
 
+/**
+ * 一段 Prompt 的领域来源。
+ *
+ * [referenceId] 用于在后处理合并消息后仍能追踪世界书等实体，
+ * [detail] 仅用于人类可读的名称或补充说明。
+ */
 data class PromptSource(
     val kind: PromptSourceKind,
     val detail: String = "",
@@ -35,22 +42,28 @@ data class PromptSource(
     val referenceId: Long? = null
 )
 
+/** Prompt 内容未进入最终请求的原因。 */
 enum class PromptOmissionReason {
     ContextBudget,
     WorldInfoBudget
 }
 
+/** 一项被预算器移除的内容及其估算成本。 */
 data class PromptOmittedItem(
     val source: PromptSource,
     val tokenCount: Int,
     val reason: PromptOmissionReason
 )
 
+/** Token 统计的可信度策略。 */
 enum class PromptTokenizerStrategy {
+    /** 根据模型选择已知编码器，统计结果更接近供应商实际值。 */
     ModelAware,
+    /** 使用 UTF-8 字节上界，宁可少装内容也不冒超出上下文的风险。 */
     Conservative
 }
 
+/** 最终请求中一条消息的检查快照。 */
 data class PromptInspectionItem(
     val index: Int,
     val role: LLMMessageRole,
@@ -59,6 +72,12 @@ data class PromptInspectionItem(
     val content: String
 )
 
+/**
+ * Prompt 构建检查报告。
+ *
+ * 同时保留最终消息、预算移除项和 Regex 执行记录，供调试界面解释
+ * “模型实际收到了什么”以及“哪些内容为什么没有发送”。
+ */
 data class PromptInspection(
     val model: String,
     val tokenizerName: String,
@@ -77,6 +96,11 @@ data class PromptInspection(
         get() = omittedItems.isNotEmpty()
 }
 
+/**
+ * 尚未执行后处理与预算裁剪的消息草稿。
+ *
+ * [retentionPriority] 与 [canDrop] 共同决定预算不足时的移除顺序。
+ */
 data class PromptMessageDraft(
     val role: LLMMessageRole,
     val content: String,

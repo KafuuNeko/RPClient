@@ -7,6 +7,12 @@ import androidx.room.PrimaryKey
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.utils.toStringList
 
+/**
+ * 世界书条目及 SillyTavern 兼容语义。
+ *
+ * 关键词、分类和生成类型过滤器以 JSON 数组保存；高级 placement、递归、分组和
+ * timed effects 字段由 WorldBookActivator 统一解释。
+ */
 @Entity(
     tableName = "lorebook_entries",
     foreignKeys = [
@@ -96,18 +102,22 @@ data class LorebookEntry(
     // 导入时的原始条目 JSON，便于排查兼容问题和后续扩展映射。
     val rawJson: String = "{}"
 ) {
+    /** 解析主要关键词列表。 */
     fun getKeywordList(): List<String> {
         return Gson().toStringList(keywords)
     }
 
+    /** 解析选择性逻辑使用的次要关键词列表。 */
     fun getSecondaryKeywordList(): List<String> {
         return Gson().toStringList(secondaryKeywords)
     }
 
+    /** 解析条目分类标签。 */
     fun getCategoryList(): List<String> {
         return Gson().toStringList(category)
     }
 
+    /** 解析允许触发该条目的生成类型过滤器。 */
     fun getTriggerList(): List<String> {
         return Gson().toStringList(triggers)
     }

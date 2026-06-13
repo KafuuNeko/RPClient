@@ -7,9 +7,12 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 
+/** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
 sealed class ChatUiState {
+    /** 尚未解析会话参数或加载数据库。 */
     data object None : ChatUiState()
 
+    /** 单聊页面稳定可渲染状态；所有 Compose 临时交互数据也集中保存在此。 */
     data class Normal(
         val page: ChatPage = ChatPage.Conversation,
         val loadState: ChatLoadState = ChatLoadState.None,
@@ -31,11 +34,13 @@ sealed class ChatUiState {
     data object Finished : ChatUiState()
 }
 
+/** 单聊页面当前展示的一级页面。 */
 enum class ChatPage {
     Conversation,
     Settings
 }
 
+/** 会话级数据库操作的加载状态，不包含模型生成状态。 */
 sealed class ChatLoadState {
     data object None : ChatLoadState()
     data object Loading : ChatLoadState()
@@ -43,6 +48,7 @@ sealed class ChatLoadState {
     data object Deleting : ChatLoadState()
 }
 
+/** 单聊页面互斥显示的业务对话框。 */
 sealed class ChatDialogState {
     data object None : ChatDialogState()
 

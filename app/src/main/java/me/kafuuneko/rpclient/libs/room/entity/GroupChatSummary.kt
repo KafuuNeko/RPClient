@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/** 群聊摘要快照；[coveredMessageId] 是该摘要已覆盖的最后一条消息边界。 */
 @Entity(
     tableName = "group_chat_summaries",
     foreignKeys = [

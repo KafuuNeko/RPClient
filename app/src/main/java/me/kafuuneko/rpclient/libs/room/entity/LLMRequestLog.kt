@@ -5,6 +5,11 @@ import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
+/**
+ * 调试模式下保存的原始 LLM 请求与响应。
+ *
+ * 记录可能包含 Prompt 或供应商返回内容，仅用于本地排障，不应在普通模式写入。
+ */
 @Entity(tableName = "llm_request_logs")
 data class LLMRequestLog(
     // Log ID

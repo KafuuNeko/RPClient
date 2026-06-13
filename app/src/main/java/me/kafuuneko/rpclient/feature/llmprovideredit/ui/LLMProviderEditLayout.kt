@@ -57,6 +57,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
+/** 模型供应商创建与编辑页 Compose 入口。 */
 @Composable
 fun LLMProviderEditLayout(
     uiState: LLMProviderEditUiState,

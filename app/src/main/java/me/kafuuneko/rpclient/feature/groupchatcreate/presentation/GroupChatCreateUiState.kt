@@ -4,9 +4,11 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharac
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
+/** 新建群聊页面状态树。 */
 sealed class GroupChatCreateUiState {
     data object None : GroupChatCreateUiState()
 
+    /** 群聊标题、候选成员、世界书和发言策略的可交互状态。 */
     data class Normal(
         val loadState: GroupChatCreateLoadState = GroupChatCreateLoadState.None,
         val title: String = "",
@@ -20,6 +22,7 @@ sealed class GroupChatCreateUiState {
         val allowSelfResponses: Boolean = false,
         val useCharacterGreetings: Boolean = true
     ) : GroupChatCreateUiState() {
+        /** 当前已选择加入群聊的角色数量。 */
         val selectedCount: Int
             get() = characters.count { it.selected }
     }
@@ -27,6 +30,7 @@ sealed class GroupChatCreateUiState {
     data object Finished : GroupChatCreateUiState()
 }
 
+/** 新建群聊页面的数据加载与创建状态。 */
 sealed class GroupChatCreateLoadState {
     data object None : GroupChatCreateLoadState()
     data object Loading : GroupChatCreateLoadState()

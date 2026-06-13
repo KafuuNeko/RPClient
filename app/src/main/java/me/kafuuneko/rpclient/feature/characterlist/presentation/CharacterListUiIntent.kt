@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.characterlist.presentation
 
 import android.net.Uri
 
+/** 角色列表页可接收的用户意图与文件选择结果。 */
 sealed class CharacterListUiIntent {
     data object Init : CharacterListUiIntent()
 

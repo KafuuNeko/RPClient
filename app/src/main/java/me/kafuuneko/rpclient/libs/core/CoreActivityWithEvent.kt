@@ -12,9 +12,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
+/**
+ * 负责消费 ViewModel 一次性事件的 Activity 基类。
+ *
+ * 收集任务与 Activity 生命周期绑定，通用 Toast、导航和结果返回事件在此集中处理。
+ */
 abstract class CoreActivityWithEvent : CoreActivity() {
+    /** 当前事件收集任务，重新注册时会先取消旧任务。 */
     private var _uiEffectCollectJob: Job? = null
 
+    /** 子类提供其 ViewModel 暴露的一次性事件流。 */
     protected abstract fun getViewEventFlow(): Flow<ViewEventWrapper>
 
     override fun onCreate(savedInstanceState: Bundle?) {

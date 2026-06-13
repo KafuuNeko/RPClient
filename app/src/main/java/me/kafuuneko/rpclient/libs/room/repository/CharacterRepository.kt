@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
+/** 角色实体读写及标签、开场白序列化的业务仓库。 */
 class CharacterRepository(
     appDatabase: AppDatabase,
     private val mGson: Gson

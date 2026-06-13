@@ -23,20 +23,33 @@ data class GroupChatData(
     val summary: GroupChatSummary?
 )
 
+/**
+ * 群聊会话聚合仓库。
+ *
+ * 负责跨会话、成员、角色、消息和摘要表的事务操作，并保证成员排序、会话活跃时间
+ * 及摘要覆盖边界保持一致。
+ */
 class GroupChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson
 ) {
+    /** 群聊会话基本信息。 */
     private val mSessionDao = mAppDatabase.getGroupChatSessionDao()
+    /** 成员关系、静音和顺序。 */
     private val mMemberDao = mAppDatabase.getGroupChatMemberDao()
+    /** 群聊历史消息。 */
     private val mMessageDao = mAppDatabase.getGroupChatMessageDao()
+    /** 将成员关系补全为角色卡数据。 */
     private val mCharacterDao = mAppDatabase.getCharacterDao()
+    /** 群聊摘要及覆盖边界。 */
     private val mSummaryDao = mAppDatabase.getGroupChatSummaryDao()
 
+    /** 按最近活跃时间读取全部群聊会话。 */
     suspend fun getAllSessions(): List<GroupChatSession> {
         return mSessionDao.getAllSessions()
     }
 
+    /** 根据主键读取群聊会话。 */
     suspend fun getSessionById(id: Long): GroupChatSession? {
         return mSessionDao.getSessionById(id)
     }
@@ -181,6 +194,7 @@ class GroupChatRepository(
         }
     }
 
+    /** 更新成员静音状态；静音成员仍保留在会话中。 */
     suspend fun updateMemberMuted(sessionId: Long, characterId: Long, muted: Boolean) {
         mMemberDao.updateMuted(sessionId, characterId, muted)
     }
@@ -230,6 +244,7 @@ class GroupChatRepository(
         }
     }
 
+    /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) {
         mSessionDao.update(session)
     }

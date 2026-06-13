@@ -50,6 +50,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 世界书列表与文件导入导出操作的 Compose 入口。 */
 @Composable
 fun WorldBookListLayout(
     uiState: WorldBookListUiState,

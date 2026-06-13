@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 世界书条目编辑页状态持有者，负责动态列表输入、字段转换与保存删除。 */
 class WorldBookEntryEditViewModel :
     CoreViewModelWithEvent<WorldBookEntryEditUiIntent, WorldBookEntryEditUiState>(
         WorldBookEntryEditUiState.None

@@ -11,9 +11,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
+/**
+ * JSON 树查看器状态持有者。
+ *
+ * 完整解析树与路径保留在 ViewModel，UiState 只发布当前层级，避免大 JSON 在重组时反复复制。
+ */
 class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>(
     JsonViewerUiState.None
 ) {
+    /** 当前载荷标题、根节点与从根到当前节点的导航路径。 */
     private var mTitle: String = ""
     private var mRoot: Any? = null
     private var mPath: List<JsonPathStep> = emptyList()

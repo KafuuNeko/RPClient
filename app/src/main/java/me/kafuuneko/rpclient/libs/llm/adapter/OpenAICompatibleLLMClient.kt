@@ -15,6 +15,12 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * OpenAI Chat Completions 兼容协议适配器。
+ *
+ * 除标准 content 外还兼容常见推理字段，并在启用推理展示时用 think 标签
+ * 合并到正文，使流式与非流式结果保持一致。
+ */
 class OpenAICompatibleLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,

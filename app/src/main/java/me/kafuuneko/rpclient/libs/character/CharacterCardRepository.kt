@@ -12,6 +12,12 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import java.io.ByteArrayOutputStream
 
+/**
+ * 角色卡文件导入导出的应用层协调器。
+ *
+ * 负责 Android URI 读取、头像文件保存、嵌入世界书落库，以及 JSON/PNG 两种导出形式；
+ * 格式映射和 PNG chunk 操作分别委托给 [CharacterCardMapper] 与 [CharacterCardPngCodec]。
+ */
 class CharacterCardRepository(
     private val mContext: Context,
     private val mGson: Gson,
@@ -19,8 +25,14 @@ class CharacterCardRepository(
     private val mLorebookRepository: LorebookRepository,
     private val mFileRepository: FileRepository
 ) {
+    /** 无状态格式映射器，在 Repository 生命周期内复用。 */
     private val mapper = CharacterCardMapper(mGson)
 
+    /**
+     * 从 URI 导入 JSON 或 PNG 角色卡并返回新角色 ID。
+     *
+     * 嵌入世界书必须先落库，生成的 ID 随后写入角色，保持引用有效。
+     */
     suspend fun importFromUri(uri: Uri): Long = withContext(Dispatchers.IO) {
         val bytes = mContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             ?: error("Cannot read character card")
@@ -47,6 +59,7 @@ class CharacterCardRepository(
         mCharacterRepository.saveCharacter(parsed.character.copy(characterLorebookId = lorebookId))
     }
 
+    /** 导出 Character Card V2 JSON，并在角色已绑定世界书时一并嵌入。 */
     suspend fun exportJson(characterId: Long): String = withContext(Dispatchers.IO) {
         val character = mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
         mapper.toV2Json(
@@ -56,6 +69,11 @@ class CharacterCardRepository(
         )
     }
 
+    /**
+     * 将角色导出为带角色卡元数据的 PNG。
+     *
+     * 非 PNG 头像会先转换格式；无有效头像时使用最小占位图承载元数据。
+     */
     suspend fun exportPng(characterId: Long): ByteArray = withContext(Dispatchers.IO) {
         val character = mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
         val json = exportJson(characterId)

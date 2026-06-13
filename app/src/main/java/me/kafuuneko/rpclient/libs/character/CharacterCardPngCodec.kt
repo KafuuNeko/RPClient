@@ -6,6 +6,12 @@ import java.nio.ByteOrder
 import java.util.Base64
 import java.util.zip.CRC32
 
+/**
+ * PNG 角色卡元数据编解码器。
+ *
+ * 仅重写角色卡相关的 tEXt chunk，其他图片块按原顺序保留；写入时重新计算 CRC，
+ * 从而在不重新编码图片像素的情况下兼容 chara 与 ccv3 读取方。
+ */
 object CharacterCardPngCodec {
     private val PngSignature = byteArrayOf(
         0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
@@ -53,6 +59,7 @@ object CharacterCardPngCodec {
         return writeChunks(chunks)
     }
 
+    /** 判断字节数组是否具有完整 PNG 文件签名。 */
     fun isPng(bytes: ByteArray): Boolean {
         return bytes.size >= PngSignature.size && PngSignature.indices.all { bytes[it] == PngSignature[it] }
     }

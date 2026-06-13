@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 
+/** 根据群聊激活策略选择本轮一个或多个发言成员。 */
 class GroupChatSpeakerSelector {
     /** 根据会话策略、成员状态和用户输入选择本轮发言者。 */
     fun select(

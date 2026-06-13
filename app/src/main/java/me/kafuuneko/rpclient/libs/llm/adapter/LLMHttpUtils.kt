@@ -24,6 +24,7 @@ import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+/** 已序列化的协议请求，用于同时发起网络调用和记录原始请求日志。 */
 internal data class LLMHttpRequest(
     val request: Request,
     val payloadJson: String
@@ -89,6 +90,11 @@ internal fun List<String>.toJsonArray(): JSONArray {
     return JSONArray().also { array -> forEach { array.put(it) } }
 }
 
+/**
+ * 拼接响应块中的 text 字段。
+ *
+ * Gemini 的 parts 与 Anthropic 的 content 都使用对象数组承载文本，因此在此统一读取。
+ */
 internal fun JSONArray.joinTextFields(type: String? = null): String {
     return buildString {
         for (index in 0 until length()) {
@@ -133,11 +139,17 @@ internal fun LLMMessage.toGeminiRole(): String {
     }
 }
 
+/**
+ * 提取开头连续的 system 消息。
+ *
+ * 不能收集中途 system 消息，否则会改变原始对话顺序；中途消息由适配器加标签降级。
+ */
 internal fun List<LLMMessage>.leadingSystemPrompt(): String {
     return takeWhile { it.role == LLMMessageRole.System }
         .joinToString("\n\n") { it.content }
 }
 
+/** 为无法原生表达中途 system 角色的协议保留角色边界。 */
 internal fun LLMMessage.contentWithSystemPrefix(): String {
     return if (role == LLMMessageRole.System) "[System]\n$content" else content
 }
@@ -168,6 +180,11 @@ internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): 
     return this
 }
 
+/**
+ * 尽力写入请求日志。
+ *
+ * 日志失败不得影响实际生成请求，因此此处有意吞掉持久化异常。
+ */
 internal suspend fun LLMRequestLogRepository.trySaveLog(
     provider: LLMProviderConfig,
     model: String,
@@ -191,6 +208,7 @@ internal suspend fun LLMRequestLogRepository.trySaveLog(
  */
 internal fun JSONObject.toRequestBody() = toString().toRequestBody(JsonMediaType)
 
+/** 将网络或解析异常转换为可持久化的最小 JSON 结构。 */
 internal fun Throwable.toErrorJson(): String {
     return JSONObject()
         .put("error", message.orEmpty())

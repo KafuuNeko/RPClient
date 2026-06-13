@@ -47,6 +47,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 
+/** 分层 JSON 查看器 Compose 入口。 */
 @Composable
 fun JsonViewerLayout(
     uiState: JsonViewerUiState,

@@ -8,6 +8,12 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import kotlin.random.Random
 
+/**
+ * SillyTavern 兼容的世界书激活器。
+ *
+ * 实现关键词、附加扫描源、递归、包含组、概率以及 sticky/cooldown/delay；
+ * 激活只决定候选内容，最终是否进入请求仍由世界书和 Prompt 预算器裁剪。
+ */
 class WorldBookActivator {
     private val gson = Gson()
 
@@ -580,11 +586,13 @@ data class WorldBookScanContext(
     val creatorNotes: String = ""
 )
 
+/** 世界书扫描使用的轻量消息，显式保留发言者名称。 */
 data class WorldBookScanMessage(
     val speakerName: String,
     val content: String
 )
 
+/** 世界书 triggers 可过滤的生成操作类型。 */
 enum class WorldBookGenerationType(val value: String) {
     Normal("normal"),
     Continue("continue"),
@@ -603,6 +611,7 @@ private fun PromptGenerationMode.toWorldBookGenerationType(): WorldBookGeneratio
     }
 }
 
+/** 激活条目按 SillyTavern 插入位置分组后的完整结果。 */
 data class WorldBookActivationResult(
     val activatedEntries: List<LorebookEntry>,
     val beforeCharacter: List<LorebookEntry> = emptyList(),
@@ -618,6 +627,7 @@ data class WorldBookActivationResult(
     val messageCount: Int = 0
 )
 
+/** 在聊天历史指定深度插入的一组同角色世界书条目。 */
 data class WorldBookDepthEntry(
     val depth: Int,
     val role: LLMMessageRole,

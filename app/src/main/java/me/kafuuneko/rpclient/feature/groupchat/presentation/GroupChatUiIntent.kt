@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
+/** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
     data class Init(val sessionId: String?) : GroupChatUiIntent()
     data object Resume : GroupChatUiIntent()

@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 新建群聊页状态持有者，负责成员排序、世界书授权与群聊聚合数据落库。 */
 class GroupChatCreateViewModel :
     CoreViewModelWithEvent<GroupChatCreateUiIntent, GroupChatCreateUiState>(
         GroupChatCreateUiState.None

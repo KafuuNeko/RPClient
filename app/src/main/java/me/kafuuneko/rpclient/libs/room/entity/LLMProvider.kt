@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 
+/** 持久化的 LLM Provider 配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
 data class LLMProvider(
     // Provider 主键
@@ -40,6 +41,7 @@ data class LLMProvider(
     val updateTime: Long = createTime
 )
 
+/** 转换为网络适配器使用的不可变运行时配置。 */
 fun LLMProvider.toConfig() = LLMProviderConfig(
     name = name,
     providerType = providerType,

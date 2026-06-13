@@ -29,6 +29,7 @@ import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 新建单角色会话页状态持有者，负责角色选择、世界书授权和初始会话落库。 */
 class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreateUiState>(
     ChatCreateUiState.None
 ), KoinComponent {

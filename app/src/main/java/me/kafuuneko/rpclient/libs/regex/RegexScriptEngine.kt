@@ -1,6 +1,13 @@
 package me.kafuuneko.rpclient.libs.regex
 
+/**
+ * 纯 Regex 执行引擎。
+ *
+ * 引擎不访问数据库或全局配置，只根据输入、脚本和上下文稳定地产生结果；
+ * 单条脚本失败会被记录并隔离，后续脚本仍继续执行。
+ */
 class RegexScriptEngine {
+    /** 按作用域优先级和脚本顺序执行所有适用脚本。 */
     fun execute(
         input: String,
         scripts: List<ScopedRegexScript>,
@@ -46,6 +53,7 @@ class RegexScriptEngine {
         return RegexExecutionResult(output, hits, errors)
     }
 
+    /** 仅编译 Find Regex，用于编辑器即时校验而不修改任何文本。 */
     fun validate(script: RegexScript, macros: Map<String, String> = emptyMap()): String? {
         if (script.findRegex.isBlank()) return "Find Regex cannot be empty"
         return runCatching {
@@ -53,6 +61,7 @@ class RegexScriptEngine {
         }.exceptionOrNull()?.message
     }
 
+    /** 根据启停、placement、编辑状态、深度和临时模式判断脚本是否参与本轮执行。 */
     private fun RegexScript.shouldRun(context: RegexExecutionContext): Boolean {
         if (disabled || findRegex.isBlank() || !supports(context.placement)) return false
         if (context.isEdit && !runOnEdit) return false
@@ -67,6 +76,7 @@ class RegexScriptEngine {
         }
     }
 
+    /** 编译并应用单条脚本，同时区分“未命中”和“命中但文本未改变”。 */
     private fun applyScript(
         input: String,
         script: RegexScript,
@@ -91,6 +101,11 @@ class RegexScriptEngine {
         return ScriptApplication(output, matched = true)
     }
 
+    /**
+     * 模拟 JavaScript 同时启用 `g` 与 `y` 时的连续粘性匹配。
+     *
+     * 每次匹配必须从上一次结束位置开始，遇到第一个空隙立即停止。
+     */
     private fun replaceSticky(
         input: String,
         regex: Regex,
@@ -114,6 +129,7 @@ class RegexScriptEngine {
         append(input.substring(cursor))
     }
 
+    /** 按 Find Regex 宏模式展开表达式并生成 Kotlin Regex。 */
     private fun compile(
         script: RegexScript,
         macros: Map<String, String>
@@ -131,6 +147,7 @@ class RegexScriptEngine {
         )
     }
 
+    /** 解析 JavaScript `/pattern/flags` 写法；普通字符串按无 flags 的表达式处理。 */
     private fun parseRegex(value: String): ParsedRegex {
         if (!value.startsWith('/')) {
             return ParsedRegex(value, emptySet(), emptySet())
@@ -153,6 +170,7 @@ class RegexScriptEngine {
         return ParsedRegex(pattern, options, flags)
     }
 
+    /** 展开 `{{match}}`、编号/命名捕获组、Trim Out 和替换文本宏。 */
     private fun buildReplacement(
         script: RegexScript,
         match: MatchResult,
@@ -180,6 +198,7 @@ class RegexScriptEngine {
         return resolveMacros(withGroups, macros)
     }
 
+    /** 以不区分大小写的键查找并替换 SillyTavern 风格宏。 */
     private fun resolveMacros(
         text: String,
         macros: Map<String, String>,
@@ -194,6 +213,7 @@ class RegexScriptEngine {
         }
     }
 
+    /** 将宏值转义为可安全嵌入 Find Regex 的字面量。 */
     private fun escapeRegexMacro(value: String): String {
         return buildString {
             value.forEach { character ->
@@ -214,6 +234,7 @@ class RegexScriptEngine {
         }
     }
 
+    /** 从末尾查找未被反斜杠转义的 `/`，用于分隔 pattern 与 flags。 */
     private fun String.lastUnescapedSlash(): Int {
         for (index in lastIndex downTo 1) {
             if (this[index] != '/') continue

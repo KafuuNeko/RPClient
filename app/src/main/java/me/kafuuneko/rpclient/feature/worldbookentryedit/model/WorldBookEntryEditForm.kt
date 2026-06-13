@@ -6,6 +6,12 @@ import me.kafuuneko.rpclient.libs.utils.orSingleBlank
 import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
 
+/**
+ * 世界书条目编辑表单。
+ *
+ * 数值字段使用字符串保存，以完整表达 Compose 输入过程；可空布尔值表示继承世界书
+ * 或兼容层默认值。保存前由 [toLorebookEntryOrNull] 统一校验和转换。
+ */
 data class WorldBookEntryEditForm(
     val id: Long = 0L,
     val lorebookId: Long = 0L,
@@ -46,6 +52,7 @@ data class WorldBookEntryEditForm(
     val extensionsJson: String = "{}",
     val rawJson: String = "{}"
 ) {
+    /** id 为 0 表示尚未持久化的新条目。 */
     val isNew: Boolean
         get() = id == 0L
 
@@ -94,6 +101,7 @@ data class WorldBookEntryEditForm(
         }
     }
 
+    /** 将表单转换为实体；必要数字字段无法解析时返回 null。 */
     fun toLorebookEntryOrNull(): LorebookEntry? {
         val orderValue = order.trim().toIntOrNull() ?: return null
         val depthValue = depth.trim().toIntOrNull() ?: return null
@@ -144,6 +152,7 @@ data class WorldBookEntryEditForm(
     }
 }
 
+/** 规范化列表与文本输入，供未保存修改比较使用。 */
 fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
     return copy(
         name = name.trim(),
@@ -170,6 +179,7 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
     )
 }
 
+/** 判断当前条目表单是否偏离初始快照。 */
 fun WorldBookEntryEditForm.hasUnsavedChangesFrom(initialForm: WorldBookEntryEditForm): Boolean {
     return toComparableForm() != initialForm.toComparableForm()
 }

@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 世界书元数据编辑页状态持有者，协调条目导航、脏检查与保存删除。 */
 class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, WorldBookEditUiState>(
     WorldBookEditUiState.None
 ), KoinComponent {

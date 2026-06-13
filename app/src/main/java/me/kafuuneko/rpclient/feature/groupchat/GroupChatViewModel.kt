@@ -53,6 +53,12 @@ import me.kafuuneko.rpclient.libs.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/**
+ * 群聊页状态持有者。
+ *
+ * 负责成员发言选择、群聊 Prompt、流式消息持久化、Regex 处理和分段总结。
+ * 流式成员保存一次生成的快照，避免用户在生成途中修改设置造成前后语义不一致。
+ */
 class GroupChatViewModel :
     CoreViewModelWithEvent<GroupChatUiIntent, GroupChatUiState>(
         GroupChatUiState.None
@@ -69,14 +75,20 @@ class GroupChatViewModel :
     private val mRegexRuntime by inject<RegexScriptRuntime>()
     private val mContext by inject<Context>()
 
+    /** 当前页面绑定的群聊会话 ID。 */
     private var mSessionId: Long? = null
+    /** 当前模型生成任务，用于停止生成并防止重复请求。 */
     private var mGenerationJob: Job? = null
+    /** 当前流式消息及其本次新增、原有文本，用于区分新消息与续写。 */
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
     private var mStreamingExistingContent: String = ""
+    /** 本次生成固定使用的 Regex 配置和宏快照。 */
     private var mStreamingRegexScripts: List<ScopedRegexScript> = emptyList()
     private var mStreamingRegexMacros: Map<String, String> = emptyMap()
+    /** 标记最终显示 Regex 是否已执行，防止收尾阶段重复替换。 */
     private var mStreamingRegexApplied: Boolean = false
+    /** 最近一次实际发送请求的检查报告。 */
     private var mLastPromptInspection: PromptInspection? = null
 
     @UiIntentObserver(GroupChatUiIntent.Init::class)

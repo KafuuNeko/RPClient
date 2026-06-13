@@ -14,15 +14,22 @@ import me.kafuuneko.rpclient.feature.regexscript.ui.RegexScriptLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
+/**
+ * Regex 脚本管理页面宿主。
+ *
+ * Activity 只负责系统文件导入导出和页面关闭；脚本业务与状态转换全部在 ViewModel 中完成。
+ */
 class RegexScriptActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<RegexScriptViewModel>()
 
+    /** 打开系统文档选择器，并将选中的 JSON URI 交回 ViewModel。 */
     private val mImporter = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { mViewModel.emit(RegexScriptUiIntent.ImportJson(it)) }
     }
 
+    /** 创建 JSON 文档，并将可写 URI 交回 ViewModel。 */
     private val mExporter = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->

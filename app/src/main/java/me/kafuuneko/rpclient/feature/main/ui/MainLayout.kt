@@ -101,6 +101,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 主页面 Compose 入口，承载首页会话列表与全局设置。 */
 @Composable
 fun MainLayout(
     uiState: MainUiState,

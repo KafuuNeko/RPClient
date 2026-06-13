@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
+/** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
     data object Init : MainUiIntent()
 

@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/** 构建不含角色扮演设定的增量聊天摘要请求。 */
 class SummaryPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder

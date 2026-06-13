@@ -64,6 +64,12 @@ data class GroupChatPromptBuildResult(
     val inspection: PromptInspection
 )
 
+/**
+ * 群聊 Prompt 构建器。
+ *
+ * 将成员角色卡、群聊历史、世界书和 Regex 脚本组装为统一草稿，
+ * 最终交由 PromptRequestFinalizer 执行协议后处理与上下文预算裁剪。
+ */
 class GroupChatPromptBuilder(
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(

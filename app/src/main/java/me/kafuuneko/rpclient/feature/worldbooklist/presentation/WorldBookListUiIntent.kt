@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.worldbooklist.presentation
 
+/** 世界书列表页的用户意图与系统文件选择结果。 */
 sealed class WorldBookListUiIntent {
     data object Init : WorldBookListUiIntent()
 
@@ -19,4 +20,3 @@ sealed class WorldBookListUiIntent {
 
     data class ExportWorldBook(val lorebookId: Long, val uri: android.net.Uri) : WorldBookListUiIntent()
 }
-

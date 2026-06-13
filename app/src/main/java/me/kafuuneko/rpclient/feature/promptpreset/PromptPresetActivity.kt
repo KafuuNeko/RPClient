@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiSta
 import me.kafuuneko.rpclient.feature.promptpreset.ui.PromptPresetLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** Prompt 预设管理页面宿主。 */
 class PromptPresetActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<PromptPresetViewModel>()
 

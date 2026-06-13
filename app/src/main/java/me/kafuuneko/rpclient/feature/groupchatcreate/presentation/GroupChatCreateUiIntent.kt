@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.groupchatcreate.presentation
 
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
+/** 新建群聊页面的成员、策略、世界书和提交意图。 */
 sealed class GroupChatCreateUiIntent {
     data object Init : GroupChatCreateUiIntent()
     data object Back : GroupChatCreateUiIntent()

@@ -111,6 +111,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 单角色聊天页 Compose 入口，根据页面状态切换会话区与设置区。 */
 @Composable
 fun ChatLayout(
     uiState: ChatUiState,

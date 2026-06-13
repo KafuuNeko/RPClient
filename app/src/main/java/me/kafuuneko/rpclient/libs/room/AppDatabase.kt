@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 
+/** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
         Character::class,

@@ -66,6 +66,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
+/** Prompt 预设列表与编辑对话框的 Compose 入口。 */
 @Composable
 fun PromptPresetLayout(
     uiState: PromptPresetUiState,

@@ -95,6 +95,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import androidx.compose.ui.res.stringResource
 
+/** 群聊页 Compose 入口，根据状态渲染对话、成员与世界书设置。 */
 @Composable
 fun GroupChatLayout(
     uiState: GroupChatUiState,

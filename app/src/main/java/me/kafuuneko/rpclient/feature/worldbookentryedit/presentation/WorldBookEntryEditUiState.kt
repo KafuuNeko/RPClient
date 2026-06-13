@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.worldbookentryedit.presentation
 
 import me.kafuuneko.rpclient.feature.worldbookentryedit.model.WorldBookEntryEditForm
 
+/** 世界书条目编辑页状态；initialForm 用于退出时判断未保存修改。 */
 sealed class WorldBookEntryEditUiState {
     data object None : WorldBookEntryEditUiState()
 
@@ -16,11 +17,13 @@ sealed class WorldBookEntryEditUiState {
     data object Finished : WorldBookEntryEditUiState()
 }
 
+/** 世界书条目编辑页的创建或编辑模式。 */
 enum class WorldBookEntryEditMode {
     Create,
     Edit
 }
 
+/** 条目读取、保存和删除操作的互斥状态。 */
 sealed class WorldBookEntryEditLoadState {
     data object None : WorldBookEntryEditLoadState()
     data object Loading : WorldBookEntryEditLoadState()
@@ -28,6 +31,7 @@ sealed class WorldBookEntryEditLoadState {
     data object Deleting : WorldBookEntryEditLoadState()
 }
 
+/** 世界书条目编辑页当前显示的确认对话框。 */
 sealed class WorldBookEntryEditDialogState {
     data object None : WorldBookEntryEditDialogState()
 
@@ -37,4 +41,3 @@ sealed class WorldBookEntryEditDialogState {
 
     data object UnsavedChangesConfirm : WorldBookEntryEditDialogState()
 }
-

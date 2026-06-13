@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.jsonviewer.model
 
+/** JSON 当前层级中的一项，sourceKey/sourceIndex 用于定位原始父节点。 */
 data class JsonViewerEntry(
     val id: Int,
     val name: String,

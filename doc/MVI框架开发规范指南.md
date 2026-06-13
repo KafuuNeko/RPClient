@@ -619,6 +619,48 @@ object AppModel : KotprefModel() {
 - **文件末尾**：保留一个空行
 - **import**：不使用通配符
 
+### 中文注释规范
+
+注释用于说明代码本身无法直接表达的业务语义、生命周期和约束，不应逐字复述变量名或语句。
+
+1. **公共及跨模块声明使用 KDoc**
+   - `public` / `internal` 的类、接口、数据结构、枚举和可复用顶层函数应说明职责。
+   - 数据结构应说明它属于持久化模型、领域模型还是 UI 模型；字段含义不直观时使用属性 KDoc。
+   - Repository、Builder、Engine、Codec、Adapter 等跨模块组件应说明输入、输出和主要副作用。
+2. **ViewModel 注释关注状态与生命周期**
+   - 长生命周期成员应说明其缓存内容、清理时机和并发职责。
+   - Intent 处理函数仅在包含业务分支、持久化、副作用或特殊状态恢复时添加注释。
+   - 不为 `onBack()`、单字段 `copy()` 等直观操作添加重复说明。
+3. **私有函数注释解释原因和约束**
+   - 对 Prompt 顺序、预算裁剪、流式落库、兼容回退、事务边界等复杂流程说明“为什么这样做”。
+   - 简单映射、格式化和单行委托函数通常不需要注释。
+4. **Compose 注释以组件职责为单位**
+   - 页面入口和可复用组件使用 KDoc。
+   - 复杂布局可在分区前使用短行注释，不对每个 `Row`、`Text`、`Modifier` 逐行解释。
+5. **注释必须随行为更新**
+   - 修改状态机、执行顺序、持久化语义或兼容行为时，同步检查相邻 KDoc。
+   - 禁止保留与当前实现冲突的历史说明、TODO 或被注释掉的旧代码。
+
+推荐写法：
+
+```kotlin
+/** 构建最终出站 Prompt，并返回成功生成后才应持久化的世界书时序状态。 */
+fun buildWithMetadata(context: PromptBuildContext): PromptBuildResult
+
+// 流式阶段只更新内存 UI；结束、停止或异常时再统一决定落库或删除占位消息。
+private var mStreamingContent: String = ""
+```
+
+不推荐写法：
+
+```kotlin
+// 设置标题
+val title = value
+
+// 点击返回
+private fun onBack()
+```
+
 ---
 
 ## 十二、新功能开发 Checklist

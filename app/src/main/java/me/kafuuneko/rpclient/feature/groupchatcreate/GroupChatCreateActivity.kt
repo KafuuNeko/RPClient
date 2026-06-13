@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreat
 import me.kafuuneko.rpclient.feature.groupchatcreate.ui.GroupChatCreateLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 新建群聊页面宿主。 */
 class GroupChatCreateActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<GroupChatCreateViewModel>()
 

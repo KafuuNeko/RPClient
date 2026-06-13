@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/** 构建群聊增量摘要请求，并保证选择连续且不跨预算缺口的消息前缀。 */
 class GroupChatSummaryPromptBuilder {
     /** 使用当前摘要和未覆盖消息构建群聊摘要请求。 */
     fun build(

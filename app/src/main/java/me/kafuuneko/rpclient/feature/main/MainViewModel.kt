@@ -41,6 +41,11 @@ import me.kafuuneko.rpclient.libs.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/**
+ * 主页面状态持有者。
+ *
+ * 聚合最近会话、角色与群聊入口，并将全局设置和当前模型配置映射为可编辑状态。
+ */
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
 ), KoinComponent {

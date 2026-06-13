@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.worldbookedit.presentation
 
+/** 世界书元数据编辑页的用户意图。 */
 sealed class WorldBookEditUiIntent {
     data class Init(val lorebookId: Long?) : WorldBookEditUiIntent()
 

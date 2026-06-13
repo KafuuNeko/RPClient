@@ -33,6 +33,12 @@ data class ChatSummaryGenerationContext(
     val summaryToUpdate: ChatMessage?
 )
 
+/**
+ * 单聊会话、消息和摘要的事务仓库。
+ *
+ * 编辑或删除普通消息时会同步清理覆盖该消息的摘要；创建消息和分支时负责维护
+ * 会话活跃时间、摘要边界与世界书运行时状态的一致性。
+ */
 class ChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson
@@ -740,4 +746,3 @@ class ChatRepository(
         return result
     }
 }
-

@@ -2,6 +2,11 @@ package me.kafuuneko.rpclient.libs
 
 import com.chibatching.kotpref.KotprefModel
 
+/**
+ * 应用级持久偏好模型。
+ *
+ * 这里只存放跨会话的全局设置和 Prompt 模板；角色、聊天及世界书等领域数据由 Room 管理。
+ */
 object AppModel : KotprefModel() {
     // 应用联系邮箱。
     const val EMAIL = "kafuuneko@gmail.com"

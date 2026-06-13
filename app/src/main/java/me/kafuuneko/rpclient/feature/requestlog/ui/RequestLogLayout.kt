@@ -59,6 +59,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 
+/** LLM 请求日志列表与清理确认对话框的 Compose 入口。 */
 @Composable
 fun RequestLogLayout(
     uiState: RequestLogUiState,

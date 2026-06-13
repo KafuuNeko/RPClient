@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.feature.jsonviewer.ui.JsonViewerLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivity
 
+/** JSON 分层查看页面宿主，负责临时载荷 key 的生命周期清理。 */
 class JsonViewerActivity : CoreActivity() {
     private val mViewModel by viewModels<JsonViewerViewModel>()
     private val mPayloadKey by lazy { intent.getStringExtra(EXTRA_PAYLOAD_KEY) }
@@ -51,4 +52,3 @@ class JsonViewerActivity : CoreActivity() {
         }
     }
 }
-

@@ -3,6 +3,11 @@ package me.kafuuneko.rpclient.feature.jsonviewer.presentation
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerEntry
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
 
+/**
+ * JSON 查看器页面状态。
+ *
+ * Normal 仅保存当前层级的扁平条目，完整 JSON 树由 ViewModel 持有，避免状态对象重复复制。
+ */
 sealed class JsonViewerUiState {
     data object None : JsonViewerUiState()
 
@@ -23,4 +28,3 @@ sealed class JsonViewerUiState {
 
     data object Finished : JsonViewerUiState()
 }
-

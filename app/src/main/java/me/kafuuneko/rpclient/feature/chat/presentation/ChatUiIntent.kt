@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
+/** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
     data class Init(val sessionId: String?) : ChatUiIntent()
 

@@ -5,6 +5,12 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * 群聊消息实体。
+ *
+ * [speakerNameSnapshot] 保存消息生成时的名称，避免角色后续改名改变历史归属；
+ * [generationBatchId] 用于标识同一轮自动群聊产生的多条回复。
+ */
 @Entity(
     tableName = "group_chat_messages",
     foreignKeys = [
@@ -32,6 +38,7 @@ data class GroupChatMessage(
     val speakerNameSnapshot: String,
     val generationBatchId: String? = null
 ) {
+    /** 群聊消息来源。 */
     enum class Source {
         Character,
         User,

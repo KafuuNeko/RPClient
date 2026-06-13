@@ -31,6 +31,7 @@ data class GroupChatLorebookEntryItem(
     val enabled: Boolean
 )
 
+/** 群聊设置中可添加角色的最小展示信息。 */
 data class GroupChatAvailableCharacterItem(
     val id: Long,
     val name: String,

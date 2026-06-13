@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
+/** 清理群聊模型输出中的角色名前缀和越权代写内容。 */
 class GroupChatOutputSanitizer {
     /** 移除当前角色名前缀，并按配置截断模型代写其他成员的内容。 */
     fun sanitize(

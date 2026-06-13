@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderLis
 import me.kafuuneko.rpclient.feature.llmproviderlist.ui.LLMProviderListLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 模型供应商列表页面宿主。 */
 class LLMProviderListActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<LLMProviderListViewModel>()
 

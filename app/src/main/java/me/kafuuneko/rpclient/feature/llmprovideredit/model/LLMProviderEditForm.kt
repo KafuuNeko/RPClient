@@ -4,6 +4,12 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/**
+ * LLM Provider 编辑表单。
+ *
+ * 数值参数以字符串保留，避免 Compose 输入过程中被强制回退；只有全部参数合法且
+ * `maxTokens < contextTokens` 时才能转换为 Room 实体。
+ */
 data class LLMProviderEditForm(
     val id: Long = 0L,
     val createTime: Long = System.currentTimeMillis(),
@@ -21,6 +27,7 @@ data class LLMProviderEditForm(
     val isEnabled: Boolean = true
 ) {
     companion object {
+        /** 从持久化 Provider 恢复编辑表单。 */
         fun from(obj: LLMProvider) = LLMProviderEditForm(
             id = obj.id,
             createTime = obj.createTime,
@@ -39,6 +46,7 @@ data class LLMProviderEditForm(
         )
     }
 
+    /** 校验并转换表单；任一必需数值无效时返回 null。 */
     fun toProviderOrNull(): LLMProvider? {
         val parsedTemperature = temperature.toFloatOrNull() ?: return null
         val parsedTopP = topP.toFloatOrNull() ?: return null
@@ -65,10 +73,12 @@ data class LLMProviderEditForm(
     }
 }
 
+/** 比较标准化字段，判断用户是否修改了 Provider。 */
 fun LLMProviderEditForm.hasUnsavedChangesFrom(initialForm: LLMProviderEditForm): Boolean {
     return toComparableForm() != initialForm.toComparableForm()
 }
 
+/** 生成用于未保存变更比较的标准化表单。 */
 fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
     return copy(
         name = name.trim(),

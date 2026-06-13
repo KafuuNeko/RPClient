@@ -1,8 +1,15 @@
 package me.kafuuneko.rpclient.libs.regex
 
+/**
+ * Regex 引擎的业务运行入口。
+ *
+ * 负责构造执行上下文，并将 `<think>` 内外文本分别交给 Reasoning 与正文 placement；
+ * 调用方无需重复实现推理块拆分逻辑。
+ */
 class RegexScriptRuntime(
     private val mEngine: RegexScriptEngine
 ) {
+    /** 在明确 placement 和阶段下执行脚本链。 */
     fun execute(
         input: String,
         scripts: List<ScopedRegexScript>,
@@ -25,6 +32,7 @@ class RegexScriptRuntime(
         )
     }
 
+    /** 对 AI 消息执行正文与 Reasoning 分区处理。 */
     fun executeAiMessage(
         input: String,
         scripts: List<ScopedRegexScript>,
@@ -44,6 +52,7 @@ class RegexScriptRuntime(
         )
     }
 
+    /** 对聊天显示文本执行 markdownOnly 脚本，结果不会写回数据库。 */
     fun executeDisplayMessage(
         input: String,
         scripts: List<ScopedRegexScript>,
@@ -62,6 +71,7 @@ class RegexScriptRuntime(
         )
     }
 
+    /** 保留 `<think>` 标签，仅分别改写标签外正文和标签内推理内容。 */
     private fun executeMessage(
         input: String,
         scripts: List<ScopedRegexScript>,
@@ -140,6 +150,7 @@ class RegexScriptRuntime(
     }
 
     companion object {
+        /** 构造 Regex 替换支持的常用角色、用户、场景和群组宏。 */
         fun macros(
             userName: String,
             characterName: String,

@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.promptpreset.presentation
 
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptType
 
+/** Prompt 预设页的用户意图。 */
 sealed class PromptPresetUiIntent {
     data object Init : PromptPresetUiIntent()
 

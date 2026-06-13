@@ -1,5 +1,10 @@
 package me.kafuuneko.rpclient.feature.worldbookentryedit.presentation
 
+/**
+ * 世界书条目编辑页的用户意图。
+ *
+ * 数字输入仍以字符串传递，保证输入过程中的空值和未完成值不会被 UI 层提前丢失。
+ */
 sealed class WorldBookEntryEditUiIntent {
     data class Init(val lorebookId: Long, val entryId: Long?) : WorldBookEntryEditUiIntent()
 

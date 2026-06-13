@@ -8,6 +8,12 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 
+/**
+ * 将持久化层的供应商配置转换为对应协议的 [LLMClient]。
+ *
+ * 工厂只负责选择协议适配器，共享的 Prompt 后处理、供应商选择和默认配置初始化
+ * 均由上层 Repository 处理，避免各适配器出现不同的业务语义。
+ */
 class LLMClientFactory(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository

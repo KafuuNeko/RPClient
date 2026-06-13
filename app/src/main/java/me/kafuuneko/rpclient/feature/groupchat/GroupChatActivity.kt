@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<GroupChatViewModel>()
 

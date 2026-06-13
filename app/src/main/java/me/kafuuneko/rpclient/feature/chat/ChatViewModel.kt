@@ -58,6 +58,12 @@ import me.kafuuneko.rpclient.libs.utils.toDefaultChatTitle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/**
+ * 单角色聊天页的状态持有者。
+ *
+ * 负责会话加载、消息持久化、Prompt 构建、流式生成、Regex 处理和自动总结。
+ * 生成期间的可变成员只用于跨流式回调保存一次请求的上下文，结束或取消时必须统一清理。
+ */
 class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ChatUiState.None
 ), KoinComponent {
@@ -72,15 +78,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mRegexRuntime by inject<RegexScriptRuntime>()
     private val mContext by inject<Context>()
 
+    /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
     private var mSessionId: Long? = null
+    /** 当前模型生成任务，用于阻止并发生成和响应停止操作。 */
     private var mGenerationJob: Job? = null
+    /** 后台自动总结任务，与正文生成分开取消和收尾。 */
     private var mSummaryJob: Job? = null
+    /** 流式占位消息及已接收内容，用于增量落库和异常恢复。 */
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
     private var mStreamingCreatedMessage: Boolean = false
+    /** 当前生成模式的输出目标，例如新消息、续写或重新生成。 */
     private var mStreamingOutput: GenerationOutput? = null
+    /** 本次生成固定使用的脚本与宏快照，避免流中途配置变化导致结果不一致。 */
     private var mStreamingRegexScripts: List<ScopedRegexScript> = emptyList()
     private var mStreamingRegexMacros: Map<String, String> = emptyMap()
+    /** 最近一次实际发送请求的检查报告，供调试对话框读取。 */
     private var mLastPromptInspection: PromptInspection? = null
 
     /**

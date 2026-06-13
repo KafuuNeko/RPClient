@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 
+/** Prompt 预设页状态持有者，集中读写 AppModel 中的模板覆盖值。 */
 class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, PromptPresetUiState>(
     PromptPresetUiState.None
 ) {

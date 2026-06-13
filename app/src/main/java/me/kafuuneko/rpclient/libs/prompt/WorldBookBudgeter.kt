@@ -3,11 +3,18 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
+/** 世界书预算裁剪结果，以及未被选中的条目记录。 */
 internal data class WorldInfoSelection(
     val result: WorldBookActivationResult,
     val omittedItems: List<PromptOmittedItem>
 )
 
+/**
+ * 同时应用全局世界书预算与每本世界书的独立预算。
+ *
+ * 常驻和高顺序条目优先选择；[LorebookEntry.ignoreBudget] 只跳过预算占用，
+ * 不改变条目的激活和插入语义。
+ */
 internal fun fitWorldInfoToBudget(
     result: WorldBookActivationResult,
     globalTokenBudget: Int,

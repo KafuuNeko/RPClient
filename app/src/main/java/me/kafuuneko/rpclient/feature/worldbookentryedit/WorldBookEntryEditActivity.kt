@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEn
 import me.kafuuneko.rpclient.feature.worldbookentryedit.ui.WorldBookEntryEditLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 世界书条目完整字段编辑页面宿主。 */
 class WorldBookEntryEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<WorldBookEntryEditViewModel>()
 
@@ -42,4 +43,3 @@ class WorldBookEntryEditActivity : CoreActivityWithEvent() {
         const val EXTRA_ENTRY_ID = "extra_entry_id"
     }
 }
-

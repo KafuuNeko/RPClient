@@ -15,6 +15,12 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Anthropic Messages API 适配器。
+ *
+ * Anthropic 仅允许独立的前置 system 字段，因此开头连续 system 消息会被提取，
+ * 历史中的 system 消息则以带标签的 user 内容保留其语义。
+ */
 class AnthropicMessagesLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,

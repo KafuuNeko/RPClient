@@ -19,6 +19,7 @@ import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
+/** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ChatViewModel>()
 

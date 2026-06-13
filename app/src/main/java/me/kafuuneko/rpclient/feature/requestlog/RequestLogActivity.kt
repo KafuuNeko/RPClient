@@ -19,6 +19,7 @@ import me.kafuuneko.rpclient.feature.requestlog.ui.RequestLogLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
+/** LLM 请求日志页面宿主，处理复制与 JSON 详情导航。 */
 class RequestLogActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<RequestLogViewModel>()
 

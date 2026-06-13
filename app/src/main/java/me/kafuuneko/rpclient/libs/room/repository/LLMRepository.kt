@@ -19,10 +19,17 @@ internal const val DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 internal const val DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-6"
 internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 
+/**
+ * 模型供应商配置与生成调用的统一业务入口。
+ *
+ * 该类负责默认供应商初始化、当前供应商同步和 Prompt 最终化兜底；
+ * HTTP 协议细节由 [LLMClientFactory] 创建的适配器承担。
+ */
 class LLMRepository(
     private val mAppDatabase: AppDatabase,
     private val mLLMClientFactory: LLMClientFactory
 ) {
+    /** 供应商表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
 
     /**
@@ -50,7 +57,9 @@ class LLMRepository(
     }
 
     /**
-     * 获取当前选中的供应商
+     * 获取当前选中的已启用供应商。
+     *
+     * 此处刻意不自动回退到其他供应商，避免一次生成请求在用户不知情时切换模型。
      */
     suspend fun getSelectedProvider(): LLMProvider? {
         ensureDefaultProviders()
@@ -60,8 +69,7 @@ class LLMRepository(
                 return it.takeIf { it.isEnabled }
             }
         }
-        // 不执行自动回退
-//        return mLLMProviderDao.getEnabledProviders().firstOrNull()
+        // 读取阶段不自动回退；新增、删除和启停配置时才由 syncCurrentProvider 修正选择。
         return null
     }
 

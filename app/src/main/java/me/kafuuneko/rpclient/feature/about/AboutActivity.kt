@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.feature.about.ui.AboutLayout
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreActivity
 
+/** 关于页面宿主，负责提供版本和项目联系信息。 */
 class AboutActivity : CoreActivity() {
     @Composable
     override fun ViewContent() {

@@ -5,6 +5,12 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * 单聊消息实体。
+ *
+ * Summary 与普通消息共用一张表；Summary 通过 [coveredMessageId] 记录覆盖边界，
+ * 普通消息的该字段始终为 null。
+ */
 @Entity(
     tableName = "chat_messages",
     foreignKeys = [
@@ -34,5 +40,6 @@ data class ChatMessage(
     // Summary 消息覆盖到的最后一条普通消息 id；普通消息固定为 null，0 表示空总结不覆盖消息。
     val coveredMessageId: Long? = null,
 ) {
+    /** 数据层消息来源；Summary 不会直接作为普通聊天历史返回。 */
     enum class Source { Char, User, System, Summary }
 }

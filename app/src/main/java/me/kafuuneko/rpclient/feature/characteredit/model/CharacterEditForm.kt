@@ -5,6 +5,12 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
 
+/**
+ * 角色编辑器表单模型。
+ *
+ * 数值型 depth prompt 字段保留为字符串以支持未完成输入；列表字段在转为 Room 实体时
+ * 会去除空白项，角色卡未知扩展通过 [extensionsJson] 原样保留。
+ */
 data class CharacterEditForm(
     val id: Long = 0L,
     val name: String = "",
@@ -28,10 +34,12 @@ data class CharacterEditForm(
     val depthPromptRole: String = "0",
     val characterLorebookId: Long = 0L
 ) {
+    /** ID 为 0 表示尚未写入数据库的新角色。 */
     val isNew: Boolean
         get() = id == 0L
 
     companion object {
+        /** 从 Room 角色实体恢复可编辑表单。 */
         fun from(character: Character) = CharacterEditForm(
             id = character.id,
             name = character.name,
@@ -57,6 +65,7 @@ data class CharacterEditForm(
         )
     }
 
+    /** 清洗用户输入并转换为可持久化角色实体。 */
     fun toCharacter(): Character {
         return Character(
             id = id,
@@ -85,10 +94,12 @@ data class CharacterEditForm(
     }
 }
 
+/** 比较清洗后的业务字段，忽略无意义的首尾空白差异。 */
 fun CharacterEditForm.hasUnsavedChangesFrom(initialForm: CharacterEditForm): Boolean {
     return toComparableForm() != initialForm.toComparableForm()
 }
 
+/** 生成仅用于未保存变更比较的标准化表单。 */
 fun CharacterEditForm.toComparableForm(): CharacterEditForm {
     return copy(
         name = name.trim(),

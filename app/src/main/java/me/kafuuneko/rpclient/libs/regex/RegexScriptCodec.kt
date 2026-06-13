@@ -5,9 +5,15 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
+/**
+ * SillyTavern Regex 脚本 JSON 编解码器。
+ *
+ * 解析时保存完整原始对象，序列化时只覆盖当前模型认识的字段，从而保留第三方扩展字段。
+ */
 class RegexScriptCodec(
     private val mGson: Gson
 ) {
+    /** 解析脚本数组；为兼容手工文件，也接受单个脚本对象。 */
     fun parseList(json: String): List<RegexScript> {
         if (json.isBlank()) return emptyList()
         return runCatching {
@@ -23,6 +29,7 @@ class RegexScriptCodec(
         }.getOrDefault(emptyList())
     }
 
+    /** 将脚本列表导出为 SillyTavern 兼容数组，可选人类可读格式。 */
     fun toJson(scripts: List<RegexScript>, pretty: Boolean = false): String {
         val array = JsonArray()
         scripts.forEach { array.add(it.toJsonObject()) }
@@ -33,6 +40,7 @@ class RegexScriptCodec(
         }
     }
 
+    /** 将 JSON 对象映射为领域模型，并保存原对象供后续无损导出。 */
     private fun JsonObject.toScript(): RegexScript {
         return RegexScript(
             id = optString("id"),
@@ -52,6 +60,7 @@ class RegexScriptCodec(
         )
     }
 
+    /** 在原始 JSON 上覆盖已知字段，避免编辑后丢失未知扩展。 */
     private fun RegexScript.toJsonObject(): JsonObject {
         val output = runCatching {
             JsonParser.parseString(rawJson).asJsonObject.deepCopy()

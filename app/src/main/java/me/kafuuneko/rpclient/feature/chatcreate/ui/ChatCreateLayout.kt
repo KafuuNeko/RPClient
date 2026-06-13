@@ -68,6 +68,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 新建单角色会话页 Compose 入口。 */
 @Composable
 fun ChatCreateLayout(
     uiState: ChatCreateUiState,

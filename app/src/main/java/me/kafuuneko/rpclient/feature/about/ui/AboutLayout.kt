@@ -40,6 +40,7 @@ import android.content.Context
 import android.content.ClipboardManager
 import android.content.ClipData
 
+/** 关于页 Compose 入口，展示版本与项目联系信息。 */
 @Composable
 fun AboutLayout(
     uiState: AboutUiState,

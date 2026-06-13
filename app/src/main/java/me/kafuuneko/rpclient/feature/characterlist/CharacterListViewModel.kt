@@ -19,6 +19,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 角色列表页状态持有者，协调检索、编辑导航及角色卡导入导出。 */
 class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, CharacterListUiState>(
     CharacterListUiState.None
 ), KoinComponent {

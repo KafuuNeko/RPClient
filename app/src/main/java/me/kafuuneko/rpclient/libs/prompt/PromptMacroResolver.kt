@@ -6,6 +6,11 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/**
+ * SillyTavern 风格 Prompt 宏解析器。
+ *
+ * 未实现或未知宏有意保留原文，便于兼容第三方模板并在调试检查器中发现缺失能力。
+ */
 class PromptMacroResolver(
     private val mHistoryBuilder: FormattedHistoryBuilder
 ) {

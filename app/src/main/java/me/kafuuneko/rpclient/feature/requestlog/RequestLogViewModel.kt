@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 请求日志页状态持有者，负责日志映射、复制、详情导航与批量清理。 */
 class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLogUiState>(
     RequestLogUiState.None
 ), KoinComponent {

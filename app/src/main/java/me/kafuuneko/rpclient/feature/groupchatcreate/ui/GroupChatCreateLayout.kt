@@ -59,6 +59,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
+/** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
 @Composable
 fun GroupChatCreateLayout(
     uiState: GroupChatCreateUiState,

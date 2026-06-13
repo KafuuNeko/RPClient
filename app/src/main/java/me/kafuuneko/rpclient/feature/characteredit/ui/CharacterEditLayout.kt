@@ -77,6 +77,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 角色创建与编辑页 Compose 入口，仅渲染状态并发送编辑意图。 */
 @Composable
 fun CharacterEditLayout(
     uiState: CharacterEditUiState,

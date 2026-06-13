@@ -4,6 +4,12 @@ import me.kafuuneko.rpclient.libs.regex.RegexFindMacroMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScript
 
+/**
+ * Regex 编辑器使用的可输入表单。
+ *
+ * 深度和 Trim Out 暂时以字符串保存，允许用户输入未完成内容并由 ViewModel 即时校验；
+ * [rawJson] 随编辑过程保留，用于继续往返未知 SillyTavern 字段。
+ */
 data class RegexScriptDraft(
     val id: String,
     val scriptName: String = "",
@@ -23,6 +29,7 @@ data class RegexScriptDraft(
     val maxDepth: String = "",
     val rawJson: String = "{}"
 ) {
+    /** 将通过校验的表单转换为可执行领域模型。 */
     fun toScript(): RegexScript = RegexScript(
         id = id,
         scriptName = scriptName.trim(),
@@ -41,6 +48,7 @@ data class RegexScriptDraft(
     )
 
     companion object {
+        /** 从持久化脚本恢复编辑草稿。 */
         fun from(script: RegexScript): RegexScriptDraft = RegexScriptDraft(
             id = script.id,
             scriptName = script.scriptName,

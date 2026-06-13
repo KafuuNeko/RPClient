@@ -6,6 +6,12 @@ import androidx.room.ColumnInfo
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.utils.toStringList
 
+/**
+ * 本地角色卡实体。
+ *
+ * 角色卡的列表及第三方扩展字段以 JSON 或兼容字符串保存，导入导出时由 CharacterCardMapper
+ * 负责与 Character Card V2 格式转换。
+ */
 @Entity(
     tableName = "character"
 )
@@ -60,22 +66,26 @@ data class Character(
     @ColumnInfo(defaultValue = "0")
     val characterLorebookId: Long = 0L
 ) {
+    /** 解析角色标签 JSON；损坏数据由 Gson 工具按空列表处理。 */
     fun getCharacterTagList(): List<String> {
         return Gson().toStringList(characterTags)
     }
 
+    /** 解析主开场白；历史格式使用 `<START>` 分隔多条内容。 */
     fun getFirstMessageList(): List<String> {
         return firstMessages.split("<START>")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
     }
 
+    /** 解析 Character Card V2 的备用开场白数组。 */
     fun getAlternateGreetingList(): List<String> {
         return Gson().toStringList(alternateGreetings)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
     }
 
+    /** 返回聊天创建页可选择的全部主开场白和备用开场白。 */
     fun getChatFirstMessageList(): List<String> {
         return getFirstMessageList() + getAlternateGreetingList()
     }

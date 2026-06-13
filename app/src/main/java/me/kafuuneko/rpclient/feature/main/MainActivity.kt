@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.ui.MainLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 应用主页面宿主，承载首页与全局设置。 */
 class MainActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<MainViewModel>()
 

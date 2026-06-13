@@ -36,6 +36,12 @@ internal data class TrackedPromptMessage(
     val sources: List<PromptSource>
 )
 
+/**
+ * 在保留来源追踪的前提下执行 Prompt Post-Processing。
+ *
+ * 合并消息时必须同步合并 [TrackedPromptMessage.sources]，否则检查器和世界书时序状态
+ * 会误以为被合并的内容已从最终请求中移除。
+ */
 internal fun postProcessTrackedMessages(
     messages: List<TrackedPromptMessage>,
     mode: PromptPostProcessingMode,

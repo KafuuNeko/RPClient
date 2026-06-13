@@ -6,6 +6,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.utils.takeIfNotBlank
 
+/**
+ * 单聊会话实体。
+ *
+ * 会话绑定单个角色卡，并保存用户身份覆盖、世界书选择以及仅供 Prompt 运行时使用的
+ * sticky/cooldown 状态。
+ */
 @Entity(
     tableName = "chat_sessions",
     foreignKeys = [
@@ -44,6 +50,7 @@ data class ChatSession(
     // 世界书 timed effects 运行时状态，保存 sticky/cooldown 的有效期；不是用户可编辑内容。
     val worldInfoStateJson: String = "{}"
 ) {
+    /** 将空白 creator notes 覆盖归一化为 null，使读取时继续继承角色卡默认值。 */
     fun withNormalizedCreatorNotes(): ChatSession {
         return copy(creatorNotes = creatorNotes.takeIfNotBlank())
     }

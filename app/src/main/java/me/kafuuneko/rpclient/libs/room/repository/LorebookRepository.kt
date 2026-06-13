@@ -13,6 +13,11 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
+/**
+ * 世界书及条目的事务、列表字段序列化和文件导入导出仓库。
+ *
+ * 删除世界书时会同时解除角色卡绑定并清理其条目。
+ */
 class LorebookRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
@@ -231,6 +236,7 @@ class LorebookRepository(
         bookId
     }
 
+    /** 导出指定世界书及其条目为 SillyTavern 兼容 JSON。 */
     suspend fun exportJson(lorebookId: Long): String = withContext(Dispatchers.IO) {
         val lorebook = getLorebookById(lorebookId) ?: error("World book not found")
         val entries = getEntriesByLorebookId(lorebookId)

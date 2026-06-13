@@ -5,8 +5,10 @@ import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 
+/** 群聊摘要快照及覆盖边界的数据库访问接口。 */
 @Dao
 interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
+    /** 读取会话最新摘要快照。 */
     @Query(
         """
         SELECT * FROM group_chat_summaries
@@ -17,6 +19,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     )
     suspend fun getLatest(sessionId: Long): GroupChatSummary?
 
+    /** 读取当前覆盖边界之前可继续继承的上一份摘要。 */
     @Query(
         """
         SELECT * FROM group_chat_summaries
@@ -30,6 +33,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         coveredMessageId: Long
     ): GroupChatSummary?
 
+    /** 原位更新摘要内容、覆盖边界和生成时间。 */
     @Query(
         """
         UPDATE group_chat_summaries
@@ -44,6 +48,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         createTime: Long
     )
 
+    /** 删除覆盖了已修改或删除消息的失效摘要。 */
     @Query(
         """
         DELETE FROM group_chat_summaries

@@ -5,11 +5,17 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/** 最终可发送请求及其同源检查报告。 */
 data class PromptFinalizationResult(
     val request: LLMGenerationRequest,
     val inspection: PromptInspection
 )
 
+/**
+ * 核心不可丢弃内容本身已超过输入预算。
+ *
+ * 此时继续静默裁剪会破坏角色设定，因此终止构建并由界面提示用户调整上下文。
+ */
 class PromptBudgetExceededException(
     val requiredTokens: Int,
     val promptBudget: Int
@@ -18,13 +24,25 @@ class PromptBudgetExceededException(
         "Shorten the core prompt or increase the context limit."
 )
 
+/**
+ * Prompt 流水线的最终化阶段。
+ *
+ * 依次执行消息后处理、Token 统计和按优先级裁剪，成功时生成标记为
+ * [LLMGenerationRequest.isPromptFinalized] 的请求，防止 Repository 重复改写。
+ */
 class PromptRequestFinalizer(
     private val mTokenizerResolver: PromptTokenizerResolver = PromptTokenizerRegistry()
 ) {
+    /** 为供应商选择与预算统计一致的 Tokenizer。 */
     fun tokenizerFor(provider: LLMProvider?): PromptTokenizer {
         return mTokenizerResolver.resolve(provider)
     }
 
+    /**
+     * 将消息草稿收敛为不超过上下文预算的最终请求。
+     *
+     * 每次移除草稿后都重新执行后处理和统计，因为消息合并会改变最终 Token 数量。
+     */
     fun finalize(
         drafts: List<PromptMessageDraft>,
         provider: LLMProvider?,

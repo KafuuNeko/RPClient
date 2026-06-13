@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
+/** 页面主标题，可选显示辅助说明。 */
 @Composable
 fun RpPageTitle(
     title: String,
@@ -55,6 +56,7 @@ fun RpPageTitle(
     }
 }
 
+/** 内容区段标题，可选在右侧放置操作按钮。 */
 @Composable
 fun RpSectionHeader(
     title: String,
@@ -76,6 +78,7 @@ fun RpSectionHeader(
     }
 }
 
+/** 项目统一的文字占位头像。 */
 @Composable
 fun RpAvatar(
     text: String,
@@ -94,6 +97,7 @@ fun RpAvatar(
     }
 }
 
+/** 用于列表项或卡片的圆形图标背景。 */
 @Composable
 fun RpIconBubble(
     icon: ImageVector,
@@ -110,6 +114,7 @@ fun RpIconBubble(
     }
 }
 
+/** 可自动换行的标签集合。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RpTagRow(
@@ -128,6 +133,7 @@ fun RpTagRow(
     }
 }
 
+/** 单个强调标签。 */
 @Composable
 fun RpTagPill(text: String) {
     Surface(
@@ -147,6 +153,7 @@ fun RpTagPill(text: String) {
     }
 }
 
+/** 可自动换行的弱化元信息集合。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RpMetaRow(items: List<String>) {
@@ -160,6 +167,7 @@ fun RpMetaRow(items: List<String>) {
     }
 }
 
+/** 单个弱化元信息标签。 */
 @Composable
 fun RpMetaPill(text: String) {
     Surface(
@@ -179,6 +187,7 @@ fun RpMetaPill(text: String) {
     }
 }
 
+/** 带图标、标题和可选操作区的统一信息卡片。 */
 @Composable
 fun RpInfoCard(
     modifier: Modifier = Modifier,
@@ -221,6 +230,7 @@ fun RpInfoCard(
     }
 }
 
+/** 使用项目统一圆角与背景色的内容面板。 */
 @Composable
 fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
     Card(
@@ -237,6 +247,7 @@ fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
+/** 项目统一的小号垂直间距。 */
 @Composable
 fun RpSpacerSmall() {
     Spacer(modifier = Modifier.height(8.dp))

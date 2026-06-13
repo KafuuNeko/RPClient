@@ -15,11 +15,13 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 
+/** 映射世界书 UI 分组所需的书籍索引与条目集合。 */
 data class ChatLorebookEntryData(
     val lorebooks: Map<Long, Lorebook>,
     val entries: List<LorebookEntry>
 )
 
+/** 将会话实体和聚合信息转换为聊天页展示模型。 */
 fun ChatSession.toChatSessionItem(
     summary: String,
     creatorNotes: String,
@@ -39,6 +41,7 @@ fun ChatSession.toChatSessionItem(
     )
 }
 
+/** 将角色实体转换为聊天页展示模型。 */
 fun Character.toChatCharacterItem(avatarFilePath: String? = null): ChatCharacterItem {
     return ChatCharacterItem(
         id = id,
@@ -55,6 +58,7 @@ fun Character.toChatCharacterItem(avatarFilePath: String? = null): ChatCharacter
     )
 }
 
+/** 将持久化消息转换为支持流式标记和 think 分段的 UI 模型。 */
 fun List<ChatMessage>.toChatMessageItems(
     characterName: String,
     userName: String,
@@ -86,6 +90,7 @@ fun List<ChatMessage>.toChatMessageItems(
     }
 }
 
+/** 按世界书分组构造聊天设置页的条目选择模型。 */
 fun ChatLorebookEntryData.toChatLorebookGroupItems(
     enabledIds: Set<Long>,
     unknownLorebookName: String
@@ -122,6 +127,7 @@ fun ChatLorebookEntryData.toChatLorebookGroupItems(
         }
 }
 
+/** 用尚未落库的流式文本替换对应消息的展示内容。 */
 fun List<ChatMessageUiModel>.replaceStreamingMessage(
     messageId: Long?,
     content: String
@@ -140,6 +146,7 @@ fun List<ChatMessageUiModel>.replaceStreamingMessage(
     }
 }
 
+/** 将消息正文拆分为普通文本和 think 内容片段。 */
 fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
     val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
     val parts = mutableListOf<ChatMessageContentPart>()

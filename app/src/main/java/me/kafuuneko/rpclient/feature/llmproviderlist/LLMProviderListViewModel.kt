@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 模型供应商列表页状态持有者，负责配置导航和启停状态同步。 */
 class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent, LLMProviderListUiState>(
     LLMProviderListUiState.None
 ), KoinComponent {

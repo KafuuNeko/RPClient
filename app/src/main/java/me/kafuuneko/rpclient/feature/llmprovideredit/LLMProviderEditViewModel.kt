@@ -26,12 +26,14 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 模型供应商编辑页状态持有者，负责表单校验、连接测试与配置持久化。 */
 class LLMProviderEditViewModel :
     CoreViewModelWithEvent<LLMProviderEditUiIntent, LLMProviderEditUiState>(
         LLMProviderEditUiState.None
     ), KoinComponent {
     private val mLLMRepository by inject<LLMRepository>()
     private val mLLMClientFactory by inject<LLMClientFactory>()
+    /** 当前连接测试任务；重复测试或离开页面时用于取消旧请求。 */
     private var mTestJob: Job? = null
 
     @UiIntentObserver(LLMProviderEditUiIntent.Init::class)

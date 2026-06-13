@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
 import me.kafuuneko.rpclient.feature.chatcreate.ui.ChatCreateLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 新建单角色会话页面宿主。 */
 class ChatCreateActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ChatCreateViewModel>()
 
@@ -35,4 +36,3 @@ class ChatCreateActivity : CoreActivityWithEvent() {
         mViewModel.emit(ChatCreateUiIntent.Init)
     }
 }
-

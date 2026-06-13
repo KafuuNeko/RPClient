@@ -25,15 +25,26 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.UUID
 
+/**
+ * Regex 管理页 ViewModel。
+ *
+ * 负责作用域切换、角色授权、脚本增删改排序、即时校验、测试以及 JSON 文件读写；
+ * Compose 只渲染状态并发送用户意图。
+ */
 class RegexScriptViewModel :
     CoreViewModelWithEvent<RegexScriptUiIntent, RegexScriptUiState>(
         RegexScriptUiState.None
     ), KoinComponent {
+    /** Regex 持久化、角色扩展字段及授权状态的统一入口。 */
     private val mRepository by inject<RegexScriptRepository>()
+    /** 提供角色选择列表以及角色卡最新数据。 */
     private val mCharacterRepository by inject<CharacterRepository>()
+    /** 编辑校验和测试模式共用的纯执行引擎。 */
     private val mEngine by inject<RegexScriptEngine>()
+    /** 仅用于 ContentResolver 和本地化错误文案。 */
     private val mContext by inject<Context>()
 
+    /** 首次加载角色列表，并刷新默认全局作用域。 */
     @UiIntentObserver(RegexScriptUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<RegexScriptUiState.None>()) return
@@ -50,6 +61,7 @@ class RegexScriptViewModel :
         RegexScriptUiState.Finished.setup()
     }
 
+    /** 切换作用域，并在进入角色作用域时自动选择首个角色。 */
     @UiIntentObserver(RegexScriptUiIntent.SelectScope::class)
     private suspend fun onSelectScope(intent: RegexScriptUiIntent.SelectScope) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -64,6 +76,7 @@ class RegexScriptViewModel :
         ).refreshScripts().setup()
     }
 
+    /** 切换当前角色，并读取该角色的内嵌脚本及授权状态。 */
     @UiIntentObserver(RegexScriptUiIntent.SelectCharacter::class)
     private suspend fun onSelectCharacter(intent: RegexScriptUiIntent.SelectCharacter) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -72,6 +85,7 @@ class RegexScriptViewModel :
             .setup()
     }
 
+    /** 更新预设或角色作用域授权；全局脚本始终允许执行。 */
     @UiIntentObserver(RegexScriptUiIntent.ToggleAuthorization::class)
     private fun onToggleAuthorization(intent: RegexScriptUiIntent.ToggleAuthorization) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -85,6 +99,7 @@ class RegexScriptViewModel :
         state.copy(authorized = intent.authorized).setup()
     }
 
+    /** 创建带即时校验结果的空白脚本草稿。 */
     @UiIntentObserver(RegexScriptUiIntent.CreateScript::class)
     private fun onCreateScript() {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -107,6 +122,7 @@ class RegexScriptViewModel :
         ).setup()
     }
 
+    /** 复制脚本并生成新 ID，同时保留未知 JSON 扩展字段。 */
     @UiIntentObserver(RegexScriptUiIntent.CopyScript::class)
     private suspend fun onCopyScript(intent: RegexScriptUiIntent.CopyScript) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -137,6 +153,7 @@ class RegexScriptViewModel :
         state.copy(scripts = scripts, dialogState = RegexScriptDialogState.None).setup()
     }
 
+    /** 按拖动方向移动一个位置并立即持久化新顺序。 */
     @UiIntentObserver(RegexScriptUiIntent.MoveScript::class)
     private suspend fun onMoveScript(intent: RegexScriptUiIntent.MoveScript) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -151,6 +168,7 @@ class RegexScriptViewModel :
         state.copy(scripts = scripts).setup()
     }
 
+    /** 每次表单变化都重新编译 Find Regex，向 UI 返回即时错误。 */
     @UiIntentObserver(RegexScriptUiIntent.UpdateDraft::class)
     private fun onUpdateDraft(intent: RegexScriptUiIntent.UpdateDraft) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -163,6 +181,7 @@ class RegexScriptViewModel :
         ).setup()
     }
 
+    /** 校验并保存草稿；已有 ID 原位覆盖，新 ID 追加到列表末尾。 */
     @UiIntentObserver(RegexScriptUiIntent.SaveDraft::class)
     private suspend fun onSaveDraft() {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -214,6 +233,7 @@ class RegexScriptViewModel :
         state.copy(testMode = intent.mode).setup()
     }
 
+    /** 在当前作用域脚本上运行纯测试，不改变持久化数据。 */
     @UiIntentObserver(RegexScriptUiIntent.RunTest::class)
     private fun onRunTest() {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -240,6 +260,7 @@ class RegexScriptViewModel :
         RegexScriptViewEvent.OpenImporter.tryEmit()
     }
 
+    /** 读取外部 JSON，修复空 ID 或冲突 ID 后追加到当前作用域。 */
     @UiIntentObserver(RegexScriptUiIntent.ImportJson::class)
     private suspend fun onImportJson(intent: RegexScriptUiIntent.ImportJson) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -278,6 +299,7 @@ class RegexScriptViewModel :
         RegexScriptViewEvent.OpenExporter("regex-${state.scope.name.lowercase()}.json").tryEmit()
     }
 
+    /** 将当前作用域脚本写入用户选择的 JSON 文档。 */
     @UiIntentObserver(RegexScriptUiIntent.ExportJson::class)
     private suspend fun onExportJson(intent: RegexScriptUiIntent.ExportJson) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
@@ -295,6 +317,7 @@ class RegexScriptViewModel :
         }
     }
 
+    /** 校验必填字段、深度区间以及 Regex 编译结果。 */
     private fun validate(draft: RegexScriptDraft): String? {
         if (draft.scriptName.isBlank()) return mContext.getString(R.string.regex_name_required)
         if (draft.placements.isEmpty()) return mContext.getString(R.string.regex_placement_required)
@@ -312,6 +335,7 @@ class RegexScriptViewModel :
         return mEngine.validate(draft.toScript())
     }
 
+    /** 根据当前作用域重读脚本与授权状态，避免页面持有跨作用域旧数据。 */
     private suspend fun RegexScriptUiState.Normal.refreshScripts(): RegexScriptUiState.Normal {
         val characterId = selectedCharacterId ?: characters.firstOrNull()?.id
         val scripts = when (scope) {
@@ -335,6 +359,7 @@ class RegexScriptViewModel :
         )
     }
 
+    /** 将列表保存到当前全局、预设或角色卡作用域。 */
     private suspend fun RegexScriptUiState.Normal.saveScripts(scripts: List<RegexScript>) {
         when (scope) {
             RegexScriptScope.Global -> mRepository.saveGlobalScripts(scripts)

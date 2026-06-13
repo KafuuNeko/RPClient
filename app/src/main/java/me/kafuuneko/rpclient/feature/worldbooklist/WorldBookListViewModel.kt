@@ -18,6 +18,7 @@ import android.content.Context
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/** 世界书列表页状态持有者，协调条目数聚合、编辑导航及文件导入导出。 */
 class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, WorldBookListUiState>(
     WorldBookListUiState.None
 ), KoinComponent {
@@ -129,4 +130,3 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         }
     }
 }
-

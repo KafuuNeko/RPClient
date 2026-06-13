@@ -69,6 +69,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
+/** Regex 管理页 Compose 入口，仅根据状态树渲染并向 ViewModel 发出意图。 */
 @Composable
 fun RegexScriptLayout(
     uiState: RegexScriptUiState,
@@ -160,6 +161,7 @@ private fun RegexScriptNormal(
     }
 }
 
+/** 作用域切换器，控制列表当前展示全局、预设或角色卡脚本。 */
 @Composable
 private fun ScopeSelector(
     state: RegexScriptUiState.Normal,
@@ -176,6 +178,7 @@ private fun ScopeSelector(
     }
 }
 
+/** 角色作用域下的角色选择器。 */
 @Composable
 private fun CharacterSelector(
     state: RegexScriptUiState.Normal,
@@ -192,6 +195,7 @@ private fun CharacterSelector(
     }
 }
 
+/** 预设和角色卡脚本的显式授权开关及安全提示。 */
 @Composable
 private fun AuthorizationCard(
     state: RegexScriptUiState.Normal,
@@ -229,6 +233,7 @@ private fun AuthorizationCard(
     }
 }
 
+/** 单条脚本摘要卡片，提供启停、编辑、复制、删除和拖动排序入口。 */
 @Composable
 private fun ScriptCard(
     script: RegexScript,
@@ -295,6 +300,7 @@ private fun ScriptCard(
     }
 }
 
+/** 在不持久化任何结果的前提下试运行当前作用域脚本。 */
 @Composable
 private fun TestCard(
     state: RegexScriptUiState.Normal,
@@ -350,6 +356,7 @@ private fun TestCard(
     }
 }
 
+/** 根据 UiState 选择脚本编辑器或删除确认框。 */
 @Composable
 private fun DialogSwitch(
     dialogState: RegexScriptDialogState,
@@ -376,6 +383,7 @@ private fun DialogSwitch(
     }
 }
 
+/** Regex 脚本完整字段编辑器，所有输入通过 UpdateDraft 进入单向数据流。 */
 @Composable
 private fun EditorDialog(
     state: RegexScriptDialogState.Editor,

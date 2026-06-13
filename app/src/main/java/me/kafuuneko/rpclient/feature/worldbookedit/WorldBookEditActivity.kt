@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiS
 import me.kafuuneko.rpclient.feature.worldbookedit.ui.WorldBookEditLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 
+/** 世界书元数据与条目列表编辑页面宿主。 */
 class WorldBookEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<WorldBookEditViewModel>()
 

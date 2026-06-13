@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/** 应用首页状态树，组合最近会话、全局设置和批量操作对话框。 */
 sealed class MainUiState {
     data object None : MainUiState()
 
@@ -18,6 +19,7 @@ sealed class MainUiState {
     data object Finished : MainUiState()
 }
 
+/** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()
     data class DeleteSelectedSessions(
@@ -25,11 +27,13 @@ sealed class MainDialogState {
     ) : MainDialogState()
 }
 
+/** 首页底部导航对应的一级页面。 */
 enum class MainPage {
     Home,
     Settings
 }
 
+/** 首页会话列表、资源统计和多选状态。 */
 data class MainHomeState(
     val recentSessions: List<MainChatSessionItem>,
     val groupChatSessions: List<MainGroupChatSessionItem> = emptyList(),
@@ -39,6 +43,7 @@ data class MainHomeState(
     val selectedSessionIds: Set<String> = emptySet()
 )
 
+/** 全局设置页的可渲染快照，由 ViewModel 从 Kotpref 与 Provider 数据共同构建。 */
 data class MainSettingsState(
     val userName: String,
     val userDescription: String,

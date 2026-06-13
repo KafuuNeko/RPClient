@@ -7,9 +7,16 @@ import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 
+/**
+ * SillyTavern 独立世界书 JSON 编解码器。
+ *
+ * 导入时将 entries 对象转换为本地实体；导出时以 [LorebookEntry.rawJson] 为底稿
+ * 覆盖当前已支持字段，从而尽量保留未知的第三方扩展。
+ */
 class LorebookCodec(
     private val gson: Gson
 ) {
+    /** 解析独立世界书，返回尚未写入数据库的书籍与条目集合。 */
     fun parseLorebook(json: String): CharacterBookImport {
         val root = JsonParser.parseString(json).asJsonObject
         
@@ -33,6 +40,7 @@ class LorebookCodec(
         return CharacterBookImport(lorebook, entries)
     }
 
+    /** 将本地世界书导出为 SillyTavern 使用的 entries 对象结构。 */
     fun toLorebookJson(lorebook: Lorebook, entries: List<LorebookEntry>): String {
         val book = JsonObject()
         book.addProperty("name", lorebook.name)

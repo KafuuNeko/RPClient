@@ -10,18 +10,28 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
+/**
+ * Prompt Token 统计抽象。
+ *
+ * 消息统计包含通用聊天模板开销；具体供应商若无公开编码器，可实现保守上界策略。
+ */
 interface PromptTokenizer {
+    /** 调试界面展示的编码器名称。 */
     val name: String
+    /** 当前统计属于模型感知还是保守上界。 */
     val strategy: PromptTokenizerStrategy
 
+    /** 统计纯文本 Token 数。 */
     fun countText(text: String): Int
 
+    /** 统计一条消息的角色、正文及固定模板开销。 */
     fun countMessage(message: LLMMessage): Int {
         return MESSAGE_OVERHEAD_TOKENS +
             countText(message.role.name.lowercase()) +
             countText(message.content)
     }
 
+    /** 统计完整消息列表，并预留模型开始回复所需的模板开销。 */
     fun countMessages(messages: List<LLMMessage>): Int {
         if (messages.isEmpty()) return 0
         return messages.sumOf(::countMessage) + RESPONSE_PRIMER_TOKENS
@@ -33,10 +43,17 @@ interface PromptTokenizer {
     }
 }
 
+/** 根据供应商协议和模型名称选择 Tokenizer。 */
 fun interface PromptTokenizerResolver {
     fun resolve(provider: LLMProvider?): PromptTokenizer
 }
 
+/**
+ * 内置 Tokenizer 注册表。
+ *
+ * 已知 OpenAI 模型使用 JTokkit 精确编码；其他协议使用 UTF-8 字节数作为安全上界，
+ * 避免因套用错误编码器而低估上下文。
+ */
 class PromptTokenizerRegistry : PromptTokenizerResolver {
     private val mEncodingRegistry by lazy { Encodings.newDefaultEncodingRegistry() }
     private val mCl100k by lazy {

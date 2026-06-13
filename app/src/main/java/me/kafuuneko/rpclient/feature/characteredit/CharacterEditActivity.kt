@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.feature.characteredit.ui.CharacterEditLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
+/** 角色创建与编辑页面宿主，处理头像文件选择等系统事件。 */
 class CharacterEditActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterEditViewModel>()
     private val mAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->

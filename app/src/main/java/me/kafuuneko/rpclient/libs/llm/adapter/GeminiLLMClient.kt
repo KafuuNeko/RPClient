@@ -16,6 +16,12 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Gemini generateContent/streamGenerateContent 协议适配器。
+ *
+ * 通用消息会转换为 Gemini 的 user/model 角色；开头连续 system 消息通过
+ * systemInstruction 发送，历史中的 system 消息以显式标签降级保存。
+ */
 class GeminiLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,

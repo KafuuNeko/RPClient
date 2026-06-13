@@ -61,6 +61,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
+/** 角色列表页 Compose 入口，包含搜索、选择及导入导出操作。 */
 @Composable
 fun CharacterListLayout(
     uiState: CharacterListUiState,

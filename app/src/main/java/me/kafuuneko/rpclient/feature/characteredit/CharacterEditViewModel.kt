@@ -25,6 +25,11 @@ import me.kafuuneko.rpclient.libs.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+/**
+ * 角色创建与编辑页的状态持有者。
+ *
+ * 负责头像文件生命周期、绑定世界书有效性校验、表单脏检查及保存删除流程。
+ */
 class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, CharacterEditUiState>(
     CharacterEditUiState.None
 ), KoinComponent {

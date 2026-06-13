@@ -6,6 +6,12 @@ import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 
+/**
+ * Regex 管理页全部用户意图。
+ *
+ * 文件选择只发出点击意图，Activity Result 再通过 [ImportJson] 或 [ExportJson]
+ * 交回 ViewModel，保持 Compose 与 Android 文件 API 解耦。
+ */
 sealed class RegexScriptUiIntent {
     data object Init : RegexScriptUiIntent()
     data object Back : RegexScriptUiIntent()
