@@ -11,11 +11,11 @@ enum class PromptPostProcessingMode {
     None,
     /** 只合并连续相同 role 的消息。 */
     Merge,
-    /** 将全部 system 内容合并为开头的一条 system 消息。 */
+    /** 保留开头 system，并将中途 system 在原位置降级为 user。 */
     SemiStrict,
-    /** 在 SemiStrict 基础上，确保聊天正文以 user 消息开始。 */
+    /** 在 SemiStrict 基础上，确保第一条聊天正文为 user。 */
     Strict,
-    /** 将所有 role 展平成一条 user 消息，兼容性最强但结构语义最弱。 */
+    /** 将所有 role 转为 user，并把用户或角色名称写入正文。 */
     SingleUserMessage;
 
     companion object {

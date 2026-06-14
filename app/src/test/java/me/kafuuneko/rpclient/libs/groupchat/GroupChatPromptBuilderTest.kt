@@ -13,6 +13,9 @@ import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.PromptSourceKind
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -58,7 +61,7 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
-    fun promptIdentifiesCurrentSpeakerAndEveryHistoricalSpeaker() {
+    fun promptKeepsHistoricalSpeakersAndEndsHistoryWithGroupNudge() {
         val lyra = character(1, "Lyra")
         val mina = character(2, "Mina")
         val session = GroupChatSession(
@@ -83,11 +86,133 @@ class GroupChatPromptBuilderTest {
         )
 
         val content = request.messages.joinToString("\n") { it.content }
-        assertTrue(content.contains("Current responding character: Mina"))
-        assertTrue(content.contains("Group members: Lyra, Mina"))
+        assertFalse(content.contains("Current responding character:"))
+        assertFalse(content.contains("Group members:"))
+        assertTrue(content.contains("Mina description"))
         assertTrue(content.contains("Alex: Look outside."))
         assertTrue(content.contains("Lyra: I see a station."))
         assertTrue(content.contains("Write only Mina's next reply"))
+    }
+
+    @Test
+    fun joinedCardsAreGroupedByFieldAndDepthPromptsStayInChat() {
+        val lyra = character(1, "Lyra").copy(
+            personality = "Calm",
+            scenario = "Bridge",
+            depthPromptPrompt = "Lyra depth",
+            depthPromptDepth = 0,
+            depthPromptRole = LorebookEntry.ROLE_ASSISTANT
+        )
+        val mina = character(2, "Mina").copy(
+            personality = "Bold",
+            scenario = "Dock",
+            depthPromptPrompt = "Mina depth",
+            depthPromptDepth = 1
+        )
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = "",
+                    characterCardMode = GroupChatSession.CharacterCardMode.Join
+                ),
+                members = listOf(member(lyra, 0), member(mina, 1)),
+                speaker = mina,
+                messages = listOf(
+                    message(GroupChatMessage.Source.User, "Alex", "Ready?")
+                ),
+                provider = provider()
+            )
+        )
+
+        val descriptions = result.inspection.items.first {
+            it.sources.any { source -> source.kind == PromptSourceKind.CharacterDescription }
+        }.content
+        assertTrue(descriptions.contains("Lyra:\nLyra description"))
+        assertTrue(descriptions.contains("Mina:\nMina description"))
+        assertEquals(
+            LLMMessageRole.Assistant,
+            result.request.messages.first { it.content == "Lyra depth" }.role
+        )
+        assertTrue(result.request.messages.any { it.content == "Mina depth" })
+    }
+
+    @Test
+    fun continuePlacesGroupNudgePhiTargetAndControlPromptInOrder() {
+        val lyra = character(1, "Lyra").copy(postHistoryInstructions = "Group PHI")
+        val request = GroupChatPromptBuilder().build(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.User, "Alex", "Question"),
+                    message(GroupChatMessage.Source.Character, "Lyra", "Partial")
+                ),
+                provider = provider(),
+                generationMode = GroupChatGenerationMode.Continue
+            )
+        )
+
+        val continueNudge = request.messages.first {
+            it.content.contains("Continue your last message")
+        }
+        val relevant = request.messages.filter {
+            it.content.contains("Write only Lyra") ||
+                it.content == "Group PHI" ||
+                it.content == "Lyra: Partial" ||
+                it === continueNudge
+        }
+        assertEquals(
+            listOf(
+                request.messages.first { it.content.contains("Write only Lyra") }.content,
+                "Group PHI",
+                "Lyra: Partial",
+                continueNudge.content
+            ),
+            relevant.map { it.content }
+        )
+        assertEquals(LLMMessageRole.System, continueNudge.role)
+        assertEquals(continueNudge, request.messages.last())
+    }
+
+    @Test
+    fun impersonateOmitsGroupNudgeAndPlacesControlPromptLast() {
+        val lyra = character(1, "Lyra").copy(postHistoryInstructions = "Group PHI")
+        val request = GroupChatPromptBuilder().build(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.Character, "Lyra", "Your turn.")
+                ),
+                provider = provider(),
+                generationMode = GroupChatGenerationMode.Impersonate
+            )
+        )
+
+        assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
+        assertTrue(request.messages.last().content.contains("point of view of Alex"))
+        assertEquals(LLMMessageRole.System, request.messages.last().role)
     }
 
     @Test

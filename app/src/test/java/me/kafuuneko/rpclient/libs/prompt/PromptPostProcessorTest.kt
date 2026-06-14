@@ -8,7 +8,7 @@ import org.junit.Test
 
 class PromptPostProcessorTest {
     @Test
-    fun semiStrictMovesAllSystemContentToLeadingMessage() {
+    fun semiStrictKeepsMidPromptSystemAtItsOriginalPositionAsUser() {
         val request = request(
             LLMMessage(LLMMessageRole.System, "Main"),
             LLMMessage(LLMMessageRole.User, "Hi"),
@@ -18,9 +18,10 @@ class PromptPostProcessorTest {
 
         assertEquals(
             listOf(
-                LLMMessage(LLMMessageRole.System, "Main\n\nPost"),
+                LLMMessage(LLMMessageRole.System, "Main"),
                 LLMMessage(LLMMessageRole.User, "Hi"),
-                LLMMessage(LLMMessageRole.Assistant, "Hello")
+                LLMMessage(LLMMessageRole.Assistant, "Hello"),
+                LLMMessage(LLMMessageRole.User, "Post")
             ),
             request.messages
         )
@@ -48,11 +49,30 @@ class PromptPostProcessorTest {
         val request = request(
             LLMMessage(LLMMessageRole.System, "Main"),
             LLMMessage(LLMMessageRole.Assistant, "Greeting")
-        ).withPostProcessedMessages(PromptPostProcessingMode.SingleUserMessage, "[Start]")
+        ).withPostProcessedMessages(
+            PromptPostProcessingMode.SingleUserMessage,
+            "[Start]",
+            PromptPostProcessingNames(userName = "Alex", characterName = "Mina")
+        )
 
         assertEquals(1, request.messages.size)
         assertEquals(LLMMessageRole.User, request.messages.single().role)
-        assertEquals("System:\nMain\n\nAssistant:\nGreeting", request.messages.single().content)
+        assertEquals("Main\n\nMina: Greeting", request.messages.single().content)
+    }
+
+    @Test
+    fun strictAddsPlaceholderWhenOnlySystemMessageExists() {
+        val request = request(
+            LLMMessage(LLMMessageRole.System, "Main")
+        ).withPostProcessedMessages(PromptPostProcessingMode.Strict, "[Start]")
+
+        assertEquals(
+            listOf(
+                LLMMessage(LLMMessageRole.System, "Main"),
+                LLMMessage(LLMMessageRole.User, "[Start]")
+            ),
+            request.messages
+        )
     }
 
     private fun request(vararg messages: LLMMessage): LLMGenerationRequest {

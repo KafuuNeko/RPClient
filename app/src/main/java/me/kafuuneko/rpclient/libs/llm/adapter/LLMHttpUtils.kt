@@ -142,16 +142,46 @@ internal fun LLMMessage.toGeminiRole(): String {
 /**
  * 提取开头连续的 system 消息。
  *
- * 不能收集中途 system 消息，否则会改变原始对话顺序；中途消息由适配器加标签降级。
+ * 中途 system 消息仍保留在原始位置，由消息正文转换阶段降级为 user。
  */
 internal fun List<LLMMessage>.leadingSystemPrompt(): String {
     return takeWhile { it.role == LLMMessageRole.System }
         .joinToString("\n\n") { it.content }
 }
 
-/** 为无法原生表达中途 system 角色的协议保留角色边界。 */
-internal fun LLMMessage.contentWithSystemPrefix(): String {
-    return if (role == LLMMessageRole.System) "[System]\n$content" else content
+/**
+ * 为仅支持 user/assistant 轮次的协议构建消息正文。
+ *
+ * 开头连续的 system 已由协议专用字段承载；其余 system 在原位置降级为 user，
+ * 再合并连续同角色消息，确保 Anthropic 和 Gemini 收到合法的交替轮次。
+ */
+internal fun List<LLMMessage>.toAlternatingConversationMessages(
+    emptyPlaceholder: String = "Let's get started."
+): List<LLMMessage> {
+    val converted = dropWhile { it.role == LLMMessageRole.System }
+        .map { message ->
+            if (message.role == LLMMessageRole.System) {
+                message.copy(role = LLMMessageRole.User)
+            } else {
+                message
+            }
+        }
+    if (converted.isEmpty()) {
+        return listOf(LLMMessage(LLMMessageRole.User, emptyPlaceholder))
+    }
+    return converted.fold(mutableListOf()) { merged, message ->
+        val previous = merged.lastOrNull()
+        if (previous?.role == message.role) {
+            merged[merged.lastIndex] = previous.copy(
+                content = listOf(previous.content, message.content)
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n\n")
+            )
+        } else {
+            merged += message
+        }
+        merged
+    }
 }
 
 /**

@@ -119,11 +119,11 @@ class GeminiLLMClient(
      */
     private fun List<LLMMessage>.toGeminiContents(): JSONArray {
         return JSONArray().also { array ->
-            dropWhile { it.role == LLMMessageRole.System }.forEach { message ->
+            toAlternatingConversationMessages().forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toGeminiRole())
-                        .put("parts", JSONArray().put(JSONObject().put("text", message.contentWithSystemPrefix())))
+                        .put("parts", JSONArray().put(JSONObject().put("text", message.content)))
                 )
             }
         }

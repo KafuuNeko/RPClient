@@ -26,7 +26,7 @@ class SummaryPromptBuilder(
     /**
      * 构建独立的总结请求。
      *
-     * 预算按最终单条 user 消息计算，已包含模板、已有总结、宏展开、角色标签和消息格式开销。
+     * 预算按最终 system 与 user 两条消息计算，已包含模板、已有总结、角色标签和格式开销。
      */
     fun buildWithSelection(
         userName: String,
@@ -44,7 +44,8 @@ class SummaryPromptBuilder(
             "Summary response token reserve must be smaller than the context token limit."
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
-        val limited = messages.limitSummaryCount(AppModel.summaryMaxMessagesPerRequest)
+        // 最后一条消息仍可能处于编辑、续写或流式生成边界，不进入本轮摘要素材。
+        val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitizedById = limited.associate { message ->
             message.id to message.copy(content = message.content.summarySafeContent())
@@ -55,56 +56,41 @@ class SummaryPromptBuilder(
         ) { prefix ->
             val sanitized = prefix.map { sanitizedById.getValue(it.id) }
             tokenizer.countMessages(
-                listOf(
-                    LLMMessage(
-                        role = LLMMessageRole.User,
-                        content = renderPrompt(
-                            userName = userName,
-                            userDescription = userDescription,
-                            character = character,
-                            session = session,
-                            existingSummary = safeExistingSummary,
-                            messages = sanitized,
-                            provider = provider
-                        )
-                    )
+                renderRequestMessages(
+                    userName = userName,
+                    userDescription = userDescription,
+                    character = character,
+                    session = session,
+                    existingSummary = safeExistingSummary,
+                    messages = sanitized,
+                    provider = provider
                 )
             )
         }
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
-                listOf(
-                    LLMMessage(
-                        LLMMessageRole.User,
-                        renderPrompt(
-                            userName,
-                            userDescription,
-                            character,
-                            session,
-                            safeExistingSummary,
-                            listOf(sanitizedById.getValue(limited.first().id)),
-                            provider
-                        )
-                    )
+                renderRequestMessages(
+                    userName,
+                    userDescription,
+                    character,
+                    session,
+                    safeExistingSummary,
+                    listOf(sanitizedById.getValue(limited.first().id)),
+                    provider
                 )
             )
             throw PromptBudgetExceededException(required, promptBudget)
         }
         val sanitizedSelected = selected.map { sanitizedById.getValue(it.id) }
         val request = LLMGenerationRequest(
-            messages = listOf(
-                LLMMessage(
-                    LLMMessageRole.User,
-                    renderPrompt(
-                        userName,
-                        userDescription,
-                        character,
-                        session,
-                        safeExistingSummary,
-                        sanitizedSelected,
-                        provider
-                    )
-                )
+            messages = renderRequestMessages(
+                userName,
+                userDescription,
+                character,
+                session,
+                safeExistingSummary,
+                sanitizedSelected,
+                provider
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
@@ -117,7 +103,8 @@ class SummaryPromptBuilder(
         return SummaryPromptBuildResult(request, selected)
     }
 
-    private fun renderPrompt(
+    /** 渲染摘要指令和原始聊天素材两条消息。 */
+    private fun renderRequestMessages(
         userName: String,
         userDescription: String,
         character: Character,
@@ -125,14 +112,14 @@ class SummaryPromptBuilder(
         existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?
-    ): String {
+    ): List<LLMMessage> {
         val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
             userName = userName,
             userDescription = userDescription,
             character = character,
             session = session,
-            summary = existingSummary,
+            summary = "",
             messages = messages,
             currentUserMessage = null,
             candidateLorebookEntries = emptyList(),
@@ -140,15 +127,24 @@ class SummaryPromptBuilder(
             maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
             maxResponseTokens = AppModel.summaryResponseTokens
         )
-        return mMacroResolver.resolve(
+        val instruction = mMacroResolver.resolve(
             template = AppModel.summarizePrompt,
             context = context,
-            history = history
+            history = ""
         ).replace(
             "{{words}}",
             AppModel.summaryWordsLimit.toString(),
             ignoreCase = true
+        ).replace(
+            "{{summary}}",
+            "",
+            ignoreCase = true
+        ).replace(
+            "{{history}}",
+            "",
+            ignoreCase = true
         )
+        return buildRawSummaryMessages(instruction, existingSummary, history)
     }
 
     private companion object {
@@ -156,9 +152,34 @@ class SummaryPromptBuilder(
     }
 }
 
-/** 按数量限制保留连续消息前缀。 */
-private fun <T> List<T>.limitSummaryCount(maxMessages: Int): List<T> {
-    return if (maxMessages > 0) take(maxMessages) else this
+/**
+ * 选择本轮可摘要消息。
+ *
+ * 最后一条消息固定排除，再按用户配置保留连续前缀。
+ */
+internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
+    val withoutLast = dropLast(1)
+    return if (maxMessages > 0) withoutLast.take(maxMessages) else withoutLast
+}
+
+/** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */
+internal fun buildRawSummaryMessages(
+    instruction: String,
+    existingSummary: String,
+    history: String
+): List<LLMMessage> {
+    val rawPrompt = buildList {
+        existingSummary.takeIf { it.isNotBlank() }?.let {
+            add("Existing summary:\n$it")
+        }
+        history.takeIf { it.isNotBlank() }?.let {
+            add("Chat history:\n$it")
+        }
+    }.joinToString("\n\n")
+    return listOf(
+        LLMMessage(LLMMessageRole.System, instruction.trim()),
+        LLMMessage(LLMMessageRole.User, rawPrompt)
+    ).filter { it.content.isNotBlank() }
 }
 
 /**

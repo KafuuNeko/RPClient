@@ -29,12 +29,6 @@ Rules:
 - Only summarize what already happened in the chat.
 - Preserve important facts, relationship changes, promises, injuries, locations, goals, unresolved conflicts and current scene state.
 - Keep it within {{words}} words.
-
-Existing summary:
-{{summary}}
-
-Chat history to summarize:
-{{history}}
 """
 
     // 默认总结记忆包装模板，避免模型把剧情记忆与角色设定混为一谈。
@@ -94,13 +88,6 @@ Rules:
 - Mark plans, suspicions and hypotheses as unconfirmed.
 - Do not add character-card lore, world info or writing instructions as events.
 - Keep it within {{words}} words.
-
-Group members: {{group}}
-Existing summary:
-{{summary}}
-
-Chat history to summarize:
-{{history}}
 """
 
     // 当前选中的模型供应商 ID。
@@ -178,8 +165,14 @@ Chat history to summarize:
     // 总结记忆注入常规聊天 Prompt 时使用的包装模板。
     var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
 
-    // 总结记忆在常规聊天 Prompt 中的注入位置，对应 SummaryInjectionPosition ordinal。
-    var summaryInjectionPosition by intPref(default = 1)
+    // 摘要注入位置使用 SummaryInjectionPosition.persistedValue 持久化。
+    var summaryInjectionPosition by intPref(default = 11)
+
+    // 摘要位于聊天内时，从聊天末尾向前计算的插入深度。
+    var summaryInjectionDepth by intPref(default = 2)
+
+    // 摘要位于聊天内时使用的消息角色，对应 SummaryInjectionRole.persistedValue。
+    var summaryInjectionRole by intPref(default = 0)
 
     // 世界书占 prompt 预算的百分比。
     var worldInfoBudgetPercent by intPref(default = 25)

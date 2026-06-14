@@ -108,5 +108,7 @@ data class PromptMessageDraft(
     /** 数值越小越早从整体 Prompt 中移除。 */
     val retentionPriority: Int,
     /** 核心设定不可静默移除；空间不足时由预算器阻止请求。 */
-    val canDrop: Boolean
+    val canDrop: Boolean,
+    /** 合并消息包含的全部领域来源；未合并消息默认只包含 [source]。 */
+    val sources: List<PromptSource> = listOf(source)
 )

@@ -47,7 +47,7 @@ class PromptRequestFinalizerTest {
                 draft("Required", priority = 1_000, canDrop = false),
                 draft("Optional text", priority = 10, canDrop = true)
             ),
-            contextTokens = 50,
+            contextTokens = 35,
             responseTokens = 10,
             mode = PromptPostProcessingMode.SingleUserMessage
         )

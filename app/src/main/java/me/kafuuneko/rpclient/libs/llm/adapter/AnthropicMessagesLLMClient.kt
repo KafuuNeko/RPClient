@@ -103,11 +103,11 @@ class AnthropicMessagesLLMClient(
      */
     private fun List<LLMMessage>.toAnthropicMessages(): JSONArray {
         return JSONArray().also { array ->
-            dropWhile { it.role == LLMMessageRole.System }.forEach { message ->
+            toAlternatingConversationMessages().forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toAnthropicRole())
-                        .put("content", message.contentWithSystemPrefix())
+                        .put("content", message.content)
                 )
             }
         }

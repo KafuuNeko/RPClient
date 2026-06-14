@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.withPostProcessedMessages
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -213,7 +214,7 @@ class LLMRepository(
             mode = PromptPostProcessingMode.fromOrdinal(
                 provider.promptPostProcessingMode
             ),
-            strictPromptPlaceholder = AppModel.newChatPrompt.ifBlank { AppModel.DEFAULT_NEW_CHAT_PROMPT }
+            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER
         )
     }
 

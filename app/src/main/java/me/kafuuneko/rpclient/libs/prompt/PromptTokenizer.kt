@@ -5,7 +5,6 @@ import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import java.nio.charset.StandardCharsets
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -105,19 +104,5 @@ private class Utf8UpperBoundPromptTokenizer : PromptTokenizer {
 
     override fun countText(text: String): Int {
         return text.toByteArray(StandardCharsets.UTF_8).size
-    }
-
-    override fun countMessage(message: LLMMessage): Int {
-        val adapterSystemPrefixReserve = if (message.role == LLMMessageRole.System) {
-            SYSTEM_PREFIX_RESERVE
-        } else {
-            0
-        }
-        return super.countMessage(message) + adapterSystemPrefixReserve
-    }
-
-    private companion object {
-        // Gemini/Anthropic adapters may serialize an in-history system message as "[System]\n...".
-        const val SYSTEM_PREFIX_RESERVE = 16
     }
 }

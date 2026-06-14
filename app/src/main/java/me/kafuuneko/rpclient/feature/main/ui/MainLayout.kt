@@ -90,6 +90,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
@@ -1179,6 +1180,33 @@ private fun SummaryPanel(
                     )
                 }
             }
+            if (state.summaryInjectionPosition == SummaryInjectionPosition.InChat) {
+                NumberSettingRow(
+                    title = stringResource(R.string.summary_injection_depth),
+                    value = state.summaryInjectionDepth.toString(),
+                    onValueChange = {
+                        MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.summary_injection_role),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    SummaryInjectionRole.entries.forEach { role ->
+                        FilterChip(
+                            selected = role == state.summaryInjectionRole,
+                            onClick = {
+                                MainUiIntent.SelectSummaryInjectionRole(role).emit()
+                            },
+                            label = { Text(stringResource(role.titleRes())) }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1389,14 +1417,18 @@ private fun PromptPostProcessingMode.descriptionRes(): Int {
 
 private fun SummaryInjectionPosition.titleRes(): Int {
     return when (this) {
-        SummaryInjectionPosition.BeforeCharacter ->
-            R.string.summary_position_before_character
-        SummaryInjectionPosition.AfterCharacter ->
-            R.string.summary_position_after_character
-        SummaryInjectionPosition.BeforeHistory ->
-            R.string.summary_position_before_history
-        SummaryInjectionPosition.AfterHistory ->
-            R.string.summary_position_after_history
+        SummaryInjectionPosition.None -> R.string.summary_position_none
+        SummaryInjectionPosition.BeforeMain -> R.string.summary_position_before_main
+        SummaryInjectionPosition.AfterMain -> R.string.summary_position_after_main
+        SummaryInjectionPosition.InChat -> R.string.summary_position_in_chat
+    }
+}
+
+private fun SummaryInjectionRole.titleRes(): Int {
+    return when (this) {
+        SummaryInjectionRole.System -> R.string.summary_role_system
+        SummaryInjectionRole.User -> R.string.summary_role_user
+        SummaryInjectionRole.Assistant -> R.string.summary_role_assistant
     }
 }
 
@@ -1435,7 +1467,9 @@ private fun MainLayoutPreview() {
                     summaryWordsLimit = 500,
                     summaryMaxMessagesPerRequest = 0,
                     summaryResponseTokens = 800,
-                    summaryInjectionPosition = SummaryInjectionPosition.AfterCharacter
+                    summaryInjectionPosition = SummaryInjectionPosition.AfterMain,
+                    summaryInjectionDepth = 2,
+                    summaryInjectionRole = SummaryInjectionRole.System
                 )
             ),
             emit = {}

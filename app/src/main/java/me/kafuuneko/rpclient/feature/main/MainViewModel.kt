@@ -30,6 +30,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -97,7 +98,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 summaryWordsLimit = AppModel.summaryWordsLimit,
                 summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
                 summaryResponseTokens = AppModel.summaryResponseTokens,
-                summaryInjectionPosition = readSummaryInjectionPosition()
+                summaryInjectionPosition = readSummaryInjectionPosition(),
+                summaryInjectionDepth = AppModel.summaryInjectionDepth,
+                summaryInjectionRole = readSummaryInjectionRole()
             )
         ).setup()
     }
@@ -347,11 +350,28 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         intent: MainUiIntent.SelectSummaryInjectionPosition
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.summaryInjectionPosition = intent.position.ordinal
+        AppModel.summaryInjectionPosition = intent.position.persistedValue
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 summaryInjectionPosition = intent.position
             )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ChangeSummaryInjectionDepth::class)
+    private fun onChangeSummaryInjectionDepth(intent: MainUiIntent.ChangeSummaryInjectionDepth) {
+        updateSummaryInt(intent.value, minimum = 0) {
+            AppModel.summaryInjectionDepth = it
+            copy(summaryInjectionDepth = it)
+        }
+    }
+
+    @UiIntentObserver(MainUiIntent.SelectSummaryInjectionRole::class)
+    private fun onSelectSummaryInjectionRole(intent: MainUiIntent.SelectSummaryInjectionRole) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.summaryInjectionRole = intent.role.persistedValue
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(summaryInjectionRole = intent.role)
         ).setup()
     }
 
@@ -457,7 +477,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             summaryWordsLimit = AppModel.summaryWordsLimit,
             summaryMaxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
             summaryResponseTokens = AppModel.summaryResponseTokens,
-            summaryInjectionPosition = readSummaryInjectionPosition()
+            summaryInjectionPosition = readSummaryInjectionPosition(),
+            summaryInjectionDepth = AppModel.summaryInjectionDepth,
+            summaryInjectionRole = readSummaryInjectionRole()
         )
     }
 
@@ -466,7 +488,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     }
 
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
-        return SummaryInjectionPosition.fromOrdinal(AppModel.summaryInjectionPosition)
+        return SummaryInjectionPosition.fromPersistedValue(AppModel.summaryInjectionPosition)
+    }
+
+    private fun readSummaryInjectionRole(): SummaryInjectionRole {
+        return SummaryInjectionRole.fromPersistedValue(AppModel.summaryInjectionRole)
     }
 
     private fun updateSummaryInt(

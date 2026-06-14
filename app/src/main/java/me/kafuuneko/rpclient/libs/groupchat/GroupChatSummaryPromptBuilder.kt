@@ -7,7 +7,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
 import me.kafuuneko.rpclient.libs.prompt.selectSummaryPrefix
+import me.kafuuneko.rpclient.libs.prompt.summaryCandidates
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -36,35 +38,34 @@ class GroupChatSummaryPromptBuilder(
         require(promptBudget > 0) {
             "Summary response token reserve must be smaller than the context token limit."
         }
-        val maxMessages = AppModel.summaryMaxMessagesPerRequest
-        val limited = if (maxMessages > 0) messages.take(maxMessages) else messages
+        val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitizedById = limited.associate { message ->
             message.id to message.copy(content = message.content.summarySafeContent())
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
-            val prompt = renderPrompt(
+            val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
                 prefix.map { sanitizedById.getValue(it.id) }
             )
-            tokenizer.countMessages(listOf(LLMMessage(LLMMessageRole.User, prompt)))
+            tokenizer.countMessages(requestMessages)
         }
         if (limited.isNotEmpty() && selected.isEmpty()) {
-            val prompt = renderPrompt(
+            val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
                 listOf(sanitizedById.getValue(limited.first().id))
             )
             throw PromptBudgetExceededException(
-                tokenizer.countMessages(listOf(LLMMessage(LLMMessageRole.User, prompt))),
+                tokenizer.countMessages(requestMessages),
                 promptBudget
             )
         }
-        val prompt = renderPrompt(
+        val requestMessages = renderRequestMessages(
             session,
             memberNames,
             safeExistingSummary,
@@ -72,7 +73,7 @@ class GroupChatSummaryPromptBuilder(
         )
         return GroupChatSummaryBuildResult(
             request = LLMGenerationRequest(
-                messages = listOf(LLMMessage(LLMMessageRole.User, prompt)),
+                messages = requestMessages,
                 model = provider.model,
                 options = LLMGenerationOptions(
                     temperature = provider.temperature,
@@ -85,20 +86,22 @@ class GroupChatSummaryPromptBuilder(
         )
     }
 
-    private fun renderPrompt(
+    /** 渲染群聊摘要使用的 system 指令和 user 原始素材。 */
+    private fun renderRequestMessages(
         session: GroupChatSession,
         memberNames: List<String>,
         existingSummary: String,
         messages: List<GroupChatMessage>
-    ): String {
+    ): List<LLMMessage> {
         val history = messages.joinToString("\n") {
             "${it.speakerNameSnapshot}: ${it.content}"
         }
-        return AppModel.groupSummarizePrompt
+        val instruction = AppModel.groupSummarizePrompt
             .replace("{{user}}", session.userName, ignoreCase = true)
             .replace("{{group}}", memberNames.joinToString(", "), ignoreCase = true)
-            .replace("{{summary}}", existingSummary, ignoreCase = true)
-            .replace("{{history}}", history, ignoreCase = true)
+            .replace("{{summary}}", "", ignoreCase = true)
+            .replace("{{history}}", "", ignoreCase = true)
             .replace("{{words}}", AppModel.summaryWordsLimit.toString(), ignoreCase = true)
+        return buildRawSummaryMessages(instruction, existingSummary, history)
     }
 }

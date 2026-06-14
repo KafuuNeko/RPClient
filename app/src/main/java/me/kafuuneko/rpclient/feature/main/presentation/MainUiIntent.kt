@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
@@ -53,6 +54,12 @@ sealed class MainUiIntent {
 
     data class SelectSummaryInjectionPosition(
         val position: SummaryInjectionPosition
+    ) : MainUiIntent()
+
+    data class ChangeSummaryInjectionDepth(val value: String) : MainUiIntent()
+
+    data class SelectSummaryInjectionRole(
+        val role: SummaryInjectionRole
     ) : MainUiIntent()
 
     data object OpenPromptPreset : MainUiIntent()

@@ -53,6 +53,7 @@ class PromptRequestFinalizer(
         maxResponseTokens: Int,
         postProcessingMode: PromptPostProcessingMode,
         strictPromptPlaceholder: String,
+        postProcessingNames: PromptPostProcessingNames = PromptPostProcessingNames(),
         preOmittedItems: List<PromptOmittedItem> = emptyList()
     ): PromptFinalizationResult {
         val promptBudget = maxContextTokens - maxResponseTokens
@@ -67,7 +68,11 @@ class PromptRequestFinalizer(
         val omitted = preOmittedItems.toMutableList()
 
         while (true) {
-            val processed = kept.postProcess(postProcessingMode, strictPromptPlaceholder)
+            val processed = kept.postProcess(
+                postProcessingMode,
+                strictPromptPlaceholder,
+                postProcessingNames
+            )
             val messages = processed.map { LLMMessage(it.role, it.content) }
             val finalTokenCount = tokenizer.countMessages(messages)
             if (finalTokenCount <= promptBudget) {
@@ -113,28 +118,32 @@ class PromptRequestFinalizer(
                 throw PromptBudgetExceededException(finalTokenCount, promptBudget)
             }
             val removed = kept.removeAt(removable.index)
-            omitted += PromptOmittedItem(
-                source = removed.source,
-                tokenCount = tokenizer.countText(removed.content),
-                reason = PromptOmissionReason.ContextBudget
-            )
+            removed.sources.forEach { source ->
+                omitted += PromptOmittedItem(
+                    source = source,
+                    tokenCount = tokenizer.countText(removed.content),
+                    reason = PromptOmissionReason.ContextBudget
+                )
+            }
         }
     }
 
     private fun List<PromptMessageDraft>.postProcess(
         mode: PromptPostProcessingMode,
-        strictPromptPlaceholder: String
+        strictPromptPlaceholder: String,
+        names: PromptPostProcessingNames
     ): List<TrackedPromptMessage> {
         return postProcessTrackedMessages(
             messages = map {
                 TrackedPromptMessage(
                     role = it.role,
                     content = it.content,
-                    sources = listOf(it.source)
+                    sources = it.sources
                 )
             },
             mode = mode,
-            strictPromptPlaceholder = strictPromptPlaceholder
+            strictPromptPlaceholder = strictPromptPlaceholder,
+            names = names
         )
     }
 }

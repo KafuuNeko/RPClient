@@ -12,7 +12,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
  */
 fun LLMGenerationRequest.withPostProcessedMessages(
     mode: PromptPostProcessingMode,
-    strictPromptPlaceholder: String
+    strictPromptPlaceholder: String,
+    names: PromptPostProcessingNames = PromptPostProcessingNames()
 ): LLMGenerationRequest {
     return copy(
         messages = postProcessTrackedMessages(
@@ -24,11 +25,24 @@ fun LLMGenerationRequest.withPostProcessedMessages(
                 )
             },
             mode,
-            strictPromptPlaceholder
+            strictPromptPlaceholder,
+            names
         ).map { LLMMessage(it.role, it.content) },
         isPromptFinalized = true
     )
 }
+
+/**
+ * Prompt 后处理使用的会话名称。
+ *
+ * Single 模式会丢失原生 role，因此需要把用户和角色名称写回消息正文，
+ * 以保留多轮对话中的发言者边界。
+ */
+data class PromptPostProcessingNames(
+    val userName: String = "",
+    val characterName: String = "",
+    val groupNames: List<String> = emptyList()
+)
 
 internal data class TrackedPromptMessage(
     val role: LLMMessageRole,
@@ -45,14 +59,15 @@ internal data class TrackedPromptMessage(
 internal fun postProcessTrackedMessages(
     messages: List<TrackedPromptMessage>,
     mode: PromptPostProcessingMode,
-    strictPromptPlaceholder: String
+    strictPromptPlaceholder: String,
+    names: PromptPostProcessingNames = PromptPostProcessingNames()
 ): List<TrackedPromptMessage> {
     return when (mode) {
         PromptPostProcessingMode.None -> messages
         PromptPostProcessingMode.Merge -> messages.mergeConsecutiveRoles()
         PromptPostProcessingMode.SemiStrict -> messages.toSemiStrictMessages()
         PromptPostProcessingMode.Strict -> messages.toStrictMessages(strictPromptPlaceholder)
-        PromptPostProcessingMode.SingleUserMessage -> messages.toSingleUserMessage()
+        PromptPostProcessingMode.SingleUserMessage -> messages.toSingleUserMessage(names)
     }
 }
 
@@ -74,68 +89,71 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
 }
 
 private fun List<TrackedPromptMessage>.toSemiStrictMessages(): List<TrackedPromptMessage> {
-    // 部分协议只支持开头 system；中途 system 统一前置可避免被 adapter 降级成普通 user 内容。
-    val systemMessages = filter { it.role == LLMMessageRole.System }
-    val systemContent = systemMessages
-        .joinToString("\n\n") { it.content }
-        .trim()
-    val nonSystemMessages = filterNot { it.role == LLMMessageRole.System }
-    return buildList {
-        if (systemContent.isNotBlank()) {
-            add(
-                TrackedPromptMessage(
-                    role = LLMMessageRole.System,
-                    content = systemContent,
-                    sources = systemMessages.flatMap { it.sources }.distinct()
-                )
-            )
+    // Semi-strict 保留首条 system，后续 system 在原索引转为 user。
+    return mergeConsecutiveRoles()
+        .mapIndexed { index, message ->
+            if (index > 0 && message.role == LLMMessageRole.System) {
+                message.copy(role = LLMMessageRole.User)
+            } else {
+                message
+            }
         }
-        addAll(nonSystemMessages)
-    }.mergeConsecutiveRoles()
+        .mergeConsecutiveRoles()
 }
 
 private fun List<TrackedPromptMessage>.toStrictMessages(
     strictPromptPlaceholder: String
 ): List<TrackedPromptMessage> {
     val semiStrict = toSemiStrictMessages()
-    val systemPrefix = semiStrict.takeWhile { it.role == LLMMessageRole.System }
-    val body = semiStrict.drop(systemPrefix.size)
-    if (body.isEmpty()) return semiStrict
-    return buildList {
-        addAll(systemPrefix)
-        // 一些聊天模板要求第一条正文必须是 user；若角色问候在最前面，用占位用户消息补齐。
-        if (body.first().role == LLMMessageRole.Assistant) {
-            add(
-                TrackedPromptMessage(
-                    role = LLMMessageRole.User,
-                    content = strictPromptPlaceholder,
-                    sources = listOf(PromptSource(PromptSourceKind.PostProcessing))
-                )
-            )
-        }
-        addAll(body)
-    }.mergeConsecutiveRoles()
-}
-
-private fun List<TrackedPromptMessage>.toSingleUserMessage(): List<TrackedPromptMessage> {
-    if (isEmpty()) return this
-    // 保留 role 标签，虽然失去原生 messages 结构，但模型仍能读到原始分区含义。
-    val content = joinToString("\n\n") { message ->
-        "${message.role.toPromptLabel()}:\n${message.content}"
-    }
-    return listOf(
-        TrackedPromptMessage(
-            role = LLMMessageRole.User,
-            content = content,
-            sources = flatMap { it.sources }.distinct()
-        )
+    val placeholder = TrackedPromptMessage(
+        role = LLMMessageRole.User,
+        content = strictPromptPlaceholder,
+        sources = listOf(PromptSource(PromptSourceKind.PostProcessing))
     )
+    val strict = semiStrict.toMutableList()
+
+    // Strict 为 system -> assistant 和仅 system 的起始序列补入 user 占位消息。
+    when {
+        strict.isEmpty() -> strict += placeholder
+        strict.first().role == LLMMessageRole.System &&
+            (strict.size == 1 || strict[1].role != LLMMessageRole.User) -> {
+            strict.add(1, placeholder)
+        }
+        strict.first().role == LLMMessageRole.Assistant -> strict.add(0, placeholder)
+    }
+    return strict.mergeConsecutiveRoles()
 }
 
-private fun LLMMessageRole.toPromptLabel(): String {
-    return when (this) {
-        LLMMessageRole.System -> "System"
-        LLMMessageRole.User -> "User"
-        LLMMessageRole.Assistant -> "Assistant"
+private fun List<TrackedPromptMessage>.toSingleUserMessage(
+    names: PromptPostProcessingNames
+): List<TrackedPromptMessage> {
+    val flattened = ifEmpty {
+        listOf(
+            TrackedPromptMessage(
+                role = LLMMessageRole.User,
+                content = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
+                sources = listOf(PromptSource(PromptSourceKind.PostProcessing))
+            )
+        )
+    }.map { message ->
+        val content = when (message.role) {
+            LLMMessageRole.User -> message.content.withSpeakerPrefix(names.userName)
+            LLMMessageRole.Assistant -> message.content.withAssistantPrefix(names)
+            LLMMessageRole.System -> message.content
+        }
+        message.copy(role = LLMMessageRole.User, content = content)
     }
+    return flattened.mergeConsecutiveRoles()
 }
+
+private fun String.withAssistantPrefix(names: PromptPostProcessingNames): String {
+    if (names.groupNames.any { startsWith("$it: ") }) return this
+    return withSpeakerPrefix(names.characterName)
+}
+
+private fun String.withSpeakerPrefix(name: String): String {
+    if (name.isBlank() || startsWith("$name: ")) return this
+    return "$name: $this"
+}
+
+const val DEFAULT_STRICT_PROMPT_PLACEHOLDER = "Let's get started."
