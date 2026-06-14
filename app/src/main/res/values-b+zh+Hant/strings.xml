@@ -196,6 +196,8 @@
     <string name="generating">生成中…</string>
     <string name="updating_summary">正在更新摘要…</string>
     <string name="thought_process">思考過程</string>
+    <string name="thinking">正在思考…</string>
+    <string name="waiting_for_response">等待回覆…</string>
     <string name="show">顯示</string>
     <string name="hide">隱藏</string>
     <string name="chat_settings">聊天設定</string>

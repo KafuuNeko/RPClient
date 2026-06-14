@@ -209,6 +209,8 @@
     <string name="generating">Generating…</string>
     <string name="updating_summary">Updating summary…</string>
     <string name="thought_process">Thought process</string>
+    <string name="thinking">Thinking…</string>
+    <string name="waiting_for_response">Waiting for response…</string>
     <string name="show">Show</string>
     <string name="hide">Hide</string>
     <string name="chat_settings">Chat Settings</string>

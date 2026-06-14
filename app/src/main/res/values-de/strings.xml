@@ -199,6 +199,8 @@
     <string name="generating">Generieren…</string>
     <string name="updating_summary">Zusammenfassung wird aktualisiert…</string>
     <string name="thought_process">Denkprozess</string>
+    <string name="thinking">Denkt nach…</string>
+    <string name="waiting_for_response">Warten auf Antwort…</string>
     <string name="show">Anzeigen</string>
     <string name="hide">Ausblenden</string>
     <string name="chat_settings">Chat-Einstellungen</string>

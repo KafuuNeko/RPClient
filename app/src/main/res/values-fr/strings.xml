@@ -198,6 +198,8 @@
     <string name="generating">Génération en cours…</string>
     <string name="updating_summary">Mise à jour du résumé…</string>
     <string name="thought_process">Processus de pensée</string>
+    <string name="thinking">Réflexion en cours…</string>
+    <string name="waiting_for_response">En attente de la réponse…</string>
     <string name="show">Afficher</string>
     <string name="hide">Masquer</string>
     <string name="chat_settings">Paramètres de discussion</string>

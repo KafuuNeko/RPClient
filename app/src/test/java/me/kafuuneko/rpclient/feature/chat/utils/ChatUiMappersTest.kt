@@ -43,6 +43,21 @@ class ChatUiMappersTest {
     }
 
     @Test
+    fun toContentParts_marksUnclosedThinkBlockAsIncomplete() {
+        val parts = "<think>reasoning".toContentParts("42")
+
+        assertEquals(
+            ChatMessageContentPart.Think("42:0", "reasoning", isComplete = false),
+            parts.single()
+        )
+    }
+
+    @Test
+    fun toContentParts_hidesEmptyStreamingThinkTag() {
+        assertTrue("<think>".toContentParts("42").isEmpty())
+    }
+
+    @Test
     fun toContentParts_ignoresBlankAndNullThinkBlocks() {
         val parts = "hello<think>null</think><think>   </think>".toContentParts("42")
 

@@ -199,6 +199,8 @@
     <string name="generating">生成中…</string>
     <string name="updating_summary">要約を更新中…</string>
     <string name="thought_process">思考プロセス</string>
+    <string name="thinking">思考中…</string>
+    <string name="waiting_for_response">応答を待っています…</string>
     <string name="show">表示</string>
     <string name="hide">非表示</string>
     <string name="chat_settings">チャット設定</string>

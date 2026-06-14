@@ -198,6 +198,8 @@
     <string name="generating">생성 중…</string>
     <string name="updating_summary">요약 업데이트 중…</string>
     <string name="thought_process">생각 과정 (Thought process)</string>
+    <string name="thinking">생각 중…</string>
+    <string name="waiting_for_response">응답을 기다리는 중…</string>
     <string name="show">보기</string>
     <string name="hide">숨기기</string>
     <string name="chat_settings">대화 설정</string>

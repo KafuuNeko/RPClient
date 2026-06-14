@@ -17,5 +17,9 @@ sealed class ChatMessageContentPart {
     /** 普通 Markdown 文本。 */
     data class Text(val content: String) : ChatMessageContentPart()
     /** 从 `<think>` 标签解析出的可折叠推理文本。 */
-    data class Think(val id: String, val content: String) : ChatMessageContentPart()
+    data class Think(
+        val id: String,
+        val content: String,
+        val isComplete: Boolean = true
+    ) : ChatMessageContentPart()
 }

@@ -152,7 +152,9 @@ fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
     val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
     val parts = mutableListOf<ChatMessageContentPart>()
     var cursor = 0
+    var foundThinkBlock = false
     regex.findAll(this).forEachIndexed { index, match ->
+        foundThinkBlock = true
         if (match.range.first > cursor) {
             parts += ChatMessageContentPart.Text(substring(cursor, match.range.first))
         }
@@ -160,7 +162,8 @@ fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
         if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
             parts += ChatMessageContentPart.Think(
                 id = "$messageId:$index",
-                content = thinkContent
+                content = thinkContent,
+                isComplete = match.value.trimEnd().endsWith("</think>", ignoreCase = true)
             )
         }
         cursor = match.range.last + 1
@@ -168,5 +171,9 @@ fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
     if (cursor < length) {
         parts += ChatMessageContentPart.Text(substring(cursor))
     }
-    return parts.ifEmpty { listOf(ChatMessageContentPart.Text(this)) }
+    return when {
+        parts.isNotEmpty() -> parts
+        foundThinkBlock -> emptyList()
+        else -> listOf(ChatMessageContentPart.Text(this))
+    }
 }

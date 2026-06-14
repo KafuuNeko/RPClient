@@ -198,6 +198,8 @@
     <string name="generating">Генерация…</string>
     <string name="updating_summary">Обновление сводки…</string>
     <string name="thought_process">Ход мыслей</string>
+    <string name="thinking">Размышляет…</string>
+    <string name="waiting_for_response">Ожидание ответа…</string>
     <string name="show">Показать</string>
     <string name="hide">Скрыть</string>
     <string name="chat_settings">Настройки чата</string>

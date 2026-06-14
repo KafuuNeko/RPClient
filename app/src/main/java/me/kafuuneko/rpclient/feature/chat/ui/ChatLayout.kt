@@ -741,6 +741,12 @@ private fun MessageContent(
     emit: ChatUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (message.isStreaming && (message.content.isBlank() || message.parts.isEmpty())) {
+            StreamingStatus(
+                text = stringResource(R.string.waiting_for_response),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f)
+            )
+        }
         message.parts.forEach { part ->
             when (part) {
                 is ChatMessageContentPart.Text -> {
@@ -755,10 +761,35 @@ private fun MessageContent(
                 is ChatMessageContentPart.Think -> ThinkBlock(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
+                    isThinking = message.isStreaming && !part.isComplete,
                     emit = emit
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun StreamingStatus(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(14.dp),
+            strokeWidth = 2.dp,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = color
+        )
     }
 }
 
@@ -805,6 +836,7 @@ private fun MessageEditContent(
 private fun ThinkBlock(
     part: ChatMessageContentPart.Think,
     expanded: Boolean,
+    isThinking: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
     Surface(
@@ -819,12 +851,20 @@ private fun ThinkBlock(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.thought_process),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                if (isThinking) {
+                    StreamingStatus(
+                        text = stringResource(R.string.thinking),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.thought_process),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
                 Text(
                     if (expanded) stringResource(R.string.hide) else stringResource(R.string.show),
                     style = MaterialTheme.typography.labelSmall,
