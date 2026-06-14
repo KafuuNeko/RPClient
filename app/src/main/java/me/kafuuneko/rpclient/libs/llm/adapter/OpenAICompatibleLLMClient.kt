@@ -150,6 +150,7 @@ class OpenAICompatibleLLMClient(
                     totalTokens = it.optNullableInt("total_tokens")
                 )
             },
+            finishReason = choice.optCleanString("finish_reason"),
             rawResponse = this
         )
     }
@@ -166,10 +167,15 @@ class OpenAICompatibleLLMClient(
         val data = removePrefix("data:").trim()
         if (data == "[DONE]") return LLMStreamEvent.Finished(rawChunk = this)
         val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        val deltaObject = json.optJSONArray("choices")
-            ?.optJSONObject(0)
-            ?.optJSONObject("delta")
-            ?: return null
+        val choice = json.optJSONArray("choices")?.optJSONObject(0) ?: return null
+        val deltaObject = choice.optJSONObject("delta")
+        val finishReason = choice.optCleanString("finish_reason")
+        val actualModel = json.optCleanString("model")
+        if (deltaObject == null) {
+            return finishReason.takeIf { it.isNotBlank() }?.let {
+                LLMStreamEvent.Finished(data, it, actualModel)
+            }
+        }
         val reasoningContent = deltaObject.optReasoningContent()
         if (reasoningContent.isNotBlank()) {
             if (!includeReasoningInContent) return null
@@ -178,7 +184,11 @@ class OpenAICompatibleLLMClient(
             return LLMStreamEvent.Delta(content = content, rawChunk = data)
         }
         val content = deltaObject.optCleanString("content").orEmpty()
-        if (content.isBlank()) return null
+        if (content.isBlank()) {
+            return finishReason.takeIf { it.isNotBlank() }?.let {
+                LLMStreamEvent.Finished(data, it, actualModel)
+            }
+        }
         val mergedContent = if (includeReasoningInContent && isThinking) "\n</think>\n\n$content" else content
         onThinkingStateChange(false)
         return LLMStreamEvent.Delta(content = mergedContent, rawChunk = data)

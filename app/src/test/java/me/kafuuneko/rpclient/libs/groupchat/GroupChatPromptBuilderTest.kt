@@ -92,6 +92,10 @@ class GroupChatPromptBuilderTest {
         assertTrue(content.contains("Alex: Look outside."))
         assertTrue(content.contains("Lyra: I see a station."))
         assertTrue(content.contains("Write only Mina's next reply"))
+        assertEquals(
+            LLMMessageRole.User,
+            request.messages.first { it.content.contains("Write only Mina's next reply") }.role
+        )
     }
 
     @Test
@@ -142,8 +146,13 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
-    fun continuePlacesGroupNudgePhiTargetAndControlPromptInOrder() {
-        val lyra = character(1, "Lyra").copy(postHistoryInstructions = "Group PHI")
+    fun continueFallbackOmitsCharacterReplyTasksAndEndsWithUserControl() {
+        val lyra = character(1, "Lyra").copy(
+            postHistoryInstructions = "Group PHI",
+            systemPrompt = "Write Lyra's next reply.",
+            depthPromptPrompt = "Always write as Lyra.",
+            depthPromptDepth = 0
+        )
         val request = GroupChatPromptBuilder().build(
             GroupChatPromptContext(
                 session = GroupChatSession(
@@ -171,25 +180,27 @@ class GroupChatPromptBuilderTest {
         val relevant = request.messages.filter {
             it.content.contains("Write only Lyra") ||
                 it.content == "Group PHI" ||
+                it.content == "Write Lyra's next reply." ||
                 it.content == "Lyra: Partial" ||
                 it === continueNudge
         }
         assertEquals(
             listOf(
-                request.messages.first { it.content.contains("Write only Lyra") }.content,
-                "Group PHI",
                 "Lyra: Partial",
                 continueNudge.content
             ),
             relevant.map { it.content }
         )
-        assertEquals(LLMMessageRole.System, continueNudge.role)
+        assertEquals(LLMMessageRole.User, continueNudge.role)
         assertEquals(continueNudge, request.messages.last())
     }
 
     @Test
     fun impersonateOmitsGroupNudgeAndPlacesControlPromptLast() {
-        val lyra = character(1, "Lyra").copy(postHistoryInstructions = "Group PHI")
+        val lyra = character(1, "Lyra").copy(
+            postHistoryInstructions = "Group PHI",
+            systemPrompt = "Write Lyra's next reply."
+        )
         val request = GroupChatPromptBuilder().build(
             GroupChatPromptContext(
                 session = GroupChatSession(
@@ -211,8 +222,50 @@ class GroupChatPromptBuilderTest {
         )
 
         assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
+        assertFalse(request.messages.any { it.content == "Write Lyra's next reply." })
+        assertFalse(request.messages.any { it.content == "Group PHI" })
+        assertFalse(request.messages.any { it.content == "Always write as Lyra." })
         assertTrue(request.messages.last().content.contains("point of view of Alex"))
-        assertEquals(LLMMessageRole.System, request.messages.last().role)
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+    }
+
+    @Test
+    fun groupContinueAlwaysEndsWithUserNudge() {
+        val lyra = character(1, "Lyra")
+        val result = GroupChatPromptBuilder().buildWithMetadata(
+            GroupChatPromptContext(
+                session = GroupChatSession(
+                    id = 1,
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex",
+                    userDescription = ""
+                ),
+                members = listOf(member(lyra, 0)),
+                speaker = lyra,
+                messages = listOf(
+                    message(GroupChatMessage.Source.User, "Alex", "Question"),
+                    message(GroupChatMessage.Source.Character, "Lyra", "Partial")
+                ),
+                provider = provider(),
+                generationMode = GroupChatGenerationMode.Continue
+            )
+        )
+        val request = result.request
+
+        assertTrue(request.messages.last().content.contains("Continue your last message"))
+        assertTrue(
+            result.inspection.items.last().sources.any {
+                it.kind == PromptSourceKind.ContinueNudge
+            }
+        )
+        assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+        assertEquals(
+            "Lyra: Partial",
+            request.messages[request.messages.lastIndex - 1].content
+        )
     }
 
     @Test

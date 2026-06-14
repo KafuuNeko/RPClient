@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.requireNonEmptyContent
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
@@ -151,7 +152,7 @@ class LLMRepository(
             ?: error("LLM provider not found: $providerId")
         return mLLMClientFactory.create(provider.toConfig()).generate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**
@@ -161,7 +162,7 @@ class LLMRepository(
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
         return mLLMClientFactory.create(provider.toConfig()).generate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**
@@ -170,7 +171,7 @@ class LLMRepository(
     suspend fun generateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): LLMGenerationResponse {
         return mLLMClientFactory.create(provider.toConfig()).generate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**
@@ -181,7 +182,7 @@ class LLMRepository(
             ?: error("LLM provider not found: $providerId")
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**
@@ -191,7 +192,7 @@ class LLMRepository(
         val provider = getSelectedProvider() ?: error("No enabled LLM provider configured")
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**
@@ -200,7 +201,7 @@ class LLMRepository(
     fun streamGenerateWithProvider(provider: LLMProvider, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
             request.postProcessPrompt(provider)
-        )
+        ).requireNonEmptyContent(provider.name, request.model ?: provider.model)
     }
 
     /**

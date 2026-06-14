@@ -553,6 +553,7 @@
     <string name="prompt_omission_context_budget">由最终上下文预算移除</string>
     <string name="prompt_omission_world_info_budget">由世界书预算移除</string>
     <string name="prompt_source_main">主 Prompt</string>
+    <string name="prompt_source_character_reply_nudge">角色回复提示</string>
     <string name="prompt_source_world_info">世界书</string>
     <string name="prompt_source_user_persona">用户人格</string>
     <string name="prompt_source_character_description">角色描述</string>

@@ -134,7 +134,7 @@ class ChatPromptBuilder(
             null
         }
 
-        val drafts = buildList {
+        val rawDrafts = buildList {
             fixedMessages.beforeHistory.forEach {
                 add(it.resolve(context, historyText, outlets))
             }
@@ -151,19 +151,25 @@ class ChatPromptBuilder(
                 add(it.resolve(context, historyText, outlets))
             }
         }
-        val fallbackDrafts = drafts.ifEmpty {
+        val fallbackDrafts = rawDrafts.ifEmpty {
             listOf(
                 PromptMessageDraft(
-                    role = LLMMessageRole.System,
-                    content = readMainPrompt(),
-                    source = PromptSource(PromptSourceKind.MainPrompt),
+                    role = fallbackRole(context),
+                    content = fallbackPrompt(context),
+                    source = PromptSource(fallbackSourceKind(context)),
                     retentionPriority = PRIORITY_ESSENTIAL,
                     canDrop = false
                 )
             )
         }
-        val finalized = mRequestFinalizer.finalize(
+        val drafts = ensureTerminalCharacterReplyTurn(
             drafts = fallbackDrafts,
+            context = context,
+            history = historyText,
+            outlets = outlets
+        )
+        val finalized = mRequestFinalizer.finalize(
+            drafts = drafts,
             provider = context.provider,
             model = context.provider?.model,
             options = LLMGenerationOptions(
@@ -208,13 +214,17 @@ class ChatPromptBuilder(
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }
-        beforeHistory += PromptPiece(
-            LLMMessageRole.System,
-            readCharacterMainPrompt(context),
-            PromptSource(PromptSourceKind.MainPrompt),
-            PRIORITY_ESSENTIAL,
-            false
-        )
+        // 主提示词描述的是“让角色生成下一条回复”这一任务，只能用于普通回复和重新生成。
+        // 扮演用户或续写时继续注入角色卡覆盖提示，会让同一请求同时出现两个互斥目标。
+        if (context.generationMode.usesCharacterReplyTask()) {
+            beforeHistory += PromptPiece(
+                LLMMessageRole.System,
+                readCharacterMainPrompt(context),
+                PromptSource(PromptSourceKind.MainPrompt),
+                PRIORITY_ESSENTIAL,
+                false
+            )
+        }
         if (summaryPosition == SummaryInjectionPosition.AfterMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }
@@ -265,13 +275,16 @@ class ChatPromptBuilder(
         }
 
         val afterHistory = buildList {
-            add(
-                PromptPiece.required(
-                    role = LLMMessageRole.System,
-                    content = readCharacterPostHistoryInstructions(context),
-                    sourceKind = PromptSourceKind.PostHistoryInstructions
+            // PHI 与主提示词共同约束“下一条角色回复”，特殊生成模式必须由自己的任务提示接管。
+            if (context.generationMode.usesCharacterReplyTask()) {
+                add(
+                    PromptPiece.required(
+                        role = LLMMessageRole.User,
+                        content = readCharacterPostHistoryInstructions(context),
+                        sourceKind = PromptSourceKind.PostHistoryInstructions
+                    )
                 )
-            )
+            }
         }
 
         return PromptSections(
@@ -335,17 +348,20 @@ class ChatPromptBuilder(
                 tieBreaker = index.toLong()
             )
         }
-        context.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
-            pieces += InChatPromptPiece(
-                role = context.character.depthPromptRole.toMessageRole(),
-                content = it,
-                source = PromptSource(PromptSourceKind.CharacterNote),
-                retentionPriority = PRIORITY_CHARACTER_NOTE,
-                canDrop = true,
-                depth = context.character.depthPromptDepth.coerceAtLeast(0),
-                order = CHARACTER_NOTE_ORDER,
-                tieBreaker = Long.MIN_VALUE + 1
-            )
+        // Character Note 通常直接约束角色输出，在扮演用户和续写时与本轮任务存在同类冲突。
+        if (context.generationMode.usesCharacterReplyTask()) {
+            context.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
+                pieces += InChatPromptPiece(
+                    role = context.character.depthPromptRole.toMessageRole(),
+                    content = it,
+                    source = PromptSource(PromptSourceKind.CharacterNote),
+                    retentionPriority = PRIORITY_CHARACTER_NOTE,
+                    canDrop = true,
+                    depth = context.character.depthPromptDepth.coerceAtLeast(0),
+                    order = CHARACTER_NOTE_ORDER,
+                    tieBreaker = Long.MIN_VALUE + 1
+                )
+            }
         }
         worldInfo.depthEntries.forEach { group ->
             val sources = group.entries.map {
@@ -509,22 +525,76 @@ class ChatPromptBuilder(
         return (chatMessages.size - depth).coerceIn(0, chatMessages.size)
     }
 
-    /** 构建必须位于完整聊天上下文末尾的生成模式控制提示。 */
+    /**
+     * 构建位于完整聊天上下文末尾的生成任务提示。
+     *
+     * Impersonate 与 Continue 使用 user 角色，确保严格要求用户末尾轮次的模型
+     * 不会把控制指令提升到开头，也不会因最后一条是 system 而返回空结果。
+     */
     private fun buildGenerationControlPiece(context: PromptBuildContext): PromptPiece? {
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> null
             PromptGenerationMode.Continue -> PromptPiece.required(
-                LLMMessageRole.System,
+                LLMMessageRole.User,
                 readContinueNudgePrompt(),
                 PromptSourceKind.ContinueNudge
             )
             PromptGenerationMode.Impersonate -> PromptPiece.required(
-                LLMMessageRole.System,
+                LLMMessageRole.User,
                 readImpersonationPrompt(),
                 PromptSourceKind.ImpersonationNudge
             )
         }?.takeIf { it.content.isNotBlank() }
+    }
+
+    /**
+     * 普通生成应由 user 轮次触发。
+     *
+     * PHI、depth=0 世界书或仅有角色开场白时，请求可能以 system/assistant 结束；
+     * 此处追加最小任务提示，兼容要求由 user 轮次触发生成的模型和协议实现。
+     */
+    private fun ensureTerminalCharacterReplyTurn(
+        drafts: List<PromptMessageDraft>,
+        context: PromptBuildContext,
+        history: String,
+        outlets: Map<String, String>
+    ): List<PromptMessageDraft> {
+        if (!context.generationMode.usesCharacterReplyTask()) return drafts
+        if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
+        val nudge = PromptPiece.required(
+            role = LLMMessageRole.User,
+            content = DEFAULT_CHARACTER_REPLY_NUDGE,
+            sourceKind = PromptSourceKind.CharacterReplyNudge
+        ).resolve(context, history, outlets)
+        return drafts + nudge
+    }
+
+    /** 特殊模式即使上下文为空，也不能回退到要求角色回复的主提示词。 */
+    private fun fallbackPrompt(context: PromptBuildContext): String {
+        return when (context.generationMode) {
+            PromptGenerationMode.Normal,
+            PromptGenerationMode.Regenerate -> readMainPrompt()
+            PromptGenerationMode.Continue -> readContinueNudgePrompt()
+            PromptGenerationMode.Impersonate -> readImpersonationPrompt()
+        }
+    }
+
+    private fun fallbackRole(context: PromptBuildContext): LLMMessageRole {
+        return if (context.generationMode.usesCharacterReplyTask()) {
+            LLMMessageRole.System
+        } else {
+            LLMMessageRole.User
+        }
+    }
+
+    private fun fallbackSourceKind(context: PromptBuildContext): PromptSourceKind {
+        return when (context.generationMode) {
+            PromptGenerationMode.Normal,
+            PromptGenerationMode.Regenerate -> PromptSourceKind.MainPrompt
+            PromptGenerationMode.Continue -> PromptSourceKind.ContinueNudge
+            PromptGenerationMode.Impersonate -> PromptSourceKind.ImpersonationNudge
+        }
     }
 
     private fun PromptPiece.resolve(
@@ -775,6 +845,7 @@ class ChatPromptBuilder(
         const val USER_NOTE_ORDER = Int.MIN_VALUE + 2
         const val AN_BOTTOM_ORDER = Int.MIN_VALUE + 3
         const val CHARACTER_NOTE_ORDER = Int.MIN_VALUE + 4
+        const val DEFAULT_CHARACTER_REPLY_NUDGE = "[Write {{char}}'s next reply.]"
     }
 }
 

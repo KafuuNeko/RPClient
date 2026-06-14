@@ -63,6 +63,11 @@ enum class GroupChatGenerationMode {
     Impersonate
 }
 
+/** 仅普通群聊回复和重新生成需要“指定角色下一条回复”的主任务及 Group Nudge。 */
+private fun GroupChatGenerationMode.usesCharacterReplyTask(): Boolean {
+    return this == GroupChatGenerationMode.Normal || this == GroupChatGenerationMode.Regenerate
+}
+
 /** 提示词构建结果，同时返回需要持久化的世界书时序状态。 */
 data class GroupChatPromptBuildResult(
     val request: LLMGenerationRequest,
@@ -172,23 +177,24 @@ class GroupChatPromptBuilder(
         } else {
             null
         }
-        if (context.generationMode != GroupChatGenerationMode.Impersonate) {
+        if (context.generationMode.usesCharacterReplyTask()) {
             context.groupNudgePrompt()
                 .resolve(context, context.memberNames())
                 .takeIf { it.isNotBlank() }
                 ?.let {
-                    historyMessages += requiredSystem(it, PromptSourceKind.GroupNudge)
+                    historyMessages += requiredUser(it, PromptSourceKind.GroupNudge)
                 }
         }
 
+        val rawDrafts = buildList {
+            addAll(fixedMessages.beforeHistory)
+            addAll(historyMessages)
+            addAll(fixedMessages.afterHistory)
+            continueTarget?.let(::add)
+            buildGenerationControlDraft(context)?.let(::add)
+        }
         val finalized = mRequestFinalizer.finalize(
-            drafts = buildList {
-                addAll(fixedMessages.beforeHistory)
-                addAll(historyMessages)
-                addAll(fixedMessages.afterHistory)
-                continueTarget?.let(::add)
-                buildGenerationControlDraft(context)?.let(::add)
-            },
+            drafts = ensureTerminalCharacterReplyTurn(rawDrafts, context),
             provider = context.provider,
             model = context.provider.model,
             options = LLMGenerationOptions(
@@ -279,10 +285,13 @@ class GroupChatPromptBuilder(
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             summaryDraft(context)?.let { before += it }
         }
-        before += requiredSystem(
-            context.mainPrompt(),
-            PromptSourceKind.MainPrompt
-        )
+        // 群聊主提示词同样属于“当前角色回复”任务，续写和扮演用户时必须完全停用。
+        if (context.generationMode.usesCharacterReplyTask()) {
+            before += requiredSystem(
+                context.mainPrompt(),
+                PromptSourceKind.MainPrompt
+            )
+        }
         if (summaryPosition == SummaryInjectionPosition.AfterMain) {
             summaryDraft(context)?.let { before += it }
         }
@@ -336,11 +345,13 @@ class GroupChatPromptBuilder(
             )
         }
 
-        context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let {
-            after += requiredSystem(
-                it,
-                PromptSourceKind.PostHistoryInstructions
-            )
+        if (context.generationMode.usesCharacterReplyTask()) {
+            context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let {
+                after += requiredSystem(
+                    it,
+                    PromptSourceKind.PostHistoryInstructions
+                )
+            }
         }
         return PromptSections(
             beforeHistory = before.filter { it.content.isNotBlank() },
@@ -512,23 +523,26 @@ class GroupChatPromptBuilder(
                 tieBreaker = index.toLong()
             )
         }
-        context.cardMembers().forEach { member ->
-            member.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
-                pieces += InChatPiece(
-                    message = PromptMessageDraft(
-                        role = member.character.depthPromptRole.toMessageRole(),
-                        content = it.resolve(context, context.memberNames()),
-                        source = PromptSource(
-                            PromptSourceKind.CharacterNote,
-                            member.character.name
+        // 群聊 Character Note 同样面向角色输出，特殊模式只保留人物与世界背景。
+        if (context.generationMode.usesCharacterReplyTask()) {
+            context.cardMembers().forEach { member ->
+                member.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
+                    pieces += InChatPiece(
+                        message = PromptMessageDraft(
+                            role = member.character.depthPromptRole.toMessageRole(),
+                            content = it.resolve(context, context.memberNames()),
+                            source = PromptSource(
+                                PromptSourceKind.CharacterNote,
+                                member.character.name
+                            ),
+                            retentionPriority = PRIORITY_CHARACTER_NOTE,
+                            canDrop = true
                         ),
-                        retentionPriority = PRIORITY_CHARACTER_NOTE,
-                        canDrop = true
-                    ),
-                    depth = member.character.depthPromptDepth.coerceAtLeast(0),
-                    order = CHARACTER_NOTE_ORDER,
-                    tieBreaker = member.character.id
-                )
+                        depth = member.character.depthPromptDepth.coerceAtLeast(0),
+                        order = CHARACTER_NOTE_ORDER,
+                        tieBreaker = member.character.id
+                    )
+                }
             }
         }
         worldInfo.depthEntries.forEach { group ->
@@ -785,10 +799,12 @@ class GroupChatPromptBuilder(
         )
     }
 
-    /** 构建 Continue 或 Impersonate 模式位于请求末尾的控制提示。 */
-    private fun buildGenerationControlDraft(
-        context: GroupChatPromptContext
-    ): PromptMessageDraft? {
+    /**
+     * 构建 Continue 或 Impersonate 模式位于请求末尾的唯一任务提示。
+     *
+     * 两种特殊模式统一使用 user 角色，使所有供应商都接收到明确且位于末尾的生成目标。
+     */
+    private fun buildGenerationControlDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         val content = when (context.generationMode) {
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
@@ -802,8 +818,21 @@ class GroupChatPromptBuilder(
             GroupChatGenerationMode.Regenerate -> return null
         }
         return content.takeIf { it.isNotBlank() }?.let {
-            requiredSystem(it, sourceKind)
+            requiredUser(it, sourceKind)
         }
+    }
+
+    /** 确保普通群聊在 Group Nudge 关闭时仍由明确的 user 轮次触发当前角色回复。 */
+    private fun ensureTerminalCharacterReplyTurn(
+        drafts: List<PromptMessageDraft>,
+        context: GroupChatPromptContext
+    ): List<PromptMessageDraft> {
+        if (!context.generationMode.usesCharacterReplyTask()) return drafts
+        if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
+        return drafts + requiredUser(
+            DEFAULT_CHARACTER_REPLY_NUDGE.resolve(context, context.memberNames()),
+            PromptSourceKind.GroupNudge
+        )
     }
 
     private fun requiredSystem(
@@ -813,6 +842,20 @@ class GroupChatPromptBuilder(
     ): PromptMessageDraft {
         return PromptMessageDraft(
             role = LLMMessageRole.System,
+            content = content,
+            source = PromptSource(sourceKind, detail),
+            retentionPriority = PRIORITY_ESSENTIAL,
+            canDrop = false
+        )
+    }
+
+    private fun requiredUser(
+        content: String,
+        sourceKind: PromptSourceKind,
+        detail: String = ""
+    ): PromptMessageDraft {
+        return PromptMessageDraft(
+            role = LLMMessageRole.User,
             content = content,
             source = PromptSource(sourceKind, detail),
             retentionPriority = PRIORITY_ESSENTIAL,
@@ -861,6 +904,7 @@ class GroupChatPromptBuilder(
         const val USER_NOTE_ORDER = Int.MIN_VALUE + 2
         const val AN_BOTTOM_ORDER = Int.MIN_VALUE + 3
         const val CHARACTER_NOTE_ORDER = Int.MIN_VALUE + 4
+        const val DEFAULT_CHARACTER_REPLY_NUDGE = "[Write {{char}}'s next reply.]"
     }
 }
 

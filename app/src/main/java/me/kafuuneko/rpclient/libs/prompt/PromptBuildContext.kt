@@ -45,3 +45,12 @@ enum class PromptGenerationMode {
     Impersonate,
     Regenerate
 }
+
+/**
+ * 普通回复和重新生成共享“编写角色下一条回复”的任务提示。
+ *
+ * Continue 与 Impersonate 会在聊天末尾提供各自唯一的生成目标，不能再叠加主提示词或 PHI。
+ */
+internal fun PromptGenerationMode.usesCharacterReplyTask(): Boolean {
+    return this == PromptGenerationMode.Normal || this == PromptGenerationMode.Regenerate
+}

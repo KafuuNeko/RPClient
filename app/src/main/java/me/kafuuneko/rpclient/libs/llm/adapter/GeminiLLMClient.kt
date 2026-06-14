@@ -145,6 +145,10 @@ class GeminiLLMClient(
             content = content,
             model = fallbackModel,
             provider = mProvider.providerType,
+            finishReason = candidates
+                ?.optJSONObject(0)
+                ?.optString("finishReason")
+                ?.takeIf { it.isNotBlank() },
             rawResponse = this
         )
     }
@@ -156,13 +160,19 @@ class GeminiLLMClient(
         if (!startsWith("data:")) return null
         val data = removePrefix("data:").trim()
         val json = runCatching { JSONObject(data) }.getOrNull() ?: return null
-        val text = json.optJSONArray("candidates")
+        val candidate = json.optJSONArray("candidates")
             ?.optJSONObject(0)
-            ?.optJSONObject("content")
+            ?: return null
+        val text = candidate
+            .optJSONObject("content")
             ?.optJSONArray("parts")
             ?.joinTextFields()
             .orEmpty()
-        if (text.isBlank()) return null
+        if (text.isBlank()) {
+            return candidate.optString("finishReason")
+                .takeIf { it.isNotBlank() }
+                ?.let { LLMStreamEvent.Finished(rawChunk = data, finishReason = it) }
+        }
         return LLMStreamEvent.Delta(content = text, rawChunk = data)
     }
 

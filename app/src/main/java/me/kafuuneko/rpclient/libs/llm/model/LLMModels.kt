@@ -122,6 +122,8 @@ data class LLMGenerationResponse(
     val model: String,
     val provider: LLMProviderType,
     val usage: LLMUsage? = null,
+    /** 供应商给出的停止原因，用于区分正常完成、长度限制和空响应。 */
+    val finishReason: String? = null,
     val rawResponse: String
 )
 
@@ -141,6 +143,10 @@ sealed class LLMStreamEvent {
      * 供应商明确返回的完成事件。
      */
     data class Finished(
-        val rawChunk: String? = null
+        val rawChunk: String? = null,
+        /** 流式协议在结束块中返回的停止原因。 */
+        val finishReason: String? = null,
+        /** 网关实际路由到的模型名；没有提供时由调用方使用请求模型。 */
+        val model: String? = null
     ) : LLMStreamEvent()
 }

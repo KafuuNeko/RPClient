@@ -122,6 +122,7 @@ class AnthropicMessagesLLMClient(
             content = json.optJSONArray("content")?.joinTextFields(type = "text").orEmpty(),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
+            finishReason = json.optString("stop_reason").takeIf { it.isNotBlank() },
             rawResponse = this
         )
     }
@@ -137,6 +138,9 @@ class AnthropicMessagesLLMClient(
             return LLMStreamEvent.Finished(rawChunk = data)
         }
         val delta = json.optJSONObject("delta") ?: return null
+        delta.optString("stop_reason").takeIf { it.isNotBlank() }?.let {
+            return LLMStreamEvent.Finished(rawChunk = data, finishReason = it)
+        }
         val text = delta.optString("text")
         if (text.isBlank()) return null
         return LLMStreamEvent.Delta(content = text, rawChunk = data)

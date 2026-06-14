@@ -20,6 +20,7 @@ enum class PromptSourceKind {
     UserNote,
     CharacterNote,
     PostHistoryInstructions,
+    CharacterReplyNudge,
     ContinueNudge,
     ImpersonationNudge,
     GroupIdentity,

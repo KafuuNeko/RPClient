@@ -1,15 +1,19 @@
 package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -361,7 +365,7 @@ class ChatPromptBuilderTest {
     }
 
     @Test
-    fun impersonateModeKeepsMainPromptMacrosAndPlacesSystemNudgeLast() {
+    fun impersonateModeRemovesCharacterReplyTasksAndEndsWithUserControl() {
         val request = builder.build(
             context(
                 character = Character(
@@ -375,23 +379,25 @@ class ChatPromptBuilderTest {
                     scenario = "",
                     firstMessages = "",
                     examplesOfDialogue = "",
-                    postHistoryInstructions = "",
-                    systemPrompt = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}."
+                    postHistoryInstructions = "Only write Fuka.",
+                    systemPrompt = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
+                    depthPromptPrompt = "Always write as Fuka.",
+                    depthPromptDepth = 0
                 ),
                 generationMode = PromptGenerationMode.Impersonate
             )
         )
 
-        val mainPromptMessage = request.messages.first { it.role == LLMMessageRole.System && it.content.startsWith("Write") }
-        assertEquals("Write Fuka's next reply in a fictional chat between Fuka and User.", mainPromptMessage.content)
-
+        assertFalse(request.messages.any { it.content.contains("Write Fuka's next reply") })
+        assertFalse(request.messages.any { it.content == "Only write Fuka." })
+        assertFalse(request.messages.any { it.content == "Always write as Fuka." })
         val nudgeMessage = request.messages.first { it.content.contains("point of view of User") }
-        assertEquals(LLMMessageRole.System, nudgeMessage.role)
+        assertEquals(LLMMessageRole.User, nudgeMessage.role)
         assertEquals(nudgeMessage, request.messages.last())
     }
 
     @Test
-    fun continueModeMovesTargetAndSystemNudgeToAbsoluteEnd() {
+    fun continueFallbackRemovesCharacterReplyTasksAndEndsWithUserNudge() {
         val request = builder.build(
             context(
                 character = Character(
@@ -404,7 +410,8 @@ class ChatPromptBuilderTest {
                     scenario = "",
                     firstMessages = "",
                     examplesOfDialogue = "",
-                    postHistoryInstructions = "Post history"
+                    postHistoryInstructions = "Post history",
+                    systemPrompt = "Write Char's next reply."
                 ),
                 messages = listOf(
                     chatMessage(1L, ChatMessage.Source.User, "Question"),
@@ -419,11 +426,99 @@ class ChatPromptBuilderTest {
             it.content in setOf("Question", "Post history", "Partial answer", nudgeMessage.content)
         }
         assertEquals(
-            listOf("Question", "Post history", "Partial answer", nudgeMessage.content),
+            listOf("Question", "Partial answer", nudgeMessage.content),
             relevant.map { it.content }
         )
-        assertEquals(LLMMessageRole.System, nudgeMessage.role)
+        assertFalse(request.messages.any { it.content == "Write Char's next reply." })
+        assertEquals(LLMMessageRole.User, nudgeMessage.role)
         assertEquals(nudgeMessage, request.messages.last())
+    }
+
+    @Test
+    fun continueAlwaysEndsWithUserNudge() {
+        val result = builder.buildWithMetadata(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "Question"),
+                    chatMessage(2L, ChatMessage.Source.Char, "Partial answer")
+                ),
+                generationMode = PromptGenerationMode.Continue
+            )
+        )
+        val request = result.request
+
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+        assertTrue(request.messages.last().content.contains("Continue your last message"))
+        assertTrue(
+            result.inspection.items.last().sources.any {
+                it.kind == PromptSourceKind.ContinueNudge
+            }
+        )
+        assertEquals(
+            "Partial answer",
+            request.messages[request.messages.lastIndex - 1].content
+        )
+    }
+
+    @Test
+    fun singleUserModeKeepsContinueNudgeInFlattenedUserMessage() {
+        val request = builder.build(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "Question"),
+                    chatMessage(2L, ChatMessage.Source.Char, "Partial answer")
+                ),
+                provider = provider(PromptPostProcessingMode.SingleUserMessage),
+                generationMode = PromptGenerationMode.Continue
+            )
+        )
+
+        assertEquals(1, request.messages.size)
+        assertEquals(LLMMessageRole.User, request.messages.single().role)
+        assertTrue(request.messages.single().content.contains("Continue your last message"))
+    }
+
+    @Test
+    fun normalPostHistoryInstructionsUseTerminalUserRole() {
+        val request = builder.build(
+            context(
+                character = Character(
+                    id = 1L,
+                    name = "Char",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "Keep the reply concise."
+                ),
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "Question")
+                )
+            )
+        )
+
+        assertEquals("Keep the reply concise.", request.messages.last().content)
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+    }
+
+    @Test
+    fun normalGenerationAddsUserNudgeAfterDepthZeroSystemInjection() {
+        val request = builder.build(
+            context(
+                messages = listOf(
+                    chatMessage(1L, ChatMessage.Source.User, "Question")
+                ),
+                entries = listOf(
+                    lorebookEntry(1L, 100, 0, "Depth zero rule")
+                )
+            )
+        )
+
+        assertEquals(LLMMessageRole.User, request.messages.last().role)
+        assertEquals("[Write Char's next reply.]", request.messages.last().content)
     }
 
     @Test
@@ -587,7 +682,8 @@ class ChatPromptBuilderTest {
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         maxContextTokens: Int = 4096,
         maxResponseTokens: Int = 512,
-        regexScripts: List<ScopedRegexScript> = emptyList()
+        regexScripts: List<ScopedRegexScript> = emptyList(),
+        provider: LLMProvider? = null
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -598,11 +694,22 @@ class ChatPromptBuilderTest {
             messages = messages,
             currentUserMessage = null,
             candidateLorebookEntries = entries,
-            provider = null,
+            provider = provider,
             maxContextTokens = maxContextTokens,
             maxResponseTokens = maxResponseTokens,
             generationMode = generationMode,
             regexScripts = regexScripts
+        )
+    }
+
+    private fun provider(postProcessingMode: PromptPostProcessingMode): LLMProvider {
+        return LLMProvider(
+            name = "Test",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.com",
+            model = "test",
+            promptPostProcessingMode = postProcessingMode.ordinal
         )
     }
 

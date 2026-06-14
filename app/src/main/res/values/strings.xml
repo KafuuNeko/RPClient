@@ -555,6 +555,7 @@
     <string name="prompt_omission_context_budget">removed by final context budget</string>
     <string name="prompt_omission_world_info_budget">removed by world info budget</string>
     <string name="prompt_source_main">Main Prompt</string>
+    <string name="prompt_source_character_reply_nudge">Character Reply Nudge</string>
     <string name="prompt_source_world_info">World Info</string>
     <string name="prompt_source_user_persona">User Persona</string>
     <string name="prompt_source_character_description">Character Description</string>
