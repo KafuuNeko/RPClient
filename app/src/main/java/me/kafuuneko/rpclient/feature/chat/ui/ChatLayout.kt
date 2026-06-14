@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,28 +142,37 @@ private fun ChatNormal(
     emit: ChatUiIntent.() -> Unit
 ) {
     val listState = rememberLazyListState()
-    var wasAtBottom by remember { mutableStateOf(true) }
+    val isListDragged by listState.interactionSource.collectIsDraggedAsState()
+    var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
 
     LaunchedEffect(listState) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val visibleItemsInfo = layoutInfo.visibleItemsInfo
-            if (layoutInfo.totalItemsCount == 0) {
-                true
-            } else {
-                val lastVisibleItem = visibleItemsInfo.lastOrNull()
-                lastVisibleItem != null && lastVisibleItem.index == layoutInfo.totalItemsCount - 1
+        snapshotFlow { listState.canScrollForward }
+            .collect { canScrollForward ->
+                if (!canScrollForward) {
+                    shouldFollowBottom = true
+                }
             }
-        }.collect { atBottom ->
-            wasAtBottom = atBottom
+    }
+
+    LaunchedEffect(isListDragged) {
+        if (isListDragged) {
+            snapshotFlow { listState.canScrollForward }
+                .collect { canScrollForward ->
+                    shouldFollowBottom = !canScrollForward
+                }
         }
     }
 
-    LaunchedEffect(state.messages.size) {
+    LaunchedEffect(
+        state.messages.size,
+        state.messages.lastOrNull()?.content,
+        state.expandedThinkBlockIds
+    ) {
         if (state.messages.isNotEmpty()) {
-            if (isFirstLoad || wasAtBottom) {
-                listState.scrollToItem(state.messages.size)
+            if (isFirstLoad || shouldFollowBottom) {
+                // Header + messages + the trailing anchor.
+                listState.scrollToItem(state.messages.size + 1)
                 isFirstLoad = false
             }
         }
@@ -210,6 +220,9 @@ private fun ChatNormal(
                     isFirstMessage = index == 0,
                     emit = emit
                 )
+            }
+            item(key = "conversation-end") {
+                Spacer(modifier = Modifier.height(1.dp))
             }
         }
         ChatInputBar(
