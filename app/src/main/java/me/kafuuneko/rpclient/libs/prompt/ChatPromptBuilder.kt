@@ -198,15 +198,6 @@ class ChatPromptBuilder(
     ): PromptSections {
         val beforeHistory = mutableListOf<PromptPiece>()
         // before/after character 是固定 system 区；creator_notes 只作为元数据保留，不再默认注入。
-        worldInfo.beforeCharacter.forEach {
-            beforeHistory += PromptPiece(
-                role = LLMMessageRole.System,
-                content = formatWorldInfo(it.content),
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
-                retentionPriority = PRIORITY_WORLD_INFO,
-                canDrop = true
-            )
-        }
         beforeHistory += PromptPiece(
             LLMMessageRole.System,
             readCharacterMainPrompt(context),
@@ -214,7 +205,7 @@ class ChatPromptBuilder(
             PRIORITY_ESSENTIAL,
             false
         )
-        worldInfo.afterCharacter.forEach {
+        worldInfo.beforeCharacter.forEach {
             beforeHistory += PromptPiece(
                 role = LLMMessageRole.System,
                 content = formatWorldInfo(it.content),
@@ -246,6 +237,15 @@ class ChatPromptBuilder(
             formatScenario(context.character.scenario),
             PromptSourceKind.Scenario
         )
+        worldInfo.afterCharacter.forEach {
+            beforeHistory += PromptPiece(
+                role = LLMMessageRole.System,
+                content = formatWorldInfo(it.content),
+                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
+                retentionPriority = PRIORITY_WORLD_INFO,
+                canDrop = true
+            )
+        }
         if (readSummaryInjectionPosition() == SummaryInjectionPosition.AfterCharacter) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }

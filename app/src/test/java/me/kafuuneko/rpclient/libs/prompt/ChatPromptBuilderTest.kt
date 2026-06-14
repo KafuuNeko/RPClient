@@ -93,6 +93,73 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun fixedPromptSectionsFollowMainAndCharacterWorldInfoOrder() {
+        val result = builder.buildWithMetadata(
+            context(
+                character = Character(
+                    id = 1L,
+                    name = "Char",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "Character description",
+                    creatorNotes = "",
+                    personality = "Character personality",
+                    scenario = "Character scenario",
+                    firstMessages = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                    systemPrompt = "Main prompt"
+                ),
+                userDescription = "User persona",
+                entries = listOf(
+                    lorebookEntry(
+                        id = 10L,
+                        order = 100,
+                        depth = 0,
+                        content = "Before character",
+                        position = LorebookEntry.POSITION_BEFORE
+                    ),
+                    lorebookEntry(
+                        id = 20L,
+                        order = 100,
+                        depth = 0,
+                        content = "After character",
+                        position = LorebookEntry.POSITION_AFTER
+                    )
+                )
+            )
+        )
+
+        val relevantKinds = setOf(
+            PromptSourceKind.MainPrompt,
+            PromptSourceKind.WorldInfo,
+            PromptSourceKind.UserPersona,
+            PromptSourceKind.CharacterDescription,
+            PromptSourceKind.CharacterPersonality,
+            PromptSourceKind.Scenario
+        )
+        val sourceOrder = result.inspection.items
+            .flatMap { it.sources }
+            .filter { it.kind in relevantKinds }
+        assertEquals(
+            listOf(
+                PromptSourceKind.MainPrompt,
+                PromptSourceKind.WorldInfo,
+                PromptSourceKind.UserPersona,
+                PromptSourceKind.CharacterDescription,
+                PromptSourceKind.CharacterPersonality,
+                PromptSourceKind.Scenario,
+                PromptSourceKind.WorldInfo
+            ),
+            sourceOrder.map { it.kind }
+        )
+        assertEquals(
+            listOf(10L, 20L),
+            sourceOrder.filter { it.kind == PromptSourceKind.WorldInfo }.map { it.referenceId }
+        )
+    }
+
+    @Test
     fun userNoteIsInsertedBeforeCurrentUserMessage() {
         val request = builder.build(
             context(
@@ -382,6 +449,7 @@ class ChatPromptBuilderTest {
         session: ChatSession = session(),
         messages: List<ChatMessage> = emptyList(),
         entries: List<LorebookEntry> = emptyList(),
+        userDescription: String = "",
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         maxContextTokens: Int = 4096,
         maxResponseTokens: Int = 512,
@@ -389,7 +457,7 @@ class ChatPromptBuilderTest {
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
-            userDescription = "",
+            userDescription = userDescription,
             character = character,
             session = session,
             summary = "",
