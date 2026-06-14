@@ -91,7 +91,6 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
@@ -104,6 +103,8 @@ import me.kafuuneko.rpclient.libs.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
+import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
+import me.kafuuneko.rpclient.ui.message.MessageContentPart
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -749,7 +750,7 @@ private fun MessageContent(
         }
         message.parts.forEach { part ->
             when (part) {
-                is ChatMessageContentPart.Text -> {
+                is MessageContentPart.Text -> {
                     if (part.content.isNotBlank()) {
                         MarkdownMessageText(
                             content = part.content,
@@ -758,7 +759,7 @@ private fun MessageContent(
                     }
                 }
 
-                is ChatMessageContentPart.Think -> ThinkBlock(
+                is MessageContentPart.Think -> ThinkBlock(
                     part = part,
                     expanded = part.id in expandedThinkBlockIds,
                     isThinking = message.isStreaming && !part.isComplete,
@@ -834,7 +835,7 @@ private fun MessageEditContent(
 
 @Composable
 private fun ThinkBlock(
-    part: ChatMessageContentPart.Think,
+    part: MessageContentPart.Think,
     expanded: Boolean,
     isThinking: Boolean,
     emit: ChatUiIntent.() -> Unit
@@ -1509,7 +1510,7 @@ private fun ChatLayoutPreview() {
                         role = MessageRole.Assistant,
                         speaker = "Lyra",
                         content = "## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf",
-                        parts = listOf(ChatMessageContentPart.Text("## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf")),
+                        parts = listOf(MessageContentPart.Text("## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf")),
                         time = "02:15",
                         tokenCount = 12
                     )

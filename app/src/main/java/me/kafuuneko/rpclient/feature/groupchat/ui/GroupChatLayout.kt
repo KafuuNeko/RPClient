@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
@@ -68,10 +70,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -89,6 +93,8 @@ import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.message.MarkdownMessageText
+import me.kafuuneko.rpclient.ui.message.MessageContentPart
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
@@ -203,6 +209,7 @@ private fun GroupChatNormalView(
             )
             MessageList(
                 messages = state.messages,
+                expandedThinkBlockIds = state.expandedThinkBlockIds,
                 editingMessageId = state.editingMessageId,
                 editingMessageDraft = state.editingMessageDraft,
                 emitIntent = emitIntent,
@@ -816,15 +823,41 @@ private fun MemberChip(
 @Composable
 private fun MessageList(
     messages: List<GroupChatMessageItem>,
+    expandedThinkBlockIds: Set<String>,
     editingMessageId: Long?,
     editingMessageDraft: String,
     emitIntent: (GroupChatUiIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+    val isListDragged by listState.interactionSource.collectIsDraggedAsState()
+    var shouldFollowBottom by remember { mutableStateOf(true) }
+    var isFirstLoad by remember { mutableStateOf(true) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.canScrollForward }
+            .collect { canScrollForward ->
+                if (!canScrollForward) {
+                    shouldFollowBottom = true
+                }
+            }
+    }
+    LaunchedEffect(isListDragged) {
+        if (isListDragged) {
+            snapshotFlow { listState.canScrollForward }
+                .collect { canScrollForward ->
+                    shouldFollowBottom = !canScrollForward
+                }
+        }
+    }
+    LaunchedEffect(
+        messages.size,
+        messages.lastOrNull()?.content,
+        expandedThinkBlockIds
+    ) {
+        if (messages.isNotEmpty() && (isFirstLoad || shouldFollowBottom)) {
+            listState.scrollToItem(messages.size)
+            isFirstLoad = false
         }
     }
     if (messages.isEmpty()) {
@@ -848,8 +881,15 @@ private fun MessageList(
                 editingDraft = editingMessageDraft
                     .takeIf { editingMessageId == message.id }
                     .orEmpty(),
+                expandedThinkBlockIds = expandedThinkBlockIds,
+                onToggleThinkBlock = { blockId ->
+                    emitIntent(GroupChatUiIntent.ToggleThinkBlock(blockId))
+                },
                 emitIntent = emitIntent
             )
+        }
+        item(key = "conversation-end") {
+            Spacer(modifier = Modifier.height(1.dp))
         }
     }
 }
@@ -899,17 +939,24 @@ private fun MessageBubble(
     message: GroupChatMessageItem,
     editing: Boolean,
     editingDraft: String,
+    expandedThinkBlockIds: Set<String>,
+    onToggleThinkBlock: (String) -> Unit,
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
     val isUser = message.source == GroupChatMessage.Source.User
+    val isSystem = message.source == GroupChatMessage.Source.System
     val accent = getMacaronColor(message.speakerName)
     var showActions by remember(message.id) { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+        horizontalArrangement = when {
+            isUser -> Arrangement.End
+            isSystem -> Arrangement.Center
+            else -> Arrangement.Start
+        },
         verticalAlignment = Alignment.Top
     ) {
-        if (!isUser) {
+        if (!isUser && !isSystem) {
             RpAvatar(
                 text = message.speakerName.firstOrNull()?.uppercase() ?: "?",
                 color = accent,
@@ -918,8 +965,12 @@ private fun MessageBubble(
             Spacer(modifier = Modifier.width(9.dp))
         }
         Column(
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.82f else 0.88f),
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+            modifier = Modifier.fillMaxWidth(if (isSystem) 0.92f else if (isUser) 0.82f else 0.88f),
+            horizontalAlignment = when {
+                isUser -> Alignment.End
+                isSystem -> Alignment.CenterHorizontally
+                else -> Alignment.Start
+            }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -928,6 +979,8 @@ private fun MessageBubble(
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) {
                         MaterialTheme.colorScheme.primary
+                    } else if (isSystem) {
+                        MaterialTheme.colorScheme.secondary
                     } else {
                         accent
                     }
@@ -942,18 +995,26 @@ private fun MessageBubble(
             Surface(
                 modifier = Modifier
                     .padding(top = 5.dp)
-                    .clickable(enabled = !message.isStreaming && !editing) {
+                    .clickable(enabled = !editing) {
                         showActions = !showActions
                     },
-                shape = if (isUser) {
-                    RoundedCornerShape(20.dp, 5.dp, 20.dp, 20.dp)
-                } else {
-                    RoundedCornerShape(5.dp, 20.dp, 20.dp, 20.dp)
+                shape = when {
+                    isUser -> RoundedCornerShape(20.dp, 5.dp, 20.dp, 20.dp)
+                    isSystem -> RoundedCornerShape(14.dp)
+                    else -> RoundedCornerShape(5.dp, 20.dp, 20.dp, 20.dp)
                 },
-                color = if (isUser) {
-                    MaterialTheme.colorScheme.primary
+                color = when {
+                    isUser -> MaterialTheme.colorScheme.primary
+                    isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    else -> MaterialTheme.colorScheme.surface
+                },
+                border = if (!isUser && !isSystem) {
+                    BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    )
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
+                    null
                 }
             ) {
                 Column(
@@ -967,27 +1028,13 @@ private fun MessageBubble(
                             emitIntent = emitIntent
                         )
                     } else {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = message.content.ifBlank { "..." },
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isUser) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                }
-                            )
-                            if (message.isStreaming) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .padding(start = 8.dp)
-                                        .size(14.dp),
-                                    strokeWidth = 2.dp,
-                                    color = accent
-                                )
-                            }
-                        }
+                        GroupMessageContent(
+                            message = message,
+                            isUser = isUser,
+                            accent = accent,
+                            expandedThinkBlockIds = expandedThinkBlockIds,
+                            onToggleThinkBlock = onToggleThinkBlock
+                        )
                     }
                     AnimatedVisibility(
                         visible = showActions && !editing && !message.isStreaming,
@@ -1007,6 +1054,121 @@ private fun MessageBubble(
 }
 
 /** 在群聊消息气泡内展示编辑输入框。 */
+@Composable
+private fun GroupMessageContent(
+    message: GroupChatMessageItem,
+    isUser: Boolean,
+    accent: Color,
+    expandedThinkBlockIds: Set<String>,
+    onToggleThinkBlock: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (message.isStreaming && (message.content.isBlank() || message.parts.isEmpty())) {
+            GroupStreamingStatus(
+                text = stringResource(R.string.waiting_for_response),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f),
+                indicatorColor = accent
+            )
+        }
+        message.parts.forEach { part ->
+            when (part) {
+                is MessageContentPart.Text -> {
+                    if (part.content.isNotBlank()) {
+                        MarkdownMessageText(
+                            content = part.content,
+                            isUser = isUser
+                        )
+                    }
+                }
+                is MessageContentPart.Think -> GroupThinkBlock(
+                    part = part,
+                    expanded = part.id in expandedThinkBlockIds,
+                    isThinking = message.isStreaming && !part.isComplete,
+                    indicatorColor = accent,
+                    onToggle = { onToggleThinkBlock(part.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupStreamingStatus(
+    text: String,
+    color: Color,
+    indicatorColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(14.dp),
+            strokeWidth = 2.dp,
+            color = indicatorColor
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun GroupThinkBlock(
+    part: MessageContentPart.Think,
+    expanded: Boolean,
+    isThinking: Boolean,
+    indicatorColor: Color,
+    onToggle: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isThinking) {
+                    GroupStreamingStatus(
+                        text = stringResource(R.string.thinking),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        indicatorColor = indicatorColor,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.thought_process),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+                Text(
+                    text = stringResource(if (expanded) R.string.hide else R.string.show),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (expanded) {
+                Text(
+                    text = part.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun GroupMessageEditContent(
     draft: String,
@@ -1110,6 +1272,14 @@ private fun GroupMessageActions(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Icon(
+                imageVector = Icons.Rounded.ContentCopy,
+                contentDescription = stringResource(R.string.copy),
+                modifier = actionModifier {
+                    emitIntent(GroupChatUiIntent.CopyMessage(message.id))
+                },
+                tint = iconColor
+            )
             Icon(
                 imageVector = Icons.Rounded.Edit,
                 contentDescription = stringResource(R.string.edit),

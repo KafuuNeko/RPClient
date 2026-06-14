@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.chat.ui
+package me.kafuuneko.rpclient.ui.message
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -35,7 +35,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun MarkdownMessageText(
+fun MarkdownMessageText(
     content: String,
     isUser: Boolean,
     modifier: Modifier = Modifier

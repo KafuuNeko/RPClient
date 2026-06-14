@@ -23,6 +23,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatLoadState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -51,6 +52,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.libs.utils.toggleAll
+import me.kafuuneko.rpclient.ui.message.toMessageContentParts
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -532,6 +534,27 @@ class GroupChatViewModel :
         ).setup()
     }
 
+    @UiIntentObserver(GroupChatUiIntent.CopyMessage::class)
+    private suspend fun onCopyMessage(intent: GroupChatUiIntent.CopyMessage) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val message = uiState.messages.firstOrNull { it.id == intent.messageId } ?: return
+        if (message.content.isBlank()) return
+        GroupChatViewEvent.CopyText(message.content).emit()
+    }
+
+    @UiIntentObserver(GroupChatUiIntent.ToggleThinkBlock::class)
+    private fun onToggleThinkBlock(intent: GroupChatUiIntent.ToggleThinkBlock) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val ids = uiState.expandedThinkBlockIds
+        uiState.copy(
+            expandedThinkBlockIds = if (intent.blockId in ids) {
+                ids - intent.blockId
+            } else {
+                ids + intent.blockId
+            }
+        ).setup()
+    }
+
     @UiIntentObserver(GroupChatUiIntent.ChangeEditingMessageDraft::class)
     private fun onChangeEditingMessageDraft(
         intent: GroupChatUiIntent.ChangeEditingMessageDraft
@@ -884,7 +907,11 @@ class GroupChatViewModel :
         uiState.copy(
             messages = uiState.messages.map {
                 if (it.id == messageId) {
-                    it.copy(content = displayContent, isStreaming = true)
+                    it.copy(
+                        content = displayContent,
+                        parts = displayContent.toMessageContentParts(it.id.toString()),
+                        isStreaming = true
+                    )
                 } else {
                     it
                 }
@@ -1027,6 +1054,8 @@ class GroupChatViewModel :
             getOrNull<GroupChatUiState.Normal>()?.selectedSpeakerId,
         generationState: GroupChatGenerationState =
             getOrNull<GroupChatUiState.Normal>()?.generationState ?: GroupChatGenerationState.Idle,
+        expandedThinkBlockIds: Set<String> =
+            getOrNull<GroupChatUiState.Normal>()?.expandedThinkBlockIds ?: emptySet(),
         editingMessageId: Long? =
             getOrNull<GroupChatUiState.Normal>()?.editingMessageId,
         editingMessageDraft: String =
@@ -1042,6 +1071,7 @@ class GroupChatViewModel :
                 inputDraft = inputDraft,
                 selectedSpeakerId = selectedSpeakerId,
                 generationState = generationState,
+                expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
                 dialogState = dialogState
@@ -1057,6 +1087,7 @@ class GroupChatViewModel :
         inputDraft: String = "",
         selectedSpeakerId: Long? = null,
         generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
+        expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: Long? = null,
         editingMessageDraft: String = "",
         dialogState: GroupChatDialogState = GroupChatDialogState.None
@@ -1138,6 +1169,7 @@ class GroupChatViewModel :
             inputDraft = inputDraft,
             generationState = generationState,
             hasPromptInspection = mLastPromptInspection != null,
+            expandedThinkBlockIds = expandedThinkBlockIds,
             editingMessageId = editingMessageId,
             editingMessageDraft = editingMessageDraft,
             dialogState = dialogState
@@ -1185,6 +1217,7 @@ class GroupChatViewModel :
                 source = message.source,
                 speakerName = message.speakerNameSnapshot,
                 content = displayContent,
+                parts = displayContent.toMessageContentParts(message.id.toString()),
                 time = message.createTime.formatTimestamp("HH:mm"),
                 isStreaming = message.id == mStreamingMessageId
             )

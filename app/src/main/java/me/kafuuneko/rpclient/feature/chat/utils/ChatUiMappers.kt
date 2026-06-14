@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.feature.chat.utils
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
@@ -14,6 +13,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.utils.formatTimestamp
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
+import me.kafuuneko.rpclient.ui.message.toMessageContentParts
 
 /** 映射世界书 UI 分组所需的书籍索引与条目集合。 */
 data class ChatLorebookEntryData(
@@ -83,7 +83,7 @@ fun List<ChatMessage>.toChatMessageItems(
                 ChatMessage.Source.Summary -> error("Summary snapshots are not rendered as chat messages")
             },
             content = message.content,
-            parts = message.content.toContentParts(message.id.toString()),
+            parts = message.content.toMessageContentParts(message.id.toString()),
             time = message.createTime.formatTimestamp("HH:mm"),
             tokenCount = (message.content.length / 3).coerceAtLeast(1),
             isStreaming = message.id == streamingMessageId
@@ -138,42 +138,11 @@ fun List<ChatMessageUiModel>.replaceStreamingMessage(
         if (it.id == messageId.toString()) {
             it.copy(
                 content = content,
-                parts = content.toContentParts(it.id),
+                parts = content.toMessageContentParts(it.id),
                 isStreaming = true
             )
         } else {
             it
         }
-    }
-}
-
-/** 将消息正文拆分为普通文本和 think 内容片段。 */
-fun String.toContentParts(messageId: String): List<ChatMessageContentPart> {
-    val regex = Regex("<think>([\\s\\S]*?)(</think>|$)", RegexOption.IGNORE_CASE)
-    val parts = mutableListOf<ChatMessageContentPart>()
-    var cursor = 0
-    var foundThinkBlock = false
-    regex.findAll(this).forEachIndexed { index, match ->
-        foundThinkBlock = true
-        if (match.range.first > cursor) {
-            parts += ChatMessageContentPart.Text(substring(cursor, match.range.first))
-        }
-        val thinkContent = match.groupValues[1].trim()
-        if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
-            parts += ChatMessageContentPart.Think(
-                id = "$messageId:$index",
-                content = thinkContent,
-                isComplete = match.value.trimEnd().endsWith("</think>", ignoreCase = true)
-            )
-        }
-        cursor = match.range.last + 1
-    }
-    if (cursor < length) {
-        parts += ChatMessageContentPart.Text(substring(cursor))
-    }
-    return when {
-        parts.isNotEmpty() -> parts
-        foundThinkBlock -> emptyList()
-        else -> listOf(ChatMessageContentPart.Text(this))
     }
 }

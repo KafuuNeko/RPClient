@@ -47,6 +47,7 @@ sealed class GroupChatUiState {
         val inputDraft: String = "",
         val generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
         val hasPromptInspection: Boolean = false,
+        val expandedThinkBlockIds: Set<String> = emptySet(),
         val editingMessageId: Long? = null,
         val editingMessageDraft: String = "",
         val dialogState: GroupChatDialogState = GroupChatDialogState.None

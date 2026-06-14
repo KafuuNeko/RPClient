@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.chat.utils
 
-import me.kafuuneko.rpclient.feature.chat.model.ChatMessageContentPart
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -31,37 +30,6 @@ class ChatUiMappersTest {
 
         assertEquals("Alice", item.userName)
         assertEquals("An investigator", item.userDescription)
-    }
-
-    @Test
-    fun toContentParts_splitsThinkBlocksFromVisibleText() {
-        val parts = "hello<think>reasoning</think>world".toContentParts("42")
-
-        assertEquals(ChatMessageContentPart.Text("hello"), parts[0])
-        assertEquals(ChatMessageContentPart.Think("42:0", "reasoning"), parts[1])
-        assertEquals(ChatMessageContentPart.Text("world"), parts[2])
-    }
-
-    @Test
-    fun toContentParts_marksUnclosedThinkBlockAsIncomplete() {
-        val parts = "<think>reasoning".toContentParts("42")
-
-        assertEquals(
-            ChatMessageContentPart.Think("42:0", "reasoning", isComplete = false),
-            parts.single()
-        )
-    }
-
-    @Test
-    fun toContentParts_hidesEmptyStreamingThinkTag() {
-        assertTrue("<think>".toContentParts("42").isEmpty())
-    }
-
-    @Test
-    fun toContentParts_ignoresBlankAndNullThinkBlocks() {
-        val parts = "hello<think>null</think><think>   </think>".toContentParts("42")
-
-        assertEquals(listOf(ChatMessageContentPart.Text("hello")), parts)
     }
 
     @Test

@@ -39,6 +39,8 @@ sealed class GroupChatUiIntent {
     data class AddMember(val characterId: Long) : GroupChatUiIntent()
     data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
     data class MoveMember(val characterId: Long, val offset: Int) : GroupChatUiIntent()
+    data class CopyMessage(val messageId: Long) : GroupChatUiIntent()
+    data class ToggleThinkBlock(val blockId: String) : GroupChatUiIntent()
     data class StartEditMessage(val messageId: Long) : GroupChatUiIntent()
     data class ChangeEditingMessageDraft(val value: String) : GroupChatUiIntent()
     data object SaveEditingMessage : GroupChatUiIntent()

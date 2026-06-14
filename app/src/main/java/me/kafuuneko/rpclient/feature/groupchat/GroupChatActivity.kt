@@ -1,15 +1,22 @@
 package me.kafuuneko.rpclient.feature.groupchat
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
+import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
@@ -41,6 +48,19 @@ class GroupChatActivity : CoreActivityWithEvent() {
     override fun onResume() {
         super.onResume()
         mViewModel.emit(GroupChatUiIntent.Resume)
+    }
+
+    override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        when (viewEvent) {
+            is GroupChatViewEvent.CopyText -> copyText(viewEvent.text)
+            else -> super.onReceivedViewEvent(viewEvent)
+        }
+    }
+
+    private fun copyText(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.message), text))
+        Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
     }
 
     companion object {
