@@ -207,7 +207,7 @@
     <string name="regenerate_latest_reply">최근 답변 다시 생성</string>
     <string name="regenerate_latest_reply_desc">마지막 어시스턴트 답변을 삭제하고 다시 생성합니다</string>
     <string name="continue_latest_reply">최근 답변 이어쓰기</string>
-    <string name="continue_latest_reply_desc">마지막 어시스턴트 답변 뒤에 텍스트를 이어서 작성합니다</string>
+    <string name="continue_latest_reply_desc">마지막 어시스턴트 답변을 이어가는 새 메시지를 생성합니다</string>
     <string name="impersonate_user">사용자 흉내내기</string>
     <string name="impersonate_user_desc">사용자 관점에서 다음 메시지를 생성합니다</string>
     <string name="summarize_now">지금 요약</string>

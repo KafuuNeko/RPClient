@@ -207,7 +207,7 @@
     <string name="regenerate_latest_reply">Перегенерировать последний ответ</string>
     <string name="regenerate_latest_reply_desc">Удалить последний ответ ассистента и сгенерировать его заново</string>
     <string name="continue_latest_reply">Продолжить последний ответ</string>
-    <string name="continue_latest_reply_desc">Дописать текст к последнему ответу ассистента</string>
+    <string name="continue_latest_reply_desc">Создать новое сообщение, продолжающее последний ответ ассистента</string>
     <string name="impersonate_user">Имитировать пользователя</string>
     <string name="impersonate_user_desc">Сгенерировать следующее сообщение от лица пользователя</string>
     <string name="summarize_now">Суммировать сейчас</string>

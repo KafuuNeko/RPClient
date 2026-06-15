@@ -207,7 +207,7 @@
     <string name="regenerate_latest_reply">Régénérer la dernière réponse</string>
     <string name="regenerate_latest_reply_desc">Supprimer la dernière réponse de l\'assistant et générer à nouveau</string>
     <string name="continue_latest_reply">Continuer la dernière réponse</string>
-    <string name="continue_latest_reply_desc">Ajouter du texte à la dernière réponse de l\'assistant</string>
+    <string name="continue_latest_reply_desc">Générer un nouveau message qui poursuit la dernière réponse de l\'assistant</string>
     <string name="impersonate_user">Incarner l\'utilisateur</string>
     <string name="impersonate_user_desc">Générer le prochain message du point de vue de l\'utilisateur</string>
     <string name="summarize_now">Résumer maintenant</string>

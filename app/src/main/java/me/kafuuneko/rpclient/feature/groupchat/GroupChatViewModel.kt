@@ -82,10 +82,9 @@ class GroupChatViewModel :
     private var mSessionId: Long? = null
     /** 当前模型生成任务，用于停止生成并防止重复请求。 */
     private var mGenerationJob: Job? = null
-    /** 当前流式消息及其本次新增、原有文本，用于区分新消息与续写。 */
+    /** 当前流式生成创建的新消息及已接收内容。 */
     private var mStreamingMessageId: Long? = null
     private var mStreamingContent: String = ""
-    private var mStreamingExistingContent: String = ""
     /** 本次生成固定使用的 Regex 配置和宏快照。 */
     private var mStreamingRegexScripts: List<ScopedRegexScript> = emptyList()
     private var mStreamingRegexMacros: Map<String, String> = emptyMap()
@@ -666,7 +665,6 @@ class GroupChatViewModel :
                     batchId = batchId,
                     current = 1,
                     total = 1,
-                    continueMessage = last,
                     generationMode = GroupChatGenerationMode.Continue
                 )
                 refreshState(generationState = GroupChatGenerationState.Idle)
@@ -781,7 +779,6 @@ class GroupChatViewModel :
         batchId: String,
         current: Int,
         total: Int,
-        continueMessage: GroupChatMessage? = null,
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
     ) {
         val data = withContext(Dispatchers.IO) {
@@ -814,7 +811,7 @@ class GroupChatViewModel :
         }
         recordPromptInspection(buildResult.inspection)
         val request = buildResult.request
-        mStreamingMessageId = continueMessage?.id ?: withContext(Dispatchers.IO) {
+        mStreamingMessageId = withContext(Dispatchers.IO) {
             mGroupChatRepository.createMessage(
                 sessionId = sessionId,
                 source = GroupChatMessage.Source.Character,
@@ -824,9 +821,7 @@ class GroupChatViewModel :
                 generationBatchId = batchId
             )
         }
-        val existingContent = continueMessage?.content.orEmpty()
-        mStreamingContent = existingContent
-        mStreamingExistingContent = existingContent
+        mStreamingContent = ""
         mStreamingRegexScripts = mRegexRepository.activeScripts(
             data.members.map { it.character }
         )
@@ -845,11 +840,10 @@ class GroupChatViewModel :
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithSelectedProvider(request)
             }
-            mStreamingContent = existingContent + response.content
+            mStreamingContent = response.content
         }
-        val generatedPart = mStreamingContent.removePrefix(existingContent)
         val sanitizedPart = mOutputSanitizer.sanitize(
-            content = generatedPart,
+            content = mStreamingContent,
             currentSpeakerName = speaker.character.name,
             otherSpeakerNames = data.members
                 .map { it.character.name }
@@ -862,7 +856,7 @@ class GroupChatViewModel :
             mode = RegexExecutionMode.Source,
             macros = mStreamingRegexMacros
         ).text
-        mStreamingContent = existingContent + regexedPart
+        mStreamingContent = regexedPart
         mStreamingRegexApplied = true
         val persisted = persistOrDeleteStreamingMessage()
         if (persisted && regexedPart.isNotBlank()) {
@@ -934,7 +928,6 @@ class GroupChatViewModel :
         }
         mStreamingMessageId = null
         mStreamingContent = ""
-        mStreamingExistingContent = ""
         mStreamingRegexScripts = emptyList()
         mStreamingRegexMacros = emptyMap()
         mStreamingRegexApplied = false
@@ -1273,14 +1266,13 @@ class GroupChatViewModel :
 
     private fun applyStreamingAiRegex() {
         if (mStreamingRegexApplied || mStreamingContent.isBlank()) return
-        val generatedPart = mStreamingContent.removePrefix(mStreamingExistingContent)
         val processed = mRegexRuntime.executeAiMessage(
-            generatedPart,
+            mStreamingContent,
             mStreamingRegexScripts,
             RegexExecutionMode.Source,
             mStreamingRegexMacros
         ).text
-        mStreamingContent = mStreamingExistingContent + processed
+        mStreamingContent = processed
         mStreamingRegexApplied = true
     }
 

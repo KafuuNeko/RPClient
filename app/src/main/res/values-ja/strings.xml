@@ -208,7 +208,7 @@
     <string name="regenerate_latest_reply">最新の返信を再生成</string>
     <string name="regenerate_latest_reply_desc">アシスタントの最新の返信を削除し、再生成します</string>
     <string name="continue_latest_reply">最新の返信を続行</string>
-    <string name="continue_latest_reply_desc">アシスタントの最新の返信にテキストを追加します</string>
+    <string name="continue_latest_reply_desc">最新のアシスタント返信に続く新しいメッセージを生成します</string>
     <string name="impersonate_user">ユーザーを模倣</string>
     <string name="impersonate_user_desc">ユーザーの視点から次のメッセージを生成します</string>
     <string name="summarize_now">今すぐ要約</string>

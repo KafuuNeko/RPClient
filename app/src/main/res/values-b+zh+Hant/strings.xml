@@ -205,7 +205,7 @@
     <string name="regenerate_latest_reply">重新生成最新回覆</string>
     <string name="regenerate_latest_reply_desc">重新生成最新的助理回覆</string>
     <string name="continue_latest_reply">續寫最新回覆</string>
-    <string name="continue_latest_reply_desc">在最新助理回覆後繼續追加內容</string>
+    <string name="continue_latest_reply_desc">產生一則承接最新助理回覆的新訊息</string>
     <string name="impersonate_user">扮演使用者</string>
     <string name="impersonate_user_desc">從使用者視角生成下一條訊息</string>
     <string name="summarize_now">立即摘要</string>

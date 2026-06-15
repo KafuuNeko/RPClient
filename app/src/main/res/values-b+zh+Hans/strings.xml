@@ -217,7 +217,7 @@
     <string name="regenerate_latest_reply">重新生成最新回复</string>
     <string name="regenerate_latest_reply_desc">重新生成最新的助手回复</string>
     <string name="continue_latest_reply">续写最新回复</string>
-    <string name="continue_latest_reply_desc">在最新助手回复后继续追加内容</string>
+    <string name="continue_latest_reply_desc">生成一条承接最新助手回复的新消息</string>
     <string name="impersonate_user">扮演用户</string>
     <string name="impersonate_user_desc">从用户视角生成下一条消息</string>
     <string name="summarize_now">立即摘要</string>

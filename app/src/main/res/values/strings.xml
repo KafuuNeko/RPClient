@@ -218,7 +218,7 @@
     <string name="regenerate_latest_reply">Regenerate latest reply</string>
     <string name="regenerate_latest_reply_desc">Generate the latest assistant reply again</string>
     <string name="continue_latest_reply">Continue latest reply</string>
-    <string name="continue_latest_reply_desc">Append more text to the latest assistant reply</string>
+    <string name="continue_latest_reply_desc">Generate a new message continuing the latest assistant reply</string>
     <string name="impersonate_user">Impersonate user</string>
     <string name="impersonate_user_desc">Generate the next message from the user perspective</string>
     <string name="summarize_now">Summarize now</string>

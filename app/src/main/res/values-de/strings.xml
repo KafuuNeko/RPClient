@@ -208,7 +208,7 @@
     <string name="regenerate_latest_reply">Letzte Antwort regenerieren</string>
     <string name="regenerate_latest_reply_desc">Die letzte Antwort des Assistenten löschen und neu generieren</string>
     <string name="continue_latest_reply">Letzte Antwort fortsetzen</string>
-    <string name="continue_latest_reply_desc">Mehr Text an die letzte Antwort des Assistenten anhängen</string>
+    <string name="continue_latest_reply_desc">Eine neue Nachricht erzeugen, die die letzte Assistentenantwort fortsetzt</string>
     <string name="impersonate_user">Benutzer imitieren</string>
     <string name="impersonate_user_desc">Die nächste Nachricht aus der Perspektive des Benutzers generieren</string>
     <string name="summarize_now">Jetzt zusammenfassen</string>
