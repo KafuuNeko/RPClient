@@ -60,24 +60,20 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             characters to groups
         }
         val selectedCharacter = data.first.firstOrNull()
+        val selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty()
         val selectedLorebookEntryIds = selectedCharacter
             ?.defaultLorebookEntryIds(data.second)
             .orEmpty()
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
-            form = getOrNull<ChatCreateUiState.Normal>()?.form
-                ?.let { form ->
-                    form.copy(
-                        selectedCharacterId = selectedCharacter?.id,
-                        selectedLorebookEntryIds = form.selectedLorebookEntryIds + selectedLorebookEntryIds
-                    )
-                }
-                ?: ChatCreateForm(
-                    selectedCharacterId = selectedCharacter?.id,
-                    selectedLorebookEntryIds = selectedLorebookEntryIds
+            form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
+                .selectCharacter(
+                    characterId = selectedCharacter?.id,
+                    hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
+                    linkedLorebookEntryIds = selectedLorebookEntryIds
                 ),
             characters = data.first,
-            selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty(),
+            selectedCharacterFirstMessages = selectedCharacterFirstMessages,
             lorebookGroups = data.second
         ).setup()
     }
@@ -91,14 +87,19 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private fun onSelectCharacter(intent: ChatCreateUiIntent.SelectCharacter) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
+        if (uiState.form.selectedCharacterId == character.id) return
+        val previousLinkedLorebookEntryIds = uiState.selectedCharacter()
+            ?.defaultLorebookEntryIds(uiState.lorebookGroups)
+            .orEmpty()
+        val selectedCharacterFirstMessages = character.getChatFirstMessageList()
         uiState.copy(
-            form = uiState.form.copy(
-                selectedCharacterId = intent.characterId,
-                selectedFirstMessageIndex = null,
-                selectedLorebookEntryIds = uiState.form.selectedLorebookEntryIds +
-                    character.defaultLorebookEntryIds(uiState.lorebookGroups)
+            form = uiState.form.selectCharacter(
+                characterId = character.id,
+                hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
+                previousLinkedLorebookEntryIds = previousLinkedLorebookEntryIds,
+                linkedLorebookEntryIds = character.defaultLorebookEntryIds(uiState.lorebookGroups)
             ),
-            selectedCharacterFirstMessages = character.getChatFirstMessageList()
+            selectedCharacterFirstMessages = selectedCharacterFirstMessages
         ).setup()
     }
 

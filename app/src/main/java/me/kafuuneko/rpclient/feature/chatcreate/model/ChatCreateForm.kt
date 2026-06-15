@@ -7,4 +7,19 @@ data class ChatCreateForm(
     val title: String = "",
     val userNote: String = "",
     val selectedLorebookEntryIds: Set<Long> = emptySet()
-)
+) {
+    fun selectCharacter(
+        characterId: Long?,
+        hasFirstMessage: Boolean,
+        previousLinkedLorebookEntryIds: Set<Long> = emptySet(),
+        linkedLorebookEntryIds: Set<Long> = emptySet()
+    ): ChatCreateForm {
+        return copy(
+            selectedCharacterId = characterId,
+            selectedFirstMessageIndex = if (hasFirstMessage) 0 else null,
+            selectedLorebookEntryIds = selectedLorebookEntryIds -
+                previousLinkedLorebookEntryIds +
+                linkedLorebookEntryIds
+        )
+    }
+}
