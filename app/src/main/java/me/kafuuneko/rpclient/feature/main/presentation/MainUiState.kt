@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
@@ -42,7 +43,7 @@ data class MainHomeState(
     val totalCharacters: Int,
     val totalWorldBooks: Int,
     val multiSelectMode: Boolean = false,
-    val selectedSessionIds: Set<String> = emptySet()
+    val selectedSessions: Set<MainSessionSelection> = emptySet()
 )
 
 /** 全局设置页的可渲染快照，由 ViewModel 从 Kotpref 与 Provider 数据共同构建。 */

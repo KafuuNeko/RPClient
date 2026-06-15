@@ -88,6 +88,8 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
+import me.kafuuneko.rpclient.feature.main.model.MainSessionType
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
@@ -145,7 +147,7 @@ private fun MainNormal(
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 24.dp, vertical = 16.dp)
                         .navigationBarsPadding(),
-                    selectedCount = uiState.homeState.selectedSessionIds.size,
+                    selectedCount = uiState.homeState.selectedSessions.size,
                     emit = emit
                 )
             } else {
@@ -410,7 +412,7 @@ private fun HomePage(
             }
             item {
                 Text(
-                    text = stringResource(R.string.selected_count, state.selectedSessionIds.size),
+                    text = stringResource(R.string.selected_count, state.selectedSessions.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -495,117 +497,192 @@ private fun HomePage(
                     items = sessions,
                     key = { session -> "session-${session.id}" }
                 ) { session ->
-                    SessionCard(
+                    val selection = MainSessionSelection(
+                        type = MainSessionType.Chat,
+                        sessionId = session.id
+                    )
+                    HomeSessionCard(
                         modifier = Modifier.animateItem(),
-                        session = session,
+                        accentKey = session.characterName,
+                        icon = Icons.Rounded.ChatBubble,
+                        title = session.title,
+                        preview = session.preview,
+                        metadata = listOf(
+                            session.characterName,
+                            stringResource(R.string.message_count, session.messageCount),
+                            session.updatedAt
+                        ),
                         multiSelectMode = state.multiSelectMode,
-                        selected = session.id in state.selectedSessionIds,
+                        selected = selection in state.selectedSessions,
                         onClick = {
                             if (state.multiSelectMode) {
-                                MainUiIntent.ToggleSessionSelection(session.id).emit()
+                                MainUiIntent.ToggleSessionSelection(selection).emit()
                             } else {
                                 MainUiIntent.OpenChat(session.id).emit()
                             }
                         },
                         onLongClick = {
                             if (!state.multiSelectMode) {
-                                MainUiIntent.EnterMultiSelect(session.id).emit()
+                                MainUiIntent.EnterMultiSelect(selection).emit()
                             }
                         }
                     )
                 }
             }
         }
-        if (!state.multiSelectMode) {
-            item {
-                RpSectionHeader(
-                    title = stringResource(R.string.recent_group_chats),
-                    action = stringResource(R.string.new_group_chat)
-                ) {
+        item {
+            RpSectionHeader(
+                title = stringResource(R.string.recent_group_chats),
+                action = if (state.multiSelectMode) "" else stringResource(R.string.new_group_chat)
+            ) {
+                if (!state.multiSelectMode) {
                     MainUiIntent.OpenCreateGroupChat.emit()
                 }
             }
-            if (state.groupChatSessions.isEmpty()) {
-                item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.Groups,
-                        title = stringResource(R.string.no_group_chats),
-                        subtitle = stringResource(R.string.no_group_chats_desc)
-                    )
-                }
-            }
-            items(
-                items = state.groupChatSessions,
-                key = { "group-session-${it.id}" }
-            ) { session ->
-                GroupSessionCard(
-                    modifier = Modifier.animateItem(),
-                    session = session,
-                    onClick = { MainUiIntent.OpenGroupChat(session.id).emit() }
+        }
+        if (state.groupChatSessions.isEmpty()) {
+            item {
+                RpInfoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.Groups,
+                    title = stringResource(R.string.no_group_chats),
+                    subtitle = stringResource(R.string.no_group_chats_desc)
                 )
             }
+        }
+        items(
+            items = state.groupChatSessions,
+            key = { "group-session-${it.id}" }
+        ) { session ->
+            val selection = MainSessionSelection(
+                type = MainSessionType.GroupChat,
+                sessionId = session.id
+            )
+            HomeSessionCard(
+                modifier = Modifier.animateItem(),
+                accentKey = session.title,
+                icon = Icons.Rounded.Groups,
+                title = session.title,
+                preview = session.preview,
+                metadata = listOf(
+                    session.memberNames,
+                    stringResource(R.string.message_count, session.messageCount),
+                    session.updatedAt
+                ),
+                multiSelectMode = state.multiSelectMode,
+                selected = selection in state.selectedSessions,
+                onClick = {
+                    if (state.multiSelectMode) {
+                        MainUiIntent.ToggleSessionSelection(selection).emit()
+                    } else {
+                        MainUiIntent.OpenGroupChat(session.id).emit()
+                    }
+                },
+                onLongClick = {
+                    if (!state.multiSelectMode) {
+                        MainUiIntent.EnterMultiSelect(selection).emit()
+                    }
+                }
+            )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun GroupSessionCard(
+private fun HomeSessionCard(
     modifier: Modifier = Modifier,
-    session: MainGroupChatSessionItem,
-    onClick: () -> Unit
+    accentKey: String,
+    icon: ImageVector,
+    title: String,
+    preview: String,
+    metadata: List<String>,
+    multiSelectMode: Boolean = false,
+    selected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        },
+        label = "homeSessionCardBorder"
+    )
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        label = "homeSessionCardContainer"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f)
-        ),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                }
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
+            if (selected) 2.dp else 1.dp,
+            borderColor
         )
     ) {
         Row(
-            modifier = Modifier.padding(15.dp),
+            modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RpIconBubble(Icons.Rounded.Groups)
+            val accentColor = remember(accentKey) { getMacaronColor(accentKey) }
+            Box(
+                modifier = Modifier
+                    .padding(start = 14.dp, top = 14.dp, bottom = 14.dp)
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(accentColor, RoundedCornerShape(2.dp))
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = session.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = session.preview,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                RpMetaRow(
-                    listOf(
-                        session.memberNames,
-                        stringResource(R.string.message_count, session.messageCount),
-                        session.updatedAt
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RpIconBubble(icon)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = preview,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                RpMetaRow(items = metadata)
+            }
+            if (multiSelectMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.padding(end = 8.dp)
                 )
             }
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -663,109 +740,6 @@ private fun SessionCharacterHeader(
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
         )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun SessionCard(
-    modifier: Modifier = Modifier,
-    session: MainChatSessionItem,
-    multiSelectMode: Boolean = false,
-    selected: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
-) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        } else {
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        },
-        label = "sessionCardBorder"
-    )
-    val containerColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        label = "sessionCardContainer"
-    )
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                }
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            borderColor
-        )
-    ) {
-        Row(
-            modifier = Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val accentColor = remember(session.characterName) { getMacaronColor(session.characterName) }
-            Box(
-                modifier = Modifier
-                    .padding(start = 14.dp, top = 14.dp, bottom = 14.dp)
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .background(accentColor, RoundedCornerShape(2.dp))
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RpIconBubble(Icons.Rounded.ChatBubble)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = session.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = session.preview,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = 0.62f
-                            ),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                RpMetaRow(
-                    items = listOf(
-                        session.characterName,
-                        stringResource(R.string.message_count, session.messageCount),
-                        session.updatedAt
-                    )
-                )
-            }
-            if (multiSelectMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onClick() },
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-            }
-        }
     }
 }
 
@@ -1444,7 +1418,27 @@ private fun MainLayoutPreview() {
         MainLayout(
             uiState = MainUiState.Normal(
                 homeState = MainHomeState(
-                    recentSessions = emptyList(),
+                    recentSessions = listOf(
+                        MainChatSessionItem(
+                            id = "1",
+                            characterId = "1",
+                            characterName = "Luna",
+                            title = "Night train",
+                            preview = "The city lights recede beyond the window.",
+                            messageCount = 18,
+                            updatedAt = "06-15 21:30"
+                        )
+                    ),
+                    groupChatSessions = listOf(
+                        MainGroupChatSessionItem(
+                            id = "1",
+                            title = "Expedition team",
+                            memberNames = "Luna, Aster, Rowan",
+                            preview = "We should reach the ruins before sunrise.",
+                            messageCount = 42,
+                            updatedAt = "06-15 22:10"
+                        )
+                    ),
                     totalCharacters = 24,
                     totalWorldBooks = 7
                 ),

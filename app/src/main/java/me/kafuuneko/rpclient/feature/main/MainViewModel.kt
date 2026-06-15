@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.MainGroupChatSessionItem
+import me.kafuuneko.rpclient.feature.main.model.MainSessionType
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
@@ -112,7 +113,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             uiState.copy(
                 homeState = uiState.homeState.copy(
                     multiSelectMode = false,
-                    selectedSessionIds = emptySet()
+                    selectedSessions = emptySet()
                 )
             ).setup()
             return
@@ -131,7 +132,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             homeState = uiState.homeState.copy(
                 multiSelectMode = true,
-                selectedSessionIds = setOf(intent.sessionId)
+                selectedSessions = setOf(intent.session)
             )
         ).setup()
     }
@@ -140,14 +141,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onToggleSessionSelection(intent: MainUiIntent.ToggleSessionSelection) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.homeState.multiSelectMode) return
-        val current = uiState.homeState.selectedSessionIds
-        val updated = if (intent.sessionId in current) {
-            current - intent.sessionId
+        val current = uiState.homeState.selectedSessions
+        val updated = if (intent.session in current) {
+            current - intent.session
         } else {
-            current + intent.sessionId
+            current + intent.session
         }
         uiState.copy(
-            homeState = uiState.homeState.copy(selectedSessionIds = updated)
+            homeState = uiState.homeState.copy(selectedSessions = updated)
         ).setup()
     }
 
@@ -157,7 +158,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             homeState = uiState.homeState.copy(
                 multiSelectMode = false,
-                selectedSessionIds = emptySet()
+                selectedSessions = emptySet()
             )
         ).setup()
     }
@@ -165,7 +166,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ShowDeleteSelectedDialog::class)
     private fun onShowDeleteSelectedDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val count = uiState.homeState.selectedSessionIds.size
+        val count = uiState.homeState.selectedSessions.size
         if (count == 0) return
         uiState.copy(
             dialogState = MainDialogState.DeleteSelectedSessions(count = count)
@@ -176,10 +177,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun onConfirmDeleteSelected() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.DeleteSelectedSessions ?: return
-        val ids = uiState.homeState.selectedSessionIds
+        val selections = uiState.homeState.selectedSessions
         withContext(Dispatchers.IO) {
-            ids.forEach { id ->
-                id.toLongOrNull()?.let { mChatRepository.deleteSession(it) }
+            selections.forEach { selection ->
+                val sessionId = selection.sessionId.toLongOrNull() ?: return@forEach
+                when (selection.type) {
+                    MainSessionType.Chat -> mChatRepository.deleteSession(sessionId)
+                    MainSessionType.GroupChat -> mGroupChatRepository.deleteSession(sessionId)
+                }
             }
         }
         uiState.copy(

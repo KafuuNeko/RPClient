@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
+import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionRole
@@ -70,9 +71,9 @@ sealed class MainUiIntent {
 
     data object OpenAbout : MainUiIntent()
 
-    data class EnterMultiSelect(val sessionId: String) : MainUiIntent()
+    data class EnterMultiSelect(val session: MainSessionSelection) : MainUiIntent()
 
-    data class ToggleSessionSelection(val sessionId: String) : MainUiIntent()
+    data class ToggleSessionSelection(val session: MainSessionSelection) : MainUiIntent()
 
     data object ExitMultiSelect : MainUiIntent()
 
