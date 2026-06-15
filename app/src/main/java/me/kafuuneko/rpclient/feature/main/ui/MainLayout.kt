@@ -1467,7 +1467,7 @@ private fun MainLayoutPreview() {
                     summaryWordsLimit = 500,
                     summaryMaxMessagesPerRequest = 0,
                     summaryResponseTokens = 800,
-                    summaryInjectionPosition = SummaryInjectionPosition.AfterMain,
+                    summaryInjectionPosition = SummaryInjectionPosition.default,
                     summaryInjectionDepth = 2,
                     summaryInjectionRole = SummaryInjectionRole.System
                 )

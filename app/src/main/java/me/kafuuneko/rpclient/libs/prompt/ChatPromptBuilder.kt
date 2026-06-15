@@ -707,7 +707,7 @@ class ChatPromptBuilder(
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
         return SummaryInjectionPosition.fromPersistedValue(
             runCatching { AppModel.summaryInjectionPosition }
-                .getOrDefault(SummaryInjectionPosition.AfterMain.persistedValue)
+                .getOrDefault(SummaryInjectionPosition.default.persistedValue)
         )
     }
 

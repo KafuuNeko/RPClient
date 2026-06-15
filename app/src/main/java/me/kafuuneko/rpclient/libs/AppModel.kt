@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs
 
 import com.chibatching.kotpref.KotprefModel
+import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
 
 /**
  * 应用级持久偏好模型。
@@ -166,7 +167,9 @@ Rules:
     var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
 
     // 摘要注入位置使用 SummaryInjectionPosition.persistedValue 持久化。
-    var summaryInjectionPosition by intPref(default = 11)
+    var summaryInjectionPosition by intPref(
+        default = SummaryInjectionPosition.default.persistedValue
+    )
 
     // 摘要位于聊天内时，从聊天末尾向前计算的插入深度。
     var summaryInjectionDepth by intPref(default = 2)

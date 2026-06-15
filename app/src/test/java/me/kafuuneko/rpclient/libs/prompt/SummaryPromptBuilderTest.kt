@@ -42,6 +42,10 @@ class SummaryPromptBuilderTest {
     @Test
     fun legacySummaryPositionsMigrateToCurrentSemantics() {
         assertEquals(
+            SummaryInjectionPosition.AfterMain,
+            SummaryInjectionPosition.default
+        )
+        assertEquals(
             SummaryInjectionPosition.None,
             SummaryInjectionPosition.fromPersistedValue(-1)
         )
@@ -60,6 +64,10 @@ class SummaryPromptBuilderTest {
         assertEquals(
             SummaryInjectionPosition.InChat,
             SummaryInjectionPosition.fromPersistedValue(3)
+        )
+        assertEquals(
+            SummaryInjectionPosition.default,
+            SummaryInjectionPosition.fromPersistedValue(Int.MAX_VALUE)
         )
     }
 

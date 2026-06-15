@@ -12,6 +12,9 @@ enum class SummaryInjectionPosition(val persistedValue: Int) {
     InChat(12);
 
     companion object {
+        /** 默认注入位置 */
+        val default = AfterMain
+
         /**
          * 读取当前设置值，并兼容旧版本的四种角色卡/聊天历史相对位置。
          */
@@ -24,7 +27,7 @@ enum class SummaryInjectionPosition(val persistedValue: Int) {
                 0 -> BeforeMain
                 1 -> AfterMain
                 2, 3 -> InChat
-                else -> AfterMain
+                else -> default
             }
         }
     }
