@@ -3,96 +3,98 @@
 
   # RPClient
 
-  一个面向 Android 的本地优先 AI 角色扮演聊天客户端。
+  [简体中文](README_ZH.md) | English
 
-  支持角色卡、世界书、单人对话、群聊、长期摘要记忆、Prompt 检查与多种 LLM 接口。
+  A local-first AI role-playing chat client for Android.
 
-  [功能特性](#功能特性) · [快速开始](#快速开始) · [自行构建](#自行构建) · [开发文档](#开发文档)
+  Supports character cards, lorebooks, one-on-one chats, group chats, long-term summary memory, prompt inspection, and multiple LLM APIs.
+
+  [Overview](#overview) · [Features](#features) · [Quick Start](#quick-start) · [Contributing](#contributing)
 </div>
 
-## 项目简介
+## Overview
 
-RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供完整、可控的 AI 角色扮演体验。聊天记录、角色、世界书和应用配置默认保存在本地，模型请求则直接发送到用户配置的服务商。
+RPClient is built with Kotlin and Jetpack Compose to provide a complete and controllable AI role-playing experience on Android devices. Chat histories, characters, lorebooks, and app settings are stored locally by default, while model requests are sent directly to the provider configured by the user.
 
-项目参考了 SillyTavern 的角色卡、世界书、Prompt 和 Regex 脚本生态，并提供相应的导入、导出与兼容能力。RPClient 并非 SillyTavern 的 Android 移植版，两者在部分高级字段和运行行为上仍可能存在差异。
+The project draws on SillyTavern's ecosystem for character cards, lorebooks, prompts, and Regex scripts, and provides corresponding import, export, and compatibility features. RPClient is not an Android port of SillyTavern, and some advanced fields and runtime behaviors may differ.
 
 > [!WARNING]
-> 项目仍在开发中，数据结构、界面和兼容行为可能继续调整。导入重要角色卡、世界书或 Regex 脚本前，建议保留原始文件并定期备份。
+> This project is still under development. Data structures, the user interface, and compatibility behavior may continue to change. Keep the original files when importing important character cards, lorebooks, or Regex scripts, and back up your data regularly.
 
-## 功能特性
+## Features
 
-### 对话
+### Conversations
 
-- 单角色对话与多角色群聊
-- 流式输出、停止生成、重新生成和续写
-- 用户视角生成（Impersonate）
-- 从指定消息创建对话分支
-- Markdown 消息渲染与思维内容折叠
-- 自动或手动生成长期摘要记忆
-- 会话级世界书条目选择
+- One-on-one character chats and multi-character group chats
+- Streaming responses, stop generation, regenerate, and continue generation
+- Impersonate generation from the user's perspective
+- Create conversation branches from a selected message
+- Markdown message rendering and collapsible reasoning content
+- Automatic or manual long-term summary memory generation
+- Per-chat lorebook entry selection
 
-### 角色与世界书
+### Characters and Lorebooks
 
-- 创建、编辑、搜索和管理角色
-- 导入 Character Card V1/V2 JSON 与 PNG 角色卡
-- 导出 Character Card V2 JSON 或带元数据的 PNG
-- 支持角色头像、多个开场白、示例对话和扩展字段
-- 创建、编辑、导入和导出 SillyTavern 风格世界书
-- 支持关键字扫描、递归触发、概率、优先级、深度和 Token 预算等配置
+- Create, edit, search, and manage characters
+- Import Character Card V1/V2 JSON and PNG character cards
+- Export Character Card V2 JSON or PNG files with embedded metadata
+- Character avatars, multiple greetings, example dialogues, and extension fields
+- Create, edit, import, and export SillyTavern-style lorebooks
+- Keyword scanning, recursive activation, probability, priority, depth, Token budget, and other settings
 
-### 模型与 Prompt
+### Models and Prompts
 
 - OpenAI Compatible API
 - Google Gemini API
 - Anthropic Messages API
-- 内置 ChatGPT、Gemini、Claude、DeepSeek 和 OpenRouter 配置模板
-- 支持自定义服务地址、模型、请求头与生成参数
-- Prompt 预设、宏展开和协议相关的消息后处理
-- Prompt Inspector：检查最终消息、Token 预算、世界书命中、Regex 处理与省略内容
-- 调试模式：在本地记录并查看原始请求和响应 JSON
+- Built-in configuration templates for ChatGPT, Gemini, Claude, DeepSeek, and OpenRouter
+- Custom service URLs, models, request headers, and generation parameters
+- Prompt presets, macro expansion, and protocol-specific message post-processing
+- Prompt Inspector for reviewing final messages, Token budgets, lorebook matches, Regex processing, and omitted content
+- Debug mode for locally recording and viewing raw request and response JSON
 
-### Regex 脚本
+### Regex Scripts
 
-- 兼容常见 SillyTavern Regex 脚本 JSON
-- Global、Preset 和 Character 三种作用域
-- Source、Markdown 和 Prompt 三种执行模式
-- 支持脚本排序、复制、测试、导入与导出
-- 角色卡内嵌脚本默认不会自动获得执行授权
+- Compatible with commonly used SillyTavern Regex script JSON
+- Global, Preset, and Character scopes
+- Source, Markdown, and Prompt execution modes
+- Script ordering, duplication, testing, import, and export
+- Scripts embedded in character cards are not automatically granted permission to run
 
-### 其他
+### Other
 
-- 本地优先的数据存储
-- Material 3 与动态配色
-- 简体中文、繁体中文、英语、日语、韩语、德语、法语和俄语界面
-- Android 8.0（API 26）及以上系统
+- Local-first data storage
+- Material 3 and dynamic colors
+- User interface available in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, German, French, and Russian
+- Android 8.0 (API 26) or later
 
-## 快速开始
+## Quick Start
 
-1. 安装并打开 RPClient。
-2. 进入“设置 > 模型供应商”，选择已有模板或新建 Provider。
-3. 填写 API Key、模型名称和服务地址，测试连接后启用该 Provider。
-4. 创建角色，或导入已有的 JSON/PNG 角色卡。
-5. 根据需要导入世界书并关联角色。
-6. 新建单人会话或群聊，开始对话。
+1. Install and open RPClient.
+2. Go to "Settings > Model Providers" and select an existing template or create a new provider.
+3. Enter the API key, model name, and service URL. Test the connection, then enable the provider.
+4. Create a character or import an existing JSON/PNG character card.
+5. Import lorebooks and associate them with characters as needed.
+6. Create a one-on-one chat or group chat and start chatting.
 
-API Key 仅保存在应用本地，但会随模型请求发送给所配置的服务商。请只使用可信的 API 地址和中转服务。
+API keys are stored only on the device, but they are sent to the configured provider with model requests. Only use API endpoints and proxy services that you trust.
 
-## 参与贡献
+## Contributing
 
-欢迎提交 Issue 和 Pull Request。开始修改前，如果是使用AI编码需遵循 [AI 编码引导](doc/编码引导.md)；涉及 Compose 与 MVI 页面时，还应遵循 [MVI 框架开发规范](doc/MVI框架开发规范指南.md)。
+Issues and pull requests are welcome. Before making changes, AI-assisted coding must follow the [AI Coding Guide](doc/编码引导.md). Changes involving Compose and MVI screens must also follow the [MVI Framework Development Guide](doc/MVI框架开发规范指南.md).
 
-提交代码前建议至少保证代码可构建。
+Before submitting code, please ensure that the project can at least be built successfully.
 
-报告兼容性问题时，请尽量附上脱敏后的角色卡、世界书或 Regex JSON、使用的 Provider 协议、模型名称以及复现步骤。请勿在 Issue 中公开 API Key、私密对话或未经授权的角色资源。
+When reporting compatibility issues, include sanitized character cards, lorebooks, or Regex JSON where possible, along with the provider protocol, model name, and reproduction steps. Do not disclose API keys, private conversations, or character resources without authorization in an issue.
 
-## 隐私与免责声明
+## Privacy and Disclaimer
 
-- RPClient 不提供模型服务，使用模型 API 产生的费用与内容责任由用户自行承担。
-- 请求内容会发送到用户配置的模型服务商，使用前请阅读对应服务的隐私政策。
-- 项目与 SillyTavern、OpenAI、Google、Anthropic、DeepSeek 及 OpenRouter 均无隶属或官方合作关系。
-- 角色卡、世界书及其他导入内容的版权与使用授权由其提供者和使用者负责。
+- RPClient does not provide model services. Users are responsible for API usage fees and generated content.
+- Request content is sent to the model provider configured by the user. Review the provider's privacy policy before use.
+- This project is not affiliated with or officially partnered with SillyTavern, OpenAI, Google, Anthropic, DeepSeek, or OpenRouter.
+- Copyright and usage permissions for character cards, lorebooks, and other imported content are the responsibility of their providers and users.
 
-## 联系方式
+## Contact
 
-- GitHub：[KafuuNeko/RPClient](https://github.com/KafuuNeko/RPClient)
-- Email：kafuuneko@gmail.com
+- GitHub: [KafuuNeko/RPClient](https://github.com/KafuuNeko/RPClient)
+- Email: kafuuneko@gmail.com
