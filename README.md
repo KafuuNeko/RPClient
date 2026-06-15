@@ -9,7 +9,7 @@
 
   Supports character cards, lorebooks, one-on-one chats, group chats, long-term summary memory, prompt inspection, and multiple LLM APIs.
 
-  [Overview](#overview) · [Features](#features) · [Quick Start](#quick-start) · [Contributing](#contributing)
+  [Overview](#overview) · [Screenshots](#screenshots) · [Features](#features) · [Quick Start](#quick-start) · [Contributing](#contributing)
 </div>
 
 ## Overview
@@ -20,6 +20,13 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 
 > [!WARNING]
 > This project is still under development. Data structures, the user interface, and compatibility behavior may continue to change. Keep the original files when importing important character cards, lorebooks, or Regex scripts, and back up your data regularly.
+
+## Screenshots
+
+<p align="center">
+  <img src="metadata/images/home.jpg" alt="RPClient home screen" width="45%" />
+  <img src="metadata/images/chat.jpg" alt="RPClient chat screen" width="45%" />
+</p>
 
 ## Features
 
