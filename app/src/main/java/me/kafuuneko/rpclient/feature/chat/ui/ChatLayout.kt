@@ -50,6 +50,8 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -229,6 +231,7 @@ private fun ChatNormal(
         ChatInputBar(
             draft = state.inputDraft,
             isGenerating = state.generationState.isGenerating(),
+            hasAssistantMessage = state.messages.any { it.role == MessageRole.Assistant },
             emit = emit
         )
     }
@@ -946,8 +949,10 @@ private fun MessageActions(
 private fun ChatInputBar(
     draft: String,
     isGenerating: Boolean,
+    hasAssistantMessage: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
+    var quickActionsExpanded by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 3.dp,
@@ -974,6 +979,66 @@ private fun ChatInputBar(
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
+                    leadingIcon = {
+                        Box {
+                            IconButton(
+                                onClick = { quickActionsExpanded = true },
+                                enabled = !isGenerating
+                            ) {
+                                Icon(
+                                    Icons.Rounded.AutoAwesome,
+                                    contentDescription = stringResource(R.string.chat_settings_actions)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = quickActionsExpanded,
+                                onDismissRequest = { quickActionsExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.regenerate_latest_reply)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.Refresh, contentDescription = null)
+                                    },
+                                    enabled = hasAssistantMessage,
+                                    onClick = {
+                                        quickActionsExpanded = false
+                                        ChatUiIntent.RegenerateLast.emit()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.continue_latest_reply)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+                                    },
+                                    enabled = hasAssistantMessage,
+                                    onClick = {
+                                        quickActionsExpanded = false
+                                        ChatUiIntent.ContinueLast.emit()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.impersonate_user)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.Edit, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        quickActionsExpanded = false
+                                        ChatUiIntent.ImpersonateUser.emit()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.summarize_now)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        quickActionsExpanded = false
+                                        ChatUiIntent.SummarizeNow.emit()
+                                    }
+                                )
+                            }
+                        }
+                    },
                     placeholder = {
                         Text(
                             stringResource(R.string.input_next_story),

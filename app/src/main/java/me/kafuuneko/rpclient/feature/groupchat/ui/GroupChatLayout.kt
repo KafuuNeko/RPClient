@@ -52,6 +52,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -131,6 +133,9 @@ private fun GroupChatNormalView(
         return
     }
     val generating = state.generationState is GroupChatGenerationState.Generating
+    val canContinue = state.messages.any {
+        it.source == GroupChatMessage.Source.Character
+    }
     Scaffold(
         topBar = {
             AppTopBar(
@@ -179,7 +184,10 @@ private fun GroupChatNormalView(
                     emitIntent(GroupChatUiIntent.ChangeInputDraft(it))
                 },
                 onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
-                onStop = { emitIntent(GroupChatUiIntent.StopGeneration) }
+                onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
+                canContinue = canContinue,
+                onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
+                onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) }
             )
         }
     ) { padding ->
@@ -191,9 +199,7 @@ private fun GroupChatNormalView(
             GroupHeader(
                 strategy = state.activationStrategy,
                 generationState = state.generationState,
-                canContinue = state.messages.any {
-                    it.source == GroupChatMessage.Source.Character
-                },
+                canContinue = canContinue,
                 onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) }
             )
             MemberRail(
@@ -1316,8 +1322,12 @@ private fun Composer(
     generating: Boolean,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    canContinue: Boolean,
+    onContinue: () -> Unit,
+    onSummarize: () -> Unit
 ) {
+    var quickActionsExpanded by remember { mutableStateOf(false) }
     Surface(
         tonalElevation = 5.dp,
         shadowElevation = 8.dp,
@@ -1340,7 +1350,46 @@ private fun Composer(
                 enabled = !generating,
                 placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
                 shape = RoundedCornerShape(18.dp),
-                maxLines = 5
+                maxLines = 5,
+                leadingIcon = {
+                    Box {
+                        IconButton(
+                            onClick = { quickActionsExpanded = true },
+                            enabled = !generating
+                        ) {
+                            Icon(
+                                Icons.Rounded.AutoAwesome,
+                                contentDescription = stringResource(R.string.chat_settings_actions)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = quickActionsExpanded,
+                            onDismissRequest = { quickActionsExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.continue_latest_reply)) },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+                                },
+                                enabled = canContinue,
+                                onClick = {
+                                    quickActionsExpanded = false
+                                    onContinue()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.summarize_now)) },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+                                },
+                                onClick = {
+                                    quickActionsExpanded = false
+                                    onSummarize()
+                                }
+                            )
+                        }
+                    }
+                }
             )
             Spacer(modifier = Modifier.width(8.dp))
             FilledIconButton(
