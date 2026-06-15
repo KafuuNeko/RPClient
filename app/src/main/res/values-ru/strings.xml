@@ -522,6 +522,20 @@
     <string name="group_chat_message_actions">Действия с сообщением</string>
     <string name="group_chat_prompt_overrides">Переопределение промптов</string>
     <string name="group_chat_prompt_overrides_desc">Оставьте поле пустым для глобального набора промптов.</string>
-    <string name="group_chat_use_greetings">Использовать приветствия персонажей</string>
-    <string name="group_chat_use_greetings_desc">Добавить первое приветствие каждого выбранного персонажа при создании.</string>
+    <string name="group_chat_greeting_mode">Начальное сообщение</string>
+    <string name="group_chat_greeting_random">Случайное для каждого персонажа</string>
+    <string name="group_chat_greeting_random_desc">Каждый выбранный персонаж использует случайное основное или альтернативное приветствие.</string>
+    <string name="group_chat_greeting_manual">Выбрать персонажа и приветствие</string>
+    <string name="group_chat_greeting_manual_desc">Начинает чат выбранным приветствием указанного персонажа.</string>
+    <string name="group_chat_greeting_custom">Свое начальное сообщение</string>
+    <string name="group_chat_greeting_custom_desc">Напишите начальное сообщение и выберите персонажа, который его отправит.</string>
+    <string name="group_chat_greeting_none">Без начального сообщения</string>
+    <string name="group_chat_greeting_none_desc">Создает пустой чат, начиная с первого сообщения пользователя или генерации.</string>
+    <string name="group_chat_greeting_choose_character">Начальный персонаж</string>
+    <string name="group_chat_greeting_choose_message">Приветствие</string>
+    <string name="group_chat_greeting_select_members_first">Сначала выберите участников группы.</string>
+    <string name="group_chat_greeting_character_has_none">У этого персонажа нет доступных приветствий.</string>
+    <string name="group_chat_custom_greeting">Свое начало</string>
+    <string name="group_chat_custom_greeting_placeholder">Опишите начальную сцену или напишите первую реплику персонажа.</string>
+    <string name="group_chat_greeting_incomplete">Сначала завершите настройку начального сообщения</string>
 </resources>

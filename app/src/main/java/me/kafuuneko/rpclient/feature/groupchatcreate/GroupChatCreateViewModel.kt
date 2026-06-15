@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate
 
-import android.content.Context
 import android.os.Bundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,6 +8,9 @@ import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingCharacterItem
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingMode
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
@@ -16,6 +18,9 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingSelection
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -33,7 +38,7 @@ class GroupChatCreateViewModel :
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
-    private val mContext by inject<Context>()
+    private val mGreetingPlanner by inject<GroupChatGreetingPlanner>()
 
     @UiIntentObserver(GroupChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
@@ -48,7 +53,8 @@ class GroupChatCreateViewModel :
                     name = it.name,
                     description = it.description,
                     selected = false,
-                    characterLorebookId = it.characterLorebookId
+                    characterLorebookId = it.characterLorebookId,
+                    greetings = it.getChatFirstMessageList()
                 )
             }
             val lorebookGroups = mLorebookRepository.getAllLorebooks().map { lorebook ->
@@ -130,7 +136,8 @@ class GroupChatCreateViewModel :
             characters = characters,
             visibleCharacters = characters.visibleFor(uiState.searchQuery),
             selectedLorebookEntryIds =
-                uiState.selectedLorebookEntryIds + defaultEntryIds
+                uiState.selectedLorebookEntryIds + defaultEntryIds,
+            greetingState = uiState.greetingState.reconcile(characters)
         ).setup()
     }
 
@@ -148,12 +155,52 @@ class GroupChatCreateViewModel :
         uiState.copy(allowSelfResponses = intent.enabled).setup()
     }
 
-    @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacterGreetings::class)
-    private fun onToggleCharacterGreetings(
-        intent: GroupChatCreateUiIntent.ToggleCharacterGreetings
+    @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingMode::class)
+    private fun onSelectGreetingMode(
+        intent: GroupChatCreateUiIntent.SelectGreetingMode
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
-        uiState.copy(useCharacterGreetings = intent.enabled).setup()
+        uiState.copy(
+            greetingState = uiState.greetingState
+                .copy(mode = intent.mode)
+                .reconcile(uiState.characters)
+        ).setup()
+    }
+
+    @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingCharacter::class)
+    private fun onSelectGreetingCharacter(
+        intent: GroupChatCreateUiIntent.SelectGreetingCharacter
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        if (uiState.greetingState.characters.none { it.id == intent.characterId }) return
+        uiState.copy(
+            greetingState = uiState.greetingState.copy(
+                selectedCharacterId = intent.characterId,
+                selectedGreetingIndex = 0
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(GroupChatCreateUiIntent.SelectGreeting::class)
+    private fun onSelectGreeting(intent: GroupChatCreateUiIntent.SelectGreeting) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val greetings = uiState.greetingState.selectedCharacter?.greetings.orEmpty()
+        if (intent.greetingIndex !in greetings.indices) return
+        uiState.copy(
+            greetingState = uiState.greetingState.copy(
+                selectedGreetingIndex = intent.greetingIndex
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(GroupChatCreateUiIntent.ChangeCustomGreeting::class)
+    private fun onChangeCustomGreeting(
+        intent: GroupChatCreateUiIntent.ChangeCustomGreeting
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        uiState.copy(
+            greetingState = uiState.greetingState.copy(customGreeting = intent.value)
+        ).setup()
     }
 
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebook::class)
@@ -199,18 +246,37 @@ class GroupChatCreateViewModel :
             ).tryEmit()
             return
         }
+        if (!uiState.greetingState.canCreate) {
+            AppViewEvent.PopupToastMessageByResId(
+                R.string.group_chat_greeting_incomplete
+            ).tryEmit()
+            return
+        }
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
+        val userName = AppModel.userName.trim().ifBlank { "You" }
+        val greetingCandidates = uiState.greetingState.characters.map {
+            GroupChatGreetingCandidate(
+                characterId = it.id,
+                characterName = it.name,
+                greetings = it.greetings
+            )
+        }
+        val openingMessages = mGreetingPlanner.plan(
+            candidates = greetingCandidates,
+            selection = uiState.greetingState.toSelection(),
+            userName = userName
+        )
         val sessionId = withContext(Dispatchers.IO) {
             mGroupChatRepository.createSession(
                 title = uiState.title.trim().ifBlank { createTime.toDefaultChatTitle() },
-                userName = AppModel.userName.trim().ifBlank { "You" },
+                userName = userName,
                 userDescription = AppModel.userDescription.trim(),
                 characterIds = characterIds,
                 lorebookEntryIds = uiState.selectedLorebookEntryIds.sorted(),
                 activationStrategy = uiState.activationStrategy,
                 allowSelfResponses = uiState.allowSelfResponses,
-                useCharacterGreetings = uiState.useCharacterGreetings,
+                openingMessages = openingMessages,
                 createTime = createTime
             )
         }
@@ -231,6 +297,52 @@ class GroupChatCreateViewModel :
             normalized.isBlank() ||
                 it.name.contains(normalized, ignoreCase = true) ||
                 it.description.contains(normalized, ignoreCase = true)
+        }
+    }
+
+    /**
+     * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。
+     */
+    private fun GroupChatCreateGreetingState.reconcile(
+        characters: List<GroupChatCreateCharacterItem>
+    ): GroupChatCreateGreetingState {
+        val candidates = characters.filter { it.selected }.map {
+            GroupChatGreetingCharacterItem(
+                id = it.id,
+                name = it.name,
+                greetings = it.greetings
+            )
+        }
+        val current = candidates.firstOrNull { it.id == selectedCharacterId }
+        val preferred = when (mode) {
+            GroupChatGreetingMode.Manual ->
+                current?.takeIf { it.greetings.isNotEmpty() }
+                    ?: candidates.firstOrNull { it.greetings.isNotEmpty() }
+            else -> current ?: candidates.firstOrNull()
+        }
+        val greetingIndex = selectedGreetingIndex
+            ?.takeIf { it in preferred?.greetings.orEmpty().indices }
+            ?: preferred?.greetings?.indices?.firstOrNull()
+        return copy(
+            characters = candidates,
+            selectedCharacterId = preferred?.id,
+            selectedGreetingIndex = greetingIndex
+        )
+    }
+
+    private fun GroupChatCreateGreetingState.toSelection(): GroupChatGreetingSelection {
+        return when (mode) {
+            GroupChatGreetingMode.RandomPerCharacter ->
+                GroupChatGreetingSelection.RandomPerCharacter
+            GroupChatGreetingMode.Manual -> GroupChatGreetingSelection.Manual(
+                characterId = requireNotNull(selectedCharacterId),
+                greetingIndex = requireNotNull(selectedGreetingIndex)
+            )
+            GroupChatGreetingMode.Custom -> GroupChatGreetingSelection.Custom(
+                characterId = requireNotNull(selectedCharacterId),
+                content = customGreeting
+            )
+            GroupChatGreetingMode.None -> GroupChatGreetingSelection.None
         }
     }
 }

@@ -24,7 +24,8 @@ class GroupChatSpeakerSelectorTest {
             session = session(GroupChatSession.ActivationStrategy.List),
             members = members,
             messages = emptyList(),
-            userInput = "",
+            activationText = "",
+            isUserInput = false,
             manualCharacterId = null,
             random = Random(1)
         )
@@ -47,7 +48,8 @@ class GroupChatSpeakerSelectorTest {
             session = session(GroupChatSession.ActivationStrategy.Pooled),
             members = members,
             messages = messages,
-            userInput = "",
+            activationText = "",
+            isUserInput = false,
             manualCharacterId = null,
             random = Random(2)
         )
@@ -66,7 +68,8 @@ class GroupChatSpeakerSelectorTest {
             session = session(GroupChatSession.ActivationStrategy.Natural),
             members = members,
             messages = emptyList(),
-            userInput = "Mina, check the archive.",
+            activationText = "Mina, check the archive.",
+            isUserInput = true,
             manualCharacterId = null,
             random = Random(3)
         )
@@ -85,7 +88,8 @@ class GroupChatSpeakerSelectorTest {
             session = session(GroupChatSession.ActivationStrategy.Natural),
             members = members,
             messages = emptyList(),
-            userInput = "Misaka should inspect the announcement.",
+            activationText = "Misaka should inspect the announcement.",
+            isUserInput = true,
             manualCharacterId = null,
             random = Random(8)
         )
@@ -94,7 +98,7 @@ class GroupChatSpeakerSelectorTest {
     }
 
     @Test
-    fun manualStrategyRequiresAnExplicitActiveSpeaker() {
+    fun manualStrategyWithUserInputRequiresAnExplicitActiveSpeaker() {
         val members = listOf(
             member(1, "Lyra", order = 0),
             member(2, "Mina", order = 1)
@@ -104,12 +108,79 @@ class GroupChatSpeakerSelectorTest {
             session = session(GroupChatSession.ActivationStrategy.Manual),
             members = members,
             messages = emptyList(),
-            userInput = "",
+            activationText = "Question",
+            isUserInput = true,
             manualCharacterId = null,
             random = Random(4)
         )
 
         assertEquals(emptyList<GroupChatMemberData>(), selected)
+    }
+
+    @Test
+    fun manualStrategyWithEmptyInputSelectsOneRandomSpeaker() {
+        val members = listOf(
+            member(1, "Lyra", order = 0),
+            member(2, "Mina", order = 1)
+        )
+
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Manual),
+            members = members,
+            messages = emptyList(),
+            activationText = "",
+            isUserInput = false,
+            manualCharacterId = null,
+            random = Random(4)
+        )
+
+        assertEquals(1, selected.size)
+        assertEquals(true, selected.single() in members)
+    }
+
+    @Test
+    fun naturalStrategyAllowsUserToMentionPreviousSpeaker() {
+        val members = listOf(
+            member(1, "Lyra", order = 0),
+            member(2, "Mina", order = 1)
+        )
+
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Natural),
+            members = members,
+            messages = listOf(
+                message(GroupChatMessage.Source.Character, 1, "Lyra")
+            ),
+            activationText = "Lyra, answer this.",
+            isUserInput = true,
+            manualCharacterId = null,
+            random = Random(5)
+        )
+
+        assertEquals(true, selected.any { it.character.id == 1L })
+    }
+
+    @Test
+    fun pooledStrategyAvoidsImmediateRepeatAfterEveryoneSpoke() {
+        val members = listOf(
+            member(1, "Lyra", order = 0),
+            member(2, "Mina", order = 1)
+        )
+        val selected = selector.select(
+            session = session(GroupChatSession.ActivationStrategy.Pooled),
+            members = members,
+            messages = listOf(
+                message(GroupChatMessage.Source.User, null, "You"),
+                message(GroupChatMessage.Source.Character, 1, "Lyra"),
+                message(GroupChatMessage.Source.Character, 2, "Mina")
+            ),
+            activationText = "",
+            isUserInput = false,
+            manualCharacterId = null,
+            random = Random(6)
+        )
+
+        assertEquals(1L, selected.single().character.id)
     }
 
     private fun session(

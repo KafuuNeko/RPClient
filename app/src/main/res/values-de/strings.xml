@@ -521,6 +521,20 @@
     <string name="group_chat_message_actions">Nachrichtenaktionen</string>
     <string name="group_chat_prompt_overrides">Prompt-Überschreibungen</string>
     <string name="group_chat_prompt_overrides_desc">Leer lassen, um die globale Prompt-Vorlage zu verwenden.</string>
-    <string name="group_chat_use_greetings">Charakterbegrüßungen verwenden</string>
-    <string name="group_chat_use_greetings_desc">Beim Erstellen die erste Begrüßung jedes gewählten Charakters hinzufügen.</string>
+    <string name="group_chat_greeting_mode">Eröffnungsnachricht</string>
+    <string name="group_chat_greeting_random">Zufällig für jeden Charakter</string>
+    <string name="group_chat_greeting_random_desc">Jeder ausgewählte Charakter verwendet zufällig eine Haupt- oder alternative Begrüßung.</string>
+    <string name="group_chat_greeting_manual">Charakter und Begrüßung wählen</string>
+    <string name="group_chat_greeting_manual_desc">Beginnt mit der gewählten Begrüßung eines bestimmten Charakters.</string>
+    <string name="group_chat_greeting_custom">Eigene Eröffnungsnachricht</string>
+    <string name="group_chat_greeting_custom_desc">Verfasse eine Eröffnungsnachricht und wähle den sendenden Charakter.</string>
+    <string name="group_chat_greeting_none">Keine Eröffnungsnachricht</string>
+    <string name="group_chat_greeting_none_desc">Erstellt einen leeren Raum und beginnt mit der ersten Nutzernachricht oder Generierung.</string>
+    <string name="group_chat_greeting_choose_character">Eröffnungscharakter</string>
+    <string name="group_chat_greeting_choose_message">Begrüßung</string>
+    <string name="group_chat_greeting_select_members_first">Wähle zuerst Gruppenmitglieder aus.</string>
+    <string name="group_chat_greeting_character_has_none">Dieser Charakter hat keine verfügbaren Begrüßungen.</string>
+    <string name="group_chat_custom_greeting">Eigener Eröffnungstext</string>
+    <string name="group_chat_custom_greeting_placeholder">Beschreibe die Anfangsszene oder schreibe den ersten Satz des Charakters.</string>
+    <string name="group_chat_greeting_incomplete">Vervollständige zuerst die Einstellungen der Eröffnungsnachricht</string>
 </resources>

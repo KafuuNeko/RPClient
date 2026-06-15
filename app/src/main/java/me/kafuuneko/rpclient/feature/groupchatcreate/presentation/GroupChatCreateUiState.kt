@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.presentation
 
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 
@@ -20,11 +21,15 @@ sealed class GroupChatCreateUiState {
         val activationStrategy: GroupChatSession.ActivationStrategy =
             GroupChatSession.ActivationStrategy.Natural,
         val allowSelfResponses: Boolean = false,
-        val useCharacterGreetings: Boolean = true
+        val greetingState: GroupChatCreateGreetingState = GroupChatCreateGreetingState()
     ) : GroupChatCreateUiState() {
         /** 当前已选择加入群聊的角色数量。 */
         val selectedCount: Int
             get() = characters.count { it.selected }
+
+        /** 当前成员数量和开场白配置是否允许提交。 */
+        val canCreate: Boolean
+            get() = selectedCount >= 2 && greetingState.canCreate
     }
 
     data object Finished : GroupChatCreateUiState()

@@ -232,11 +232,20 @@ class GroupChatViewModel :
             mGroupChatRepository.getGroupChatData(sessionId)
         } ?: return
         val input = applyUserRegex(initialData, rawInput)
+        val isUserInput = rawInput.isNotBlank()
+        val activationText = if (isUserInput) {
+            input
+        } else {
+            initialData.messages.lastOrNull {
+                it.source != GroupChatMessage.Source.System
+            }?.content.orEmpty()
+        }
         val speakers = mSpeakerSelector.select(
             session = initialData.session,
             members = initialData.members,
             messages = initialData.messages,
-            userInput = input,
+            activationText = activationText,
+            isUserInput = isUserInput,
             manualCharacterId = uiState.selectedSpeakerId
         )
         if (speakers.isEmpty()) {
@@ -245,7 +254,7 @@ class GroupChatViewModel :
             ).tryEmit()
             return
         }
-        if (input.isNotBlank()) {
+        if (isUserInput && input.isNotBlank()) {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.createMessage(
                     sessionId = sessionId,
@@ -748,7 +757,10 @@ class GroupChatViewModel :
                             session = nextData.session,
                             members = nextData.members,
                             messages = nextData.messages,
-                            userInput = "",
+                            activationText = nextData.messages.lastOrNull {
+                                it.source != GroupChatMessage.Source.System
+                            }?.content.orEmpty(),
+                            isUserInput = false,
                             manualCharacterId = null
                         )
                     } else {

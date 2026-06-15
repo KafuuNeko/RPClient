@@ -13,7 +13,8 @@ class GroupChatSpeakerSelector {
         session: GroupChatSession,
         members: List<GroupChatMemberData>,
         messages: List<GroupChatMessage>,
-        userInput: String,
+        activationText: String,
+        isUserInput: Boolean,
         manualCharacterId: Long?,
         random: Random = Random.Default
     ): List<GroupChatMemberData> {
@@ -21,14 +22,26 @@ class GroupChatSpeakerSelector {
         if (available.isEmpty()) return emptyList()
         return when (session.activationStrategy) {
             GroupChatSession.ActivationStrategy.Manual -> {
-                listOfNotNull(available.firstOrNull { it.character.id == manualCharacterId })
+                val selected = available.firstOrNull {
+                    it.character.id == manualCharacterId
+                }
+                listOfNotNull(selected ?: available.randomOrNull(random).takeIf {
+                    !isUserInput
+                })
             }
             GroupChatSession.ActivationStrategy.List -> available
             GroupChatSession.ActivationStrategy.Pooled -> {
-                listOf(selectPooled(available, messages, random))
+                listOf(selectPooled(available, messages, isUserInput, random))
             }
             GroupChatSession.ActivationStrategy.Natural -> {
-                selectNatural(session, available, messages, userInput, random)
+                selectNatural(
+                    session = session,
+                    members = available,
+                    messages = messages,
+                    activationText = activationText,
+                    isUserInput = isUserInput,
+                    random = random
+                )
             }
         }
     }
@@ -37,14 +50,26 @@ class GroupChatSpeakerSelector {
     private fun selectPooled(
         members: List<GroupChatMemberData>,
         messages: List<GroupChatMessage>,
+        isUserInput: Boolean,
         random: Random
     ): GroupChatMemberData {
-        val spokenSinceUser = messages.asReversed()
-            .takeWhile { it.source != GroupChatMessage.Source.User }
-            .mapNotNull { it.speakerCharacterId }
-            .toSet()
+        val spokenSinceUser = if (isUserInput) {
+            emptySet()
+        } else {
+            messages.asReversed()
+                .takeWhile { it.source != GroupChatMessage.Source.User }
+                .mapNotNull { it.speakerCharacterId }
+                .toSet()
+        }
         val candidates = members.filterNot { it.character.id in spokenSinceUser }
-            .ifEmpty { members }
+            .ifEmpty {
+                val lastSpeakerId = messages.lastOrNull {
+                    it.source == GroupChatMessage.Source.Character
+                }?.speakerCharacterId
+                members.filterNot {
+                    members.size > 1 && it.character.id == lastSpeakerId
+                }.ifEmpty { members }
+            }
         return candidates.random(random)
     }
 
@@ -53,13 +78,14 @@ class GroupChatSpeakerSelector {
         session: GroupChatSession,
         members: List<GroupChatMemberData>,
         messages: List<GroupChatMessage>,
-        userInput: String,
+        activationText: String,
+        isUserInput: Boolean,
         random: Random
     ): List<GroupChatMemberData> {
         val lastSpeakerId = messages.lastOrNull {
             it.source == GroupChatMessage.Source.Character
         }?.speakerCharacterId
-        val candidates = if (session.allowSelfResponses) {
+        val candidates = if (session.allowSelfResponses || isUserInput) {
             members
         } else {
             members.filterNot { it.character.id == lastSpeakerId }.ifEmpty { members }
@@ -68,12 +94,13 @@ class GroupChatSpeakerSelector {
             member.character.name
                 .split(Regex("""[\s_-]+"""))
                 .filter { it.isNotBlank() }
-                .any { userInput.containsWholeToken(it) }
+                .any { activationText.containsWholeToken(it) }
         }
         val activated = (mentioned + candidates.shuffled(random).filter { member ->
             random.nextDouble() <= member.talkativeness()
         }).distinctBy { it.character.id }
-        return activated.ifEmpty { listOf(candidates.random(random)) }
+        val randomPool = candidates.filter { it.talkativeness() > 0.0 }.ifEmpty { candidates }
+        return activated.ifEmpty { listOf(randomPool.random(random)) }
     }
 
     /** 从角色扩展字段读取活跃度，并限制在有效概率区间。 */

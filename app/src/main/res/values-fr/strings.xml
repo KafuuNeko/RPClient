@@ -521,6 +521,20 @@
     <string name="group_chat_message_actions">Actions du message</string>
     <string name="group_chat_prompt_overrides">Remplacement des prompts</string>
     <string name="group_chat_prompt_overrides_desc">Laissez vide pour utiliser le préréglage global.</string>
-    <string name="group_chat_use_greetings">Utiliser les salutations des personnages</string>
-    <string name="group_chat_use_greetings_desc">Ajouter la première salutation de chaque personnage sélectionné à la création.</string>
+    <string name="group_chat_greeting_mode">Message d’ouverture</string>
+    <string name="group_chat_greeting_random">Aléatoire pour chaque personnage</string>
+    <string name="group_chat_greeting_random_desc">Chaque personnage sélectionné utilise aléatoirement une salutation principale ou alternative.</string>
+    <string name="group_chat_greeting_manual">Choisir le personnage et la salutation</string>
+    <string name="group_chat_greeting_manual_desc">Commence avec la salutation choisie d’un personnage précis.</string>
+    <string name="group_chat_greeting_custom">Message d’ouverture personnalisé</string>
+    <string name="group_chat_greeting_custom_desc">Rédigez un message d’ouverture et choisissez le personnage qui l’envoie.</string>
+    <string name="group_chat_greeting_none">Aucun message d’ouverture</string>
+    <string name="group_chat_greeting_none_desc">Crée une salle vide et commence avec le premier message utilisateur ou la première génération.</string>
+    <string name="group_chat_greeting_choose_character">Personnage d’ouverture</string>
+    <string name="group_chat_greeting_choose_message">Salutation</string>
+    <string name="group_chat_greeting_select_members_first">Sélectionnez d’abord les membres du groupe.</string>
+    <string name="group_chat_greeting_character_has_none">Ce personnage ne possède aucune salutation disponible.</string>
+    <string name="group_chat_custom_greeting">Ouverture personnalisée</string>
+    <string name="group_chat_custom_greeting_placeholder">Décrivez la scène d’ouverture ou écrivez la première réplique du personnage.</string>
+    <string name="group_chat_greeting_incomplete">Complétez d’abord les paramètres du message d’ouverture</string>
 </resources>

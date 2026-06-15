@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatOpeningMessage
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
@@ -72,7 +73,7 @@ class GroupChatRepository(
         }
     }
 
-    /** 创建群聊、成员关系、会话世界书选择，并按配置写入角色开场白。 */
+    /** 创建群聊、成员关系、会话世界书选择，并写入已解析的开场消息。 */
     suspend fun createSession(
         title: String,
         userName: String,
@@ -81,7 +82,7 @@ class GroupChatRepository(
         lorebookEntryIds: List<Long> = emptyList(),
         activationStrategy: GroupChatSession.ActivationStrategy,
         allowSelfResponses: Boolean,
-        useCharacterGreetings: Boolean = true,
+        openingMessages: List<GroupChatOpeningMessage> = emptyList(),
         createTime: Long = System.currentTimeMillis()
     ): Long {
         require(characterIds.distinct().size >= 2) {
@@ -109,32 +110,27 @@ class GroupChatRepository(
                     )
                 }
             )
-            if (useCharacterGreetings) {
-                var latestGreetingTime = createTime
-                characterIds.distinct().forEachIndexed { index, characterId ->
-                    val character = mCharacterDao.getCharacterById(characterId)
-                        ?: return@forEachIndexed
-                    val greeting = character.getChatFirstMessageList()
-                        .firstOrNull()
-                        ?.replace("{{char}}", character.name, ignoreCase = true)
-                        ?.replace("{{user}}", userName, ignoreCase = true)
-                        ?.trim()
-                        .orEmpty()
-                    if (greeting.isNotBlank()) {
-                        latestGreetingTime = createTime + index
-                        mMessageDao.insertOrReplace(
-                            GroupChatMessage(
-                                sessionId = sessionId,
-                                createTime = createTime + index,
-                                source = GroupChatMessage.Source.Character,
-                                content = greeting,
-                                speakerCharacterId = character.id,
-                                speakerNameSnapshot = character.name
-                            )
-                        )
-                    }
-                }
-                mSessionDao.updateLatestTime(sessionId, latestGreetingTime)
+            val selectedCharacterIds = characterIds.distinct().toSet()
+            val validOpenings = openingMessages.filter {
+                it.characterId in selectedCharacterIds && it.content.isNotBlank()
+            }
+            validOpenings.forEachIndexed { index, opening ->
+                mMessageDao.insertOrReplace(
+                    GroupChatMessage(
+                        sessionId = sessionId,
+                        createTime = createTime + index,
+                        source = GroupChatMessage.Source.Character,
+                        content = opening.content.trim(),
+                        speakerCharacterId = opening.characterId,
+                        speakerNameSnapshot = opening.characterName
+                    )
+                )
+            }
+            if (validOpenings.isNotEmpty()) {
+                mSessionDao.updateLatestTime(
+                    sessionId,
+                    createTime + validOpenings.lastIndex
+                )
             }
             sessionId
         }

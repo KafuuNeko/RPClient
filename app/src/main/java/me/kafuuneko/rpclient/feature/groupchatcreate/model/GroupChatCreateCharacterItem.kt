@@ -6,5 +6,6 @@ data class GroupChatCreateCharacterItem(
     val name: String,
     val description: String,
     val selected: Boolean,
-    val characterLorebookId: Long = 0L
+    val characterLorebookId: Long = 0L,
+    val greetings: List<String> = emptyList()
 )

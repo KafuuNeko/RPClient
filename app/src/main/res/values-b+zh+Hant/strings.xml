@@ -517,6 +517,20 @@
     <string name="group_chat_message_actions">訊息操作</string>
     <string name="group_chat_prompt_overrides">提示詞覆寫</string>
     <string name="group_chat_prompt_overrides_desc">留空時沿用全域提示詞預設。</string>
-    <string name="group_chat_use_greetings">使用角色開場白</string>
-    <string name="group_chat_use_greetings_desc">建立群聊時加入每個已選角色的第一條開場白。</string>
+    <string name="group_chat_greeting_mode">開場白</string>
+    <string name="group_chat_greeting_random">每個角色隨機選擇</string>
+    <string name="group_chat_greeting_random_desc">每名已選角色從主要和備用開場白中隨機傳送一條。</string>
+    <string name="group_chat_greeting_manual">手動選擇角色與開場白</string>
+    <string name="group_chat_greeting_manual_desc">由一名指定角色傳送所選的角色卡開場白。</string>
+    <string name="group_chat_greeting_custom">自訂開場白</string>
+    <string name="group_chat_greeting_custom_desc">編寫一條開場訊息，並指定傳送它的角色。</string>
+    <string name="group_chat_greeting_none">不使用開場白</string>
+    <string name="group_chat_greeting_none_desc">建立空白群聊，從使用者訊息或首次生成開始。</string>
+    <string name="group_chat_greeting_choose_character">開場角色</string>
+    <string name="group_chat_greeting_choose_message">選擇開場白</string>
+    <string name="group_chat_greeting_select_members_first">請先選擇群聊成員，再指定開場角色。</string>
+    <string name="group_chat_greeting_character_has_none">該角色沒有可用的開場白。</string>
+    <string name="group_chat_custom_greeting">自訂開場內容</string>
+    <string name="group_chat_custom_greeting_placeholder">描述開場場景，或寫下角色的第一句話。</string>
+    <string name="group_chat_greeting_incomplete">請先完成開場白設定</string>
 </resources>

@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
@@ -75,6 +76,7 @@ private val appModules = module {
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::GroupChatPromptBuilder)
+    singleOf(::GroupChatGreetingPlanner)
     singleOf(::GroupChatSpeakerSelector)
     singleOf(::GroupChatSummaryPromptBuilder)
     singleOf(::GroupChatOutputSanitizer)

@@ -520,6 +520,20 @@
     <string name="group_chat_message_actions">メッセージ操作</string>
     <string name="group_chat_prompt_overrides">プロンプト上書き</string>
     <string name="group_chat_prompt_overrides_desc">空欄の場合はグローバルプリセットを使用します。</string>
-    <string name="group_chat_use_greetings">キャラクターの挨拶を使用</string>
-    <string name="group_chat_use_greetings_desc">作成時に選択した各キャラクターの最初の挨拶を追加します。</string>
+    <string name="group_chat_greeting_mode">開始メッセージ</string>
+    <string name="group_chat_greeting_random">各キャラクターからランダム</string>
+    <string name="group_chat_greeting_random_desc">選択した各キャラクターの通常または代替の挨拶から1つをランダムに使用します。</string>
+    <string name="group_chat_greeting_manual">キャラクターと挨拶を選択</string>
+    <string name="group_chat_greeting_manual_desc">指定したキャラクターの選択した挨拶で開始します。</string>
+    <string name="group_chat_greeting_custom">カスタム開始メッセージ</string>
+    <string name="group_chat_greeting_custom_desc">開始メッセージを作成し、送信するキャラクターを選択します。</string>
+    <string name="group_chat_greeting_none">開始メッセージなし</string>
+    <string name="group_chat_greeting_none_desc">空のチャットを作成し、最初のユーザーメッセージまたは生成から開始します。</string>
+    <string name="group_chat_greeting_choose_character">開始キャラクター</string>
+    <string name="group_chat_greeting_choose_message">挨拶</string>
+    <string name="group_chat_greeting_select_members_first">先にグループメンバーを選択してください。</string>
+    <string name="group_chat_greeting_character_has_none">このキャラクターには利用可能な挨拶がありません。</string>
+    <string name="group_chat_custom_greeting">カスタム開始内容</string>
+    <string name="group_chat_custom_greeting_placeholder">開始シーンを説明するか、キャラクターの最初の台詞を書いてください。</string>
+    <string name="group_chat_greeting_incomplete">開始メッセージの設定を完了してください</string>
 </resources>

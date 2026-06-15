@@ -519,6 +519,20 @@
     <string name="group_chat_message_actions">메시지 작업</string>
     <string name="group_chat_prompt_overrides">프롬프트 재정의</string>
     <string name="group_chat_prompt_overrides_desc">비워 두면 전역 프롬프트 프리셋을 사용합니다.</string>
-    <string name="group_chat_use_greetings">캐릭터 인사말 사용</string>
-    <string name="group_chat_use_greetings_desc">방을 만들 때 선택한 각 캐릭터의 첫 인사말을 추가합니다.</string>
+    <string name="group_chat_greeting_mode">시작 메시지</string>
+    <string name="group_chat_greeting_random">각 캐릭터에서 무작위 선택</string>
+    <string name="group_chat_greeting_random_desc">선택한 각 캐릭터의 기본 또는 대체 인사말 중 하나를 무작위로 사용합니다.</string>
+    <string name="group_chat_greeting_manual">캐릭터와 인사말 선택</string>
+    <string name="group_chat_greeting_manual_desc">지정한 캐릭터의 선택한 인사말로 시작합니다.</string>
+    <string name="group_chat_greeting_custom">사용자 지정 시작 메시지</string>
+    <string name="group_chat_greeting_custom_desc">시작 메시지를 작성하고 보낼 캐릭터를 선택합니다.</string>
+    <string name="group_chat_greeting_none">시작 메시지 사용 안 함</string>
+    <string name="group_chat_greeting_none_desc">빈 채팅방을 만들고 첫 사용자 메시지나 생성부터 시작합니다.</string>
+    <string name="group_chat_greeting_choose_character">시작 캐릭터</string>
+    <string name="group_chat_greeting_choose_message">인사말</string>
+    <string name="group_chat_greeting_select_members_first">먼저 그룹 멤버를 선택하세요.</string>
+    <string name="group_chat_greeting_character_has_none">이 캐릭터에는 사용할 수 있는 인사말이 없습니다.</string>
+    <string name="group_chat_custom_greeting">사용자 지정 시작 내용</string>
+    <string name="group_chat_custom_greeting_placeholder">시작 장면을 설명하거나 캐릭터의 첫 대사를 작성하세요.</string>
+    <string name="group_chat_greeting_incomplete">시작 메시지 설정을 먼저 완료하세요</string>
 </resources>
