@@ -1,0 +1,3 @@
+Initial F-Droid packaging release for RPClient 2026.1.1.
+
+Includes character cards, lorebooks, one-on-one and group chats, prompt presets, summary memory, prompt inspection, regex scripts, and configurable LLM providers.

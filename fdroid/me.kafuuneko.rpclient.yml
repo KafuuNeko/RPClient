@@ -1,0 +1,27 @@
+Categories:
+  - Internet
+  - Writing
+License: MIT
+AuthorName: Kafuu Neko
+AuthorEmail: kafuuneko@gmail.com
+SourceCode: https://github.com/KafuuNeko/RPClient
+IssueTracker: https://github.com/KafuuNeko/RPClient/issues
+Changelog: https://github.com/KafuuNeko/RPClient/releases
+
+AutoName: RPClient
+
+RepoType: git
+Repo: https://github.com/KafuuNeko/RPClient.git
+
+Builds:
+  - versionName: 2026.1.1
+    versionCode: 20260101
+    commit: V2026.1.1
+    subdir: app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version V%v
+UpdateCheckMode: Tags
+CurrentVersion: 2026.1.1
+CurrentVersionCode: 20260101
