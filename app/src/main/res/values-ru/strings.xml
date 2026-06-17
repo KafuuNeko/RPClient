@@ -23,7 +23,7 @@
     <string name="expand_session_group">Развернуть сессии</string>
     <string name="collapse_session_group">Свернуть сессии</string>
     <string name="setting_page_title">Настройки</string>
-    <string name="setting_subtitle">Провайдер, параметры генерации, локальное хранение и резервное копирование</string>
+    <string name="setting_subtitle">Провайдер, параметры генерации и поведение промпта</string>
     <string name="model_provider">Провайдер моделей</string>
     <string name="manage">Управление</string>
     <string name="no_enabled_model">Нет включенных моделей</string>
@@ -38,10 +38,6 @@
     <string name="temperature">Температура</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">Максимум токенов</string>
-    <string name="privacy_and_backup">Конфиденциальность и резервные копии</string>
-    <string name="export">Экспорт</string>
-    <string name="local_first">Сначала локально</string>
-    <string name="local_first_desc">Чаты, персонажи и книги миров по умолчанию сохраняются на устройстве</string>
     <string name="streaming_response">Потоковый ответ</string>
     <string name="streaming_response_desc">Отображать вывод модели в реальном времени, поддерживает остановку генерации</string>
     <string name="new_session_desc">Выберите персонажа, заметки и записи книги мира</string>

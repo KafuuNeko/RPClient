@@ -50,7 +50,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -787,7 +786,6 @@ private fun SettingsPage(
         item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
         item { RegexScriptEntryCard { MainUiIntent.OpenRegexScripts.emit() } }
         item { SummaryPanel(state, emit) }
-        item { PrivacyPanel(state, emit) }
         item { DebugPanel(state, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
     }
@@ -875,6 +873,13 @@ private fun PromptBehaviorPanel(
                 subtitle = stringResource(R.string.prompt_include_think_context_desc),
                 checked = state.includeThinkInContext,
                 onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
+            )
+            SettingSwitchRow(
+                Icons.Rounded.Refresh,
+                stringResource(R.string.streaming_response),
+                stringResource(R.string.streaming_response_desc),
+                state.streamEnabled,
+                onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
             )
         }
     }
@@ -1228,45 +1233,6 @@ private fun NumberSettingRow(
 }
 
 @Composable
-private fun PrivacyPanel(
-    state: MainSettingsState,
-    emit: MainUiIntent.() -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RpSectionHeader(
-                title = stringResource(R.string.privacy_and_backup),
-                action = stringResource(R.string.export)
-            )
-            SettingSwitchRow(
-                Icons.Rounded.Shield,
-                stringResource(R.string.local_first),
-                stringResource(R.string.local_first_desc),
-                state.localFirstEnabled,
-                onCheckedChange = {}
-            )
-            SettingSwitchRow(
-                Icons.Rounded.Refresh,
-                stringResource(R.string.streaming_response),
-                stringResource(R.string.streaming_response_desc),
-                state.streamEnabled,
-                onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
-            )
-        }
-    }
-}
-
-@Composable
 private fun DebugPanel(
     state: MainSettingsState,
     emit: MainUiIntent.() -> Unit
@@ -1451,7 +1417,6 @@ private fun MainLayoutPreview() {
                     topP = 1.0f,
                     maxTokens = 1200,
                     contextTokens = 8192,
-                    localFirstEnabled = true,
                     streamEnabled = true,
                     promptPostProcessingMode = PromptPostProcessingMode.None,
                     includeThinkInContext = false,

@@ -23,7 +23,7 @@
     <string name="expand_session_group">Expand sessions</string>
     <string name="collapse_session_group">Collapse sessions</string>
     <string name="setting_page_title">Settings</string>
-    <string name="setting_subtitle">Provider, generation parameters, local-first and backup</string>
+    <string name="setting_subtitle">Provider, generation parameters and prompt behavior</string>
     <string name="model_provider">Model Provider</string>
     <string name="manage">Manage</string>
     <string name="no_enabled_model">No enabled model</string>
@@ -38,10 +38,6 @@
     <string name="temperature">Temperature</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">Max Tokens</string>
-    <string name="privacy_and_backup">Privacy &amp; Backup</string>
-    <string name="export">Export</string>
-    <string name="local_first">Local First</string>
-    <string name="local_first_desc">Chats, characters and world books are saved on device by default</string>
     <string name="streaming_response">Streaming Response</string>
     <string name="streaming_response_desc">Display model output in real-time, support stop generation</string>
     <string name="new_session_desc">Choose a character, notes and world book entries</string>

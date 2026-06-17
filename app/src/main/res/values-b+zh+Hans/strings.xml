@@ -22,7 +22,7 @@
     <string name="expand_session_group">展开会话</string>
     <string name="collapse_session_group">折叠会话</string>
     <string name="setting_page_title">设置</string>
-    <string name="setting_subtitle">提供商、生成参数、本地优先和备份</string>
+    <string name="setting_subtitle">提供商、生成参数和提示词行为</string>
     <string name="model_provider">模型提供商</string>
     <string name="manage">管理</string>
     <string name="no_enabled_model">没有已启用的模型</string>
@@ -37,10 +37,6 @@
     <string name="temperature">温度</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">最大 Tokens</string>
-    <string name="privacy_and_backup">隐私与备份</string>
-    <string name="export">导出</string>
-    <string name="local_first">本地优先</string>
-    <string name="local_first_desc">聊天、角色和世界书默认保存在设备上</string>
     <string name="streaming_response">流式响应</string>
     <string name="streaming_response_desc">实时显示模型输出，支持停止生成</string>
     <string name="new_session_desc">选择角色、备注和世界书条目</string>

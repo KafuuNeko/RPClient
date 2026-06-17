@@ -24,7 +24,7 @@
     <string name="expand_session_group">Sitzungen erweitern</string>
     <string name="collapse_session_group">Sitzungen einklappen</string>
     <string name="setting_page_title">Einstellungen</string>
-    <string name="setting_subtitle">Anbieter, Generierungsparameter, Lokal zuerst und Backup</string>
+    <string name="setting_subtitle">Anbieter, Generierungsparameter und Prompt-Verhalten</string>
     <string name="model_provider">Modellanbieter</string>
     <string name="manage">Verwalten</string>
     <string name="no_enabled_model">Kein Modell aktiviert</string>
@@ -39,10 +39,6 @@
     <string name="temperature">Temperatur</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">Maximale Tokens</string>
-    <string name="privacy_and_backup">Datenschutz &amp; Backup</string>
-    <string name="export">Exportieren</string>
-    <string name="local_first">Lokal zuerst</string>
-    <string name="local_first_desc">Chats, Charaktere und Weltbücher werden standardmäßig auf dem Gerät gespeichert</string>
     <string name="streaming_response">Antwort-Streaming</string>
     <string name="streaming_response_desc">Modellausgabe in Echtzeit anzeigen, unterstützt das Stoppen der Generierung</string>
     <string name="new_session_desc">Wähle einen Charakter, Notizen und Weltbuch-Einträge</string>

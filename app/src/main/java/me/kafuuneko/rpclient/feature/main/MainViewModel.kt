@@ -471,7 +471,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             topP = selectedProvider?.topP ?: 1.0f,
             maxTokens = selectedProvider?.maxTokens ?: 1200,
             contextTokens = selectedProvider?.contextTokens ?: 8192,
-            localFirstEnabled = true,
             streamEnabled = AppModel.streamEnabled,
             promptPostProcessingMode = selectedProvider?.postProcessingMode()
                 ?: PromptPostProcessingMode.None,

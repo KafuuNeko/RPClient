@@ -23,7 +23,7 @@
     <string name="expand_session_group">Développer les sessions</string>
     <string name="collapse_session_group">Réduire les sessions</string>
     <string name="setting_page_title">Paramètres</string>
-    <string name="setting_subtitle">Fournisseur, paramètres de génération, local d\'abord et sauvegarde</string>
+    <string name="setting_subtitle">Fournisseur, paramètres de génération et comportement du prompt</string>
     <string name="model_provider">Fournisseur de modèle</string>
     <string name="manage">Gérer</string>
     <string name="no_enabled_model">Aucun modèle activé</string>
@@ -38,10 +38,6 @@
     <string name="temperature">Température</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">Tokens max</string>
-    <string name="privacy_and_backup">Confidentialité &amp; Sauvegarde</string>
-    <string name="export">Exporter</string>
-    <string name="local_first">Local d\'abord</string>
-    <string name="local_first_desc">Les discussions, personnages et livres d\'univers sont enregistrés sur l\'appareil par défaut</string>
     <string name="streaming_response">Réponse en streaming</string>
     <string name="streaming_response_desc">Afficher la sortie du modèle en temps réel, prend en charge l\'arrêt de la génération</string>
     <string name="new_session_desc">Choisissez un personnage, des notes et des entrées de livre d\'univers</string>

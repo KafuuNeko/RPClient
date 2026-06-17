@@ -56,7 +56,6 @@ data class MainSettingsState(
     val topP: Float,
     val maxTokens: Int,
     val contextTokens: Int,
-    val localFirstEnabled: Boolean,
     val streamEnabled: Boolean,
     val promptPostProcessingMode: PromptPostProcessingMode,
     val includeThinkInContext: Boolean,

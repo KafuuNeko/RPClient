@@ -23,7 +23,7 @@
     <string name="expand_session_group">세션 펼치기</string>
     <string name="collapse_session_group">세션 접기</string>
     <string name="setting_page_title">설정</string>
-    <string name="setting_subtitle">제공자, 생성 파라미터, 로컬 우선 및 백업</string>
+    <string name="setting_subtitle">제공자, 생성 파라미터 및 프롬프트 동작</string>
     <string name="model_provider">모델 제공자</string>
     <string name="manage">관리</string>
     <string name="no_enabled_model">활성화된 모델 없음</string>
@@ -38,10 +38,6 @@
     <string name="temperature">온도</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">최대 토큰</string>
-    <string name="privacy_and_backup">개인정보 및 백업</string>
-    <string name="export">내보내기</string>
-    <string name="local_first">로컬 우선</string>
-    <string name="local_first_desc">대화, 캐릭터 및 월드북은 기본적으로 기기에 저장됩니다</string>
     <string name="streaming_response">스트리밍 응답</string>
     <string name="streaming_response_desc">모델 출력을 실시간으로 표시하며, 생성 중단을 지원합니다</string>
     <string name="new_session_desc">캐릭터, 메모 및 월드북 항목 선택</string>

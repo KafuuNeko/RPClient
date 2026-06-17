@@ -24,7 +24,7 @@
     <string name="expand_session_group">セッションを展開</string>
     <string name="collapse_session_group">セッションを折りたたむ</string>
     <string name="setting_page_title">設定</string>
-    <string name="setting_subtitle">プロバイダー、生成パラメータ、ローカル優先、バックアップ</string>
+    <string name="setting_subtitle">プロバイダー、生成パラメータ、プロンプト動作</string>
     <string name="model_provider">モデルプロバイダー</string>
     <string name="manage">管理</string>
     <string name="no_enabled_model">有効なモデルがありません</string>
@@ -39,10 +39,6 @@
     <string name="temperature">温度</string>
     <string name="top_p">Top P</string>
     <string name="max_tokens">最大トークン数</string>
-    <string name="privacy_and_backup">プライバシー &amp; バックアップ</string>
-    <string name="export">エクスポート</string>
-    <string name="local_first">ローカル優先</string>
-    <string name="local_first_desc">デフォルトでチャット、キャラクター、ワールドブックはデバイス上に保存されます</string>
     <string name="streaming_response">ストリーミング応答</string>
     <string name="streaming_response_desc">モデルの出力をリアルタイムで表示し、生成の中止をサポートします</string>
     <string name="new_session_desc">キャラクター、ノート、ワールドブックのエントリを選択します</string>
