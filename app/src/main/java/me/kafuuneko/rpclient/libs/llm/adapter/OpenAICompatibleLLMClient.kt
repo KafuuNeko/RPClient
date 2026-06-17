@@ -134,7 +134,7 @@ class OpenAICompatibleLLMClient(
         val message = choice.optJSONObject("message")
         val usageJson = json.optJSONObject("usage")
         val reasoningContent = message?.optReasoningContent().orEmpty()
-        val content = message?.optCleanString("content").orEmpty()
+        val content = message?.optContentString("content").orEmpty()
         return LLMGenerationResponse(
             content = mergeReasoningContent(
                 reasoningContent = reasoningContent,
@@ -183,7 +183,7 @@ class OpenAICompatibleLLMClient(
             onThinkingStateChange(true)
             return LLMStreamEvent.Delta(content = content, rawChunk = data)
         }
-        val content = deltaObject.optCleanString("content").orEmpty()
+        val content = deltaObject.optContentString("content").orEmpty()
         if (content.isBlank()) {
             return finishReason.takeIf { it.isNotBlank() }?.let {
                 LLMStreamEvent.Finished(data, it, actualModel)
@@ -195,9 +195,9 @@ class OpenAICompatibleLLMClient(
     }
 
     private fun JSONObject.optReasoningContent(): String {
-        return optCleanString("reasoning_content")
-            .ifBlank { optCleanString("reasoning") }
-            .ifBlank { optCleanString("reasoningContent") }
+        return optContentString("reasoning_content")
+            .ifBlank { optContentString("reasoning") }
+            .ifBlank { optContentString("reasoningContent") }
     }
 
     private fun JSONObject.optCleanString(name: String): String {
@@ -221,4 +221,13 @@ class OpenAICompatibleLLMClient(
     private fun JSONObject.optNullableInt(name: String): Int? {
         return if (has(name) && !isNull(name)) optInt(name) else null
     }
+}
+
+internal fun JSONObject.optContentString(name: String): String {
+    if (!has(name) || isNull(name)) return ""
+    return cleanContentString(optString(name))
+}
+
+internal fun cleanContentString(value: String): String {
+    return if (value.equals("null", ignoreCase = true)) "" else value
 }
