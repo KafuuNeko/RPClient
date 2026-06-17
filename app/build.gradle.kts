@@ -16,8 +16,8 @@ android {
         applicationId = "me.kafuuneko.rpclient"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20260101
-        versionName = "2026.1.1"
+        versionCode = 20260102
+        versionName = "2026.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
