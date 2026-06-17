@@ -4,6 +4,20 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+fun propertyOrEnv(name: String): String? =
+    providers.gradleProperty(name).orElse(providers.environmentVariable(name)).orNull
+
+val releaseStoreFile = propertyOrEnv("RELEASE_STORE_FILE")
+val releaseStorePassword = propertyOrEnv("RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = propertyOrEnv("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = propertyOrEnv("RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "me.kafuuneko.rpclient"
     compileSdk {
@@ -22,9 +36,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

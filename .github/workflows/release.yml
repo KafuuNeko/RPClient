@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Create or update a GitHub Release"
+        required: true
+        default: false
+        type: boolean
+      release_tag:
+        description: "Existing tag to release, for example V2026.1.2. Leave empty to use V + versionName."
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*"
+      - "V*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build signed release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select existing tag for manual publish
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+        shell: bash
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          app_version="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          test -n "$app_version"
+
+          release_tag="$INPUT_RELEASE_TAG"
+          if [ -z "$release_tag" ]; then
+            release_tag="V$app_version"
+          fi
+
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          git rev-parse --verify --quiet "refs/tags/$release_tag^{commit}" >/dev/null
+          git checkout --detach "refs/tags/$release_tag"
+
+      - name: Resolve release metadata
+        shell: bash
+        env:
+          PUBLISH_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
+        run: |
+          app_version="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          test -n "$app_version"
+
+          if [ -z "${RELEASE_TAG:-}" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+              release_tag="$GITHUB_REF_NAME"
+            else
+              release_tag="V$app_version"
+            fi
+            echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          else
+            release_tag="$RELEASE_TAG"
+          fi
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ] || [ "$PUBLISH_RELEASE" = "true" ]; then
+            tag_version="${release_tag#[vV]}"
+            test "$tag_version" = "$app_version"
+          fi
+
+          echo "APP_VERSION=$app_version" >> "$GITHUB_ENV"
+
+      - name: Ensure tag commit is on master
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          tag_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          git branch --remotes --contains "$tag_commit" | grep -q "origin/master"
+
+      - name: Ensure manual publish runs from master
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+        shell: bash
+        run: |
+          tag_commit="$(git rev-parse HEAD)"
+          git branch --remotes --contains "$tag_commit" | grep -q "origin/master"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore signing key
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$RELEASE_KEYSTORE_BASE64"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build signed APK
+        shell: bash
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$RELEASE_STORE_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_KEY_PASSWORD"
+          ./gradlew --no-daemon clean test assembleRelease
+
+      - name: Prepare signed APK
+        shell: bash
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name "*.apk" ! -name "*unsigned*" | head -n 1)"
+
+          if [ -z "$apk" ]; then
+            unsigned_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name "*unsigned*.apk" | head -n 1)"
+            test -n "$unsigned_apk"
+
+            aligned_apk="$RUNNER_TEMP/RPClient-${APP_VERSION}-aligned.apk"
+            signed_apk="$RUNNER_TEMP/RPClient-${APP_VERSION}.apk"
+
+            "$build_tools/zipalign" -p -f 4 "$unsigned_apk" "$aligned_apk"
+            "$build_tools/apksigner" sign \
+              --ks "$RELEASE_STORE_FILE" \
+              --ks-pass "pass:$RELEASE_STORE_PASSWORD" \
+              --ks-key-alias "$RELEASE_KEY_ALIAS" \
+              --key-pass "pass:$RELEASE_KEY_PASSWORD" \
+              --out "$signed_apk" \
+              "$aligned_apk"
+            apk="$signed_apk"
+          fi
+
+          "$build_tools/apksigner" verify --verbose "$apk"
+          echo "SIGNED_APK=$apk" >> "$GITHUB_ENV"
+
+      - name: Collect release artifacts
+        shell: bash
+        run: |
+          mkdir -p release-artifacts
+          test -n "$SIGNED_APK"
+          cp "$SIGNED_APK" "release-artifacts/RPClient-${APP_VERSION}.apk"
+
+      - name: Upload release artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPClient-${{ env.APP_VERSION }}
+          path: release-artifacts/*
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: RPClient ${{ env.APP_VERSION }}
+          files: release-artifacts/*
+          generate_release_notes: true
