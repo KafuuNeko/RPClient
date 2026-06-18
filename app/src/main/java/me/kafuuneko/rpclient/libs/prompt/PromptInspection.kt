@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
+import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 
 /** Prompt 内容来源，用于检查器展示、预算裁剪记录和领域对象追踪。 */
 enum class PromptSourceKind {
@@ -64,13 +65,27 @@ enum class PromptTokenizerStrategy {
     Conservative
 }
 
+enum class PromptCacheNoteKind {
+    DynamicMacro,
+    PrefixWorldInfo,
+    PrefixSummary,
+    RegexPromptRewrite,
+    ContextTrim
+}
+
+data class PromptCacheNote(
+    val kind: PromptCacheNoteKind,
+    val detail: String = ""
+)
+
 /** 最终请求中一条消息的检查快照。 */
 data class PromptInspectionItem(
     val index: Int,
     val role: LLMMessageRole,
     val sources: List<PromptSource>,
     val tokenCount: Int,
-    val content: String
+    val content: String,
+    val cacheNotes: List<PromptCacheNote> = emptyList()
 )
 
 /**
@@ -91,10 +106,14 @@ data class PromptInspection(
     val items: List<PromptInspectionItem>,
     val omittedItems: List<PromptOmittedItem>,
     val regexExecutions: List<RegexExecutionHit> = emptyList(),
-    val regexErrors: List<RegexExecutionError> = emptyList()
+    val regexErrors: List<RegexExecutionError> = emptyList(),
+    val cacheNotes: List<PromptCacheNote> = emptyList()
 ) {
     val hasOmissions: Boolean
         get() = omittedItems.isNotEmpty()
+
+    val hasCacheNotes: Boolean
+        get() = cacheNotes.isNotEmpty() || items.any { it.cacheNotes.isNotEmpty() }
 }
 
 /**
@@ -111,5 +130,17 @@ data class PromptMessageDraft(
     /** 核心设定不可静默移除；空间不足时由预算器阻止请求。 */
     val canDrop: Boolean,
     /** 合并消息包含的全部领域来源；未合并消息默认只包含 [source]。 */
-    val sources: List<PromptSource> = listOf(source)
+    val sources: List<PromptSource> = listOf(source),
+    val cacheNotes: List<PromptCacheNote> = emptyList()
 )
+
+internal fun List<RegexExecutionHit>.promptCacheNotes(): List<PromptCacheNote> {
+    return filter { it.mode == RegexExecutionMode.Prompt && it.changed }
+        .map {
+            PromptCacheNote(
+                PromptCacheNoteKind.RegexPromptRewrite,
+                it.scriptName.ifBlank { it.scriptId }
+            )
+        }
+        .distinct()
+}

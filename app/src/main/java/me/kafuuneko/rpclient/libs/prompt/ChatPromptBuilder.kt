@@ -190,7 +190,8 @@ class ChatPromptBuilder(
         )
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
-            regexErrors = regexErrors
+            regexErrors = regexErrors,
+            cacheNotes = finalized.inspection.cacheNotes + regexHits.promptCacheNotes()
         )
         val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         val stateResult = mWorldBookActivator.resolveNextState(
@@ -217,13 +218,7 @@ class ChatPromptBuilder(
         // 主提示词描述的是“让角色生成下一条回复”这一任务，只能用于普通回复和重新生成。
         // 扮演用户或续写时继续注入角色卡覆盖提示，会让同一请求同时出现两个互斥目标。
         if (context.generationMode.usesCharacterReplyTask()) {
-            beforeHistory += PromptPiece(
-                LLMMessageRole.System,
-                readCharacterMainPrompt(context),
-                PromptSource(PromptSourceKind.MainPrompt),
-                PRIORITY_ESSENTIAL,
-                false
-            )
+            beforeHistory += buildCharacterMainPromptPiece(context)
         }
         if (summaryPosition == SummaryInjectionPosition.AfterMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
@@ -278,11 +273,7 @@ class ChatPromptBuilder(
             // PHI 与主提示词共同约束“下一条角色回复”，特殊生成模式必须由自己的任务提示接管。
             if (context.generationMode.usesCharacterReplyTask()) {
                 add(
-                    PromptPiece.required(
-                        role = LLMMessageRole.User,
-                        content = readCharacterPostHistoryInstructions(context),
-                        sourceKind = PromptSourceKind.PostHistoryInstructions
-                    )
+                    buildCharacterPostHistoryInstructionsPiece(context)
                 )
             }
         }
@@ -608,7 +599,8 @@ class ChatPromptBuilder(
             content = resolved,
             source = source,
             retentionPriority = retentionPriority,
-            canDrop = canDrop
+            canDrop = canDrop,
+            cacheNotes = cacheNotes + cacheNotesForTemplate(content)
         )
     }
 
@@ -624,7 +616,8 @@ class ChatPromptBuilder(
             source = source,
             retentionPriority = retentionPriority,
             canDrop = canDrop,
-            sources = sources
+            sources = sources,
+            cacheNotes = cacheNotesForTemplate(content)
         )
     }
 
@@ -773,18 +766,35 @@ class ChatPromptBuilder(
         return runCatching { AppModel.worldInfoBudgetPercent }.getOrDefault(DEFAULT_WORLD_INFO_BUDGET_PERCENT)
     }
 
-    private fun readCharacterMainPrompt(context: PromptBuildContext): String {
+    private fun buildCharacterMainPromptPiece(context: PromptBuildContext): PromptPiece {
         val original = readMainPrompt()
         val override = context.character.systemPrompt.trim()
         val systemPrompt = override.ifBlank { original }
-        return mMacroResolver.resolve(systemPrompt, context, original = original)
+        return PromptPiece(
+            role = LLMMessageRole.System,
+            content = systemPrompt,
+            source = PromptSource(PromptSourceKind.MainPrompt),
+            retentionPriority = PRIORITY_ESSENTIAL,
+            canDrop = false,
+            original = original
+        )
     }
 
-    private fun readCharacterPostHistoryInstructions(context: PromptBuildContext): String {
+    private fun buildCharacterPostHistoryInstructionsPiece(context: PromptBuildContext): PromptPiece {
         val original = readPostHistoryInstructions()
         val override = context.character.postHistoryInstructions.trim()
         val instructions = override.ifBlank { original }
-        return mMacroResolver.resolve(instructions, context, original = original)
+        return PromptPiece.required(
+            role = LLMMessageRole.User,
+            content = instructions,
+            sourceKind = PromptSourceKind.PostHistoryInstructions
+        ).copy(original = original)
+    }
+
+    private fun cacheNotesForTemplate(template: String): List<PromptCacheNote> {
+        return mMacroResolver.dynamicMacroNames(template).map {
+            PromptCacheNote(PromptCacheNoteKind.DynamicMacro, it)
+        }
     }
 
     private data class PromptSections(
@@ -798,7 +808,8 @@ class ChatPromptBuilder(
         val source: PromptSource,
         val retentionPriority: Int,
         val canDrop: Boolean,
-        val original: String = content
+        val original: String = content,
+        val cacheNotes: List<PromptCacheNote> = emptyList()
     ) {
         companion object {
             fun required(

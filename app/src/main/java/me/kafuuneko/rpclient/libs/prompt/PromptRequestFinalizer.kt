@@ -76,6 +76,9 @@ class PromptRequestFinalizer(
             val messages = processed.map { LLMMessage(it.role, it.content) }
             val finalTokenCount = tokenizer.countMessages(messages)
             if (finalTokenCount <= promptBudget) {
+                val firstHistoryIndex = processed.indexOfFirst {
+                    it.sources.any { source -> source.kind == PromptSourceKind.ChatHistory }
+                }.takeIf { it >= 0 } ?: processed.size
                 return PromptFinalizationResult(
                     request = LLMGenerationRequest(
                         messages = messages,
@@ -100,10 +103,15 @@ class PromptRequestFinalizer(
                                 role = message.role,
                                 sources = message.sources.distinct(),
                                 tokenCount = tokenizer.countMessage(llmMessage),
-                                content = message.content
+                                content = message.content,
+                                cacheNotes = (
+                                    message.cacheNotes +
+                                        message.prefixCacheNotes(index, firstHistoryIndex)
+                                    ).distinct()
                             )
                         },
-                        omittedItems = omitted
+                        omittedItems = omitted,
+                        cacheNotes = omitted.contextTrimCacheNotes()
                     )
                 )
             }
@@ -138,12 +146,61 @@ class PromptRequestFinalizer(
                 TrackedPromptMessage(
                     role = it.role,
                     content = it.content,
-                    sources = it.sources
+                    sources = it.sources,
+                    cacheNotes = it.cacheNotes
                 )
             },
             mode = mode,
             strictPromptPlaceholder = strictPromptPlaceholder,
             names = names
         )
+    }
+
+    private fun TrackedPromptMessage.prefixCacheNotes(
+        index: Int,
+        firstHistoryIndex: Int
+    ): List<PromptCacheNote> {
+        if (index >= firstHistoryIndex) return emptyList()
+        val notes = mutableListOf<PromptCacheNote>()
+        if (sources.any { it.kind == PromptSourceKind.WorldInfo }) {
+            notes += PromptCacheNote(
+                PromptCacheNoteKind.PrefixWorldInfo,
+                sources.cacheSourceDetail(PromptSourceKind.WorldInfo)
+            )
+        }
+        if (sources.any { it.kind == PromptSourceKind.Summary }) {
+            notes += PromptCacheNote(
+                PromptCacheNoteKind.PrefixSummary,
+                sources.cacheSourceDetail(PromptSourceKind.Summary)
+            )
+        }
+        return notes
+    }
+
+    private fun List<PromptOmittedItem>.contextTrimCacheNotes(): List<PromptCacheNote> {
+        val trimmedHistory = count {
+            it.reason == PromptOmissionReason.ContextBudget &&
+                it.source.kind == PromptSourceKind.ChatHistory
+        }
+        return if (trimmedHistory > 0) {
+            listOf(
+                PromptCacheNote(
+                    PromptCacheNoteKind.ContextTrim,
+                    trimmedHistory.toString()
+                )
+            )
+        } else {
+            emptyList()
+        }
+    }
+
+    private fun List<PromptSource>.cacheSourceDetail(kind: PromptSourceKind): String {
+        return filter { it.kind == kind }
+            .mapNotNull { source ->
+                source.detail.ifBlank { source.referenceId?.toString().orEmpty() }
+                    .takeIf { it.isNotBlank() }
+            }
+            .distinct()
+            .joinToString(", ")
     }
 }

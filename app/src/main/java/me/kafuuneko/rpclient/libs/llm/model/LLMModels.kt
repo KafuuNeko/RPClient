@@ -23,6 +23,27 @@ enum class LLMProviderProtocol {
     AnthropicMessages
 }
 
+enum class PromptCacheMode {
+    Off,
+    System,
+    HistoryDepth;
+
+    companion object {
+        fun fromOrdinal(value: Int): PromptCacheMode =
+            entries.getOrElse(value) { Off }
+    }
+}
+
+enum class PromptCacheTtl {
+    FiveMinutes,
+    OneHour;
+
+    companion object {
+        fun fromOrdinal(value: Int): PromptCacheTtl =
+            entries.getOrElse(value) { FiveMinutes }
+    }
+}
+
 /**
  * LLM 模块运行时使用的 Provider 配置
  */
@@ -39,7 +60,9 @@ data class LLMProviderConfig(
     val maxTokens: Int = 1200,
     val contextTokens: Int = 8192,
     val sendTemperature: Boolean = true,
-    val sendTopP: Boolean = true
+    val sendTopP: Boolean = true,
+    val promptCacheMode: PromptCacheMode = PromptCacheMode.Off,
+    val promptCacheTtl: PromptCacheTtl = PromptCacheTtl.FiveMinutes
 )
 
 /**
@@ -111,7 +134,9 @@ data class LLMGenerationRequest(
 data class LLMUsage(
     val promptTokens: Int? = null,
     val completionTokens: Int? = null,
-    val totalTokens: Int? = null
+    val totalTokens: Int? = null,
+    val promptCacheReadTokens: Int? = null,
+    val promptCacheWriteTokens: Int? = null
 )
 
 /**

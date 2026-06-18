@@ -2,6 +2,8 @@ package me.kafuuneko.rpclient
 
 import android.app.Application
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
@@ -87,6 +89,7 @@ private val appModules = module {
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
             .allowMainThreadQueries()
+            .addMigrations(MIGRATION_1_2)
             .fallbackToDestructiveMigration(true)
             .fallbackToDestructiveMigrationOnDowngrade(true)
             .build()
@@ -102,4 +105,15 @@ private val appModules = module {
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)
 
+}
+
+private val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE llm_providers ADD COLUMN promptCacheMode INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE llm_providers ADD COLUMN promptCacheTtl INTEGER NOT NULL DEFAULT 0"
+        )
+    }
 }

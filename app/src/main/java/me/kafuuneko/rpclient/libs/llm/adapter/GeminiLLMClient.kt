@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -145,11 +146,21 @@ class GeminiLLMClient(
             content = content,
             model = fallbackModel,
             provider = mProvider.providerType,
+            usage = json.optJSONObject("usageMetadata")?.toGeminiUsage(),
             finishReason = candidates
                 ?.optJSONObject(0)
                 ?.optString("finishReason")
                 ?.takeIf { it.isNotBlank() },
             rawResponse = this
+        )
+    }
+
+    private fun JSONObject.toGeminiUsage(): LLMUsage {
+        return LLMUsage(
+            promptTokens = optNullableInt("promptTokenCount"),
+            completionTokens = optNullableInt("candidatesTokenCount"),
+            totalTokens = optNullableInt("totalTokenCount"),
+            promptCacheReadTokens = optNullableInt("cachedContentTokenCount")
         )
     }
 

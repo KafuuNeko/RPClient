@@ -143,13 +143,7 @@ class OpenAICompatibleLLMClient(
             ),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
-            usage = usageJson?.let {
-                LLMUsage(
-                    promptTokens = it.optNullableInt("prompt_tokens"),
-                    completionTokens = it.optNullableInt("completion_tokens"),
-                    totalTokens = it.optNullableInt("total_tokens")
-                )
-            },
+            usage = usageJson?.toOpenAIUsage(),
             finishReason = choice.optCleanString("finish_reason"),
             rawResponse = this
         )
@@ -204,6 +198,30 @@ class OpenAICompatibleLLMClient(
         if (!has(name) || isNull(name)) return ""
         val value = optString(name).trim()
         return if (value.equals("null", ignoreCase = true)) "" else value
+    }
+
+    private fun JSONObject.toOpenAIUsage(): LLMUsage {
+        val promptDetails = optJSONObject("prompt_tokens_details")
+        return LLMUsage(
+            promptTokens = optNullableInt("prompt_tokens"),
+            completionTokens = optNullableInt("completion_tokens"),
+            totalTokens = optNullableInt("total_tokens"),
+            promptCacheReadTokens = promptDetails?.optNullableInt("cached_tokens")
+                ?: optFirstNullableInt(
+                    "cache_read_input_tokens",
+                    "cache_read_tokens",
+                    "input_cache_read",
+                    "prompt_cache_read_tokens",
+                    "cached_tokens"
+                ),
+            promptCacheWriteTokens = optFirstNullableInt(
+                "cache_creation_input_tokens",
+                "cache_write_input_tokens",
+                "cache_write_tokens",
+                "input_cache_write",
+                "prompt_cache_write_tokens"
+            )
+        )
     }
 
     private fun mergeReasoningContent(

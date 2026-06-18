@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.prompt.PromptCacheNote
+import me.kafuuneko.rpclient.libs.prompt.PromptCacheNoteKind
 import me.kafuuneko.rpclient.libs.prompt.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptInspectionItem
 import me.kafuuneko.rpclient.libs.prompt.PromptOmissionReason
@@ -70,6 +72,19 @@ fun PromptInspectorDialog(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item { InspectionSummary(inspection) }
+                    if (inspection.cacheNotes.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(
+                                    R.string.prompt_inspector_cache_title,
+                                    inspection.cacheNotes.size
+                                ),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        items(inspection.cacheNotes) { note -> CacheNoteCard(note) }
+                    }
                     if (inspection.omittedItems.isNotEmpty()) {
                         item {
                             Text(
@@ -310,6 +325,17 @@ private fun InspectionItemCard(item: PromptInspectionItem) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (item.cacheNotes.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    item.cacheNotes.forEach { note ->
+                        Text(
+                            text = note.label(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
+            }
             HorizontalDivider()
             SelectionContainer {
                 Text(
@@ -320,6 +346,49 @@ private fun InspectionItemCard(item: PromptInspectionItem) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CacheNoteCard(note: PromptCacheNote) {
+    Card(
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.22f)
+        )
+    ) {
+        Text(
+            text = note.label(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun PromptCacheNote.label(): String {
+    return when (kind) {
+        PromptCacheNoteKind.DynamicMacro -> stringResource(
+            R.string.prompt_cache_note_dynamic_macro,
+            detail.ifBlank { "unknown" }
+        )
+        PromptCacheNoteKind.PrefixWorldInfo -> stringResource(
+            R.string.prompt_cache_note_prefix_world_info,
+            detail.ifBlank { stringResource(R.string.prompt_source_world_info) }
+        )
+        PromptCacheNoteKind.PrefixSummary -> stringResource(
+            R.string.prompt_cache_note_prefix_summary
+        )
+        PromptCacheNoteKind.RegexPromptRewrite -> stringResource(
+            R.string.prompt_cache_note_regex_rewrite,
+            detail.ifBlank { stringResource(R.string.regex_script_title) }
+        )
+        PromptCacheNoteKind.ContextTrim -> stringResource(
+            R.string.prompt_cache_note_context_trim,
+            detail.ifBlank { "0" }
+        )
     }
 }
 

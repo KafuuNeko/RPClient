@@ -5,6 +5,8 @@ import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheMode
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheTtl
 
 /** 持久化的 LLM Provider 配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
@@ -39,6 +41,8 @@ data class LLMProvider(
     val sendTopP: Boolean = true,
     // 当前 Provider 独立使用的 Prompt 后处理模式 ordinal。
     val promptPostProcessingMode: Int = 0,
+    val promptCacheMode: Int = PromptCacheMode.Off.ordinal,
+    val promptCacheTtl: Int = PromptCacheTtl.FiveMinutes.ordinal,
     // 是否启用
     val isEnabled: Boolean = true,
     // 创建时间
@@ -61,5 +65,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     maxTokens = maxTokens,
     contextTokens = contextTokens,
     sendTemperature = sendTemperature,
-    sendTopP = sendTopP
+    sendTopP = sendTopP,
+    promptCacheMode = PromptCacheMode.fromOrdinal(promptCacheMode),
+    promptCacheTtl = PromptCacheTtl.fromOrdinal(promptCacheTtl)
 )

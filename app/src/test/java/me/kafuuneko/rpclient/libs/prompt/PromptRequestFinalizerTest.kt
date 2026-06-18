@@ -71,6 +71,70 @@ class PromptRequestFinalizerTest {
     }
 
     @Test
+    fun marksPrefixCacheSensitiveSources() {
+        val result = finalize(
+            drafts = listOf(
+                draft(
+                    "Lore",
+                    priority = 1_000,
+                    canDrop = false,
+                    sourceKind = PromptSourceKind.WorldInfo
+                ),
+                draft(
+                    "Memory",
+                    priority = 1_000,
+                    canDrop = false,
+                    sourceKind = PromptSourceKind.Summary
+                ),
+                draft(
+                    "Hello",
+                    priority = 1_000,
+                    canDrop = false,
+                    sourceKind = PromptSourceKind.ChatHistory
+                )
+            ),
+            contextTokens = 80,
+            responseTokens = 10
+        )
+
+        val noteKinds = result.inspection.items.flatMap { item ->
+            item.cacheNotes.map { it.kind }
+        }
+
+        assertTrue(PromptCacheNoteKind.PrefixWorldInfo in noteKinds)
+        assertTrue(PromptCacheNoteKind.PrefixSummary in noteKinds)
+    }
+
+    @Test
+    fun marksHistoryTrimAsCacheBoundaryChange() {
+        val result = finalize(
+            drafts = listOf(
+                draft("Required", priority = 1_000, canDrop = false),
+                draft(
+                    "x".repeat(40),
+                    priority = 10,
+                    canDrop = true,
+                    sourceKind = PromptSourceKind.ChatHistory
+                ),
+                draft(
+                    "Recent",
+                    priority = 1_000,
+                    canDrop = false,
+                    sourceKind = PromptSourceKind.ChatHistory
+                )
+            ),
+            contextTokens = 55,
+            responseTokens = 10
+        )
+
+        assertTrue(
+            result.inspection.cacheNotes.any {
+                it.kind == PromptCacheNoteKind.ContextTrim
+            }
+        )
+    }
+
+    @Test
     fun tokenizerRegistryUsesBpeForOpenAiAndUtf8UpperBoundForUnknownModels() {
         val registry = PromptTokenizerRegistry()
         val openAi = registry.resolve(
@@ -112,12 +176,13 @@ class PromptRequestFinalizerTest {
     private fun draft(
         content: String,
         priority: Int,
-        canDrop: Boolean
+        canDrop: Boolean,
+        sourceKind: PromptSourceKind = PromptSourceKind.Other
     ): PromptMessageDraft {
         return PromptMessageDraft(
             role = LLMMessageRole.System,
             content = content,
-            source = PromptSource(PromptSourceKind.Other, content.take(8)),
+            source = PromptSource(sourceKind, content.take(8)),
             retentionPriority = priority,
             canDrop = canDrop
         )

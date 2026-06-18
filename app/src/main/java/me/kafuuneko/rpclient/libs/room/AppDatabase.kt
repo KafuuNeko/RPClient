@@ -44,7 +44,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
         GroupChatMessage::class,
         GroupChatSummary::class
     ],
-    version = 1,
+    version = 2,
     autoMigrations = [],
     exportSchema = false
 )

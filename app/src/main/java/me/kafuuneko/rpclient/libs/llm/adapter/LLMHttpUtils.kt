@@ -83,6 +83,17 @@ internal fun JSONObject.putIfNotNull(name: String, value: Any?) {
     if (value != null) put(name, value)
 }
 
+internal fun JSONObject.optNullableInt(name: String): Int? {
+    return if (has(name) && !isNull(name)) optInt(name) else null
+}
+
+internal fun JSONObject.optFirstNullableInt(vararg names: String): Int? {
+    for (name in names) {
+        optNullableInt(name)?.let { return it }
+    }
+    return null
+}
+
 /**
  * 将字符串列表转换为 JSONArray。
  */

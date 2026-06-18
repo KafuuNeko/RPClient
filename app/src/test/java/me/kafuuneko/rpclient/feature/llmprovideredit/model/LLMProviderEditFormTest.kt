@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheMode
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheTtl
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 
 class LLMProviderEditFormTest {
@@ -57,7 +59,9 @@ class LLMProviderEditFormTest {
         val provider = validForm().copy(
             sendTemperature = false,
             sendTopP = true,
-            promptPostProcessingMode = PromptPostProcessingMode.SemiStrict
+            promptPostProcessingMode = PromptPostProcessingMode.SemiStrict,
+            promptCacheMode = PromptCacheMode.HistoryDepth,
+            promptCacheTtl = PromptCacheTtl.OneHour
         ).toProviderOrNull() ?: error("Provider should be valid")
 
         val restored = LLMProviderEditForm.from(provider)
@@ -65,6 +69,8 @@ class LLMProviderEditFormTest {
         assertEquals(false, restored.sendTemperature)
         assertEquals(true, restored.sendTopP)
         assertEquals(PromptPostProcessingMode.SemiStrict, restored.promptPostProcessingMode)
+        assertEquals(PromptCacheMode.HistoryDepth, restored.promptCacheMode)
+        assertEquals(PromptCacheTtl.OneHour, restored.promptCacheTtl)
     }
 
     private fun validForm(): LLMProviderEditForm {

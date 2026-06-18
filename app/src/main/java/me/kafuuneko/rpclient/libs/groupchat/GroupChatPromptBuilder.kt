@@ -24,6 +24,7 @@ import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
 import me.kafuuneko.rpclient.libs.prompt.filterEntries
 import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
+import me.kafuuneko.rpclient.libs.prompt.promptCacheNotes
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
@@ -216,7 +217,8 @@ class GroupChatPromptBuilder(
         )
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
-            regexErrors = regexErrors
+            regexErrors = regexErrors,
+            cacheNotes = finalized.inspection.cacheNotes + regexHits.promptCacheNotes()
         )
         val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         val stateResult = mWorldBookActivator.resolveNextState(

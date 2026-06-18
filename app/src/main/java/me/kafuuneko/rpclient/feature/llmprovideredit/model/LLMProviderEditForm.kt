@@ -3,6 +3,8 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.model
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheMode
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheTtl
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
@@ -29,6 +31,8 @@ data class LLMProviderEditForm(
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
+    val promptCacheMode: PromptCacheMode = PromptCacheMode.Off,
+    val promptCacheTtl: PromptCacheTtl = PromptCacheTtl.FiveMinutes,
     val isEnabled: Boolean = true
 ) {
     companion object {
@@ -52,6 +56,8 @@ data class LLMProviderEditForm(
             promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(
                 obj.promptPostProcessingMode
             ),
+            promptCacheMode = PromptCacheMode.fromOrdinal(obj.promptCacheMode),
+            promptCacheTtl = PromptCacheTtl.fromOrdinal(obj.promptCacheTtl),
             isEnabled = obj.isEnabled
         )
     }
@@ -83,6 +89,8 @@ data class LLMProviderEditForm(
             sendTemperature = sendTemperature,
             sendTopP = sendTopP,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
+            promptCacheMode = promptCacheMode.ordinal,
+            promptCacheTtl = promptCacheTtl.ordinal,
             isEnabled = isEnabled,
             createTime = createTime
         )

@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
@@ -122,8 +123,23 @@ class AnthropicMessagesLLMClient(
             content = json.optJSONArray("content")?.joinTextFields(type = "text").orEmpty(),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
+            usage = json.optJSONObject("usage")?.toAnthropicUsage(),
             finishReason = json.optString("stop_reason").takeIf { it.isNotBlank() },
             rawResponse = this
+        )
+    }
+
+    private fun JSONObject.toAnthropicUsage(): LLMUsage {
+        val inputTokens = optNullableInt("input_tokens")
+        val outputTokens = optNullableInt("output_tokens")
+        return LLMUsage(
+            promptTokens = inputTokens,
+            completionTokens = outputTokens,
+            totalTokens = listOfNotNull(inputTokens, outputTokens)
+                .takeIf { it.isNotEmpty() }
+                ?.sum(),
+            promptCacheReadTokens = optNullableInt("cache_read_input_tokens"),
+            promptCacheWriteTokens = optNullableInt("cache_creation_input_tokens")
         )
     }
 

@@ -14,6 +14,19 @@ import java.util.Locale
 class PromptMacroResolver(
     private val mHistoryBuilder: FormattedHistoryBuilder
 ) {
+    fun dynamicMacroNames(template: String): List<String> {
+        val names = mutableSetOf<String>()
+        Regex("""\{\{\s*outlet::[^}]+\s*\}\}""", RegexOption.IGNORE_CASE)
+            .findAll(template)
+            .forEach { names += "outlet" }
+        Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")
+            .findAll(template)
+            .map { it.groupValues[1].lowercase() }
+            .filter { it in dynamicMacros }
+            .forEach { names += it }
+        return names.toList().sorted()
+    }
+
     /**
      * 替换 prompt 中的基础 SillyTavern 宏。
      *
@@ -91,5 +104,22 @@ class PromptMacroResolver(
         return result.replace(Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")) {
             values[it.groupValues[1].lowercase()] ?: it.value
         }
+    }
+
+    private companion object {
+        val dynamicMacros = setOf(
+            "date",
+            "firstincludedmessageid",
+            "history",
+            "isodate",
+            "isotime",
+            "lastcharmessage",
+            "lastmessage",
+            "lastmessageid",
+            "lastusermessage",
+            "summary",
+            "time",
+            "weekday"
+        )
     }
 }

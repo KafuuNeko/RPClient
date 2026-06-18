@@ -367,6 +367,13 @@
     <string name="provider_send_temperature">Send temperature</string>
     <string name="provider_send_top_p">Send top_p</string>
     <string name="prompt_post_processing_provider_title">Provider prompt post-processing</string>
+    <string name="prompt_cache_provider_title">Prompt cache</string>
+    <string name="prompt_cache_mode_off">Off</string>
+    <string name="prompt_cache_mode_system">System</string>
+    <string name="prompt_cache_mode_history_depth">History depth</string>
+    <string name="prompt_cache_ttl_title">Cache TTL</string>
+    <string name="prompt_cache_ttl_five_minutes">5 min</string>
+    <string name="prompt_cache_ttl_one_hour">1 hour</string>
     <string name="custom_headers_json">Custom Request Headers JSON</string>
     <string name="save">Save</string>
     <string name="model_test">Model Test</string>
@@ -556,6 +563,12 @@
     <string name="prompt_inspector_model">Model: %1$s</string>
     <string name="prompt_inspector_tokenizer">Tokenizer: %1$s · %2$s</string>
     <string name="prompt_inspector_post_processing">Post-processing: %1$s</string>
+    <string name="prompt_inspector_cache_title">Cache hints (%1$d)</string>
+    <string name="prompt_cache_note_dynamic_macro">Dynamic macro may change prefix: {{%1$s}}</string>
+    <string name="prompt_cache_note_prefix_world_info">World info before history can change cached prefix: %1$s</string>
+    <string name="prompt_cache_note_prefix_summary">Summary before history can change cached prefix</string>
+    <string name="prompt_cache_note_regex_rewrite">Prompt Regex rewrite may change cached text: %1$s</string>
+    <string name="prompt_cache_note_context_trim">History trimming changed the prompt boundary: %1$s removed messages</string>
     <string name="prompt_inspector_omitted_title">Removed items (%1$d)</string>
     <string name="prompt_inspector_omitted_detail">%1$d tokens · %2$s</string>
     <string name="prompt_inspector_final_messages">Final message order</string>

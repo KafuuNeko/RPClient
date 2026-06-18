@@ -47,7 +47,8 @@ data class PromptPostProcessingNames(
 internal data class TrackedPromptMessage(
     val role: LLMMessageRole,
     val content: String,
-    val sources: List<PromptSource>
+    val sources: List<PromptSource>,
+    val cacheNotes: List<PromptCacheNote> = emptyList()
 )
 
 /**
@@ -79,7 +80,8 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
                 content = listOf(previous.content, message.content)
                     .filter { it.isNotBlank() }
                     .joinToString("\n\n"),
-                sources = (previous.sources + message.sources).distinct()
+                sources = (previous.sources + message.sources).distinct(),
+                cacheNotes = (previous.cacheNotes + message.cacheNotes).distinct()
             )
         } else {
             merged += message

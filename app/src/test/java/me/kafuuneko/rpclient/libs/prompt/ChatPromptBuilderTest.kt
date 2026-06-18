@@ -51,6 +51,41 @@ class ChatPromptBuilderTest {
 
         assertTrue(result.request.messages.any { it.content == "visible" })
         assertEquals(listOf("prompt"), result.inspection.regexExecutions.map { it.scriptId })
+        assertTrue(
+            result.inspection.cacheNotes.any {
+                it.kind == PromptCacheNoteKind.RegexPromptRewrite
+            }
+        )
+    }
+
+    @Test
+    fun dynamicMacrosAreMarkedForPromptCacheInspection() {
+        val result = builder.buildWithMetadata(
+            context(
+                character = Character(
+                    id = 1L,
+                    name = "Char",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    creatorNotes = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                    systemPrompt = "Current time: {{time}}"
+                )
+            )
+        )
+
+        assertTrue(
+            result.inspection.items.any { item ->
+                item.cacheNotes.any {
+                    it.kind == PromptCacheNoteKind.DynamicMacro && it.detail == "time"
+                }
+            }
+        )
     }
 
     @Test

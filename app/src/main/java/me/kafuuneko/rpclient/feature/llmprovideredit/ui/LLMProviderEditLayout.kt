@@ -50,6 +50,8 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheMode
+import me.kafuuneko.rpclient.libs.llm.model.PromptCacheTtl
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -239,6 +241,32 @@ private fun ParameterPanel(
                 LLMProviderEditUiIntent.SelectPostProcessingMode(it).emit()
             }
         )
+        Text(
+            text = stringResource(R.string.prompt_cache_provider_title),
+            style = MaterialTheme.typography.titleSmall
+        )
+        EnumChipRow(
+            values = PromptCacheMode.entries,
+            selected = form.promptCacheMode,
+            label = { promptCacheModeLabel(it) },
+            onSelect = {
+                LLMProviderEditUiIntent.SelectPromptCacheMode(it).emit()
+            }
+        )
+        if (form.promptCacheMode != PromptCacheMode.Off) {
+            Text(
+                text = stringResource(R.string.prompt_cache_ttl_title),
+                style = MaterialTheme.typography.titleSmall
+            )
+            EnumChipRow(
+                values = PromptCacheTtl.entries,
+                selected = form.promptCacheTtl,
+                label = { promptCacheTtlLabel(it) },
+                onSelect = {
+                    LLMProviderEditUiIntent.SelectPromptCacheTtl(it).emit()
+                }
+            )
+        }
     }
 }
 
@@ -398,7 +426,7 @@ private fun FormTextField(
 private fun <T> EnumChipRow(
     values: List<T>,
     selected: T,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onSelect: (T) -> Unit
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -410,6 +438,27 @@ private fun <T> EnumChipRow(
             )
         }
     }
+}
+
+@Composable
+private fun promptCacheModeLabel(mode: PromptCacheMode): String {
+    return stringResource(
+        when (mode) {
+            PromptCacheMode.Off -> R.string.prompt_cache_mode_off
+            PromptCacheMode.System -> R.string.prompt_cache_mode_system
+            PromptCacheMode.HistoryDepth -> R.string.prompt_cache_mode_history_depth
+        }
+    )
+}
+
+@Composable
+private fun promptCacheTtlLabel(ttl: PromptCacheTtl): String {
+    return stringResource(
+        when (ttl) {
+            PromptCacheTtl.FiveMinutes -> R.string.prompt_cache_ttl_five_minutes
+            PromptCacheTtl.OneHour -> R.string.prompt_cache_ttl_one_hour
+        }
+    )
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

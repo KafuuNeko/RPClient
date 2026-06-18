@@ -127,6 +127,16 @@ class LLMProviderEditViewModel :
         intent: LLMProviderEditUiIntent.SelectPostProcessingMode
     ) = updateForm { copy(promptPostProcessingMode = intent.value) }
 
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectPromptCacheMode::class)
+    private fun onSelectPromptCacheMode(
+        intent: LLMProviderEditUiIntent.SelectPromptCacheMode
+    ) = updateForm { copy(promptCacheMode = intent.value) }
+
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectPromptCacheTtl::class)
+    private fun onSelectPromptCacheTtl(
+        intent: LLMProviderEditUiIntent.SelectPromptCacheTtl
+    ) = updateForm { copy(promptCacheTtl = intent.value) }
+
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleEnabled::class)
     private fun onToggleEnabled(intent: LLMProviderEditUiIntent.ToggleEnabled) =
         updateForm { copy(isEnabled = intent.value) }

@@ -366,6 +366,13 @@
     <string name="provider_send_temperature">发送 temperature</string>
     <string name="provider_send_top_p">发送 top_p</string>
     <string name="prompt_post_processing_provider_title">提供商 Prompt 后处理</string>
+    <string name="prompt_cache_provider_title">Prompt 缓存</string>
+    <string name="prompt_cache_mode_off">关闭</string>
+    <string name="prompt_cache_mode_system">系统提示词</string>
+    <string name="prompt_cache_mode_history_depth">历史深度</string>
+    <string name="prompt_cache_ttl_title">缓存 TTL</string>
+    <string name="prompt_cache_ttl_five_minutes">5 分钟</string>
+    <string name="prompt_cache_ttl_one_hour">1 小时</string>
     <string name="custom_headers_json">自定义请求头 JSON</string>
     <string name="save">保存</string>
     <string name="model_test">模型测试</string>
@@ -554,6 +561,12 @@
     <string name="prompt_inspector_model">模型：%1$s</string>
     <string name="prompt_inspector_tokenizer">Tokenizer：%1$s · %2$s</string>
     <string name="prompt_inspector_post_processing">后处理：%1$s</string>
+    <string name="prompt_inspector_cache_title">缓存提示（%1$d）</string>
+    <string name="prompt_cache_note_dynamic_macro">动态宏可能改变前缀：{{%1$s}}</string>
+    <string name="prompt_cache_note_prefix_world_info">历史前的世界书可能改变缓存前缀：%1$s</string>
+    <string name="prompt_cache_note_prefix_summary">历史前的摘要可能改变缓存前缀</string>
+    <string name="prompt_cache_note_regex_rewrite">Prompt Regex 改写可能改变缓存文本：%1$s</string>
+    <string name="prompt_cache_note_context_trim">历史裁剪改变了 prompt 边界：已移除 %1$s 条消息</string>
     <string name="prompt_inspector_omitted_title">已移除项目（%1$d）</string>
     <string name="prompt_inspector_omitted_detail">%1$d Token · %2$s</string>
     <string name="prompt_inspector_final_messages">最终消息顺序</string>
