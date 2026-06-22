@@ -145,6 +145,9 @@ Rules:
     // Prompt 宏中的用户名称，对应 {{user}}。
     var userName by stringPref(default = "You")
 
+    // 用户头像，存储的是 File UUID。
+    var userAvatar by stringPref(default = "")
+
     // 用户人格描述，对应 {{persona}} 或 persona description。
     var userDescription by stringPref(default = "")
 

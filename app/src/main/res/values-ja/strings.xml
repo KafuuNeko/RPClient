@@ -105,6 +105,8 @@
     <string name="json_scalar_value">スカラー値</string>
     <string name="user_identity">ユーザーの識別情報</string>
     <string name="user_display_name">表示名</string>
+    <string name="choose_user_avatar">ユーザーのアバターを選択</string>
+    <string name="clear_user_avatar">アバターをクリア</string>
     <string name="user_persona_description">ペルソナの説明</string>
 
     <!-- Character Layout -->
@@ -400,6 +402,7 @@
     <string name="character_saved">キャラクターを保存しました</string>
     <string name="character_deleted">キャラクターを削除しました</string>
     <string name="character_avatar_save_failed">キャラクターアバターの保存に失敗しました</string>
+    <string name="user_avatar_save_failed">ユーザーアバターの保存に失敗しました</string>
 
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">送信およびストリーミング生成ロジックは近日公開予定です</string>

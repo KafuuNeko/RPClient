@@ -1,9 +1,11 @@
 package me.kafuuneko.rpclient.feature.main.ui
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -44,6 +46,7 @@ import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -70,9 +73,12 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -98,6 +104,7 @@ import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
 import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
 import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
@@ -810,7 +817,10 @@ private fun UserIdentityPanel(
         ) {
             RpSectionHeader(title = stringResource(R.string.user_identity))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RpIconBubble(Icons.Rounded.Person)
+                UserAvatarPicker(
+                    state = state,
+                    emit = emit
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(
                     modifier = Modifier.weight(1f),
@@ -831,7 +841,68 @@ private fun UserIdentityPanel(
                         maxLines = 6,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (state.userAvatar.isNotBlank()) {
+                        TextButton(
+                            onClick = { MainUiIntent.ClearUserAvatar.emit() }
+                        ) {
+                            Text(stringResource(R.string.clear_user_avatar))
+                        }
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserAvatarPicker(
+    state: MainSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    val avatarText = state.userName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val avatarColor = remember(state.userName) {
+        getMacaronColor(state.userName.ifBlank { "user" })
+    }
+    val bitmap = remember(state.userAvatarFilePath) {
+        state.userAvatarFilePath?.let { BitmapFactory.decodeFile(it) }
+    }
+
+    Surface(
+        modifier = Modifier
+            .size(72.dp)
+            .clickable { MainUiIntent.PickUserAvatarClick.emit() },
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (bitmap == null) {
+                RpAvatar(
+                    text = avatarText,
+                    color = avatarColor,
+                    modifier = Modifier.size(72.dp),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            } else {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            Surface(
+                modifier = Modifier.align(Alignment.BottomEnd),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    Icons.Rounded.ImageIcon,
+                    contentDescription = stringResource(R.string.choose_user_avatar),
+                    modifier = Modifier.padding(4.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     }
@@ -1410,6 +1481,8 @@ private fun MainLayoutPreview() {
                 ),
                 settingsState = MainSettingsState(
                     userName = "You",
+                    userAvatar = "",
+                    userAvatarFilePath = null,
                     userDescription = "",
                     selectedProviderId = "",
                     providers = emptyList(),

@@ -49,6 +49,8 @@ data class MainHomeState(
 /** 全局设置页的可渲染快照，由 ViewModel 从 Kotpref 与 Provider 数据共同构建。 */
 data class MainSettingsState(
     val userName: String,
+    val userAvatar: String,
+    val userAvatarFilePath: String?,
     val userDescription: String,
     val selectedProviderId: String,
     val providers: List<LLMProvider>,

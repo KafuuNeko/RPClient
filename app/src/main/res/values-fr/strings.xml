@@ -104,6 +104,8 @@
     <string name="json_scalar_value">valeur scalaire</string>
     <string name="user_identity">Identité de l\'utilisateur</string>
     <string name="user_display_name">Nom d\'affichage</string>
+    <string name="choose_user_avatar">Choisir l\'avatar utilisateur</string>
+    <string name="clear_user_avatar">Effacer l\'avatar</string>
     <string name="user_persona_description">Description du persona</string>
 
     <!-- Character Layout -->
@@ -399,6 +401,7 @@
     <string name="character_saved">Personnage enregistré</string>
     <string name="character_deleted">Personnage supprimé</string>
     <string name="character_avatar_save_failed">Échec de l\'enregistrement de l\'avatar du personnage</string>
+    <string name="user_avatar_save_failed">Échec de l\'enregistrement de l\'avatar utilisateur</string>
 
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">La logique d\'envoi et de génération en streaming arrive bientôt</string>

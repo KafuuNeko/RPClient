@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
+import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
@@ -37,6 +38,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
@@ -58,6 +60,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mChatRepository by inject<ChatRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
+    private val mFileRepository by inject<FileRepository>()
     private val mContext by inject<Context>()
 
     @UiIntentObserver(MainUiIntent.Init::class)
@@ -84,6 +87,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
                 providers = providers,
                 userName = AppModel.userName,
+                userAvatar = AppModel.userAvatar,
+                userAvatarFilePath = resolveUserAvatarPath(),
                 userDescription = AppModel.userDescription,
                 temperature = selectedProvider?.temperature ?: 0f,
                 topP = selectedProvider?.topP ?: 0f,
@@ -246,6 +251,60 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenProviderManager::class)
     private fun onOpenProviderManager() {
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
+    private fun onPickUserAvatarClick() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        MainViewEvent.OpenUserAvatarPicker.tryEmit()
+    }
+
+    @UiIntentObserver(MainUiIntent.UserAvatarSelected::class)
+    private suspend fun onUserAvatarSelected(intent: MainUiIntent.UserAvatarSelected) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val oldAvatar = AppModel.userAvatar
+        val avatarUuid = runCatching {
+            withContext(Dispatchers.IO) {
+                mFileRepository.saveFile(intent.uri)
+            }
+        }.getOrElse {
+            AppViewEvent.PopupToastMessageByResId(R.string.user_avatar_save_failed).tryEmit()
+            return
+        }
+        AppModel.userAvatar = avatarUuid
+        if (oldAvatar.isNotBlank() && oldAvatar != avatarUuid) {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    mFileRepository.deleteFile(oldAvatar)
+                }
+            }
+        }
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                userAvatar = avatarUuid,
+                userAvatarFilePath = resolveUserAvatarPath()
+            )
+        ).setup()
+    }
+
+    @UiIntentObserver(MainUiIntent.ClearUserAvatar::class)
+    private suspend fun onClearUserAvatar() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        val oldAvatar = AppModel.userAvatar
+        AppModel.userAvatar = ""
+        if (oldAvatar.isNotBlank()) {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    mFileRepository.deleteFile(oldAvatar)
+                }
+            }
+        }
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                userAvatar = "",
+                userAvatarFilePath = null
+            )
+        ).setup()
     }
 
     @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
@@ -458,12 +517,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
-    private fun buildSettingsState(
+    private suspend fun buildSettingsState(
         providers: List<LLMProvider>,
         selectedProvider: LLMProvider?
     ): MainSettingsState {
         return MainSettingsState(
             userName = AppModel.userName,
+            userAvatar = AppModel.userAvatar,
+            userAvatarFilePath = resolveUserAvatarPath(),
             userDescription = AppModel.userDescription,
             selectedProviderId = selectedProvider?.id?.toString().orEmpty(),
             providers = providers,
@@ -497,6 +558,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
         return SummaryInjectionRole.fromPersistedValue(AppModel.summaryInjectionRole)
+    }
+
+    private suspend fun resolveUserAvatarPath(): String? {
+        return AppModel.userAvatar
+            .takeIf { it.isNotBlank() }
+            ?.let { withContext(Dispatchers.IO) { mFileRepository.getFile(it)?.absolutePath } }
     }
 
     private fun updateSummaryInt(

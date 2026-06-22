@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
+import android.net.Uri
 import me.kafuuneko.rpclient.feature.main.model.MainSessionSelection
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.SummaryInjectionPosition
@@ -28,6 +29,12 @@ sealed class MainUiIntent {
     data object OpenWorldBookManager : MainUiIntent()
 
     data object OpenProviderManager : MainUiIntent()
+
+    data object PickUserAvatarClick : MainUiIntent()
+
+    data class UserAvatarSelected(val uri: Uri) : MainUiIntent()
+
+    data object ClearUserAvatar : MainUiIntent()
 
     data class ChangeUserName(val value: String) : MainUiIntent()
 

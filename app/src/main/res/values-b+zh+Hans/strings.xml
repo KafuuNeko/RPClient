@@ -103,6 +103,8 @@
     <string name="json_scalar_value">基础值</string>
     <string name="user_identity">用户身份</string>
     <string name="user_display_name">显示名称</string>
+    <string name="choose_user_avatar">选择用户头像</string>
+    <string name="clear_user_avatar">清除头像</string>
     <string name="user_persona_description">人设描述</string>
 
     <!-- Character Layout -->
@@ -398,6 +400,7 @@
     <string name="character_saved">角色已保存</string>
     <string name="character_deleted">角色已删除</string>
     <string name="character_avatar_save_failed">保存角色头像失败</string>
+    <string name="user_avatar_save_failed">保存用户头像失败</string>
 
     <!-- Chat ViewModel -->
     <string name="send_and_stream_coming_soon">发送与流式生成逻辑即将推出</string>
