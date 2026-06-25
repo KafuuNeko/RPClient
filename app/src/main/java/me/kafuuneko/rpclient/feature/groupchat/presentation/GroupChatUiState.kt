@@ -42,6 +42,7 @@ sealed class GroupChatUiState {
         val members: List<GroupChatMemberItem>,
         val availableCharacters: List<GroupChatAvailableCharacterItem> = emptyList(),
         val lorebookGroups: List<GroupChatLorebookGroupItem> = emptyList(),
+        val lorebookQuery: String = "",
         val messages: List<GroupChatMessageItem>,
         val selectedSpeakerId: Long?,
         val inputDraft: String = "",
@@ -53,7 +54,14 @@ sealed class GroupChatUiState {
         val dialogState: GroupChatDialogState = GroupChatDialogState.None
     ) : GroupChatUiState()
 
-    data object Finished : GroupChatUiState()
+    data class Finished(val previous: GroupChatUiState) : GroupChatUiState()
+
+    companion object {
+        fun finished(previous: GroupChatUiState): GroupChatUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 群聊数据库操作和摘要操作的页面级加载状态。 */

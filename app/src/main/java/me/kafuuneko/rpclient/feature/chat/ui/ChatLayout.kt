@@ -121,13 +121,15 @@ fun ChatLayout(
     uiState: ChatUiState,
     emit: ChatUiIntent.() -> Unit
 ) {
-    BackHandler { ChatUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is ChatUiState.Normal) { ChatUiIntent.Back.emit() }
     when (uiState) {
-        ChatUiState.None, ChatUiState.Finished -> {
+        ChatUiState.None -> {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background))
         }
+
+        is ChatUiState.Finished -> ChatLayout(uiState.previous) {}
 
         is ChatUiState.Normal -> {
             when (uiState.page) {
@@ -195,6 +197,7 @@ private fun ChatNormal(
             SessionLorePanel(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 groups = state.lorebookGroups,
+                query = state.lorebookQuery,
                 emit = emit
             )
         }
@@ -407,9 +410,9 @@ private fun ConversationStartHeader(
 private fun SessionLorePanel(
     modifier: Modifier = Modifier,
     groups: List<ChatLorebookGroupItem>,
+    query: String,
     emit: ChatUiIntent.() -> Unit
 ) {
-    var query by remember { mutableStateOf("") }
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
     val filteredGroups = groups.filterForQuery(query)
     val isSearching = query.isNotBlank()
@@ -440,7 +443,7 @@ private fun SessionLorePanel(
             if (groups.isNotEmpty()) {
                 LorebookSearchField(
                     query = query,
-                    onQueryChange = { query = it }
+                    onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() }
                 )
             }
             if (groups.isEmpty()) {
@@ -1208,7 +1211,11 @@ private fun ChatSettingsPage(
                         title = stringResource(R.string.world_book_manager),
                         subtitle = stringResource(R.string.world_book_subtitle)
                     ) { ChatUiIntent.OpenWorldBookManager.emit() }
-                    SessionLoreSettings(groups = state.lorebookGroups, emit = emit)
+                    SessionLoreSettings(
+                        groups = state.lorebookGroups,
+                        query = state.lorebookQuery,
+                        emit = emit
+                    )
                 }
             }
         }
@@ -1239,9 +1246,9 @@ private fun SummaryPauseRow(
 @Composable
 private fun SessionLoreSettings(
     groups: List<ChatLorebookGroupItem>,
+    query: String,
     emit: ChatUiIntent.() -> Unit
 ) {
-    var query by remember { mutableStateOf("") }
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
     val filteredGroups = groups.filterForQuery(query)
     val isSearching = query.isNotBlank()
@@ -1256,7 +1263,7 @@ private fun SessionLoreSettings(
 
     LorebookSearchField(
         query = query,
-        onQueryChange = { query = it }
+        onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() }
     )
     if (filteredGroups.isEmpty()) {
         Text(

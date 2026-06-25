@@ -64,9 +64,10 @@ fun LLMProviderEditLayout(
     uiState: LLMProviderEditUiState,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
-    BackHandler { LLMProviderEditUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is LLMProviderEditUiState.Normal) { LLMProviderEditUiIntent.Back.emit() }
     when (uiState) {
-        LLMProviderEditUiState.None, LLMProviderEditUiState.Finished -> Unit
+        LLMProviderEditUiState.None -> Unit
+        is LLMProviderEditUiState.Finished -> LLMProviderEditLayout(uiState.previous) {}
         is LLMProviderEditUiState.Normal -> {
             LLMProviderEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)

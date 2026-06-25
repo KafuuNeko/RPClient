@@ -60,7 +60,7 @@ class LLMProviderEditViewModel :
             ).setup()
             return
         }
-        LLMProviderEditUiState.Finished.setup()
+        LLMProviderEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeName::class)
@@ -141,7 +141,7 @@ class LLMProviderEditViewModel :
         AppViewEvent.PopupToastMessageByResId(
             if (uiState.mode == LLMProviderEditMode.Create) R.string.model_created else R.string.model_saved
         ).tryEmit()
-        LLMProviderEditUiState.Finished.setup()
+        LLMProviderEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.TestClick::class)
@@ -201,7 +201,7 @@ class LLMProviderEditViewModel :
     @UiIntentObserver(LLMProviderEditUiIntent.ConfirmDiscardChanges::class)
     private fun onConfirmDiscardChanges() {
         cancelTest()
-        LLMProviderEditUiState.Finished.setup()
+        LLMProviderEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(LLMProviderEditUiIntent.DismissDialog::class)

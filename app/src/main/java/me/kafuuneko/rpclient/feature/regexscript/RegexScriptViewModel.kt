@@ -58,7 +58,7 @@ class RegexScriptViewModel :
 
     @UiIntentObserver(RegexScriptUiIntent.Back::class)
     private fun onBack() {
-        RegexScriptUiState.Finished.setup()
+        RegexScriptUiState.finished(uiStateFlow.value).setup()
     }
 
     /** 切换作用域，并在进入角色作用域时自动选择首个角色。 */

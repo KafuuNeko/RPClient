@@ -14,7 +14,14 @@ sealed class CharacterListUiState {
         val avatarFilePaths: Map<String, String> = emptyMap()
     ) : CharacterListUiState()
 
-    data object Finished : CharacterListUiState()
+    data class Finished(val previous: CharacterListUiState) : CharacterListUiState()
+
+    companion object {
+        fun finished(previous: CharacterListUiState): CharacterListUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 角色列表读取或导入期间的阻塞状态。 */

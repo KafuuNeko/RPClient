@@ -17,6 +17,7 @@ sealed class GroupChatCreateUiState {
         val characters: List<GroupChatCreateCharacterItem> = emptyList(),
         val visibleCharacters: List<GroupChatCreateCharacterItem> = emptyList(),
         val lorebookGroups: List<GroupChatLorebookGroupItem> = emptyList(),
+        val lorebookQuery: String = "",
         val selectedLorebookEntryIds: Set<Long> = emptySet(),
         val activationStrategy: GroupChatSession.ActivationStrategy =
             GroupChatSession.ActivationStrategy.Natural,
@@ -32,7 +33,14 @@ sealed class GroupChatCreateUiState {
             get() = selectedCount >= 2 && greetingState.canCreate
     }
 
-    data object Finished : GroupChatCreateUiState()
+    data class Finished(val previous: GroupChatCreateUiState) : GroupChatCreateUiState()
+
+    companion object {
+        fun finished(previous: GroupChatCreateUiState): GroupChatCreateUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 新建群聊页面的数据加载与创建状态。 */

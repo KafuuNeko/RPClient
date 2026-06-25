@@ -53,9 +53,12 @@ fun JsonViewerLayout(
     uiState: JsonViewerUiState,
     emit: JsonViewerUiIntent.() -> Unit = {}
 ) {
-    BackHandler { JsonViewerUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is JsonViewerUiState.Normal || uiState is JsonViewerUiState.Error) {
+        JsonViewerUiIntent.Back.emit()
+    }
     when (uiState) {
-        JsonViewerUiState.None, JsonViewerUiState.Finished -> Unit
+        JsonViewerUiState.None -> Unit
+        is JsonViewerUiState.Finished -> JsonViewerLayout(uiState.previous) {}
         is JsonViewerUiState.Normal -> NormalView(uiState = uiState, emit = emit)
         is JsonViewerUiState.Error -> ErrorView(uiState = uiState, emit = emit)
     }

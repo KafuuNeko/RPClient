@@ -67,9 +67,10 @@ fun CharacterListLayout(
     uiState: CharacterListUiState,
     emit: CharacterListUiIntent.() -> Unit
 ) {
-    BackHandler { CharacterListUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is CharacterListUiState.Normal) { CharacterListUiIntent.Back.emit() }
     when (uiState) {
-        CharacterListUiState.None, CharacterListUiState.Finished -> Unit
+        CharacterListUiState.None -> Unit
+        is CharacterListUiState.Finished -> CharacterListLayout(uiState.previous) {}
         is CharacterListUiState.Normal -> CharacterListNormal(uiState, emit)
     }
 }

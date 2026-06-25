@@ -64,9 +64,10 @@ fun WorldBookEditLayout(
     uiState: WorldBookEditUiState,
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
-    BackHandler { WorldBookEditUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is WorldBookEditUiState.Normal) { WorldBookEditUiIntent.Back.emit() }
     when (uiState) {
-        WorldBookEditUiState.None, WorldBookEditUiState.Finished -> Unit
+        WorldBookEditUiState.None -> Unit
+        is WorldBookEditUiState.Finished -> WorldBookEditLayout(uiState.previous) {}
         is WorldBookEditUiState.Normal -> {
             WorldBookEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)

@@ -139,7 +139,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         if (refreshed == null) {
             mGenerationJob?.cancel()
-            ChatUiState.Finished.setup()
+            ChatUiState.finished(uiStateFlow.value).setup()
             return
         }
         refreshed.setup()
@@ -153,13 +153,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         mGenerationJob?.cancel()
-        ChatUiState.Finished.setup()
+        ChatUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.ChangeInputDraft::class)
     private suspend fun onChangeInputDraft(intent: ChatUiIntent.ChangeInputDraft) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(inputDraft = intent.value).setup()
+    }
+
+    @UiIntentObserver(ChatUiIntent.ChangeLorebookQuery::class)
+    private fun onChangeLorebookQuery(intent: ChatUiIntent.ChangeLorebookQuery) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(lorebookQuery = intent.value).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.SendMessage::class)
@@ -447,7 +453,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mChatRepository.deleteSession(sessionId)
         }
         AppViewEvent.PopupToastMessageByResId(R.string.chat_deleted).tryEmit()
-        ChatUiState.Finished.setup()
+        ChatUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(ChatUiIntent.DeleteMessageClick::class)
@@ -1140,6 +1146,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         inputDraft: String = "",
         page: ChatPage = ChatPage.Conversation,
         isExpanded: Boolean = false,
+        lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
@@ -1206,6 +1213,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 enabledIds = enabledIds,
                 unknownLorebookName = mContext.getString(R.string.unknown_lorebook)
             ),
+            lorebookQuery = lorebookQuery,
             isSessionLoreExpanded = isExpanded,
             inputDraft = inputDraft,
             generationState = generationState,
@@ -1223,6 +1231,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         inputDraft: String = getOrNull<ChatUiState.Normal>()?.inputDraft.orEmpty(),
         page: ChatPage = getOrNull<ChatUiState.Normal>()?.page ?: ChatPage.Conversation,
         isExpanded: Boolean = getOrNull<ChatUiState.Normal>()?.isSessionLoreExpanded ?: false,
+        lorebookQuery: String = getOrNull<ChatUiState.Normal>()?.lorebookQuery.orEmpty(),
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()?.generationState ?: ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = getOrNull<ChatUiState.Normal>()?.expandedThinkBlockIds ?: emptySet(),
@@ -1236,6 +1245,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 inputDraft = inputDraft,
                 page = page,
                 isExpanded = isExpanded,
+                lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
@@ -1264,7 +1274,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     private fun finishWithToast(messageResId: Int) {
         AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
-        ChatUiState.Finished.setup()
+        ChatUiState.finished(uiStateFlow.value).setup()
     }
 
     private data class BuiltGenerationRequest(

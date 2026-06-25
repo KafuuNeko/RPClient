@@ -61,7 +61,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
             buildNormalState().setup()
             return
         }
-        JsonViewerUiState.Finished.setup()
+        JsonViewerUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(JsonViewerUiIntent.EntrySelected::class)

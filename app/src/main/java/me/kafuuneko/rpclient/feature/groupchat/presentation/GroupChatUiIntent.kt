@@ -34,6 +34,7 @@ sealed class GroupChatUiIntent {
     data class ToggleAutoMode(val enabled: Boolean) : GroupChatUiIntent()
     data class ToggleTrimOtherSpeakers(val enabled: Boolean) : GroupChatUiIntent()
     data class ToggleAllowSelfResponses(val enabled: Boolean) : GroupChatUiIntent()
+    data class ChangeLorebookQuery(val value: String) : GroupChatUiIntent()
     data class ToggleLorebook(val lorebookId: Long) : GroupChatUiIntent()
     data class ToggleLorebookEntry(val entryId: Long) : GroupChatUiIntent()
     data class AddMember(val characterId: Long) : GroupChatUiIntent()

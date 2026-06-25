@@ -11,7 +11,14 @@ sealed class LLMProviderListUiState {
         val loadState: LLMProviderListLoadState = LLMProviderListLoadState.None
     ) : LLMProviderListUiState()
 
-    data object Finished : LLMProviderListUiState()
+    data class Finished(val previous: LLMProviderListUiState) : LLMProviderListUiState()
+
+    companion object {
+        fun finished(previous: LLMProviderListUiState): LLMProviderListUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 供应商配置加载或启停更新状态。 */

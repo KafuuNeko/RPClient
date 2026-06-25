@@ -44,10 +44,11 @@ import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 @Composable
 fun GroupChatLorebookSelector(
     groups: List<GroupChatLorebookGroupItem>,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onToggleLorebook: (Long) -> Unit,
     onToggleEntry: (Long) -> Unit
 ) {
-    var query by remember { mutableStateOf("") }
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
     val filteredGroups = groups.filterForQuery(query)
     val isSearching = query.isNotBlank()
@@ -56,7 +57,7 @@ fun GroupChatLorebookSelector(
         if (groups.isNotEmpty()) {
             LorebookSearchField(
                 query = query,
-                onQueryChange = { query = it }
+                onQueryChange = onQueryChange
             )
         }
         when {

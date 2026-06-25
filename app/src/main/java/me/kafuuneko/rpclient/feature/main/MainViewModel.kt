@@ -127,7 +127,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             uiState.copy(selectedPage = MainPage.Home).setup()
             return
         }
-        MainUiState.Finished.setup()
+        MainUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(MainUiIntent.EnterMultiSelect::class)

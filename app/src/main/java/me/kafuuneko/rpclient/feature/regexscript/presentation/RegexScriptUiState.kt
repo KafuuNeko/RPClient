@@ -31,7 +31,14 @@ sealed class RegexScriptUiState {
     ) : RegexScriptUiState()
 
     /** 页面业务已结束，Activity 收到后关闭。 */
-    data object Finished : RegexScriptUiState()
+    data class Finished(val previous: RegexScriptUiState) : RegexScriptUiState()
+
+    companion object {
+        fun finished(previous: RegexScriptUiState): RegexScriptUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 角色作用域选择器所需的最小角色信息。 */

@@ -23,7 +23,14 @@ sealed class CharacterEditUiState {
         val availableLorebooks: List<Lorebook> = emptyList()
     ) : CharacterEditUiState()
 
-    data object Finished : CharacterEditUiState()
+    data class Finished(val previous: CharacterEditUiState) : CharacterEditUiState()
+
+    companion object {
+        fun finished(previous: CharacterEditUiState): CharacterEditUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 角色页面当前是新增还是编辑已有角色。 */

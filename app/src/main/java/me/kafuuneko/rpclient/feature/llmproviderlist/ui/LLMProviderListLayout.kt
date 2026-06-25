@@ -57,9 +57,10 @@ fun LLMProviderListLayout(
     uiState: LLMProviderListUiState,
     emit: LLMProviderListUiIntent.() -> Unit
 ) {
-    BackHandler { LLMProviderListUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is LLMProviderListUiState.Normal) { LLMProviderListUiIntent.Back.emit() }
     when (uiState) {
-        LLMProviderListUiState.None, LLMProviderListUiState.Finished -> Unit
+        LLMProviderListUiState.None -> Unit
+        is LLMProviderListUiState.Finished -> LLMProviderListLayout(uiState.previous) {}
         is LLMProviderListUiState.Normal -> LLMProviderListNormal(uiState, emit)
     }
 }

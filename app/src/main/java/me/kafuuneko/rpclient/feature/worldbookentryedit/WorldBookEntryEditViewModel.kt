@@ -54,7 +54,7 @@ class WorldBookEntryEditViewModel :
             uiState.copy(dialogState = WorldBookEntryEditDialogState.UnsavedChangesConfirm).setup()
             return
         }
-        WorldBookEntryEditUiState.Finished.setup()
+        WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ChangeName::class)
@@ -225,14 +225,14 @@ class WorldBookEntryEditViewModel :
         AppViewEvent.PopupToastMessageByResId(
             if (uiState.mode == WorldBookEntryEditMode.Create) R.string.world_book_entry_created else R.string.world_book_entry_saved
         ).tryEmit()
-        WorldBookEntryEditUiState.Finished.setup()
+        WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.DeleteEntryClick::class)
     private fun onDeleteEntryClick() {
         val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
         if (uiState.form.isNew) {
-            WorldBookEntryEditUiState.Finished.setup()
+            WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
             return
         }
         uiState.copy(
@@ -254,12 +254,12 @@ class WorldBookEntryEditViewModel :
             mLorebookRepository.deleteEntry(uiState.form.id)
         }
         AppViewEvent.PopupToastMessageByResId(R.string.world_book_entry_deleted).tryEmit()
-        WorldBookEntryEditUiState.Finished.setup()
+        WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.ConfirmDiscardChanges::class)
     private fun onConfirmDiscardChanges() {
-        WorldBookEntryEditUiState.Finished.setup()
+        WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(WorldBookEntryEditUiIntent.DismissDialog::class)

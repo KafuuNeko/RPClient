@@ -9,6 +9,7 @@ sealed class GroupChatCreateUiIntent {
     data object Back : GroupChatCreateUiIntent()
     data class ChangeTitle(val value: String) : GroupChatCreateUiIntent()
     data class ChangeSearchQuery(val value: String) : GroupChatCreateUiIntent()
+    data class ChangeLorebookQuery(val value: String) : GroupChatCreateUiIntent()
     data class ToggleCharacter(val characterId: Long) : GroupChatCreateUiIntent()
     data class SelectStrategy(
         val strategy: GroupChatSession.ActivationStrategy

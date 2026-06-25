@@ -43,7 +43,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
 
     @UiIntentObserver(CharacterListUiIntent.Back::class)
     private fun onBack() {
-        CharacterListUiState.Finished.setup()
+        CharacterListUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(CharacterListUiIntent.ChangeSearchText::class)

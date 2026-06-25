@@ -113,8 +113,8 @@ fun GroupChatLayout(
         emitIntent(GroupChatUiIntent.Back)
     }
     when (uiState) {
-        GroupChatUiState.None,
-        GroupChatUiState.Finished -> Unit
+        GroupChatUiState.None -> Unit
+        is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous) {}
         is GroupChatUiState.Normal -> {
             GroupChatNormalView(uiState, emitIntent)
             DialogSwitch(uiState.dialogState, emitIntent)
@@ -480,6 +480,10 @@ private fun GroupChatSettingsView(
                     )
                     GroupChatLorebookSelector(
                         groups = state.lorebookGroups,
+                        query = state.lorebookQuery,
+                        onQueryChange = {
+                            emitIntent(GroupChatUiIntent.ChangeLorebookQuery(it))
+                        },
                         onToggleLorebook = {
                             emitIntent(GroupChatUiIntent.ToggleLorebook(it))
                         },

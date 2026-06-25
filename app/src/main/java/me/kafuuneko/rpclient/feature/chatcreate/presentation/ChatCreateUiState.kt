@@ -14,10 +14,18 @@ sealed class ChatCreateUiState {
         val form: ChatCreateForm = ChatCreateForm(),
         val characters: List<Character> = emptyList(),
         val selectedCharacterFirstMessages: List<String> = emptyList(),
+        val lorebookQuery: String = "",
         val lorebookGroups: List<ChatCreateLorebookGroupItem> = emptyList()
     ) : ChatCreateUiState()
 
-    data object Finished : ChatCreateUiState()
+    data class Finished(val previous: ChatCreateUiState) : ChatCreateUiState()
+
+    companion object {
+        fun finished(previous: ChatCreateUiState): ChatCreateUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 新建单聊页面的数据加载与创建状态。 */

@@ -65,9 +65,10 @@ fun RequestLogLayout(
     uiState: RequestLogUiState,
     emit: RequestLogUiIntent.() -> Unit = {}
 ) {
-    BackHandler { RequestLogUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is RequestLogUiState.Normal) { RequestLogUiIntent.Back.emit() }
     when (uiState) {
-        RequestLogUiState.None, RequestLogUiState.Finished -> Unit
+        RequestLogUiState.None -> Unit
+        is RequestLogUiState.Finished -> RequestLogLayout(uiState.previous) {}
         is RequestLogUiState.Normal -> {
             NormalView(uiState.logs, emit)
             DialogSwitch(uiState.dialogState, emit)

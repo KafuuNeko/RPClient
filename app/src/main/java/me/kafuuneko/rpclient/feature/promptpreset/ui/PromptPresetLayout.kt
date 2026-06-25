@@ -40,10 +40,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +47,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -72,9 +67,10 @@ fun PromptPresetLayout(
     uiState: PromptPresetUiState,
     emit: PromptPresetUiIntent.() -> Unit = {}
 ) {
-    BackHandler { PromptPresetUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is PromptPresetUiState.Normal) { PromptPresetUiIntent.Back.emit() }
     when (uiState) {
-        PromptPresetUiState.None, PromptPresetUiState.Finished -> Unit
+        PromptPresetUiState.None -> Unit
+        is PromptPresetUiState.Finished -> PromptPresetLayout(uiState.previous) {}
         is PromptPresetUiState.Normal -> {
             NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -343,7 +339,8 @@ private fun DialogSwitch(
         is PromptPresetDialogState.EditPrompt -> EditPromptDialog(
             dialogState = dialogState,
             onDismiss = { PromptPresetUiIntent.DismissPromptDialog.emit() },
-            onSave = { text -> PromptPresetUiIntent.SavePrompt(text).emit() }
+            onChange = { PromptPresetUiIntent.ChangePromptDraft(it).emit() },
+            onSave = { PromptPresetUiIntent.SavePrompt.emit() }
         )
     }
 }
@@ -352,12 +349,9 @@ private fun DialogSwitch(
 private fun EditPromptDialog(
     dialogState: PromptPresetDialogState.EditPrompt,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit
+    onChange: (String) -> Unit,
+    onSave: () -> Unit
 ) {
-    var textFieldValue by remember(dialogState.type, dialogState.currentText) {
-        mutableStateOf(TextFieldValue(dialogState.currentText))
-    }
-
     val titleRes = dialogState.type.titleRes()
     val descRes = dialogState.type.descriptionRes()
 
@@ -438,7 +432,7 @@ private fun EditPromptDialog(
                             )
                             .padding(14.dp)
                     ) {
-                        if (textFieldValue.text.isEmpty()) {
+                        if (dialogState.draftText.isEmpty()) {
                             Text(
                                 text = stringResource(R.string.prompt_editor_placeholder),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -446,8 +440,8 @@ private fun EditPromptDialog(
                             )
                         }
                         BasicTextField(
-                            value = textFieldValue,
-                            onValueChange = { textFieldValue = it },
+                            value = dialogState.draftText,
+                            onValueChange = onChange,
                             modifier = Modifier.fillMaxSize(),
                             textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurface
@@ -472,7 +466,7 @@ private fun EditPromptDialog(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = { onSave(textFieldValue.text) },
+                        onClick = onSave,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.height(40.dp)
                     ) {

@@ -10,7 +10,9 @@ sealed class PromptPresetUiIntent {
 
     data class EditPromptClick(val type: PromptType) : PromptPresetUiIntent()
 
-    data class SavePrompt(val text: String) : PromptPresetUiIntent()
+    data class ChangePromptDraft(val value: String) : PromptPresetUiIntent()
+
+    data object SavePrompt : PromptPresetUiIntent()
 
     data object DismissPromptDialog : PromptPresetUiIntent()
 }

@@ -40,7 +40,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
 
     @UiIntentObserver(WorldBookListUiIntent.Back::class)
     private fun onBack() {
-        WorldBookListUiState.Finished.setup()
+        WorldBookListUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(WorldBookListUiIntent.CreateWorldBook::class)

@@ -83,9 +83,10 @@ fun CharacterEditLayout(
     uiState: CharacterEditUiState,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
-    BackHandler { CharacterEditUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is CharacterEditUiState.Normal) { CharacterEditUiIntent.Back.emit() }
     when (uiState) {
-        CharacterEditUiState.None, CharacterEditUiState.Finished -> Unit
+        CharacterEditUiState.None -> Unit
+        is CharacterEditUiState.Finished -> CharacterEditLayout(uiState.previous) {}
         is CharacterEditUiState.Normal -> {
             CharacterEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)

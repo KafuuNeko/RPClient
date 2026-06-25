@@ -14,7 +14,14 @@ sealed class WorldBookEntryEditUiState {
         val dialogState: WorldBookEntryEditDialogState = WorldBookEntryEditDialogState.None
     ) : WorldBookEntryEditUiState()
 
-    data object Finished : WorldBookEntryEditUiState()
+    data class Finished(val previous: WorldBookEntryEditUiState) : WorldBookEntryEditUiState()
+
+    companion object {
+        fun finished(previous: WorldBookEntryEditUiState): WorldBookEntryEditUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 世界书条目编辑页的创建或编辑模式。 */

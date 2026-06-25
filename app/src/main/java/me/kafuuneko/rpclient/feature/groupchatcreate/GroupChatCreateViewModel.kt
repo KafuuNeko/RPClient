@@ -91,7 +91,7 @@ class GroupChatCreateViewModel :
 
     @UiIntentObserver(GroupChatCreateUiIntent.Back::class)
     private fun onBack() {
-        GroupChatCreateUiState.Finished.setup()
+        GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeTitle::class)
@@ -112,6 +112,12 @@ class GroupChatCreateViewModel :
                     it.description.contains(query, ignoreCase = true)
             }
         ).setup()
+    }
+
+    @UiIntentObserver(GroupChatCreateUiIntent.ChangeLorebookQuery::class)
+    private fun onChangeLorebookQuery(intent: GroupChatCreateUiIntent.ChangeLorebookQuery) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        uiState.copy(lorebookQuery = intent.value).setup()
     }
 
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacter::class)
@@ -286,7 +292,7 @@ class GroupChatCreateViewModel :
                 putString(GroupChatActivity.EXTRA_SESSION_ID, sessionId.toString())
             }
         ).emitAndAwait()
-        GroupChatCreateUiState.Finished.setup()
+        GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
     private fun List<GroupChatCreateCharacterItem>.visibleFor(

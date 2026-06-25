@@ -80,7 +80,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
 
     @UiIntentObserver(ChatCreateUiIntent.Back::class)
     private fun onBack() {
-        ChatCreateUiState.Finished.setup()
+        ChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(ChatCreateUiIntent.SelectCharacter::class)
@@ -118,6 +118,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     @UiIntentObserver(ChatCreateUiIntent.ChangeUserNote::class)
     private fun onChangeUserNote(intent: ChatCreateUiIntent.ChangeUserNote) {
         updateForm { copy(userNote = intent.value) }
+    }
+
+    @UiIntentObserver(ChatCreateUiIntent.ChangeLorebookQuery::class)
+    private fun onChangeLorebookQuery(intent: ChatCreateUiIntent.ChangeLorebookQuery) {
+        val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
+        uiState.copy(lorebookQuery = intent.value).setup()
     }
 
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookEntry::class)
@@ -208,7 +214,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
             }
         ).emitAndAwait()
-        ChatCreateUiState.Finished.setup()
+        ChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
     private fun updateForm(block: ChatCreateForm.() -> ChatCreateForm) {

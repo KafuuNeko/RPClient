@@ -118,9 +118,10 @@ fun MainLayout(
     uiState: MainUiState,
     emit: MainUiIntent.() -> Unit
 ) {
-    BackHandler { MainUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is MainUiState.Normal) { MainUiIntent.Back.emit() }
     when (uiState) {
-        MainUiState.None, MainUiState.Finished -> Unit
+        MainUiState.None -> Unit
+        is MainUiState.Finished -> MainLayout(uiState.previous) {}
         is MainUiState.Normal -> MainNormal(uiState, emit)
     }
 }

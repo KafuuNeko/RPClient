@@ -134,7 +134,7 @@ class GroupChatViewModel :
         }
         mGenerationJob?.cancel()
         persistOrDeleteStreamingMessage()
-        GroupChatUiState.Finished.setup()
+        GroupChatUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(GroupChatUiIntent.OpenSettings::class)
@@ -396,6 +396,11 @@ class GroupChatViewModel :
         intent: GroupChatUiIntent.ToggleAllowSelfResponses
     ) {
         updateSettingsState { copy(allowSelfResponses = intent.enabled) }
+    }
+
+    @UiIntentObserver(GroupChatUiIntent.ChangeLorebookQuery::class)
+    private fun onChangeLorebookQuery(intent: GroupChatUiIntent.ChangeLorebookQuery) {
+        updateSettingsState { copy(lorebookQuery = intent.value) }
     }
 
     @UiIntentObserver(GroupChatUiIntent.SaveSettings::class)
@@ -711,7 +716,7 @@ class GroupChatViewModel :
         withContext(Dispatchers.IO) {
             mGroupChatRepository.deleteSession(uiState.sessionId)
         }
-        GroupChatUiState.Finished.setup()
+        GroupChatUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(GroupChatUiIntent.DismissDialog::class)
@@ -1057,6 +1062,8 @@ class GroupChatViewModel :
             getOrNull<GroupChatUiState.Normal>()?.inputDraft.orEmpty(),
         selectedSpeakerId: Long? =
             getOrNull<GroupChatUiState.Normal>()?.selectedSpeakerId,
+        lorebookQuery: String =
+            getOrNull<GroupChatUiState.Normal>()?.lorebookQuery.orEmpty(),
         generationState: GroupChatGenerationState =
             getOrNull<GroupChatUiState.Normal>()?.generationState ?: GroupChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> =
@@ -1075,6 +1082,7 @@ class GroupChatViewModel :
                 page = page,
                 inputDraft = inputDraft,
                 selectedSpeakerId = selectedSpeakerId,
+                lorebookQuery = lorebookQuery,
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
@@ -1091,6 +1099,7 @@ class GroupChatViewModel :
         page: GroupChatPage = GroupChatPage.Conversation,
         inputDraft: String = "",
         selectedSpeakerId: Long? = null,
+        lorebookQuery: String = "",
         generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: Long? = null,
@@ -1169,6 +1178,7 @@ class GroupChatViewModel :
             members = members,
             availableCharacters = availableCharacters,
             lorebookGroups = lorebookGroups,
+            lorebookQuery = lorebookQuery,
             messages = data.toMessageItems(),
             selectedSpeakerId = effectiveSpeakerId,
             inputDraft = inputDraft,
@@ -1303,7 +1313,7 @@ class GroupChatViewModel :
 
     private fun finishWithToast(messageResId: Int) {
         AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
-        GroupChatUiState.Finished.setup()
+        GroupChatUiState.finished(uiStateFlow.value).setup()
     }
 
     /** 仅允许在设置页更新表单草稿，保持页面状态边界明确。 */

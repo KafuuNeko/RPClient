@@ -36,7 +36,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
 
     @UiIntentObserver(LLMProviderListUiIntent.Back::class)
     private fun onBack() {
-        LLMProviderListUiState.Finished.setup()
+        LLMProviderListUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(LLMProviderListUiIntent.CreateProvider::class)

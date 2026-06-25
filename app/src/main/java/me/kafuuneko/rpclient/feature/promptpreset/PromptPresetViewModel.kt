@@ -23,7 +23,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
 
     @UiIntentObserver(PromptPresetUiIntent.Back::class)
     private fun onBack() {
-        PromptPresetUiState.Finished.setup()
+        PromptPresetUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(PromptPresetUiIntent.EditPromptClick::class)
@@ -32,16 +32,25 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
         uiState.copy(
             dialogState = PromptPresetDialogState.EditPrompt(
                 type = intent.type,
-                currentText = uiState.promptValues[intent.type].orEmpty()
+                draftText = uiState.promptValues[intent.type].orEmpty()
             )
         ).setup()
     }
 
-    @UiIntentObserver(PromptPresetUiIntent.SavePrompt::class)
-    private fun onSavePrompt(intent: PromptPresetUiIntent.SavePrompt) {
+    @UiIntentObserver(PromptPresetUiIntent.ChangePromptDraft::class)
+    private fun onChangePromptDraft(intent: PromptPresetUiIntent.ChangePromptDraft) {
         val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? PromptPresetDialogState.EditPrompt ?: return
-        writePrompt(dialog.type, intent.text)
+        uiState.copy(
+            dialogState = dialog.copy(draftText = intent.value)
+        ).setup()
+    }
+
+    @UiIntentObserver(PromptPresetUiIntent.SavePrompt::class)
+    private fun onSavePrompt() {
+        val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? PromptPresetDialogState.EditPrompt ?: return
+        writePrompt(dialog.type, dialog.draftText)
         uiState.copy(
             promptValues = readPromptValues(),
             dialogState = PromptPresetDialogState.None

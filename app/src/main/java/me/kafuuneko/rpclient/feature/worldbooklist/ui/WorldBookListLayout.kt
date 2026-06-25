@@ -56,9 +56,10 @@ fun WorldBookListLayout(
     uiState: WorldBookListUiState,
     emit: WorldBookListUiIntent.() -> Unit
 ) {
-    BackHandler { WorldBookListUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is WorldBookListUiState.Normal) { WorldBookListUiIntent.Back.emit() }
     when (uiState) {
-        WorldBookListUiState.None, WorldBookListUiState.Finished -> Unit
+        WorldBookListUiState.None -> Unit
+        is WorldBookListUiState.Finished -> WorldBookListLayout(uiState.previous) {}
         is WorldBookListUiState.Normal -> WorldBookListNormal(uiState, emit)
     }
 }

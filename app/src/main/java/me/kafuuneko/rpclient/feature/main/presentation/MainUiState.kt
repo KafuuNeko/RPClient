@@ -19,7 +19,14 @@ sealed class MainUiState {
         val dialogState: MainDialogState = MainDialogState.None
     ) : MainUiState()
 
-    data object Finished : MainUiState()
+    data class Finished(val previous: MainUiState) : MainUiState()
+
+    companion object {
+        fun finished(previous: MainUiState): MainUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 首页互斥显示的确认对话框。 */

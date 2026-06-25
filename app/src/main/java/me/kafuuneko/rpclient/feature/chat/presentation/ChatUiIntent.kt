@@ -30,6 +30,8 @@ sealed class ChatUiIntent {
 
     data class ChangeInputDraft(val value: String) : ChatUiIntent()
 
+    data class ChangeLorebookQuery(val value: String) : ChatUiIntent()
+
     data class ToggleSessionLoreEntry(val entryId: Long) : ChatUiIntent()
 
     data class ToggleSessionLorebook(val lorebookId: Long) : ChatUiIntent()

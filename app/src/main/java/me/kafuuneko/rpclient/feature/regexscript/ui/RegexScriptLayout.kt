@@ -75,9 +75,10 @@ fun RegexScriptLayout(
     uiState: RegexScriptUiState,
     emitIntent: (RegexScriptUiIntent) -> Unit = {}
 ) {
-    BackHandler { emitIntent(RegexScriptUiIntent.Back) }
+    BackHandler(enabled = uiState is RegexScriptUiState.Normal) { emitIntent(RegexScriptUiIntent.Back) }
     when (uiState) {
-        RegexScriptUiState.None, RegexScriptUiState.Finished -> Unit
+        RegexScriptUiState.None -> Unit
+        is RegexScriptUiState.Finished -> RegexScriptLayout(uiState.previous) {}
         is RegexScriptUiState.Normal -> {
             RegexScriptNormal(uiState, emitIntent)
             DialogSwitch(uiState.dialogState, emitIntent)

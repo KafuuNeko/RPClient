@@ -74,9 +74,10 @@ fun ChatCreateLayout(
     uiState: ChatCreateUiState,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
-    BackHandler { ChatCreateUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is ChatCreateUiState.Normal) { ChatCreateUiIntent.Back.emit() }
     when (uiState) {
-        ChatCreateUiState.None, ChatCreateUiState.Finished -> Unit
+        ChatCreateUiState.None -> Unit
+        is ChatCreateUiState.Finished -> ChatCreateLayout(uiState.previous) {}
         is ChatCreateUiState.Normal -> ChatCreateNormal(uiState, emit)
     }
 }
@@ -86,10 +87,9 @@ private fun ChatCreateNormal(
     state: ChatCreateUiState.Normal,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
-    var lorebookQuery by remember { mutableStateOf("") }
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
-    val filteredLorebookGroups = state.lorebookGroups.filterForQuery(lorebookQuery)
-    val isSearchingLorebooks = lorebookQuery.isNotBlank()
+    val filteredLorebookGroups = state.lorebookGroups.filterForQuery(state.lorebookQuery)
+    val isSearchingLorebooks = state.lorebookQuery.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -148,8 +148,8 @@ private fun ChatCreateNormal(
                 if (state.lorebookGroups.isNotEmpty()) {
                     item {
                         LorebookSearchField(
-                            query = lorebookQuery,
-                            onQueryChange = { lorebookQuery = it }
+                            query = state.lorebookQuery,
+                            onQueryChange = { ChatCreateUiIntent.ChangeLorebookQuery(it).emit() }
                         )
                     }
                 }

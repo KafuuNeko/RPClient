@@ -29,7 +29,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
 
     @UiIntentObserver(RequestLogUiIntent.Back::class)
     private fun onBack() {
-        RequestLogUiState.Finished.setup()
+        RequestLogUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(RequestLogUiIntent.CopyRequestJson::class)

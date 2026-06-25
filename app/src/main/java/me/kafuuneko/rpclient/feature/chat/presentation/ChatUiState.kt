@@ -20,6 +20,7 @@ sealed class ChatUiState {
         val character: ChatCharacterItem,
         val messages: List<ChatMessageUiModel>,
         val lorebookGroups: List<ChatLorebookGroupItem>,
+        val lorebookQuery: String = "",
         val isSessionLoreExpanded: Boolean = false,
         val inputDraft: String = "",
         val generationState: ChatGenerationState = ChatGenerationState.Idle,
@@ -31,7 +32,14 @@ sealed class ChatUiState {
         val dialogState: ChatDialogState = ChatDialogState.None
     ) : ChatUiState()
 
-    data object Finished : ChatUiState()
+    data class Finished(val previous: ChatUiState) : ChatUiState()
+
+    companion object {
+        fun finished(previous: ChatUiState): ChatUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 单聊页面当前展示的一级页面。 */

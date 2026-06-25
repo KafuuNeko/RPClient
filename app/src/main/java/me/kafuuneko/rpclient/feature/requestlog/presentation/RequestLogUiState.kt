@@ -17,5 +17,12 @@ sealed class RequestLogUiState {
         val dialogState: RequestLogDialogState = RequestLogDialogState.None
     ) : RequestLogUiState()
 
-    data object Finished : RequestLogUiState()
+    data class Finished(val previous: RequestLogUiState) : RequestLogUiState()
+
+    companion object {
+        fun finished(previous: RequestLogUiState): RequestLogUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }

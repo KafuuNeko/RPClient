@@ -11,7 +11,14 @@ sealed class PromptPresetUiState {
         val dialogState: PromptPresetDialogState = PromptPresetDialogState.None
     ) : PromptPresetUiState()
 
-    data object Finished : PromptPresetUiState()
+    data class Finished(val previous: PromptPresetUiState) : PromptPresetUiState()
+
+    companion object {
+        fun finished(previous: PromptPresetUiState): PromptPresetUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** Prompt 预设页当前显示的对话框。 */
@@ -20,6 +27,6 @@ sealed class PromptPresetDialogState {
 
     data class EditPrompt(
         val type: PromptType,
-        val currentText: String
+        val draftText: String
     ) : PromptPresetDialogState()
 }

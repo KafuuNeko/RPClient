@@ -241,7 +241,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         AppViewEvent.PopupToastMessageByResId(
             if (uiState.mode == CharacterEditMode.Create) R.string.character_created else R.string.character_saved
         ).tryEmit()
-        CharacterEditUiState.Finished.setup()
+        CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(CharacterEditUiIntent.DeleteCharacterClick::class)
@@ -249,13 +249,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (uiState.form.isNew) {
             cleanupPendingAvatar()
-            CharacterEditUiState.Finished.setup()
+            CharacterEditUiState.finished(uiStateFlow.value).setup()
             return
         }
         val savedCharacter = withContext(Dispatchers.IO) {
             mCharacterRepository.getCharacterById(uiState.form.id)
         } ?: run {
-            CharacterEditUiState.Finished.setup()
+            CharacterEditUiState.finished(uiStateFlow.value).setup()
             return
         }
         val associatedLorebook = savedCharacter.characterLorebookId
@@ -325,7 +325,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             }
         }
         AppViewEvent.PopupToastMessageByResId(R.string.character_deleted).tryEmit()
-        CharacterEditUiState.Finished.setup()
+        CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
 
     @UiIntentObserver(CharacterEditUiIntent.ConfirmDiscardChanges::class)
@@ -368,7 +368,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     private suspend fun finishEditing() {
         cleanupPendingAvatar()
-        CharacterEditUiState.Finished.setup()
+        CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
 
     private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {

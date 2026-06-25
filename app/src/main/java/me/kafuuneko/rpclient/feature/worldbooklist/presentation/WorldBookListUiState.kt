@@ -11,7 +11,14 @@ sealed class WorldBookListUiState {
         val lorebooks: List<WorldBookListItem> = emptyList()
     ) : WorldBookListUiState()
 
-    data object Finished : WorldBookListUiState()
+    data class Finished(val previous: WorldBookListUiState) : WorldBookListUiState()
+
+    companion object {
+        fun finished(previous: WorldBookListUiState): WorldBookListUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** 世界书列表读取或导入期间的加载状态。 */

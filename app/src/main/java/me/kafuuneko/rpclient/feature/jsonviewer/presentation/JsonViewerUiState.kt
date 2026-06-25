@@ -26,5 +26,12 @@ sealed class JsonViewerUiState {
         val rawPreview: String
     ) : JsonViewerUiState()
 
-    data object Finished : JsonViewerUiState()
+    data class Finished(val previous: JsonViewerUiState) : JsonViewerUiState()
+
+    companion object {
+        fun finished(previous: JsonViewerUiState): JsonViewerUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }

@@ -16,7 +16,14 @@ sealed class LLMProviderEditUiState {
         val dialogState: LLMProviderEditDialogState = LLMProviderEditDialogState.None
     ) : LLMProviderEditUiState()
 
-    data object Finished : LLMProviderEditUiState()
+    data class Finished(val previous: LLMProviderEditUiState) : LLMProviderEditUiState()
+
+    companion object {
+        fun finished(previous: LLMProviderEditUiState): LLMProviderEditUiState {
+            if (previous is Finished) return previous
+            return Finished(previous)
+        }
+    }
 }
 
 /** Provider 页面当前是新增还是编辑。 */

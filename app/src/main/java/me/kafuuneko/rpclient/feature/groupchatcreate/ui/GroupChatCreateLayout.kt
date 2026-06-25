@@ -70,8 +70,8 @@ fun GroupChatCreateLayout(
     emitIntent: (GroupChatCreateUiIntent) -> Unit = {}
 ) {
     when (uiState) {
-        GroupChatCreateUiState.None,
-        GroupChatCreateUiState.Finished -> Unit
+        GroupChatCreateUiState.None -> Unit
+        is GroupChatCreateUiState.Finished -> GroupChatCreateLayout(uiState.previous) {}
 
         is GroupChatCreateUiState.Normal -> {
             GroupChatCreateNormalView(uiState, emitIntent)
@@ -209,6 +209,10 @@ private fun GroupChatCreateNormalView(
                                 )
                             }
                         )
+                    },
+                    query = state.lorebookQuery,
+                    onQueryChange = {
+                        emitIntent(GroupChatCreateUiIntent.ChangeLorebookQuery(it))
                     },
                     onToggleLorebook = {
                         emitIntent(GroupChatCreateUiIntent.ToggleLorebook(it))
