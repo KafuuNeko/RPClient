@@ -86,9 +86,15 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 
 API keys are stored only on the device, but they are sent to the configured provider with model requests. Only use API endpoints and proxy services that you trust.
 
+## AI Coding Guide
+
+AI-assisted changes must start from [doc/coding-guidelines.md](doc/coding-guidelines.md). The guide is tailored for RPClient's Feature + MVI structure, Room data layer, Koin/Kotpref usage, and domain rules for character cards, lorebooks, prompts, Regex scripts, LLM requests, and request logs.
+
+Read only the relevant topic guides for the task before editing code, then run the smallest verification that matches the risk of the change.
+
 ## Contributing
 
-Issues and pull requests are welcome. Before making changes, AI-assisted coding must follow the [AI Coding Guide](doc/编码引导.md). Changes involving Compose and MVI screens must also follow the [MVI Framework Development Guide](doc/MVI框架开发规范指南.md).
+Issues and pull requests are welcome. Before making changes, please review the [AI Coding Guide](doc/coding-guidelines.md) when using AI-assisted coding.
 
 Before submitting code, please ensure that the project can at least be built successfully.
 
