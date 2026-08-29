@@ -74,6 +74,7 @@ import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+import me.kafuuneko.rpclient.utils.toMessageCopyText
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -906,7 +907,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 复制指定消息的正文内容到剪贴板。
+     * 复制指定消息的展示内容到剪贴板。
+     *
+     * 全局设置不允许思考块进入上下文时，复制同样排除已保存的思考内容。
      *
      * @param intent 包含消息 ID 的意图
      */
@@ -915,8 +918,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
-        if (message.content.isBlank()) return
-        ChatViewEvent.CopyText(message.content).emit()
+        val copyText = message.content.toMessageCopyText(
+            includeThinkBlocks = runCatching { AppModel.includeThinkInContext }.getOrDefault(false)
+        )
+        if (copyText.isBlank()) return
+        ChatViewEvent.CopyText(copyText).emit()
     }
 
     /**

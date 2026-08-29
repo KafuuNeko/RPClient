@@ -16,10 +16,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +47,11 @@ import me.kafuuneko.rpclient.utils.MarkdownParser
  * 渲染聊天消息支持的轻量 Markdown 子集。
  *
  * 解析器刻意不执行 HTML，也不加载链接或远程资源；支持角色动作/心理描写（斜体弱化）、
- * 对白（高亮）与纯净粗体排版。
+ * 对白（高亮）与纯净粗体排版。单条正文使用独立选择容器，避免选择跨越消息边界。
+ *
+ * @param content 待解析和渲染的 Markdown 消息正文
+ * @param isUser 是否使用用户消息气泡的配色
+ * @param modifier 应用于单条消息正文选择容器的修饰符
  */
 @Composable
 fun MarkdownMessageText(
@@ -62,62 +70,78 @@ fun MarkdownMessageText(
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
     }
+    val selectionColor = if (isUser) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val selectionColors = remember(selectionColor) {
+        TextSelectionColors(
+            handleColor = selectionColor,
+            backgroundColor = selectionColor.copy(alpha = 0.35f)
+        )
+    }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        blocks.forEach { block ->
-            when (block) {
-                is MarkdownBlock.Paragraph -> MarkdownInlineText(
-                    content = block.content,
-                    color = textColor,
-                    narrationColor = narrationColor,
-                    linkColor = linkColor,
-                    strongColor = strongColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+    // 每条 Markdown 正文独立选择，避免把外层懒列表纳入选择范围。
+    CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
+        SelectionContainer(modifier = modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                blocks.forEach { block ->
+                    when (block) {
+                        is MarkdownBlock.Paragraph -> MarkdownInlineText(
+                            content = block.content,
+                            color = textColor,
+                            narrationColor = narrationColor,
+                            linkColor = linkColor,
+                            strongColor = strongColor,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
 
-                is MarkdownBlock.Heading -> MarkdownInlineText(
-                    content = block.content,
-                    color = textColor,
-                    narrationColor = narrationColor,
-                    linkColor = linkColor,
-                    strongColor = strongColor,
-                    style = block.headingStyle()
-                )
+                        is MarkdownBlock.Heading -> MarkdownInlineText(
+                            content = block.content,
+                            color = textColor,
+                            narrationColor = narrationColor,
+                            linkColor = linkColor,
+                            strongColor = strongColor,
+                            style = block.headingStyle()
+                        )
 
-                is MarkdownBlock.Code -> MarkdownCodeBlock(
-                    content = block.content,
-                    language = block.language,
-                    color = textColor,
-                    backgroundColor = blockColor
-                )
+                        is MarkdownBlock.Code -> MarkdownCodeBlock(
+                            content = block.content,
+                            language = block.language,
+                            color = textColor,
+                            backgroundColor = blockColor
+                        )
 
-                is MarkdownBlock.Quote -> MarkdownQuoteBlock(
-                    content = block.content,
-                    color = textColor,
-                    narrationColor = narrationColor,
-                    linkColor = linkColor,
-                    strongColor = strongColor,
-                    backgroundColor = blockColor
-                )
+                        is MarkdownBlock.Quote -> MarkdownQuoteBlock(
+                            content = block.content,
+                            color = textColor,
+                            narrationColor = narrationColor,
+                            linkColor = linkColor,
+                            strongColor = strongColor,
+                            backgroundColor = blockColor
+                        )
 
-                is MarkdownBlock.ListBlock -> MarkdownListBlock(
-                    block = block,
-                    color = textColor,
-                    narrationColor = narrationColor,
-                    linkColor = linkColor,
-                    strongColor = strongColor,
-                    markerColor = subtleColor
-                )
+                        is MarkdownBlock.ListBlock -> MarkdownListBlock(
+                            block = block,
+                            color = textColor,
+                            narrationColor = narrationColor,
+                            linkColor = linkColor,
+                            strongColor = strongColor,
+                            markerColor = subtleColor
+                        )
 
-                MarkdownBlock.Divider -> Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(subtleColor.copy(alpha = 0.25f))
-                )
+                        MarkdownBlock.Divider -> Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(subtleColor.copy(alpha = 0.25f))
+                        )
+                    }
+                }
             }
         }
     }

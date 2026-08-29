@@ -17,6 +17,16 @@ fun String.stripThinkBlocks(): String {
     return removeThinkBlocks().trim()
 }
 
+/**
+ * 根据思考块保留策略生成消息复制文本。
+ *
+ * @param includeThinkBlocks 是否保留已保存的 `<think>...</think>` 思考块
+ * @return 可安全发送到剪贴板的消息文本
+ */
+fun String.toMessageCopyText(includeThinkBlocks: Boolean): String {
+    return if (includeThinkBlocks) this else stripThinkBlocks()
+}
+
 /** 生成适合列表展示的预览，并按需截断长度。 */
 fun String.toPreview(maxLength: Int = 0): String {
     if (maxLength == 0 || length <= maxLength) return this
