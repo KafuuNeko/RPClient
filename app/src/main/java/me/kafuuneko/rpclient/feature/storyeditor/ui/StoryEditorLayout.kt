@@ -181,6 +181,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
+import me.kafuuneko.rpclient.ui.widgets.rememberScrollIndicatorAlpha
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 import androidx.compose.ui.platform.LocalLocale
 
@@ -554,13 +555,22 @@ private fun StoryTextEditor(
  * - 正文文本框不填充 ScrollIndicatorState 的内容尺寸，因此使用视口与最大偏移重建总尺寸。
  * - 仅滑块附近的最小触控区域拦截拖动，其余区域保留光标定位与文本选择。
  */
+@Composable
 private fun Modifier.storyScrollIndicator(
     state: ScrollState,
     color: Color,
     layoutDirection: LayoutDirection
 ): Modifier {
+    val thumbDraggedState = remember { mutableStateOf(false) }
+    val indicatorAlpha = rememberScrollIndicatorAlpha(
+        state = state,
+        thumbDraggedState = thumbDraggedState
+    )
+
     return drawWithContent {
         drawContent()
+        val alpha = indicatorAlpha.value
+        if (alpha == 0f) return@drawWithContent
         val geometry = calculateStoryScrollIndicatorGeometry(size.height, state)
             ?: return@drawWithContent
 
@@ -573,7 +583,7 @@ private fun Modifier.storyScrollIndicator(
             crossAxisInset
         }
         drawRoundRect(
-            color = color,
+            color = color.copy(alpha = color.alpha * alpha),
             topLeft = Offset(left, geometry.thumbStart),
             size = Size(thickness, geometry.thumbLength),
             cornerRadius = CornerRadius(thickness / 2f, thickness / 2f)
@@ -590,6 +600,8 @@ private fun Modifier.storyScrollIndicator(
                     requireUnconsumed = false,
                     pass = PointerEventPass.Initial
                 )
+                // 完全隐藏后不拦截编辑器侧边触摸，保留光标定位与文本选择。
+                if (indicatorAlpha.value == 0f) return@awaitEachGesture
                 val geometry = calculateStoryScrollIndicatorGeometry(size.height.toFloat(), state)
                     ?: return@awaitEachGesture
 
@@ -609,25 +621,30 @@ private fun Modifier.storyScrollIndicator(
 
                 val dragAnchor = down.position.y - geometry.thumbStart
                 down.consume()
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    change.consume()
-                    if (!change.pressed) break
+                thumbDraggedState.value = true
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        change.consume()
+                        if (!change.pressed) break
 
-                    // 将滑块顶部在轨道中的比例映射为正文像素偏移。
-                    val currentGeometry = calculateStoryScrollIndicatorGeometry(
-                        size.height.toFloat(),
-                        state
-                    ) ?: break
-                    val targetThumbStart = change.position.y - dragAnchor
-                    val targetFraction = (
-                        (targetThumbStart - currentGeometry.trackStart) /
-                            currentGeometry.thumbTravel
-                    ).coerceIn(0f, 1f)
-                    scrollTargets.trySend(
-                        (targetFraction * currentGeometry.maxScrollOffset).roundToInt()
-                    )
+                        // 将滑块顶部在轨道中的比例映射为正文像素偏移。
+                        val currentGeometry = calculateStoryScrollIndicatorGeometry(
+                            size.height.toFloat(),
+                            state
+                        ) ?: break
+                        val targetThumbStart = change.position.y - dragAnchor
+                        val targetFraction = (
+                            (targetThumbStart - currentGeometry.trackStart) /
+                                currentGeometry.thumbTravel
+                        ).coerceIn(0f, 1f)
+                        scrollTargets.trySend(
+                            (targetFraction * currentGeometry.maxScrollOffset).roundToInt()
+                        )
+                    }
+                } finally {
+                    thumbDraggedState.value = false
                 }
             }
         }

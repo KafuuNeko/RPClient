@@ -6,6 +6,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -50,16 +52,23 @@ fun Modifier.draggableLazyListScrollIndicator(
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val currentOnDragStateChanged = rememberUpdatedState(onDragStateChanged)
+    val thumbDraggedState = remember { mutableStateOf(false) }
+    val indicatorAlpha = rememberScrollIndicatorAlpha(
+        state = state,
+        thumbDraggedState = thumbDraggedState
+    )
 
     return drawWithContent {
         drawContent()
+        val alpha = indicatorAlpha.value
+        if (alpha == 0f) return@drawWithContent
         val geometry = density.calculateLazyListScrollIndicatorGeometry(
             containerLength = size.height,
             state = state
         ) ?: return@drawWithContent
         drawLazyListScrollIndicator(
             geometry = geometry,
-            color = color,
+            color = color.copy(alpha = color.alpha * alpha),
             layoutDirection = layoutDirection,
             density = density
         )
@@ -77,6 +86,8 @@ fun Modifier.draggableLazyListScrollIndicator(
                     requireUnconsumed = false,
                     pass = PointerEventPass.Initial
                 )
+                // 完全隐藏后不保留透明命中区，避免抢占消息点击与文本选择。
+                if (indicatorAlpha.value == 0f) return@awaitEachGesture
                 val geometry = density.calculateLazyListScrollIndicatorGeometry(
                     containerLength = size.height.toFloat(),
                     state = state
@@ -93,6 +104,7 @@ fun Modifier.draggableLazyListScrollIndicator(
 
                 val dragAnchor = down.position.y - geometry.thumbStart
                 down.consume()
+                thumbDraggedState.value = true
                 currentOnDragStateChanged.value(true)
                 try {
                     while (true) {
@@ -115,6 +127,7 @@ fun Modifier.draggableLazyListScrollIndicator(
                         }
                     }
                 } finally {
+                    thumbDraggedState.value = false
                     currentOnDragStateChanged.value(false)
                 }
             }
