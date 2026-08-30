@@ -651,39 +651,61 @@ class WorldBookActivator {
 
 /** 封装条目及其匹配命中得分。 */
 private data class EntryActivation(
+    /** 当前流程正在处理的单个条目。 */
     val entry: LorebookEntry,
+    /** 世界书条目按关键词与分组规则计算出的匹配分数。 */
     val score: Int
 )
 
 /** 正则表达式关键词解析结果（包含编译后的 Regex 及是否为 sticky 匹配）。 */
 private data class ParsedRegexKeyword(
+    /** 当前规则编译后的正则表达式。 */
     val regex: Regex,
+    /** 世界书条目命中后继续保持激活的生成轮数。 */
     val sticky: Boolean
 )
 
 /** 世界书激活器使用的通用扫描上下文，可供单聊与群聊复用。 */
 data class WorldBookScanContext(
+    /** 当前状态或请求包含的消息列表。 */
     val messages: List<WorldBookScanMessage>,
+    /** 触发本次生成的当前用户消息。 */
     val currentUserMessage: WorldBookScanMessage?,
+    /** 统计范围内包含的消息总数。 */
     val totalMessageCount: Int,
+    /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
     val worldInfoStateJson: String,
+    /** 通过作用域筛选后待扫描的世界书条目列表。 */
     val candidateLorebookEntries: List<LorebookEntry>,
+    /** 本次扫描可能参与激活的世界书列表。 */
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
+    /** 允许参与递归激活扫描的世界书 ID 集合。 */
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
+    /** 本次群聊生成对应的业务类型。 */
     val generationType: WorldBookGenerationType = WorldBookGenerationType.Normal,
+    /** 世界书扫描文本是否带上消息发言者名称。 */
     val includeNames: Boolean = true,
+    /** 参与 Prompt 构建的角色描述。 */
     val characterDescription: String = "",
+    /** 当前会话或 Prompt 使用的用户设定。 */
     val userDescription: String = "",
+    /** 参与 Prompt 构建的角色性格设定。 */
     val characterPersonality: String = "",
+    /** 插入聊天历史指定深度的角色附加提示词。 */
     val characterDepthPrompt: String = "",
+    /** 角色对话发生的场景设定。 */
     val scenario: String = "",
+    /** 作者提供的角色使用说明和备注。 */
     val creatorNotes: String = "",
+    /** 本轮世界书扫描开始时使用的时序状态。 */
     val worldInfoState: WorldInfoRuntimeState? = null
 )
 
 /** 世界书扫描使用的轻量消息，显式保留发言者名称。 */
 data class WorldBookScanMessage(
+    /** 当前发言者的显示名称快照。 */
     val speakerName: String,
+    /** 当前对象承载的正文内容。 */
     val content: String
 )
 
@@ -709,32 +731,51 @@ private fun PromptGenerationMode.toWorldBookGenerationType(): WorldBookGeneratio
 
 /** 激活条目按 SillyTavern 插入位置分组后的完整结果。 */
 data class WorldBookActivationResult(
+    /** 本次扫描最终激活的世界书条目列表。 */
     val activatedEntries: List<LorebookEntry>,
+    /** 插入角色定义之前的世界书内容列表。 */
     val beforeCharacter: List<LorebookEntry> = emptyList(),
+    /** 插入角色定义之后的世界书内容列表。 */
     val afterCharacter: List<LorebookEntry> = emptyList(),
+    /** 插入示例对话之前的世界书内容列表。 */
     val exampleBefore: List<LorebookEntry> = emptyList(),
+    /** 插入示例对话之后的世界书内容列表。 */
     val exampleAfter: List<LorebookEntry> = emptyList(),
+    /** 插入作者注释上方的世界书内容列表。 */
     val anTop: List<LorebookEntry> = emptyList(),
+    /** 插入作者注释下方的世界书内容列表。 */
     val anBottom: List<LorebookEntry> = emptyList(),
+    /** 按聊天深度插入的世界书内容列表。 */
     val depthEntries: List<WorldBookDepthEntry> = emptyList(),
+    /** 按自定义插槽名称分组的世界书内容。 */
     val outletEntries: Map<String, List<LorebookEntry>> = emptyMap(),
+    /** 本轮扫描后需要持久化的世界书时序状态 JSON。 */
     val nextStateJson: String = "{}",
+    /** 本轮扫描前保存的世界书时序状态 JSON。 */
     val previousStateJson: String = "{}",
+    /** 当前会话或分组包含的消息数量。 */
     val messageCount: Int = 0,
+    /** 本轮扫描后生成的世界书时序状态。 */
     val nextState: WorldInfoRuntimeState = WorldInfoRuntimeState(),
+    /** 本轮扫描前保存的世界书时序状态。 */
     val previousState: WorldInfoRuntimeState = WorldInfoRuntimeState()
 )
 
 /** 在聊天历史指定深度插入的一组同角色世界书条目。 */
 data class WorldBookDepthEntry(
+    /** 当前内容相对聊天末尾的插入或扫描深度。 */
     val depth: Int,
+    /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
+    /** 当前分组、请求或结果包含的条目列表。 */
     val entries: MutableList<LorebookEntry>
 )
 
 /** 世界书激活器使用的结构化时序状态；具体持久化形式由调用方决定。 */
 data class WorldInfoRuntimeState(
+    /** 上次推进世界书时已处理的消息数量。 */
     val lastMessageCount: Int = 0,
+    /** 当前分组、请求或结果包含的条目列表。 */
     val entries: Map<String, WorldInfoEntryRuntimeState> = emptyMap()
 ) {
     fun toJson(gson: Gson): String {
@@ -753,9 +794,12 @@ data class WorldInfoRuntimeState(
 
 /** 单个条目的时序状态（激活轮次、Sticky 截止轮次、Cooldown 截止轮次与行为签名）。 */
 data class WorldInfoEntryRuntimeState(
+    /** 世界书条目最近一次被直接命中的生成轮次。 */
     val activatedAt: Int = 0,
+    /** 世界书条目粘滞激活保持到的生成轮次。 */
     val stickyUntil: Int = 0,
+    /** 世界书条目冷却结束的生成轮次。 */
     val cooldownUntil: Int = 0,
+    /** 用于判断状态内容是否发生变化的稳定签名。 */
     val signature: String = ""
 )
-

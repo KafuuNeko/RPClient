@@ -13,7 +13,9 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 最终可发送请求及其同源检查报告。 */
 data class PromptFinalizationResult(
+    /** 经过业务层组装、准备提交给模型服务的请求。 */
     val request: LLMGenerationRequest,
+    /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
     val inspection: PromptInspection
 )
 

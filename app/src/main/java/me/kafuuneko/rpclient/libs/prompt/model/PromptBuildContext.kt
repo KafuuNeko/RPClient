@@ -19,22 +19,35 @@ import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
  * @property recursiveScanningLorebookIds 明确允许递归扫描的世界书 ID。
  */
 data class PromptBuildContext(
+    /** 当前会话或 Prompt 使用的用户名称。 */
     val userName: String,
+    /** 当前会话或 Prompt 使用的用户设定。 */
     val userDescription: String,
+    /** 当前状态或操作关联的角色数据。 */
     val character: Character,
+    /** 当前页面展示或编辑的会话数据。 */
     val session: ChatSession,
+    /** 当前会话或故事使用的摘要内容。 */
     val summary: String,
+    /** 当前状态或请求包含的消息列表。 */
     val messages: List<ChatMessage>,
     val currentUserMessage: String?,
     /** 会话中的普通消息总数，不受总结后历史裁剪影响。 */
     val totalMessageCount: Int = messages.size + if (currentUserMessage.isNullOrBlank()) 0 else 1,
+    /** 通过作用域筛选后待扫描的世界书条目列表。 */
     val candidateLorebookEntries: List<LorebookEntry>,
+    /** 本次扫描可能参与激活的世界书列表。 */
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
+    /** 当前请求关联的模型供应商类型。 */
     val provider: LLMProvider?,
+    /** 模型请求允许使用的最大上下文 Token 数。 */
     val maxContextTokens: Int,
+    /** 为模型回复预留的最大 Token 数。 */
     val maxResponseTokens: Int,
+    /** 本次请求对应的新生成、续写或重生成模式。 */
     val generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
+    /** 当前对象关联或允许执行的正则脚本列表。 */
     val regexScripts: List<ScopedRegexScript> = emptyList()
 )
 

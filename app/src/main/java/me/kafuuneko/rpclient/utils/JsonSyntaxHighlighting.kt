@@ -23,17 +23,25 @@ enum class JsonSyntaxTokenType {
 
 /** 语法高亮 Token 区间。 */
 data class JsonSyntaxToken(
+    /** 当前区间的起始位置，包含该位置。 */
     val start: Int,
+    /** 当前区间的结束位置，不包含该位置。 */
     val end: Int,
+    /** 当前对象所属的业务类型。 */
     val type: JsonSyntaxTokenType
 )
 
 /** 语法高亮颜色配置，默认自适应 MaterialTheme。 */
 data class JsonSyntaxColors(
+    /** JSON 对象字段名使用的颜色。 */
     val key: Color,
+    /** JSON 字符串字面量使用的颜色。 */
     val string: Color,
+    /** JSON 数字字面量使用的颜色。 */
     val number: Color,
+    /** JSON 布尔值和 null 字面量使用的颜色。 */
     val literal: Color,
+    /** JSON 标点符号使用的颜色。 */
     val punctuation: Color
 )
 

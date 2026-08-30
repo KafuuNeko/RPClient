@@ -56,15 +56,21 @@ import kotlin.math.roundToInt
 
 /** 数值编辑对话框的可选快捷输入项。 */
 data class NumericEditQuickOption(
+    /** 供界面展示的简短标签。 */
     val label: String,
+    /** 点击快捷选项后写入数值编辑器的值。 */
     val value: String
 )
 
 /** 参数滑动条配置。 */
 data class SliderConfig(
+    /** 当前对象覆盖的有效区间。 */
     val range: ClosedFloatingPointRange<Float>,
+    /** 数值控件每次增减使用的步长。 */
     val step: Float = 0.05f,
+    /** 数值控件最小边界的显示文本。 */
     val minLabel: String? = null,
+    /** 数值控件最大边界的显示文本。 */
     val maxLabel: String? = null
 )
 
@@ -116,11 +122,11 @@ fun NumericEditDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (sliderConfig != null) {
-                // 1. 滑动条与 Stepper 步进微调器模式
+                // 连续范围使用滑动条与步进按钮共同调整
                 val currentFloat = value.toFloatOrNull() ?: sliderConfig.range.start
                 val clampedFloat = currentFloat.coerceIn(sliderConfig.range.start, sliderConfig.range.endInclusive)
 
-                // (A) 顶部大字号看板与步进器
+                // 顶部突出显示当前值，并提供精确的单步增减操作
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -128,7 +134,7 @@ fun NumericEditDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 步进减少按钮
+                    // 减少操作会在最小值处截断，避免生成越界输入
                     FilledTonalIconButton(
                         onClick = {
                             val nextVal = (clampedFloat - sliderConfig.step).coerceAtLeast(sliderConfig.range.start)
@@ -144,7 +150,7 @@ fun NumericEditDialog(
                         )
                     }
 
-                    // 居中大号数值展示（带平滑数字动效）
+                    // 平滑切换格式化后的当前数值
                     AnimatedContent(
                         targetState = String.format(Locale.US, "%.2f", clampedFloat),
                         label = "numericIndicator"
@@ -159,7 +165,7 @@ fun NumericEditDialog(
                         )
                     }
 
-                    // 步进增加按钮
+                    // 增加操作会在最大值处截断，避免生成越界输入
                     FilledTonalIconButton(
                         onClick = {
                             val nextVal = (clampedFloat + sliderConfig.step).coerceAtMost(sliderConfig.range.endInclusive)
@@ -176,7 +182,7 @@ fun NumericEditDialog(
                     }
                 }
 
-                // (B) 连续滑动条
+                // 滑动结果按步长吸附，确保与步进按钮产生一致的值
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
                         value = clampedFloat,
@@ -213,7 +219,7 @@ fun NumericEditDialog(
                     }
                 }
             } else {
-                // 2. 离散大数字或普通数值输入框模式
+                // 无连续范围时保留直接输入，适配较大或离散数值
                 OutlinedTextField(
                     value = value,
                     onValueChange = onValueChange,
@@ -250,7 +256,7 @@ fun NumericEditDialog(
                 )
             }
 
-            // 3. 预设快速选择 Chips
+            // 预设项作为快捷输入，仍复用同一数值变更回调
             QuickOptionChips(
                 value = value,
                 options = quickOptions,

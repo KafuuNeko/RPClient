@@ -4,11 +4,17 @@ import me.kafuuneko.rpclient.model.SquareCropSelection
 
 /** 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。 */
 data class ImageCropTransform(
+    /** 原始图像的宽高比。 */
     val sourceAspectRatio: Float,
+    /** 当前图像相对适配尺寸的缩放倍数。 */
     val zoom: Float = MIN_ZOOM,
+    /** 当前图像中心相对裁剪区域的水平偏移。 */
     val offsetX: Float = 0f,
+    /** 当前图像中心相对裁剪区域的垂直偏移。 */
     val offsetY: Float = 0f,
+    /** 图像当前顺时针旋转的角度。 */
     val rotationDegrees: Int = 0,
+    /** 图像是否相对原始方向水平翻转。 */
     val isFlippedHorizontal: Boolean = false
 ) {
     /** 是否处于 90 度或 270 度垂直旋转状态。 */

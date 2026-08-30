@@ -255,18 +255,25 @@ class RegexScriptEngine {
     }
 
     private data class ParsedRegex(
+        /** 从兼容格式中解析出的正则表达式主体。 */
         val pattern: String,
+        /** 从兼容格式中解析出的正则修饰标志。 */
         val flags: Set<Char>
     )
 
     private data class CompiledRegex(
+        /** 当前规则编译后的正则表达式。 */
         val regex: Regex,
+        /** 当前正则脚本是否来自全局作用域。 */
         val global: Boolean,
+        /** 世界书条目命中后继续保持激活的生成轮数。 */
         val sticky: Boolean
     )
 
     private data class ScriptApplication(
+        /** 当前对象承载的文本内容。 */
         val text: String,
+        /** 正则脚本是否在本次输入中成功命中。 */
         val matched: Boolean
     )
 

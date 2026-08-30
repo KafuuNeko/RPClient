@@ -12,8 +12,11 @@ enum class StoryCharacterActivationReason {
 
 /** 已激活的角色卡及其匹配依据。 */
 data class ActiveStoryCharacter(
+    /** 参与故事角色激活判断的候选角色。 */
     val candidate: StoryCharacterCandidate,
+    /** 当前状态或取舍产生的原因。 */
     val reason: StoryCharacterActivationReason,
+    /** 使故事角色候选激活的关键词。 */
     val matchedKey: String? = null
 )
 

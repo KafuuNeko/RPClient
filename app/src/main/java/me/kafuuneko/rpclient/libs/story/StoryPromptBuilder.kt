@@ -51,10 +51,15 @@ data class StoryPromptBuildResult(
 
 /** 一张激活角色卡在当前 Story 作用域内完成名称宏展开后的 Prompt 快照。 */
 internal data class ResolvedStoryCharacter(
+    /** 当前对象是否处于生效状态。 */
     val active: ActiveStoryCharacter,
+    /** 供界面展示和业务识别的名称。 */
     val name: String,
+    /** 用于说明当前对象的描述文本。 */
     val description: String,
+    /** 角色的性格与行为设定。 */
     val personality: String,
+    /** 角色对话发生的场景设定。 */
     val scenario: String
 )
 
@@ -600,9 +605,13 @@ internal fun ActiveStoryCharacter.resolveForPrompt(userName: String): ResolvedSt
 
 /** 尚未插入连续正文上下文的 At Depth 消息。 */
 internal data class StoryDepthPromptDraft(
+    /** 当前页面中尚未持久化的编辑草稿。 */
     val draft: PromptMessageDraft,
+    /** 当前内容相对聊天末尾的插入或扫描深度。 */
     val depth: Int,
+    /** 当前对象在同类数据中的排序值。 */
     val order: Int,
+    /** 业务优先级相同时用于保持稳定顺序的次级排序值。 */
     val tieBreaker: Long
 )
 

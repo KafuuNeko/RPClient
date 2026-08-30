@@ -1075,15 +1075,21 @@ class GroupChatPromptBuilder(
 
     /** 包含历史前与历史后固定系统消息的分区容器。 */
     private data class PromptSections(
+        /** 插入聊天历史之前的 Prompt 内容列表。 */
         val beforeHistory: List<PromptMessageDraft>,
+        /** 插入聊天历史之后的 Prompt 内容列表。 */
         val afterHistory: List<PromptMessageDraft>
     )
 
     /** 包含深度排序元数据的历史内部注入片段。 */
     private data class InChatPiece(
+        /** 需要展示或传递的消息内容。 */
         val message: PromptMessageDraft,
+        /** 当前内容相对聊天末尾的插入或扫描深度。 */
         val depth: Int,
+        /** 当前对象在同类数据中的排序值。 */
         val order: Int,
+        /** 业务优先级相同时用于保持稳定顺序的次级排序值。 */
         val tieBreaker: Long
     )
 

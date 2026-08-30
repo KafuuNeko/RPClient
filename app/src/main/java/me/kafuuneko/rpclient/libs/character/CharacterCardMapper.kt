@@ -355,13 +355,18 @@ class CharacterCardMapper(
 
 /** 角色卡导入的聚合结果，嵌入世界书尚未写入数据库。 */
 data class CharacterCardImport(
+    /** 当前状态或操作关联的角色数据。 */
     val character: Character,
+    /** 角色卡中内嵌的世界书数据。 */
     val embeddedLorebook: CharacterBookImport?,
+    /** 当前对象关联或允许执行的正则脚本列表。 */
     val regexScripts: List<RegexScript> = emptyList()
 )
 
 /** 从角色卡或独立文件解析出的、尚未持久化的世界书数据。 */
 data class CharacterBookImport(
+    /** 当前流程处理的世界书数据。 */
     val lorebook: Lorebook,
+    /** 当前分组、请求或结果包含的条目列表。 */
     val entries: List<LorebookEntry>
 )

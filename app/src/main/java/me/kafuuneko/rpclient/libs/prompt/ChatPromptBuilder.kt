@@ -970,17 +970,25 @@ class ChatPromptBuilder(
 
     /** 包含历史前与历史后固定系统消息的分区容器。 */
     private data class PromptSections(
+        /** 插入聊天历史之前的 Prompt 内容列表。 */
         val beforeHistory: List<PromptPiece>,
+        /** 插入聊天历史之后的 Prompt 内容列表。 */
         val afterHistory: List<PromptPiece>
     )
 
     /** 尚未执行最终宏展开的固定消息片段。 */
     private data class PromptPiece(
+        /** 当前对象在业务流程中承担的角色。 */
         val role: LLMMessageRole,
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 产生当前数据的来源。 */
         val source: PromptSource,
+        /** Prompt 超出预算时保留当前内容的优先级。 */
         val retentionPriority: Int,
+        /** Prompt 超出预算时是否允许移除当前内容。 */
         val canDrop: Boolean,
+        /** 宏展开或后处理前保留的原始 Prompt 内容。 */
         val original: String = content
     ) {
         companion object {
@@ -1003,14 +1011,23 @@ class ChatPromptBuilder(
 
     /** 包含深度排序元数据的历史内部注入片段。 */
     private data class InChatPromptPiece(
+        /** 当前对象在业务流程中承担的角色。 */
         val role: LLMMessageRole,
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 产生当前数据的来源。 */
         val source: PromptSource,
+        /** Prompt 超出预算时保留当前内容的优先级。 */
         val retentionPriority: Int,
+        /** Prompt 超出预算时是否允许移除当前内容。 */
         val canDrop: Boolean,
+        /** 当前内容相对聊天末尾的插入或扫描深度。 */
         val depth: Int,
+        /** 当前对象在同类数据中的排序值。 */
         val order: Int,
+        /** 业务优先级相同时用于保持稳定顺序的次级排序值。 */
         val tieBreaker: Long,
+        /** 当前 Prompt 项合并后保留的原始来源列表。 */
         val sources: List<PromptSource> = listOf(source)
     )
 

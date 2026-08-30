@@ -152,7 +152,10 @@ class RegexScriptCodec(
 
 /** 角色扩展 Regex 字段的提取结果。 */
 data class RegexExtensionsExtraction(
+    /** 当前页面或流程可使用的正则脚本列表。 */
     val scripts: List<RegexScript>,
+    /** 用于兼容第三方格式的扩展字段 JSON。 */
     val extensionsJson: String,
+    /** 角色卡扩展中是否包含正则脚本字段。 */
     val hadRegexScripts: Boolean
 )

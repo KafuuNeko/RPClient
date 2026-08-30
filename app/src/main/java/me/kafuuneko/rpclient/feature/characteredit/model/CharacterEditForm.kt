@@ -12,27 +12,49 @@ import me.kafuuneko.rpclient.utils.toJsonString
  * 会去除空白项，角色卡未知扩展通过 [extensionsJson] 原样保留。
  */
 data class CharacterEditForm(
+    /** 当前记录或列表项的唯一标识。 */
     val id: Long = 0L,
+    /** 供界面展示和业务识别的名称。 */
     val name: String = "",
+    /** 用于展示角色或成员的头像引用。 */
     val avatar: String = "",
+    /** 开始编辑前保存的头像引用。 */
     val originalAvatar: String = "",
+    /** 角色用于分类和搜索的标签列表。 */
     val tags: List<String> = emptyList(),
+    /** 用于说明当前对象的描述文本。 */
     val description: String = "",
+    /** 作者提供的角色使用说明和备注。 */
     val creatorNotes: String = "",
+    /** 角色的性格与行为设定。 */
     val personality: String = "",
+    /** 角色对话发生的场景设定。 */
     val scenario: String = "",
+    /** 角色可用的主开场白列表。 */
     val firstMessages: List<String> = emptyList(),
+    /** 用于约束角色语气和格式的示例对话。 */
     val examplesOfDialogue: String = "",
+    /** 追加在聊天历史之后的角色级提示词。 */
     val postHistoryInstructions: String = "",
+    /** 角色级系统提示词覆盖内容。 */
     val systemPrompt: String = "",
+    /** 角色卡作者信息，仅用于元数据展示和导出。 */
     val creator: String = "",
+    /** 角色卡作者声明的内容版本。 */
     val characterVersion: String = "",
+    /** 角色卡提供的备用开场白列表。 */
     val alternateGreetings: List<String> = emptyList(),
+    /** 用于兼容第三方格式的扩展字段 JSON。 */
     val extensionsJson: String = "{}",
+    /** 需要插入聊天历史内部的角色附加提示词正文。 */
     val depthPromptPrompt: String = "",
+    /** 角色附加提示词相对聊天末尾的插入深度。 */
     val depthPromptDepth: String = "4",
+    /** 角色附加提示词使用的消息角色。 */
     val depthPromptRole: String = "0",
+    /** 角色卡直接绑定的世界书 ID；未绑定时为 0。 */
     val characterLorebookId: Long = 0L,
+    /** 角色默认关联的模型配置 ID；未关联时为空。 */
     val llmProviderId: Long = 0L
 ) {
     /** ID 为 0 表示尚未写入数据库的新角色。 */

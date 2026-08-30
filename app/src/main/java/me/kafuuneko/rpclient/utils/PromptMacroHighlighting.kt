@@ -15,10 +15,15 @@ import androidx.compose.ui.text.input.VisualTransformation
 
 /** 提示词高亮颜色配置。 */
 data class PromptHighlightColors(
+    /** Prompt 宏高亮使用的前景色。 */
     val macroForeground: Color,
+    /** Prompt 宏高亮使用的背景色。 */
     val macroBackground: Color,
+    /** Prompt 标签高亮使用的前景色。 */
     val tagForeground: Color,
+    /** Prompt 标签高亮使用的背景色。 */
     val tagBackground: Color,
+    /** Prompt 结构分段标记使用的前景色。 */
     val sectionForeground: Color
 )
 

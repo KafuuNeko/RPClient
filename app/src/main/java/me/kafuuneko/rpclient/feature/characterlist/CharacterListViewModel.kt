@@ -647,21 +647,29 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
 
     /** 一次角色卡导入选择对应的有效草稿与解析失败统计。 */
     private data class CharacterCardImportBatch(
+        /** 批量导入解析成功、等待确认的角色草稿列表。 */
         val drafts: List<CharacterCardImportDraft>,
+        /** 批量导入中无法解析的文件数量。 */
         val parseFailureCount: Int,
+        /** 当前查询或统计包含的总数量。 */
         val totalCount: Int
     )
 
     /** 头像内存缓存键，由文件 UUID 与宽高像素共同决定。 */
     private data class AvatarCacheKey(
+        /** 头像文件在本地文件库中的 UUID。 */
         val avatarUuid: String,
+        /** 图像的像素宽度。 */
         val widthPx: Int,
+        /** 图像的像素高度。 */
         val heightPx: Int
     )
 
     /** 视口内已完成解码的头像图像对象。 */
     private data class LoadedAvatar(
+        /** 头像缓存中用于区分文件和目标尺寸的稳定键。 */
         val key: AvatarCacheKey,
+        /** 已经加载或配置、可供界面使用的图像。 */
         val image: ImageBitmap
     )
 

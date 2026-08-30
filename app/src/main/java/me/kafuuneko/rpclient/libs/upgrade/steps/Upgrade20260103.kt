@@ -137,9 +137,13 @@ class Upgrade20260103(
     }
 
     private data class LegacyRegexSnapshot(
+        /** 旧版本全局正则脚本的序列化快照。 */
         val globalScriptsJson: String,
+        /** 旧版本预设正则脚本的序列化快照。 */
         val presetScriptsJson: String,
+        /** 旧版本预设脚本是否已经获得执行授权。 */
         val presetAuthorized: Boolean,
+        /** 已授权执行相关正则脚本的角色 ID 集合。 */
         val authorizedCharacterIds: Set<Long>
     )
 

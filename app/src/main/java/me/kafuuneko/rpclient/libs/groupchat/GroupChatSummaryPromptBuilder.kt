@@ -17,7 +17,9 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 群聊总结请求和其实际覆盖的连续消息。 */
 data class GroupChatSummaryBuildResult(
+    /** 经过业务层组装、准备提交给模型服务的请求。 */
     val request: LLMGenerationRequest,
+    /** 按当前规则选入 Prompt 的历史消息。 */
     val selectedMessages: List<GroupChatMessage>
 )
 

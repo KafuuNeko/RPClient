@@ -9,11 +9,17 @@ sealed class WorldBookEditUiState {
     data object None : WorldBookEditUiState()
 
     data class Normal(
+        /** 当前流程采用的处理模式。 */
         val mode: WorldBookEditMode,
+        /** 当前页面正在编辑的表单数据。 */
         val form: WorldBookEditForm,
+        /** 进入编辑页时保存的初始表单快照。 */
         val initialForm: WorldBookEditForm = form,
+        /** 世界书编辑页中的条目列表和筛选状态。 */
         val entryListState: WorldBookEntryListState = WorldBookEntryListState.from(form.entries),
+        /** 当前页面数据库或资源操作的加载状态。 */
         val loadState: WorldBookEditLoadState = WorldBookEditLoadState.None,
+        /** 当前页面互斥展示的对话框状态。 */
         val dialogState: WorldBookEditDialogState = WorldBookEditDialogState.None
     ) : WorldBookEditUiState()
 
@@ -29,10 +35,15 @@ sealed class WorldBookEditUiState {
 
 /** 世界书条目列表的查询条件和最终可渲染结果。 */
 data class WorldBookEntryListState(
+    /** 当前列表或对话框使用的搜索关键词。 */
     val query: String = "",
+    /** 当前列表或选择器采用的条目筛选条件。 */
     val filter: WorldBookEntryFilter = WorldBookEntryFilter.All,
+    /** 按搜索和筛选条件处理后实际展示的世界书条目。 */
     val visibleEntries: List<WorldBookEntryListItem> = emptyList(),
+    /** 当前查询或统计包含的总数量。 */
     val totalCount: Int = 0,
+    /** 当前列表中处于启用状态的条目数量。 */
     val activeCount: Int = 0
 ) {
     fun rebuild(entries: List<WorldBookEntryListItem>): WorldBookEntryListState {

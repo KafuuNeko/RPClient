@@ -42,8 +42,11 @@ fun LLMGenerationRequest.withPostProcessedMessages(
  * 以保留多轮对话中的发言者边界。
  */
 data class PromptPostProcessingNames(
+    /** 当前会话或 Prompt 使用的用户名称。 */
     val userName: String = "",
+    /** 关联角色的显示名称快照。 */
     val characterName: String = "",
+    /** Prompt 后处理规则识别的分组名称映射。 */
     val groupNames: List<String> = emptyList()
 )
 
@@ -54,8 +57,11 @@ data class PromptPostProcessingNames(
  * 和世界书时序提交判断实际进入请求的内容。
  */
 internal data class TrackedPromptMessage(
+    /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
+    /** 当前对象承载的正文内容。 */
     val content: String,
+    /** 当前 Prompt 项合并后保留的原始来源列表。 */
     val sources: List<PromptSource>
 )
 

@@ -4,8 +4,11 @@ import kotlin.random.Random
 
 /** 创建群聊时可供开场白规划器使用的角色及候选文本。 */
 data class GroupChatGreetingCandidate(
+    /** 关联角色的唯一 ID。 */
     val characterId: Long,
+    /** 关联角色的显示名称快照。 */
     val characterName: String,
+    /** 当前角色或群聊可选择的开场白列表。 */
     val greetings: List<String>
 )
 
@@ -14,12 +17,16 @@ sealed interface GroupChatGreetingSelection {
     data object RandomPerCharacter : GroupChatGreetingSelection
 
     data class Manual(
+        /** 关联角色的唯一 ID。 */
         val characterId: Long,
+        /** 当前开场白在候选列表中的位置。 */
         val greetingIndex: Int
     ) : GroupChatGreetingSelection
 
     data class Custom(
+        /** 关联角色的唯一 ID。 */
         val characterId: Long,
+        /** 当前对象承载的正文内容。 */
         val content: String
     ) : GroupChatGreetingSelection
 
@@ -28,8 +35,11 @@ sealed interface GroupChatGreetingSelection {
 
 /** 已解析、可直接写入群聊历史的角色开场消息。 */
 data class GroupChatOpeningMessage(
+    /** 关联角色的唯一 ID。 */
     val characterId: Long,
+    /** 关联角色的显示名称快照。 */
     val characterName: String,
+    /** 当前对象承载的正文内容。 */
     val content: String
 )
 

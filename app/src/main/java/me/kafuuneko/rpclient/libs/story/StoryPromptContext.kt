@@ -9,7 +9,9 @@ import java.security.MessageDigest
 
 /** 一次续写要插入的 UTF-16 正文位置。 */
 data class StoryEditTarget(
+    /** 当前区间的起始位置，包含该位置。 */
     val start: Int,
+    /** 当前区间的结束位置，不包含该位置。 */
     val end: Int
 ) {
     init {
@@ -24,16 +26,27 @@ data class StoryEditTarget(
 
 /** 构建一轮故事写作 Prompt 所需的完整、只读输入。 */
 data class StoryPromptContext(
+    /** 当前页面展示或编辑的故事数据。 */
     val story: Story,
+    /** 本次故事 Prompt 可参与激活的角色候选列表。 */
     val characterCandidates: List<StoryCharacterCandidate>,
+    /** 当前操作作用的目标。 */
     val target: StoryEditTarget,
+    /** 执行变更前保存的原始正文。 */
     val sourceContent: String,
+    /** 当前请求关联的模型供应商类型。 */
     val provider: LLMProvider,
+    /** 通过作用域筛选后待扫描的世界书条目列表。 */
     val candidateLorebookEntries: List<StoryLorebookEntryCandidate>,
+    /** 本次扫描可能参与激活的世界书列表。 */
     val candidateLorebooks: Map<Long, Lorebook>,
+    /** 允许参与递归激活扫描的世界书 ID 集合。 */
     val recursiveScanningLorebookIds: Set<Long>,
+    /** 当前会话或 Prompt 使用的用户名称。 */
     val userName: String,
+    /** 当前会话或 Prompt 使用的用户设定。 */
     val userDescription: String,
+    /** 用户为下一次故事续写提供的临时指导。 */
     val continuationGuidance: String = ""
 )
 

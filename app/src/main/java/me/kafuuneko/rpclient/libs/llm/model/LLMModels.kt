@@ -77,22 +77,35 @@ enum class LocalTokenEstimatorType {
  * LLM 模块运行时使用的模型配置。
  */
 data class LLMProviderConfig(
+    /** 供界面展示和业务识别的名称。 */
     val name: String,
+    /** 模型配置所属的供应商类型。 */
     val providerType: LLMProviderType,
+    /** 模型配置实际采用的通信协议。 */
     val protocol: LLMProviderProtocol,
+    /** 模型服务 API 的基础地址。 */
     val baseUrl: String,
+    /** 访问模型服务所需的密钥，仅在受控业务层持有。 */
     val apiKey: String = "",
+    /** 当前配置或请求使用的模型名称。 */
     val model: String,
+    /** 用户配置的自定义请求头 JSON，仅在受控业务层解析。 */
     val customHeadersJson: String = "",
     /** 合并到协议请求体的 JSON Merge Patch；结构字段由各协议适配器保护。 */
     val requestBodyPatchJson: String = "{}",
+    /** 控制模型输出随机性的温度参数。 */
     val temperature: Float = 0.8f,
+    /** 限制模型候选词累计概率的 Top P 参数。 */
     val topP: Float = 1.0f,
+    /** 单次生成允许返回的最大 Token 数。 */
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
+    /** 模型输入与输出共享的上下文 Token 上限。 */
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
     /** 本地 Prompt 预算与用量回退共同使用的 Token 预估器。 */
     val localTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
+    /** 是否向模型服务发送 temperature 参数。 */
     val sendTemperature: Boolean = true,
+    /** 是否向模型服务发送 top_p 参数。 */
     val sendTopP: Boolean = true,
     /** 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。 */
     val useServerReportedUsage: Boolean = false,
@@ -113,7 +126,9 @@ enum class LLMMessageRole {
  * 通用聊天消息。
  */
 data class LLMMessage(
+    /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
+    /** 当前对象承载的正文内容。 */
     val content: String
 )
 
@@ -121,17 +136,25 @@ data class LLMMessage(
  * 通用生成参数。为空时使用当前模型配置的默认值。
  */
 data class LLMGenerationOptions(
+    /** 控制模型输出随机性的温度参数。 */
     val temperature: Float? = null,
+    /** 单次生成允许返回的最大 Token 数。 */
     val maxTokens: Int? = null,
+    /** 限制模型候选词累计概率的 Top P 参数。 */
     val topP: Float? = null,
+    /** 命中后要求模型停止生成的文本序列。 */
     val stop: List<String> = emptyList()
 )
 
 /** 已按模型配置的能力开关收敛的实际请求参数。 */
 data class ResolvedLLMGenerationOptions(
+    /** 控制模型输出随机性的温度参数。 */
     val temperature: Float?,
+    /** 单次生成允许返回的最大 Token 数。 */
     val maxTokens: Int,
+    /** 限制模型候选词累计概率的 Top P 参数。 */
     val topP: Float?,
+    /** 命中后要求模型停止生成的文本序列。 */
     val stop: List<String>
 )
 
@@ -155,9 +178,13 @@ fun LLMGenerationOptions.resolveFor(
  * 通用生成请求，非流式与流式接口共用同一个请求模型。
  */
 data class LLMGenerationRequest(
+    /** 当前状态或请求包含的消息列表。 */
     val messages: List<LLMMessage>,
+    /** 当前配置或请求使用的模型名称。 */
     val model: String? = null,
+    /** 覆盖当前模型配置默认值的本次生成参数。 */
     val options: LLMGenerationOptions = LLMGenerationOptions(),
+    /** 是否将推理文本合并进最终正文。 */
     val includeReasoningInContent: Boolean = false,
     /** 是否请求并接收模型服务可提供的推理文本；展示策略由业务层决定。 */
     val captureReasoning: Boolean = includeReasoningInContent,
@@ -171,8 +198,11 @@ data class LLMGenerationRequest(
  * Token 用量信息。不同模型服务的字段不完全一致，因此允许为空。
  */
 data class LLMUsage(
+    /** 模型服务上报的输入 Token 数。 */
     val promptTokens: Int? = null,
+    /** 模型服务上报的输出 Token 数。 */
     val completionTokens: Int? = null,
+    /** 模型服务上报的总 Token 数。 */
     val totalTokens: Int? = null,
     /** 输入 Token 中由服务端缓存命中的部分，仅作为明细展示，不重复计入输入总量。 */
     val cachedPromptTokens: Int? = null,
@@ -184,14 +214,19 @@ data class LLMUsage(
  * 一次性生成完成后的完整响应。
  */
 data class LLMGenerationResponse(
+    /** 当前对象承载的正文内容。 */
     val content: String,
+    /** 当前配置或请求使用的模型名称。 */
     val model: String,
+    /** 当前请求关联的模型供应商类型。 */
     val provider: LLMProviderType,
+    /** 模型服务上报或本地估算的 Token 用量。 */
     val usage: LLMUsage? = null,
     /** 未并入正文的推理文本，仅用于本次响应的本地用量估算。 */
     val reasoningContent: String = "",
     /** 模型服务给出的停止原因，用于区分正常完成、长度限制和空响应。 */
     val finishReason: String? = null,
+    /** 模型服务返回的原始响应，仅限受控调试流程使用。 */
     val rawResponse: String
 )
 
@@ -206,7 +241,9 @@ sealed class LLMStreamEvent {
      * 模型增量输出的文本片段。
      */
     data class Delta(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String
     ) : LLMStreamEvent()
 
@@ -214,8 +251,11 @@ sealed class LLMStreamEvent {
      * 模型服务明确返回的推理文本片段，不应直接并入最终正文。
      */
     data class ReasoningDelta(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String,
+        /** 当前 Prompt 来源或推理文本的细分类型。 */
         val kind: LLMReasoningKind = LLMReasoningKind.Detailed
     ) : LLMStreamEvent()
 
@@ -223,6 +263,7 @@ sealed class LLMStreamEvent {
      * 模型服务明确返回的完成事件。
      */
     data class Finished(
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String? = null,
         /** 流式协议在结束块中返回的停止原因。 */
         val finishReason: String? = null,

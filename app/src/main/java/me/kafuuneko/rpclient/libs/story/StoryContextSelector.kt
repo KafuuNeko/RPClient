@@ -4,19 +4,29 @@ import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 
 /** 一段可独立预算和追踪来源的连续正文上下文。 */
 data class StoryContextChunk(
+    /** 当前对象承载的正文内容。 */
     val content: String,
+    /** 当前区间的起始位置，包含该位置。 */
     val start: Int,
+    /** 当前区间的结束位置，不包含该位置。 */
     val end: Int,
+    /** 故事片段与当前续写位置之间的段落距离。 */
     val distance: Int,
+    /** 当前故事片段是否必须保留在最终上下文中。 */
     val required: Boolean
 )
 
 /** 正文裁剪结果及其世界书、角色激活扫描文本。 */
 data class StoryContextSelection(
+    /** 用于判断故事角色是否激活的扫描文本。 */
     val activationScanText: String,
+    /** 用于激活故事世界书条目的扫描文本。 */
     val worldBookScanText: String,
+    /** 按段落和 Token 预算切分后的故事上下文片段。 */
     val chunks: List<StoryContextChunk>,
+    /** 因上下文预算不足而省略的故事片段数量。 */
     val omittedChunkCount: Int = 0,
+    /** 因上下文预算不足而省略的 Token 估算总数。 */
     val omittedTokenCount: Int = 0
 )
 
@@ -170,7 +180,7 @@ class StoryContextSelector {
     /** 确保切分位置不落入 UTF-16 代理对中间。 */
     private fun String.safeUtf16Boundary(index: Int, minimum: Int, maximum: Int): Int {
         var safe = index.coerceIn(minimum + 1, maximum)
-        if (safe < maximum && safe > minimum && this[safe].isLowSurrogate() && this[safe - 1].isHighSurrogate()) {
+        if (safe in (minimum + 1)..<maximum && this[safe].isLowSurrogate() && this[safe - 1].isHighSurrogate()) {
             safe = if (safe - 1 > minimum) safe - 1 else (safe + 1).coerceAtMost(maximum)
         }
         return safe.coerceAtLeast(minimum + 1)
@@ -181,8 +191,11 @@ class StoryContextSelector {
 
     /** 候选正文切片模型。 */
     private data class CandidateChunk(
+        /** 当前对象覆盖的有效区间。 */
         val range: TextRange,
+        /** 故事片段与当前续写位置之间的段落距离。 */
         val distance: Int,
+        /** 当前文本或 Prompt 项估算得到的 Token 数。 */
         val tokenCount: Int
     )
 

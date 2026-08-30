@@ -9,14 +9,23 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
  * 条目正文由独立页面编辑，此处仅保存用于列表展示的条目快照。
  */
 data class WorldBookEditForm(
+    /** 当前记录或列表项的唯一标识。 */
     val id: Long = 0L,
+    /** 供界面展示和业务识别的名称。 */
     val name: String = "",
+    /** 用于说明当前对象的描述文本。 */
     val description: String = "",
+    /** 世界书关键词扫描的历史消息深度。 */
     val scanDepth: Int = 2,
+    /** 世界书采用按比例还是固定 Token 的预算模式。 */
     val tokenBudgetMode: WorldBookBudgetMode = WorldBookBudgetMode.FollowGlobal,
+    /** 世界书固定预算模式下的用户输入文本。 */
     val tokenBudgetInput: String = "",
+    /** 当前世界书是否允许递归激活扫描。 */
     val recursiveScanning: Boolean = false,
+    /** 用于兼容第三方格式的扩展字段 JSON。 */
     val extensionsJson: String = "{}",
+    /** 当前分组、请求或结果包含的条目列表。 */
     val entries: List<WorldBookEntryListItem> = emptyList()
 ) {
     /** id 为 0 表示尚未持久化的新世界书。 */
@@ -80,12 +89,19 @@ enum class WorldBookBudgetMode {
 
 /** 世界书编辑页中的条目摘要。 */
 data class WorldBookEntryListItem(
+    /** 当前记录或列表项的唯一标识。 */
     val id: Long,
+    /** 供界面展示和业务识别的名称。 */
     val name: String,
+    /** 用于触发世界书条目的主关键词列表。 */
     val keywords: List<String>,
+    /** 是否忽略关键词并始终激活当前世界书条目。 */
     val constant: Boolean,
+    /** 当前对象或功能是否禁用。 */
     val disabled: Boolean = false,
+    /** 当前对象在同类数据中的排序值。 */
     val order: Int,
+    /** 当前内容相对聊天末尾的插入或扫描深度。 */
     val depth: Int
 ) {
     companion object {

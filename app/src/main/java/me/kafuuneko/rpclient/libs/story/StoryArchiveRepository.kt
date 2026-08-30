@@ -383,8 +383,11 @@ class StoryArchiveRepository(
     }
 
     private data class TextExportPlan(
+        /** 参与 Prompt 构建或导入预览的故事标题。 */
         val storyTitle: String,
+        /** 当前故事包含的卷结构列表。 */
         val volumes: List<StoryVolume>,
+        /** 当前故事或卷包含的章节列表。 */
         val chapters: List<StoryChapterOverview>
     )
 

@@ -17,12 +17,19 @@ enum class MainHomeContentTab {
 
 /** 首页状态树，组合资源统计、会话、故事、内容筛选 Tab 和多选交互状态。 */
 data class MainHomeState(
+    /** 主页角色和世界书资源统计的状态。 */
     val resourceState: MainHomeResourceState,
+    /** 主页最近单聊区域的加载和内容状态。 */
     val recentChatsState: MainRecentChatsState,
+    /** 主页最近群聊区域的加载和内容状态。 */
     val recentGroupChatsState: MainRecentGroupChatsState,
+    /** 主页最近故事区域的加载和内容状态。 */
     val recentStoriesState: MainRecentStoriesState,
+    /** 合并单聊、群聊和故事后的最近项目列表。 */
     val allRecentItems: List<MainHomeContentItem> = emptyList(),
+    /** 主页内容区域当前选中的标签页。 */
     val selectedContentTab: MainHomeContentTab = MainHomeContentTab.All,
+    /** 主页多选模式与已选项目的状态。 */
     val selectionState: MainHomeSelectionState = MainHomeSelectionState.None
 )
 
@@ -37,7 +44,9 @@ internal fun mergeAllRecentItems(
 
 /** 首页角色卡与世界书入口所需的资源统计。 */
 data class MainHomeResourceState(
+    /** 角色库中可供当前页面使用的角色总数。 */
     val totalCharacters: Int,
+    /** 世界书库中可供当前页面使用的世界书总数。 */
     val totalWorldBooks: Int
 )
 
@@ -46,7 +55,9 @@ sealed class MainRecentChatsState {
     data object Empty : MainRecentChatsState()
 
     data class Content(
+        /** 按角色分组后的单聊会话列表。 */
         val sessionGroups: List<MainChatSessionGroup>,
+        /** 主页会话分组中当前已折叠的角色 ID 集合。 */
         val collapsedCharacterIds: Set<String> = emptySet()
     ) : MainRecentChatsState()
 }
@@ -56,6 +67,7 @@ sealed class MainRecentGroupChatsState {
     data object Empty : MainRecentGroupChatsState()
 
     data class Content(
+        /** 当前页面展示的会话列表。 */
         val sessions: List<MainGroupChatSessionItem>
     ) : MainRecentGroupChatsState()
 }
@@ -65,6 +77,7 @@ sealed class MainRecentStoriesState {
     data object Empty : MainRecentStoriesState()
 
     data class Content(
+        /** 当前页面展示的故事列表。 */
         val stories: List<MainStoryItem>
     ) : MainRecentStoriesState()
 }
@@ -74,6 +87,7 @@ sealed class MainHomeSelectionState {
     data object None : MainHomeSelectionState()
 
     data class Selecting(
+        /** 多选模式下当前已选中的列表项集合。 */
         val selectedItems: Set<MainHomeItemSelection>
     ) : MainHomeSelectionState()
 }

@@ -13,15 +13,21 @@ import me.kafuuneko.rpclient.libs.room.model.GroupChatSessionOverview
 
 /** 群成员关系及其对应角色卡的聚合数据。 */
 data class GroupChatMemberData(
+    /** 当前角色、成员或世界书条目的关联数据。 */
     val relation: GroupChatMember,
+    /** 当前状态或操作关联的角色数据。 */
     val character: Character
 )
 
 /** 群聊页面和生成流程所需的会话聚合数据。 */
 data class GroupChatData(
+    /** 当前页面展示或编辑的会话数据。 */
     val session: GroupChatSession,
+    /** 当前群聊包含的成员列表。 */
     val members: List<GroupChatMemberData>,
+    /** 当前状态或请求包含的消息列表。 */
     val messages: List<GroupChatMessage>,
+    /** 当前会话或故事使用的摘要内容。 */
     val summary: GroupChatSummary?
 )
 

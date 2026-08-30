@@ -187,12 +187,19 @@ fun Modifier.draggableLazyListScrollIndicator(
 
 /** Lazy 列表滚动条的轨道、滑块和项空间几何。 */
 private data class LazyListScrollIndicatorGeometry(
+    /** 滚动条轨道在主轴方向上的起始坐标。 */
     val trackStart: Float,
+    /** 滚动条轨道在主轴方向上的长度。 */
     val trackLength: Float,
+    /** 滚动条滑块在主轴方向上的起始坐标。 */
     val thumbStart: Float,
+    /** 滚动条滑块在主轴方向上的长度。 */
     val thumbLength: Float,
+    /** 滚动位置相对完整内容范围的比例。 */
     val scrollFraction: Float,
+    /** 惰性列表当前包含的项目总数。 */
     val totalItemsCount: Int,
+    /** 当前视口内可见项目覆盖的有效跨度。 */
     val visibleItemSpan: Float
 ) {
     val thumbEnd: Float
@@ -209,29 +216,41 @@ private data class LazyListScrollIndicatorGeometry(
 
 /** Lazy 列表跳转目标，使用项目内比例延迟换算真实像素偏移。 */
 internal data class LazyListScrollTarget(
+    /** 当前对象在所属有序集合中的位置。 */
     val index: Int,
+    /** 拖动开始时滚动偏移所占的比例。 */
     val scrollOffsetFraction: Float,
+    /** 是否请求将列表直接滚动到末尾。 */
     val scrollToEnd: Boolean = false
 )
 
 /** 高频拖动请求及可选的最终位置确认。 */
 private data class LazyListScrollRequest(
+    /** 当前操作作用的目标。 */
     val target: LazyListScrollTarget,
+    /** 异步系统操作完成后需要触发的回调。 */
     val completion: CompletableDeferred<Unit>? = null
 )
 
 /** 与 Compose 布局对象解耦的可见项目快照。 */
 internal data class LazyListVisibleItem(
+    /** 当前对象在所属有序集合中的位置。 */
     val index: Int,
+    /** 当前数据相对起点的偏移量。 */
     val offset: Int,
+    /** 当前图像、视口或数据块的尺寸。 */
     val size: Int
 )
 
 /** 列表在项空间中的连续位置与当前可见跨度。 */
 internal data class LazyListItemSpaceMetrics(
+    /** 惰性列表当前包含的项目总数。 */
     val totalItemsCount: Int,
+    /** 当前滚动容器沿主轴方向的可视尺寸。 */
     val viewportSize: Int,
+    /** 当前视口中第一个可见列表项的位置。 */
     val firstVisibleItemIndex: Float,
+    /** 当前视口内可见项目覆盖的有效跨度。 */
     val visibleItemSpan: Float
 )
 

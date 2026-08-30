@@ -2067,9 +2067,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @property worldInfoStateJson 世界书时序激活状态快照 JSON
      */
     private data class BuiltGenerationRequest(
+        /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider,
+        /** 经过业务层组装、准备提交给模型服务的请求。 */
         val request: LLMGenerationRequest,
+        /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
         val inspection: PromptInspection,
+        /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
         val worldInfoStateJson: String
     )
 
@@ -2211,11 +2215,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 自动总结流程所需的数据包装类。
      */
     private data class AutoSummaryData(
+        /** 当前页面展示或编辑的会话数据。 */
         val session: ChatSession,
+        /** 当前状态或操作关联的角色数据。 */
         val character: Character,
+        /** 当前会话或故事使用的摘要内容。 */
         val summary: String,
+        /** 当前状态或请求包含的消息列表。 */
         val messages: List<ChatMessage>,
+        /** 生成完成后需要覆盖的既有摘要 ID。 */
         val summaryIdToUpdate: Long?,
+        /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider
     )
 
@@ -2223,8 +2233,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 用于构建 Prompt 的历史上下文包装类。
      */
     private data class GenerationHistory(
+        /** 当前会话或故事使用的摘要内容。 */
         val summary: String,
+        /** 当前状态或请求包含的消息列表。 */
         val messages: List<ChatMessage>,
+        /** 统计范围内包含的消息总数。 */
         val totalMessageCount: Int
     )
 
@@ -2233,9 +2246,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private sealed class GenerationOutput {
         /** 创建一条新消息并写入指定 source */
-        data class Create(val source: ChatMessage.Source) : GenerationOutput()
+        data class Create(
+            /** 产生当前数据的来源。 */
+            val source: ChatMessage.Source
+        ) : GenerationOutput()
         /** 更新覆盖已有的消息记录（如重新生成） */
-        data class Update(val messageId: Long) : GenerationOutput()
+        data class Update(
+            /** 当前操作关联的消息 ID。 */
+            val messageId: Long
+        ) : GenerationOutput()
     }
 
     /**
@@ -2252,7 +2271,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 流式生成初始化时绑定的正则脚本与宏快照。
      */
     private data class StreamingRegexContext(
+        /** 当前页面或流程可使用的正则脚本列表。 */
         val scripts: List<ScopedRegexScript> = emptyList(),
+        /** 当前正则执行允许展开的宏变量映射。 */
         val macros: Map<String, String> = emptyMap()
     )
 
@@ -2270,14 +2291,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @property worldInfoStateJson 世界书时序状态快照
      */
     private data class ActiveStreamingGeneration(
+        /** 用于识别并取消当前生成任务的唯一令牌。 */
         val token: Any,
+        /** 当前操作关联的会话 ID。 */
         val sessionId: Long,
+        /** 当前流式生成累计得到的正文。 */
         val output: GenerationOutput,
+        /** 当前操作关联的消息 ID。 */
         val messageId: Long?,
+        /** 本次流式生成是否已经创建待写回的占位记录。 */
         val createdPlaceholder: Boolean,
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 当前对象关联或允许执行的正则脚本列表。 */
         val regexScripts: List<ScopedRegexScript>,
+        /** 流式生成完成时执行 Source 正则所需的宏映射。 */
         val regexMacros: Map<String, String>,
+        /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
         val worldInfoStateJson: String
     )
 }

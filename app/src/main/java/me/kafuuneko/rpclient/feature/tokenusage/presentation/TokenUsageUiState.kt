@@ -23,10 +23,15 @@ sealed class TokenUsageUiState {
     data object None : TokenUsageUiState()
 
     data class Normal(
+        /** Token 用量页当前选中的统计周期。 */
         val selectedPeriod: TokenUsagePeriod,
+        /** 当前会话或故事使用的摘要内容。 */
         val summary: TokenUsageSummaryItem,
+        /** 当前页面或结果包含的分组列表。 */
         val groups: List<TokenUsageGroupItem>,
+        /** Token 用量页最近请求记录列表。 */
         val recentRecords: List<TokenUsageRecordItem>,
+        /** 当前页面互斥展示的对话框状态。 */
         val dialogState: TokenUsageDialogState = TokenUsageDialogState.None
     ) : TokenUsageUiState()
 

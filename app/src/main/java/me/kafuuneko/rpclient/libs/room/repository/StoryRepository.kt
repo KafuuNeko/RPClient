@@ -17,74 +17,111 @@ import me.kafuuneko.rpclient.libs.story.storyTextHash
 
 /** Story 角色关联的领域聚合数据。 */
 data class StoryCharacterCandidate(
+    /** 当前角色、成员或世界书条目的关联数据。 */
     val relation: StoryCharacter,
+    /** 当前状态或操作关联的角色数据。 */
     val character: Character
 )
 
 /** Story 世界书条目关联与原始条目的领域聚合数据。 */
 data class StoryLorebookEntryCandidate(
+    /** 当前角色、成员或世界书条目的关联数据。 */
     val relation: StoryLorebookEntry,
+    /** 当前流程正在处理的单个条目。 */
     val entry: LorebookEntry
 )
 
 /** 用户保存的一条 Story 角色关联配置。 */
 data class StoryCharacterSelection(
+    /** 关联角色的唯一 ID。 */
     val characterId: Long,
+    /** 当前角色或条目的激活模式。 */
     val activationMode: Int
 )
 
 /** 用户保存的一条 Story 世界书关联配置。 */
-data class StoryLorebookEntrySelection(val lorebookEntryId: Long)
+data class StoryLorebookEntrySelection(
+    /** 关联世界书条目的唯一 ID。 */
+    val lorebookEntryId: Long
+)
 
 /** 可用于生成提交、撤销和恢复的 Story 条目级世界书状态快照。 */
 data class StoryLorebookRuntimeState(
+    /** 关联世界书条目的唯一 ID。 */
     val lorebookEntryId: Long,
+    /** 故事世界书条目最近一次被直接命中的生成轮次。 */
     val activatedAtStep: Int? = null,
+    /** 故事世界书条目粘滞激活保持到的生成轮次。 */
     val stickyUntilStep: Int? = null,
+    /** 故事世界书条目冷却结束的生成轮次。 */
     val cooldownUntilStep: Int? = null,
+    /** 用于比较世界书时序状态的稳定签名。 */
     val stateSignature: String? = null
 )
 
 /** 编辑器初始化所需的 Story、轻量结构和当前完整章节。 */
 data class StoryEditorData(
+    /** 当前页面展示或编辑的故事数据。 */
     val story: Story,
+    /** 当前故事包含的卷结构列表。 */
     val volumes: List<StoryVolume>,
+    /** 当前故事或卷包含的章节列表。 */
     val chapters: List<StoryChapterOverview>,
+    /** 当前编辑器正在展示的章节数据。 */
     val currentChapter: StoryChapter
 )
 
 /** 一次章节正文保存后的两级新 revision。 */
 data class StoryChapterWriteResult(
+    /** 故事级数据用于并发校验的修订版本。 */
     val storyRevision: Long,
+    /** 章节正文用于并发校验的修订版本。 */
     val chapterRevision: Long
 )
 
 /** 删除章节后必须立即切换到的相邻章节。 */
 data class StoryChapterDeleteResult(
+    /** 刚完成删除的章节 ID。 */
     val deletedChapterId: Long,
+    /** 删除当前章节后需要切换到的备用章节 ID。 */
     val fallbackChapterId: Long
 )
 
 /** 等待通过 Story、章节、原文和世界书快照校验后原子应用的 AI 修改。 */
 data class StoryGeneratedEdit(
+    /** 当前操作关联的故事 ID。 */
     val storyId: Long,
+    /** 当前操作关联的章节 ID。 */
     val chapterId: Long,
+    /** 开始编辑时记录的故事修订版本。 */
     val baseStoryRevision: Long,
+    /** 开始编辑时记录的章节修订版本。 */
     val baseChapterRevision: Long,
+    /** 当前区间的起始位置，包含该位置。 */
     val start: Int,
+    /** 当前区间的结束位置，不包含该位置。 */
     val end: Int,
+    /** 生成开始时正文的哈希，用于避免覆盖后续编辑。 */
     val originalTextHash: String,
+    /** 当前流程计算或执行后的结果。 */
     val result: String,
+    /** 本轮扫描后需要持久化的世界书时序状态映射。 */
     val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
+    /** 本轮生成完成后应持久化的世界书时序轮次。 */
     val nextWorldInfoGenerationStep: Int? = null
 )
 
 /** 已原子应用的章节正文、两级 revision 与 Story 世界书状态。 */
 data class StoryAppliedEdit(
+    /** 当前对象承载的正文内容。 */
     val content: String,
+    /** 故事级数据用于并发校验的修订版本。 */
     val storyRevision: Long,
+    /** 章节正文用于并发校验的修订版本。 */
     val chapterRevision: Long,
+    /** 当前世界书时序推进到的生成轮次。 */
     val worldInfoGenerationStep: Int,
+    /** 按条目 ID 保存的世界书时序状态映射。 */
     val worldInfoStates: List<StoryLorebookRuntimeState>
 )
 
@@ -847,7 +884,9 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     }
 
     private data class NormalizedStoryConfiguration(
+        /** 故事导入或编辑时保存的世界书选择状态。 */
         val lorebookSelections: List<StoryLorebookEntrySelection>,
+        /** 故事导入或编辑时保存的角色选择状态。 */
         val characterSelections: List<StoryCharacterSelection>
     )
 
@@ -888,8 +927,11 @@ private fun List<StoryLorebookEntry>.withRuntimeStates(
 
 /** 章节归属分卷与排序位置载荷。 */
 data class StoryChapterPlacement(
+    /** 当前操作关联的章节 ID。 */
     val chapterId: Long,
+    /** 当前操作关联的故事卷 ID。 */
     val volumeId: Long?,
+    /** 当前对象用于稳定排序的顺序值。 */
     val sortOrder: Int
 )
 

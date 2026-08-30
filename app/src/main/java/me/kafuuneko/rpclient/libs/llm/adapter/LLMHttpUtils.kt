@@ -188,27 +188,38 @@ internal fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
 /** 协议解析器输出的正文、推理或完成片段。 */
 internal sealed class LLMProviderStreamPart {
     data class Text(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String
     ) : LLMProviderStreamPart()
 
     data class Reasoning(
+        /** 当前对象承载的正文内容。 */
         val content: String,
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String,
+        /** 当前 Prompt 来源或推理文本的细分类型。 */
         val kind: LLMReasoningKind = LLMReasoningKind.Detailed
     ) : LLMProviderStreamPart()
 
     data class Finished(
+        /** 流式协议返回的原始数据块，仅限受控调试流程使用。 */
         val rawChunk: String? = null,
+        /** 模型服务给出的生成停止原因。 */
         val finishReason: String? = null,
+        /** 当前配置或请求使用的模型名称。 */
         val model: String? = null,
+        /** 模型服务上报或本地估算的 Token 用量。 */
         val usage: LLMUsage? = null,
         /** true 表示协议已到达不可再追加用量的最终结束标记。 */
         val terminal: Boolean = true
     ) : LLMProviderStreamPart()
 
     data class Usage(
+        /** 模型服务上报或本地估算的 Token 用量。 */
         val usage: LLMUsage,
+        /** 当前配置或请求使用的模型名称。 */
         val model: String? = null
     ) : LLMProviderStreamPart()
 }

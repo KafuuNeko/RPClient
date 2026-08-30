@@ -2111,14 +2111,19 @@ class GroupChatViewModel :
      * @property recursiveLorebookIds 开启了递归扫描的世界书 ID 集合
      */
     private data class GroupLorebookContext(
+        /** 当前分组、请求或结果包含的条目列表。 */
         val entries: List<me.kafuuneko.rpclient.libs.room.entity.LorebookEntry>,
+        /** 当前页面或流程可使用的世界书列表。 */
         val lorebooks: Map<Long, me.kafuuneko.rpclient.libs.room.entity.Lorebook>,
+        /** 本轮实际参与递归扫描的世界书 ID 集合。 */
         val recursiveLorebookIds: Set<Long>
     )
 
     /** 一次成员拖动的原始顺序与最终顺序快照。 */
     private data class PendingMemberOrder(
+        /** 应用排序或筛选前的角色 ID 顺序。 */
         val originalCharacterIds: List<Long>,
+        /** 应用业务规则后得到的角色 ID 顺序。 */
         val orderedCharacterIds: List<Long>
     )
 

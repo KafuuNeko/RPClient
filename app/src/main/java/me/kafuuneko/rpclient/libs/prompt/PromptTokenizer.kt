@@ -200,9 +200,13 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
 
 /** 自动模式进行有序匹配所需的无敏感信息上下文。 */
 private data class AutomaticEstimatorContext(
+    /** 移除供应商前缀等差异后的标准化模型名称。 */
     val normalizedModel: String,
+    /** 模型配置实际采用的通信协议。 */
     val protocol: LLMProviderProtocol,
+    /** 模型配置所属的供应商类型。 */
     val providerType: LLMProviderType,
+    /** 自动 Token 估算时匹配到的模型编码器名称。 */
     val registeredEncoding: Encoding?
 )
 

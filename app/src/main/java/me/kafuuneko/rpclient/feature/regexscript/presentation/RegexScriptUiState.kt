@@ -18,16 +18,27 @@ sealed class RegexScriptUiState {
      * UiState 持有，Compose 不直接访问 Repository。
      */
     data class Normal(
+        /** 正则脚本生效的业务作用域。 */
         val scope: RegexScriptScope = RegexScriptScope.Global,
+        /** 当前页面或流程可使用的角色列表。 */
         val characters: List<RegexCharacterItem> = emptyList(),
+        /** 当前选中角色的 ID。 */
         val selectedCharacterId: Long? = null,
+        /** 当前页面或流程可使用的正则脚本列表。 */
         val scripts: List<RegexScript> = emptyList(),
+        /** 当前角色是否已被授权执行关联脚本。 */
         val authorized: Boolean = true,
+        /** 当前是否正在跨故事移动章节。 */
         val transferInProgress: Boolean = false,
+        /** 当前页面互斥展示的对话框状态。 */
         val dialogState: RegexScriptDialogState = RegexScriptDialogState.None,
+        /** 正则测试区域当前使用的输入文本。 */
         val testInput: String = "",
+        /** 执行当前正则脚本后得到的测试输出。 */
         val testOutput: String = "",
+        /** 测试世界书条目时模拟的 Prompt 插入位置。 */
         val testPlacement: RegexPlacement = RegexPlacement.UserInput,
+        /** 正则测试模拟的 Source、Markdown 或 Prompt 阶段。 */
         val testMode: RegexExecutionMode = RegexExecutionMode.Source
     ) : RegexScriptUiState()
 

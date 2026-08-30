@@ -2,9 +2,13 @@ package me.kafuuneko.rpclient.libs.llm.model
 
 /** 模型配置编辑和请求序列化共用的参数能力约束。 */
 data class LLMProviderCapabilities(
+    /** 当前协议允许的 temperature 参数范围。 */
     val temperatureRange: ClosedFloatingPointRange<Float>,
+    /** 当前协议允许的 top_p 参数范围。 */
     val topPRange: ClosedFloatingPointRange<Float>,
+    /** 新建配置默认是否发送 temperature 参数。 */
     val defaultSendTemperature: Boolean,
+    /** 新建配置默认是否发送 top_p 参数。 */
     val defaultSendTopP: Boolean
 ) {
     companion object {

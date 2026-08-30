@@ -51,17 +51,25 @@ import me.kafuuneko.rpclient.utils.toggle
 
 /** 通用会话世界书对话框中的分组展示模型。 */
 data class SessionLorebookDialogGroup(
+    /** 当前记录或列表项的唯一标识。 */
     val id: Long,
+    /** 供界面展示和业务识别的名称。 */
     val name: String,
+    /** 当前分组、请求或结果包含的条目列表。 */
     val entries: List<SessionLorebookDialogEntry>
 )
 
 /** 通用会话世界书对话框中的条目展示模型。 */
 data class SessionLorebookDialogEntry(
+    /** 当前记录或列表项的唯一标识。 */
     val id: Long,
+    /** 供界面展示和业务识别的名称。 */
     val name: String,
+    /** 当前对象承载的正文内容。 */
     val content: String,
+    /** 用于触发世界书条目的主关键词列表。 */
     val keywords: List<String>,
+    /** 是否忽略关键词并始终激活当前世界书条目。 */
     val constant: Boolean
 )
 

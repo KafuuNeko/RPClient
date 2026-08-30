@@ -11,22 +11,36 @@ import me.kafuuneko.rpclient.libs.regex.RegexScript
  * [rawJson] 随编辑过程保留，用于继续往返未知 SillyTavern 字段。
  */
 data class RegexScriptDraft(
+    /** 当前记录或列表项的唯一标识。 */
     val id: String,
+    /** 正则脚本的显示名称。 */
     val scriptName: String = "",
+    /** 正则脚本用于查找内容的表达式。 */
     val findRegex: String = "",
+    /** 正则脚本命中后使用的替换模板。 */
     val replaceString: String = "",
+    /** 执行替换前需要从输入中移除的文本片段。 */
     val trimStrings: String = "",
+    /** 测试结果中按插入位置分组的世界书内容。 */
     val placements: Set<Int> = setOf(
         RegexPlacement.UserInput.value,
         RegexPlacement.AiResponse.value
     ),
+    /** 当前对象或功能是否禁用。 */
     val disabled: Boolean = false,
+    /** 脚本是否只在 Markdown 展示阶段执行。 */
     val markdownOnly: Boolean = false,
+    /** 脚本是否只在 Prompt 构建阶段执行。 */
     val promptOnly: Boolean = false,
+    /** 用户编辑消息时是否仍执行当前脚本。 */
     val runOnEdit: Boolean = false,
+    /** 是否先对正则表达式中的宏进行替换。 */
     val substituteRegex: Int = RegexFindMacroMode.Disabled.value,
+    /** 脚本允许处理的最小消息深度。 */
     val minDepth: String = "",
+    /** 脚本允许处理的最大消息深度。 */
     val maxDepth: String = "",
+    /** 未经业务转换的原始 JSON 文本。 */
     val rawJson: String = "{}"
 ) {
     /** 将通过校验的表单转换为可执行领域模型。 */
