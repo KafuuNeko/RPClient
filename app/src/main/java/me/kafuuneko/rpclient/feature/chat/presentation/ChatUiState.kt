@@ -46,12 +46,11 @@ data class ChatConversationState(
     val editingMessageDraft: String = ""
 )
 
-/** 单聊世界书选择与展开状态。 */
+/** 单聊设置页中的世界书列表与搜索状态。 */
 data class ChatLorebookState(
     val groups: List<ChatLorebookGroupItem>,
     val visibleGroups: List<ChatLorebookGroupItem> = groups,
-    val query: String = "",
-    val isExpanded: Boolean = false
+    val query: String = ""
 )
 
 /** 单聊页面当前展示的一级页面。 */
@@ -71,6 +70,12 @@ sealed class ChatLoadState {
 /** 单聊页面互斥显示的业务对话框。 */
 sealed class ChatDialogState {
     data object None : ChatDialogState()
+
+    data class SessionLorebook(
+        val query: String,
+        val visibleGroups: List<ChatLorebookGroupItem>,
+        val enabledEntryIds: Set<Long>
+    ) : ChatDialogState()
 
     data object Exporting : ChatDialogState()
 

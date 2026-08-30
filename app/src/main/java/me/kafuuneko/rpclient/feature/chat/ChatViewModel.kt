@@ -152,7 +152,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /**
      * 页面从后台恢复或重新可见时的刷新处理。
      *
-     * 保持当前的输入草稿、当前子页面（对话/设置）、世界书抽屉展开状态、生成中状态、
+     * 保持当前的输入草稿、当前子页面（对话/设置）、对话框、生成中状态、
      * 正在编辑的消息草稿及已展开的思考块状态，重新从数据库载入最新数据并刷新。
      */
     @UiIntentObserver(ChatUiIntent.Resume::class)
@@ -165,7 +165,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 inputDraft = uiState.conversationState.inputDraft,
                 page = uiState.page,
-                isExpanded = uiState.lorebookState.isExpanded,
                 loadState = uiState.loadState,
                 generationState = uiState.conversationState.generationState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
@@ -284,7 +283,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = "",
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting
                 )
                 // 构建 Prompt 请求并记录检查项
@@ -320,7 +318,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = "",
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Failed(failure.message),
                     dialogState = guideDialog ?: ChatDialogState.None
                 )
@@ -454,15 +451,70 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ChatViewEvent.OpenSession(branchId.toString()).emit()
     }
 
-    /**
-     * 展开或收起会话的世界书抽屉/选择面板。
-     */
-    @UiIntentObserver(ChatUiIntent.OpenSessionLore::class)
-    private fun onOpenSessionLore() {
+    /** 打开当前会话的世界书快捷管理对话框。 */
+    @UiIntentObserver(ChatUiIntent.ShowSessionLoreDialog::class)
+    private fun onShowSessionLoreDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val groups = uiState.lorebookState.groups
         uiState.copy(
-            lorebookState = uiState.lorebookState.copy(
-                isExpanded = !uiState.lorebookState.isExpanded
+            dialogState = ChatDialogState.SessionLorebook(
+                query = "",
+                visibleGroups = groups,
+                enabledEntryIds = uiState.session.enabledLorebookEntryIds
+            )
+        ).setup()
+    }
+
+    /** 更新单聊快捷管理对话框中的世界书搜索词与过滤结果。 */
+    @UiIntentObserver(ChatUiIntent.ChangeSessionLorebookDialogQuery::class)
+    private fun onChangeSessionLorebookDialogQuery(
+        intent: ChatUiIntent.ChangeSessionLorebookDialogQuery
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                query = intent.value,
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value)
+            )
+        ).setup()
+    }
+
+    /** 切换单聊快捷管理对话框草稿中的单个条目。 */
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogEntry::class)
+    private fun onToggleSessionLorebookDialogEntry(
+        intent: ChatUiIntent.ToggleSessionLorebookDialogEntry
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        val entryExists = uiState.lorebookState.groups.any { group ->
+            group.entries.any { it.id == intent.entryId }
+        }
+        if (!entryExists) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggle(intent.entryId)
+            )
+        ).setup()
+    }
+
+    /** 切换单聊快捷管理对话框草稿中的整个世界书分组。 */
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogGroup::class)
+    private fun onToggleSessionLorebookDialogGroup(
+        intent: ChatUiIntent.ToggleSessionLorebookDialogGroup
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响。
+        val entryIds = uiState.lorebookState.groups
+            .firstOrNull { it.lorebookId == intent.lorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { it.id }
+            .orEmpty()
+        if (entryIds.isEmpty()) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(entryIds)
             )
         ).setup()
     }
@@ -485,7 +537,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
             generationState = uiState.conversationState.generationState
         )
     }
@@ -508,8 +559,29 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
             generationState = uiState.conversationState.generationState
+        )
+    }
+
+    /**
+     * 确认并保存快捷管理对话框中的世界书条目选择。
+     */
+    @UiIntentObserver(ChatUiIntent.ConfirmSessionLorebookSelection::class)
+    private suspend fun onConfirmSessionLorebookSelection() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        val sessionId = mSessionId ?: return
+        // 提交前剔除已经被删除的条目 ID，再一次性覆盖会话配置。
+        val validEntryIds = uiState.lorebookState.groups
+            .flatMap { it.entries }
+            .mapTo(mutableSetOf()) { it.id }
+        val enabledEntryIds = dialogState.enabledEntryIds.intersect(validEntryIds)
+        saveSessionLorebookEntryIds(sessionId, enabledEntryIds)
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = uiState.conversationState.inputDraft,
+            generationState = uiState.conversationState.generationState,
+            dialogState = ChatDialogState.None
         )
     }
 
@@ -833,7 +905,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
@@ -1008,7 +1081,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            isExpanded = uiState.lorebookState.isExpanded,
             generationState = uiState.conversationState.generationState,
             expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
             editingMessageId = null,
@@ -1128,7 +1200,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
@@ -1213,8 +1284,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
-                    isExpanded = uiState.lorebookState.isExpanded,
-                    generationState = ChatGenerationState.Requesting,
+            generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
                 // 依据最后一条消息来源决定生成模式（Normal 或 Continue）
@@ -1285,7 +1355,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
-                    isExpanded = uiState.lorebookState.isExpanded,
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
                 )
@@ -1548,7 +1617,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                             refreshUiState(
                                 sessionId = sessionId,
                                 inputDraft = currentState.conversationState.inputDraft,
-                                isExpanded = currentState.lorebookState.isExpanded,
                                 expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
                                 dialogState = ChatDialogState.None
                             )
@@ -1809,7 +1877,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param inputDraft 输入框草稿
      * @param page 当前子页面（对话/设置）
-     * @param isExpanded 世界书抽屉是否展开
      * @param lorebookQuery 世界书搜索词
      * @param loadState 页面整体加载/保存状态
      * @param generationState 大模型生成状态
@@ -1823,7 +1890,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         sessionId: Long,
         inputDraft: String = "",
         page: ChatPage = ChatPage.Conversation,
-        isExpanded: Boolean = false,
         lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
@@ -1909,8 +1975,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ChatLorebookState(
                         groups = groups,
                         visibleGroups = groups.filterForQuery(lorebookQuery),
-                        query = lorebookQuery,
-                        isExpanded = isExpanded
+                        query = lorebookQuery
                     )
                 },
             streamEnabled = AppModel.streamEnabled,
@@ -1928,7 +1993,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         inputDraft: String = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.inputDraft.orEmpty(),
         page: ChatPage = getOrNull<ChatUiState.Normal>()?.page ?: ChatPage.Conversation,
-        isExpanded: Boolean = getOrNull<ChatUiState.Normal>()?.lorebookState?.isExpanded ?: false,
         lorebookQuery: String = getOrNull<ChatUiState.Normal>()?.lorebookState?.query.orEmpty(),
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()
@@ -1946,7 +2010,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 inputDraft = inputDraft,
                 page = page,
-                isExpanded = isExpanded,
                 lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,

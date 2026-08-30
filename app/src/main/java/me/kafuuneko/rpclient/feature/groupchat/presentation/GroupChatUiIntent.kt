@@ -9,6 +9,12 @@ sealed class GroupChatUiIntent {
     data object Resume : GroupChatUiIntent()
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
+    data object ShowSessionLoreDialog : GroupChatUiIntent()
+    data object OpenWorldBookManager : GroupChatUiIntent()
+    data class ChangeSessionLorebookDialogQuery(val value: String) : GroupChatUiIntent()
+    data class ToggleSessionLorebookDialogEntry(val entryId: Long) : GroupChatUiIntent()
+    data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : GroupChatUiIntent()
+    data object ConfirmSessionLorebookSelection : GroupChatUiIntent()
     data object OpenPromptInspector : GroupChatUiIntent()
 
     data class CopyPromptItem(val text: String) : GroupChatUiIntent()

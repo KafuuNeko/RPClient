@@ -24,9 +24,17 @@ sealed class ChatUiIntent {
 
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()
 
-    data object OpenSessionLore : ChatUiIntent()
+    data object ShowSessionLoreDialog : ChatUiIntent()
 
     data object OpenWorldBookManager : ChatUiIntent()
+
+    data class ChangeSessionLorebookDialogQuery(val value: String) : ChatUiIntent()
+
+    data class ToggleSessionLorebookDialogEntry(val entryId: Long) : ChatUiIntent()
+
+    data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : ChatUiIntent()
+
+    data object ConfirmSessionLorebookSelection : ChatUiIntent()
 
     data object OpenCharacterEditor : ChatUiIntent()
 

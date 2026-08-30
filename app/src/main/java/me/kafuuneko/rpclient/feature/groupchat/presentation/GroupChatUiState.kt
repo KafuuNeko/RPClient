@@ -97,6 +97,11 @@ sealed class GroupChatLoadState {
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
     data object None : GroupChatDialogState()
+    data class SessionLorebook(
+        val query: String,
+        val visibleGroups: List<GroupChatLorebookGroupItem>,
+        val enabledEntryIds: Set<Long>
+    ) : GroupChatDialogState()
     data class ModelSettingsGuide(
         val title: String,
         val message: String

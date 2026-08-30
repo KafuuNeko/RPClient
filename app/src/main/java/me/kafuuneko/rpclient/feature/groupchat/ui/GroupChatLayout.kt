@@ -42,6 +42,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -111,14 +112,19 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -138,7 +144,7 @@ fun GroupChatLayout(
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous) {}
         is GroupChatUiState.Normal -> {
             GroupChatNormalView(uiState, emitIntent)
-            DialogSwitch(uiState.dialogState, emitIntent)
+            DialogSwitch(uiState, emitIntent)
             LoadStateOverlay(uiState.loadState)
         }
     }
@@ -170,6 +176,23 @@ private fun GroupChatNormalView(
                         Icon(
                             Icons.Rounded.Info,
                             contentDescription = stringResource(R.string.prompt_inspector_title)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            emitIntent(GroupChatUiIntent.ShowSessionLoreDialog)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Rounded.Book,
+                            contentDescription = stringResource(R.string.session_world_books),
+                            tint = if (
+                                state.dialogState is GroupChatDialogState.SessionLorebook
+                            ) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         )
                     }
                     IconButton(
@@ -1066,11 +1089,14 @@ private fun MessageList(
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
+    var isScrollIndicatorDragged by remember { mutableStateOf(false) }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.canScrollForward }
-            .collect { canScrollForward ->
-                if (!canScrollForward) {
+        snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
+            .collect { (canScrollForward, indicatorDragged) ->
+                if (indicatorDragged) {
+                    shouldFollowBottom = false
+                } else if (!canScrollForward) {
                     shouldFollowBottom = true
                 }
             }
@@ -1109,7 +1135,19 @@ private fun MessageList(
         return
     }
     LazyColumn(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .draggableLazyListScrollIndicator(
+                state = listState,
+                onDragStateChanged = { dragging ->
+                    isScrollIndicatorDragged = dragging
+                    shouldFollowBottom = if (dragging) {
+                        false
+                    } else {
+                        !listState.canScrollForward
+                    }
+                }
+            ),
         state = listState,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1726,11 +1764,17 @@ private fun Composer(
 
 @Composable
 private fun DialogSwitch(
-    dialogState: GroupChatDialogState,
+    state: GroupChatUiState.Normal,
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
-    when (dialogState) {
+    when (val dialogState = state.dialogState) {
         GroupChatDialogState.None -> Unit
+        is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
+            groups = state.settingsState.lorebookGroups,
+            dialogState = dialogState,
+            emitIntent = emitIntent
+        )
+
         is GroupChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             title = dialogState.title,
@@ -1767,6 +1811,59 @@ private fun DialogSwitch(
             onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteSession) }
         )
     }
+}
+
+/** 将群聊世界书状态适配到应用级快捷管理对话框。 */
+@Composable
+private fun GroupSessionLorebookDialog(
+    groups: List<GroupChatLorebookGroupItem>,
+    dialogState: GroupChatDialogState.SessionLorebook,
+    emitIntent: (GroupChatUiIntent) -> Unit
+) {
+    // 通用 Dialog 只接收展示字段，确认后的会话级持久化仍由群聊状态层负责。
+    val dialogGroups = remember(groups) {
+        groups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    SessionLorebookDialog(
+        groups = dialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        enabledEntryIds = dialogState.enabledEntryIds,
+        onQueryChange = {
+            emitIntent(GroupChatUiIntent.ChangeSessionLorebookDialogQuery(it))
+        },
+        onToggleGroup = {
+            emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogGroup(it))
+        },
+        onToggleEntry = {
+            emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogEntry(it))
+        },
+        onConfirmSelection = {
+            emitIntent(GroupChatUiIntent.ConfirmSessionLorebookSelection)
+        },
+        onManageWorldBooks = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
+        onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) }
+    )
+}
+
+/** 转换群聊世界书分组为通用对话框展示模型。 */
+private fun GroupChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLorebookDialogGroup {
+    return SessionLorebookDialogGroup(
+        id = lorebookId,
+        name = lorebookName,
+        entries = entries.map { entry ->
+            SessionLorebookDialogEntry(
+                id = entry.id,
+                name = entry.name,
+                content = entry.content,
+                keywords = entry.keywords,
+                constant = entry.constant
+            )
+        }
+    )
 }
 
 @Composable

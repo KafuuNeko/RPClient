@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.withSettingsDraft
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -67,6 +68,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
+import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.model.toMessageContentParts
@@ -194,6 +196,85 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         uiState.copy(page = GroupChatPage.Settings).setup()
+    }
+
+    /** 打开当前群聊会话的世界书快捷管理对话框。 */
+    @UiIntentObserver(GroupChatUiIntent.ShowSessionLoreDialog::class)
+    private fun onShowSessionLoreDialog() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val groups = uiState.settingsState.lorebookGroups
+        val enabledEntryIds = groups.flatMap { it.entries }
+            .filter { it.enabled }
+            .mapTo(mutableSetOf()) { it.id }
+        uiState.copy(
+            dialogState = GroupChatDialogState.SessionLorebook(
+                query = "",
+                visibleGroups = groups,
+                enabledEntryIds = enabledEntryIds
+            )
+        ).setup()
+    }
+
+    /** 更新群聊快捷管理对话框中的世界书搜索词与过滤结果。 */
+    @UiIntentObserver(GroupChatUiIntent.ChangeSessionLorebookDialogQuery::class)
+    private fun onChangeSessionLorebookDialogQuery(
+        intent: GroupChatUiIntent.ChangeSessionLorebookDialogQuery
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                query = intent.value,
+                visibleGroups = uiState.settingsState.lorebookGroups.filterForQuery(intent.value)
+            )
+        ).setup()
+    }
+
+    /** 切换群聊快捷管理对话框草稿中的单个条目。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogEntry::class)
+    private fun onToggleSessionLorebookDialogEntry(
+        intent: GroupChatUiIntent.ToggleSessionLorebookDialogEntry
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        val entryExists = uiState.settingsState.lorebookGroups.any { group ->
+            group.entries.any { it.id == intent.entryId }
+        }
+        if (!entryExists) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggle(intent.entryId)
+            )
+        ).setup()
+    }
+
+    /** 切换群聊快捷管理对话框草稿中的整个世界书分组。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogGroup::class)
+    private fun onToggleSessionLorebookDialogGroup(
+        intent: GroupChatUiIntent.ToggleSessionLorebookDialogGroup
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响。
+        val entryIds = uiState.settingsState.lorebookGroups
+            .firstOrNull { it.lorebookId == intent.lorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { it.id }
+            .orEmpty()
+        if (entryIds.isEmpty()) return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(entryIds)
+            )
+        ).setup()
+    }
+
+    /** 跳转至全局世界书管理界面，并关闭当前快捷管理对话框。 */
+    @UiIntentObserver(GroupChatUiIntent.OpenWorldBookManager::class)
+    private fun onOpenWorldBookManager() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        uiState.copy(dialogState = GroupChatDialogState.None).setup()
+        AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
 
     /**
@@ -769,6 +850,30 @@ class GroupChatViewModel :
         }
         // 刷新页面
         refreshState(page = uiState.page)
+    }
+
+    /**
+     * 确认并保存快捷管理对话框中的世界书条目选择。
+     */
+    @UiIntentObserver(GroupChatUiIntent.ConfirmSessionLorebookSelection::class)
+    private suspend fun onConfirmSessionLorebookSelection() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        // 提交前剔除已经被删除的条目 ID，再一次性覆盖群聊会话配置。
+        val validEntryIds = uiState.settingsState.lorebookGroups
+            .flatMap { it.entries }
+            .mapTo(mutableSetOf()) { it.id }
+        val enabledEntryIds = dialogState.enabledEntryIds.intersect(validEntryIds)
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.updateSessionLorebookEntryIds(
+                uiState.sessionId,
+                enabledEntryIds.toList()
+            )
+        }
+        refreshState(
+            page = uiState.page,
+            dialogState = GroupChatDialogState.None
+        )
     }
 
     /**

@@ -115,12 +115,16 @@ import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
+import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -156,7 +160,7 @@ fun ChatLayout(
                     emit = emit
                 )
             }
-            DialogSwitch(uiState.dialogState, emit)
+            DialogSwitch(uiState, emit)
         }
     }
 }
@@ -170,11 +174,14 @@ private fun ChatNormal(
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
+    var isScrollIndicatorDragged by remember { mutableStateOf(false) }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.canScrollForward }
-            .collect { canScrollForward ->
-                if (!canScrollForward) {
+        snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
+            .collect { (canScrollForward, indicatorDragged) ->
+                if (indicatorDragged) {
+                    shouldFollowBottom = false
+                } else if (!canScrollForward) {
                     shouldFollowBottom = true
                 }
             }
@@ -225,6 +232,7 @@ private fun ChatNormal(
             streamEnabled = state.streamEnabled,
             hasPromptInspection = state.hasPromptInspection,
             hasAvailableProvider = state.hasAvailableProvider,
+            sessionLoreDialogVisible = state.dialogState is ChatDialogState.SessionLorebook,
             onBack = { ChatUiIntent.Back.emit() },
             emit = emit
         )
@@ -233,20 +241,22 @@ private fun ChatNormal(
                 onClick = { ChatUiIntent.OpenProviderSettings.emit() }
             )
         }
-        if (state.lorebookState.isExpanded) {
-            SessionLorePanel(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                groups = state.lorebookState.groups,
-                visibleGroups = state.lorebookState.visibleGroups,
-                query = state.lorebookState.query,
-                emit = emit
-            )
-        }
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .draggableLazyListScrollIndicator(
+                    state = listState,
+                    onDragStateChanged = { dragging ->
+                        isScrollIndicatorDragged = dragging
+                        shouldFollowBottom = if (dragging) {
+                            false
+                        } else {
+                            !listState.canScrollForward
+                        }
+                    }
+                ),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -299,6 +309,7 @@ private fun CustomChatTopBar(
     streamEnabled: Boolean,
     hasPromptInspection: Boolean,
     hasAvailableProvider: Boolean = true,
+    sessionLoreDialogVisible: Boolean,
     onBack: () -> Unit,
     emit: ChatUiIntent.() -> Unit
 ) {
@@ -382,14 +393,14 @@ private fun CustomChatTopBar(
                 )
             }
             IconButton(
-                onClick = { ChatUiIntent.OpenSessionLore.emit() },
+                onClick = { ChatUiIntent.ShowSessionLoreDialog.emit() },
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     Icons.Rounded.Book,
                     contentDescription = stringResource(R.string.session_world_book),
                     modifier = Modifier.size(20.dp),
-                    tint = if (lorebookState.isExpanded) MaterialTheme.colorScheme.primary
+                    tint = if (sessionLoreDialogVisible) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                 )
             }
@@ -484,78 +495,6 @@ private fun ConversationStartHeader(
                 Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.edit_character_title))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SessionLorePanel(
-    modifier: Modifier = Modifier,
-    groups: List<ChatLorebookGroupItem>,
-    visibleGroups: List<ChatLorebookGroupItem>,
-    query: String,
-    emit: ChatUiIntent.() -> Unit
-) {
-    var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
-    val isSearching = query.isNotBlank()
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RpSectionHeader(
-                title = stringResource(R.string.session_world_books),
-                action = stringResource(R.string.manage_world_books),
-                onAction = { ChatUiIntent.OpenWorldBookManager.emit() }
-            )
-            Text(
-                text = stringResource(R.string.session_lore_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f)
-            )
-            if (groups.isNotEmpty()) {
-                LorebookSearchField(
-                    query = query,
-                    onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() }
-                )
-            }
-            if (groups.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_world_book_entries),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            if (groups.isNotEmpty() && visibleGroups.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_world_book_search_results),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            LazyColumn(
-                modifier = Modifier.heightIn(max = 360.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(visibleGroups, key = { it.lorebookId }) { group ->
-                    val expanded = isSearching || group.lorebookId in expandedLorebookIds
-                    SessionLoreGroup(
-                        group = group,
-                        expanded = expanded,
-                        onExpandedChange = {
-                            expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
-                        },
-                        emit = emit
-                    )
-                }
             }
         }
     }
@@ -1564,11 +1503,17 @@ private fun SettingsSection(
 
 @Composable
 private fun DialogSwitch(
-    dialogState: ChatDialogState,
+    state: ChatUiState.Normal,
     emit: ChatUiIntent.() -> Unit
 ) {
-    when (dialogState) {
+    when (val dialogState = state.dialogState) {
         ChatDialogState.None -> Unit
+
+        is ChatDialogState.SessionLorebook -> ChatSessionLorebookDialog(
+            groups = state.lorebookState.groups,
+            dialogState = dialogState,
+            emit = emit
+        )
 
         is ChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
@@ -1614,6 +1559,51 @@ private fun DialogSwitch(
             onConfirm = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() }
         )
     }
+}
+
+/** 将单聊世界书状态适配到应用级快捷管理对话框。 */
+@Composable
+private fun ChatSessionLorebookDialog(
+    groups: List<ChatLorebookGroupItem>,
+    dialogState: ChatDialogState.SessionLorebook,
+    emit: ChatUiIntent.() -> Unit
+) {
+    // 映射只包含通用 Dialog 所需的展示字段，确认后的持久化仍由单聊状态层负责。
+    val dialogGroups = remember(groups) {
+        groups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    SessionLorebookDialog(
+        groups = dialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        enabledEntryIds = dialogState.enabledEntryIds,
+        onQueryChange = { ChatUiIntent.ChangeSessionLorebookDialogQuery(it).emit() },
+        onToggleGroup = { ChatUiIntent.ToggleSessionLorebookDialogGroup(it).emit() },
+        onToggleEntry = { ChatUiIntent.ToggleSessionLorebookDialogEntry(it).emit() },
+        onConfirmSelection = { ChatUiIntent.ConfirmSessionLorebookSelection.emit() },
+        onManageWorldBooks = { ChatUiIntent.OpenWorldBookManager.emit() },
+        onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
+    )
+}
+
+/** 转换单聊世界书分组为通用对话框展示模型。 */
+private fun ChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLorebookDialogGroup {
+    return SessionLorebookDialogGroup(
+        id = lorebookId,
+        name = lorebookName,
+        entries = entries.map { entry ->
+            SessionLorebookDialogEntry(
+                id = entry.id,
+                name = entry.name,
+                content = entry.content,
+                keywords = entry.keywords,
+                constant = entry.constant
+            )
+        }
+    )
 }
 
 @Composable
@@ -1805,10 +1795,14 @@ private fun ChatLayoutPreview() {
                                 )
                             )
                         )
-                    ),
-                    isExpanded = true
+                    )
                 ),
-                streamEnabled = true
+                streamEnabled = true,
+                dialogState = ChatDialogState.SessionLorebook(
+                    query = "",
+                    visibleGroups = emptyList(),
+                    enabledEntryIds = setOf(1)
+                )
             ),
             emit = {}
         )
