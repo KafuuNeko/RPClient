@@ -49,6 +49,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
@@ -94,7 +95,14 @@ internal val appModules = module {
 
     single { Gson() }
 
-    singleOf(::LLMClientFactory)
+    single {
+        LLMClientFactory(
+            mOkHttpClient = get(),
+            mLLMRequestLogRepository = get(),
+            mLLMTokenUsageRepository = get(),
+            mPromptTokenizerRegistry = get()
+        )
+    }
     singleOf(::LLMProviderSelectionResolver)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
@@ -160,6 +168,7 @@ internal val appModules = module {
     singleOf(::ChatRepository)
     singleOf(::LLMRepository)
     singleOf(::LLMRequestLogRepository)
+    singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)

@@ -1,6 +1,6 @@
 # RPClient Privacy Policy
 
-Last updated: June 16, 2026
+Last updated: August 30, 2026
 
 Effective date: June 16, 2026
 
@@ -32,6 +32,7 @@ To provide app features, RPClient may process the following information locally:
 4. Chat, group chat, and Story data, such as messages, session settings, manuscripts, Story memory and summaries, group members, timestamps, and message roles.
 5. Imported and exported file data, such as Character Card JSON/PNG files, lorebook JSON files, Regex script JSON files, avatars, and other compatible files that you choose to import or export.
 6. Debug log data. If you enable debug mode, RPClient stores raw LLM request JSON and response JSON locally. These logs may include prompts, chat content, character settings, lorebook content, and model responses. When debug mode is disabled, RPClient stops writing new debug logs.
+7. Token usage statistics for successful model requests, such as provider and protocol type, model name, API host and port, streaming mode, request time and duration, input and output token counts, whether each count was provider-reported or locally estimated, and optional cached-input or reasoning token details. These statistics do not store the request or response body, API key, custom headers, full URL path, or URL query parameters.
 
 We process this information to:
 
@@ -39,7 +40,7 @@ We process this information to:
 2. Build prompts and send generation requests to the model service selected by you.
 3. Save your app settings, prompt templates, model parameters, and authorization preferences.
 4. Support import, export, and compatibility features for character cards, lorebooks, and Regex scripts.
-5. Support prompt inspection, token budgeting, summary memory, request logging, and troubleshooting.
+5. Support prompt inspection, token budgeting, summary memory, token usage statistics, request logging, and troubleshooting.
 
 ## 3. Third-Party Model Providers
 
@@ -66,7 +67,7 @@ RPClient currently does not request location, contacts, SMS, phone, camera, micr
 
 ## 5. Storage and Retention
 
-RPClient stores app data locally by default, including local database records, app preferences, and private app files. This data is generally retained until you delete it in the app, clear app data through the operating system, or uninstall the app.
+RPClient stores app data locally by default, including local database records, token usage statistics, app preferences, and private app files. This data is generally retained until you delete it in the app, clear app data through the operating system, or uninstall the app. You can clear token usage statistics independently from the Settings page.
 
 If your device enables Android, device manufacturer, or account-level backup, transfer, or cloud sync features, some RPClient app data may be backed up or transferred according to system rules. This process is controlled by the operating system, device manufacturer, or account service provider. You can manage these settings in your system settings.
 
@@ -101,9 +102,9 @@ No system or network environment can guarantee absolute security. To reduce risk
 
 You can manage your local data through RPClient features:
 
-1. Access and copy: you can view characters, lorebooks, sessions, request logs, and settings in the app. Some data can be copied through export features.
+1. Access and copy: you can view characters, lorebooks, sessions, token usage statistics, request logs, and settings in the app. Some data can be copied through export features.
 2. Correction: you can edit characters, lorebooks, model configurations, prompt templates, and session-related content.
-3. Deletion: you can delete characters, lorebooks, sessions, group chats, model configurations, request logs, and other data. You can also clear app data through system settings or uninstall the app.
+3. Deletion: you can delete characters, lorebooks, sessions, group chats, model configurations, token usage statistics, request logs, and other data. You can also clear app data through system settings or uninstall the app.
 4. Withdrawal or stopping processing: you can delete API keys, disable or delete model configurations, turn off debug mode, disable relevant features, or stop using the app.
 5. Inquiries and feedback: you can contact the developer through the email address or GitHub repository listed in this Policy.
 

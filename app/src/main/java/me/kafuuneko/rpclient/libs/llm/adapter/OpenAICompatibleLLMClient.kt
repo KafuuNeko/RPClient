@@ -73,7 +73,7 @@ class OpenAICompatibleLLMClient(
                     }
                 }
                 // 兼容未发送完成块便直接关闭连接的模型服务
-                partMapper.finish()?.let { emit(it) }
+                partMapper.finish().forEach { emit(it) }
             }.onSuccess {
                 // 记录成功的请求与完整 SSE 原始块日志
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
@@ -103,6 +103,10 @@ class OpenAICompatibleLLMClient(
                 options.maxTokens
             )
             .put("stream", stream)
+        // 端点能力由模型配置显式声明
+        if (stream && mProvider.requestStreamUsage) {
+            payload.put("stream_options", JSONObject().put("include_usage", true))
+        }
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
         if (options.stop.isNotEmpty()) payload.put("stop", options.stop.toJsonArray())
@@ -147,7 +151,6 @@ class OpenAICompatibleLLMClient(
         val json = JSONObject(this)
         val choice = json.getJSONArray("choices").getJSONObject(0)
         val message = choice.optJSONObject("message")
-        val usageJson = json.optJSONObject("usage")
         val reasoningContent = message?.optReasoningContent().orEmpty()
         val content = message?.optContentString("content").orEmpty()
         return LLMGenerationResponse(
@@ -158,13 +161,8 @@ class OpenAICompatibleLLMClient(
             ),
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
-            usage = usageJson?.let {
-                LLMUsage(
-                    promptTokens = it.optNullableInt("prompt_tokens"),
-                    completionTokens = it.optNullableInt("completion_tokens"),
-                    totalTokens = it.optNullableInt("total_tokens")
-                )
-            },
+            usage = parseOpenAIUsage(this),
+            reasoningContent = reasoningContent,
             finishReason = choice.optCleanString("finish_reason"),
             rawResponse = this
         )
@@ -179,12 +177,6 @@ class OpenAICompatibleLLMClient(
         return "<think>\n$reasoningContent\n</think>\n\n$content".trim()
     }
 
-    /**
-     * 读取可空整数字段。
-     */
-    private fun JSONObject.optNullableInt(name: String): Int? {
-        return if (has(name) && !isNull(name)) optInt(name) else null
-    }
 }
 
 /** 解析 OpenAI-compatible SSE 行并保留同一增量中的推理与正文。 */
@@ -195,15 +187,17 @@ internal fun parseOpenAIStreamParts(line: String): List<LLMProviderStreamPart> {
         return listOf(LLMProviderStreamPart.Finished(rawChunk = line))
     }
     val json = parseStreamJsonObject(data) ?: return emptyList()
+    val actualModel = json.cleanString("model")
+    val usage = json.openAIUsage()
     val choice = json.arrayOrNull("choices")
         ?.firstOrNull()
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?: return emptyList()
-    val deltaObject = choice.objectOrNull("delta")
-    val finishReason = choice.cleanString("finish_reason")
-    val actualModel = json.cleanString("model")
     return buildList {
+        usage?.let { add(LLMProviderStreamPart.Usage(it, actualModel)) }
+        if (choice == null) return@buildList
+        val deltaObject = choice.objectOrNull("delta")
+        val finishReason = choice.cleanString("finish_reason")
         // 部分兼容网关会在同一个增量中同时返回推理和正文，两者都必须保留
         deltaObject?.reasoningContent()?.takeIf { it.isNotBlank() }?.let {
             add(LLMProviderStreamPart.Reasoning(it, data))
@@ -212,9 +206,34 @@ internal fun parseOpenAIStreamParts(line: String): List<LLMProviderStreamPart> {
             add(LLMProviderStreamPart.Text(it, data))
         }
         finishReason.takeIf { it.isNotBlank() }?.let {
-            add(LLMProviderStreamPart.Finished(data, it, actualModel))
+            add(
+                LLMProviderStreamPart.Finished(
+                    rawChunk = data,
+                    finishReason = it,
+                    model = actualModel,
+                    terminal = false
+                )
+            )
         }
     }
+}
+
+/** 解析 OpenAI-compatible 完整响应中的标准用量与缓存、推理明细。 */
+internal fun parseOpenAIUsage(value: String): LLMUsage? {
+    return parseStreamJsonObject(value)?.openAIUsage()
+}
+
+private fun JsonObject.openAIUsage(): LLMUsage? {
+    val usage = objectOrNull("usage") ?: return null
+    return LLMUsage(
+        promptTokens = usage.intOrNull("prompt_tokens"),
+        completionTokens = usage.intOrNull("completion_tokens"),
+        totalTokens = usage.intOrNull("total_tokens"),
+        cachedPromptTokens = usage.objectOrNull("prompt_tokens_details")
+            ?.intOrNull("cached_tokens"),
+        reasoningTokens = usage.objectOrNull("completion_tokens_details")
+            ?.intOrNull("reasoning_tokens")
+    )
 }
 
 private fun JsonObject.reasoningContent(): String {

@@ -286,8 +286,86 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate3To4_addsTokenUsageStorageWithoutSensitivePayloadColumns() {
+        migrationHelper.createDatabase(TokenUsageDatabaseName, 3).apply {
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model,
+                    customHeadersJson, requestBodyPatchJson, temperature, topP,
+                    maxTokens, contextTokens, tokenEstimateReservePercent,
+                    sendTemperature, sendTopP, promptPostProcessingMode,
+                    isEnabled, createTime, updateTime
+                ) VALUES (
+                    404, 'existing-openai-compatible', 'ChatGPT', 'OpenAICompatible',
+                    'https://proxy.example.invalid/v1', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 1, 0, 1, 4, 4
+                )
+                """.trimIndent()
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            TokenUsageDatabaseName,
+            4,
+            true
+        )
+
+        // 新表只接受脱敏统计快照，并验证迁移后的实际读写结构
+        migrated.execSQL(
+            """
+            INSERT INTO llm_token_usage_records (
+                createTime, providerId, providerName, providerType, protocol,
+                apiHost, apiPort, requestedModel, effectiveModel, isStreaming,
+                inputTokens, outputTokens, inputTokenSource, outputTokenSource,
+                cachedInputTokens, reasoningTokens, tokenizerName, durationMs
+            ) VALUES (
+                100, 7, 'provider', 'Custom', 'OpenAICompatible',
+                'example.invalid', 443, 'requested', 'effective', 1,
+                120, 30, 'ProviderReported', 'ProxyEstimate',
+                80, NULL, 'CL100K proxy', 250
+            )
+            """.trimIndent()
+        )
+        migrated.query(
+            """
+            SELECT providerName, apiHost, requestedModel, effectiveModel,
+                   inputTokens, outputTokens, inputTokenSource, outputTokenSource
+            FROM llm_token_usage_records
+            """.trimIndent()
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("provider", cursor.getString(0))
+            assertEquals("example.invalid", cursor.getString(1))
+            assertEquals("requested", cursor.getString(2))
+            assertEquals("effective", cursor.getString(3))
+            assertEquals(120L, cursor.getLong(4))
+            assertEquals(30L, cursor.getLong(5))
+            assertEquals("ProviderReported", cursor.getString(6))
+            assertEquals("ProxyEstimate", cursor.getString(7))
+        }
+        migrated.query("PRAGMA table_info(llm_token_usage_records)").use { cursor ->
+            val columnNames = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(1))
+            }
+            assertFalse(columnNames.contains("requestJson"))
+            assertFalse(columnNames.contains("responseJson"))
+            assertFalse(columnNames.contains("apiKey"))
+            assertFalse(columnNames.contains("baseUrl"))
+        }
+        migrated.query(
+            "SELECT requestStreamUsage FROM llm_providers WHERE id = 404"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
+        }
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"
+        const val TokenUsageDatabaseName = "app-token-usage-migration-test"
     }
 }

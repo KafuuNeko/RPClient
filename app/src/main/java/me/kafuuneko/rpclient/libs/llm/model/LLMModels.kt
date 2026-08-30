@@ -75,7 +75,11 @@ data class LLMProviderConfig(
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
     val sendTemperature: Boolean = true,
-    val sendTopP: Boolean = true
+    val sendTopP: Boolean = true,
+    /** 是否为 OpenAI-compatible 流式请求附加服务端用量返回选项。 */
+    val requestStreamUsage: Boolean = false,
+    /** 已持久化配置的主键；编辑页未保存的临时配置为空。 */
+    val providerId: Long? = null
 )
 
 /**
@@ -151,7 +155,11 @@ data class LLMGenerationRequest(
 data class LLMUsage(
     val promptTokens: Int? = null,
     val completionTokens: Int? = null,
-    val totalTokens: Int? = null
+    val totalTokens: Int? = null,
+    /** 输入 Token 中由服务端缓存命中的部分，仅作为明细展示，不重复计入输入总量。 */
+    val cachedPromptTokens: Int? = null,
+    /** 输出 Token 中服务端标记为推理过程的部分，仅作为明细展示。 */
+    val reasoningTokens: Int? = null
 )
 
 /**
@@ -162,6 +170,8 @@ data class LLMGenerationResponse(
     val model: String,
     val provider: LLMProviderType,
     val usage: LLMUsage? = null,
+    /** 未并入正文的推理文本，仅用于本次响应的本地用量估算。 */
+    val reasoningContent: String = "",
     /** 模型服务给出的停止原因，用于区分正常完成、长度限制和空响应。 */
     val finishReason: String? = null,
     val rawResponse: String
@@ -199,7 +209,9 @@ sealed class LLMStreamEvent {
         /** 流式协议在结束块中返回的停止原因。 */
         val finishReason: String? = null,
         /** 网关实际路由到的模型名；没有提供时由调用方使用请求模型。 */
-        val model: String? = null
+        val model: String? = null,
+        /** 模型服务在流结束前上报的用量；缺失字段由统计层单独估算。 */
+        val usage: LLMUsage? = null
     ) : LLMStreamEvent()
 }
 

@@ -1,14 +1,15 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -37,9 +38,21 @@ class GeminiLLMClient(
         val raw = runCatching {
             mOkHttpClient.await(httpRequest.request)
         }.onSuccess {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
+            mLLMRequestLogRepository.trySaveLog(
+                mProvider,
+                model,
+                false,
+                httpRequest.payloadJson,
+                it
+            )
         }.onFailure {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
+            mLLMRequestLogRepository.trySaveLog(
+                mProvider,
+                model,
+                false,
+                httpRequest.payloadJson,
+                it.toErrorJson()
+            )
         }.getOrThrow()
         return raw.toGeminiResponse(
             fallbackModel = model,
@@ -70,11 +83,23 @@ class GeminiLLMClient(
                     }
                 }
                 // 兼容未发送 finishReason 便关闭连接的代理服务
-                partMapper.finish()?.let { emit(it) }
+                partMapper.finish().forEach { emit(it) }
             }.onSuccess {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
+                mLLMRequestLogRepository.trySaveLog(
+                    mProvider,
+                    model,
+                    true,
+                    httpRequest.payloadJson,
+                    rawChunks.toString()
+                )
             }.onFailure {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
+                mLLMRequestLogRepository.trySaveLog(
+                    mProvider,
+                    model,
+                    true,
+                    httpRequest.payloadJson,
+                    it.toErrorJson()
+                )
                 throw it
             }
         }
@@ -173,6 +198,8 @@ class GeminiLLMClient(
             },
             model = fallbackModel,
             provider = mProvider.providerType,
+            usage = parseGeminiUsage(this),
+            reasoningContent = reasoningContent,
             finishReason = candidates
                 ?.optJSONObject(0)
                 ?.optString("finishReason")
@@ -201,11 +228,10 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
         ?.firstOrNull()
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?: return emptyList()
-    val parts = candidate
-        .objectOrNull("content")
-        ?.arrayOrNull("parts")
+    val parts = candidate?.objectOrNull("content")?.arrayOrNull("parts")
+    val usage = json.geminiUsage()
     return buildList {
+        usage?.let { add(LLMProviderStreamPart.Usage(it)) }
         // Gemini 通过 thought 标记区分思考摘要与最终文本，顺序必须原样保留
         if (parts != null) {
             for (element in parts) {
@@ -218,8 +244,42 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
                 }
             }
         }
-        candidate.cleanString("finishReason").takeIf { it.isNotBlank() }?.let {
-            add(LLMProviderStreamPart.Finished(rawChunk = data, finishReason = it))
+        candidate?.cleanString("finishReason")?.takeIf { it.isNotBlank() }?.let {
+            add(
+                LLMProviderStreamPart.Finished(
+                    rawChunk = data,
+                    finishReason = it,
+                    terminal = false
+                )
+            )
         }
     }
+}
+
+/** 解析 Gemini usageMetadata，并将思考与候选输出统一计入输出 Token。 */
+internal fun parseGeminiUsage(value: String): LLMUsage? {
+    return parseStreamJsonObject(value)?.geminiUsage()
+}
+
+private fun JsonObject.geminiUsage(): LLMUsage? {
+    val usage = objectOrNull("usageMetadata") ?: return null
+    val promptTokens = usage.intOrNull("promptTokenCount")
+    val candidateTokens = usage.intOrNull("candidatesTokenCount")
+    val thoughtTokens = usage.intOrNull("thoughtsTokenCount")
+    val totalTokens = usage.intOrNull("totalTokenCount")
+    // Gemini 总量包含候选正文与思考；优先用总量差值兼容未来新增的输出类别
+    val completionTokens = if (totalTokens != null && promptTokens != null) {
+        (totalTokens - promptTokens).coerceAtLeast(0)
+    } else if (candidateTokens != null || thoughtTokens != null) {
+        (candidateTokens ?: 0) + (thoughtTokens ?: 0)
+    } else {
+        null
+    }
+    return LLMUsage(
+        promptTokens = promptTokens,
+        completionTokens = completionTokens,
+        totalTokens = totalTokens,
+        cachedPromptTokens = usage.intOrNull("cachedContentTokenCount"),
+        reasoningTokens = thoughtTokens
+    )
 }

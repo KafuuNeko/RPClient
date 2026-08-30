@@ -134,7 +134,8 @@ class LLMProviderEditViewModel :
                 model = preset.defaultModel,
                 requestBodyPatchJson = formattedPatch,
                 sendTemperature = capabilities.defaultSendTemperature,
-                sendTopP = capabilities.defaultSendTopP
+                sendTopP = capabilities.defaultSendTopP,
+                requestStreamUsage = preset.defaultRequestStreamUsage
             )
         }
     }
@@ -159,7 +160,9 @@ class LLMProviderEditViewModel :
             copy(
                 protocol = intent.value,
                 sendTemperature = capabilities.defaultSendTemperature,
-                sendTopP = capabilities.defaultSendTopP
+                sendTopP = capabilities.defaultSendTopP,
+                requestStreamUsage = requestStreamUsage &&
+                    capabilities.supportsStreamUsageRequest
             )
         }
 
@@ -468,6 +471,12 @@ class LLMProviderEditViewModel :
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleSendTopP::class)
     private fun onToggleSendTopP(intent: LLMProviderEditUiIntent.ToggleSendTopP) =
         updateForm { copy(sendTopP = intent.value) }
+
+    /** 切换是否请求 OpenAI-compatible 流式接口返回服务端用量。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.ToggleRequestStreamUsage::class)
+    private fun onToggleRequestStreamUsage(
+        intent: LLMProviderEditUiIntent.ToggleRequestStreamUsage
+    ) = updateForm { copy(requestStreamUsage = intent.value) }
 
     /** 选择 Prompt 提示词后处理模式（如角色名转换、格式剥离等）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.SelectPostProcessingMode::class)

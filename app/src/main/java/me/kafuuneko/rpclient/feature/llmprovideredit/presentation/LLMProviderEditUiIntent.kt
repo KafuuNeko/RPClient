@@ -73,6 +73,8 @@ sealed class LLMProviderEditUiIntent {
 
     data class ToggleSendTopP(val value: Boolean) : LLMProviderEditUiIntent()
 
+    data class ToggleRequestStreamUsage(val value: Boolean) : LLMProviderEditUiIntent()
+
     data class SelectPostProcessingMode(
         val value: PromptPostProcessingMode
     ) : LLMProviderEditUiIntent()

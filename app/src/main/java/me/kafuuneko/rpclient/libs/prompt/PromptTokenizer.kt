@@ -5,6 +5,7 @@ import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import kotlin.math.ceil
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
@@ -74,33 +75,65 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
             )
             ?: DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
         if (provider == null) return estimatedCl100k(reservePercent)
-        val model = provider.model.lowercase()
-        if (provider.usesOpenAiTokenizer()) {
-            if (model.startsWith("gpt-5") ||
-                model.startsWith("gpt-4o") ||
-                model.startsWith("o1") ||
-                model.startsWith("o3") ||
-                model.startsWith("o4")
+        return resolve(
+            model = provider.model,
+            protocol = provider.protocol,
+            providerType = provider.providerType,
+            reservePercent = reservePercent,
+            usesOpenAiTokenizer = provider.usesOpenAiTokenizer()
+        )
+    }
+
+    /**
+     * 为实际消耗统计选择 Tokenizer。
+     *
+     * 用量估算不会应用 Prompt 预算预留率，否则统计值会被人为放大。
+     */
+    fun resolveForUsage(provider: LLMProviderConfig): PromptTokenizer {
+        return resolve(
+            model = provider.model,
+            protocol = provider.protocol,
+            providerType = provider.providerType,
+            reservePercent = 0,
+            usesOpenAiTokenizer = provider.usesOpenAiTokenizer()
+        )
+    }
+
+    private fun resolve(
+        model: String,
+        protocol: LLMProviderProtocol,
+        providerType: LLMProviderType,
+        reservePercent: Int,
+        usesOpenAiTokenizer: Boolean
+    ): PromptTokenizer {
+        val normalizedModel = model.lowercase()
+        // 已知 OpenAI 模型优先使用对应编码器，未知模型族再回退到离线代理
+        if (usesOpenAiTokenizer) {
+            if (normalizedModel.startsWith("gpt-5") ||
+                normalizedModel.startsWith("gpt-4o") ||
+                normalizedModel.startsWith("o1") ||
+                normalizedModel.startsWith("o3") ||
+                normalizedModel.startsWith("o4")
             ) return mO200k
-            val encoding = mEncodingRegistry.getEncodingForModel(provider.model)
+            val encoding = mEncodingRegistry.getEncodingForModel(model)
             if (encoding.isPresent) return JTokkitPromptTokenizer(encoding.get())
         }
         return when {
-            provider.protocol == LLMProviderProtocol.Gemini ||
-                provider.providerType == LLMProviderType.Gemini ||
-                provider.providerType == LLMProviderType.Grok ||
-                model.contains("gemini") ||
-                model.contains("gemma") ||
-                model.contains("grok") -> estimatedO200k(reservePercent)
-            provider.protocol == LLMProviderProtocol.AnthropicMessages ||
-                provider.providerType == LLMProviderType.Claude ||
-                provider.providerType == LLMProviderType.DeepSeek ||
-                model.contains("claude") ||
-                model.contains("deepseek") ||
-                model.contains("qwen") ||
-                model.contains("llama") ||
-                model.contains("mistral") ||
-                model.contains("mixtral") -> estimatedCl100k(reservePercent)
+            protocol == LLMProviderProtocol.Gemini ||
+                providerType == LLMProviderType.Gemini ||
+                providerType == LLMProviderType.Grok ||
+                normalizedModel.contains("gemini") ||
+                normalizedModel.contains("gemma") ||
+                normalizedModel.contains("grok") -> estimatedO200k(reservePercent)
+            protocol == LLMProviderProtocol.AnthropicMessages ||
+                providerType == LLMProviderType.Claude ||
+                providerType == LLMProviderType.DeepSeek ||
+                normalizedModel.contains("claude") ||
+                normalizedModel.contains("deepseek") ||
+                normalizedModel.contains("qwen") ||
+                normalizedModel.contains("llama") ||
+                normalizedModel.contains("mistral") ||
+                normalizedModel.contains("mixtral") -> estimatedCl100k(reservePercent)
             else -> estimatedCl100k(reservePercent)
         }
     }
@@ -122,6 +155,13 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
     }
 
     private fun LLMProvider.usesOpenAiTokenizer(): Boolean {
+        if (protocol != LLMProviderProtocol.OpenAICompatible) return false
+        return providerType == LLMProviderType.ChatGPT ||
+            model.startsWith("gpt-", ignoreCase = true) ||
+            model.matches(Regex("""o[134]\b.*""", RegexOption.IGNORE_CASE))
+    }
+
+    private fun LLMProviderConfig.usesOpenAiTokenizer(): Boolean {
         if (protocol != LLMProviderProtocol.OpenAICompatible) return false
         return providerType == LLMProviderType.ChatGPT ||
             model.startsWith("gpt-", ignoreCase = true) ||

@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
@@ -70,7 +71,7 @@ class AnthropicMessagesLLMClient(
                     }
                 }
                 // 兼容未发送 message_stop 便关闭连接的代理服务
-                partMapper.finish()?.let { emit(it) }
+                partMapper.finish().forEach { emit(it) }
             }.onSuccess {
                 mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
             }.onFailure {
@@ -150,6 +151,8 @@ class AnthropicMessagesLLMClient(
             },
             model = json.optString("model", fallbackModel),
             provider = mProvider.providerType,
+            usage = parseAnthropicUsage(this),
+            reasoningContent = reasoningContent,
             finishReason = json.optString("stop_reason").takeIf { it.isNotBlank() },
             rawResponse = this
         )
@@ -167,14 +170,61 @@ internal fun parseAnthropicStreamParts(line: String): List<LLMProviderStreamPart
     }
     val delta = json.objectOrNull("delta")
     val contentBlock = json.objectOrNull("content_block")
+    val message = json.objectOrNull("message")
+    val usage = json.anthropicUsage()
+        ?: message?.anthropicUsage()
+    val model = message?.cleanString("model")
     return buildList {
+        usage?.let { add(LLMProviderStreamPart.Usage(it, model)) }
         // content_block_start 可能携带首段内容，不能只等待后续 delta
         contentBlock?.toAnthropicProviderPart(data)?.let(::add)
         delta?.toAnthropicProviderPart(data)?.let(::add)
         delta?.cleanString("stop_reason")?.takeIf { it.isNotBlank() }?.let {
-            add(LLMProviderStreamPart.Finished(rawChunk = data, finishReason = it))
+            add(
+                LLMProviderStreamPart.Finished(
+                    rawChunk = data,
+                    finishReason = it,
+                    terminal = false
+                )
+            )
         }
     }
+}
+
+/** 解析 Anthropic 用量，并把缓存创建与命中 Token 纳入输入总量。 */
+internal fun parseAnthropicUsage(value: String): LLMUsage? {
+    return parseStreamJsonObject(value)?.anthropicUsage()
+}
+
+private fun JsonObject.anthropicUsage(): LLMUsage? {
+    return objectOrNull("usage")?.anthropicUsageFromContainer()
+}
+
+private fun JsonObject.anthropicUsageFromContainer(): LLMUsage? {
+    val directInput = intOrNull("input_tokens")
+    val cacheCreation = intOrNull("cache_creation_input_tokens")
+    val cacheRead = intOrNull("cache_read_input_tokens")
+    val output = intOrNull("output_tokens")
+    if (directInput == null && cacheCreation == null && cacheRead == null && output == null) {
+        return null
+    }
+    // Anthropic 将未缓存、缓存创建和缓存命中的输入拆分上报，统计时需要重新合并
+    val cached = if (cacheCreation != null || cacheRead != null) {
+        (cacheCreation ?: 0) + (cacheRead ?: 0)
+    } else {
+        null
+    }
+    val input = if (directInput != null || cached != null) {
+        (directInput ?: 0) + (cached ?: 0)
+    } else {
+        null
+    }
+    return LLMUsage(
+        promptTokens = input,
+        completionTokens = output,
+        totalTokens = if (input != null && output != null) input + output else null,
+        cachedPromptTokens = cached
+    )
 }
 
 private fun JsonObject.toAnthropicProviderPart(rawChunk: String): LLMProviderStreamPart? {

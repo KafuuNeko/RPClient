@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.libs.room.dao.GroupChatMessageDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatSessionDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatSummaryDao
 import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
+import me.kafuuneko.rpclient.libs.room.dao.LLMTokenUsageDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
@@ -32,6 +33,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
@@ -65,12 +67,14 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
         StoryVolume::class,
         StoryChapter::class,
         StoryCharacter::class,
-        StoryLorebookEntry::class
+        StoryLorebookEntry::class,
+        LLMTokenUsageRecord::class
     ],
-    version = 3,
+    version = 4,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
-        AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class)
+        AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
+        AutoMigration(from = 3, to = 4)
     ],
     exportSchema = true
 )
@@ -94,5 +98,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getStoryChapterDao(): StoryChapterDao
     abstract fun getStoryCharacterDao(): StoryCharacterDao
     abstract fun getStoryLorebookEntryDao(): StoryLorebookEntryDao
+    abstract fun getLLMTokenUsageDao(): LLMTokenUsageDao
 
 }

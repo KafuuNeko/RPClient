@@ -331,6 +331,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.openai.com/v1",
             model = "gpt-4o-mini",
+            requestStreamUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false

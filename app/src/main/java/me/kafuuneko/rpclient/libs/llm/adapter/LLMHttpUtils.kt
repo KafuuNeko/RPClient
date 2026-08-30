@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.Call
 import okhttp3.Callback
@@ -164,6 +165,26 @@ internal fun JsonObject.booleanOrFalse(name: String): Boolean {
     return runCatching { element.asBoolean }.getOrDefault(false)
 }
 
+/** 安全读取可能缺失或类型异常的整数字段。 */
+internal fun JsonObject.intOrNull(name: String): Int? {
+    val element = get(name) ?: return null
+    if (!element.isJsonPrimitive) return null
+    return runCatching { element.asInt }.getOrNull()
+}
+
+/** 合并同一流不同响应块上报的用量，较新的非空字段优先。 */
+internal fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
+    if (this == null) return newer
+    if (newer == null) return this
+    return LLMUsage(
+        promptTokens = newer.promptTokens ?: promptTokens,
+        completionTokens = newer.completionTokens ?: completionTokens,
+        totalTokens = newer.totalTokens ?: totalTokens,
+        cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
+        reasoningTokens = newer.reasoningTokens ?: reasoningTokens
+    )
+}
+
 /** 协议解析器输出的正文、推理或完成片段。 */
 internal sealed class LLMProviderStreamPart {
     data class Text(
@@ -180,6 +201,14 @@ internal sealed class LLMProviderStreamPart {
     data class Finished(
         val rawChunk: String? = null,
         val finishReason: String? = null,
+        val model: String? = null,
+        val usage: LLMUsage? = null,
+        /** true 表示协议已到达不可再追加用量的最终结束标记。 */
+        val terminal: Boolean = true
+    ) : LLMProviderStreamPart()
+
+    data class Usage(
+        val usage: LLMUsage,
         val model: String? = null
     ) : LLMProviderStreamPart()
 }
@@ -196,28 +225,30 @@ internal class LLMStreamPartMapper(
     private val captureReasoning: Boolean
 ) {
     private var mIsThinking = false
+    private var mUsage: LLMUsage? = null
+    private var mFinishReason: String? = null
+    private var mModel: String? = null
+    private var mRawChunk: String? = null
+    private var mHasFinished = false
 
     /** 将单个协议片段转换为一个或多个通用流事件。 */
     fun map(part: LLMProviderStreamPart): List<LLMStreamEvent> {
         return when (part) {
             is LLMProviderStreamPart.Text -> mapText(part)
             is LLMProviderStreamPart.Reasoning -> mapReasoning(part)
-            is LLMProviderStreamPart.Finished -> buildList {
-                closeReasoning()?.let(::add)
-                add(
-                    LLMStreamEvent.Finished(
-                        rawChunk = part.rawChunk,
-                        finishReason = part.finishReason,
-                        model = part.model
-                    )
-                )
+            is LLMProviderStreamPart.Finished -> mapFinished(part)
+            is LLMProviderStreamPart.Usage -> {
+                mUsage = mUsage.mergeWith(part.usage)
+                mModel = part.model ?: mModel
+                emptyList()
             }
         }
     }
 
-    /** 在响应流未发送完成块时关闭兼容思考标签。 */
-    fun finish(): LLMStreamEvent.Delta? {
-        return closeReasoning()
+    /** 在响应流正常关闭时补齐思考标签和统一完成事件。 */
+    fun finish(): List<LLMStreamEvent> {
+        if (mHasFinished) return listOfNotNull(closeReasoning())
+        return finishEvents()
     }
 
     private fun mapText(
@@ -237,6 +268,7 @@ internal class LLMStreamPartMapper(
         part: LLMProviderStreamPart.Reasoning
     ): List<LLMStreamEvent> {
         if (part.content.isBlank()) return emptyList()
+        // 聊天兼容模式将推理并入正文，结构化捕获模式则保持独立事件
         if (includeReasoningInContent) {
             val content = if (mIsThinking) part.content else "<think>\n${part.content}"
             mIsThinking = true
@@ -255,6 +287,28 @@ internal class LLMStreamPartMapper(
                 kind = part.kind
             )
         )
+    }
+
+    private fun mapFinished(part: LLMProviderStreamPart.Finished): List<LLMStreamEvent> {
+        mUsage = mUsage.mergeWith(part.usage)
+        mFinishReason = part.finishReason ?: mFinishReason
+        mModel = part.model ?: mModel
+        mRawChunk = part.rawChunk ?: mRawChunk
+        if (!part.terminal || mHasFinished) return emptyList()
+        return finishEvents()
+    }
+
+    private fun finishEvents(): List<LLMStreamEvent> = buildList {
+        closeReasoning()?.let(::add)
+        add(
+            LLMStreamEvent.Finished(
+                rawChunk = mRawChunk,
+                finishReason = mFinishReason,
+                model = mModel,
+                usage = mUsage
+            )
+        )
+        mHasFinished = true
     }
 
     private fun closeReasoning(): LLMStreamEvent.Delta? {

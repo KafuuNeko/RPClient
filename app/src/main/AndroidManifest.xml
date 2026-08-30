@@ -31,6 +31,11 @@
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".feature.tokenusage.TokenUsageActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.regexscript.RegexScriptActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

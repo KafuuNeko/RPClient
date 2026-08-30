@@ -153,6 +153,7 @@ private val OPEN_AI_PROTECTED_REQUEST_FIELDS = setOf(
     "model",
     "messages",
     "stream",
+    "stream_options.include_usage",
     "max_tokens",
     "max_completion_tokens",
     "temperature",

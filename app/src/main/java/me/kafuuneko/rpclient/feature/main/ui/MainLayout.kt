@@ -1456,8 +1456,32 @@ private fun SettingsPage(
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun TokenUsageEntryCard(onClick: () -> Unit) {
+    // 消耗统计不依赖调试模式，因此入口始终显示在数据与系统分组
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Numbers,
+            iconColor = Color(0xFF0EA5E9),
+            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+            title = stringResource(R.string.token_usage),
+            subtitle = stringResource(R.string.token_usage_entry_subtitle),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        )
     }
 }
 

@@ -46,6 +46,9 @@ data class LLMProvider(
     val sendTemperature: Boolean = true,
     // 是否在请求中显式发送 top_p。
     val sendTopP: Boolean = true,
+    // 是否为 OpenAI-compatible 流式请求附加服务端用量返回选项。
+    @ColumnInfo(defaultValue = "0")
+    val requestStreamUsage: Boolean = false,
     // 当前模型配置独立使用的 Prompt 后处理模式 ordinal。
     val promptPostProcessingMode: Int = 0,
     // 是否启用
@@ -75,5 +78,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     maxTokens = maxTokens,
     contextTokens = contextTokens,
     sendTemperature = sendTemperature,
-    sendTopP = sendTopP
+    sendTopP = sendTopP,
+    requestStreamUsage = requestStreamUsage,
+    providerId = id
 )

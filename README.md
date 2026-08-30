@@ -125,6 +125,7 @@ When reporting compatibility issues, include sanitized character cards, lorebook
 
 - RPClient does not provide model services. Users are responsible for API usage fees and generated content.
 - Request content is sent to the model service selected by the user. Review the service provider's privacy policy before use.
+- Token usage statistics are stored locally as metadata and may be estimated; they are not billing statements and do not contain request or response bodies.
 - This project is not affiliated with or officially partnered with SillyTavern, OpenAI, Google, Anthropic, DeepSeek, xAI, or OpenRouter.
 - Copyright and usage permissions for character cards, lorebooks, and other imported content are the responsibility of their providers and users.
 

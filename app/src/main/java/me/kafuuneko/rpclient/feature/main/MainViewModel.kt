@@ -61,6 +61,7 @@ import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
+import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
@@ -811,6 +812,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    /** 打开成功 LLM 请求的 Token 消耗统计页。 */
+    @UiIntentObserver(MainUiIntent.OpenTokenUsage::class)
+    private fun onOpenTokenUsage() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(TokenUsageActivity::class.java).tryEmit()
     }
 
     /** 打开关于软件页面。 */

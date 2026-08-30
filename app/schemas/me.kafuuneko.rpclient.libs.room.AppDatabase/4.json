@@ -1,0 +1,2022 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "f25dca5a2e412df0ad6225d0eabafa32",
+    "entities": [
+      {
+        "tableName": "character",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `avatar` TEXT NOT NULL, `characterTags` TEXT NOT NULL, `description` TEXT NOT NULL, `creatorNotes` TEXT NOT NULL DEFAULT '', `personality` TEXT NOT NULL, `scenario` TEXT NOT NULL, `firstMessages` TEXT NOT NULL, `examplesOfDialogue` TEXT NOT NULL, `postHistoryInstructions` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL DEFAULT '', `creator` TEXT NOT NULL DEFAULT '', `characterVersion` TEXT NOT NULL DEFAULT '', `alternateGreetings` TEXT NOT NULL DEFAULT '[]', `extensionsJson` TEXT NOT NULL DEFAULT '{}', `depthPromptPrompt` TEXT NOT NULL DEFAULT '', `depthPromptDepth` INTEGER NOT NULL DEFAULT 4, `depthPromptRole` INTEGER NOT NULL DEFAULT 0, `characterLorebookId` INTEGER NOT NULL DEFAULT 0)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatar",
+            "columnName": "avatar",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterTags",
+            "columnName": "characterTags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creatorNotes",
+            "columnName": "creatorNotes",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "personality",
+            "columnName": "personality",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scenario",
+            "columnName": "scenario",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstMessages",
+            "columnName": "firstMessages",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "examplesOfDialogue",
+            "columnName": "examplesOfDialogue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postHistoryInstructions",
+            "columnName": "postHistoryInstructions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "systemPrompt",
+            "columnName": "systemPrompt",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "creator",
+            "columnName": "creator",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "characterVersion",
+            "columnName": "characterVersion",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "alternateGreetings",
+            "columnName": "alternateGreetings",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "extensionsJson",
+            "columnName": "extensionsJson",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'{}'"
+          },
+          {
+            "fieldPath": "depthPromptPrompt",
+            "columnName": "depthPromptPrompt",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "depthPromptDepth",
+            "columnName": "depthPromptDepth",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "4"
+          },
+          {
+            "fieldPath": "depthPromptRole",
+            "columnName": "depthPromptRole",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "characterLorebookId",
+            "columnName": "characterLorebookId",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "character_llm_provider_associations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`characterId` INTEGER NOT NULL, `llmProviderId` INTEGER NOT NULL, PRIMARY KEY(`characterId`), FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`llmProviderId`) REFERENCES `llm_providers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmProviderId",
+            "columnName": "llmProviderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "characterId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_character_llm_provider_associations_llmProviderId",
+            "unique": false,
+            "columnNames": [
+              "llmProviderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_character_llm_provider_associations_llmProviderId` ON `${TABLE_NAME}` (`llmProviderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "llm_providers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "llmProviderId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "lorebooks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `scanDepth` INTEGER NOT NULL, `tokenBudget` INTEGER NOT NULL, `recursiveScanning` INTEGER NOT NULL, `extensionsJson` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scanDepth",
+            "columnName": "scanDepth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tokenBudget",
+            "columnName": "tokenBudget",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recursiveScanning",
+            "columnName": "recursiveScanning",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extensionsJson",
+            "columnName": "extensionsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "lorebook_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `lorebookId` INTEGER NOT NULL, `name` TEXT NOT NULL, `keywords` TEXT NOT NULL, `secondaryKeywords` TEXT NOT NULL, `constant` INTEGER NOT NULL, `order` INTEGER NOT NULL, `depth` INTEGER NOT NULL, `category` TEXT NOT NULL, `content` TEXT NOT NULL, `disabled` INTEGER NOT NULL, `position` INTEGER NOT NULL, `role` INTEGER NOT NULL, `probability` INTEGER NOT NULL, `ignoreBudget` INTEGER NOT NULL, `scanDepth` INTEGER, `selectiveLogic` INTEGER NOT NULL, `matchWholeWords` INTEGER, `caseSensitive` INTEGER, `useGroupScoring` INTEGER NOT NULL, `group` TEXT NOT NULL, `groupOverride` INTEGER NOT NULL, `groupWeight` INTEGER, `preventRecursion` INTEGER NOT NULL, `delayUntilRecursion` INTEGER NOT NULL, `sticky` INTEGER, `cooldown` INTEGER, `delay` INTEGER, `outletName` TEXT NOT NULL, `triggers` TEXT NOT NULL, `matchPersonaDescription` INTEGER NOT NULL, `matchCharacterDescription` INTEGER NOT NULL, `matchCharacterPersonality` INTEGER NOT NULL, `matchCharacterDepthPrompt` INTEGER NOT NULL, `matchScenario` INTEGER NOT NULL, `matchCreatorNotes` INTEGER NOT NULL, `extensionsJson` TEXT NOT NULL, `rawJson` TEXT NOT NULL, FOREIGN KEY(`lorebookId`) REFERENCES `lorebooks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lorebookId",
+            "columnName": "lorebookId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keywords",
+            "columnName": "keywords",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secondaryKeywords",
+            "columnName": "secondaryKeywords",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "constant",
+            "columnName": "constant",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depth",
+            "columnName": "depth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "disabled",
+            "columnName": "disabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "probability",
+            "columnName": "probability",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ignoreBudget",
+            "columnName": "ignoreBudget",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scanDepth",
+            "columnName": "scanDepth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "selectiveLogic",
+            "columnName": "selectiveLogic",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchWholeWords",
+            "columnName": "matchWholeWords",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "caseSensitive",
+            "columnName": "caseSensitive",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "useGroupScoring",
+            "columnName": "useGroupScoring",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "group",
+            "columnName": "group",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupOverride",
+            "columnName": "groupOverride",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupWeight",
+            "columnName": "groupWeight",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "preventRecursion",
+            "columnName": "preventRecursion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "delayUntilRecursion",
+            "columnName": "delayUntilRecursion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sticky",
+            "columnName": "sticky",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "cooldown",
+            "columnName": "cooldown",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "delay",
+            "columnName": "delay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "outletName",
+            "columnName": "outletName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "triggers",
+            "columnName": "triggers",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchPersonaDescription",
+            "columnName": "matchPersonaDescription",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchCharacterDescription",
+            "columnName": "matchCharacterDescription",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchCharacterPersonality",
+            "columnName": "matchCharacterPersonality",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchCharacterDepthPrompt",
+            "columnName": "matchCharacterDepthPrompt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchScenario",
+            "columnName": "matchScenario",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchCreatorNotes",
+            "columnName": "matchCreatorNotes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extensionsJson",
+            "columnName": "extensionsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawJson",
+            "columnName": "rawJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_lorebook_entries_lorebookId",
+            "unique": false,
+            "columnNames": [
+              "lorebookId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_lorebook_entries_lorebookId` ON `${TABLE_NAME}` (`lorebookId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "lorebooks",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lorebookId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chat_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestTime",
+            "columnName": "latestTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lorebookEntrySet",
+            "columnName": "lorebookEntrySet",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userNote",
+            "columnName": "userNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userName",
+            "columnName": "userName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userDescription",
+            "columnName": "userDescription",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creatorNotes",
+            "columnName": "creatorNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "worldInfoStateJson",
+            "columnName": "worldInfoStateJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoSummaryPaused",
+            "columnName": "autoSummaryPaused",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chat_sessions_characterId",
+            "unique": false,
+            "columnNames": [
+              "characterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_sessions_characterId` ON `${TABLE_NAME}` (`characterId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "chat_messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `source` TEXT NOT NULL, `content` TEXT NOT NULL, `coveredMessageId` INTEGER, FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coveredMessageId",
+            "columnName": "coveredMessageId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chat_messages_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_chat_messages_sessionId_source",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "source"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId_source` ON `${TABLE_NAME}` (`sessionId`, `source`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "llm_providers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `requestStreamUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerType",
+            "columnName": "providerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "protocol",
+            "columnName": "protocol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseUrl",
+            "columnName": "baseUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiKey",
+            "columnName": "apiKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customHeadersJson",
+            "columnName": "customHeadersJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestBodyPatchJson",
+            "columnName": "requestBodyPatchJson",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'{}'"
+          },
+          {
+            "fieldPath": "temperature",
+            "columnName": "temperature",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "topP",
+            "columnName": "topP",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxTokens",
+            "columnName": "maxTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contextTokens",
+            "columnName": "contextTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tokenEstimateReservePercent",
+            "columnName": "tokenEstimateReservePercent",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "15"
+          },
+          {
+            "fieldPath": "sendTemperature",
+            "columnName": "sendTemperature",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sendTopP",
+            "columnName": "sendTopP",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestStreamUsage",
+            "columnName": "requestStreamUsage",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "promptPostProcessingMode",
+            "columnName": "promptPostProcessingMode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEnabled",
+            "columnName": "isEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updateTime",
+            "columnName": "updateTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "files",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uuid` TEXT NOT NULL, `hash` TEXT NOT NULL, `mimeType` TEXT, PRIMARY KEY(`uuid`))",
+        "fields": [
+          {
+            "fieldPath": "uuid",
+            "columnName": "uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hash",
+            "columnName": "hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "uuid"
+          ]
+        }
+      },
+      {
+        "tableName": "group_chat_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestTime",
+            "columnName": "latestTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userName",
+            "columnName": "userName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userDescription",
+            "columnName": "userDescription",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scenario",
+            "columnName": "scenario",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userNote",
+            "columnName": "userNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lorebookEntrySet",
+            "columnName": "lorebookEntrySet",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "worldInfoStateJson",
+            "columnName": "worldInfoStateJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "systemPromptOverride",
+            "columnName": "systemPromptOverride",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupNudgePromptOverride",
+            "columnName": "groupNudgePromptOverride",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newGroupChatPromptOverride",
+            "columnName": "newGroupChatPromptOverride",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activationStrategy",
+            "columnName": "activationStrategy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allowSelfResponses",
+            "columnName": "allowSelfResponses",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterCardMode",
+            "columnName": "characterCardMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeMutedCards",
+            "columnName": "includeMutedCards",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoModeEnabled",
+            "columnName": "autoModeEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trimOtherSpeakers",
+            "columnName": "trimOtherSpeakers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoSummaryPaused",
+            "columnName": "autoSummaryPaused",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "group_chat_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sessionId` INTEGER NOT NULL, `characterId` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `muted` INTEGER NOT NULL, PRIMARY KEY(`sessionId`, `characterId`), FOREIGN KEY(`sessionId`) REFERENCES `group_chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muted",
+            "columnName": "muted",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "sessionId",
+            "characterId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_group_chat_members_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_members_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_group_chat_members_characterId",
+            "unique": false,
+            "columnNames": [
+              "characterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_members_characterId` ON `${TABLE_NAME}` (`characterId`)"
+          },
+          {
+            "name": "index_group_chat_members_sessionId_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_members_sessionId_sortOrder` ON `${TABLE_NAME}` (`sessionId`, `sortOrder`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "group_chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "group_chat_messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `source` TEXT NOT NULL, `content` TEXT NOT NULL, `speakerCharacterId` INTEGER, `speakerNameSnapshot` TEXT NOT NULL, `generationBatchId` TEXT, FOREIGN KEY(`sessionId`) REFERENCES `group_chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speakerCharacterId",
+            "columnName": "speakerCharacterId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "speakerNameSnapshot",
+            "columnName": "speakerNameSnapshot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationBatchId",
+            "columnName": "generationBatchId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_group_chat_messages_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_group_chat_messages_sessionId_createTime",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "createTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_sessionId_createTime` ON `${TABLE_NAME}` (`sessionId`, `createTime`)"
+          },
+          {
+            "name": "index_group_chat_messages_speakerCharacterId",
+            "unique": false,
+            "columnNames": [
+              "speakerCharacterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_speakerCharacterId` ON `${TABLE_NAME}` (`speakerCharacterId`)"
+          },
+          {
+            "name": "index_group_chat_messages_generationBatchId",
+            "unique": false,
+            "columnNames": [
+              "generationBatchId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_generationBatchId` ON `${TABLE_NAME}` (`generationBatchId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "group_chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "group_chat_summaries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `content` TEXT NOT NULL, `coveredMessageId` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `group_chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coveredMessageId",
+            "columnName": "coveredMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_group_chat_summaries_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_summaries_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_group_chat_summaries_sessionId_coveredMessageId",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "coveredMessageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_summaries_sessionId_coveredMessageId` ON `${TABLE_NAME}` (`sessionId`, `coveredMessageId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "group_chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "regex_scripts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rowId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER, `scriptId` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, `scriptName` TEXT NOT NULL, `findRegex` TEXT NOT NULL, `replaceString` TEXT NOT NULL, `trimStringsJson` TEXT NOT NULL, `placementJson` TEXT NOT NULL, `disabled` INTEGER NOT NULL, `markdownOnly` INTEGER NOT NULL, `promptOnly` INTEGER NOT NULL, `runOnEdit` INTEGER NOT NULL, `substituteRegex` INTEGER NOT NULL, `minDepth` INTEGER, `maxDepth` INTEGER, `rawJson` TEXT NOT NULL, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "rowId",
+            "columnName": "rowId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "scriptId",
+            "columnName": "scriptId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scriptName",
+            "columnName": "scriptName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "findRegex",
+            "columnName": "findRegex",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "replaceString",
+            "columnName": "replaceString",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trimStringsJson",
+            "columnName": "trimStringsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "placementJson",
+            "columnName": "placementJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "disabled",
+            "columnName": "disabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markdownOnly",
+            "columnName": "markdownOnly",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "promptOnly",
+            "columnName": "promptOnly",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runOnEdit",
+            "columnName": "runOnEdit",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "substituteRegex",
+            "columnName": "substituteRegex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minDepth",
+            "columnName": "minDepth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "maxDepth",
+            "columnName": "maxDepth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rawJson",
+            "columnName": "rawJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "rowId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_regex_scripts_characterId_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "characterId",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_regex_scripts_characterId_sortOrder` ON `${TABLE_NAME}` (`characterId`, `sortOrder`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "regex_character_authorizations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`characterId` INTEGER NOT NULL, PRIMARY KEY(`characterId`), FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "characterId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "stories",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `memory` TEXT NOT NULL, `summary` TEXT NOT NULL, `authorNote` TEXT NOT NULL, `includeUserPersona` INTEGER NOT NULL DEFAULT 0, `worldInfoGenerationStep` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memory",
+            "columnName": "memory",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "summary",
+            "columnName": "summary",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "authorNote",
+            "columnName": "authorNote",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeUserPersona",
+            "columnName": "includeUserPersona",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "worldInfoGenerationStep",
+            "columnName": "worldInfoGenerationStep",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestTime",
+            "columnName": "latestTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "story_volumes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `storyId` INTEGER NOT NULL, `title` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "storyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_volumes_storyId_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "storyId",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_volumes_storyId_sortOrder` ON `${TABLE_NAME}` (`storyId`, `sortOrder`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "storyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_chapters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `storyId` INTEGER NOT NULL, `volumeId` INTEGER, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `continuationGuidance` TEXT NOT NULL DEFAULT '', `sortOrder` INTEGER NOT NULL, `contentRevision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeId`) REFERENCES `story_volumes`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storyId",
+            "columnName": "storyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeId",
+            "columnName": "volumeId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "continuationGuidance",
+            "columnName": "continuationGuidance",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentRevision",
+            "columnName": "contentRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestTime",
+            "columnName": "latestTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_chapters_storyId_volumeId_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "storyId",
+              "volumeId",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_chapters_storyId_volumeId_sortOrder` ON `${TABLE_NAME}` (`storyId`, `volumeId`, `sortOrder`)"
+          },
+          {
+            "name": "index_story_chapters_volumeId",
+            "unique": false,
+            "columnNames": [
+              "volumeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_chapters_volumeId` ON `${TABLE_NAME}` (`volumeId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "storyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "story_volumes",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_characters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storyId` INTEGER NOT NULL, `characterId` INTEGER NOT NULL, `sortOrder` INTEGER NOT NULL, `activationMode` INTEGER NOT NULL, PRIMARY KEY(`storyId`, `characterId`), FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "storyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activationMode",
+            "columnName": "activationMode",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "storyId",
+            "characterId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_characters_characterId",
+            "unique": false,
+            "columnNames": [
+              "characterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_characters_characterId` ON `${TABLE_NAME}` (`characterId`)"
+          },
+          {
+            "name": "index_story_characters_storyId_sortOrder",
+            "unique": false,
+            "columnNames": [
+              "storyId",
+              "sortOrder"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_characters_storyId_sortOrder` ON `${TABLE_NAME}` (`storyId`, `sortOrder`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "storyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "character",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "story_lorebook_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storyId` INTEGER NOT NULL, `lorebookEntryId` INTEGER NOT NULL, `activatedAtStep` INTEGER DEFAULT NULL, `stickyUntilStep` INTEGER DEFAULT NULL, `cooldownUntilStep` INTEGER DEFAULT NULL, `stateSignature` TEXT DEFAULT NULL, PRIMARY KEY(`storyId`, `lorebookEntryId`), FOREIGN KEY(`storyId`) REFERENCES `stories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`lorebookEntryId`) REFERENCES `lorebook_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "storyId",
+            "columnName": "storyId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lorebookEntryId",
+            "columnName": "lorebookEntryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activatedAtStep",
+            "columnName": "activatedAtStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "stickyUntilStep",
+            "columnName": "stickyUntilStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "cooldownUntilStep",
+            "columnName": "cooldownUntilStep",
+            "affinity": "INTEGER",
+            "defaultValue": "NULL"
+          },
+          {
+            "fieldPath": "stateSignature",
+            "columnName": "stateSignature",
+            "affinity": "TEXT",
+            "defaultValue": "NULL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "storyId",
+            "lorebookEntryId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_story_lorebook_entries_lorebookEntryId",
+            "unique": false,
+            "columnNames": [
+              "lorebookEntryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_story_lorebook_entries_lorebookEntryId` ON `${TABLE_NAME}` (`lorebookEntryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "stories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "storyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "lorebook_entries",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lorebookEntryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "llm_token_usage_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createTime` INTEGER NOT NULL, `providerId` INTEGER, `providerName` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiHost` TEXT NOT NULL, `apiPort` INTEGER NOT NULL, `requestedModel` TEXT NOT NULL, `effectiveModel` TEXT NOT NULL, `isStreaming` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, `outputTokens` INTEGER NOT NULL, `inputTokenSource` TEXT NOT NULL, `outputTokenSource` TEXT NOT NULL, `cachedInputTokens` INTEGER, `reasoningTokens` INTEGER, `tokenizerName` TEXT, `durationMs` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createTime",
+            "columnName": "createTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerId",
+            "columnName": "providerId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerName",
+            "columnName": "providerName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerType",
+            "columnName": "providerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "protocol",
+            "columnName": "protocol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiHost",
+            "columnName": "apiHost",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apiPort",
+            "columnName": "apiPort",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestedModel",
+            "columnName": "requestedModel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveModel",
+            "columnName": "effectiveModel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isStreaming",
+            "columnName": "isStreaming",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inputTokens",
+            "columnName": "inputTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outputTokens",
+            "columnName": "outputTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inputTokenSource",
+            "columnName": "inputTokenSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outputTokenSource",
+            "columnName": "outputTokenSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cachedInputTokens",
+            "columnName": "cachedInputTokens",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reasoningTokens",
+            "columnName": "reasoningTokens",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "tokenizerName",
+            "columnName": "tokenizerName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "durationMs",
+            "columnName": "durationMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_llm_token_usage_records_createTime",
+            "unique": false,
+            "columnNames": [
+              "createTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_llm_token_usage_records_createTime` ON `${TABLE_NAME}` (`createTime`)"
+          },
+          {
+            "name": "index_llm_token_usage_records_effectiveModel_apiHost_apiPort_createTime",
+            "unique": false,
+            "columnNames": [
+              "effectiveModel",
+              "apiHost",
+              "apiPort",
+              "createTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_llm_token_usage_records_effectiveModel_apiHost_apiPort_createTime` ON `${TABLE_NAME}` (`effectiveModel`, `apiHost`, `apiPort`, `createTime`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f25dca5a2e412df0ad6225d0eabafa32')"
+    ]
+  }
+}

@@ -88,6 +88,24 @@ class RequestBodyPatchTest {
     }
 
     @Test
+    fun streamUsageOptionIsControlledByProviderCapability() {
+        val protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible)
+
+        assertTrue(
+            validateRequestBodyPatch(
+                """{"stream_options":{"include_usage":true}}""",
+                protectedPaths
+            ).isFailure
+        )
+        assertTrue(
+            validateRequestBodyPatch(
+                """{"stream_options":{"other_option":true}}""",
+                protectedPaths
+            ).isSuccess
+        )
+    }
+
+    @Test
     fun allowsDefaultProviderReasoningTemplatesForEveryProtocol() {
         val openAIProtectedPaths = protectedRequestBodyPaths(
             LLMProviderProtocol.OpenAICompatible

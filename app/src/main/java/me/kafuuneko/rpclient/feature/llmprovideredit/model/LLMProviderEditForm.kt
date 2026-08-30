@@ -40,6 +40,7 @@ data class LLMProviderEditForm(
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
+    val requestStreamUsage: Boolean = false,
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     val isEnabled: Boolean = true
 ) {
@@ -84,6 +85,8 @@ data class LLMProviderEditForm(
             tokenEstimateReservePercent = tokenEstimateReservePercent,
             sendTemperature = sendTemperature,
             sendTopP = sendTopP,
+            requestStreamUsage = requestStreamUsage &&
+                capabilities.supportsStreamUsageRequest,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
             isEnabled = isEnabled,
             createTime = createTime

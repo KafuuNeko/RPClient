@@ -17,7 +17,8 @@ enum class ProviderPreset(
     val protocol: LLMProviderProtocol,
     val baseUrl: String,
     val defaultModel: String,
-    val defaultRequestBodyPatchJson: String
+    val defaultRequestBodyPatchJson: String,
+    val defaultRequestStreamUsage: Boolean = false
 ) {
     DeepSeek(
         displayName = "DeepSeek",
@@ -49,7 +50,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.openai.com/v1",
         defaultModel = "gpt-4o",
-        defaultRequestBodyPatchJson = "{}"
+        defaultRequestBodyPatchJson = "{}",
+        defaultRequestStreamUsage = true
     ),
     OpenRouter(
         displayName = "OpenRouter",
