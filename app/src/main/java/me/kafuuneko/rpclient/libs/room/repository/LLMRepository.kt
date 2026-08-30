@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.requireNonEmptyContent
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
@@ -343,6 +344,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://generativelanguage.googleapis.com",
             model = DEFAULT_GEMINI_MODEL,
             requestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
@@ -355,6 +357,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.anthropic.com",
             model = DEFAULT_CLAUDE_MODEL,
             requestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
             sendTopP = false,
             useServerReportedUsage = true,
             createTime = now,
@@ -368,6 +371,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.deepseek.com",
             model = DEFAULT_DEEPSEEK_MODEL,
             requestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -379,6 +383,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://api.x.ai/v1",
             model = DEFAULT_GROK_MODEL,
             requestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
             createTime = now,
             updateTime = now,
             isEnabled = false

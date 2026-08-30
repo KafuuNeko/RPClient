@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 
 /** 模型配置编辑页的字段变更、连接测试和保存意图。 */
@@ -68,6 +69,10 @@ sealed class LLMProviderEditUiIntent {
     data class ChangeContextTokens(val value: String) : LLMProviderEditUiIntent()
 
     data class ChangeTokenEstimateReservePercent(val value: Int) : LLMProviderEditUiIntent()
+
+    data class SelectLocalTokenEstimator(
+        val value: LocalTokenEstimatorType
+    ) : LLMProviderEditUiIntent()
 
     data class ToggleSendTemperature(val value: Boolean) : LLMProviderEditUiIntent()
 

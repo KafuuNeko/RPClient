@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "c35c69eec3cf1543fcbb47476b72f18b",
+    "identityHash": "3478c18073ffce0fa653c2edce6dd9c6",
     "entities": [
       {
         "tableName": "character",
@@ -706,7 +706,7 @@
       },
       {
         "tableName": "llm_providers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -793,6 +793,13 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "15"
+          },
+          {
+            "fieldPath": "localTokenEstimatorType",
+            "columnName": "localTokenEstimatorType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Automatic'"
           },
           {
             "fieldPath": "sendTemperature",
@@ -2016,7 +2023,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c35c69eec3cf1543fcbb47476b72f18b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3478c18073ffce0fa653c2edce6dd9c6')"
     ]
   }
 }

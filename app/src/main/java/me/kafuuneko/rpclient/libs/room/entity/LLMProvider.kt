@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 
 /** 持久化的模型配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
@@ -42,6 +43,9 @@ data class LLMProvider(
     // 代理 Tokenizer 的本地预算预留率，不会发送给模型服务。
     @ColumnInfo(defaultValue = "15")
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
+    // Prompt 预算与用量回退共同使用的本地 Token 预估器类型。
+    @ColumnInfo(defaultValue = "'Automatic'")
+    val localTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
     // 是否在请求中显式发送 temperature。
     val sendTemperature: Boolean = true,
     // 是否在请求中显式发送 top_p。
@@ -77,6 +81,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     topP = topP,
     maxTokens = maxTokens,
     contextTokens = contextTokens,
+    localTokenEstimatorType = localTokenEstimatorType,
     sendTemperature = sendTemperature,
     sendTopP = sendTopP,
     useServerReportedUsage = useServerReportedUsage,

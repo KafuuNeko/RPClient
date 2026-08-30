@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -50,7 +51,7 @@ interface PromptTokenizer {
     }
 }
 
-/** 根据模型配置的协议和模型名称选择 Tokenizer。 */
+/** 根据模型配置的手动选择或自动规则表解析 Tokenizer。 */
 fun interface PromptTokenizerResolver {
     fun resolve(provider: LLMProvider?): PromptTokenizer
 }
@@ -67,6 +68,47 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
     private val mO200k by lazy {
         JTokkitPromptTokenizer(mEncodingRegistry.getEncoding(EncodingType.O200K_BASE))
     }
+    /**
+     * 自动模式的有序匹配表。
+     *
+     * 规则顺序属于兼容行为：已知 OpenAI 编码优先于模型族代理，末项负责统一回退。
+     * 新增自动识别规则时必须集中添加到此表，不能在调用方另设模型判断分支。
+     */
+    private val mAutomaticEstimatorMap by lazy {
+        val openAiReasoningModelPattern = Regex("""o[134]\b.*""")
+        val o200kOpenAiPrefixes = listOf("gpt-5", "gpt-4o", "o1", "o3", "o4")
+        val o200kProxyMarkers = listOf("gemini", "gemma", "grok")
+        val isOpenAiModel = { context: AutomaticEstimatorContext ->
+            context.protocol == LLMProviderProtocol.OpenAICompatible &&
+                (context.providerType == LLMProviderType.ChatGPT ||
+                    context.normalizedModel.startsWith("gpt-") ||
+                    context.normalizedModel.matches(openAiReasoningModelPattern))
+        }
+        linkedMapOf(
+            AutomaticEstimatorMatcher { context ->
+                isOpenAiModel(context) &&
+                    o200kOpenAiPrefixes.any(context.normalizedModel::startsWith)
+            } to AutomaticEstimatorFactory { _, _ -> mO200k },
+            AutomaticEstimatorMatcher { context ->
+                isOpenAiModel(context) && context.registeredEncoding != null
+            } to AutomaticEstimatorFactory { context, _ ->
+                JTokkitPromptTokenizer(requireNotNull(context.registeredEncoding))
+            },
+            AutomaticEstimatorMatcher { context ->
+                    context.protocol == LLMProviderProtocol.Gemini ||
+                    context.providerType == LLMProviderType.Gemini ||
+                    context.providerType == LLMProviderType.Grok ||
+                    o200kProxyMarkers.any(context.normalizedModel::contains)
+            } to AutomaticEstimatorFactory { _, reservePercent ->
+                estimatedO200k(reservePercent)
+            },
+            AutomaticEstimatorMatcher { true } to
+                AutomaticEstimatorFactory { _, reservePercent ->
+                    estimatedCl100k(reservePercent)
+                }
+        )
+    }
+
     override fun resolve(provider: LLMProvider?): PromptTokenizer {
         val reservePercent = provider?.tokenEstimateReservePercent
             ?.coerceIn(
@@ -80,7 +122,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
             protocol = provider.protocol,
             providerType = provider.providerType,
             reservePercent = reservePercent,
-            usesOpenAiTokenizer = provider.usesOpenAiTokenizer()
+            estimatorType = provider.localTokenEstimatorType
         )
     }
 
@@ -95,7 +137,7 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
             protocol = provider.protocol,
             providerType = provider.providerType,
             reservePercent = 0,
-            usesOpenAiTokenizer = provider.usesOpenAiTokenizer()
+            estimatorType = provider.localTokenEstimatorType
         )
     }
 
@@ -104,38 +146,38 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
         protocol: LLMProviderProtocol,
         providerType: LLMProviderType,
         reservePercent: Int,
-        usesOpenAiTokenizer: Boolean
+        estimatorType: LocalTokenEstimatorType
     ): PromptTokenizer {
-        val normalizedModel = model.lowercase()
-        // 已知 OpenAI 模型优先使用对应编码器，未知模型族再回退到离线代理
-        if (usesOpenAiTokenizer) {
-            if (normalizedModel.startsWith("gpt-5") ||
-                normalizedModel.startsWith("gpt-4o") ||
-                normalizedModel.startsWith("o1") ||
-                normalizedModel.startsWith("o3") ||
-                normalizedModel.startsWith("o4")
-            ) return mO200k
-            val encoding = mEncodingRegistry.getEncodingForModel(model)
-            if (encoding.isPresent) return JTokkitPromptTokenizer(encoding.get())
+        return when (estimatorType) {
+            // 手动选择绕过自动匹配表，保证未知模型别名稳定复用指定编码。
+            LocalTokenEstimatorType.Cl100kBase -> estimatedCl100k(reservePercent)
+            LocalTokenEstimatorType.O200kBase -> estimatedO200k(reservePercent)
+            LocalTokenEstimatorType.Automatic -> resolveAutomatic(
+                model = model,
+                protocol = protocol,
+                providerType = providerType,
+                reservePercent = reservePercent
+            )
         }
-        return when {
-            protocol == LLMProviderProtocol.Gemini ||
-                providerType == LLMProviderType.Gemini ||
-                providerType == LLMProviderType.Grok ||
-                normalizedModel.contains("gemini") ||
-                normalizedModel.contains("gemma") ||
-                normalizedModel.contains("grok") -> estimatedO200k(reservePercent)
-            protocol == LLMProviderProtocol.AnthropicMessages ||
-                providerType == LLMProviderType.Claude ||
-                providerType == LLMProviderType.DeepSeek ||
-                normalizedModel.contains("claude") ||
-                normalizedModel.contains("deepseek") ||
-                normalizedModel.contains("qwen") ||
-                normalizedModel.contains("llama") ||
-                normalizedModel.contains("mistral") ||
-                normalizedModel.contains("mixtral") -> estimatedCl100k(reservePercent)
-            else -> estimatedCl100k(reservePercent)
-        }
+    }
+
+    /** 使用唯一的有序规则表解析自动模式，避免 Entity 与运行时配置产生不同判断。 */
+    private fun resolveAutomatic(
+        model: String,
+        protocol: LLMProviderProtocol,
+        providerType: LLMProviderType,
+        reservePercent: Int
+    ): PromptTokenizer {
+        val context = AutomaticEstimatorContext(
+            normalizedModel = model.lowercase(),
+            protocol = protocol,
+            providerType = providerType,
+            registeredEncoding = mEncodingRegistry.getEncodingForModel(model).orElse(null)
+        )
+        val factory = mAutomaticEstimatorMap.entries
+            .first { (matcher, _) -> matcher.matches(context) }
+            .value
+        return factory.create(context, reservePercent)
     }
 
     private fun estimatedCl100k(reservePercent: Int): PromptTokenizer {
@@ -154,19 +196,24 @@ class PromptTokenizerRegistry : PromptTokenizerResolver {
         )
     }
 
-    private fun LLMProvider.usesOpenAiTokenizer(): Boolean {
-        if (protocol != LLMProviderProtocol.OpenAICompatible) return false
-        return providerType == LLMProviderType.ChatGPT ||
-            model.startsWith("gpt-", ignoreCase = true) ||
-            model.matches(Regex("""o[134]\b.*""", RegexOption.IGNORE_CASE))
-    }
+}
 
-    private fun LLMProviderConfig.usesOpenAiTokenizer(): Boolean {
-        if (protocol != LLMProviderProtocol.OpenAICompatible) return false
-        return providerType == LLMProviderType.ChatGPT ||
-            model.startsWith("gpt-", ignoreCase = true) ||
-            model.matches(Regex("""o[134]\b.*""", RegexOption.IGNORE_CASE))
-    }
+/** 自动模式进行有序匹配所需的无敏感信息上下文。 */
+private data class AutomaticEstimatorContext(
+    val normalizedModel: String,
+    val protocol: LLMProviderProtocol,
+    val providerType: LLMProviderType,
+    val registeredEncoding: Encoding?
+)
+
+/** 自动模式规则表的匹配条件。 */
+private fun interface AutomaticEstimatorMatcher {
+    fun matches(context: AutomaticEstimatorContext): Boolean
+}
+
+/** 自动模式规则表命中后创建实际 Tokenizer。 */
+private fun interface AutomaticEstimatorFactory {
+    fun create(context: AutomaticEstimatorContext, reservePercent: Int): PromptTokenizer
 }
 
 private class JTokkitPromptTokenizer(

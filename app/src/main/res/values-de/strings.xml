@@ -531,6 +531,11 @@
     <string name="model_name_required">Modellname ist erforderlich</string>
     <string name="generation_params_invalid">Ungültiges Format der Generierungsparameter</string>
     <string name="token_estimate_reserve">Token-Schätzreserve (%)</string>
+    <string name="local_token_estimator">Lokaler Token-Schätzer</string>
+    <string name="local_token_estimator_description">Wird für das Prompt-Budget und die lokale Ersatzschätzung verwendet. „Automatisch“ erkennt bekannte Modelle; bei unbekannten Aliasnamen kann ein festes BPE gewählt werden.</string>
+    <string name="local_token_estimator_automatic">Automatisch</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">Reserviert Kontext für Proxy-Tokenizer. Höhere Werte senken das Überlaufrisiko, behalten aber weniger Verlauf; exakte Tokenizer ignorieren diesen Wert.</string>
     <string name="token_estimate_reserve_invalid">Die Token-Schätzreserve muss eine ganze Zahl von 0 bis 50 sein</string>
     <string name="max_tokens_must_be_less_than_context">Maximale Tokens müssen kleiner als die Kontext-Tokens sein</string>

@@ -611,6 +611,11 @@
     <string name="model_name_required">Model name is required</string>
     <string name="generation_params_invalid">Generation parameters format is invalid</string>
     <string name="token_estimate_reserve">Token estimate reserve (%)</string>
+    <string name="local_token_estimator">Local token estimator</string>
+    <string name="local_token_estimator_description">Used for prompt budgeting and local usage fallback. Automatic recognizes known models; choose a fixed BPE when an alias is not recognized.</string>
+    <string name="local_token_estimator_automatic">Automatic</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">Reserves context space for proxy tokenizers. Higher values reduce overflow risk but retain less history; exact tokenizers ignore this value.</string>
     <string name="token_estimate_reserve_invalid">Token estimate reserve must be an integer from 0 to 50</string>
     <string name="max_tokens_must_be_less_than_context">Maximum tokens must be less than context tokens</string>

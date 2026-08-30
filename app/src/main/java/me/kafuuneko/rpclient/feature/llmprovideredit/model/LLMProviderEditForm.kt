@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -38,6 +39,7 @@ data class LLMProviderEditForm(
     val maxTokens: String = DEFAULT_LLM_MAX_TOKENS.toString(),
     val contextTokens: String = DEFAULT_LLM_CONTEXT_TOKENS.toString(),
     val tokenEstimateReservePercent: Int = DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT,
+    val localTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
     val useServerReportedUsage: Boolean = false,
@@ -83,6 +85,7 @@ data class LLMProviderEditForm(
             maxTokens = parsedMaxTokens,
             contextTokens = parsedContextTokens,
             tokenEstimateReservePercent = tokenEstimateReservePercent,
+            localTokenEstimatorType = localTokenEstimatorType,
             sendTemperature = sendTemperature,
             sendTopP = sendTopP,
             useServerReportedUsage = useServerReportedUsage,

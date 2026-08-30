@@ -365,7 +365,7 @@ class AppDatabaseMigrationTest {
         }
         migrated.query(
             """
-            SELECT id, useServerReportedUsage
+            SELECT id, useServerReportedUsage, localTokenEstimatorType
             FROM llm_providers
             WHERE id IN (404, 405, 406)
             ORDER BY id
@@ -374,12 +374,15 @@ class AppDatabaseMigrationTest {
             assertEquals(true, cursor.moveToFirst())
             assertEquals(404L, cursor.getLong(0))
             assertEquals(0, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
             assertEquals(true, cursor.moveToNext())
             assertEquals(405L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
             assertEquals(true, cursor.moveToNext())
             assertEquals(406L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
+            assertEquals("Automatic", cursor.getString(2))
         }
     }
 

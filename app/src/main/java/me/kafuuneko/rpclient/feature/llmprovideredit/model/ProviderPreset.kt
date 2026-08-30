@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 
 /**
  * 常用模型配置预设模板，用于快速填入标准接入参数。
@@ -18,6 +19,7 @@ enum class ProviderPreset(
     val baseUrl: String,
     val defaultModel: String,
     val defaultRequestBodyPatchJson: String,
+    val defaultLocalTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
     val defaultUseServerReportedUsage: Boolean = false
 ) {
     DeepSeek(
@@ -26,7 +28,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.deepseek.com/v1",
         defaultModel = "deepseek-chat",
-        defaultRequestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase
     ),
     Gemini(
         displayName = "Google Gemini",
@@ -35,6 +38,7 @@ enum class ProviderPreset(
         baseUrl = "https://generativelanguage.googleapis.com",
         defaultModel = "gemini-2.5-flash",
         defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
         defaultUseServerReportedUsage = true
     ),
     Claude(
@@ -44,6 +48,7 @@ enum class ProviderPreset(
         baseUrl = "https://api.anthropic.com/v1",
         defaultModel = "claude-3-7-sonnet-latest",
         defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
         defaultUseServerReportedUsage = true
     ),
     ChatGPT(
@@ -69,7 +74,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://api.x.ai/v1",
         defaultModel = "grok-2-latest",
-        defaultRequestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase
     ),
     Custom(
         displayName = "自定义",

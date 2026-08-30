@@ -594,6 +594,11 @@
     <string name="model_name_required">模型名称为必填项</string>
     <string name="generation_params_invalid">生成参数格式无效</string>
     <string name="token_estimate_reserve">Token 估算预留（%）</string>
+    <string name="local_token_estimator">本地 Token 预估器</string>
+    <string name="local_token_estimator_description">用于 Prompt 预算和本地用量回退。自动模式识别已知模型；模型别名无法识别时可固定选择 BPE。</string>
+    <string name="local_token_estimator_automatic">自动</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">为代理 Tokenizer 预留上下文空间。数值越高越不容易超限，但可发送的历史内容越少；精确 Tokenizer 不使用此值。</string>
     <string name="token_estimate_reserve_invalid">Token 估算预留必须是 0 到 50 的整数</string>
     <string name="max_tokens_must_be_less_than_context">最大 Token 必须小于上下文 Token</string>

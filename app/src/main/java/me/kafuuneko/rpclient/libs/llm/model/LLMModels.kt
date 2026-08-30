@@ -58,6 +58,22 @@ enum class LLMProviderProtocol {
 }
 
 /**
+ * 模型配置使用的本地 Token 预估器类型。
+ *
+ * 枚举名称会作为 Room 持久化格式保存，已有成员不得直接重命名。
+ */
+enum class LocalTokenEstimatorType {
+    /** 按已知模型、协议和供应商信息选择预估器，无法识别时使用安全回退。 */
+    Automatic,
+
+    /** 固定使用 CL100K BPE 进行本地代理估算。 */
+    Cl100kBase,
+
+    /** 固定使用 O200K BPE 进行本地代理估算。 */
+    O200kBase
+}
+
+/**
  * LLM 模块运行时使用的模型配置。
  */
 data class LLMProviderConfig(
@@ -74,6 +90,8 @@ data class LLMProviderConfig(
     val topP: Float = 1.0f,
     val maxTokens: Int = DEFAULT_LLM_MAX_TOKENS,
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
+    /** 本地 Prompt 预算与用量回退共同使用的 Token 预估器。 */
+    val localTokenEstimatorType: LocalTokenEstimatorType = LocalTokenEstimatorType.Automatic,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
     /** 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。 */

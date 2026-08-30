@@ -610,6 +610,11 @@
     <string name="model_name_required">El nombre del modelo es obligatorio</string>
     <string name="generation_params_invalid">El formato de los parámetros de generación no es válido</string>
     <string name="token_estimate_reserve">Reserva de estimación de tokens (%)</string>
+    <string name="local_token_estimator">Estimador local de tokens</string>
+    <string name="local_token_estimator_description">Se usa para el presupuesto del prompt y la estimación local de respaldo. El modo automático reconoce modelos conocidos; elige un BPE fijo si no reconoce un alias.</string>
+    <string name="local_token_estimator_automatic">Automático</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">Reserva espacio de contexto para tokenizadores proxy.</string>
     <string name="token_estimate_reserve_invalid">La reserva de estimación de tokens debe ser un entero de 0 a 50</string>
     <string name="max_tokens_must_be_less_than_context">Los tokens máximos deben ser menores que los tokens de contexto</string>

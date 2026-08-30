@@ -45,6 +45,7 @@ class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
  *
  * Gemini 与 Anthropic 不需要附加请求字段即可返回用量，因此可以安全保持启用；
  * OpenAI-compatible 端点能力差异较大，迁移后保持关闭，避免新增请求字段破坏兼容性。
+ * 本地 Token 预估器由新增列的 Automatic 默认值承接旧选择逻辑，不在迁移 SQL 中复制模型匹配规则。
  */
 class AppDatabaseAutoMigration3To4Spec : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {

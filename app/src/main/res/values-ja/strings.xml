@@ -531,6 +531,11 @@
     <string name="model_name_required">モデル名は必須です</string>
     <string name="generation_params_invalid">生成パラメータのフォーマットが無効です</string>
     <string name="token_estimate_reserve">トークン推定リザーブ（%）</string>
+    <string name="local_token_estimator">ローカル Token 推定器</string>
+    <string name="local_token_estimator_description">Prompt の予算計算とローカル使用量のフォールバックに使用します。自動は既知のモデルを識別し、別名を識別できない場合は BPE を固定できます。</string>
+    <string name="local_token_estimator_automatic">自動</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">プロキシ Tokenizer 用にコンテキストを確保します。値が高いほど超過リスクは下がりますが、保持できる履歴は減ります。正確な Tokenizer はこの値を使用しません。</string>
     <string name="token_estimate_reserve_invalid">トークン推定リザーブは 0～50 の整数で指定してください</string>
     <string name="max_tokens_must_be_less_than_context">最大トークン数はコンテキストトークン数未満にしてください</string>

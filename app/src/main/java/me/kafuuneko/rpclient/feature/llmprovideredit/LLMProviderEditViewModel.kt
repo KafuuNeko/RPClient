@@ -135,6 +135,7 @@ class LLMProviderEditViewModel :
                 requestBodyPatchJson = formattedPatch,
                 sendTemperature = capabilities.defaultSendTemperature,
                 sendTopP = capabilities.defaultSendTopP,
+                localTokenEstimatorType = preset.defaultLocalTokenEstimatorType,
                 useServerReportedUsage = preset.defaultUseServerReportedUsage
             )
         }
@@ -459,6 +460,12 @@ class LLMProviderEditViewModel :
     private fun onChangeTokenEstimateReservePercent(
         intent: LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent
     ) = updateForm { copy(tokenEstimateReservePercent = intent.value) }
+
+    /** 固定本地 Token 预估器，手动选择会优先于模型与协议自动识别。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectLocalTokenEstimator::class)
+    private fun onSelectLocalTokenEstimator(
+        intent: LLMProviderEditUiIntent.SelectLocalTokenEstimator
+    ) = updateForm { copy(localTokenEstimatorType = intent.value) }
 
     /** 切换是否在请求中显式携带 Temperature 参数。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleSendTemperature::class)

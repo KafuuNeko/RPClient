@@ -107,6 +107,7 @@ import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -788,6 +789,13 @@ private fun CollapsibleAdvancedPanel(
                         )
                     }
 
+                    LocalTokenEstimatorSelector(
+                        selected = form.localTokenEstimatorType,
+                        onSelect = {
+                            LLMProviderEditUiIntent.SelectLocalTokenEstimator(it).emit()
+                        }
+                    )
+
                     TokenEstimateReserveSlider(
                         value = form.tokenEstimateReservePercent,
                         onChange = {
@@ -810,6 +818,40 @@ private fun CollapsibleAdvancedPanel(
                 }
             }
         }
+    }
+}
+
+/** 渲染模型配置独立的本地 Token 预估器选择项。 */
+@Composable
+private fun LocalTokenEstimatorSelector(
+    selected: LocalTokenEstimatorType,
+    onSelect: (LocalTokenEstimatorType) -> Unit
+) {
+    // 文案在可组合上下文预先解析，通用 Chip 组件只接收普通字符串映射。
+    val labels = mapOf(
+        LocalTokenEstimatorType.Automatic to
+            stringResource(R.string.local_token_estimator_automatic),
+        LocalTokenEstimatorType.Cl100kBase to
+            stringResource(R.string.local_token_estimator_cl100k),
+        LocalTokenEstimatorType.O200kBase to
+            stringResource(R.string.local_token_estimator_o200k)
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.local_token_estimator),
+            style = MaterialTheme.typography.titleSmall
+        )
+        EnumChipRow(
+            values = LocalTokenEstimatorType.entries,
+            selected = selected,
+            label = { labels.getValue(it) },
+            onSelect = onSelect
+        )
+        Text(
+            text = stringResource(R.string.local_token_estimator_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -12,6 +13,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -187,6 +189,45 @@ class PromptRequestFinalizerTest {
         assertTrue(claude.name.contains("proxy"))
         assertTrue(gemini.name.contains("proxy"))
         assertTrue(fallback.countText("你好") in 1..5)
+    }
+
+    @Test
+    fun manualTokenEstimatorOverridesAutomaticRulesForPromptAndUsage() {
+        val registry = PromptTokenizerRegistry()
+        val openAi = provider(
+            type = LLMProviderType.ChatGPT,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            model = "gpt-4o-mini"
+        ).copy(
+            tokenEstimateReservePercent = 35,
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase
+        )
+        val unknown = provider(
+            type = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            model = "unknown-model-alias"
+        ).copy(
+            tokenEstimateReservePercent = 35,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase
+        )
+
+        // 手动类型不能被已知 OpenAI 模型或未知模型的自动回退覆盖。
+        val promptCl100k = registry.resolve(openAi)
+        val promptO200k = registry.resolve(unknown)
+        assertEquals("CL100K proxy", promptCl100k.name)
+        assertEquals("O200K proxy", promptO200k.name)
+        assertEquals(PromptTokenizerStrategy.Estimated, promptCl100k.strategy)
+        assertEquals(PromptTokenizerStrategy.Estimated, promptO200k.strategy)
+        assertEquals(35, promptCl100k.reservePercent)
+        assertEquals(35, promptO200k.reservePercent)
+
+        // 用量统计复用同一编码选择，但不应用只属于 Prompt 预算的预留率。
+        val usageCl100k = registry.resolveForUsage(openAi.toConfig())
+        val usageO200k = registry.resolveForUsage(unknown.toConfig())
+        assertEquals("CL100K proxy", usageCl100k.name)
+        assertEquals("O200K proxy", usageO200k.name)
+        assertEquals(0, usageCl100k.reservePercent)
+        assertEquals(0, usageO200k.reservePercent)
     }
 
     @Test

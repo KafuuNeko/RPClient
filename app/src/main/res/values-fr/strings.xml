@@ -530,6 +530,11 @@
     <string name="model_name_required">Le nom du modèle est requis</string>
     <string name="generation_params_invalid">Le format des paramètres de génération est invalide</string>
     <string name="token_estimate_reserve">Réserve d’estimation des jetons (%)</string>
+    <string name="local_token_estimator">Estimateur local de jetons</string>
+    <string name="local_token_estimator_description">Utilisé pour le budget du prompt et l’estimation locale de secours. Le mode automatique reconnaît les modèles connus ; choisissez un BPE fixe si un alias n’est pas reconnu.</string>
+    <string name="local_token_estimator_automatic">Automatique</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">Réserve du contexte pour les tokenizers proxy. Une valeur élevée réduit le risque de dépassement mais conserve moins d’historique ; les tokenizers exacts l’ignorent.</string>
     <string name="token_estimate_reserve_invalid">La réserve d’estimation doit être un entier compris entre 0 et 50</string>
     <string name="max_tokens_must_be_less_than_context">Le nombre maximal de tokens doit être inférieur aux tokens de contexte</string>

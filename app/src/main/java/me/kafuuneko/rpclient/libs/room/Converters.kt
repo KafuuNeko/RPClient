@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room
 import androidx.room.TypeConverter
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -71,6 +72,18 @@ class Converters {
 
     @TypeConverter
     fun fromLLMProviderProtocol(value: LLMProviderProtocol): String {
+        return value.name
+    }
+
+    /** 从数据库持久化名称恢复本地 Token 预估器类型。 */
+    @TypeConverter
+    fun toLocalTokenEstimatorType(value: String): LocalTokenEstimatorType {
+        return LocalTokenEstimatorType.valueOf(value)
+    }
+
+    /** 将本地 Token 预估器类型转换为稳定的数据库持久化名称。 */
+    @TypeConverter
+    fun fromLocalTokenEstimatorType(value: LocalTokenEstimatorType): String {
         return value.name
     }
 

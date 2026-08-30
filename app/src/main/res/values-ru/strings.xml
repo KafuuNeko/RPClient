@@ -530,6 +530,11 @@
     <string name="model_name_required">Требуется название модели</string>
     <string name="generation_params_invalid">Неверный формат параметров генерации</string>
     <string name="token_estimate_reserve">Резерв оценки токенов (%)</string>
+    <string name="local_token_estimator">Локальный оценщик токенов</string>
+    <string name="local_token_estimator_description">Используется для бюджета промпта и резервной локальной оценки расхода. Автоматический режим распознаёт известные модели; для неизвестного псевдонима можно закрепить BPE.</string>
+    <string name="local_token_estimator_automatic">Автоматически</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">Резервирует контекст для прокси-токенизаторов. Большие значения снижают риск переполнения, но сохраняют меньше истории; точные токенизаторы игнорируют это значение.</string>
     <string name="token_estimate_reserve_invalid">Резерв оценки токенов должен быть целым числом от 0 до 50</string>
     <string name="max_tokens_must_be_less_than_context">Максимальное число токенов должно быть меньше размера контекста</string>

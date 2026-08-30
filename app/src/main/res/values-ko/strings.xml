@@ -530,6 +530,11 @@
     <string name="model_name_required">모델 이름은 필수 입력 항목입니다</string>
     <string name="generation_params_invalid">생성 파라미터 형식이 잘못되었습니다</string>
     <string name="token_estimate_reserve">토큰 추정 여유분(%)</string>
+    <string name="local_token_estimator">로컬 Token 추정기</string>
+    <string name="local_token_estimator_description">Prompt 예산 및 로컬 사용량 대체 추정에 사용됩니다. 자동 모드는 알려진 모델을 인식하며, 별칭을 인식하지 못하면 BPE를 고정 선택할 수 있습니다.</string>
+    <string name="local_token_estimator_automatic">자동</string>
+    <string name="local_token_estimator_cl100k">CL100K</string>
+    <string name="local_token_estimator_o200k">O200K</string>
     <string name="token_estimate_reserve_description">프록시 Tokenizer를 위한 컨텍스트 공간을 확보합니다. 값이 높을수록 초과 위험은 줄지만 보존되는 기록도 줄어듭니다. 정확한 Tokenizer는 이 값을 사용하지 않습니다.</string>
     <string name="token_estimate_reserve_invalid">토큰 추정 여유분은 0에서 50 사이의 정수여야 합니다</string>
     <string name="max_tokens_must_be_less_than_context">최대 토큰은 컨텍스트 토큰보다 작아야 합니다</string>
