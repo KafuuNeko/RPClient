@@ -331,7 +331,7 @@ internal fun createDefaultLLMProviders(
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://api.openai.com/v1",
             model = "gpt-4o-mini",
-            requestStreamUsage = true,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -343,6 +343,7 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://generativelanguage.googleapis.com",
             model = DEFAULT_GEMINI_MODEL,
             requestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false
@@ -355,6 +356,7 @@ internal fun createDefaultLLMProviders(
             model = DEFAULT_CLAUDE_MODEL,
             requestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
             sendTopP = false,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false

@@ -492,8 +492,8 @@
     <string name="provider_type">供應商類型</string>
     <string name="provider_send_temperature">傳送 temperature</string>
     <string name="provider_send_top_p">傳送 top_p</string>
-    <string name="provider_request_stream_usage">請求串流服務端用量</string>
-    <string name="provider_request_stream_usage_description">為 OpenAI 相容串流請求加入 stream_options.include_usage。若端點不支援並拒絕此擴充，請關閉；關閉後仍會使用本機估算。</string>
+    <string name="provider_use_server_reported_usage">使用服務端回報用量</string>
+    <string name="provider_use_server_reported_usage_description">開啟後優先使用 OpenAI、Gemini 或 Anthropic 服務端回報的 Token 用量，僅估算缺少部分；關閉後全部使用本機估算。OpenAI 相容串流請求會在開啟時明確要求用量。</string>
     <string name="prompt_post_processing_provider_title">模型設定 Prompt 後處理</string>
     <string name="custom_headers_json">自訂請求標頭 JSON</string>
     <string name="credential_not_set">尚未設定</string>

@@ -24,7 +24,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     tokenEstimateReservePercent = tokenEstimateReservePercent,
     sendTemperature = sendTemperature,
     sendTopP = sendTopP,
-    requestStreamUsage = requestStreamUsage,
+    useServerReportedUsage = useServerReportedUsage,
     promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode),
     isEnabled = isEnabled
 )

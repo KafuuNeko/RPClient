@@ -493,8 +493,8 @@
     <string name="provider_type">プロバイダータイプ</string>
     <string name="provider_send_temperature">temperature を送信</string>
     <string name="provider_send_top_p">top_p を送信</string>
-    <string name="provider_request_stream_usage">ストリーミングでサーバー使用量を要求</string>
-    <string name="provider_request_stream_usage_description">OpenAI 互換のストリーミングリクエストに stream_options.include_usage を追加します。エンドポイントがこの拡張を拒否する場合は無効にしてください。無効にしてもローカル推定は引き続き利用できます。</string>
+    <string name="provider_use_server_reported_usage">サーバー報告のトークン使用量を利用</string>
+    <string name="provider_use_server_reported_usage_description">有効にすると、OpenAI、Gemini、Anthropic が報告したトークン使用量を優先し、不足している値のみを推定します。無効にすると、すべての使用量をローカルで推定します。OpenAI 互換ストリームでは、有効時に使用量を明示的に要求します。</string>
     <string name="prompt_post_processing_provider_title">モデル設定のプロンプト後処理</string>
     <string name="custom_headers_json">カスタムリクエストヘッダー JSON</string>
     <string name="request_body_patch_title">リクエスト本文パッチ JSON</string>

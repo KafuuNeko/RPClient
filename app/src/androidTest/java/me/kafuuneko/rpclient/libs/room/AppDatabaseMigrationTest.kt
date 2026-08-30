@@ -301,6 +301,14 @@ class AppDatabaseMigrationTest {
                     404, 'existing-openai-compatible', 'ChatGPT', 'OpenAICompatible',
                     'https://proxy.example.invalid/v1', '', 'model', '', '{}',
                     0.8, 1.0, 1200, 8192, 15, 1, 1, 0, 1, 4, 4
+                ), (
+                    405, 'existing-gemini', 'Gemini', 'Gemini',
+                    'https://generativelanguage.googleapis.com', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 1, 0, 1, 4, 4
+                ), (
+                    406, 'existing-anthropic', 'Claude', 'AnthropicMessages',
+                    'https://api.anthropic.com', '', 'model', '', '{}',
+                    0.8, 1.0, 1200, 8192, 15, 1, 0, 0, 1, 4, 4
                 )
                 """.trimIndent()
             )
@@ -356,10 +364,22 @@ class AppDatabaseMigrationTest {
             assertFalse(columnNames.contains("baseUrl"))
         }
         migrated.query(
-            "SELECT requestStreamUsage FROM llm_providers WHERE id = 404"
+            """
+            SELECT id, useServerReportedUsage
+            FROM llm_providers
+            WHERE id IN (404, 405, 406)
+            ORDER BY id
+            """.trimIndent()
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
-            assertEquals(0, cursor.getInt(0))
+            assertEquals(404L, cursor.getLong(0))
+            assertEquals(0, cursor.getInt(1))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(405L, cursor.getLong(0))
+            assertEquals(1, cursor.getInt(1))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(406L, cursor.getLong(0))
+            assertEquals(1, cursor.getInt(1))
         }
     }
 

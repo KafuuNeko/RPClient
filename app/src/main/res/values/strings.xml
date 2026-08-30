@@ -549,8 +549,8 @@
     <string name="provider_type">Provider Type</string>
     <string name="provider_send_temperature">Send temperature</string>
     <string name="provider_send_top_p">Send top_p</string>
-    <string name="provider_request_stream_usage">Request server usage in streams</string>
-    <string name="provider_request_stream_usage_description">Adds stream_options.include_usage to OpenAI-compatible streaming requests. Disable this if the endpoint rejects the extension; local estimation remains available.</string>
+    <string name="provider_use_server_reported_usage">Use server-reported token usage</string>
+    <string name="provider_use_server_reported_usage_description">When enabled, token usage reported by OpenAI, Gemini, or Anthropic is preferred and only missing values are estimated. When disabled, all usage is estimated locally. OpenAI-compatible streams explicitly request usage while enabled.</string>
     <string name="prompt_post_processing_provider_title">Model configuration prompt post-processing</string>
     <string name="custom_headers_json">Custom Request Headers JSON</string>
     <string name="credential_not_set">Not configured</string>

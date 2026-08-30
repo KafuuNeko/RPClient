@@ -103,8 +103,8 @@ class OpenAICompatibleLLMClient(
                 options.maxTokens
             )
             .put("stream", stream)
-        // 端点能力由模型配置显式声明
-        if (stream && mProvider.requestStreamUsage) {
+        // 开启服务端用量策略时，OpenAI 流式协议需要显式请求额外的 usage 块
+        if (stream && mProvider.useServerReportedUsage) {
             payload.put("stream_options", JSONObject().put("include_usage", true))
         }
         options.temperature?.let { payload.put("temperature", it) }

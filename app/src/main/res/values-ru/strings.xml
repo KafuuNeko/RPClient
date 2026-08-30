@@ -492,8 +492,8 @@
     <string name="provider_type">Тип поставщика</string>
     <string name="provider_send_temperature">Отправлять temperature</string>
     <string name="provider_send_top_p">Отправлять top_p</string>
-    <string name="provider_request_stream_usage">Запрашивать серверные данные об использовании в потоке</string>
-    <string name="provider_request_stream_usage_description">Добавляет stream_options.include_usage к потоковым запросам, совместимым с OpenAI. Отключите этот параметр, если конечная точка отклоняет расширение; локальная оценка останется доступной.</string>
+    <string name="provider_use_server_reported_usage">Использовать серверные данные о токенах</string>
+    <string name="provider_use_server_reported_usage_description">Если параметр включён, приоритет имеют данные о токенах от OpenAI, Gemini или Anthropic, а недостающие значения оцениваются. Если параметр выключен, всё использование оценивается локально. Совместимые с OpenAI потоки при включённом параметре явно запрашивают данные об использовании.</string>
     <string name="prompt_post_processing_provider_title">Постобработка промпта конфигурации модели</string>
     <string name="custom_headers_json">JSON пользовательских заголовков запроса</string>
     <string name="request_body_patch_title">JSON-патч тела запроса</string>

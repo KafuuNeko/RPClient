@@ -492,8 +492,8 @@
     <string name="provider_type">Type de fournisseur</string>
     <string name="provider_send_temperature">Envoyer temperature</string>
     <string name="provider_send_top_p">Envoyer top_p</string>
-    <string name="provider_request_stream_usage">Demander l’utilisation serveur en streaming</string>
-    <string name="provider_request_stream_usage_description">Ajoute stream_options.include_usage aux requêtes en streaming compatibles avec OpenAI. Désactivez cette option si le point de terminaison refuse cette extension ; l’estimation locale reste disponible.</string>
+    <string name="provider_use_server_reported_usage">Utiliser les données d’utilisation du serveur</string>
+    <string name="provider_use_server_reported_usage_description">Lorsque cette option est activée, les valeurs de tokens communiquées par OpenAI, Gemini ou Anthropic sont prioritaires et seules les valeurs manquantes sont estimées. Lorsqu’elle est désactivée, toute l’utilisation est estimée localement. Les flux compatibles avec OpenAI demandent explicitement les données d’utilisation lorsque l’option est activée.</string>
     <string name="prompt_post_processing_provider_title">Post-traitement du prompt de la configuration</string>
     <string name="custom_headers_json">JSON d\'en-têtes de requête personnalisés</string>
     <string name="request_body_patch_title">Correctif JSON du corps de requête</string>

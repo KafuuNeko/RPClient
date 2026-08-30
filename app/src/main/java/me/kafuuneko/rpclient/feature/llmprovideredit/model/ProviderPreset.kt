@@ -18,7 +18,7 @@ enum class ProviderPreset(
     val baseUrl: String,
     val defaultModel: String,
     val defaultRequestBodyPatchJson: String,
-    val defaultRequestStreamUsage: Boolean = false
+    val defaultUseServerReportedUsage: Boolean = false
 ) {
     DeepSeek(
         displayName = "DeepSeek",
@@ -34,7 +34,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.Gemini,
         baseUrl = "https://generativelanguage.googleapis.com",
         defaultModel = "gemini-2.5-flash",
-        defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+        defaultUseServerReportedUsage = true
     ),
     Claude(
         displayName = "Anthropic Claude",
@@ -42,7 +43,8 @@ enum class ProviderPreset(
         protocol = LLMProviderProtocol.AnthropicMessages,
         baseUrl = "https://api.anthropic.com/v1",
         defaultModel = "claude-3-7-sonnet-latest",
-        defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
+        defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+        defaultUseServerReportedUsage = true
     ),
     ChatGPT(
         displayName = "OpenAI",
@@ -51,7 +53,7 @@ enum class ProviderPreset(
         baseUrl = "https://api.openai.com/v1",
         defaultModel = "gpt-4o",
         defaultRequestBodyPatchJson = "{}",
-        defaultRequestStreamUsage = true
+        defaultUseServerReportedUsage = true
     ),
     OpenRouter(
         displayName = "OpenRouter",

@@ -548,8 +548,8 @@
     <string name="provider_type">供应商类型</string>
     <string name="provider_send_temperature">发送 temperature</string>
     <string name="provider_send_top_p">发送 top_p</string>
-    <string name="provider_request_stream_usage">请求流式服务端用量</string>
-    <string name="provider_request_stream_usage_description">为 OpenAI 兼容流式请求添加 stream_options.include_usage。若端点不支持并拒绝该扩展，请关闭；关闭后仍会使用本地估算。</string>
+    <string name="provider_use_server_reported_usage">使用服务端上报用量</string>
+    <string name="provider_use_server_reported_usage_description">开启后优先使用 OpenAI、Gemini 或 Anthropic 服务端上报的 Token 用量，仅估算缺失部分；关闭后全部使用本地估算。OpenAI 兼容流式请求会在开启时显式请求用量。</string>
     <string name="prompt_post_processing_provider_title">模型配置 Prompt 后处理</string>
     <string name="custom_headers_json">自定义请求头 JSON</string>
     <string name="credential_not_set">未配置</string>

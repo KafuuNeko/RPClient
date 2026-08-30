@@ -105,7 +105,6 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
-import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -623,9 +622,6 @@ private fun CollapsibleAdvancedPanel(
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
-    val providerCapabilities = remember(form.protocol) {
-        LLMProviderCapabilities.forProtocol(form.protocol)
-    }
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -712,22 +708,20 @@ private fun CollapsibleAdvancedPanel(
                         onSelect = { LLMProviderEditUiIntent.ChangeProtocol(it).emit() }
                     )
 
-                    if (providerCapabilities.supportsStreamUsageRequest) {
-                        ParameterSwitchRow(
-                            title = stringResource(R.string.provider_request_stream_usage),
-                            checked = form.requestStreamUsage,
-                            onCheckedChange = {
-                                LLMProviderEditUiIntent.ToggleRequestStreamUsage(it).emit()
-                            }
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.provider_request_stream_usage_description
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    ParameterSwitchRow(
+                        title = stringResource(R.string.provider_use_server_reported_usage),
+                        checked = form.useServerReportedUsage,
+                        onCheckedChange = {
+                            LLMProviderEditUiIntent.ToggleUseServerReportedUsage(it).emit()
+                        }
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.provider_use_server_reported_usage_description
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     ModernCredentialControl(
                         title = stringResource(R.string.custom_headers_json),

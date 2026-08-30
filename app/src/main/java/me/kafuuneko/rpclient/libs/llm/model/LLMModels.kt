@@ -76,8 +76,8 @@ data class LLMProviderConfig(
     val contextTokens: Int = DEFAULT_LLM_CONTEXT_TOKENS,
     val sendTemperature: Boolean = true,
     val sendTopP: Boolean = true,
-    /** 是否为 OpenAI-compatible 流式请求附加服务端用量返回选项。 */
-    val requestStreamUsage: Boolean = false,
+    /** 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。 */
+    val useServerReportedUsage: Boolean = false,
     /** 已持久化配置的主键；编辑页未保存的临时配置为空。 */
     val providerId: Long? = null
 )

@@ -492,8 +492,8 @@
     <string name="provider_type">공급자 유형</string>
     <string name="provider_send_temperature">temperature 전송</string>
     <string name="provider_send_top_p">top_p 전송</string>
-    <string name="provider_request_stream_usage">스트리밍 서버 사용량 요청</string>
-    <string name="provider_request_stream_usage_description">OpenAI 호환 스트리밍 요청에 stream_options.include_usage를 추가합니다. 엔드포인트가 이 확장을 거부하면 비활성화하세요. 비활성화해도 로컬 추정은 계속 사용할 수 있습니다.</string>
+    <string name="provider_use_server_reported_usage">서버 보고 토큰 사용량 사용</string>
+    <string name="provider_use_server_reported_usage_description">활성화하면 OpenAI, Gemini 또는 Anthropic이 보고한 토큰 사용량을 우선 사용하고 누락된 값만 추정합니다. 비활성화하면 모든 사용량을 로컬에서 추정합니다. OpenAI 호환 스트림은 활성화된 동안 사용량을 명시적으로 요청합니다.</string>
     <string name="prompt_post_processing_provider_title">모델 구성 프롬프트 후처리</string>
     <string name="custom_headers_json">사용자 정의 요청 헤더 JSON</string>
     <string name="request_body_patch_title">요청 본문 패치 JSON</string>

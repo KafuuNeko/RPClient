@@ -45,6 +45,7 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryVolume
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spec
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spec
+import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spec
 
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
@@ -74,7 +75,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spe
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
-        AutoMigration(from = 3, to = 4)
+        AutoMigration(from = 3, to = 4, spec = AppDatabaseAutoMigration3To4Spec::class)
     ],
     exportSchema = true
 )

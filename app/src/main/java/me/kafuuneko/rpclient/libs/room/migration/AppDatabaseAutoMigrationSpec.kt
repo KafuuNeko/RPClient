@@ -39,3 +39,21 @@ class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
         )
     }
 }
+
+/**
+ * 主业务数据库 v3→v4 为原生用量协议保留升级前的服务端统计行为。
+ *
+ * Gemini 与 Anthropic 不需要附加请求字段即可返回用量，因此可以安全保持启用；
+ * OpenAI-compatible 端点能力差异较大，迁移后保持关闭，避免新增请求字段破坏兼容性。
+ */
+class AppDatabaseAutoMigration3To4Spec : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            UPDATE llm_providers
+            SET useServerReportedUsage = 1
+            WHERE protocol IN ('Gemini', 'AnthropicMessages')
+            """.trimIndent()
+        )
+    }
+}

@@ -493,8 +493,8 @@
     <string name="provider_type">Anbietertyp</string>
     <string name="provider_send_temperature">Temperature senden</string>
     <string name="provider_send_top_p">top_p senden</string>
-    <string name="provider_request_stream_usage">Serverseitige Nutzung beim Streaming anfordern</string>
-    <string name="provider_request_stream_usage_description">Fügt OpenAI-kompatiblen Streaming-Anfragen stream_options.include_usage hinzu. Deaktiviere diese Option, wenn der Endpunkt die Erweiterung ablehnt; die lokale Schätzung bleibt verfügbar.</string>
+    <string name="provider_use_server_reported_usage">Vom Server gemeldete Token-Nutzung verwenden</string>
+    <string name="provider_use_server_reported_usage_description">Wenn aktiviert, werden die von OpenAI, Gemini oder Anthropic gemeldeten Token-Werte bevorzugt und nur fehlende Werte geschätzt. Wenn deaktiviert, wird die gesamte Nutzung lokal geschätzt. OpenAI-kompatible Streams fordern die Nutzungsdaten bei aktivierter Option ausdrücklich an.</string>
     <string name="prompt_post_processing_provider_title">Prompt-Nachbearbeitung der Modellkonfiguration</string>
     <string name="custom_headers_json">Benutzerdefinierte Anfrage-Header-JSON</string>
     <string name="request_body_patch_title">Anfragekörper-Patch (JSON)</string>

@@ -17,7 +17,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 /**
  * 为协议客户端补充成功请求 Token 用量持久化的装饰器。
  *
- * - 服务端上报值优先，本地 Tokenizer 只补齐缺失的输入或输出侧。
+ * - 配置允许时优先采用服务端上报值，本地 Tokenizer 只补齐缺失的输入或输出侧。
+ * - 配置关闭时忽略全部服务端用量，输入与输出统一由本地 Tokenizer 估算。
  * - 流式响应只在上游正常结束后写入，异常与用户取消不会产生记录。
  * - 持久化异常会被隔离，不能把一次已成功的模型请求改写为失败。
  */
@@ -84,7 +85,7 @@ internal class LLMTokenUsageTrackingClient(
         )
     }
 
-    /** 解析 Host、补齐缺失用量并尽力持久化脱敏记录。 */
+    /** 解析 Host、按配置选择用量来源并尽力持久化脱敏记录。 */
     private suspend fun trySaveRecord(
         request: LLMGenerationRequest,
         effectiveModel: String,
@@ -94,8 +95,10 @@ internal class LLMTokenUsageTrackingClient(
         startNanos: Long
     ) {
         val tokenizer = mTokenizerRegistry.resolveForUsage(mProvider)
-        val reportedInput = usage.reportedInputTokens()
-        val reportedOutput = usage.reportedOutputTokens()
+        // 关闭服务端用量后不混用响应中的任何计数，确保两侧来源均为本地估算
+        val acceptedUsage = usage.takeIf { mProvider.useServerReportedUsage }
+        val reportedInput = acceptedUsage.reportedInputTokens()
+        val reportedOutput = acceptedUsage.reportedOutputTokens()
         val input = reportedInput?.toLong()
             ?: tokenizer.countMessages(request.messages).toLong()
         val output = reportedOutput?.toLong()
@@ -117,8 +120,8 @@ internal class LLMTokenUsageTrackingClient(
             outputTokens = output,
             inputTokenSource = reportedInput.toSource(tokenizer.strategy),
             outputTokenSource = reportedOutput.toSource(tokenizer.strategy),
-            cachedInputTokens = usage?.cachedPromptTokens?.coerceAtLeast(0)?.toLong(),
-            reasoningTokens = usage?.reasoningTokens?.coerceAtLeast(0)?.toLong(),
+            cachedInputTokens = acceptedUsage?.cachedPromptTokens?.coerceAtLeast(0)?.toLong(),
+            reasoningTokens = acceptedUsage?.reasoningTokens?.coerceAtLeast(0)?.toLong(),
             tokenizerName = tokenizer.name.takeIf { hasEstimate },
             durationMs = ((System.nanoTime() - startNanos) / NANOS_PER_MILLISECOND)
                 .coerceAtLeast(0L)

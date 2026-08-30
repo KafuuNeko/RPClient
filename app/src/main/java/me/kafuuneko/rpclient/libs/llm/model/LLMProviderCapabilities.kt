@@ -5,9 +5,7 @@ data class LLMProviderCapabilities(
     val temperatureRange: ClosedFloatingPointRange<Float>,
     val topPRange: ClosedFloatingPointRange<Float>,
     val defaultSendTemperature: Boolean,
-    val defaultSendTopP: Boolean,
-    /** 是否允许用户显式请求流式用量；false 不代表服务端响应无法携带用量。 */
-    val supportsStreamUsageRequest: Boolean
+    val defaultSendTopP: Boolean
 ) {
     companion object {
         /** 按协议给出保守默认值；用户仍可在模型配置页面显式调整发送开关。 */
@@ -17,22 +15,19 @@ data class LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = true,
-                    supportsStreamUsageRequest = true
+                    defaultSendTopP = true
                 )
                 LLMProviderProtocol.Gemini -> LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = true,
-                    supportsStreamUsageRequest = false
+                    defaultSendTopP = true
                 )
                 LLMProviderProtocol.AnthropicMessages -> LLMProviderCapabilities(
                     temperatureRange = 0f..1f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = false,
-                    supportsStreamUsageRequest = false
+                    defaultSendTopP = false
                 )
             }
         }
