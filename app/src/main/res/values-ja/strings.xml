@@ -845,6 +845,7 @@
     <string name="story_continue">続きを書く</string>
     <string name="story_continuation_guidance">続きの指示</string>
     <string name="story_continuation_guidance_placeholder">次に起こしてほしいことを入力（任意）</string>
+    <string name="story_guidance_sheet_title">続きの指示</string>
     <string name="story_copy_draft">下書きをコピー</string>
     <string name="story_create_story">ストーリーを作成</string>
     <string name="story_create_subtitle">ストーリー名を設定し、執筆前にキャラクターカードとワールドブック項目を選択します。</string>

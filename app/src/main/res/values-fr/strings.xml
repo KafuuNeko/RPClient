@@ -848,6 +848,7 @@
     <string name="story_continue">Continuer</string>
     <string name="story_continuation_guidance">Consigne de continuation</string>
     <string name="story_continuation_guidance_placeholder">Décrivez la suite souhaitée (facultatif)</string>
+    <string name="story_guidance_sheet_title">Consigne de continuation</string>
     <string name="story_copy_draft">Copier le brouillon</string>
     <string name="story_create_story">Créer une histoire</string>
     <string name="story_create_subtitle">Nommez votre récit et choisissez les fiches de personnage et les entrées de livre d’univers avant d’écrire.</string>

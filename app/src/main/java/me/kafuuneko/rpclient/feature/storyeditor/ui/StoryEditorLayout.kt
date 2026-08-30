@@ -3,6 +3,12 @@ package me.kafuuneko.rpclient.feature.storyeditor.ui
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,32 +24,36 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.automirrored.rounded.Redo
@@ -54,6 +64,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
@@ -91,6 +102,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -109,6 +121,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -125,6 +138,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.window.core.layout.WindowSizeClass
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -233,92 +247,846 @@ private fun StoryEditorPage(
     document: StoryEditorDocument?,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
+    // 编辑状态位于自适应布局分支之外，窗口尺寸切换时继续复用当前草稿与光标。
     val editorState = remember(document?.chapterId) {
         TextFieldState(document?.content.orEmpty())
     }
     val documentMatchesChapter = document?.chapterId == state.structureState.currentChapterId
+    val onContinue = document?.takeIf { documentMatchesChapter }?.let { currentDocument ->
+        {
+            StoryEditorUiIntent.ContinueStory(
+                StoryEditorSnapshot(
+                    chapterId = currentDocument.chapterId,
+                    content = editorState.text.toString(),
+                    isComposing = editorState.composition != null
+                )
+            ).emit()
+        }
+    }
+
+    // 窗口等级不随 IME 开合变化，避免输入时切换布局并打断焦点。
+    val layoutMode = storyEditorLayoutMode(currentWindowAdaptiveInfo().windowSizeClass)
+    StoryEditorScaffold(
+        state = state,
+        document = document,
+        editorState = editorState,
+        documentMatchesChapter = documentMatchesChapter,
+        layoutMode = layoutMode,
+        onContinue = onContinue,
+        emit = emit
+    )
+}
+
+/** 按窗口约束组织故事编辑器的常规、横屏沉浸或紧凑布局。 */
+@Composable
+private fun StoryEditorScaffold(
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    layoutMode: StoryEditorLayoutMode,
+    onContinue: (() -> Unit)?,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            AppTopBar(
-                title = state.topBarState.title,
-                onBack = { StoryEditorUiIntent.Back.emit() },
-                actions = {
-                    SaveStatus(state.topBarState.saveState, emit)
-                    IconButton(
-                        onClick = { StoryEditorUiIntent.OpenPromptInspector.emit() },
-                        enabled = state.hasPromptInspection
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Visibility,
-                            contentDescription = stringResource(R.string.prompt_inspector_title)
-                        )
-                    }
-                    IconButton(
-                        onClick = { StoryEditorUiIntent.OpenFileActions.emit() },
-                        enabled = state.generationState is StoryGenerationState.Idle
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.FolderOpen,
-                            contentDescription = stringResource(R.string.story_file_actions)
-                        )
-                    }
-                    IconButton(
-                        onClick = { StoryEditorUiIntent.OpenStorySettings.emit() },
-                        enabled = state.generationState is StoryGenerationState.Idle
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.story_settings)
-                        )
-                    }
-                }
-            )
+            // 手机横屏模式由左侧导航轨承载，Scaffold 顶栏隐藏以释放纵向空间
+            if (layoutMode != StoryEditorLayoutMode.CompactWide) {
+                StoryEditorTopBar(state, emit)
+            }
         },
         bottomBar = {
-            EditorBottomBar(
-                characterCount = state.contentState.characterCount,
-                referenceState = state.referenceState,
-                contentState = state.contentState,
-                continuationInputState = state.continuationInputState,
-                generationState = state.generationState,
-                canUndoEdit = state.canUndoEdit,
-                canRedoEdit = state.canRedoEdit,
-                onContinue = document?.let {
-                    {
-                        StoryEditorUiIntent.ContinueStory(
+            if (layoutMode == StoryEditorLayoutMode.Regular) {
+                EditorBottomBar(
+                    characterCount = state.contentState.characterCount,
+                    referenceState = state.referenceState,
+                    contentState = state.contentState,
+                    continuationInputState = state.continuationInputState,
+                    generationState = state.generationState,
+                    canUndoEdit = state.canUndoEdit,
+                    canRedoEdit = state.canRedoEdit,
+                    onContinue = onContinue,
+                    applyBottomInsets = true,
+                    emit = emit
+                )
+            }
+        }
+    ) { paddingValues ->
+        when (layoutMode) {
+            StoryEditorLayoutMode.Regular -> StoryEditorRegularContent(
+                state = state,
+                document = document,
+                editorState = editorState,
+                documentMatchesChapter = documentMatchesChapter,
+                paddingValues = paddingValues,
+                emit = emit
+            )
+
+            StoryEditorLayoutMode.CompactWide -> StoryEditorLandscapeContent(
+                state = state,
+                document = document,
+                editorState = editorState,
+                documentMatchesChapter = documentMatchesChapter,
+                paddingValues = paddingValues,
+                onContinue = onContinue,
+                emit = emit
+            )
+
+            StoryEditorLayoutMode.CompactNarrow -> StoryEditorCompactContent(
+                state = state,
+                document = document,
+                editorState = editorState,
+                documentMatchesChapter = documentMatchesChapter,
+                paddingValues = paddingValues,
+                onContinue = onContinue,
+                showStatistics = false,
+                emit = emit
+            )
+        }
+    }
+}
+
+/** 渲染故事编辑器顶栏及页面级操作。 */
+@Composable
+private fun StoryEditorTopBar(
+    state: StoryEditorUiState.Normal,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    AppTopBar(
+        title = state.topBarState.title,
+        onBack = { StoryEditorUiIntent.Back.emit() },
+        actions = {
+            // 保存状态常驻顶栏，窗口紧凑时仍能看到草稿是否安全落库。
+            SaveStatus(state.topBarState.saveState, emit)
+            IconButton(
+                onClick = { StoryEditorUiIntent.OpenPromptInspector.emit() },
+                enabled = state.hasPromptInspection
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Visibility,
+                    contentDescription = stringResource(R.string.prompt_inspector_title)
+                )
+            }
+            IconButton(
+                onClick = { StoryEditorUiIntent.OpenFileActions.emit() },
+                enabled = state.generationState is StoryGenerationState.Idle
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.FolderOpen,
+                    contentDescription = stringResource(R.string.story_file_actions)
+                )
+            }
+            IconButton(
+                onClick = { StoryEditorUiIntent.OpenStorySettings.emit() },
+                enabled = state.generationState is StoryGenerationState.Idle
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = stringResource(R.string.story_settings)
+                )
+            }
+        }
+    )
+}
+
+/** 使用原有纵向结构渲染中等及以上高度窗口。 */
+@Composable
+private fun StoryEditorRegularContent(
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    paddingValues: PaddingValues,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 常规高度保留完整问题提示，避免改变竖屏下的信息层级。
+        StoryEditorProblemBanners(state, emit)
+        StoryEditorMainPane(
+            modifier = Modifier
+                .weight(1f)
+                .widthIn(max = 760.dp),
+            state = state,
+            document = document,
+            editorState = editorState,
+            documentMatchesChapter = documentMatchesChapter,
+            compactChapterBar = false,
+            showChapterBar = true,
+            emit = emit
+        )
+    }
+}
+
+/**
+ * 专为手机横屏与紧凑宽屏环境构建的双翼环抱式沉浸布局。
+ *
+ * 核心人机工程与视觉设计：
+ * - 左右双翼触控：左手掌管大纲与全局导航，右手拇指处于高频续写与历史撤销热区。
+ * - 去除顶部全局栏：将全局导航与辅助入口收纳至左侧导航轨，彻底释放纵向高度。
+ * - 沉浸稿纸排版：正文直通全屏，配合轻量内联章节条与流式生成微光晕反馈。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StoryEditorLandscapeContent(
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    paddingValues: PaddingValues,
+    onContinue: (() -> Unit)?,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    val imeVisible = WindowInsets.isImeVisible
+    var isGuidanceExpanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .consumeWindowInsets(paddingValues)
+            .imePadding()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 左侧极简导航轨
+        StoryEditorLeftRail(
+            state = state,
+            document = document,
+            editorState = editorState,
+            documentMatchesChapter = documentMatchesChapter,
+            compactMode = imeVisible,
+            emit = emit
+        )
+
+        // 中央沉浸稿纸区域
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // IME 打开后优先保留正文和正在输入的工具栏，避免提示再次耗尽纵向空间
+            if (!imeVisible) {
+                StoryEditorProblemBanners(state, emit)
+            }
+            StoryEditorLandscapeCenterPane(
+                modifier = Modifier.weight(1f),
+                state = state,
+                document = document,
+                editorState = editorState,
+                documentMatchesChapter = documentMatchesChapter,
+                isGuidanceExpanded = isGuidanceExpanded,
+                onContinue = onContinue,
+                emit = emit
+            )
+        }
+
+        // 右侧拇指操作岛
+        StoryEditorRightDock(
+            characterCount = state.contentState.characterCount,
+            contentState = state.contentState,
+            continuationInputState = state.continuationInputState,
+            generationState = state.generationState,
+            canUndoEdit = state.canUndoEdit,
+            canRedoEdit = state.canRedoEdit,
+            isGuidanceExpanded = isGuidanceExpanded,
+            onToggleGuidance = { isGuidanceExpanded = !isGuidanceExpanded },
+            onContinue = onContinue,
+            compactMode = imeVisible,
+            emit = emit
+        )
+    }
+}
+
+/**
+ * 横屏左侧极简导航轨，承载全局返回、大纲入口与关键配置能力。
+ *
+ * 核心交互：
+ * - 顶部：返回上一页与保存状态微标。
+ * - 中部：章节大纲入口与当前卷章信息。
+ * - 底部：Prompt 检查器、导入导出与故事设置入口。
+ */
+@Composable
+private fun StoryEditorLeftRail(
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    compactMode: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        modifier = Modifier.fillMaxHeight()
+    ) {
+        Column(
+            modifier = Modifier
+                .width(if (compactMode) 42.dp else 48.dp)
+                .padding(vertical = 4.dp, horizontal = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 顶部：返回按钮与极简保存状态
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = { StoryEditorUiIntent.Back.emit() },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(R.string.back),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                SaveStatusMini(saveState = state.topBarState.saveState, emit = emit)
+            }
+
+            // 中部：分卷与大纲快速入口
+            IconButton(
+                onClick = {
+                    document?.takeIf { documentMatchesChapter }?.let { currentDoc ->
+                        StoryEditorUiIntent.OpenStoryOutline(
                             StoryEditorSnapshot(
-                                chapterId = it.chapterId,
+                                chapterId = currentDoc.chapterId,
                                 content = editorState.text.toString(),
                                 isComposing = editorState.composition != null
                             )
                         ).emit()
                     }
                 },
+                enabled = documentMatchesChapter &&
+                        state.contentState.editable &&
+                        state.generationState is StoryGenerationState.Idle,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.MenuBook,
+                    contentDescription = stringResource(R.string.story_outline),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // 底部：检查器、导入导出、设置
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (!compactMode) {
+                    IconButton(
+                        onClick = { StoryEditorUiIntent.OpenPromptInspector.emit() },
+                        enabled = state.hasPromptInspection,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Visibility,
+                            contentDescription = stringResource(R.string.prompt_inspector_title),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { StoryEditorUiIntent.OpenFileActions.emit() },
+                        enabled = state.generationState is StoryGenerationState.Idle,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FolderOpen,
+                            contentDescription = stringResource(R.string.story_file_actions),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = { StoryEditorUiIntent.OpenStorySettings.emit() },
+                    enabled = state.generationState is StoryGenerationState.Idle,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Settings,
+                        contentDescription = stringResource(R.string.story_settings),
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 适用于横屏侧边栏的紧凑微标保存状态。
+ */
+@Composable
+private fun SaveStatusMini(
+    saveState: StorySaveState,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    val clickable = saveState == StorySaveState.Failed
+    Surface(
+        modifier = Modifier.clickable(enabled = clickable) {
+            StoryEditorUiIntent.RetrySave.emit()
+        },
+        shape = CircleShape,
+        color = when (saveState) {
+            StorySaveState.Failed,
+            StorySaveState.Conflict -> MaterialTheme.colorScheme.errorContainer
+
+            StorySaveState.Dirty,
+            StorySaveState.Saving -> MaterialTheme.colorScheme.secondaryContainer
+
+            StorySaveState.Saved -> MaterialTheme.colorScheme.surfaceVariant
+        }
+    ) {
+        Box(
+            modifier = Modifier.size(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = when (saveState) {
+                    StorySaveState.Saved -> Icons.Rounded.Check
+                    StorySaveState.Dirty -> Icons.Rounded.Save
+                    StorySaveState.Saving -> Icons.Rounded.HourglassTop
+                    StorySaveState.Failed,
+                    StorySaveState.Conflict -> Icons.Rounded.ErrorOutline
+                },
+                contentDescription = null,
+                modifier = Modifier.size(13.dp),
+                tint = when (saveState) {
+                    StorySaveState.Failed,
+                    StorySaveState.Conflict -> MaterialTheme.colorScheme.onErrorContainer
+
+                    StorySaveState.Dirty,
+                    StorySaveState.Saving -> MaterialTheme.colorScheme.onSecondaryContainer
+
+                    StorySaveState.Saved -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 横屏右侧拇指操作岛，将高频续写、历史回退与灵感面板聚合于右手舒适热区。
+ *
+ * 核心排布：
+ * - 顶部：全书/本章字数微型徽标与状态展示。
+ * - 中部：灵感引导触发器与撤销/重做竖排按键。
+ * - 底部：高对比度、大触控面积的 AI 续写主控按钮。
+ */
+@Composable
+private fun StoryEditorRightDock(
+    characterCount: Int,
+    contentState: StoryEditorContentState,
+    continuationInputState: StoryContinuationInputState,
+    generationState: StoryGenerationState,
+    canUndoEdit: Boolean,
+    canRedoEdit: Boolean,
+    isGuidanceExpanded: Boolean,
+    onToggleGuidance: () -> Unit,
+    onContinue: (() -> Unit)?,
+    compactMode: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val historyEnabled = contentState.editable && generationState is StoryGenerationState.Idle
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        modifier = Modifier.fillMaxHeight()
+    ) {
+        Column(
+            modifier = Modifier
+                .width(if (compactMode) 44.dp else 52.dp)
+                .padding(vertical = 4.dp, horizontal = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // 顶部：字数微型指示
+            if (!compactMode) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (characterCount >= 1000) {
+                                String.format(LocalLocale.current.platformLocale, "%.1fk", characterCount / 1000f)
+                            } else {
+                                "$characterCount"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+
+            // 中部：灵感引导折叠切换与撤销/重做
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                // 灵感引导展开按钮
+                Surface(
+                    modifier = Modifier.clickable(
+                        enabled = contentState.editable && generationState is StoryGenerationState.Idle,
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onToggleGuidance()
+                        }
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isGuidanceExpanded || continuationInputState.guidanceDraft.isNotBlank()) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = stringResource(R.string.story_continuation_guidance),
+                            modifier = Modifier.size(16.dp),
+                            tint = if (isGuidanceExpanded || continuationInputState.guidanceDraft.isNotBlank()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        StoryEditorUiIntent.UndoLastEdit.emit()
+                    },
+                    enabled = historyEnabled && canUndoEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.Undo,
+                        contentDescription = stringResource(R.string.story_undo),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        StoryEditorUiIntent.RedoLastEdit.emit()
+                    },
+                    enabled = historyEnabled && canRedoEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.Redo,
+                        contentDescription = stringResource(R.string.story_redo),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+            }
+
+            // 底部：AI 续写大按键
+            LandscapeGenerationAction(
+                contentState = contentState,
+                generationState = generationState,
+                onContinue = onContinue,
+                hapticFeedback = hapticFeedback,
                 emit = emit
             )
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+    }
+}
+
+/** 渲染横屏操作岛尾部的续写、停止或进行中状态。 */
+@Composable
+private fun LandscapeGenerationAction(
+    contentState: StoryEditorContentState,
+    generationState: StoryGenerationState,
+    onContinue: (() -> Unit)?,
+    hapticFeedback: HapticFeedback,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    when (generationState) {
+        is StoryGenerationState.Streaming -> Button(
+            modifier = Modifier.size(42.dp),
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                StoryEditorUiIntent.StopGeneration.emit()
+            },
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(0.dp)
         ) {
-            SaveProblemBanner(state.topBarState.saveState, emit)
-            GenerationProblemBanner(state.generationState, emit)
-            if (!state.hasAvailableProvider) {
-                NoProviderBanner(
-                    onClick = { StoryEditorUiIntent.OpenProviderSettings.emit() }
+            Icon(
+                Icons.Rounded.Stop,
+                contentDescription = stringResource(R.string.story_stop_generation),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        StoryGenerationState.Preparing,
+        StoryGenerationState.Applying -> Surface(
+            modifier = Modifier.size(42.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
                 )
             }
+        }
+
+        else -> Button(
+            modifier = Modifier.size(42.dp),
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onContinue?.invoke()
+            },
+            enabled = contentState.editable &&
+                    generationState is StoryGenerationState.Idle &&
+                    onContinue != null,
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Icon(
+                Icons.Rounded.AutoAwesome,
+                contentDescription = stringResource(R.string.story_continue),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
+ * 横屏中央沉浸正文容器，承载微型章节信息与全高正文编辑器。
+ */
+@Composable
+private fun StoryEditorLandscapeCenterPane(
+    modifier: Modifier,
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    isGuidanceExpanded: Boolean,
+    onContinue: (() -> Unit)?,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // 内联极简章节条
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // 当前章节名称微胶囊
+            Surface(
+                modifier = Modifier.clickable(
+                    enabled = documentMatchesChapter &&
+                            state.contentState.editable &&
+                            state.generationState is StoryGenerationState.Idle,
+                    onClick = {
+                        document?.takeIf { documentMatchesChapter }?.let { currentDoc ->
+                            StoryEditorUiIntent.OpenStoryOutline(
+                                StoryEditorSnapshot(
+                                    chapterId = currentDoc.chapterId,
+                                    content = editorState.text.toString(),
+                                    isComposing = editorState.composition != null
+                                )
+                            ).emit()
+                        }
+                    }
+                ),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Description,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = state.structureState.currentChapterTitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = stringResource(R.string.story_open_outline),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+
+        // 展开的引导输入框（如果展开）
+        AnimatedVisibility(
+            visible = isGuidanceExpanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = state.continuationInputState.guidanceDraft,
+                onValueChange = { StoryEditorUiIntent.ChangeContinuationGuidance(it).emit() },
+                enabled = state.contentState.editable && state.generationState is StoryGenerationState.Idle,
+                singleLine = true,
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.story_continuation_guidance_placeholder),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                trailingIcon = {
+                    if (state.continuationInputState.guidanceDraft.isNotBlank()) {
+                        IconButton(
+                            onClick = { StoryEditorUiIntent.ChangeContinuationGuidance("").emit() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.prompt_editor_clear),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+
+        // 正文编辑器
+        if (document == null || !documentMatchesChapter) {
+            EditorLoading()
+        } else {
+            StoryTextEditor(
+                modifier = Modifier.weight(1f),
+                document = document,
+                editorState = editorState,
+                editable = state.contentState.editable,
+                generationState = state.generationState,
+                emit = emit
+            )
+        }
+    }
+}
+
+/** 在紧凑高度使用全宽正文与单行底部工具坞。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StoryEditorCompactContent(
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    paddingValues: PaddingValues,
+    onContinue: (() -> Unit)?,
+    showStatistics: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    val imeVisible = WindowInsets.isImeVisible
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .consumeWindowInsets(paddingValues)
+            .imePadding()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // IME 打开后优先保留正文和正在输入的工具栏，避免提示再次耗尽纵向空间。
+        if (!imeVisible) {
+            StoryEditorProblemBanners(state, emit)
+        }
+        StoryEditorMainPane(
+            modifier = Modifier.weight(1f),
+            state = state,
+            document = document,
+            editorState = editorState,
+            documentMatchesChapter = documentMatchesChapter,
+            compactChapterBar = true,
+            showChapterBar = !imeVisible,
+            emit = emit
+        )
+        EditorCompactBottomBar(
+            characterCount = state.contentState.characterCount,
+            referenceState = state.referenceState,
+            contentState = state.contentState,
+            continuationInputState = state.continuationInputState,
+            generationState = state.generationState,
+            canUndoEdit = state.canUndoEdit,
+            canRedoEdit = state.canRedoEdit,
+            onContinue = onContinue,
+            showStatistics = showStatistics,
+            emit = emit
+        )
+    }
+}
+
+/** 渲染章节入口与正文，使两种自适应结构共享同一编辑器实现。 */
+@Composable
+private fun StoryEditorMainPane(
+    modifier: Modifier,
+    state: StoryEditorUiState.Normal,
+    document: StoryEditorDocument?,
+    editorState: TextFieldState,
+    documentMatchesChapter: Boolean,
+    compactChapterBar: Boolean,
+    showChapterBar: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(if (compactChapterBar) 6.dp else 10.dp)
+    ) {
+        // 键盘占用紧凑窗口时暂时收起章节入口，为正文保留稳定的可编辑高度。
+        if (showChapterBar) {
             CurrentChapterBar(
                 state = state.structureState,
                 enabled = documentMatchesChapter &&
                         state.contentState.editable &&
                         state.generationState is StoryGenerationState.Idle,
+                compact = compactChapterBar,
                 onClick = document?.takeIf { documentMatchesChapter }?.let { currentDocument ->
                     {
                         StoryEditorUiIntent.OpenStoryOutline(
@@ -331,26 +1099,60 @@ private fun StoryEditorPage(
                     }
                 }
             )
-            if (document == null || !documentMatchesChapter) {
-                EditorLoading()
-            } else {
-                StoryTextEditor(
-                    modifier = Modifier.weight(1f),
-                    document = document,
-                    editorState = editorState,
-                    editable = state.contentState.editable,
-                    generationState = state.generationState,
-                    emit = emit
-                )
-            }
+        }
+        // 文档切换期间保持加载态，避免短暂编辑到上一章节的文本实例。
+        if (document == null || !documentMatchesChapter) {
+            EditorLoading()
+        } else {
+            StoryTextEditor(
+                modifier = Modifier.weight(1f),
+                document = document,
+                editorState = editorState,
+                editable = state.contentState.editable,
+                generationState = state.generationState,
+                emit = emit
+            )
         }
     }
+}
+
+/** 汇总保存、生成和模型配置问题提示。 */
+@Composable
+private fun StoryEditorProblemBanners(
+    state: StoryEditorUiState.Normal,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    SaveProblemBanner(state.topBarState.saveState, emit)
+    GenerationProblemBanner(state.generationState, emit)
+    if (!state.hasAvailableProvider) {
+        NoProviderBanner(
+            onClick = { StoryEditorUiIntent.OpenProviderSettings.emit() }
+        )
+    }
+}
+
+/** 根据当前窗口大小等级选择故事编辑器的结构。 */
+private fun storyEditorLayoutMode(windowSizeClass: WindowSizeClass): StoryEditorLayoutMode = when {
+    windowSizeClass.isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND) -> {
+        StoryEditorLayoutMode.Regular
+    }
+    windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) -> {
+        StoryEditorLayoutMode.CompactWide
+    }
+    else -> StoryEditorLayoutMode.CompactNarrow
+}
+
+private enum class StoryEditorLayoutMode {
+    Regular,
+    CompactWide,
+    CompactNarrow
 }
 
 @Composable
 private fun CurrentChapterBar(
     state: StoryEditorStructureState,
     enabled: Boolean,
+    compact: Boolean,
     onClick: (() -> Unit)?
 ) {
     // 外层容器采用 Secondary Container 柔和配色与微边框
@@ -367,37 +1169,51 @@ private fun CurrentChapterBar(
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) 10.dp else 14.dp,
+                vertical = if (compact) 6.dp else 10.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 章节主题图标指示
             Icon(
                 imageVector = Icons.Rounded.Description,
                 contentDescription = null,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(if (compact) 20.dp else 22.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            // 章节标题与归属分卷信息
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+            // 紧凑高度只保留章节标题，分卷信息可在大纲页继续查看。
+            if (compact) {
                 Text(
                     text = state.currentChapterTitle,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = state.currentVolumeTitle
-                        ?: stringResource(R.string.story_ungrouped_chapters),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            } else {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = state.currentChapterTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = state.currentVolumeTitle
+                            ?: stringResource(R.string.story_ungrouped_chapters),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             // 进入大纲的轻量胶囊按钮提示
             Surface(
@@ -409,11 +1225,13 @@ private fun CurrentChapterBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.story_outline),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    if (!compact) {
+                        Text(
+                            text = stringResource(R.string.story_outline),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = stringResource(R.string.story_open_outline),
@@ -444,6 +1262,22 @@ private fun StoryTextEditor(
     val editorLayoutDirection = LocalLayoutDirection.current
     val followStreamingOutput = generationState is StoryGenerationState.Streaming
     val generatedTextColor = MaterialTheme.colorScheme.primary
+    val isStreaming = generationState is StoryGenerationState.Streaming ||
+            generationState is StoryGenerationState.Preparing ||
+            generationState is StoryGenerationState.Applying
+
+    // 流式生成中的呼吸光晕动效
+    val infiniteTransition = rememberInfiniteTransition(label = "StoryStreamingGlow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "GlowAlpha"
+    )
+
     val scrollIndicatorColor = MaterialTheme.colorScheme.outline.copy(
         alpha = STORY_SCROLL_INDICATOR_THUMB_OPACITY
     )
@@ -502,10 +1336,15 @@ private fun StoryTextEditor(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = if (isStreaming) 2.dp else 0.dp,
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            width = if (isStreaming) 1.5.dp else 1.dp,
+            color = if (isStreaming) {
+                MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+            }
         ),
         color = MaterialTheme.colorScheme.surface
     ) {
@@ -913,8 +1752,9 @@ private fun GenerationProblemBanner(
     }
 }
 
+/** 在紧凑高度用单行工具坞保留续写与编辑历史操作。 */
 @Composable
-private fun EditorBottomBar(
+private fun EditorCompactBottomBar(
     characterCount: Int,
     referenceState: StoryEditorReferenceState,
     contentState: StoryEditorContentState,
@@ -923,10 +1763,217 @@ private fun EditorBottomBar(
     canUndoEdit: Boolean,
     canRedoEdit: Boolean,
     onContinue: (() -> Unit)?,
+    showStatistics: Boolean,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val historyEnabled = contentState.editable && generationState is StoryGenerationState.Idle
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        tonalElevation = 3.dp,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 引导输入压缩为单行，避免紧凑窗口继续堆叠两层底部控件。
+            OutlinedTextField(
+                modifier = Modifier.weight(1f),
+                value = continuationInputState.guidanceDraft,
+                onValueChange = { StoryEditorUiIntent.ChangeContinuationGuidance(it).emit() },
+                enabled = contentState.editable && generationState is StoryGenerationState.Idle,
+                singleLine = true,
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.story_continuation_guidance),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                shape = RoundedCornerShape(14.dp)
+            )
+            if (showStatistics) {
+                CompactEditorStatistics(
+                    characterCount = characterCount,
+                    referenceState = referenceState
+                )
+            }
+            IconButton(
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    StoryEditorUiIntent.UndoLastEdit.emit()
+                },
+                enabled = historyEnabled && canUndoEdit
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Rounded.Undo,
+                    contentDescription = stringResource(R.string.story_undo)
+                )
+            }
+            IconButton(
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    StoryEditorUiIntent.RedoLastEdit.emit()
+                },
+                enabled = historyEnabled && canRedoEdit
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Rounded.Redo,
+                    contentDescription = stringResource(R.string.story_redo)
+                )
+            }
+            // 生成中的紧凑按钮与常规底栏保持相同的停止和禁用语义。
+            CompactGenerationAction(
+                contentState = contentState,
+                generationState = generationState,
+                onContinue = onContinue,
+                hapticFeedback = hapticFeedback,
+                emit = emit
+            )
+        }
+    }
+}
+
+/** 在宽屏紧凑工具栏中展示正文与引用规模。 */
+@Composable
+private fun CompactEditorStatistics(
+    characterCount: Int,
+    referenceState: StoryEditorReferenceState
+) {
+    Column(
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        // 统计保持双行紧凑结构，不与续写输入争夺主要宽度。
+        Text(
+            text = stringResource(R.string.story_character_count, characterCount),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Person,
+                    contentDescription = stringResource(
+                        R.string.story_character_references_count,
+                        referenceState.characterCount
+                    ),
+                    modifier = Modifier.size(13.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${referenceState.characterCount}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Book,
+                    contentDescription = stringResource(
+                        R.string.story_lorebook_entries_count,
+                        referenceState.lorebookEntryCount
+                    ),
+                    modifier = Modifier.size(13.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${referenceState.lorebookEntryCount}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+/** 渲染紧凑工具栏尾部的续写、停止或进行中状态。 */
+@Composable
+private fun CompactGenerationAction(
+    contentState: StoryEditorContentState,
+    generationState: StoryGenerationState,
+    onContinue: (() -> Unit)?,
+    hapticFeedback: HapticFeedback,
+    emit: StoryEditorUiIntent.() -> Unit
+) {
+    // 状态分支只改变尾部动作，紧凑工具栏的输入与历史操作始终保持稳定位置。
+    when (generationState) {
+        is StoryGenerationState.Streaming -> Button(
+            modifier = Modifier.size(48.dp),
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                StoryEditorUiIntent.StopGeneration.emit()
+            },
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Icon(
+                Icons.Rounded.Stop,
+                contentDescription = stringResource(R.string.story_stop_generation)
+            )
+        }
+
+        StoryGenerationState.Preparing,
+        StoryGenerationState.Applying -> Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp
+            )
+        }
+
+        else -> Button(
+            modifier = Modifier.size(48.dp),
+            onClick = {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onContinue?.invoke()
+            },
+            enabled = contentState.editable &&
+                    generationState is StoryGenerationState.Idle &&
+                    onContinue != null,
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Icon(
+                Icons.Rounded.AutoAwesome,
+                contentDescription = stringResource(R.string.story_continue)
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorBottomBar(
+    modifier: Modifier = Modifier,
+    characterCount: Int,
+    referenceState: StoryEditorReferenceState,
+    contentState: StoryEditorContentState,
+    continuationInputState: StoryContinuationInputState,
+    generationState: StoryGenerationState,
+    canUndoEdit: Boolean,
+    canRedoEdit: Boolean,
+    onContinue: (() -> Unit)?,
+    applyBottomInsets: Boolean,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     Surface(
+        modifier = modifier,
         tonalElevation = 3.dp,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
@@ -934,8 +1981,15 @@ private fun EditorBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                .then(
+                    if (applyBottomInsets) {
+                        // 导航栏与 IME 分别声明，避免支持窗格把键盘高度计入自身尺寸。
+                        Modifier
+                            .navigationBarsPadding()
+                            .imePadding()
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
             OutlinedTextField(
@@ -3108,6 +4162,18 @@ private fun StoryEditorLayoutPreview() {
             emit = {}
         )
     }
+}
+
+@Preview(widthDp = 844, heightDp = 390, showBackground = true)
+@Composable
+private fun StoryEditorLayoutLandscapePreview() {
+    StoryEditorLayoutPreview()
+}
+
+@Preview(widthDp = 1280, heightDp = 800, showBackground = true)
+@Composable
+private fun StoryEditorLayoutTabletLandscapePreview() {
+    StoryEditorLayoutPreview()
 }
 
 @Preview(widthDp = 390, showBackground = true)

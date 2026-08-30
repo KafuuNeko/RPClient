@@ -895,6 +895,7 @@
     <string name="story_continue">Продолжить</string>
     <string name="story_continuation_guidance">Указание для продолжения</string>
     <string name="story_continuation_guidance_placeholder">Опишите, что должно произойти дальше (необязательно)</string>
+    <string name="story_guidance_sheet_title">Указание для продолжения</string>
     <string name="story_stop_generation">Остановить</string>
     <string name="story_generation_status_preparing">Подготовка контекста истории…</string>
     <string name="story_generation_status_waiting">Ожидание ответа модели…</string>

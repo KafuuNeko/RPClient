@@ -895,6 +895,7 @@
     <string name="story_continue">续写</string>
     <string name="story_continuation_guidance">续写引导</string>
     <string name="story_continuation_guidance_placeholder">描述下一段希望发生的内容（可选）</string>
+    <string name="story_guidance_sheet_title">续写引导</string>
     <string name="story_copy_draft">复制草稿</string>
     <string name="story_create_story">新建故事</string>
     <string name="story_create_subtitle">设置故事名称，并在开始写作前选择角色卡和世界书条目。</string>

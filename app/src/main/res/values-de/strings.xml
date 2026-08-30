@@ -892,6 +892,7 @@
     <string name="story_continue">Fortsetzen</string>
     <string name="story_continuation_guidance">Fortsetzungshinweis</string>
     <string name="story_continuation_guidance_placeholder">Beschreibe, was als Nächstes geschehen soll (optional)</string>
+    <string name="story_guidance_sheet_title">Fortsetzungshinweis</string>
     <string name="story_stop_generation">Stoppen</string>
     <string name="story_generation_status_preparing">Story-Kontext wird vorbereitet…</string>
     <string name="story_generation_status_waiting">Auf die Modellantwort wird gewartet…</string>

@@ -844,6 +844,7 @@
     <string name="story_continue">이어쓰기</string>
     <string name="story_continuation_guidance">이어쓰기 지침</string>
     <string name="story_continuation_guidance_placeholder">다음에 일어날 내용을 입력하세요(선택 사항)</string>
+    <string name="story_guidance_sheet_title">이어쓰기 지침</string>
     <string name="story_copy_draft">초안 복사</string>
     <string name="story_create_story">이야기 만들기</string>
     <string name="story_create_subtitle">이야기 이름을 정하고 글을 쓰기 전에 캐릭터 카드와 월드북 항목을 선택하세요.</string>
