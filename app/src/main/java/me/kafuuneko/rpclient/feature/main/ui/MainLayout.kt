@@ -148,6 +148,14 @@ import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
+import me.kafuuneko.rpclient.ui.theme.AccentAmberColor
+import me.kafuuneko.rpclient.ui.theme.AccentBlueColor
+import me.kafuuneko.rpclient.ui.theme.AccentEmeraldColor
+import me.kafuuneko.rpclient.ui.theme.AccentIndigoColor
+import me.kafuuneko.rpclient.ui.theme.AccentPinkColor
+import me.kafuuneko.rpclient.ui.theme.AccentRedColor
+import me.kafuuneko.rpclient.ui.theme.AccentSkyColor
+import me.kafuuneko.rpclient.ui.theme.AccentVioletColor
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
 import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
@@ -1468,8 +1476,8 @@ private fun TokenUsageEntryCard(onClick: () -> Unit) {
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.Numbers,
-            iconColor = Color(0xFF0EA5E9),
-            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.token_usage),
             subtitle = stringResource(R.string.token_usage_entry_subtitle),
             onClick = onClick,
@@ -1521,8 +1529,8 @@ private fun WorldInfoBudgetPanel(
         RpSettingsDivider(startIndent = false)
         RpSettingsSwitchTile(
             icon = Icons.Rounded.Book,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
             title = stringResource(R.string.world_info_overflow_alert),
             subtitle = stringResource(R.string.world_info_overflow_alert_desc),
             checked = state.overflowAlert,
@@ -1815,8 +1823,8 @@ private fun PromptBehaviorPanel(
         RpSettingsDivider(startIndent = false)
         RpSettingsSwitchTile(
             icon = Icons.Rounded.Psychology,
-            iconColor = Color(0xFF6366F1),
-            iconContainerColor = Color(0xFF6366F1).copy(alpha = 0.14f),
+            iconColor = AccentIndigoColor,
+            iconContainerColor = AccentIndigoColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_include_think_context_title),
             subtitle = stringResource(R.string.prompt_include_think_context_desc),
             checked = state.includeThinkInContext,
@@ -1825,8 +1833,8 @@ private fun PromptBehaviorPanel(
         RpSettingsDivider()
         RpSettingsSwitchTile(
             icon = Icons.Rounded.NotificationsActive,
-            iconColor = Color(0xFFEC4899),
-            iconContainerColor = Color(0xFFEC4899).copy(alpha = 0.14f),
+            iconColor = AccentPinkColor,
+            iconContainerColor = AccentPinkColor.copy(alpha = 0.14f),
             title = stringResource(R.string.context_trimming_alert),
             subtitle = stringResource(R.string.context_trimming_alert_desc),
             checked = state.contextTrimmingAlert,
@@ -1835,8 +1843,8 @@ private fun PromptBehaviorPanel(
         RpSettingsDivider()
         RpSettingsSwitchTile(
             icon = Icons.Rounded.Stream,
-            iconColor = Color(0xFF0EA5E9),
-            iconContainerColor = Color(0xFF0EA5E9).copy(alpha = 0.14f),
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.streaming_response),
             subtitle = stringResource(R.string.streaming_response_desc),
             checked = state.streamEnabled,
@@ -1908,8 +1916,8 @@ private fun EmptyProviderCard(
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.Storage,
-            iconColor = Color(0xFFF59E0B),
-            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
+            iconColor = AccentAmberColor,
+            iconContainerColor = AccentAmberColor.copy(alpha = 0.14f),
             title = stringResource(R.string.no_enabled_model),
             subtitle = stringResource(R.string.go_to_model_manager),
             onClick = onClick,
@@ -2059,8 +2067,8 @@ private fun ParameterPanel(
         RpSettingsDivider(startIndent = false)
         RpSettingsValueTile(
             icon = Icons.Rounded.Thermostat,
-            iconColor = Color(0xFFF59E0B),
-            iconContainerColor = Color(0xFFF59E0B).copy(alpha = 0.14f),
+            iconColor = AccentAmberColor,
+            iconContainerColor = AccentAmberColor.copy(alpha = 0.14f),
             title = stringResource(R.string.temperature),
             value = state.temperature.toString(),
             onClick = {
@@ -2071,8 +2079,8 @@ private fun ParameterPanel(
         RpSettingsDivider()
         RpSettingsValueTile(
             icon = Icons.Rounded.Tune,
-            iconColor = Color(0xFF3B82F6),
-            iconContainerColor = Color(0xFF3B82F6).copy(alpha = 0.14f),
+            iconColor = AccentBlueColor,
+            iconContainerColor = AccentBlueColor.copy(alpha = 0.14f),
             title = stringResource(R.string.top_p),
             value = state.topP.toString(),
             onClick = { MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit() }
@@ -2080,8 +2088,8 @@ private fun ParameterPanel(
         RpSettingsDivider()
         RpSettingsValueTile(
             icon = Icons.Rounded.Numbers,
-            iconColor = Color(0xFF8B5CF6),
-            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            iconColor = AccentVioletColor,
+            iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.max_tokens),
             value = state.maxTokens.toString(),
             onClick = {
@@ -2091,8 +2099,8 @@ private fun ParameterPanel(
         RpSettingsDivider()
         RpSettingsValueTile(
             icon = Icons.Rounded.Memory,
-            iconColor = Color(0xFF10B981),
-            iconContainerColor = Color(0xFF10B981).copy(alpha = 0.14f),
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
             title = stringResource(R.string.context),
             value = "${state.contextTokens} ${stringResource(R.string.tokens)}",
             onClick = {
@@ -2108,8 +2116,8 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.AutoAwesome,
-            iconColor = Color(0xFF8B5CF6),
-            iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+            iconColor = AccentVioletColor,
+            iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_preset_title),
             subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
             onClick = onClick,
@@ -2422,8 +2430,8 @@ private fun DebugPanel(
     RpSettingsGroup {
         RpSettingsSwitchTile(
             icon = Icons.Rounded.BugReport,
-            iconColor = Color(0xFFEF4444),
-            iconContainerColor = Color(0xFFEF4444).copy(alpha = 0.14f),
+            iconColor = AccentRedColor,
+            iconContainerColor = AccentRedColor.copy(alpha = 0.14f),
             title = stringResource(R.string.debug_mode),
             subtitle = stringResource(R.string.debug_mode_desc),
             checked = state.enabled,
@@ -2433,8 +2441,8 @@ private fun DebugPanel(
             RpSettingsDivider()
             RpSettingsTile(
                 icon = Icons.Rounded.DataObject,
-                iconColor = Color(0xFF8B5CF6),
-                iconContainerColor = Color(0xFF8B5CF6).copy(alpha = 0.14f),
+                iconColor = AccentVioletColor,
+                iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
                 title = stringResource(R.string.request_logs),
                 subtitle = stringResource(R.string.request_logs_entry_subtitle),
                 onClick = { MainUiIntent.OpenRequestLogs.emit() },
