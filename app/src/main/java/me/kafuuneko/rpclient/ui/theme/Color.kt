@@ -102,6 +102,21 @@ val ProviderDisabledColor = AccentRedColor
 val ProviderPendingColor = AccentAmberColor
 val ProviderAvailableColor = AccentEmeraldColor
 
+// Token 消耗统计与图表语义色彩
+val TokenUsageInputColor = Color(0xFF6366F1)
+val TokenUsageOutputColor = Color(0xFFF59E0B)
+val TokenUsageCachedColor = Color(0xFF10B981)
+val TokenUsageReasoningColor = Color(0xFFEC4899)
+val TokenUsageLatencyColor = Color(0xFF0EA5E9)
+
+// 模型消耗排行榜徽章色彩
+val RankGoldBadgeColor = Color(0xFFF59E0B)
+val RankGoldTextColor = Color(0xFFD97706)
+val RankSilverBadgeColor = Color(0xFF94A3B8)
+val RankSilverTextColor = Color(0xFF475569)
+val RankBronzeBadgeColor = Color(0xFFD97706)
+val RankBronzeTextColor = Color(0xFFB45309)
+
 /**
  * 根据名称稳定生成会话列表使用的浅色强调色。
  */

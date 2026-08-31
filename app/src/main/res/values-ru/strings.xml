@@ -169,6 +169,15 @@
     <string name="token_usage_duration">%1$d мс</string>
     <string name="clear_token_usage">Удалить статистику</string>
     <string name="clear_token_usage_confirm">Вы уверены, что хотите удалить все записи об использовании токенов? Это действие нельзя отменить.</string>
+    <string name="token_usage_trend">Динамика использования</string>
+    <string name="token_usage_ratio_title">Структура использования</string>
+    <string name="token_usage_model_ranking">Рейтинг моделей</string>
+    <string name="token_usage_peak_day">Пик %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">В кэше: %1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">Столбцы</string>
+    <string name="token_usage_chart_mode_line">График</string>
+    <string name="token_usage_view_details">Технические данные</string>
+    <string name="token_usage_hide_details">Скрыть данные</string>
     <string name="request_json">JSON запроса</string>
     <string name="response_json">JSON ответа</string>
     <string name="request_log_json">JSON лога запроса</string>

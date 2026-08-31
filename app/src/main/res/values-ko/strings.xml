@@ -169,6 +169,15 @@
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">사용량 지우기</string>
     <string name="clear_token_usage_confirm">모든 토큰 사용량 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
+    <string name="token_usage_trend">사용량 추이</string>
+    <string name="token_usage_ratio_title">사용량 구성</string>
+    <string name="token_usage_model_ranking">모델별 순위</string>
+    <string name="token_usage_peak_day">최고 피크 %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">캐시 절약: %1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">막대</string>
+    <string name="token_usage_chart_mode_line">추이</string>
+    <string name="token_usage_view_details">기술 상세 정보</string>
+    <string name="token_usage_hide_details">상세 정보 접기</string>
     <string name="request_json">요청 JSON</string>
     <string name="response_json">응답 JSON</string>
     <string name="request_log_json">요청 로그 JSON</string>

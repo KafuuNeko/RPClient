@@ -3,14 +3,51 @@ package me.kafuuneko.rpclient.feature.tokenusage.model
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageSource
 
-/** 消耗统计页顶部总览。 */
+/** 消耗统计页顶部 Hero 综合总览。 */
 data class TokenUsageSummaryItem(
     /** 当前统计范围包含的模型请求次数。 */
     val requestCount: Long,
     /** 本次请求消耗的输入 Token 数。 */
     val inputTokens: Long,
     /** 本次请求生成的输出 Token 数。 */
-    val outputTokens: Long
+    val outputTokens: Long,
+    /** 命中缓存的输入 Token 数。 */
+    val cachedInputTokens: Long = 0L,
+    /** 服务端标记的推理 Token 数。 */
+    val reasoningTokens: Long = 0L
+) {
+    val totalTokens: Long
+        get() = inputTokens + outputTokens
+
+    /** 输入 Token 在总消耗中的占比，范围为 0.0 到 1.0。 */
+    val inputRatio: Float
+        get() = if (totalTokens > 0L) inputTokens.toFloat() / totalTokens else 0f
+
+    /** 输出 Token 在总消耗中的占比，范围为 0.0 到 1.0。 */
+    val outputRatio: Float
+        get() = if (totalTokens > 0L) outputTokens.toFloat() / totalTokens else 0f
+
+    /** 缓存命中量在输入 Token 中的占比，范围为 0.0 到 1.0。 */
+    val cachedHitRatio: Float
+        get() = if (inputTokens > 0L) (cachedInputTokens.toFloat() / inputTokens).coerceAtMost(1f) else 0f
+}
+
+/** 消耗趋势图表的时序数据点。 */
+data class TokenUsageTrendPoint(
+    /** 用于唯一标识时序点的日期或时间键（如 2026-08-31）。 */
+    val key: String,
+    /** 供 X 轴下方展示的友好简短标签（如 08-31）。 */
+    val label: String,
+    /** 该时序区间的输入 Token 数。 */
+    val inputTokens: Long,
+    /** 该时序区间的输出 Token 数。 */
+    val outputTokens: Long,
+    /** 该时序区间的缓存命中 Token 数。 */
+    val cachedInputTokens: Long,
+    /** 该时序区间的请求次数。 */
+    val requestCount: Long,
+    /** 该时序点是否对应当前自然日或当前周期末尾。 */
+    val isCurrent: Boolean = false
 ) {
     val totalTokens: Long
         get() = inputTokens + outputTokens
@@ -27,7 +64,13 @@ data class TokenUsageGroupItem(
     /** 本次请求消耗的输入 Token 数。 */
     val inputTokens: Long,
     /** 本次请求生成的输出 Token 数。 */
-    val outputTokens: Long
+    val outputTokens: Long,
+    /** 命中缓存的输入 Token 数。 */
+    val cachedInputTokens: Long = 0L,
+    /** 服务端标记的推理 Token 数。 */
+    val reasoningTokens: Long = 0L,
+    /** 该模型消耗在全局总消耗中的占比，范围为 0.0 到 1.0。 */
+    val ratio: Float = 0f
 ) {
     val totalTokens: Long
         get() = inputTokens + outputTokens
@@ -69,3 +112,4 @@ data class TokenUsageRecordItem(
     val totalTokens: Long
         get() = inputTokens + outputTokens
 }
+

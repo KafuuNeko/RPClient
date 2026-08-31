@@ -169,6 +169,15 @@
     <string name="token_usage_duration">%1$d 毫秒</string>
     <string name="clear_token_usage">清空统计</string>
     <string name="clear_token_usage_confirm">确定要清空所有 Token 消耗记录吗？此操作无法撤销。</string>
+    <string name="token_usage_trend">消耗趋势</string>
+    <string name="token_usage_ratio_title">用量构成</string>
+    <string name="token_usage_model_ranking">模型消耗排行</string>
+    <string name="token_usage_peak_day">单日峰值 %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">缓存命中：%1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">柱形</string>
+    <string name="token_usage_chart_mode_line">走势</string>
+    <string name="token_usage_view_details">技术明细</string>
+    <string name="token_usage_hide_details">收起明细</string>
     <string name="request_json">请求 JSON</string>
     <string name="response_json">响应 JSON</string>
     <string name="request_log_json">请求日志 JSON</string>

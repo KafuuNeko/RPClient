@@ -4,23 +4,43 @@ import androidx.room.Dao
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
+import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageDailyStat
 import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageGroup
 import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageSummary
 
 /** 成功 LLM 请求 Token 用量的数据库访问接口。 */
 @Dao
 interface LLMTokenUsageDao : MutableDao<LLMTokenUsageRecord> {
-    /** 汇总指定起始时间之后的请求数与输入、输出 Token。 */
+    /** 汇总指定起始时间之后的请求数与输入、输出、缓存及推理 Token。 */
     @Query(
         """
         SELECT COUNT(*) AS requestCount,
                COALESCE(SUM(inputTokens), 0) AS inputTokens,
-               COALESCE(SUM(outputTokens), 0) AS outputTokens
+               COALESCE(SUM(outputTokens), 0) AS outputTokens,
+               COALESCE(SUM(cachedInputTokens), 0) AS cachedInputTokens,
+               COALESCE(SUM(reasoningTokens), 0) AS reasoningTokens
         FROM llm_token_usage_records
         WHERE createTime >= :startTime
         """
     )
     suspend fun getSummary(startTime: Long): LLMTokenUsageSummary
+
+    /** 按自然日聚合指定起始时间之后的每日用量时序。 */
+    @Query(
+        """
+        SELECT strftime('%Y-%m-%d', createTime / 1000, 'unixepoch', 'localtime') AS dateText,
+               COUNT(*) AS requestCount,
+               COALESCE(SUM(inputTokens), 0) AS inputTokens,
+               COALESCE(SUM(outputTokens), 0) AS outputTokens,
+               COALESCE(SUM(cachedInputTokens), 0) AS cachedInputTokens,
+               COALESCE(SUM(reasoningTokens), 0) AS reasoningTokens
+        FROM llm_token_usage_records
+        WHERE createTime >= :startTime
+        GROUP BY dateText
+        ORDER BY dateText ASC
+        """
+    )
+    suspend fun getDailyStats(startTime: Long): List<LLMTokenUsageDailyStat>
 
     /** 按实际模型和 Host 聚合指定时间范围内的用量。 */
     @Query(
@@ -31,6 +51,8 @@ interface LLMTokenUsageDao : MutableDao<LLMTokenUsageRecord> {
                COUNT(*) AS requestCount,
                COALESCE(SUM(inputTokens), 0) AS inputTokens,
                COALESCE(SUM(outputTokens), 0) AS outputTokens,
+               COALESCE(SUM(cachedInputTokens), 0) AS cachedInputTokens,
+               COALESCE(SUM(reasoningTokens), 0) AS reasoningTokens,
                MAX(createTime) AS latestTime
         FROM llm_token_usage_records
         WHERE createTime >= :startTime

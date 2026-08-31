@@ -170,6 +170,15 @@
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">Clear Usage</string>
     <string name="clear_token_usage_confirm">Are you sure you want to clear all token usage records? This cannot be undone.</string>
+    <string name="token_usage_trend">Usage Trend</string>
+    <string name="token_usage_ratio_title">Composition</string>
+    <string name="token_usage_model_ranking">Model Ranking</string>
+    <string name="token_usage_peak_day">Peak %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">Cached: %1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">Bar</string>
+    <string name="token_usage_chart_mode_line">Trend</string>
+    <string name="token_usage_view_details">Technical details</string>
+    <string name="token_usage_hide_details">Hide details</string>
     <string name="request_json">Request JSON</string>
     <string name="response_json">Response JSON</string>
     <string name="request_log_json">Request log JSON</string>

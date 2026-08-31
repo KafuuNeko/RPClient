@@ -170,6 +170,15 @@
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">使用量をクリア</string>
     <string name="clear_token_usage_confirm">すべてのトークン使用量記録をクリアしてもよろしいですか？この操作は取り消せません。</string>
+    <string name="token_usage_trend">使用量の推移</string>
+    <string name="token_usage_ratio_title">使用量の内訳</string>
+    <string name="token_usage_model_ranking">モデル別ランキング</string>
+    <string name="token_usage_peak_day">ピーク日 %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">キャッシュ：%1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">棒グラフ</string>
+    <string name="token_usage_chart_mode_line">推移</string>
+    <string name="token_usage_view_details">技術的な詳細</string>
+    <string name="token_usage_hide_details">詳細を閉じる</string>
     <string name="request_json">リクエストJSON</string>
     <string name="response_json">レスポンスJSON</string>
     <string name="request_log_json">リクエストログJSON</string>

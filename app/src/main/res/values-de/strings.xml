@@ -170,6 +170,15 @@
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">Verbrauchsdaten löschen</string>
     <string name="clear_token_usage_confirm">Möchtest du wirklich alle Token-Verbrauchsdaten löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="token_usage_trend">Verbrauchstrend</string>
+    <string name="token_usage_ratio_title">Zusammensetzung</string>
+    <string name="token_usage_model_ranking">Modell-Rangliste</string>
+    <string name="token_usage_peak_day">Spitzenwert %1$s: %2$s</string>
+    <string name="token_usage_saved_by_cache">Im Cache: %1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">Balken</string>
+    <string name="token_usage_chart_mode_line">Verlauf</string>
+    <string name="token_usage_view_details">Technische Details</string>
+    <string name="token_usage_hide_details">Details ausblenden</string>
     <string name="request_json">Anfrage-JSON</string>
     <string name="response_json">Antwort-JSON</string>
     <string name="request_log_json">Anfrageprotokoll-JSON</string>

@@ -169,6 +169,15 @@
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">Effacer les statistiques</string>
     <string name="clear_token_usage_confirm">Êtes-vous sûr de vouloir effacer tous les enregistrements d’utilisation des tokens ? Cette action est irréversible.</string>
+    <string name="token_usage_trend">Tendance d’utilisation</string>
+    <string name="token_usage_ratio_title">Composition</string>
+    <string name="token_usage_model_ranking">Classement des modèles</string>
+    <string name="token_usage_peak_day">Pic le %1$s : %2$s</string>
+    <string name="token_usage_saved_by_cache">En cache : %1$s (%2$s)</string>
+    <string name="token_usage_chart_mode_bar">Histogramme</string>
+    <string name="token_usage_chart_mode_line">Courbe</string>
+    <string name="token_usage_view_details">Détails techniques</string>
+    <string name="token_usage_hide_details">Masquer les détails</string>
     <string name="request_json">JSON de requête</string>
     <string name="response_json">JSON de réponse</string>
     <string name="request_log_json">JSON du journal de requêtes</string>
