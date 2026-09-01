@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
 /** Dialog 顶部状态徽标的色彩风格。 */
@@ -235,8 +236,13 @@ private fun AppDialogContent(
     scrollable: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val scrollState = rememberScrollState()
     val modifier = if (scrollable) {
-        Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState())
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 380.dp)
+            .draggableScrollIndicator(scrollState)
+            .verticalScroll(scrollState)
     } else {
         Modifier.fillMaxWidth()
     }

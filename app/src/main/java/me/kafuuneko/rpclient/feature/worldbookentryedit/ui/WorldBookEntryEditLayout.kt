@@ -24,9 +24,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
@@ -56,7 +56,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,8 +69,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -92,15 +89,18 @@ import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.ui.widgets.RpNumberStepper
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 
 /** 世界书条目编辑导航分段选项卡。 */
 private enum class WorldBookEntryEditTab {
@@ -163,7 +163,7 @@ private fun WorldBookEntryEditNormal(
             onBack = { WorldBookEntryEditUiIntent.Back.emit() },
             actions = { TopBarSaveButton(state, emit) }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
@@ -1317,70 +1317,50 @@ private fun FormTextField(
     maxLines: Int = if (minLines > 1) minLines.coerceAtLeast(6) else 1,
     singleLine: Boolean = minLines == 1,
     keyboardType: KeyboardType = KeyboardType.Text,
-    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
+    outputTransformation: OutputTransformation = rememberPromptMacroOutputTransformation(),
     showMacroBar: Boolean = false,
     macros: List<String> = DEFAULT_PROMPT_MACROS,
     onExpandFullscreen: (() -> Unit)? = null,
     onChange: (String) -> Unit
 ) {
-    var textFieldValue by remember {
-        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
-    }
-
-    LaunchedEffect(value) {
-        if (value != textFieldValue.text) {
-            textFieldValue = textFieldValue.copy(
-                text = value,
-                selection = TextRange(
-                    textFieldValue.selection.start.coerceIn(0, value.length),
-                    textFieldValue.selection.end.coerceIn(0, value.length)
-                )
-            )
-        }
-    }
+    val textFieldState = rememberBoundTextFieldState(value, onChange)
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (maxLines > 1) Modifier.heightIn(max = 240.dp) else Modifier),
-            value = textFieldValue,
-            onValueChange = { newValue ->
-                textFieldValue = newValue
-                if (newValue.text != value) {
-                    onChange(newValue.text)
-                }
-            },
+            state = textFieldState,
             label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             minLines = minLines,
             maxLines = maxLines.coerceAtLeast(minLines),
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            visualTransformation = visualTransformation,
+            outputTransformation = outputTransformation,
             shape = RoundedCornerShape(12.dp)
         )
         if (showMacroBar) {
             RpMacroActionBar(
                 macros = macros,
                 onInsertMacro = { macro ->
-                    val currentText = textFieldValue.text
-                    val selection = textFieldValue.selection
+                    val currentText = textFieldState.text.toString()
+                    val selection = textFieldState.selection
                     val start = selection.min.coerceIn(0, currentText.length)
                     val end = selection.max.coerceIn(0, currentText.length)
                     val before = currentText.substring(0, start)
-                    val after = currentText.substring(end)
                     val insertContent = if (macro == "<START>") {
                         if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
                     } else {
                         macro
                     }
-                    val newText = before + insertContent + after
                     val newCursorPos = start + insertContent.length
-                    textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursorPos))
-                    onChange(newText)
+                    textFieldState.edit {
+                        replace(start, end, insertContent)
+                        this.selection = TextRange(newCursorPos)
+                    }
                 },
                 onFullscreenClick = onExpandFullscreen
             )
@@ -1409,4 +1389,3 @@ private fun WorldBookEntryEditLayoutPreview() {
         )
     }
 }
-

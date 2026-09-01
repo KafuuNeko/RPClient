@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
 
@@ -273,6 +274,7 @@ private fun PromptEditorViewport(
     editorHeightMin: Dp,
     editorHeightMax: Dp
 ) {
+    val scrollState = rememberScrollState()
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -296,7 +298,10 @@ private fun PromptEditorViewport(
         BasicTextField(
             value = textFieldValue,
             onValueChange = onTextFieldValueChange,
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxSize()
+                .draggableScrollIndicator(scrollState)
+                .verticalScroll(scrollState),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 22.sp

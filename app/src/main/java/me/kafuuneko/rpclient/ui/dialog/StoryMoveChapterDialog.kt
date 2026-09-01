@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
 /**
@@ -88,6 +89,7 @@ fun StoryMoveChapterDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .draggableScrollIndicator(scrollState)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -121,6 +120,8 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
@@ -166,7 +167,7 @@ private fun LLMProviderEditNormal(
                 TopBarSaveButton(state, emit)
             }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
@@ -1160,7 +1161,7 @@ private fun ModelPickerDialog(
                     modifier = Modifier.padding(vertical = 12.dp)
                 )
             } else {
-                LazyColumn(
+                RpLazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 380.dp),
@@ -1288,6 +1289,7 @@ private fun JsonSyntaxHighlightPreview(
     if (jsonString.isBlank()) return
 
     val colors = rememberDefaultJsonSyntaxColors()
+    val verticalScrollState = rememberScrollState()
     val annotatedText = remember(jsonString, colors) {
         buildAnnotatedString {
             append(jsonString)
@@ -1366,8 +1368,9 @@ private fun JsonSyntaxHighlightPreview(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = maxHeight)
+                    .draggableScrollIndicator(verticalScrollState)
                     .horizontalScroll(rememberScrollState())
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(verticalScrollState)
                     .padding(12.dp)
             ) {
                 Text(

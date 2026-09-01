@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,6 +68,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 
 /** 模型配置列表页 Compose 入口。 */
@@ -110,7 +110,7 @@ private fun LLMProviderListNormal(
                 }
             }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()

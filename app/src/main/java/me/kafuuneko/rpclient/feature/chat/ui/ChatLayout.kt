@@ -128,6 +128,8 @@ import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -836,7 +838,7 @@ private fun MessageEditContent(
     emit: ChatUiIntent.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = draft,
             onValueChange = { ChatUiIntent.ChangeEditingMessageDraft(it).emit() },
@@ -1151,7 +1153,7 @@ private fun ChatInputBar(
                     .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                OutlinedTextField(
+                RpScrollableOutlinedTextField(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
@@ -1289,7 +1291,7 @@ private fun ChatSettingsPage(
             title = stringResource(R.string.chat_settings),
             onBack = { ChatUiIntent.CloseChatSettings.emit() }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
@@ -1635,7 +1637,7 @@ private fun AutoSaveTextField(
         { Text(placeholderText) }
     }
 
-    OutlinedTextField(
+    RpScrollableOutlinedTextField(
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { isFocused = it.isFocused },

@@ -17,8 +17,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +40,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -114,19 +111,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -134,19 +123,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.window.core.layout.WindowSizeClass
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import java.util.Locale
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropPosition
@@ -191,12 +174,14 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
-import me.kafuuneko.rpclient.ui.widgets.rememberScrollIndicatorAlpha
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 import androidx.compose.ui.platform.LocalLocale
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
@@ -1259,7 +1244,6 @@ private fun StoryTextEditor(
 ) {
     // 正文不使用 rememberSaveable，避免长文进入 Activity Bundle；Room 承担进程恢复。
     val editorScrollState = rememberScrollState()
-    val editorLayoutDirection = LocalLayoutDirection.current
     val followStreamingOutput = generationState is StoryGenerationState.Streaming
     val generatedTextColor = MaterialTheme.colorScheme.primary
     val isStreaming = generationState is StoryGenerationState.Streaming ||
@@ -1278,9 +1262,6 @@ private fun StoryTextEditor(
         label = "GlowAlpha"
     )
 
-    val scrollIndicatorColor = MaterialTheme.colorScheme.outline.copy(
-        alpha = STORY_SCROLL_INDICATOR_THUMB_OPACITY
-    )
     val displayedEditedRange = document.latestEditedRange.takeUnless {
         generationState is StoryGenerationState.Streaming ||
                 generationState is StoryGenerationState.Applying
@@ -1352,11 +1333,7 @@ private fun StoryTextEditor(
             state = editorState,
             modifier = Modifier
                 .fillMaxSize()
-                .storyScrollIndicator(
-                    state = editorScrollState,
-                    color = scrollIndicatorColor,
-                    layoutDirection = editorLayoutDirection
-                ),
+                .draggableScrollIndicator(editorScrollState),
             enabled = editable,
             textStyle = MaterialTheme.typography.bodyLarge.merge(
                 TextStyle(
@@ -1385,170 +1362,6 @@ private fun StoryTextEditor(
             }
         )
     }
-}
-
-/**
- * 在滚动容器的逻辑末端绘制可拖动的位置指示器。
- *
- * - 几何信息直接来自 [ScrollState]，避免根据字符数估算长文位置。
- * - 正文文本框不填充 ScrollIndicatorState 的内容尺寸，因此使用视口与最大偏移重建总尺寸。
- * - 仅滑块附近的最小触控区域拦截拖动，其余区域保留光标定位与文本选择。
- */
-@Composable
-private fun Modifier.storyScrollIndicator(
-    state: ScrollState,
-    color: Color,
-    layoutDirection: LayoutDirection
-): Modifier {
-    val thumbDraggedState = remember { mutableStateOf(false) }
-    val indicatorAlpha = rememberScrollIndicatorAlpha(
-        state = state,
-        thumbDraggedState = thumbDraggedState
-    )
-
-    return drawWithContent {
-        drawContent()
-        val alpha = indicatorAlpha.value
-        if (alpha == 0f) return@drawWithContent
-        val geometry = calculateStoryScrollIndicatorGeometry(size.height, state)
-            ?: return@drawWithContent
-
-        // 使用逻辑末端定位，保持 LTR 与 RTL 布局行为一致。
-        val thickness = StoryScrollIndicatorThickness.toPx()
-        val crossAxisInset = StoryScrollIndicatorCrossAxisInset.toPx()
-        val left = if (layoutDirection == LayoutDirection.Ltr) {
-            size.width - crossAxisInset - thickness
-        } else {
-            crossAxisInset
-        }
-        drawRoundRect(
-            color = color.copy(alpha = color.alpha * alpha),
-            topLeft = Offset(left, geometry.thumbStart),
-            size = Size(thickness, geometry.thumbLength),
-            cornerRadius = CornerRadius(thickness / 2f, thickness / 2f)
-        )
-    }.pointerInput(state, layoutDirection) {
-        coroutineScope {
-            // 合并高频拖动位置，避免累积过期的滚动请求。
-            val scrollTargets = Channel<Int>(Channel.CONFLATED)
-            launch {
-                for (target in scrollTargets) state.scrollTo(target)
-            }
-            awaitEachGesture {
-                val down = awaitFirstDown(
-                    requireUnconsumed = false,
-                    pass = PointerEventPass.Initial
-                )
-                // 完全隐藏后不拦截编辑器侧边触摸，保留光标定位与文本选择。
-                if (indicatorAlpha.value == 0f) return@awaitEachGesture
-                val geometry = calculateStoryScrollIndicatorGeometry(size.height.toFloat(), state)
-                    ?: return@awaitEachGesture
-
-                // 只在逻辑末端的滑块附近拦截手势，其余区域仍交给正文选字。
-                val touchTargetSize = StoryScrollIndicatorTouchTargetSize.toPx()
-                val inEndLane = if (layoutDirection == LayoutDirection.Ltr) {
-                    down.position.x >= size.width - touchTargetSize
-                } else {
-                    down.position.x <= touchTargetSize
-                }
-                val verticalExpansion = ((touchTargetSize - geometry.thumbLength) / 2f)
-                    .coerceAtLeast(0f)
-                val inThumbTarget = down.position.y in
-                    (geometry.thumbStart - verticalExpansion)..
-                    (geometry.thumbEnd + verticalExpansion)
-                if (!inEndLane || !inThumbTarget) return@awaitEachGesture
-
-                val dragAnchor = down.position.y - geometry.thumbStart
-                down.consume()
-                thumbDraggedState.value = true
-                try {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        change.consume()
-                        if (!change.pressed) break
-
-                        // 将滑块顶部在轨道中的比例映射为正文像素偏移。
-                        val currentGeometry = calculateStoryScrollIndicatorGeometry(
-                            size.height.toFloat(),
-                            state
-                        ) ?: break
-                        val targetThumbStart = change.position.y - dragAnchor
-                        val targetFraction = (
-                            (targetThumbStart - currentGeometry.trackStart) /
-                                currentGeometry.thumbTravel
-                        ).coerceIn(0f, 1f)
-                        scrollTargets.trySend(
-                            (targetFraction * currentGeometry.maxScrollOffset).roundToInt()
-                        )
-                    }
-                } finally {
-                    thumbDraggedState.value = false
-                }
-            }
-        }
-    }
-}
-
-/** 正文滚动条的轨道与滑块像素几何。 */
-private data class StoryScrollIndicatorGeometry(
-    val trackStart: Float,
-    val trackLength: Float,
-    val thumbStart: Float,
-    val thumbLength: Float,
-    val maxScrollOffset: Int
-) {
-    val thumbEnd: Float
-        get() = thumbStart + thumbLength
-
-    val thumbTravel: Float
-        get() = trackLength - thumbLength
-}
-
-/**
- * 从文本框滚动状态计算指示器几何，供绘制与拖动共用。
- *
- * @param containerLength 指示器所在容器的纵向像素长度
- * @param state 正文文本框使用的滚动状态
- * @return 可滚动时的几何信息；尚未测量或无需滚动时返回 null
- */
-private fun Density.calculateStoryScrollIndicatorGeometry(
-    containerLength: Float,
-    state: ScrollState
-): StoryScrollIndicatorGeometry? {
-    // BasicTextField 仅维护视口与最大偏移，总尺寸需由两者重建。
-    val viewportSize = state.viewportSize.toFloat()
-    val maxScrollOffset = state.maxValue
-    if (
-        viewportSize <= 0f ||
-        maxScrollOffset <= 0 ||
-        maxScrollOffset == Int.MAX_VALUE
-    ) return null
-    val contentSize = viewportSize + maxScrollOffset.toFloat()
-
-    val trackStart = StoryScrollIndicatorMainAxisInset.toPx()
-    val trackLength = containerLength - trackStart * 2f
-    val minThumbLength = StoryScrollIndicatorMinThumbLength.toPx()
-    if (trackLength < minThumbLength) return null
-
-    // 滑块长度反映可见比例，同时保留可辨识的最小尺寸。
-    val maxThumbLength = maxOf(
-        minThumbLength,
-        trackLength * STORY_SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION
-    )
-    val thumbLength = (trackLength * viewportSize / contentSize)
-        .coerceIn(minThumbLength, maxThumbLength)
-    val thumbTravel = trackLength - thumbLength
-    if (thumbTravel <= 0f) return null
-    val thumbStart = trackStart + (state.value.toFloat() / maxScrollOffset.toFloat())
-        .coerceIn(0f, 1f) * thumbTravel
-    return StoryScrollIndicatorGeometry(
-        trackStart = trackStart,
-        trackLength = trackLength,
-        thumbStart = thumbStart,
-        thumbLength = thumbLength,
-        maxScrollOffset = maxScrollOffset
-    )
 }
 
 @Composable
@@ -1992,7 +1805,7 @@ private fun EditorBottomBar(
                     }
                 )
         ) {
-            OutlinedTextField(
+            RpScrollableOutlinedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 12.dp, end = 12.dp, top = 8.dp),
@@ -2311,6 +2124,7 @@ private fun StoryGenerationReasoningDetail(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 160.dp)
+                    .draggableScrollIndicator(scrollState)
                     .verticalScroll(scrollState)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp),
@@ -2543,14 +2357,14 @@ private fun StorySummaryPreviewDialog(
         dismissText = stringResource(R.string.cancel),
         onConfirm = { StoryEditorUiIntent.ConfirmStorySummary.emit() }
     ) {
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.content,
             onValueChange = {},
             minLines = 5,
             maxLines = 12,
             readOnly = true,
-            visualTransformation = rememberPromptMacroVisualTransformation(),
+            outputTransformation = rememberPromptMacroOutputTransformation(),
             shape = RoundedCornerShape(16.dp)
         )
     }
@@ -2706,7 +2520,7 @@ private fun StoryOutlinePage(
             )
         }
     ) { padding ->
-        LazyColumn(
+        RpLazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
@@ -3542,10 +3356,12 @@ private fun ContextSettings(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val controlsEnabled = !state.isSaving
+    val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .draggableScrollIndicator(scrollState)
+            .verticalScroll(scrollState)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
@@ -3555,12 +3371,13 @@ private fun ContextSettings(
             title = stringResource(R.string.story_memory),
             subtitle = stringResource(R.string.story_memory_desc)
         )
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.memory,
             onValueChange = { StoryEditorUiIntent.ChangeMemory(it).emit() },
             label = { Text(stringResource(R.string.story_memory)) },
             minLines = 6,
+            maxLines = 12,
             enabled = controlsEnabled,
             shape = RoundedCornerShape(16.dp)
         )
@@ -3575,12 +3392,13 @@ private fun ContextSettings(
             title = stringResource(R.string.story_author_note),
             subtitle = stringResource(R.string.story_author_note_desc)
         )
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.authorNote,
             onValueChange = { StoryEditorUiIntent.ChangeAuthorNote(it).emit() },
             label = { Text(stringResource(R.string.story_author_note)) },
             minLines = 4,
+            maxLines = 10,
             enabled = controlsEnabled,
             shape = RoundedCornerShape(16.dp)
         )
@@ -3620,12 +3438,13 @@ private fun StorySummarySettings(
     state: StoryEditorPageState.Settings,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    OutlinedTextField(
+    RpScrollableOutlinedTextField(
         modifier = Modifier.fillMaxWidth(),
         value = state.summary,
         onValueChange = { StoryEditorUiIntent.ChangeSummary(it).emit() },
         label = { Text(stringResource(R.string.story_summary)) },
         minLines = 6,
+        maxLines = 12,
         enabled = !state.isSaving,
         shape = RoundedCornerShape(16.dp)
     )
@@ -3675,7 +3494,7 @@ private fun CharacterSettings(
             }
         }
     )
-    LazyColumn(
+    RpLazyColumn(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
@@ -3915,7 +3734,7 @@ private fun LorebookSettings(
         EmptySettingsMessage(R.string.no_world_books)
         return
     }
-    LazyColumn(
+    RpLazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -4198,10 +4017,3 @@ private fun StoryGenerationStatusCardPreview() {
 
 private const val SLOW_GENERATION_HINT_SECONDS = 12L
 private const val REASONING_SCROLL_BOTTOM_TOLERANCE_PX = 2
-private const val STORY_SCROLL_INDICATOR_THUMB_OPACITY = 0.7f
-private const val STORY_SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION = 0.9f
-private val StoryScrollIndicatorThickness = 4.dp
-private val StoryScrollIndicatorMinThumbLength = 24.dp
-private val StoryScrollIndicatorMainAxisInset = 10.dp
-private val StoryScrollIndicatorCrossAxisInset = 4.dp
-private val StoryScrollIndicatorTouchTargetSize = 48.dp

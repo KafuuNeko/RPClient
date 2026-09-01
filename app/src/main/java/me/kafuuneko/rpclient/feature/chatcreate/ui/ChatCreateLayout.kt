@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,6 +64,8 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 
@@ -106,7 +107,7 @@ private fun ChatCreateNormal(
             )
         }
     ) { padding ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -214,12 +215,13 @@ private fun BasicForm(
             singleLine = true,
             shape = RoundedCornerShape(12.dp)
         )
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = form.userNote,
             onValueChange = { ChatCreateUiIntent.ChangeUserNote(it).emit() },
             label = { Text(stringResource(R.string.default_user_note)) },
             minLines = 3,
+            maxLines = 8,
             shape = RoundedCornerShape(12.dp)
         )
     }

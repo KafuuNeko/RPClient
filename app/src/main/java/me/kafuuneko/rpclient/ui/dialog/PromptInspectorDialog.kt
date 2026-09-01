@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -53,6 +52,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 
 /** 展示最终 Prompt、来源、预算裁剪和 Regex 执行记录的现代化调试对话框。 */
 @Composable
@@ -82,7 +82,7 @@ fun PromptInspectorDialog(
             Column(modifier = Modifier.fillMaxSize()) {
                 InspectorHeader(onDismissRequest)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                LazyColumn(
+                RpLazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +45,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 
@@ -155,7 +155,7 @@ private fun ImportCharacterSelectionContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            LazyColumn(
+            RpLazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 360.dp),

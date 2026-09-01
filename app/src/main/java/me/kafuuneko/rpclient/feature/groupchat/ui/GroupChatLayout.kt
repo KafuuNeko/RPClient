@@ -127,6 +127,8 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 
@@ -283,7 +285,7 @@ private fun GroupChatSettingsView(
                 }
             }
         )
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
@@ -294,14 +296,14 @@ private fun GroupChatSettingsView(
                 GroupSettingsSection(
                     title = stringResource(R.string.group_chat_basic_settings)
                 ) {
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.titleDraft,
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeTitle(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.group_chat_title_label)) },
                         singleLine = true
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.scenarioDraft,
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeScenario(it)) },
                         modifier = Modifier.fillMaxWidth(),
@@ -309,7 +311,7 @@ private fun GroupChatSettingsView(
                         minLines = 3,
                         maxLines = 8
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.userNoteDraft,
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserNote(it)) },
                         modifier = Modifier.fillMaxWidth(),
@@ -317,7 +319,7 @@ private fun GroupChatSettingsView(
                         minLines = 3,
                         maxLines = 8
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.summaryDraft,
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeSummary(it)) },
                         modifier = Modifier.fillMaxWidth(),
@@ -442,7 +444,7 @@ private fun GroupChatSettingsView(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.systemPromptDraft,
                         onValueChange = {
                             emitIntent(GroupChatUiIntent.ChangeSystemPrompt(it))
@@ -452,7 +454,7 @@ private fun GroupChatSettingsView(
                         minLines = 3,
                         maxLines = 10
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.groupNudgePromptDraft,
                         onValueChange = {
                             emitIntent(GroupChatUiIntent.ChangeGroupNudgePrompt(it))
@@ -462,7 +464,7 @@ private fun GroupChatSettingsView(
                         minLines = 3,
                         maxLines = 10
                     )
-                    OutlinedTextField(
+                    RpScrollableOutlinedTextField(
                         value = state.newGroupChatPromptDraft,
                         onValueChange = {
                             emitIntent(GroupChatUiIntent.ChangeNewGroupChatPrompt(it))
@@ -1507,7 +1509,7 @@ private fun GroupMessageEditContent(
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        RpScrollableOutlinedTextField(
             value = draft,
             onValueChange = {
                 emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(it))
@@ -1680,7 +1682,7 @@ private fun Composer(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            OutlinedTextField(
+            RpScrollableOutlinedTextField(
                 value = draft,
                 onValueChange = onDraftChange,
                 modifier = Modifier

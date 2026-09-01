@@ -95,6 +95,7 @@ fun RpJsonCodeEditorField(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .draggableScrollIndicator(verticalScrollState)
                         .horizontalScroll(horizontalScrollState)
                         .verticalScroll(verticalScrollState)
                         .padding(12.dp)

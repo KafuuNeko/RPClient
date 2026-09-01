@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -83,7 +82,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,7 +98,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -164,7 +161,10 @@ import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
@@ -174,7 +174,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 private val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
@@ -735,7 +735,7 @@ private fun HomePage(
     val multiSelectMode = selectionState != null
     val selectedItems = selectionState?.selectedItems.orEmpty()
 
-    LazyColumn(
+    RpLazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
@@ -1402,7 +1402,7 @@ private fun SettingsPage(
     state: MainSettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
-    LazyColumn(
+    RpLazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
@@ -1640,51 +1640,32 @@ private fun UserPersonaDescriptionField(
     onValueChange: (String) -> Unit,
     onExpandFullscreen: () -> Unit
 ) {
-    var textFieldValue by remember {
-        mutableStateOf(TextFieldValue(value, selection = TextRange(value.length)))
-    }
-    LaunchedEffect(value) {
-        if (value != textFieldValue.text) {
-            textFieldValue = textFieldValue.copy(
-                text = value,
-                selection = TextRange(
-                    textFieldValue.selection.start.coerceIn(0, value.length),
-                    textFieldValue.selection.end.coerceIn(0, value.length)
-                )
-            )
-        }
-    }
+    val textFieldState = rememberBoundTextFieldState(value, onValueChange)
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        OutlinedTextField(
-            value = textFieldValue,
-            onValueChange = {
-                textFieldValue = it
-                onValueChange(it.text)
-            },
+        RpScrollableOutlinedTextField(
+            state = textFieldState,
             label = { Text(stringResource(R.string.user_persona_description)) },
             minLines = 2,
             maxLines = 4,
             shape = RoundedCornerShape(14.dp),
-            visualTransformation = rememberPromptMacroVisualTransformation(),
+            outputTransformation = rememberPromptMacroOutputTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
         RpMacroActionBar(
             onInsertMacro = { macro ->
                 val start = minOf(
-                    textFieldValue.selection.start,
-                    textFieldValue.selection.end
+                    textFieldState.selection.start,
+                    textFieldState.selection.end
                 )
                 val end = maxOf(
-                    textFieldValue.selection.start,
-                    textFieldValue.selection.end
+                    textFieldState.selection.start,
+                    textFieldState.selection.end
                 )
-                val updatedText = textFieldValue.text.replaceRange(start, end, macro)
-                textFieldValue = TextFieldValue(
-                    text = updatedText,
+                textFieldState.edit {
+                    replace(start, end, macro)
                     selection = TextRange(start + macro.length)
-                )
-                onValueChange(updatedText)
+                }
             },
             onFullscreenClick = onExpandFullscreen,
             macros = USER_PERSONA_MACROS

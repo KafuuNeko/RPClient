@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Edit
@@ -41,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 
 /**
  * 现代化通用文本输入对话框。
@@ -101,37 +103,34 @@ fun AppInputDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-                label = if (label != null) { { Text(label) } } else null,
-                placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
-                singleLine = singleLine,
-                minLines = minLines,
-                maxLines = maxLines,
-                enabled = enabled,
-                shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = keyboardType,
-                    imeAction = if (singleLine) ImeAction.Done else ImeAction.Default
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (enabled && confirmEnabled && !isConfirmLoading) {
-                            onConfirm()
+            if (password) {
+                // 密码掩码仍使用值式 API；密码输入固定为单行，不需要纵向指示器。
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    label = if (label != null) { { Text(label) } } else null,
+                    placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+                    singleLine = true,
+                    enabled = enabled,
+                    shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = keyboardType,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (enabled && confirmEnabled && !isConfirmLoading) onConfirm()
                         }
-                    }
-                ),
-                visualTransformation = if (password && !passwordVisible) {
-                    PasswordVisualTransformation()
-                } else {
-                    VisualTransformation.None
-                },
-                trailingIcon = {
-                    if (password) {
+                    ),
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) {
@@ -143,17 +142,48 @@ fun AppInputDialog(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    } else if (clearable && value.isNotEmpty()) {
-                        IconButton(onClick = { onValueChange("") }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
-                }
-            )
+                )
+            } else {
+                RpScrollableOutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    label = if (label != null) { { Text(label) } } else null,
+                    placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+                    singleLine = singleLine,
+                    minLines = minLines,
+                    maxLines = maxLines,
+                    enabled = enabled,
+                    shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = keyboardType,
+                        imeAction = if (singleLine) ImeAction.Done else ImeAction.Default
+                    ),
+                    onKeyboardAction = KeyboardActionHandler { performDefaultAction ->
+                        if (enabled && confirmEnabled && !isConfirmLoading) {
+                            onConfirm()
+                        } else {
+                            performDefaultAction()
+                        }
+                    },
+                    trailingIcon = if (clearable && value.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { onValueChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Clear,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    }
+                )
+            }
 
             extraContent()
         }

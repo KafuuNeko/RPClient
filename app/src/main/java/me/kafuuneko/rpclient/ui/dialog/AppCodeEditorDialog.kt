@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.utils.rememberJsonSyntaxVisualTransformation
 
 /**
@@ -113,6 +114,7 @@ fun AppCodeEditorDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .draggableScrollIndicator(verticalScrollState)
                             .horizontalScroll(horizontalScrollState)
                             .verticalScroll(verticalScrollState)
                             .padding(12.dp)

@@ -51,6 +51,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.presentation.AboutUiState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
@@ -95,10 +96,12 @@ private fun AboutViewContent(
     onOpenFeedback: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .draggableScrollIndicator(scrollState)
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally

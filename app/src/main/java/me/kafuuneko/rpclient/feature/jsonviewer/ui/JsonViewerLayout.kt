@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -50,6 +49,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 
 /** 分层 JSON 查看器 Compose 入口。 */
 @Composable
@@ -116,7 +116,7 @@ private fun NormalView(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
@@ -177,7 +177,7 @@ private fun ErrorView(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()

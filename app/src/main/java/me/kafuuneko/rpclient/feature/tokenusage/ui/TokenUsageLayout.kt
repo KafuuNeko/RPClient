@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -99,6 +98,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpChartMode
 import me.kafuuneko.rpclient.ui.widgets.RpChartSegment
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpStackedRatioBar
 import me.kafuuneko.rpclient.ui.widgets.RpTrendChartCard
@@ -154,7 +154,7 @@ private fun NormalView(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        RpLazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
