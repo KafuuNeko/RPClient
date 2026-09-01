@@ -1938,7 +1938,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let {
-            mFileRepository.loadBitmap(it)?.asImageBitmap()
+            mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
         }
         val hasAvailableProvider = mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
         // 组装并返回 Normal UI 状态

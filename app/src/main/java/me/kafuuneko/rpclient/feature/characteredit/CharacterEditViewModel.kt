@@ -517,7 +517,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 异步加载当前表单持有的头像图片并解码为 ImageBitmap。 */
     private suspend fun CharacterEditForm.resolveAvatarImage() =
         avatar.takeIf { it.isNotBlank() }?.let {
-            withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { mFileRepository.loadAvatarBitmap(it)?.asImageBitmap() }
         }
 
     /** 清理尚未提交保存的新头像临时物理文件。 */

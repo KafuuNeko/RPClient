@@ -1433,7 +1433,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun resolveUserAvatarImage() =
         AppModel.userAvatar
             .takeIf { it.isNotBlank() }
-            ?.let { withContext(Dispatchers.IO) { mFileRepository.loadBitmap(it)?.asImageBitmap() } }
+            ?.let {
+                withContext(Dispatchers.IO) {
+                    mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+                }
+            }
 
     /** 从当前首页状态中按 ID 查找故事。 */
     private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {

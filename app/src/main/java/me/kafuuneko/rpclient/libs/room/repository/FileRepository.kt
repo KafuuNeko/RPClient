@@ -141,11 +141,14 @@ class FileRepository(
         if (file.exists()) file else null
     }
 
-    /** 在文件存储边界内解码图片，调用方无需接触私有物理路径。 */
-    suspend fun loadBitmap(uuid: String): Bitmap? = withContext(Dispatchers.IO) {
-        val file = getFile(uuid) ?: return@withContext null
-        BitmapFactory.decodeFile(file.absolutePath)
-    }
+    /**
+     * 解码供界面显示的头像，并限制输出尺寸以避免将原图完整载入内存。
+     */
+    suspend fun loadAvatarBitmap(uuid: String): Bitmap? = loadSampledBitmap(
+        uuid = uuid,
+        requestedWidthPx = AVATAR_DECODE_DIMENSION,
+        requestedHeightPx = AVATAR_DECODE_DIMENSION
+    )
 
     /**
      * 解码供交互裁剪使用的图片，并在进入 UI 前应用 EXIF 方向。
@@ -369,6 +372,7 @@ class FileRepository(
     private companion object {
         const val MAX_THUMBNAIL_DIMENSION = 4_096
         const val MAX_CROP_SOURCE_DIMENSION = 2_048
+        const val AVATAR_DECODE_DIMENSION = 512
         const val AVATAR_OUTPUT_DIMENSION = 1_024
         const val AVATAR_JPEG_QUALITY = 92
     }
