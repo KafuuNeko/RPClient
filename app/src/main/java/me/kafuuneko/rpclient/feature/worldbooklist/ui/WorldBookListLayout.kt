@@ -101,9 +101,13 @@ private fun WorldBookListNormal(
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 8.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

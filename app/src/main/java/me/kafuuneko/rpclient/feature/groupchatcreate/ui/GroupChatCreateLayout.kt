@@ -105,9 +105,13 @@ private fun GroupChatCreateNormalView(
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 14.dp, bottom = 24.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 14.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {

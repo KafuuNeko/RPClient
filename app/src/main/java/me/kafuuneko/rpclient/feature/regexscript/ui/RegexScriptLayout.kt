@@ -184,9 +184,12 @@ private fun RegexScriptNormal(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
                 .dragContainer(dragDropState),
-            contentPadding = PaddingValues(bottom = 32.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = 32.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item { ScopeSelector(state, emitIntent) }

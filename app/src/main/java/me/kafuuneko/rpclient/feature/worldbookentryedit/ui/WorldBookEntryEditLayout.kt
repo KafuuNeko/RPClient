@@ -168,9 +168,12 @@ private fun WorldBookEntryEditNormal(
                 .fillMaxSize()
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                )
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
+                ),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {

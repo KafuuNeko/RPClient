@@ -738,9 +738,13 @@ private fun HomePage(
     RpLazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .navigationBarsPadding()
-            .padding(horizontal = 18.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(
+            start = 18.dp,
+            top = 8.dp,
+            end = 18.dp,
+            bottom = 110.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -1405,9 +1409,13 @@ private fun SettingsPage(
     RpLazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .navigationBarsPadding()
-            .padding(horizontal = 18.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 110.dp),
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(
+            start = 18.dp,
+            top = 8.dp,
+            end = 18.dp,
+            bottom = 110.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {

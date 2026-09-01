@@ -118,9 +118,12 @@ private fun StoryCreateNormal(
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                bottom = 24.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {

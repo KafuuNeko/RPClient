@@ -121,9 +121,13 @@ private fun NormalView(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 18.dp,
+                end = 18.dp,
+                bottom = 32.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -181,9 +185,13 @@ private fun ErrorView(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 18.dp),
-            contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 18.dp,
+                end = 18.dp,
+                bottom = 32.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
