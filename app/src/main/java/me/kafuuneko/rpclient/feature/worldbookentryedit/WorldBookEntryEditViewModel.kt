@@ -368,6 +368,32 @@ class WorldBookEntryEditViewModel :
         uiState.copy(dialogState = WorldBookEntryEditDialogState.None).setup()
     }
 
+    /** 开启设定正文全屏专注编辑器。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.OpenPromptEditor::class)
+    private fun onOpenPromptEditor() {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        uiState.copy(dialogState = WorldBookEntryEditDialogState.PromptEditor(uiState.form.content)).setup()
+    }
+
+    /** 更新全屏编辑器内部草稿内容。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ChangePromptEditorDraft::class)
+    private fun onChangePromptEditorDraft(intent: WorldBookEntryEditUiIntent.ChangePromptEditorDraft) {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        if (uiState.dialogState !is WorldBookEntryEditDialogState.PromptEditor) return
+        uiState.copy(dialogState = WorldBookEntryEditDialogState.PromptEditor(intent.text)).setup()
+    }
+
+    /** 确认全屏编辑器修改并同步回正文表单。 */
+    @UiIntentObserver(WorldBookEntryEditUiIntent.ConfirmPromptEditor::class)
+    private fun onConfirmPromptEditor() {
+        val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? WorldBookEntryEditDialogState.PromptEditor ?: return
+        uiState.copy(
+            form = uiState.form.copy(content = dialog.draftText),
+            dialogState = WorldBookEntryEditDialogState.None
+        ).setup()
+    }
+
     /** 辅助方法：以不可变方式更新当前条目表单数据。 */
     private fun updateForm(block: WorldBookEntryEditForm.() -> WorldBookEntryEditForm) {
         val uiState = getOrNull<WorldBookEntryEditUiState.Normal>() ?: return

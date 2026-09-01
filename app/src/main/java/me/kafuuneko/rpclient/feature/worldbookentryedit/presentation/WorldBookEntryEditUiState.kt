@@ -43,7 +43,7 @@ sealed class WorldBookEntryEditLoadState {
     data object Deleting : WorldBookEntryEditLoadState()
 }
 
-/** 世界书条目编辑页当前显示的确认对话框。 */
+/** 世界书条目编辑页当前显示的确认对话框或全屏编辑器。 */
 sealed class WorldBookEntryEditDialogState {
     data object None : WorldBookEntryEditDialogState()
 
@@ -52,4 +52,9 @@ sealed class WorldBookEntryEditDialogState {
     ) : WorldBookEntryEditDialogState()
 
     data object UnsavedChangesConfirm : WorldBookEntryEditDialogState()
+
+    /** 设定正文全屏专注编辑器对话框。 */
+    data class PromptEditor(
+        val draftText: String
+    ) : WorldBookEntryEditDialogState()
 }
