@@ -93,7 +93,7 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 
 - Local-first data storage
 - Material 3 and dynamic colors
-- User interface available in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, German, French, and Russian
+- User interface available in Simplified Chinese, Traditional Chinese, English, Japanese, Korean, German, French, Russian, Portuguese (Brazil), Italian, Vietnamese, and Indonesian
 - Android 8.0 (API 26) or later
 
 ## Quick Start
