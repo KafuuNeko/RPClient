@@ -405,6 +405,10 @@
     <string name="world_book_budget_tokens_helper">請輸入大於 0 的固定 Token 上限</string>
     <string name="no_world_book_entries">暫無條目</string>
     <string name="no_world_book_entries_desc">新增用於關鍵字、分類、插入順序和設定內容的條目。</string>
+    <string name="no_matching_entries">無相符條目</string>
+    <string name="no_matching_entries_desc">未找到符合搜尋或篩選條件的條目。</string>
+    <string name="entries_with_count">條目 (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">條目 %d</string>
     <string name="unnamed_entry">未命名條目</string>
     <string name="entry_name">條目名稱</string>

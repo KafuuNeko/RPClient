@@ -406,6 +406,10 @@
     <string name="world_book_budget_tokens_helper">Enter a positive fixed Token limit for this book</string>
     <string name="no_world_book_entries">No entries</string>
     <string name="no_world_book_entries_desc">Add entries for keywords, categories, insertion order and lore content.</string>
+    <string name="no_matching_entries">No matching entries</string>
+    <string name="no_matching_entries_desc">No entries matched your current search or filter conditions.</string>
+    <string name="entries_with_count">Entries (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">Entry %d</string>
     <string name="unnamed_entry">Unnamed entry</string>
     <string name="entry_name">Entry name</string>

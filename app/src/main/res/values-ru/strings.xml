@@ -405,6 +405,10 @@
     <string name="world_book_budget_tokens_helper">Введите фиксированный лимит токенов больше нуля</string>
     <string name="no_world_book_entries">Нет записей</string>
     <string name="no_world_book_entries_desc">Добавьте записи для ключевых слов, категорий, порядка вставки и содержимого лора.</string>
+    <string name="no_matching_entries">Нет подходящих записей</string>
+    <string name="no_matching_entries_desc">Не найдено записей, соответствующих текущим условиям поиска или фильтра.</string>
+    <string name="entries_with_count">Записи (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">Запись %d</string>
     <string name="unnamed_entry">Запись без названия</string>
     <string name="entry_name">Название записи</string>

@@ -192,7 +192,11 @@ private fun BasicPanel(
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = stringResource(R.string.entry_count, form.entries.size) + " • " + stringResource(R.string.active_entries_count, activeCount),
+                    text = stringResource(
+                        R.string.world_book_stats_format,
+                        stringResource(R.string.entry_count, form.entries.size),
+                        stringResource(R.string.active_entries_count, activeCount)
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
@@ -283,7 +287,7 @@ private fun EntryHeader(
     emit: WorldBookEditUiIntent.() -> Unit
 ) {
     RpSectionHeader(
-        title = stringResource(R.string.entries) + " ($totalCount)",
+        title = stringResource(R.string.entries_with_count, totalCount),
         action = stringResource(R.string.add),
         onAction = { WorldBookEditUiIntent.AddEntry.emit() }
     )
@@ -356,11 +360,19 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = if (hasEntries) stringResource(R.string.search_entries_placeholder) else stringResource(R.string.no_world_book_entries),
+                    text = if (hasEntries) {
+                        stringResource(R.string.no_matching_entries)
+                    } else {
+                        stringResource(R.string.no_world_book_entries)
+                    },
                     style = MaterialTheme.typography.titleSmall
                 )
                 Text(
-                    text = if (hasEntries) "未找到符合搜索或过滤条件的条目" else stringResource(R.string.no_world_book_entries_desc),
+                    text = if (hasEntries) {
+                        stringResource(R.string.no_matching_entries_desc)
+                    } else {
+                        stringResource(R.string.no_world_book_entries_desc)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )

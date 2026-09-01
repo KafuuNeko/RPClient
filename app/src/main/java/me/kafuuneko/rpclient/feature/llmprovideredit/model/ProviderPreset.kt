@@ -78,7 +78,7 @@ enum class ProviderPreset(
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase
     ),
     Custom(
-        displayName = "自定义",
+        displayName = "Custom",
         providerType = LLMProviderType.Custom,
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "",

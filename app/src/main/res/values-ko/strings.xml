@@ -405,6 +405,10 @@
     <string name="world_book_budget_tokens_helper">0보다 큰 고정 토큰 한도를 입력하세요</string>
     <string name="no_world_book_entries">항목 없음</string>
     <string name="no_world_book_entries_desc">키워드, 카테고리, 삽입 순서 및 로어 콘텐츠에 대한 항목을 추가하세요.</string>
+    <string name="no_matching_entries">일치하는 항목 없음</string>
+    <string name="no_matching_entries_desc">현재 검색 또는 필터 조건과 일치하는 항목을 찾을 수 없습니다.</string>
+    <string name="entries_with_count">항목 (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">항목 %d</string>
     <string name="unnamed_entry">이름 없는 항목</string>
     <string name="entry_name">항목 이름</string>

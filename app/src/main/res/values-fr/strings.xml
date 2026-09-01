@@ -405,6 +405,10 @@
     <string name="world_book_budget_tokens_helper">Saisissez une limite fixe de jetons supérieure à zéro pour ce lorebook</string>
     <string name="no_world_book_entries">Aucune entrée</string>
     <string name="no_world_book_entries_desc">Ajoutez des entrées pour les mots-clés, les catégories, l\'ordre d\'insertion et le contenu du lore.</string>
+    <string name="no_matching_entries">Aucune entrée correspondante</string>
+    <string name="no_matching_entries_desc">Aucune entrée ne correspond à vos critères de recherche ou de filtre actuels.</string>
+    <string name="entries_with_count">Entrées (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">Entrée %d</string>
     <string name="unnamed_entry">Entrée sans nom</string>
     <string name="entry_name">Nom de l\'entrée</string>

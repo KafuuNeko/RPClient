@@ -234,7 +234,15 @@ private fun ProviderPresetsSection(
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectPreset(preset) },
-                    label = { Text(preset.displayName) },
+                    label = {
+                        Text(
+                            if (preset == ProviderPreset.Custom) {
+                                stringResource(R.string.preset_custom)
+                            } else {
+                                preset.displayName
+                            }
+                        )
+                    },
                     leadingIcon = {
                         val icon = when (preset) {
                             ProviderPreset.DeepSeek -> Icons.Rounded.Memory

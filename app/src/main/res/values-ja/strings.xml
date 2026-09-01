@@ -406,6 +406,10 @@
     <string name="world_book_budget_tokens_helper">0より大きい固定トークン上限を入力してください</string>
     <string name="no_world_book_entries">エントリがありません</string>
     <string name="no_world_book_entries_desc">キーワード、カテゴリ、挿入順序、ロアコンテンツのエントリを追加します。</string>
+    <string name="no_matching_entries">一致するエントリがありません</string>
+    <string name="no_matching_entries_desc">現在の検索またはフィルター条件に一致するエントリが見つかりませんでした。</string>
+    <string name="entries_with_count">エントリ (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">エントリ %d</string>
     <string name="unnamed_entry">名前のないエントリ</string>
     <string name="entry_name">エントリ名</string>

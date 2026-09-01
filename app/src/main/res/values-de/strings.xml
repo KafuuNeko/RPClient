@@ -406,6 +406,10 @@
     <string name="world_book_budget_tokens_helper">Gib ein positives festes Token-Limit für dieses Weltbuch ein</string>
     <string name="no_world_book_entries">Keine Einträge</string>
     <string name="no_world_book_entries_desc">Füge Einträge für Schlüsselwörter, Kategorien, Einfügungsreihenfolge und Lore-Inhalte hinzu.</string>
+    <string name="no_matching_entries">Keine passenden Einträge</string>
+    <string name="no_matching_entries_desc">Keine Einträge entsprechen Ihren aktuellen Such- oder Filterkriterien.</string>
+    <string name="entries_with_count">Einträge (%1$d)</string>
+    <string name="world_book_stats_format">%1$s • %2$s</string>
     <string name="entry_index">Eintrag %d</string>
     <string name="unnamed_entry">Unbenannter Eintrag</string>
     <string name="entry_name">Eintragsname</string>
