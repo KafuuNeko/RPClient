@@ -54,6 +54,11 @@
     <string name="collapse_session_group">セッションを折りたたむ</string>
     <string name="setting_page_title">設定</string>
     <string name="setting_subtitle">モデル設定、生成パラメータ、プロンプト動作</string>
+    <string name="appearance_theme">カラーテーマ</string>
+    <string name="appearance_theme_desc">端末の設定に従うか、表示を固定します</string>
+    <string name="theme_follow_system">システムに従う</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
     <string name="prompt_and_memory_section">プロンプトとコンテキストメモリ</string>
     <string name="system_and_data_section">データとシステム</string>
     <string name="model_provider">モデル設定</string>

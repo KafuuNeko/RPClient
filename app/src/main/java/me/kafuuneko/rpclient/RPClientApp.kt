@@ -27,6 +27,7 @@ import me.kafuuneko.rpclient.libs.story.StoryContextSelector
 import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
@@ -104,6 +105,7 @@ internal val appModules = module {
         )
     }
     singleOf(::LLMProviderSelectionResolver)
+    singleOf(::AppThemeManager)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
     singleOf(::FormattedHistoryBuilder)

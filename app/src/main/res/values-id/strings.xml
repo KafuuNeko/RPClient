@@ -53,6 +53,11 @@
     <string name="collapse_session_group">Ciutkan sesi</string>
     <string name="setting_page_title">Pengaturan</string>
     <string name="setting_subtitle">Konfigurasi model, parameter pembuatan, dan perilaku prompt</string>
+    <string name="appearance_theme">Tema warna</string>
+    <string name="appearance_theme_desc">Ikuti pengaturan perangkat atau pilih tampilan tetap</string>
+    <string name="theme_follow_system">Ikuti sistem</string>
+    <string name="theme_light">Terang</string>
+    <string name="theme_dark">Gelap</string>
     <string name="prompt_and_memory_section">Prompt &amp; Memori Konteks</string>
     <string name="system_and_data_section">Data &amp; Sistem</string>
     <string name="model_provider">Konfigurasi Model</string>

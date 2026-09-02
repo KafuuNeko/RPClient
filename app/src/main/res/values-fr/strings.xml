@@ -53,6 +53,11 @@
     <string name="collapse_session_group">Réduire les sessions</string>
     <string name="setting_page_title">Paramètres</string>
     <string name="setting_subtitle">Configurations de modèle, paramètres de génération et comportement du prompt</string>
+    <string name="appearance_theme">Thème de couleur</string>
+    <string name="appearance_theme_desc">Suivez le réglage de l’appareil ou choisissez une apparence fixe</string>
+    <string name="theme_follow_system">Suivre le système</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
     <string name="prompt_and_memory_section">Prompt et mémoire de contexte</string>
     <string name="system_and_data_section">Données et système</string>
     <string name="model_provider">Configurations de modèle</string>

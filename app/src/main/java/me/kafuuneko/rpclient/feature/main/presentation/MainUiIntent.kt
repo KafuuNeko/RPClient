@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
@@ -17,6 +18,8 @@ sealed class MainUiIntent {
     data object Back : MainUiIntent()
 
     data class SelectPage(val page: MainPage) : MainUiIntent()
+
+    data class SelectThemeMode(val themeMode: AppThemeMode) : MainUiIntent()
 
     data class SelectHomeContentTab(val tab: MainHomeContentTab) : MainUiIntent()
 

@@ -53,6 +53,11 @@
     <string name="collapse_session_group">Thu gọn phiên</string>
     <string name="setting_page_title">Cài đặt</string>
     <string name="setting_subtitle">Cấu hình mô hình, tham số tạo văn bản và hành vi prompt</string>
+    <string name="appearance_theme">Chủ đề màu</string>
+    <string name="appearance_theme_desc">Dùng cài đặt của thiết bị hoặc chọn giao diện cố định</string>
+    <string name="theme_follow_system">Theo hệ thống</string>
+    <string name="theme_light">Sáng</string>
+    <string name="theme_dark">Tối</string>
     <string name="prompt_and_memory_section">Prompt &amp; Bộ nhớ ngữ cảnh</string>
     <string name="system_and_data_section">Dữ liệu &amp; Hệ thống</string>
     <string name="model_provider">Cấu hình mô hình</string>

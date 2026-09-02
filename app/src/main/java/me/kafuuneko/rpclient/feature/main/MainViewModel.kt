@@ -27,6 +27,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
@@ -86,6 +87,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
@@ -117,6 +119,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mStoryRepository by inject<StoryRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
+    private val mAppThemeManager by inject<AppThemeManager>()
     private val mContext by inject<Context>()
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
@@ -530,6 +533,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onSelectPage(intent: MainUiIntent.SelectPage) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         uiState.copy(selectedPage = intent.page).setup()
+    }
+
+    /** 选择应用配色主题并同步更新全局主题与设置页状态。 */
+    @UiIntentObserver(MainUiIntent.SelectThemeMode::class)
+    private fun onSelectThemeMode(intent: MainUiIntent.SelectThemeMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        mAppThemeManager.setThemeMode(intent.themeMode)
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                appearanceState = uiState.settingsState.appearanceState.copy(
+                    themeMode = intent.themeMode
+                )
+            )
+        ).setup()
     }
 
     /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
@@ -1308,6 +1325,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         allProviders: List<LLMProvider>
     ): MainSettingsState {
         return MainSettingsState(
+            appearanceState = MainAppearanceSettingsState(
+                themeMode = mAppThemeManager.themeModeFlow.value
+            ),
             identityState = MainUserIdentityState(
                 userName = AppModel.resolvedUserName,
                 userDescription = AppModel.userDescription,

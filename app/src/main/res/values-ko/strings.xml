@@ -53,6 +53,11 @@
     <string name="collapse_session_group">세션 접기</string>
     <string name="setting_page_title">설정</string>
     <string name="setting_subtitle">모델 구성, 생성 파라미터 및 프롬프트 동작</string>
+    <string name="appearance_theme">색상 테마</string>
+    <string name="appearance_theme_desc">기기 설정을 따르거나 화면 모드를 고정합니다</string>
+    <string name="theme_follow_system">시스템 설정 따르기</string>
+    <string name="theme_light">라이트</string>
+    <string name="theme_dark">다크</string>
     <string name="prompt_and_memory_section">프롬프트 및 컨텍스트 메모리</string>
     <string name="system_and_data_section">데이터 및 시스템</string>
     <string name="model_provider">모델 구성</string>

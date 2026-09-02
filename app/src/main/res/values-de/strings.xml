@@ -54,6 +54,11 @@
     <string name="collapse_session_group">Sitzungen einklappen</string>
     <string name="setting_page_title">Einstellungen</string>
     <string name="setting_subtitle">Modellkonfigurationen, Generierungsparameter und Prompt-Verhalten</string>
+    <string name="appearance_theme">Farbschema</string>
+    <string name="appearance_theme_desc">Geräteeinstellung übernehmen oder eine feste Darstellung wählen</string>
+    <string name="theme_follow_system">Systemeinstellung</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
     <string name="prompt_and_memory_section">Prompt- &amp; Kontextspeicher</string>
     <string name="system_and_data_section">Daten &amp; System</string>
     <string name="model_provider">Modellkonfigurationen</string>

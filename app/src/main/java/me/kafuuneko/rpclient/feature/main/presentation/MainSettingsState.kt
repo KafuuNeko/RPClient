@@ -6,9 +6,12 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
 data class MainSettingsState(
+    /** 设置页中应用配色主题的状态。 */
+    val appearanceState: MainAppearanceSettingsState,
     /** 设置页中全局用户身份区域的状态。 */
     val identityState: MainUserIdentityState,
     /** 设置页中模型配置选择和流式开关状态。 */
@@ -23,6 +26,12 @@ data class MainSettingsState(
     val chatDataManagementState: MainChatDataManagementState = MainChatDataManagementState.Idle,
     /** 设置页中调试功能区域的状态。 */
     val debugState: MainDebugSettingsState
+)
+
+/** 应用外观设置面板状态。 */
+data class MainAppearanceSettingsState(
+    /** 用户当前选择的配色主题模式。 */
+    val themeMode: AppThemeMode
 )
 
 /** 用户名称、描述和头像面板状态。 */

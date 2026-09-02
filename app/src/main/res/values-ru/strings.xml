@@ -53,6 +53,11 @@
     <string name="collapse_session_group">Свернуть сессии</string>
     <string name="setting_page_title">Настройки</string>
     <string name="setting_subtitle">Конфигурации моделей, параметры генерации и поведение промпта</string>
+    <string name="appearance_theme">Цветовая тема</string>
+    <string name="appearance_theme_desc">Используйте настройки устройства или выберите постоянный режим</string>
+    <string name="theme_follow_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
     <string name="prompt_and_memory_section">Промпты и память контекста</string>
     <string name="system_and_data_section">Данные и система</string>
     <string name="model_provider">Конфигурации моделей</string>

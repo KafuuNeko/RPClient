@@ -54,6 +54,11 @@
     <string name="collapse_session_group">Collapse sessions</string>
     <string name="setting_page_title">Settings</string>
     <string name="setting_subtitle">Model configurations, generation parameters and prompt behavior</string>
+    <string name="appearance_theme">Color theme</string>
+    <string name="appearance_theme_desc">Follow your device setting or choose a fixed appearance</string>
+    <string name="theme_follow_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
     <string name="prompt_and_memory_section">Prompt &amp; Context Memory</string>
     <string name="system_and_data_section">Data &amp; System</string>
     <string name="model_provider">Model Configuration</string>

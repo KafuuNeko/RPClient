@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /**
  * 应用级持久偏好模型。
@@ -155,6 +156,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 
     // 当前选中的模型配置 ID。
     var currentLLMProvider by longPref()
+
+    // 应用配色主题，使用 AppThemeMode.persistedValue 持久化。
+    var themeMode by stringPref(default = AppThemeMode.FollowSystem.persistedValue)
 
     // 摘要专用模型配置 ID；0 表示跟随当前全局模型配置。
     var summaryLLMProvider by longPref()

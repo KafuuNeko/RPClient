@@ -53,6 +53,11 @@
     <string name="collapse_session_group">折疊會話</string>
     <string name="setting_page_title">設定</string>
     <string name="setting_subtitle">模型設定、生成參數和提示詞行為</string>
+    <string name="appearance_theme">配色主題</string>
+    <string name="appearance_theme_desc">跟隨裝置設定，或固定使用亮色、暗色外觀</string>
+    <string name="theme_follow_system">跟隨系統</string>
+    <string name="theme_light">亮色</string>
+    <string name="theme_dark">暗色</string>
     <string name="prompt_and_memory_section">提示詞與上下文記憶</string>
     <string name="system_and_data_section">資料與系統</string>
     <string name="model_provider">模型設定</string>

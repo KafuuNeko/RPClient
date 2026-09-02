@@ -56,6 +56,7 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Numbers
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Settings
@@ -111,6 +112,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
@@ -138,6 +140,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
@@ -1471,10 +1474,45 @@ private fun SettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
+        item { AppearancePanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun AppearancePanel(
+    state: MainAppearanceSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Palette,
+            iconColor = AccentIndigoColor,
+            iconContainerColor = AccentIndigoColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.appearance_theme),
+            subtitle = stringResource(R.string.appearance_theme_desc)
+        )
+        RpSettingsDivider(startIndent = false)
+        // 使用可换行选项，避免较长译文在小屏设备上被截断。
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AppThemeMode.entries.forEach { themeMode ->
+                FilterChip(
+                    selected = themeMode == state.themeMode,
+                    onClick = { MainUiIntent.SelectThemeMode(themeMode).emit() },
+                    label = { Text(stringResource(themeMode.titleRes())) },
+                    shape = RoundedCornerShape(10.dp)
+                )
+            }
+        }
     }
 }
 
@@ -2534,6 +2572,14 @@ private fun SummaryInjectionRole.titleRes(): Int {
     }
 }
 
+private fun AppThemeMode.titleRes(): Int {
+    return when (this) {
+        AppThemeMode.FollowSystem -> R.string.theme_follow_system
+        AppThemeMode.Light -> R.string.theme_light
+        AppThemeMode.Dark -> R.string.theme_dark
+    }
+}
+
 private object MaterialThemeLike {
     @Composable
     fun background() = MaterialTheme.colorScheme.background
@@ -2626,6 +2672,9 @@ private fun MainLayoutPreview() {
                     )
                 ),
                 settingsState = MainSettingsState(
+                    appearanceState = MainAppearanceSettingsState(
+                        themeMode = AppThemeMode.FollowSystem
+                    ),
                     identityState = MainUserIdentityState(
                         userName = "You",
                         userDescription = "",
@@ -2678,6 +2727,9 @@ private fun MainSettingsLayoutPreview() {
                     recentStoriesState = MainRecentStoriesState.Empty
                 ),
                 settingsState = MainSettingsState(
+                    appearanceState = MainAppearanceSettingsState(
+                        themeMode = AppThemeMode.FollowSystem
+                    ),
                     identityState = MainUserIdentityState(
                         userName = "KafuuNeko",
                         userDescription = "A traveler exploring AI worlds.",
