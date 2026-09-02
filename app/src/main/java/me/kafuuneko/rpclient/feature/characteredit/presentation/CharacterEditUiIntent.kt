@@ -20,13 +20,7 @@ sealed class CharacterEditUiIntent {
 
     data class ChangeName(val value: String) : CharacterEditUiIntent()
 
-    data object AddTag : CharacterEditUiIntent()
-
     data class SetTags(val tags: List<String>) : CharacterEditUiIntent()
-
-    data class ChangeTag(val index: Int, val value: String) : CharacterEditUiIntent()
-
-    data class DeleteTag(val index: Int) : CharacterEditUiIntent()
 
     data class ChangeDescription(val value: String) : CharacterEditUiIntent()
 

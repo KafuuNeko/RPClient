@@ -174,22 +174,6 @@ class RegexScriptViewModel :
             ?.setup()
     }
 
-    /** 按指定位移移动脚本位置并持久化新顺序。 */
-    @UiIntentObserver(RegexScriptUiIntent.MoveScript::class)
-    private suspend fun onMoveScript(intent: RegexScriptUiIntent.MoveScript) {
-        val state = getOrNull<RegexScriptUiState.Normal>() ?: return
-        val target = state.targetOrNull() ?: return
-        mutateScripts(target) { current ->
-            val from = current.indexOfFirst { it.id == intent.scriptId }
-            if (from < 0) return@mutateScripts current
-            val to = (from + intent.delta).coerceIn(0, current.lastIndex)
-            if (from == to) return@mutateScripts current
-            current.toMutableList().apply {
-                add(to, removeAt(from))
-            }
-        }
-    }
-
     /** 在内存中即时重排脚本顺序（0ms 交互，无磁盘 I/O 阻塞）。 */
     @UiIntentObserver(RegexScriptUiIntent.ReorderScript::class)
     private fun onReorderScript(intent: RegexScriptUiIntent.ReorderScript) {
