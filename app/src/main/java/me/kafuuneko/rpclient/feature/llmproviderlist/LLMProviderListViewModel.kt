@@ -22,6 +22,7 @@ import org.koin.core.component.inject
  * 核心职责：
  * - 展示所有 LLM 服务提供商配置摘要及启用状态；
  * - 驱动新建与编辑模型配置页面的导航跳转；
+ * - 从列表快速克隆完整模型配置；
  * - 支持快速切换提供商的全局启用/停用状态；
  * - 删除提供商前统计关联角色卡数量并弹出确认弹窗。
  */
@@ -75,6 +76,20 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
             activity = LLMProviderEditActivity::class.java,
             extras = Bundle().apply { putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerId) }
         ).tryEmit()
+    }
+
+    /**
+     * 克隆指定模型配置并刷新列表。
+     *
+     * @param intent 包含源模型配置 ID 的意图
+     */
+    @UiIntentObserver(LLMProviderListUiIntent.CloneProvider::class)
+    private suspend fun onCloneProvider(intent: LLMProviderListUiIntent.CloneProvider) {
+        if (!isStateOf<LLMProviderListUiState.Normal>()) return
+        val providerId = intent.providerId.toLongOrNull() ?: return
+        mLLMRepository.cloneProvider(providerId) ?: return
+        refreshProviders()
+        AppViewEvent.PopupToastMessageByResId(R.string.model_created).tryEmit()
     }
 
     /**

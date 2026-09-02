@@ -12,6 +12,8 @@ sealed class LLMProviderListUiIntent {
 
     data class EditProvider(val providerId: String) : LLMProviderListUiIntent()
 
+    data class CloneProvider(val providerId: String) : LLMProviderListUiIntent()
+
     data class ToggleProviderEnabled(
         val providerId: String,
         val isEnabled: Boolean

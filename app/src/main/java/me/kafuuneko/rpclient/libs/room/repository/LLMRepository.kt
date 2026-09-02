@@ -42,6 +42,7 @@ internal const val DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
  *
  * 核心职责：
  * - 初始化默认模型配置并同步当前选择。
+ * - 保存、克隆与删除完整模型配置。
  * - 在请求前执行 Prompt 最终化兜底。
  * - 将模型调用内部的未知异常收敛为脱敏请求错误。
  *
@@ -111,6 +112,24 @@ class LLMRepository(
         }
         syncCurrentProvider(preferredProviderId = providerId.takeIf { nextProvider.isEnabled })
         return providerId
+    }
+
+    /**
+     * 克隆指定模型配置为新的数据库记录。
+     *
+     * 新记录保留源配置的鉴权、请求扩展、生成参数和启用状态，仅重新生成主键、名称与时间戳。
+     *
+     * @param id 源模型配置 ID
+     * @return 新模型配置 ID；源配置不存在时返回空
+     */
+    suspend fun cloneProvider(id: Long): Long? {
+        val source = getProviderById(id) ?: return null
+        return saveProvider(
+            source.copy(
+                id = 0L,
+                name = "${source.name} Copy"
+            )
+        )
     }
 
     /**

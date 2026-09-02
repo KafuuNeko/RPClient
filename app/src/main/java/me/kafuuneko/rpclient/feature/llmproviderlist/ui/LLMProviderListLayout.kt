@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Hub
@@ -98,6 +99,7 @@ private fun LLMProviderListNormal(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // 顶栏与列表区共享同一个新建入口，兼顾快速操作和空列表引导
         AppTopBar(
             title = stringResource(R.string.model_provider_title),
             onBack = { LLMProviderListUiIntent.Back.emit() },
@@ -153,6 +155,9 @@ private fun LLMProviderListNormal(
                         onCheckedChange = {
                             LLMProviderListUiIntent.ToggleProviderEnabled(provider.id.toString(), it)
                                 .emit()
+                        },
+                        onClone = {
+                            LLMProviderListUiIntent.CloneProvider(provider.id.toString()).emit()
                         },
                         onDelete = {
                             LLMProviderListUiIntent.ShowDeleteProviderDialog(provider.id.toString())
@@ -247,6 +252,7 @@ private fun ProviderListCard(
     provider: LLMProviderListItem,
     onClick: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
+    onClone: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -275,6 +281,7 @@ private fun ProviderListCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // 首行集中展示配置身份信息及克隆、删除和启停操作
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -306,6 +313,17 @@ private fun ProviderListCard(
                     )
                 }
                 IconButton(
+                    onClick = onClone,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.ContentCopy,
+                        contentDescription = stringResource(R.string.copy),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -328,6 +346,7 @@ private fun ProviderListCard(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
             )
 
+            // 次行仅展示脱敏后的模型与协议摘要
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
