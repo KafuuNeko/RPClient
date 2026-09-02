@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.prompt
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import com.google.gson.annotations.SerializedName
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
@@ -774,8 +775,10 @@ data class WorldBookDepthEntry(
 /** 世界书激活器使用的结构化时序状态；具体持久化形式由调用方决定。 */
 data class WorldInfoRuntimeState(
     /** 上次推进世界书时已处理的消息数量。 */
+    @field:SerializedName("lastMessageCount")
     val lastMessageCount: Int = 0,
     /** 当前分组、请求或结果包含的条目列表。 */
+    @field:SerializedName("entries")
     val entries: Map<String, WorldInfoEntryRuntimeState> = emptyMap()
 ) {
     fun toJson(gson: Gson): String {
@@ -795,11 +798,15 @@ data class WorldInfoRuntimeState(
 /** 单个条目的时序状态（激活轮次、Sticky 截止轮次、Cooldown 截止轮次与行为签名）。 */
 data class WorldInfoEntryRuntimeState(
     /** 世界书条目最近一次被直接命中的生成轮次。 */
+    @field:SerializedName("activatedAt")
     val activatedAt: Int = 0,
     /** 世界书条目粘滞激活保持到的生成轮次。 */
+    @field:SerializedName("stickyUntil")
     val stickyUntil: Int = 0,
     /** 世界书条目冷却结束的生成轮次。 */
+    @field:SerializedName("cooldownUntil")
     val cooldownUntil: Int = 0,
     /** 用于判断状态内容是否发生变化的稳定签名。 */
+    @field:SerializedName("signature")
     val signature: String = ""
 )
