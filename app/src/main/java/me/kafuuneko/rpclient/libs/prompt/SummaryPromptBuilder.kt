@@ -12,6 +12,12 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
+/** 摘要消息首次读取窗口，后续仅在完整窗口仍符合预算时按倍数扩展。 */
+internal const val INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE = 128
+
+/** 无模型配置时沿用的摘要上下文 Token 上限。 */
+internal const val DEFAULT_SUMMARY_CONTEXT_TOKENS = 8192
+
 /** 单聊总结请求与其实际覆盖消息使用同一次预算选择结果。 */
 data class SummaryPromptBuildResult(
     val request: LLMGenerationRequest,
@@ -44,35 +50,32 @@ class SummaryPromptBuilder(
         provider: LLMProvider?
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
-        val maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS
+        val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
         val responseTokens = AppModel.summaryResponseTokens
-        val promptBudget = maxContextTokens - responseTokens
-        require(promptBudget > 0) {
-            "Summary response token reserve must be smaller than the context token limit."
-        }
+        val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         // 获取候选摘要消息（排除最后一条正在变动的消息并限制最大单次处理条数）
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
-        val sanitizedById = limited.associate { message ->
-            message.id to message.copy(content = message.content.summarySafeContent())
+        val sanitized = limited.map { message ->
+            message.copy(content = message.content.summarySafeContent())
         }
-        // 贪婪选择符合预算的最长消息连续前缀
+        // 使用有界 Token 统计定位符合预算的最长连续前缀
         val selected = selectSummaryPrefix(
             items = limited,
             promptBudget = promptBudget
         ) { prefix ->
-            val sanitized = prefix.map { sanitizedById.getValue(it.id) }
-            tokenizer.countMessages(
+            tokenizer.countMessagesUpTo(
                 renderRequestMessages(
                     userName = userName,
                     userDescription = userDescription,
                     character = character,
                     session = session,
                     existingSummary = safeExistingSummary,
-                    messages = sanitized,
+                    messages = sanitized.subList(0, prefix.size),
                     provider = provider
-                )
+                ),
+                promptBudget
             )
         }
         // 若存在候选消息但连单条都超出预算则抛出异常
@@ -84,13 +87,13 @@ class SummaryPromptBuilder(
                     character,
                     session,
                     safeExistingSummary,
-                    listOf(sanitizedById.getValue(limited.first().id)),
+                    listOf(sanitized.first()),
                     provider
                 )
             )
             throw PromptBudgetExceededException(required, promptBudget)
         }
-        val sanitizedSelected = selected.map { sanitizedById.getValue(it.id) }
+        val sanitizedSelected = sanitized.take(selected.size)
         // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
@@ -134,7 +137,7 @@ class SummaryPromptBuilder(
             currentUserMessage = null,
             candidateLorebookEntries = emptyList(),
             provider = provider,
-            maxContextTokens = provider?.contextTokens ?: DEFAULT_CONTEXT_TOKENS,
+            maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS,
             maxResponseTokens = AppModel.summaryResponseTokens
         )
         val instruction = mMacroResolver.resolve(
@@ -157,10 +160,6 @@ class SummaryPromptBuilder(
         return buildRawSummaryMessages(instruction, existingSummary, history)
     }
 
-    private companion object {
-        /** 默认上下文 Token 上限。 */
-        const val DEFAULT_CONTEXT_TOKENS = 8192
-    }
 }
 
 /**
@@ -169,8 +168,13 @@ class SummaryPromptBuilder(
  * 最后一条消息固定排除，再按用户配置保留连续前缀。
  */
 internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
-    val withoutLast = dropLast(1)
-    return if (maxMessages > 0) withoutLast.take(maxMessages) else withoutLast
+    if (size <= 1) return emptyList()
+    val candidateCount = if (maxMessages > 0) {
+        minOf(size - 1, maxMessages)
+    } else {
+        size - 1
+    }
+    return subList(0, candidateCount).toList()
 }
 
 /** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */
@@ -195,19 +199,76 @@ internal fun buildRawSummaryMessages(
 
 /**
  * 用完整前缀请求的 Token 数选择连续消息，第一条超预算时也不会被强行纳入。
+ *
+ * 摘要历史追加非空发言者行后 Token 数单调不减，因此先按指数窗口定位预算边界，再在
+ * 最后一段执行二分查找。返回结果仍是旧实现遇到首个超预算前缀之前的连续消息。
  */
 internal fun <T> selectSummaryPrefix(
     items: List<T>,
     promptBudget: Int,
     countPrefixTokens: (List<T>) -> Int
 ): List<T> {
-    val selected = mutableListOf<T>()
-    for (item in items) {
-        val candidate = selected + item
-        if (countPrefixTokens(candidate) > promptBudget) break
-        selected += item
+    if (items.isEmpty()) return emptyList()
+    var acceptedSize = 0
+    var probeSize = 1
+    // 指数扩展只探测少量前缀，避免直接格式化远超预算的大窗口
+    while (true) {
+        if (countPrefixTokens(items.subList(0, probeSize)) > promptBudget) break
+        acceptedSize = probeSize
+        if (acceptedSize == items.size) return items.toList()
+        probeSize = minOf(items.size, probeSize.saturatedDouble())
     }
-    return selected
+    // 在最后一个可接受前缀与首个超限探测点之间精确定位边界
+    var rejectedSize = probeSize
+    while (acceptedSize + 1 < rejectedSize) {
+        val middleSize = acceptedSize + (rejectedSize - acceptedSize) / 2
+        if (countPrefixTokens(items.subList(0, middleSize)) <= promptBudget) {
+            acceptedSize = middleSize
+        } else {
+            rejectedSize = middleSize
+        }
+    }
+    return items.take(acceptedSize)
+}
+
+/** 计算摘要输入预算，并统一校验回复预留不能耗尽上下文。 */
+internal fun summaryPromptBudget(maxContextTokens: Int, responseTokens: Int): Int {
+    val promptBudget = maxContextTokens - responseTokens
+    require(promptBudget > 0) {
+        "Summary response token reserve must be smaller than the context token limit."
+    }
+    return promptBudget
+}
+
+/**
+ * 计算数据库最多需要提供的摘要候选消息数。
+ *
+ * 每条格式化历史都包含非空发言者前缀，至少消耗一个 Token，因此超过输入预算数量的
+ * 消息不可能被选中；显式摘要条数设置仍优先形成更小上限。
+ */
+internal fun summaryCandidateMessageLimit(
+    maxContextTokens: Int,
+    responseTokens: Int,
+    configuredMaxMessages: Int
+): Int {
+    val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
+    return if (configuredMaxMessages > 0) {
+        minOf(configuredMaxMessages, promptBudget)
+    } else {
+        promptBudget
+    }
+}
+
+/** 在不超过最终上限的前提下扩展下一轮摘要候选窗口。 */
+internal fun nextSummaryCandidateWindowSize(currentSize: Int, maximumSize: Int): Int {
+    require(currentSize > 0) { "currentSize must be positive" }
+    require(maximumSize >= currentSize) { "maximumSize must not be smaller than currentSize" }
+    return minOf(maximumSize, currentSize.saturatedDouble())
+}
+
+/** 避免窗口倍增时发生整数溢出。 */
+private fun Int.saturatedDouble(): Int {
+    return if (this > Int.MAX_VALUE / 2) Int.MAX_VALUE else this * 2
 }
 
 /** 总结路径始终排除 reasoning，不受普通聊天上下文展示设置影响。 */

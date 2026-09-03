@@ -27,11 +27,13 @@ data class ChatSummaryContext(
  * @property existingSummary 本次请求继承的上一条总结内容。
  * @property messages 本次实际需要重新总结或增量总结的普通消息。
  * @property summaryToUpdate 用户主动重新总结时需要原地更新的最新快照。
+ * @property hasMoreCandidateMessages 当前窗口之后是否还有可继续扩展的候选消息。
  */
 data class ChatSummaryGenerationContext(
     val existingSummary: String,
     val messages: List<ChatMessage>,
-    val summaryToUpdate: ChatMessage?
+    val summaryToUpdate: ChatMessage?,
+    val hasMoreCandidateMessages: Boolean = false
 )
 
 /**
@@ -520,6 +522,22 @@ class ChatRepository(
     }
 
     /**
+     * 统计最新总结之后尚未覆盖的普通消息。
+     *
+     * @param sessionId 会话 ID。
+     * @return 未被最新总结覆盖的普通消息数量。
+     */
+    suspend fun getUnsummarizedMessageCount(sessionId: Long): Int {
+        return mAppDatabase.withTransaction {
+            val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            mChatMessageDao.getMessageCountAfterId(
+                sessionId = sessionId,
+                coveredMessageId = summary?.coveredMessageId ?: 0L
+            )
+        }
+    }
+
+    /**
      * 在同一事务中读取最新总结及其后的普通消息，避免两次查询间快照发生变化。
      *
      * @param sessionId 会话 id。
@@ -596,25 +614,36 @@ class ChatRepository(
      *
      * 默认返回最新总结之后的增量消息。用户主动总结且最新总结已经覆盖最后一条普通消息时，
      * 回退到上一条总结边界，重新生成并更新最新总结快照。
+     *
+     * @param sessionId 会话 ID。
+     * @param allowRefreshLatest 是否允许回退并刷新已覆盖到末尾的最新总结。
+     * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
+     * @return 总结基础内容、候选窗口和可能需要覆盖的总结快照。
      */
     suspend fun getSummaryGenerationContext(
         sessionId: Long,
-        allowRefreshLatest: Boolean
+        allowRefreshLatest: Boolean,
+        maxCandidateMessages: Int = 0
     ): ChatSummaryGenerationContext {
+        require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
+            // 优先读取最新总结之后的增量窗口
             val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
-            val messagesAfterSummary = mChatMessageDao.getMessagesAfterId(
+            val messageWindow = loadSummaryMessagesAfterId(
                 sessionId = sessionId,
-                coveredMessageId = latestSummary?.coveredMessageId ?: 0L
+                coveredMessageId = latestSummary?.coveredMessageId ?: 0L,
+                maxCandidateMessages = maxCandidateMessages
             )
-            if (messagesAfterSummary.isNotEmpty() || !allowRefreshLatest) {
+            if (messageWindow.messages.isNotEmpty() || !allowRefreshLatest) {
                 return@withTransaction ChatSummaryGenerationContext(
                     existingSummary = latestSummary?.content.orEmpty(),
-                    messages = messagesAfterSummary,
-                    summaryToUpdate = null
+                    messages = messageWindow.messages,
+                    summaryToUpdate = null,
+                    hasMoreCandidateMessages = messageWindow.hasMoreCandidateMessages
                 )
             }
 
+            // 手动刷新仅在最新总结确实覆盖会话末尾时回退上一摘要边界
             val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
             val refreshableSummary = latestSummary?.takeIf {
                 it.content.isNotBlank() &&
@@ -634,14 +663,17 @@ class ChatRepository(
                 sessionId = sessionId,
                 coveredMessageId = refreshBoundaryId
             )
+            val refreshWindow = loadSummaryMessagesInRange(
+                sessionId = sessionId,
+                afterMessageId = previousSummary?.coveredMessageId ?: 0L,
+                throughMessageId = refreshBoundaryId,
+                maxCandidateMessages = maxCandidateMessages
+            )
             ChatSummaryGenerationContext(
                 existingSummary = previousSummary?.content.orEmpty(),
-                messages = mChatMessageDao.getMessagesInRange(
-                    sessionId = sessionId,
-                    afterMessageId = previousSummary?.coveredMessageId ?: 0L,
-                    throughMessageId = refreshBoundaryId
-                ),
-                summaryToUpdate = refreshableSummary
+                messages = refreshWindow.messages,
+                summaryToUpdate = refreshableSummary,
+                hasMoreCandidateMessages = refreshWindow.hasMoreCandidateMessages
             )
         }
     }
@@ -1005,6 +1037,69 @@ class ChatRepository(
         return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
     }
 
+    /** 读取增量总结窗口，并把真实最新消息附在末尾供 Builder 按旧规则排除。 */
+    private suspend fun loadSummaryMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        maxCandidateMessages: Int
+    ): ChatSummaryMessageWindow {
+        // 无限制调用保留旧接口的完整范围语义
+        if (maxCandidateMessages == 0) {
+            return ChatSummaryMessageWindow(
+                messages = mChatMessageDao.getMessagesAfterId(sessionId, coveredMessageId),
+                hasMoreCandidateMessages = false
+            )
+        }
+        // 最新消息独立保留为 Builder 的排除哨兵，候选查询只读取最早窗口
+        val latestMessage = mChatMessageDao.getLatestMessageAfterId(
+            sessionId = sessionId,
+            coveredMessageId = coveredMessageId
+        ) ?: return ChatSummaryMessageWindow(emptyList(), false)
+        val candidates = mChatMessageDao.getFirstMessagesBeforeLatestAfterId(
+            sessionId = sessionId,
+            coveredMessageId = coveredMessageId,
+            latestCreateTime = latestMessage.createTime,
+            latestMessageId = latestMessage.id,
+            limit = summaryCandidateQueryLimit(maxCandidateMessages)
+        )
+        return candidates.toChatSummaryMessageWindow(maxCandidateMessages, latestMessage)
+    }
+
+    /** 读取手动刷新范围窗口，并保持最后一条消息排除语义不变。 */
+    private suspend fun loadSummaryMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        maxCandidateMessages: Int
+    ): ChatSummaryMessageWindow {
+        // 测试和兼容调用仍可显式读取完整刷新范围
+        if (maxCandidateMessages == 0) {
+            return ChatSummaryMessageWindow(
+                messages = mChatMessageDao.getMessagesInRange(
+                    sessionId,
+                    afterMessageId,
+                    throughMessageId
+                ),
+                hasMoreCandidateMessages = false
+            )
+        }
+        // 使用范围内真实末尾消息维持“最后一条不进入摘要”的既有行为
+        val latestMessage = mChatMessageDao.getLatestMessageInRange(
+            sessionId = sessionId,
+            afterMessageId = afterMessageId,
+            throughMessageId = throughMessageId
+        ) ?: return ChatSummaryMessageWindow(emptyList(), false)
+        val candidates = mChatMessageDao.getFirstMessagesBeforeLatestInRange(
+            sessionId = sessionId,
+            afterMessageId = afterMessageId,
+            throughMessageId = throughMessageId,
+            latestCreateTime = latestMessage.createTime,
+            latestMessageId = latestMessage.id,
+            limit = summaryCandidateQueryLimit(maxCandidateMessages)
+        )
+        return candidates.toChatSummaryMessageWindow(maxCandidateMessages, latestMessage)
+    }
+
     /** 回退最新摘要边界，并读取与旧行为一致的重生成历史范围。 */
     private suspend fun loadRegenerationPromptHistory(
         sessionId: Long,
@@ -1065,6 +1160,26 @@ class ChatRepository(
         return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
     }
 
+    /** 为候选窗口额外读取一行，用于判断是否需要继续扩展。 */
+    private fun summaryCandidateQueryLimit(maxCandidateMessages: Int): Int {
+        return if (maxCandidateMessages == Int.MAX_VALUE) {
+            Int.MAX_VALUE
+        } else {
+            maxCandidateMessages + 1
+        }
+    }
+
+    /** 将候选查询结果裁成窗口，并把真实最新消息附到末尾。 */
+    private fun List<ChatMessage>.toChatSummaryMessageWindow(
+        maxCandidateMessages: Int,
+        latestMessage: ChatMessage
+    ): ChatSummaryMessageWindow {
+        return ChatSummaryMessageWindow(
+            messages = take(maxCandidateMessages) + latestMessage,
+            hasMoreCandidateMessages = size > maxCandidateMessages
+        )
+    }
+
     /** 为可能需要排除的消息多读取一行，保证最终窗口仍可包含指定数量。 */
     private fun promptHistoryReadLimit(
         maxHistoryMessages: Int,
@@ -1116,4 +1231,10 @@ class ChatRepository(
         }
         return result
     }
+
+    /** Builder 使用的有限候选窗口及其扩展标记。 */
+    private data class ChatSummaryMessageWindow(
+        val messages: List<ChatMessage>,
+        val hasMoreCandidateMessages: Boolean
+    )
 }

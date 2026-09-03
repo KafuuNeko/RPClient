@@ -50,12 +50,15 @@ import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
+import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
-import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
@@ -66,6 +69,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -1718,8 +1722,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mChatRepository.getSessionById(sessionId)
             if (session?.autoSummaryPaused != false) return@withContext false
-            val messages = mChatRepository.getMessagesAfterLatestSummary(sessionId)
-            messages.isNotEmpty() && messages.size >= AppModel.summaryTriggerMessageCount
+            val messageCount = mChatRepository.getUnsummarizedMessageCount(sessionId)
+            messageCount > 0 && messageCount >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
             val job = launchSummaryJob(sessionId, showToast = false)
@@ -1741,46 +1745,58 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
         runCatching {
-            // 异步组装总结所需的基础数据（会话、角色、待总结切片、模型提供商）
+            // 异步组装不会随候选窗口变化的会话、角色和模型配置
             val data = withContext(Dispatchers.IO) {
                 val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
                 val character = mCharacterRepository.getCharacterById(session.characterId) ?: return@withContext null
-                val summaryContext = mChatRepository.getSummaryGenerationContext(
-                    sessionId = sessionId,
-                    allowRefreshLatest = showToast
-                )
                 val provider = mProviderSelectionResolver.requireSummaryProvider()
                 AutoSummaryData(
                     session = session,
                     character = character,
-                    summary = summaryContext.existingSummary,
-                    messages = summaryContext.messages,
-                    summaryIdToUpdate = summaryContext.summaryToUpdate?.id,
                     provider = provider
                 )
             } ?: return
-            // 检查待总结消息列表是否为空或未达自动阈值
-            if (data.messages.isEmpty()) {
+            // 自动摘要使用计数查询复核触发条件，不再反序列化完整历史
+            if (!showToast) {
+                val unsummarizedCount = withContext(Dispatchers.IO) {
+                    mChatRepository.getUnsummarizedMessageCount(sessionId)
+                }
+                if (unsummarizedCount < AppModel.summaryTriggerMessageCount) return
+            }
+            val maximumCandidates = summaryCandidateMessageLimit(
+                maxContextTokens = data.provider.contextTokens,
+                responseTokens = AppModel.summaryResponseTokens,
+                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest
+            )
+            val initialWindowSize = minOf(
+                INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                maximumCandidates
+            )
+            val initialContext = withContext(Dispatchers.IO) {
+                mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    allowRefreshLatest = showToast,
+                    maxCandidateMessages = initialWindowSize
+                )
+            }
+            if (initialContext.messages.isEmpty()) {
                 if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages).tryEmit()
                 return
             }
-            if (!showToast && data.messages.size < AppModel.summaryTriggerMessageCount) return
 
             // 设置 UI 为总结中弹窗状态
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
             uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
 
-            // 构建总结专用 Prompt 请求
-            val built = mSummaryPromptBuilder.buildWithSelection(
-                userName = data.session.userName,
-                userDescription = data.session.userDescription,
-                character = data.character,
-                session = data.session,
-                existingSummary = data.summary,
-                messages = data.messages,
-                provider = data.provider
-            )
-            if (built.selectedMessages.isEmpty()) return
+            // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
+            val prepared = buildSummaryRequest(
+                sessionId = sessionId,
+                allowRefreshLatest = showToast,
+                data = data,
+                initialContext = initialContext,
+                initialWindowSize = initialWindowSize,
+                maximumCandidates = maximumCandidates
+            ) ?: return
 
             currentCoroutineContext().ensureActive()
 
@@ -1788,7 +1804,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithProvider(
                     provider = data.provider,
-                    request = built.request,
+                    request = prepared.request,
                     routingSessionKey = "chat:$sessionId"
                 )
             }
@@ -1805,8 +1821,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mChatRepository.saveSummary(
                     sessionId = sessionId,
                     content = summaryContent,
-                    coveredMessageId = built.selectedMessages.last().id,
-                    summaryIdToUpdate = data.summaryIdToUpdate
+                    coveredMessageId = prepared.coveredMessageId,
+                    summaryIdToUpdate = prepared.summaryIdToUpdate
                 )
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
@@ -1821,6 +1837,60 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 uiState.copy(dialogState = guideDialog).setup()
             } else {
                 AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+            }
+        }
+    }
+
+    /**
+     * 按需扩展单聊摘要候选窗口，并在后台计算线程完成 Prompt 构建。
+     *
+     * 只有当前窗口全部进入预算且数据库仍有更早候选时才扩大窗口；一旦 Token 预算截断，
+     * 立即返回与完整历史构建相同的连续前缀及覆盖边界。
+     */
+    private suspend fun buildSummaryRequest(
+        sessionId: Long,
+        allowRefreshLatest: Boolean,
+        data: AutoSummaryData,
+        initialContext: ChatSummaryGenerationContext,
+        initialWindowSize: Int,
+        maximumCandidates: Int
+    ): PreparedSummaryRequest? {
+        var windowSize = initialWindowSize
+        var context = initialContext
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            // 格式化与 BPE Token 统计属于 CPU 密集任务，不能占用 UI 主线程
+            val built = withContext(Dispatchers.Default) {
+                mSummaryPromptBuilder.buildWithSelection(
+                    userName = data.session.userName,
+                    userDescription = data.session.userDescription,
+                    character = data.character,
+                    session = data.session,
+                    existingSummary = context.existingSummary,
+                    messages = context.messages,
+                    provider = data.provider
+                )
+            }
+            val candidateCount = (context.messages.size - 1).coerceAtLeast(0)
+            val shouldExpand = built.selectedMessages.size == candidateCount &&
+                context.hasMoreCandidateMessages &&
+                windowSize < maximumCandidates
+            if (!shouldExpand) {
+                val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
+                return PreparedSummaryRequest(
+                    request = built.request,
+                    coveredMessageId = coveredMessageId,
+                    summaryIdToUpdate = context.summaryToUpdate?.id
+                )
+            }
+            // 下一窗口仍从同一摘要边界读取，最终结果不依赖中间探测请求
+            windowSize = nextSummaryCandidateWindowSize(windowSize, maximumCandidates)
+            context = withContext(Dispatchers.IO) {
+                mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    allowRefreshLatest = allowRefreshLatest,
+                    maxCandidateMessages = windowSize
+                )
             }
         }
     }
@@ -2339,14 +2409,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val session: ChatSession,
         /** 当前状态或操作关联的角色数据。 */
         val character: Character,
-        /** 当前会话或故事使用的摘要内容。 */
-        val summary: String,
-        /** 当前状态或请求包含的消息列表。 */
-        val messages: List<ChatMessage>,
-        /** 生成完成后需要覆盖的既有摘要 ID。 */
-        val summaryIdToUpdate: Long?,
         /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider
+    )
+
+    /** 已完成预算选择、可以直接发送并写回覆盖边界的摘要请求。 */
+    private data class PreparedSummaryRequest(
+        val request: LLMGenerationRequest,
+        val coveredMessageId: Long,
+        val summaryIdToUpdate: Long?
     )
 
     /**

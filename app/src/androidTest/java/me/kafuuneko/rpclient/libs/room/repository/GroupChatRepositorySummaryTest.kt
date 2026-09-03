@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -157,5 +158,40 @@ class GroupChatRepositorySummaryTest {
         assertEquals(setOf(1L, 2L), selectionData.spokenCharacterIdsSinceLastUserMessage)
         assertEquals(1L, selectionData.lastCharacterSpeakerId)
         assertEquals("message-5", selectionData.latestNonSystemContent)
+    }
+
+    @Test
+    fun summaryGenerationDataKeepsOldestCandidatesAndLatestExclusionSentinel() = runBlocking {
+        (1..5).forEach { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = GroupChatMessage.Source.User,
+                content = "message-$index",
+                speakerCharacterId = null,
+                speakerNameSnapshot = "Alice",
+                createTime = index.toLong()
+            )
+        }
+
+        val limited = repository.getGroupChatSummaryData(
+            sessionId = sessionId,
+            maxCandidateMessages = 2
+        ) ?: error("Group chat should exist")
+        assertEquals(
+            listOf("message-1", "message-2", "message-5"),
+            limited.data.messages.map { it.content }
+        )
+        assertTrue(limited.hasMoreCandidateMessages)
+        assertEquals(5, repository.getUnsummarizedMessageCount(sessionId))
+
+        val expanded = repository.getGroupChatSummaryData(
+            sessionId = sessionId,
+            maxCandidateMessages = 10
+        ) ?: error("Group chat should exist")
+        assertEquals(
+            listOf("message-1", "message-2", "message-3", "message-4", "message-5"),
+            expanded.data.messages.map { it.content }
+        )
+        assertFalse(expanded.hasMoreCandidateMessages)
     }
 }

@@ -49,7 +49,11 @@ import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatMessageSource
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
+import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
@@ -66,6 +70,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatSpeakerSelectionData
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -1676,14 +1681,13 @@ class GroupChatViewModel :
      */
     private suspend fun maybeAutoSummarize(sessionId: Long) {
         if (!AppModel.autoSummaryEnabled) return
-        val session = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getSessionById(sessionId)
-        } ?: return
-        if (session.autoSummaryPaused) return
-        val messages = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getMessagesAfterLatestSummary(sessionId)
+        val shouldSummarize = withContext(Dispatchers.IO) {
+            val session = mGroupChatRepository.getSessionById(sessionId) ?: return@withContext false
+            if (session.autoSummaryPaused) return@withContext false
+            mGroupChatRepository.getUnsummarizedMessageCount(sessionId) >=
+                AppModel.summaryTriggerMessageCount
         }
-        if (messages.size < AppModel.summaryTriggerMessageCount) return
+        if (!shouldSummarize) return
         summarizeSession(sessionId, showToast = false)
     }
 
@@ -1697,30 +1701,38 @@ class GroupChatViewModel :
      */
     private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
         runCatching {
-            // 异步加载群聊数据、总结提供商与未总结消息切片
-            val data = withContext(Dispatchers.IO) {
-                mGroupChatRepository.getGroupChatData(sessionId)
-            } ?: return
+            // 先解析模型预算，再按小窗口读取最早的未总结消息
             val provider = withContext(Dispatchers.IO) {
                 mProviderSelectionResolver.requireSummaryProvider()
             }
-            val unsummarized = data.messages.filter {
-                it.id > (data.summary?.coveredMessageId ?: 0L)
-            }
-            // 构建群聊增量摘要 Prompt
-            val built = mSummaryPromptBuilder.buildWithSelection(
-                session = data.session,
-                memberNames = data.members.map { it.character.name },
-                existingSummary = data.summary?.content.orEmpty(),
-                messages = unsummarized,
-                provider = provider
+            val maximumCandidates = summaryCandidateMessageLimit(
+                maxContextTokens = provider.contextTokens,
+                responseTokens = AppModel.summaryResponseTokens,
+                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest
             )
-            if (built.selectedMessages.isEmpty()) return
-            // 调用模型生成摘要
+            val initialWindowSize = minOf(
+                INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                maximumCandidates
+            )
+            val initialData = withContext(Dispatchers.IO) {
+                mGroupChatRepository.getGroupChatSummaryData(
+                    sessionId = sessionId,
+                    maxCandidateMessages = initialWindowSize
+                )
+            } ?: return
+            // 格式化与 Token 统计在后台线程按需扩展，主线程只负责状态调度
+            val prepared = buildGroupSummaryRequest(
+                sessionId = sessionId,
+                provider = provider,
+                initialData = initialData,
+                initialWindowSize = initialWindowSize,
+                maximumCandidates = maximumCandidates
+            ) ?: return
+            currentCoroutineContext().ensureActive()
             val response = withContext(Dispatchers.IO) {
                 mLLMRepository.generateWithProvider(
                     provider = provider,
-                    request = built.request,
+                    request = prepared.request,
                     routingSessionKey = "group-chat:$sessionId"
                 )
             }
@@ -1733,7 +1745,7 @@ class GroupChatViewModel :
                 mGroupChatRepository.saveSummary(
                     sessionId = sessionId,
                     content = summaryContent,
-                    coveredMessageId = built.selectedMessages.last().id
+                    coveredMessageId = prepared.coveredMessageId
                 )
             }
             if (showToast) {
@@ -1751,6 +1763,53 @@ class GroupChatViewModel :
             } else if (showToast) {
                 AppViewEvent.PopupToastMessage(failure.message).tryEmit()
             }
+        }
+    }
+
+    /**
+     * 按需扩展群聊摘要候选窗口，并在后台计算线程完成 Prompt 构建。
+     *
+     * 仅当当前窗口全部符合预算且数据库仍有候选消息时继续扩大；最终请求的消息顺序、
+     * 最新消息排除规则和摘要覆盖边界与完整历史构建保持一致。
+     */
+    private suspend fun buildGroupSummaryRequest(
+        sessionId: Long,
+        provider: LLMProvider,
+        initialData: GroupChatSummaryGenerationData,
+        initialWindowSize: Int,
+        maximumCandidates: Int
+    ): PreparedGroupSummaryRequest? {
+        var windowSize = initialWindowSize
+        var generationData = initialData
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val data = generationData.data
+            // 群聊历史格式化和 BPE 统计不得阻塞 Compose 所在的主线程
+            val built = withContext(Dispatchers.Default) {
+                mSummaryPromptBuilder.buildWithSelection(
+                    session = data.session,
+                    memberNames = data.members.map { it.character.name },
+                    existingSummary = data.summary?.content.orEmpty(),
+                    messages = data.messages,
+                    provider = provider
+                )
+            }
+            val candidateCount = (data.messages.size - 1).coerceAtLeast(0)
+            val shouldExpand = built.selectedMessages.size == candidateCount &&
+                generationData.hasMoreCandidateMessages &&
+                windowSize < maximumCandidates
+            if (!shouldExpand) {
+                val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
+                return PreparedGroupSummaryRequest(built.request, coveredMessageId)
+            }
+            // 扩展仍从同一摘要边界读取，探测过程不会改变持久化覆盖位置
+            windowSize = nextSummaryCandidateWindowSize(windowSize, maximumCandidates)
+            generationData = withContext(Dispatchers.IO) {
+                mGroupChatRepository.getGroupChatSummaryData(
+                    sessionId = sessionId,
+                    maxCandidateMessages = windowSize
+                )
+            } ?: return null
         }
     }
 
@@ -2241,6 +2300,12 @@ class GroupChatViewModel :
         val items: List<GroupChatMessageItem>,
         val cursor: GroupChatMessageCursor?,
         val canLoadOlderMessages: Boolean
+    )
+
+    /** 已完成预算选择、可以直接发送并写回覆盖边界的群聊摘要请求。 */
+    private data class PreparedGroupSummaryRequest(
+        val request: LLMGenerationRequest,
+        val coveredMessageId: Long
     )
 
     private companion object {

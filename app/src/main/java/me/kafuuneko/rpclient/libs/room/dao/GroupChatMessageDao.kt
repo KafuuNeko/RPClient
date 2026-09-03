@@ -65,6 +65,55 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
         messageId: Long
     ): List<GroupChatMessage>
 
+    /** 统计摘要边界之后尚未覆盖的群聊消息数量。 */
+    @Query(
+        """
+        SELECT COUNT(*) FROM group_chat_messages
+        WHERE sessionId = :sessionId AND id > :messageId
+        """
+    )
+    suspend fun getMessageCountAfterId(sessionId: Long, messageId: Long): Int
+
+    /** 读取摘要边界之后按稳定顺序排列的最后一条群聊消息。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId AND id > :messageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessageAfterId(
+        sessionId: Long,
+        messageId: Long
+    ): GroupChatMessage?
+
+    /**
+     * 读取摘要边界之后、最新消息之前的最早候选窗口。
+     *
+     * 最新消息由 Repository 单独附加，确保 Builder 继续按旧规则将其排除。
+     */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId
+          AND id > :messageId
+          AND (
+              createTime < :latestCreateTime
+              OR (createTime = :latestCreateTime AND id < :latestMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstMessagesBeforeLatestAfterId(
+        sessionId: Long,
+        messageId: Long,
+        latestCreateTime: Long,
+        latestMessageId: Long,
+        limit: Int
+    ): List<GroupChatMessage>
+
     /** 根据主键读取单条群聊消息。 */
     @Query("SELECT * FROM group_chat_messages WHERE id = :id")
     suspend fun getMessageById(id: Long): GroupChatMessage?

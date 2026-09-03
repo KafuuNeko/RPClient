@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -229,5 +230,52 @@ class ChatRepositorySummaryTest {
         assertEquals("summary-through-6", unlimited.summary)
         assertTrue(unlimited.messages.isEmpty())
         assertEquals(6, unlimited.totalMessageCount)
+    }
+
+    @Test
+    fun summaryGenerationWindowKeepsOldestCandidatesAndLatestExclusionSentinel() = runBlocking {
+        val messageIds = (1..6).map { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = ChatMessage.Source.User,
+                content = "message-$index",
+                createTime = index.toLong()
+            )
+        }
+
+        val limited = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            allowRefreshLatest = false,
+            maxCandidateMessages = 2
+        )
+        assertEquals(
+            listOf("message-1", "message-2", "message-6"),
+            limited.messages.map { it.content }
+        )
+        assertTrue(limited.hasMoreCandidateMessages)
+
+        repository.saveSummary(sessionId, "summary-through-2", messageIds[1])
+        val afterSummary = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            allowRefreshLatest = false,
+            maxCandidateMessages = 2
+        )
+        assertEquals(
+            listOf("message-3", "message-4", "message-6"),
+            afterSummary.messages.map { it.content }
+        )
+        assertTrue(afterSummary.hasMoreCandidateMessages)
+        assertEquals(4, repository.getUnsummarizedMessageCount(sessionId))
+
+        val expanded = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            allowRefreshLatest = false,
+            maxCandidateMessages = 10
+        )
+        assertEquals(
+            listOf("message-3", "message-4", "message-5", "message-6"),
+            expanded.messages.map { it.content }
+        )
+        assertFalse(expanded.hasMoreCandidateMessages)
     }
 }

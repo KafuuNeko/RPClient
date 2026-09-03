@@ -137,6 +137,60 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getMessagesAfterId(sessionId: Long, coveredMessageId: Long): List<ChatMessage>
 
+    /** 统计总结边界之后尚未覆盖的普通消息数量。 */
+    @Query(
+        """
+        SELECT COUNT(*) FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        """
+    )
+    suspend fun getMessageCountAfterId(sessionId: Long, coveredMessageId: Long): Int
+
+    /** 读取总结边界之后按稳定顺序排列的最后一条普通消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessageAfterId(
+        sessionId: Long,
+        coveredMessageId: Long
+    ): ChatMessage?
+
+    /**
+     * 读取总结边界之后、最新消息之前的最早候选窗口。
+     *
+     * 最新消息由 Repository 单独附加，确保 Builder 继续按旧规则将其排除。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+          AND (
+              createTime < :latestCreateTime
+              OR (createTime = :latestCreateTime AND id < :latestMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstMessagesBeforeLatestAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        latestCreateTime: Long,
+        latestMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
     /** 从会话末尾读取总结边界之后的有限普通消息窗口。 */
     @Query(
         """
@@ -176,6 +230,49 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         afterMessageId: Long,
         throughMessageId: Long
+    ): List<ChatMessage>
+
+    /** 读取指定摘要范围按稳定顺序排列的最后一条普通消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessageInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long
+    ): ChatMessage?
+
+    /** 读取指定摘要范围内、最后一条消息之前的最早候选窗口。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+          AND (
+              createTime < :latestCreateTime
+              OR (createTime = :latestCreateTime AND id < :latestMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstMessagesBeforeLatestInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        latestCreateTime: Long,
+        latestMessageId: Long,
+        limit: Int
     ): List<ChatMessage>
 
     /** 从范围末尾读取有限普通消息窗口，供重生成回退总结边界时使用。 */

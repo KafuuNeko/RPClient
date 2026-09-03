@@ -35,6 +35,17 @@ interface PromptTokenizer {
     /** 统计纯文本 Token 数。 */
     fun countText(text: String): Int
 
+    /**
+     * 在只关心是否超过上限时统计纯文本 Token 数。
+     *
+     * 未超过 [maxTokens] 时必须返回精确值；超过时允许返回任意大于上限的值，使预算探测
+     * 可以提前停止。默认实现保持兼容并执行完整统计，内置 BPE 实现会使用编码器的截断能力。
+     */
+    fun countTextUpTo(text: String, maxTokens: Int): Int {
+        require(maxTokens >= 0) { "maxTokens must not be negative" }
+        return countText(text)
+    }
+
     /** 统计一条消息的角色、正文及固定模板开销。 */
     fun countMessage(message: LLMMessage): Int {
         return MESSAGE_OVERHEAD_TOKENS +
@@ -48,9 +59,43 @@ interface PromptTokenizer {
         return messages.sumOf(::countMessage) + RESPONSE_PRIMER_TOKENS
     }
 
+    /**
+     * 在只关心是否超过上限时统计完整消息列表。
+     *
+     * 每条消息的角色和模板开销仍与 [countMessages] 完全一致；正文超过剩余预算时立即返回
+     * 上限外哨兵值，避免为已确定超限的大段摘要历史继续分词。
+     */
+    fun countMessagesUpTo(messages: List<LLMMessage>, maxTokens: Int): Int {
+        require(maxTokens >= 0) { "maxTokens must not be negative" }
+        if (messages.isEmpty()) return 0
+        // 先计入列表和角色模板的固定开销，正文只使用剩余预算进行有界统计
+        var total = RESPONSE_PRIMER_TOKENS
+        if (total > maxTokens) return overLimitTokenCount(maxTokens)
+        for (message in messages) {
+            val fixedMessageTokens = MESSAGE_OVERHEAD_TOKENS +
+                countText(message.role.name.lowercase())
+            if (fixedMessageTokens > maxTokens - total) {
+                return overLimitTokenCount(maxTokens)
+            }
+            total += fixedMessageTokens
+            val remainingTokens = maxTokens - total
+            val contentTokens = countTextUpTo(message.content, remainingTokens)
+            if (contentTokens > remainingTokens) {
+                return overLimitTokenCount(maxTokens)
+            }
+            total += contentTokens
+        }
+        // 未触发哨兵时返回值必须与完整 countMessages 完全一致
+        return total
+    }
+
     private companion object {
         const val MESSAGE_OVERHEAD_TOKENS = 3
         const val RESPONSE_PRIMER_TOKENS = 3
+
+        fun overLimitTokenCount(maxTokens: Int): Int {
+            return if (maxTokens == Int.MAX_VALUE) Int.MAX_VALUE else maxTokens + 1
+        }
     }
 }
 
@@ -234,6 +279,17 @@ private class JTokkitPromptTokenizer(
         if (text.isEmpty()) return 0
         return mEncoding.countTokensOrdinary(text)
     }
+
+    override fun countTextUpTo(text: String, maxTokens: Int): Int {
+        if (text.isEmpty()) return 0
+        if (maxTokens == Int.MAX_VALUE) return countText(text)
+        val result = mEncoding.encodeOrdinary(text, maxTokens + 1)
+        return if (result.isTruncated || result.tokens.size() > maxTokens) {
+            maxTokens + 1
+        } else {
+            result.tokens.size()
+        }
+    }
 }
 
 /** 用可离线运行的 BPE 作为模型族代理，并按真实预算比例加入估算预留。 */
@@ -249,6 +305,25 @@ private class EstimatedBpePromptTokenizer(
     override fun countText(text: String): Int {
         if (text.isEmpty()) return 0
         val baseTokens = mEncoding.countTokensOrdinary(text)
+        return applyReserve(baseTokens)
+    }
+
+    override fun countTextUpTo(text: String, maxTokens: Int): Int {
+        if (text.isEmpty()) return 0
+        if (maxTokens == Int.MAX_VALUE) return countText(text)
+        val maxBaseTokens = (maxTokens.toLong() * (100 - reservePercent) / 100)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+        val result = mEncoding.encodeOrdinary(text, maxBaseTokens + 1)
+        return if (result.isTruncated || result.tokens.size() > maxBaseTokens) {
+            maxTokens + 1
+        } else {
+            applyReserve(result.tokens.size())
+        }
+    }
+
+    /** 将底层编码器计数统一换算为包含预算预留的统计值。 */
+    private fun applyReserve(baseTokens: Int): Int {
         return ceil(baseTokens * 100.0 / (100 - reservePercent)).toInt().coerceAtLeast(1)
     }
 }

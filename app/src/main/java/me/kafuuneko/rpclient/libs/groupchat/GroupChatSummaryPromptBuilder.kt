@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
 import me.kafuuneko.rpclient.libs.prompt.selectSummaryPrefix
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidates
+import me.kafuuneko.rpclient.libs.prompt.summaryPromptBudget
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -36,14 +37,11 @@ class GroupChatSummaryPromptBuilder(
         provider: LLMProvider
     ): GroupChatSummaryBuildResult {
         val responseTokens = AppModel.summaryResponseTokens
-        val promptBudget = provider.contextTokens - responseTokens
-        require(promptBudget > 0) {
-            "Summary response token reserve must be smaller than the context token limit."
-        }
+        val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
         val safeExistingSummary = existingSummary.summarySafeContent()
-        val sanitizedById = limited.associate { message ->
-            message.id to message.copy(content = message.content.summarySafeContent())
+        val sanitized = limited.map { message ->
+            message.copy(content = message.content.summarySafeContent())
         }
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
@@ -51,16 +49,16 @@ class GroupChatSummaryPromptBuilder(
                 session,
                 memberNames,
                 safeExistingSummary,
-                prefix.map { sanitizedById.getValue(it.id) }
+                sanitized.subList(0, prefix.size)
             )
-            tokenizer.countMessages(requestMessages)
+            tokenizer.countMessagesUpTo(requestMessages, promptBudget)
         }
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
                 session,
                 memberNames,
                 safeExistingSummary,
-                listOf(sanitizedById.getValue(limited.first().id))
+                listOf(sanitized.first())
             )
             throw PromptBudgetExceededException(
                 tokenizer.countMessages(requestMessages),
@@ -71,7 +69,7 @@ class GroupChatSummaryPromptBuilder(
             session,
             memberNames,
             safeExistingSummary,
-            selected.map { sanitizedById.getValue(it.id) }
+            sanitized.take(selected.size)
         )
         return GroupChatSummaryBuildResult(
             request = LLMGenerationRequest(
