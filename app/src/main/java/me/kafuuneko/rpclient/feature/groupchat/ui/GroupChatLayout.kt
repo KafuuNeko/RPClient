@@ -166,9 +166,7 @@ private fun GroupChatNormalView(
         return
     }
     val generating = state.conversationState.generationState is GroupChatGenerationState.Generating
-    val canContinue = state.conversationState.messages.any {
-        it.source == GroupChatMessageSource.Character
-    }
+    val canContinue = state.conversationState.hasCharacterMessage
     Scaffold(
         topBar = {
             AppTopBar(
@@ -1979,6 +1977,7 @@ private fun GroupChatPreview() {
                 activeActivationStrategy = GroupChatActivationStrategy.Natural,
                 conversationState = GroupChatConversationState(
                     messages = previewMessages,
+                    hasCharacterMessage = true,
                     selectedSpeakerId = 1
                 ),
                 settingsState = GroupChatSettingsState(

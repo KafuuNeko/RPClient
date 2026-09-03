@@ -2033,7 +2033,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
-        val messagePage = mChatRepository.getLatestMessagePage(sessionId, messageLimit)
+        val pageData = mChatRepository.getChatPageData(sessionId, messageLimit)
+        val messagePage = pageData.page
         val displayContext = ChatMessageDisplayContext(session, character)
         val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext)
         mMessageDisplayContext = displayContext
@@ -2063,6 +2064,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ),
             conversationState = ChatConversationState(
                 messages = displayMessages,
+                hasAssistantMessage = pageData.hasCharacterMessage,
                 canLoadOlderMessages = messagePage.canLoadOlderMessages,
                 inputDraft = inputDraft,
                 generationState = generationState,

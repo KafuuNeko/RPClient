@@ -50,6 +50,8 @@ sealed class ChatUiState {
 data class ChatConversationState(
     /** 当前状态或请求包含的消息列表。 */
     val messages: List<ChatMessageUiModel>,
+    /** 完整会话历史中是否存在角色回复，不受当前分页窗口限制。 */
+    val hasAssistantMessage: Boolean,
     /** 当前已加载窗口之前是否仍有更早消息。 */
     val canLoadOlderMessages: Boolean = false,
     /** 当前是否正在向列表头部加载更早消息。 */

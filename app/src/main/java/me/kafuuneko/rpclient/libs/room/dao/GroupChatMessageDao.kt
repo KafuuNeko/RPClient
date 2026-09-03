@@ -151,6 +151,22 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getLatestCharacterMessage(sessionId: Long): GroupChatMessage?
 
+    /**
+     * 判断指定群聊的完整历史中是否存在角色消息。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @return 存在至少一条角色消息时返回 true。
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM group_chat_messages
+            WHERE sessionId = :sessionId AND source = 'Character'
+        )
+        """
+    )
+    suspend fun hasCharacterMessage(sessionId: Long): Boolean
+
     /** 读取会话最后一条非系统消息，供空输入触发生成时使用。 */
     @Query(
         """

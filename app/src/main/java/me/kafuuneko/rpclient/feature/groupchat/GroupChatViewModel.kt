@@ -2025,6 +2025,7 @@ class GroupChatViewModel :
             page = page,
             conversationState = GroupChatConversationState(
                 messages = data.toMessageItems(),
+                hasCharacterMessage = pageData.hasCharacterMessage,
                 canLoadOlderMessages = pageData.canLoadOlderMessages,
                 selectedSpeakerId = effectiveSpeakerId,
                 inputDraft = inputDraft,

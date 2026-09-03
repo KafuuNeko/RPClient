@@ -67,6 +67,8 @@ internal fun GroupChatUiState.Normal.withSettingsDraft(
 data class GroupChatConversationState(
     /** 当前状态或请求包含的消息列表。 */
     val messages: List<GroupChatMessageItem>,
+    /** 完整群聊历史中是否存在角色消息，不受当前分页窗口限制。 */
+    val hasCharacterMessage: Boolean,
     /** 当前已加载窗口之前是否仍有更早消息。 */
     val canLoadOlderMessages: Boolean = false,
     /** 当前是否正在向列表头部加载更早消息。 */

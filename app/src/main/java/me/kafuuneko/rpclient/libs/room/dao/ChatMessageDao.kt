@@ -406,6 +406,22 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getLatestCharacterMessageBySessionId(sessionId: Long): ChatMessage?
 
     /**
+     * 判断指定会话的完整历史中是否存在角色消息。
+     *
+     * @param sessionId 会话 ID。
+     * @return 存在至少一条角色消息时返回 true。
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM chat_messages
+            WHERE sessionId = :sessionId AND source = 'Char'
+        )
+        """
+    )
+    suspend fun hasCharacterMessageBySessionId(sessionId: Long): Boolean
+
+    /**
      * 修改消息正文。
      *
      * @param id 消息 id。

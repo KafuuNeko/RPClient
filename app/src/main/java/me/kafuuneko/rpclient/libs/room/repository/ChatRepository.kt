@@ -63,6 +63,17 @@ data class ChatMessagePage(
 )
 
 /**
+ * 单聊页面使用的最近消息窗口及其会话级能力元数据。
+ *
+ * @property page 当前展示的最近消息窗口。
+ * @property hasCharacterMessage 完整会话历史中是否存在角色消息。
+ */
+data class ChatPageData(
+    val page: ChatMessagePage,
+    val hasCharacterMessage: Boolean
+)
+
+/**
  * 单聊会话、消息和摘要的事务仓库。
  *
  * 编辑或删除普通消息时会同步清理覆盖该消息的摘要；创建消息和分支时负责维护
@@ -441,21 +452,25 @@ class ChatRepository(
      *
      * @param sessionId 会话 ID。
      * @param pageSize 页面实际接收的最大消息数量。
-     * @return 最新消息页及会话总消息数。
+     * @return 最近消息窗口及完整会话的角色消息能力。
      */
-    suspend fun getLatestMessagePage(
+    suspend fun getChatPageData(
         sessionId: Long,
         pageSize: Int
-    ): ChatMessagePage {
+    ): ChatPageData {
         require(pageSize > 0) { "pageSize must be positive" }
         return mAppDatabase.withTransaction {
+            // 消息窗口与会话级能力必须来自同一快照，避免页面出现短暂矛盾状态
             val rows = mChatMessageDao.getLatestMessagePageBySessionId(
                 sessionId = sessionId,
                 limit = pageSize + 1
             )
-            rows.toChatMessagePage(
-                pageSize = pageSize,
-                totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+            ChatPageData(
+                page = rows.toChatMessagePage(
+                    pageSize = pageSize,
+                    totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+                ),
+                hasCharacterMessage = mChatMessageDao.hasCharacterMessageBySessionId(sessionId)
             )
         }
     }

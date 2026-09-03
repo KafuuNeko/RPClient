@@ -337,9 +337,7 @@ private fun ChatNormal(
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
-            hasAssistantMessage = state.conversationState.messages.any {
-                it.role == MessageRole.Assistant
-            },
+            hasAssistantMessage = state.conversationState.hasAssistantMessage,
             emit = emit
         )
     }
@@ -1831,7 +1829,8 @@ private fun ChatLayoutPreview() {
                             time = "02:15",
                             tokenCount = 12
                         )
-                    )
+                    ),
+                    hasAssistantMessage = true
                 ),
                 lorebookState = ChatLorebookState(
                     groups = listOf(

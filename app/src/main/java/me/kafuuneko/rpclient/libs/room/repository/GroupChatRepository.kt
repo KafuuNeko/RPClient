@@ -75,10 +75,12 @@ data class GroupChatSpeakerSelectionData(
  *
  * @property data 会话、成员、当前消息窗口和摘要组成的聚合数据。
  * @property canLoadOlderMessages 当前窗口之前是否仍有更早消息。
+ * @property hasCharacterMessage 完整群聊历史中是否存在角色消息。
  */
 data class GroupChatPageData(
     val data: GroupChatData,
-    val canLoadOlderMessages: Boolean
+    val canLoadOlderMessages: Boolean,
+    val hasCharacterMessage: Boolean
 )
 
 /**
@@ -290,7 +292,8 @@ class GroupChatRepository(
                     messages = page.messages,
                     summary = mSummaryDao.getLatest(sessionId)
                 ),
-                canLoadOlderMessages = page.canLoadOlderMessages
+                canLoadOlderMessages = page.canLoadOlderMessages,
+                hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId)
             )
         }
     }
