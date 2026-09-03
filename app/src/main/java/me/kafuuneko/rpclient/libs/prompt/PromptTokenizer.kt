@@ -28,6 +28,9 @@ interface PromptTokenizer {
     /** 代理估算应用的真实预算预留率；精确实现固定为 0。 */
     val reservePercent: Int
         get() = 0
+    /** 完整列表统计是否等于逐条统计之和加固定的非空列表开销。 */
+    val supportsIncrementalMessageCounting: Boolean
+        get() = false
 
     /** 统计纯文本 Token 数。 */
     fun countText(text: String): Int
@@ -225,6 +228,7 @@ private class JTokkitPromptTokenizer(
 ) : PromptTokenizer {
     override val name: String = "JTokkit ${mEncoding.name}"
     override val strategy: PromptTokenizerStrategy = PromptTokenizerStrategy.ModelAware
+    override val supportsIncrementalMessageCounting: Boolean = true
 
     override fun countText(text: String): Int {
         if (text.isEmpty()) return 0
@@ -240,6 +244,7 @@ private class EstimatedBpePromptTokenizer(
 ) : PromptTokenizer {
     override val name: String = label
     override val strategy: PromptTokenizerStrategy = PromptTokenizerStrategy.Estimated
+    override val supportsIncrementalMessageCounting: Boolean = true
 
     override fun countText(text: String): Int {
         if (text.isEmpty()) return 0

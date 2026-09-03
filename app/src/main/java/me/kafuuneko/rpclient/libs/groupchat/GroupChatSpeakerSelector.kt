@@ -8,6 +8,17 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 
 /**
+ * 发言者选择算法使用的历史投影。
+ *
+ * @property spokenCharacterIdsSinceLastUserMessage 上一条用户消息之后发言过的角色 ID。
+ * @property lastCharacterSpeakerId 最近一条角色消息的发言者 ID。
+ */
+data class GroupChatSpeakerHistory(
+    val spokenCharacterIdsSinceLastUserMessage: Set<Long>,
+    val lastCharacterSpeakerId: Long?
+)
+
+/**
  * 根据群聊激活策略选择本轮一个或多个发言成员。
  *
  * 支持四种激活策略：
@@ -29,6 +40,31 @@ class GroupChatSpeakerSelector {
         manualCharacterId: Long?,
         random: Random = Random.Default
     ): List<GroupChatMemberData> {
+        return select(
+            session = session,
+            members = members,
+            history = messages.toSpeakerHistory(),
+            activationText = activationText,
+            isUserInput = isUserInput,
+            manualCharacterId = manualCharacterId,
+            random = random
+        )
+    }
+
+    /**
+     * 根据预先聚合的最小历史投影选择本轮发言者。
+     *
+     * 此入口避免大型群聊为了调度发言者而读取完整消息实体列表。
+     */
+    fun select(
+        session: GroupChatSession,
+        members: List<GroupChatMemberData>,
+        history: GroupChatSpeakerHistory,
+        activationText: String,
+        isUserInput: Boolean,
+        manualCharacterId: Long?,
+        random: Random = Random.Default
+    ): List<GroupChatMemberData> {
         // 过滤已被静音的成员
         val available = members.filterNot { it.relation.muted }
         if (available.isEmpty()) return emptyList()
@@ -45,13 +81,13 @@ class GroupChatSpeakerSelector {
             }
             GroupChatSession.ActivationStrategy.List -> available
             GroupChatSession.ActivationStrategy.Pooled -> {
-                listOf(selectPooled(available, messages, isUserInput, random))
+                listOf(selectPooled(available, history, isUserInput, random))
             }
             GroupChatSession.ActivationStrategy.Natural -> {
                 selectNatural(
                     session = session,
                     members = available,
-                    messages = messages,
+                    history = history,
                     activationText = activationText,
                     isUserInput = isUserInput,
                     random = random
@@ -70,7 +106,7 @@ class GroupChatSpeakerSelector {
      */
     private fun selectPooled(
         members: List<GroupChatMemberData>,
-        messages: List<GroupChatMessage>,
+        history: GroupChatSpeakerHistory,
         isUserInput: Boolean,
         random: Random
     ): GroupChatMemberData {
@@ -78,17 +114,12 @@ class GroupChatSpeakerSelector {
         val spokenSinceUser = if (isUserInput) {
             emptySet()
         } else {
-            messages.asReversed()
-                .takeWhile { it.source != GroupChatMessage.Source.User }
-                .mapNotNull { it.speakerCharacterId }
-                .toSet()
+            history.spokenCharacterIdsSinceLastUserMessage
         }
         // 筛选未发言候选者；若都已发言则排除上一条消息发言者（避免单人连续发言）
         val candidates = members.filterNot { it.character.id in spokenSinceUser }
             .ifEmpty {
-                val lastSpeakerId = messages.lastOrNull {
-                    it.source == GroupChatMessage.Source.Character
-                }?.speakerCharacterId
+                val lastSpeakerId = history.lastCharacterSpeakerId
                 members.filterNot {
                     members.size > 1 && it.character.id == lastSpeakerId
                 }.ifEmpty { members }
@@ -108,15 +139,13 @@ class GroupChatSpeakerSelector {
     private fun selectNatural(
         session: GroupChatSession,
         members: List<GroupChatMemberData>,
-        messages: List<GroupChatMessage>,
+        history: GroupChatSpeakerHistory,
         activationText: String,
         isUserInput: Boolean,
         random: Random
     ): List<GroupChatMemberData> {
         // 判定自回复限制
-        val lastSpeakerId = messages.lastOrNull {
-            it.source == GroupChatMessage.Source.Character
-        }?.speakerCharacterId
+        val lastSpeakerId = history.lastCharacterSpeakerId
         val candidates = if (session.allowSelfResponses || isUserInput) {
             members
         } else {
@@ -139,6 +168,19 @@ class GroupChatSpeakerSelector {
         // 若均未激活，从活跃度大于 0 的池中保底抽取一名
         val randomPool = candidates.filter { it.talkativeness() > 0.0 }.ifEmpty { candidates }
         return activated.ifEmpty { listOf(randomPool.random(random)) }
+    }
+
+    /** 从完整消息列表提取与数据库投影相同的发言历史信息。 */
+    private fun List<GroupChatMessage>.toSpeakerHistory(): GroupChatSpeakerHistory {
+        return GroupChatSpeakerHistory(
+            spokenCharacterIdsSinceLastUserMessage = asReversed()
+                .takeWhile { it.source != GroupChatMessage.Source.User }
+                .mapNotNull { it.speakerCharacterId }
+                .toSet(),
+            lastCharacterSpeakerId = lastOrNull {
+                it.source == GroupChatMessage.Source.Character
+            }?.speakerCharacterId
+        )
     }
 
     /** 从角色扩展字段读取活跃度，并限制在 [0.0, 1.0] 有效概率区间。 */

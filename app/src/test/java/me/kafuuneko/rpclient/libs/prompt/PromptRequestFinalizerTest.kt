@@ -147,6 +147,81 @@ class PromptRequestFinalizerTest {
     }
 
     @Test
+    fun noneModeCachesTokenCountsAndKeepsOriginalRemovalOrder() {
+        val countingTokenizer = object : PromptTokenizer {
+            override val name = "Counting tokenizer"
+            override val strategy = PromptTokenizerStrategy.ModelAware
+            override val supportsIncrementalMessageCounting = true
+            var countTextCallCount = 0
+
+            override fun countText(text: String): Int {
+                countTextCallCount += 1
+                return text.length
+            }
+        }
+        val draftCount = 2_000
+        val drafts = List(draftCount) { index ->
+            PromptMessageDraft(
+                role = LLMMessageRole.System,
+                content = "x",
+                source = PromptSource(PromptSourceKind.ChatHistory, "item-$index"),
+                retentionPriority = PromptRetentionPolicy.HISTORY,
+                canDrop = index != draftCount - 1
+            )
+        }
+
+        val result = PromptRequestFinalizer { countingTokenizer }.finalize(
+            drafts = drafts,
+            provider = null,
+            model = "test",
+            options = LLMGenerationOptions(maxTokens = 10),
+            includeReasoningInContent = false,
+            maxContextTokens = 113,
+            maxResponseTokens = 10,
+            postProcessingMode = PromptPostProcessingMode.None,
+            strictPromptPlaceholder = "[Start]"
+        )
+
+        assertEquals(10, result.request.messages.size)
+        assertEquals("item-0", result.inspection.omittedItems.first().source.detail)
+        assertEquals("item-1989", result.inspection.omittedItems.last().source.detail)
+        assertEquals("item-1990", result.inspection.items.first().sources.single().detail)
+        assertTrue(countingTokenizer.countTextCallCount <= draftCount * 3 + 2)
+    }
+
+    @Test
+    fun noneModeIncrementalPathMatchesExactFallback() {
+        val drafts = List(80) { index ->
+            PromptMessageDraft(
+                role = if (index % 2 == 0) {
+                    LLMMessageRole.User
+                } else {
+                    LLMMessageRole.Assistant
+                },
+                content = if (index % 13 == 0) "" else "message-$index-${"x".repeat(index % 7)}",
+                source = PromptSource(PromptSourceKind.ChatHistory, "item-$index"),
+                retentionPriority = index % 5,
+                canDrop = index != 79
+            )
+        }
+
+        listOf(90, 220, 800).forEach { contextTokens ->
+            val incremental = finalizeWithTokenizer(
+                drafts = drafts,
+                contextTokens = contextTokens,
+                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = true)
+            )
+            val exactFallback = finalizeWithTokenizer(
+                drafts = drafts,
+                contextTokens = contextTokens,
+                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = false)
+            )
+
+            assertEquals(exactFallback, incremental)
+        }
+    }
+
+    @Test
     fun tokenizerRegistryUsesExactOpenAiAndModelFamilyProxies() {
         val registry = PromptTokenizerRegistry()
         val openAi = registry.resolve(
@@ -365,6 +440,24 @@ class PromptRequestFinalizerTest {
         )
     }
 
+    private fun finalizeWithTokenizer(
+        drafts: List<PromptMessageDraft>,
+        contextTokens: Int,
+        tokenizer: PromptTokenizer
+    ): PromptFinalizationResult {
+        return PromptRequestFinalizer { tokenizer }.finalize(
+            drafts = drafts,
+            provider = null,
+            model = "test",
+            options = LLMGenerationOptions(maxTokens = 10),
+            includeReasoningInContent = false,
+            maxContextTokens = contextTokens,
+            maxResponseTokens = 10,
+            postProcessingMode = PromptPostProcessingMode.None,
+            strictPromptPlaceholder = "[Start]"
+        )
+    }
+
     private fun draft(
         content: String,
         priority: Int,
@@ -392,5 +485,15 @@ class PromptRequestFinalizerTest {
             baseUrl = "https://example.invalid",
             model = model
         )
+    }
+
+    /** 用于比较增量路径与精确回退路径的确定性 Tokenizer。 */
+    private class LengthPromptTokenizer(
+        override val supportsIncrementalMessageCounting: Boolean
+    ) : PromptTokenizer {
+        override val name = "Length tokenizer"
+        override val strategy = PromptTokenizerStrategy.ModelAware
+
+        override fun countText(text: String): Int = text.length
     }
 }

@@ -733,6 +733,8 @@
     <string name="prompt_post_processing_single_user_desc">Convert every message to user, add speaker names, then merge them.</string>
     <string name="prompt_example_behavior_title">Example dialogue behavior</string>
     <string name="prompt_example_behavior_desc">Choose whether real chat history or character-card examples receive the remaining context budget first.</string>
+    <string name="prompt_max_history_messages">Maximum prompt history messages</string>
+    <string name="prompt_max_history_messages_helper">Use only the latest messages when building a normal generation request; 0 disables the limit</string>
     <string name="world_info_budget_section">World Info budget</string>
     <string name="world_info_budget_description">The context percentage is calculated first, then limited by the Token cap when it is greater than 0.</string>
     <string name="world_info_context_percent">Context percentage</string>

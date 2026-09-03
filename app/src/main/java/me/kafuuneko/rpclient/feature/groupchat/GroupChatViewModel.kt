@@ -38,6 +38,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptContext
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGenerationMode
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerHistory
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
@@ -64,6 +65,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatSpeakerSelectionData
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -435,10 +437,10 @@ class GroupChatViewModel :
         }
         // 自动或其他策略模式下，点击头像视为强制触发该角色立即生成一轮回复
         if (mGenerationJob?.isActive == true) return
-        val data = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(uiState.sessionId)
-        } ?: return
-        val forcedSpeaker = data.members.firstOrNull {
+        val members = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getMembers(uiState.sessionId)
+        }
+        val forcedSpeaker = members.firstOrNull {
             it.character.id == intent.characterId
         } ?: return
         launchGeneration(uiState.sessionId, listOf(forcedSpeaker))
@@ -518,9 +520,18 @@ class GroupChatViewModel :
         }
         val sessionId = mSessionId ?: return
         val rawInput = uiState.conversationState.inputDraft.trim()
-        val initialData = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(sessionId)
+        val selectionData = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getSpeakerSelectionData(
+                sessionId = sessionId,
+                includeSpeakerPool = rawInput.isBlank()
+            )
         } ?: return
+        val initialData = GroupChatData(
+            session = selectionData.session,
+            members = selectionData.members,
+            messages = emptyList(),
+            summary = null
+        )
         // 执行用户输入端 Source 正则
         val input = applyUserRegex(initialData, rawInput)
         val isUserInput = rawInput.isNotBlank()
@@ -528,15 +539,13 @@ class GroupChatViewModel :
         val activationText = if (isUserInput) {
             input
         } else {
-            initialData.messages.lastOrNull {
-                it.source != GroupChatMessage.Source.System
-            }?.content.orEmpty()
+            selectionData.latestNonSystemContent
         }
         // 由调度策略选择器选出本轮发言角色列表
         val speakers = mSpeakerSelector.select(
             session = initialData.session,
             members = initialData.members,
-            messages = initialData.messages,
+            history = selectionData.toSpeakerHistory(),
             activationText = activationText,
             isUserInput = isUserInput,
             manualCharacterId = uiState.conversationState.selectedSpeakerId
@@ -1224,12 +1233,14 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         if (!ensureProviderConfigured()) return
-        val data = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(uiState.sessionId)
-        } ?: return
-        val message = data.messages.firstOrNull { it.id == intent.messageId } ?: return
+        val message = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getMessageById(intent.messageId)
+        }?.takeIf { it.sessionId == uiState.sessionId } ?: return
         if (message.source != GroupChatMessage.Source.Character) return
-        val speaker = data.members.firstOrNull {
+        val members = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getMembers(uiState.sessionId)
+        }
+        val speaker = members.firstOrNull {
             it.character.id == message.speakerCharacterId
         } ?: return
         // 从数据库中截断删除从该消息开始的所有后续历史记录
@@ -1267,14 +1278,14 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isActive == true) return
         if (!ensureProviderConfigured()) return
-        val data = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(uiState.sessionId)
+        val last = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getLatestCharacterMessage(uiState.sessionId)
         } ?: return
+        val members = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getMembers(uiState.sessionId)
+        }
         // 提取最后一条角色消息及对应角色发言者
-        val last = data.messages.lastOrNull {
-            it.source == GroupChatMessage.Source.Character
-        } ?: return
-        val speaker = data.members.firstOrNull {
+        val speaker = members.firstOrNull {
             it.character.id == last.speakerCharacterId
         } ?: return
         val batchId = UUID.randomUUID().toString()
@@ -1391,7 +1402,7 @@ class GroupChatViewModel :
                     }
                     // 加载最新群聊快照
                     val nextData = withContext(Dispatchers.IO) {
-                        mGroupChatRepository.getGroupChatData(sessionId)
+                        mGroupChatRepository.getSpeakerSelectionData(sessionId)
                     } ?: break
                     // 自动模式下重新选出下一轮发言角色
                     pendingSpeakers = if (
@@ -1403,10 +1414,8 @@ class GroupChatViewModel :
                         mSpeakerSelector.select(
                             session = nextData.session,
                             members = nextData.members,
-                            messages = nextData.messages,
-                            activationText = nextData.messages.lastOrNull {
-                                it.source != GroupChatMessage.Source.System
-                            }?.content.orEmpty(),
+                            history = nextData.toSpeakerHistory(),
+                            activationText = nextData.latestNonSystemContent,
                             isUserInput = false,
                             manualCharacterId = null
                         )
@@ -1463,9 +1472,13 @@ class GroupChatViewModel :
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal
     ) {
         // 加载群聊快照、模型提供商与世界书上下文
-        val data = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(sessionId)
+        val promptData = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getGroupChatPromptData(
+                sessionId = sessionId,
+                maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0)
+            )
         } ?: error(mContext.getString(R.string.group_chat_not_found))
+        val data = promptData.data
         val provider = withContext(Dispatchers.IO) {
             mProviderSelectionResolver.requireCharacterProvider(speaker.character)
         }
@@ -1480,6 +1493,7 @@ class GroupChatViewModel :
                     members = data.members,
                     speaker = speaker.character,
                     messages = data.messages,
+                    totalMessageCount = promptData.totalMessageCount,
                     summary = data.summary?.content.orEmpty(),
                     candidateLorebookEntries = lorebookContext.entries,
                     candidateLorebooks = lorebookContext.lorebooks,
@@ -2240,4 +2254,12 @@ class GroupChatViewModel :
 /** 将公共模型配置引导转换为群聊页面的对话框状态。 */
 private fun ModelSettingsGuideContent.toGroupChatDialogState(): GroupChatDialogState.ModelSettingsGuide {
     return GroupChatDialogState.ModelSettingsGuide(title = title, message = message)
+}
+
+/** 将数据库最小投影转换为发言者选择领域上下文。 */
+private fun GroupChatSpeakerSelectionData.toSpeakerHistory(): GroupChatSpeakerHistory {
+    return GroupChatSpeakerHistory(
+        spokenCharacterIdsSinceLastUserMessage = spokenCharacterIdsSinceLastUserMessage,
+        lastCharacterSpeakerId = lastCharacterSpeakerId
+    )
 }

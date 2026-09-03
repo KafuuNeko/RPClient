@@ -1020,6 +1020,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
     }
 
+    /** 修改普通生成最多读取的最近历史消息条数。 */
+    @UiIntentObserver(MainUiIntent.ChangeMaxPromptHistoryMessages::class)
+    private fun onChangeMaxPromptHistoryMessages(intent: MainUiIntent.ChangeMaxPromptHistoryMessages) {
+        updateSettingsInt(intent.value, minimum = 0) {
+            AppModel.maxPromptHistoryMessages = it
+            copy(
+                promptBehaviorState = promptBehaviorState.copy(maxHistoryMessages = it)
+            )
+        }
+    }
+
     /** 修改总结生成请求的最大 Token 限制。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
     private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
@@ -1349,6 +1360,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 } ?: MainProviderPostProcessingState.Unavailable,
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
+                maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
                 streamEnabled = AppModel.streamEnabled
             ),

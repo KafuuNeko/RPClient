@@ -1159,4 +1159,6 @@
     <string name="no_model_provider_desc">RPClient — это локальный клиент без встроенных моделей ИИ. Пожалуйста, настройте и включите ключ API (например, OpenAI, Gemini, Claude, DeepSeek) в настройках моделей, чтобы начать общение.</string>
     <string name="no_model_provider_banner">Модель не настроена. Нажмите здесь, чтобы настроить ключ API.</string>
     <string name="go_to_model_settings">Настроить</string>
+    <string name="prompt_max_history_messages">Максимум сообщений истории в промпте</string>
+    <string name="prompt_max_history_messages_helper">Для обычной генерации использовать только последние сообщения; 0 отключает ограничение</string>
 </resources>

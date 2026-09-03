@@ -1155,4 +1155,6 @@
     <string name="no_model_provider_desc">RPClient est un client local et n’intègre pas de modèle IA. Veuillez configurer et activer une clé API (ex. OpenAI, Gemini, Claude, DeepSeek) dans les paramètres de modèle pour commencer à discuter.</string>
     <string name="no_model_provider_banner">Aucun modèle configuré. Appuyez ici pour configurer une clé API.</string>
     <string name="go_to_model_settings">Configurer</string>
+    <string name="prompt_max_history_messages">Maximum de messages d’historique du prompt</string>
+    <string name="prompt_max_history_messages_helper">Utiliser uniquement les messages les plus récents pour une génération normale ; 0 désactive la limite</string>
 </resources>

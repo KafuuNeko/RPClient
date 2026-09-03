@@ -1845,31 +1845,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 加载会话实体与角色人设数据
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: error(mContext.getString(R.string.character_not_found))
-        val summaryContext = mChatRepository.getSummaryContext(sessionId)
-        // 计算历史记录切片，处理重生成边界回退逻辑
-        val generationHistory = if (
-            excludedMessageId != null &&
-            summaryContext.summary?.coveredMessageId == excludedMessageId &&
-            summaryContext.messagesAfterSummary.isEmpty()
-        ) {
-            val regenerationContext = mChatRepository.getSummaryGenerationContext(
-                sessionId = sessionId,
-                allowRefreshLatest = true
-            )
-            GenerationHistory(
-                summary = regenerationContext.existingSummary,
-                messages = regenerationContext.messages.filterNot { it.id == excludedMessageId },
-                totalMessageCount = (summaryContext.totalMessageCount - 1).coerceAtLeast(0)
-            )
-        } else {
-            GenerationHistory(
-                summary = summaryContext.summary?.content.orEmpty(),
-                messages = summaryContext.messagesAfterSummary.filterNot { it.id == excludedMessageId },
-                totalMessageCount = (
-                    summaryContext.totalMessageCount - if (excludedMessageId == null) 0 else 1
-                ).coerceAtLeast(0)
-            )
-        }
+        val generationHistory = mChatRepository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = excludedMessageId,
+            maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0)
+        )
         // 收集并过滤当前会话已启用的世界书条目与递归扫描设置
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val lorebookData = getAllLorebookEntries()
@@ -1885,26 +1865,30 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 解析角色绑定的模型服务提供商
         val provider = mProviderSelectionResolver.requireCharacterProvider(character)
         // 组装 PromptBuildContext 并调用 Prompt 构建器
-        val buildResult = mChatPromptBuilder.buildWithMetadata(
-            PromptBuildContext(
-                userName = session.userName,
-                userDescription = session.userDescription,
-                character = character,
-                session = session.copy(creatorNotes = mChatRepository.getSessionCreatorNotes(session)),
-                summary = generationHistory.summary,
-                messages = generationHistory.messages,
-                currentUserMessage = null,
-                totalMessageCount = generationHistory.totalMessageCount,
-                candidateLorebookEntries = lorebookEntries,
-                candidateLorebooks = activeLorebooks,
-                recursiveScanningLorebookIds = recursiveLorebookIds,
-                provider = provider,
-                maxContextTokens = provider.contextTokens,
-                maxResponseTokens = provider.maxTokens,
-                generationMode = generationMode,
-                regexScripts = mRegexRepository.activeScripts(listOf(character))
+        val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
+        val regexScripts = mRegexRepository.activeScripts(listOf(character))
+        val buildResult = withContext(Dispatchers.Default) {
+            mChatPromptBuilder.buildWithMetadata(
+                PromptBuildContext(
+                    userName = session.userName,
+                    userDescription = session.userDescription,
+                    character = character,
+                    session = session.copy(creatorNotes = creatorNotes),
+                    summary = generationHistory.summary,
+                    messages = generationHistory.messages,
+                    currentUserMessage = null,
+                    totalMessageCount = generationHistory.totalMessageCount,
+                    candidateLorebookEntries = lorebookEntries,
+                    candidateLorebooks = activeLorebooks,
+                    recursiveScanningLorebookIds = recursiveLorebookIds,
+                    provider = provider,
+                    maxContextTokens = provider.contextTokens,
+                    maxResponseTokens = provider.maxTokens,
+                    generationMode = generationMode,
+                    regexScripts = regexScripts
+                )
             )
-        )
+        }
         return BuiltGenerationRequest(
             provider = provider,
             request = buildResult.request,
@@ -2363,18 +2347,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val summaryIdToUpdate: Long?,
         /** 当前请求关联的模型供应商类型。 */
         val provider: LLMProvider
-    )
-
-    /**
-     * 用于构建 Prompt 的历史上下文包装类。
-     */
-    private data class GenerationHistory(
-        /** 当前会话或故事使用的摘要内容。 */
-        val summary: String,
-        /** 当前状态或请求包含的消息列表。 */
-        val messages: List<ChatMessage>,
-        /** 统计范围内包含的消息总数。 */
-        val totalMessageCount: Int
     )
 
     /**

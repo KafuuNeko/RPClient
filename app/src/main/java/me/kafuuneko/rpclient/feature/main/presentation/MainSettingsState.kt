@@ -90,6 +90,8 @@ data class MainPromptBehaviorState(
     val exampleDialogueBehavior: ExampleDialogueBehavior,
     /** 后续请求上下文是否包含历史消息中的推理块。 */
     val includeThinkInContext: Boolean,
+    /** 普通生成最多读取的最近历史消息数，0 表示不限制。 */
+    val maxHistoryMessages: Int,
     /** 上下文裁剪风险提示是否启用。 */
     val contextTrimmingAlert: Boolean,
     /** 当前会话是否启用流式生成。 */

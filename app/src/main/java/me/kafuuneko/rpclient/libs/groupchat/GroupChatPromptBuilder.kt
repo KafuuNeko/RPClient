@@ -52,6 +52,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
  * @property members 群聊全体成员数据列表（包含角色卡与群内关系状态）
  * @property speaker 本轮被选中发言的目标角色实体
  * @property messages 当前群聊历史消息列表
+ * @property totalMessageCount 当前群聊的完整消息总数，用于世界书时序计算
  * @property provider 调用的 LLM 服务提供商配置
  * @property summary 当前群聊会话的已有摘要内容
  * @property candidateLorebookEntries 候选世界书条目全集
@@ -66,6 +67,7 @@ data class GroupChatPromptContext(
     val speaker: Character,
     val messages: List<GroupChatMessage>,
     val provider: LLMProvider,
+    val totalMessageCount: Int = messages.size,
     val summary: String = "",
     val candidateLorebookEntries: List<LorebookEntry> = emptyList(),
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
@@ -316,7 +318,7 @@ class GroupChatPromptBuilder(
                     WorldBookScanMessage(it.speakerNameSnapshot, it.content)
                 },
                 currentUserMessage = null,
-                totalMessageCount = context.messages.size,
+                totalMessageCount = context.totalMessageCount,
                 worldInfoStateJson = context.session.worldInfoStateJson,
                 candidateLorebookEntries = context.candidateLorebookEntries,
                 candidateLorebooks = context.candidateLorebooks,

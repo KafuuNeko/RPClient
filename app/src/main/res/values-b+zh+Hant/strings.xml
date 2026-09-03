@@ -641,6 +641,8 @@
     <string name="prompt_post_processing_single_user_desc">把所有訊息轉為 user，補上發言者名稱後合併為一則訊息。</string>
     <string name="prompt_example_behavior_title">範例對話策略</string>
     <string name="prompt_example_behavior_desc">選擇真實歷史或角色卡範例優先使用剩餘上下文預算。</string>
+    <string name="prompt_max_history_messages">Prompt 最大歷史訊息數</string>
+    <string name="prompt_max_history_messages_helper">一般生成只使用最近的歷史訊息；0 表示不限制</string>
     <string name="world_info_budget_section">世界資訊預算</string>
     <string name="world_info_budget_description">先按上下文百分比計算世界資訊預算，再於上限大於 0 時套用 Token 上限。</string>
     <string name="world_info_context_percent">上下文比例</string>

@@ -1158,4 +1158,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="no_model_provider_desc">O RPClient é um cliente local e não inclui modelos de IA integrados. Configure e ative uma chave de API (por exemplo, OpenAI, Gemini, Claude, DeepSeek) nas Configurações de Modelo para começar a conversar.</string>
     <string name="no_model_provider_banner">Nenhum modelo configurado. Toque aqui para configurar uma chave de API.</string>
     <string name="go_to_model_settings">Configurar</string>
+    <string name="prompt_max_history_messages">Máximo de mensagens do histórico no prompt</string>
+    <string name="prompt_max_history_messages_helper">Use somente as mensagens mais recentes na geração normal; 0 desativa o limite</string>
 </resources>

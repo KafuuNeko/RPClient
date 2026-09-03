@@ -137,6 +137,23 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getMessagesAfterId(sessionId: Long, coveredMessageId: Long): List<ChatMessage>
 
+    /** 从会话末尾读取总结边界之后的有限普通消息窗口。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :coveredMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
     /**
      * 获取两个消息边界之间的普通消息。
      *
@@ -159,6 +176,25 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         afterMessageId: Long,
         throughMessageId: Long
+    ): List<ChatMessage>
+
+    /** 从范围末尾读取有限普通消息窗口，供重生成回退总结边界时使用。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        limit: Int
     ): List<ChatMessage>
 
     /**

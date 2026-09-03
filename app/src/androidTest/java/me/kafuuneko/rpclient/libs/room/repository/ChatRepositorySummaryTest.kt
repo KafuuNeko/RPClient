@@ -168,4 +168,66 @@ class ChatRepositorySummaryTest {
         repository.updateAutoSummaryPaused(sessionId, true)
         assertEquals(true, repository.getSessionById(sessionId)?.autoSummaryPaused)
     }
+
+    @Test
+    fun promptHistoryUsesLatestWindowAndPreservesRegenerationRollback() = runBlocking {
+        val messageIds = (1..6).map { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = if (index % 2 == 0) {
+                    ChatMessage.Source.Char
+                } else {
+                    ChatMessage.Source.User
+                },
+                content = "message-$index",
+                createTime = index.toLong()
+            )
+        }
+        repository.saveSummary(sessionId, "summary-through-2", messageIds[1])
+
+        val limited = repository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = null,
+            maxHistoryMessages = 3
+        )
+        assertEquals("summary-through-2", limited.summary)
+        assertEquals(
+            listOf("message-4", "message-5", "message-6"),
+            limited.messages.map { it.content }
+        )
+        assertEquals(6, limited.totalMessageCount)
+
+        val excludingLatest = repository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = messageIds.last(),
+            maxHistoryMessages = 3
+        )
+        assertEquals(
+            listOf("message-3", "message-4", "message-5"),
+            excludingLatest.messages.map { it.content }
+        )
+        assertEquals(5, excludingLatest.totalMessageCount)
+
+        repository.saveSummary(sessionId, "summary-through-6", messageIds.last())
+        val rollback = repository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = messageIds.last(),
+            maxHistoryMessages = 2
+        )
+        assertEquals("summary-through-2", rollback.summary)
+        assertEquals(
+            listOf("message-4", "message-5"),
+            rollback.messages.map { it.content }
+        )
+        assertEquals(5, rollback.totalMessageCount)
+
+        val unlimited = repository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = null,
+            maxHistoryMessages = 0
+        )
+        assertEquals("summary-through-6", unlimited.summary)
+        assertTrue(unlimited.messages.isEmpty())
+        assertEquals(6, unlimited.totalMessageCount)
+    }
 }

@@ -1150,4 +1150,6 @@
     <string name="no_model_provider_desc">RPClient はローカルファーストのクライアントであり、組み込みの AI モデルは含まれていません。チャットを開始するには、モデル設定で API キー（OpenAI、Gemini、Claude、DeepSeek など）を設定して有効にしてください。</string>
     <string name="no_model_provider_banner">モデルが設定されていません。タップして API キーを設定してください。</string>
     <string name="go_to_model_settings">設定する</string>
+    <string name="prompt_max_history_messages">プロンプトの最大履歴メッセージ数</string>
+    <string name="prompt_max_history_messages_helper">通常生成では最新のメッセージのみを使用します。0 は無制限です</string>
 </resources>

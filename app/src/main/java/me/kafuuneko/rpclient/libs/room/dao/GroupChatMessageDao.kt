@@ -80,6 +80,67 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getLatestMessage(sessionId: Long): GroupChatMessage?
 
+    /** 读取会话最后一条用户消息，作为发言池的轮次边界。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId AND source = 'User'
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestUserMessage(sessionId: Long): GroupChatMessage?
+
+    /** 读取会话最后一条角色消息，供连续发言限制使用。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId AND source = 'Character'
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestCharacterMessage(sessionId: Long): GroupChatMessage?
+
+    /** 读取会话最后一条非系统消息，供空输入触发生成时使用。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId AND source != 'System'
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestNonSystemMessage(sessionId: Long): GroupChatMessage?
+
+    /** 读取整个会话出现过的非空发言者 ID 集合。 */
+    @Query(
+        """
+        SELECT DISTINCT speakerCharacterId FROM group_chat_messages
+        WHERE sessionId = :sessionId
+          AND speakerCharacterId IS NOT NULL
+        """
+    )
+    suspend fun getSpeakerIds(sessionId: Long): List<Long>
+
+    /** 读取稳定消息边界之后出现过的非空发言者 ID 集合。 */
+    @Query(
+        """
+        SELECT DISTINCT speakerCharacterId FROM group_chat_messages
+        WHERE sessionId = :sessionId
+          AND speakerCharacterId IS NOT NULL
+          AND (
+              createTime > :afterCreateTime
+              OR (createTime = :afterCreateTime AND id > :afterMessageId)
+          )
+        """
+    )
+    suspend fun getSpeakerIdsAfter(
+        sessionId: Long,
+        afterCreateTime: Long,
+        afterMessageId: Long
+    ): List<Long>
+
     /** 统计会话消息数量。 */
     @Query("SELECT COUNT(*) FROM group_chat_messages WHERE sessionId = :sessionId")
     suspend fun getMessageCount(sessionId: Long): Int

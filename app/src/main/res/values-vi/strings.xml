@@ -1155,4 +1155,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="no_model_provider_desc">RPClient là ứng dụng chạy cục bộ và không cung cấp sẵn mô hình AI. Vui lòng cấu hình và bật một Khóa API (ví dụ: OpenAI, Gemini, Claude, DeepSeek) trong Cài đặt mô hình để bắt đầu trò chuyện.</string>
     <string name="no_model_provider_banner">Chưa cấu hình mô hình nào. Chạm vào đây để thiết lập khóa API.</string>
     <string name="go_to_model_settings">Cấu hình</string>
+    <string name="prompt_max_history_messages">Số tin nhắn lịch sử tối đa trong prompt</string>
+    <string name="prompt_max_history_messages_helper">Chỉ dùng các tin nhắn gần nhất khi tạo thông thường; 0 sẽ tắt giới hạn</string>
 </resources>

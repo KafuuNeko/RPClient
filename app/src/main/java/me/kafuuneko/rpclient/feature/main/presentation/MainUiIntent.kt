@@ -95,6 +95,8 @@ sealed class MainUiIntent {
 
     data class ToggleIncludeThinkInContext(val enabled: Boolean) : MainUiIntent()
 
+    data class ChangeMaxPromptHistoryMessages(val value: String) : MainUiIntent()
+
     data class ChangeWorldInfoBudgetPercent(val value: Int) : MainUiIntent()
 
     data class ChangeWorldInfoBudgetCap(val value: String) : MainUiIntent()

@@ -1846,6 +1846,12 @@ private fun PromptBehaviorPanel(
                     )
                 }
             }
+            NumberSettingRow(
+                title = stringResource(R.string.prompt_max_history_messages),
+                value = state.maxHistoryMessages.toString(),
+                helper = stringResource(R.string.prompt_max_history_messages_helper),
+                onValueChange = { MainUiIntent.ChangeMaxPromptHistoryMessages(it).emit() }
+            )
         }
         RpSettingsDivider(startIndent = false)
         RpSettingsSwitchTile(
@@ -2686,6 +2692,7 @@ private fun MainLayoutPreview() {
                         providerPostProcessingState = MainProviderPostProcessingState.Unavailable,
                         exampleDialogueBehavior = ExampleDialogueBehavior.default,
                         includeThinkInContext = false,
+                        maxHistoryMessages = 500,
                         contextTrimmingAlert = true,
                         streamEnabled = true
                     ),
@@ -2760,6 +2767,7 @@ private fun MainSettingsLayoutPreview() {
                         ),
                         exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
                         includeThinkInContext = true,
+                        maxHistoryMessages = 500,
                         contextTrimmingAlert = true,
                         streamEnabled = true
                     ),

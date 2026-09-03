@@ -1155,4 +1155,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="no_model_provider_desc">RPClient adalah klien yang mengutamakan lokal dan tidak menyediakan model AI bawaan. Silakan konfigurasikan dan aktifkan Kunci API (misalnya OpenAI, Gemini, Claude, DeepSeek) di Pengaturan Model untuk mulai mengobrol.</string>
     <string name="no_model_provider_banner">Tidak ada model yang dikonfigurasi. Ketuk di sini untuk mengatur kunci API.</string>
     <string name="go_to_model_settings">Konfigurasikan</string>
+    <string name="prompt_max_history_messages">Maksimum pesan riwayat prompt</string>
+    <string name="prompt_max_history_messages_helper">Gunakan hanya pesan terbaru untuk pembuatan normal; 0 menonaktifkan batas</string>
 </resources>

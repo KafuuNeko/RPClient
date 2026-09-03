@@ -32,6 +32,34 @@ data class GroupChatData(
 )
 
 /**
+ * 群聊生成请求使用的聚合数据与完整消息计数。
+ *
+ * @property data 会话、成员、最近历史窗口和摘要组成的生成快照。
+ * @property totalMessageCount 当前群聊的完整消息总数。
+ */
+data class GroupChatPromptData(
+    val data: GroupChatData,
+    val totalMessageCount: Int
+)
+
+/**
+ * 群聊发言者选择所需的最小历史投影。
+ *
+ * @property session 当前群聊会话。
+ * @property members 当前群聊成员及角色卡。
+ * @property latestNonSystemContent 最近一条非系统消息正文。
+ * @property spokenCharacterIdsSinceLastUserMessage 上一条用户消息之后发言过的角色 ID。
+ * @property lastCharacterSpeakerId 最近一条角色消息的发言者 ID。
+ */
+data class GroupChatSpeakerSelectionData(
+    val session: GroupChatSession,
+    val members: List<GroupChatMemberData>,
+    val latestNonSystemContent: String,
+    val spokenCharacterIdsSinceLastUserMessage: Set<Long>,
+    val lastCharacterSpeakerId: Long?
+)
+
+/**
  * 群聊页面使用的最近消息窗口及其聚合元数据。
  *
  * @property data 会话、成员、当前消息窗口和摘要组成的聚合数据。
@@ -89,6 +117,11 @@ class GroupChatRepository(
         return mSessionDao.getSessionById(id)
     }
 
+    /** 读取并补全当前群聊的有序成员列表。 */
+    suspend fun getMembers(sessionId: Long): List<GroupChatMemberData> {
+        return getMemberData(sessionId)
+    }
+
     /** 在同一事务中读取会话、成员、消息和最新摘要。 */
     suspend fun getGroupChatData(sessionId: Long): GroupChatData? {
         return mAppDatabase.withTransaction {
@@ -103,9 +136,91 @@ class GroupChatRepository(
     }
 
     /**
+     * 在同一事务中读取群聊生成所需的最近历史窗口和完整消息总数。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
+     * @return 群聊生成快照；会话不存在时返回 null。
+     */
+    suspend fun getGroupChatPromptData(
+        sessionId: Long,
+        maxHistoryMessages: Int
+    ): GroupChatPromptData? {
+        require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
+        return mAppDatabase.withTransaction {
+            // 在事务快照中读取会话及配置允许的最近消息
+            val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
+            val messages = if (maxHistoryMessages == 0) {
+                mMessageDao.getMessages(sessionId)
+            } else {
+                mMessageDao.getLatestMessagePage(sessionId, maxHistoryMessages).asReversed()
+            }
+            // 完整计数独立保留给世界书时序，不能被 Prompt 消息窗口替代
+            GroupChatPromptData(
+                data = GroupChatData(
+                    session = session,
+                    members = getMemberData(sessionId),
+                    messages = messages,
+                    summary = mSummaryDao.getLatest(sessionId)
+                ),
+                totalMessageCount = mMessageDao.getMessageCount(sessionId)
+            )
+        }
+    }
+
+    /**
+     * 读取发言者选择需要的最小数据，避免为一次调度反序列化完整群聊历史。
+     *
+     * Pooled 模式只投影上一条用户消息之后出现过的发言者 ID；其他模式不需要该集合。
+     * 最近角色和非系统消息通过末尾索引查询，保持与完整正序列表查找相同的结果。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @param includeSpeakerPool 是否读取 Pooled 模式当前轮次已经发言的角色集合。
+     * @return 发言者选择数据；会话不存在时返回 null。
+     */
+    suspend fun getSpeakerSelectionData(
+        sessionId: Long,
+        includeSpeakerPool: Boolean = true
+    ): GroupChatSpeakerSelectionData? {
+        return mAppDatabase.withTransaction {
+            val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
+            val members = getMemberData(sessionId)
+            // Pooled 模式只读取轮次边界后的去重发言者 ID，不加载消息正文
+            val spokenCharacterIds = if (
+                includeSpeakerPool &&
+                session.activationStrategy == GroupChatSession.ActivationStrategy.Pooled
+            ) {
+                val latestUserMessage = mMessageDao.getLatestUserMessage(sessionId)
+                if (latestUserMessage == null) {
+                    mMessageDao.getSpeakerIds(sessionId)
+                } else {
+                    mMessageDao.getSpeakerIdsAfter(
+                        sessionId = sessionId,
+                        afterCreateTime = latestUserMessage.createTime,
+                        afterMessageId = latestUserMessage.id
+                    )
+                }
+            } else {
+                emptyList()
+            }
+            // 独立读取末尾投影，分别供空输入激活和连续发言限制使用
+            GroupChatSpeakerSelectionData(
+                session = session,
+                members = members,
+                latestNonSystemContent = mMessageDao.getLatestNonSystemMessage(sessionId)
+                    ?.content
+                    .orEmpty(),
+                spokenCharacterIdsSinceLastUserMessage = spokenCharacterIds.toSet(),
+                lastCharacterSpeakerId = mMessageDao.getLatestCharacterMessage(sessionId)
+                    ?.speakerCharacterId
+            )
+        }
+    }
+
+    /**
      * 在同一事务中读取群聊页面元数据和末尾消息窗口。
      *
-     * 生成与摘要流程继续使用完整聚合接口，避免页面窗口限制模型上下文。
+     * 摘要流程继续使用完整聚合接口；普通生成使用独立的 Prompt 历史窗口。
      *
      * @param sessionId 群聊会话 ID。
      * @param pageSize 页面实际接收的最大消息数量。
@@ -489,6 +604,11 @@ class GroupChatRepository(
 
     suspend fun getLatestMessage(sessionId: Long): GroupChatMessage? {
         return mMessageDao.getLatestMessage(sessionId)
+    }
+
+    /** 读取当前群聊最近一条角色消息。 */
+    suspend fun getLatestCharacterMessage(sessionId: Long): GroupChatMessage? {
+        return mMessageDao.getLatestCharacterMessage(sessionId)
     }
 
     /** 根据主键读取一条群聊消息。 */

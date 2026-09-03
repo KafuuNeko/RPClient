@@ -35,6 +35,19 @@ data class ChatSummaryGenerationContext(
 )
 
 /**
+ * 普通生成请求使用的摘要与最近历史窗口。
+ *
+ * @property summary 当前请求实际使用的摘要内容。
+ * @property messages 按创建时间正序排列的最近历史消息。
+ * @property totalMessageCount 排除待替换消息后的完整普通消息总数。
+ */
+data class ChatPromptHistoryContext(
+    val summary: String,
+    val messages: List<ChatMessage>,
+    val totalMessageCount: Int
+)
+
+/**
  * 单聊页面按时间倒序查询后恢复为展示正序的一页消息。
  *
  * @property messages 当前页按创建时间正序排列的普通消息。
@@ -527,6 +540,58 @@ class ChatRepository(
     }
 
     /**
+     * 在同一事务中读取普通生成所需的摘要、最近历史窗口和完整消息总数。
+     *
+     * [maxHistoryMessages] 为 0 时保持原有无限制行为。重生成排除的消息如果恰好是
+     * 最新摘要边界，则回退到上一份摘要，并在回退范围内继续应用相同的历史窗口限制。
+     *
+     * @param sessionId 会话 ID。
+     * @param excludedMessageId 重生成时不应进入 Prompt 的待替换消息 ID。
+     * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
+     * @return 普通生成使用的历史上下文。
+     */
+    suspend fun getPromptHistoryContext(
+        sessionId: Long,
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): ChatPromptHistoryContext {
+        require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
+        return mAppDatabase.withTransaction {
+            // 读取当前摘要边界与该边界之后的有限历史窗口
+            val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            val messagesAfterSummary = loadPromptMessagesAfterId(
+                sessionId = sessionId,
+                coveredMessageId = latestSummary?.coveredMessageId ?: 0L,
+                excludedMessageId = excludedMessageId,
+                maxHistoryMessages = maxHistoryMessages
+            )
+            val totalMessageCount = (
+                mChatMessageDao.getMessageCountBySessionId(sessionId) -
+                    if (excludedMessageId == null) 0 else 1
+            ).coerceAtLeast(0)
+            // 待替换消息位于摘要边界时回退摘要，防止继续使用包含旧回复的摘要
+            if (
+                excludedMessageId != null &&
+                latestSummary?.coveredMessageId == excludedMessageId &&
+                messagesAfterSummary.isEmpty()
+            ) {
+                return@withTransaction loadRegenerationPromptHistory(
+                    sessionId = sessionId,
+                    latestSummary = latestSummary,
+                    excludedMessageId = excludedMessageId,
+                    maxHistoryMessages = maxHistoryMessages,
+                    totalMessageCount = totalMessageCount
+                )
+            }
+            ChatPromptHistoryContext(
+                summary = latestSummary?.content.orEmpty(),
+                messages = messagesAfterSummary,
+                totalMessageCount = totalMessageCount
+            )
+        }
+    }
+
+    /**
      * 获取生成总结所需的消息范围。
      *
      * 默认返回最新总结之后的增量消息。用户主动总结且最新总结已经覆盖最后一条普通消息时，
@@ -919,6 +984,105 @@ class ChatRepository(
      */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
         mChatMessageDao.deleteMessagesBySessionId(sessionId)
+    }
+
+    /** 读取摘要边界之后的普通生成历史，并恢复为正序后排除待替换消息。 */
+    private suspend fun loadPromptMessagesAfterId(
+        sessionId: Long,
+        coveredMessageId: Long,
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val messages = if (maxHistoryMessages == 0) {
+            mChatMessageDao.getMessagesAfterId(sessionId, coveredMessageId)
+        } else {
+            mChatMessageDao.getLatestMessagesAfterId(
+                sessionId = sessionId,
+                coveredMessageId = coveredMessageId,
+                limit = promptHistoryReadLimit(maxHistoryMessages, excludedMessageId)
+            ).asReversed()
+        }
+        return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
+    }
+
+    /** 回退最新摘要边界，并读取与旧行为一致的重生成历史范围。 */
+    private suspend fun loadRegenerationPromptHistory(
+        sessionId: Long,
+        latestSummary: ChatMessage,
+        excludedMessageId: Long,
+        maxHistoryMessages: Int,
+        totalMessageCount: Int
+    ): ChatPromptHistoryContext {
+        // 只有最新摘要完整覆盖最后一条消息时，才允许回退并重新构建该边界
+        val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
+        val refreshableSummary = latestSummary.takeIf {
+            it.content.isNotBlank() &&
+                it.coveredMessageId != 0L &&
+                it.coveredMessageId == latestMessage?.id
+        } ?: return ChatPromptHistoryContext(
+            summary = latestSummary.content,
+            messages = emptyList(),
+            totalMessageCount = totalMessageCount
+        )
+        // 使用上一份摘要作为记忆，并在两份摘要边界之间读取最近历史窗口
+        val refreshBoundaryId = requireNotNull(refreshableSummary.coveredMessageId)
+        val previousSummary = mChatMessageDao.getPreviousSummaryBeforeBoundary(
+            sessionId = sessionId,
+            coveredMessageId = refreshBoundaryId
+        )
+        val messages = loadPromptMessagesInRange(
+            sessionId = sessionId,
+            afterMessageId = previousSummary?.coveredMessageId ?: 0L,
+            throughMessageId = refreshBoundaryId,
+            excludedMessageId = excludedMessageId,
+            maxHistoryMessages = maxHistoryMessages
+        )
+        return ChatPromptHistoryContext(
+            summary = previousSummary?.content.orEmpty(),
+            messages = messages,
+            totalMessageCount = totalMessageCount
+        )
+    }
+
+    /** 读取两个摘要边界之间的普通生成历史窗口。 */
+    private suspend fun loadPromptMessagesInRange(
+        sessionId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        excludedMessageId: Long,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val messages = if (maxHistoryMessages == 0) {
+            mChatMessageDao.getMessagesInRange(sessionId, afterMessageId, throughMessageId)
+        } else {
+            mChatMessageDao.getLatestMessagesInRange(
+                sessionId = sessionId,
+                afterMessageId = afterMessageId,
+                throughMessageId = throughMessageId,
+                limit = promptHistoryReadLimit(maxHistoryMessages, excludedMessageId)
+            ).asReversed()
+        }
+        return messages.toPromptHistoryWindow(excludedMessageId, maxHistoryMessages)
+    }
+
+    /** 为可能需要排除的消息多读取一行，保证最终窗口仍可包含指定数量。 */
+    private fun promptHistoryReadLimit(
+        maxHistoryMessages: Int,
+        excludedMessageId: Long?
+    ): Int {
+        if (excludedMessageId == null || maxHistoryMessages == Int.MAX_VALUE) {
+            return maxHistoryMessages
+        }
+        return maxHistoryMessages + 1
+    }
+
+    /** 排除待替换消息，并从剩余结果末尾保留配置允许的最近历史。 */
+    private fun List<ChatMessage>.toPromptHistoryWindow(
+        excludedMessageId: Long?,
+        maxHistoryMessages: Int
+    ): List<ChatMessage> {
+        val filtered = filterNot { it.id == excludedMessageId }
+        return if (maxHistoryMessages == 0) filtered else filtered.takeLast(maxHistoryMessages)
     }
 
     /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */

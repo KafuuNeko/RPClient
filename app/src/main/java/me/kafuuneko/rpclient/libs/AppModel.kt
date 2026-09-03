@@ -19,6 +19,9 @@ object AppModel : KotprefModel() {
     // 仓库地址。
     const val GITHUB_REPO = "https://github.com/KafuuNeko/RPClient"
 
+    /** 普通生成默认最多读取的最近历史消息数。 */
+    const val DEFAULT_MAX_PROMPT_HISTORY_MESSAGES = 500
+
     // 最后一个成功完成的业务升级步骤 versionCode；保留属性名以兼容既有偏好键。
     var lastMigratedVersionCode by intPref(default = 0, commitByDefault = true)
 
@@ -289,6 +292,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
 
     // 是否把已保存消息中的 <think>...</think> 思考块继续纳入后续上下文。
     var includeThinkInContext by booleanPref(default = false)
+
+    // 普通生成最多读取的最近历史消息数；0 表示不限制并保持旧版行为。
+    var maxPromptHistoryMessages by intPref(default = DEFAULT_MAX_PROMPT_HISTORY_MESSAGES)
 
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。
     var debugModeEnabled by booleanPref(default = false)
