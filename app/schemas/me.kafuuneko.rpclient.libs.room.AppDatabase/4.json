@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "3478c18073ffce0fa653c2edce6dd9c6",
+    "identityHash": "5d594b96773600eb4e0e54294be3574a",
     "entities": [
       {
         "tableName": "character",
@@ -688,6 +688,17 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId_source` ON `${TABLE_NAME}` (`sessionId`, `source`)"
+          },
+          {
+            "name": "index_chat_messages_sessionId_createTime_id",
+            "unique": false,
+            "columnNames": [
+              "sessionId",
+              "createTime",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId_createTime_id` ON `${TABLE_NAME}` (`sessionId`, `createTime`, `id`)"
           }
         ],
         "foreignKeys": [
@@ -1172,14 +1183,15 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
           },
           {
-            "name": "index_group_chat_messages_sessionId_createTime",
+            "name": "index_group_chat_messages_sessionId_createTime_id",
             "unique": false,
             "columnNames": [
               "sessionId",
-              "createTime"
+              "createTime",
+              "id"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_sessionId_createTime` ON `${TABLE_NAME}` (`sessionId`, `createTime`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_messages_sessionId_createTime_id` ON `${TABLE_NAME}` (`sessionId`, `createTime`, `id`)"
           },
           {
             "name": "index_group_chat_messages_speakerCharacterId",
@@ -2023,7 +2035,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3478c18073ffce0fa653c2edce6dd9c6')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5d594b96773600eb4e0e54294be3574a')"
     ]
   }
 }

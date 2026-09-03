@@ -67,6 +67,10 @@ internal fun GroupChatUiState.Normal.withSettingsDraft(
 data class GroupChatConversationState(
     /** 当前状态或请求包含的消息列表。 */
     val messages: List<GroupChatMessageItem>,
+    /** 当前已加载窗口之前是否仍有更早消息。 */
+    val canLoadOlderMessages: Boolean = false,
+    /** 当前是否正在向列表头部加载更早消息。 */
+    val isLoadingOlderMessages: Boolean = false,
     /** 当前手动选中的群聊发言者角色 ID。 */
     val selectedSpeakerId: Long?,
     /** 消息输入框中尚未发送的草稿。 */

@@ -35,6 +35,19 @@ data class ChatSummaryGenerationContext(
 )
 
 /**
+ * 单聊页面按时间倒序查询后恢复为展示正序的一页消息。
+ *
+ * @property messages 当前页按创建时间正序排列的普通消息。
+ * @property canLoadOlderMessages 当前页之前是否仍有更早的普通消息。
+ * @property totalMessageCount 当前会话普通消息总数。
+ */
+data class ChatMessagePage(
+    val messages: List<ChatMessage>,
+    val canLoadOlderMessages: Boolean,
+    val totalMessageCount: Int
+)
+
+/**
  * 单聊会话、消息和摘要的事务仓库。
  *
  * 编辑或删除普通消息时会同步清理覆盖该消息的摘要；创建消息和分支时负责维护
@@ -407,6 +420,62 @@ class ChatRepository(
     }
 
     /**
+     * 获取会话末尾的一页普通消息。
+     *
+     * 多取一条只用于判断是否存在更早历史，不会暴露给页面。
+     *
+     * @param sessionId 会话 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 最新消息页及会话总消息数。
+     */
+    suspend fun getLatestMessagePage(
+        sessionId: Long,
+        pageSize: Int
+    ): ChatMessagePage {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mAppDatabase.withTransaction {
+            val rows = mChatMessageDao.getLatestMessagePageBySessionId(
+                sessionId = sessionId,
+                limit = pageSize + 1
+            )
+            rows.toChatMessagePage(
+                pageSize = pageSize,
+                totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+            )
+        }
+    }
+
+    /**
+     * 获取稳定游标之前的一页普通消息。
+     *
+     * @param sessionId 会话 ID。
+     * @param beforeCreateTime 当前最早已加载消息的创建时间。
+     * @param beforeMessageId 当前最早已加载消息的 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 更早消息页及会话总消息数。
+     */
+    suspend fun getMessagePageBefore(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        pageSize: Int
+    ): ChatMessagePage {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mAppDatabase.withTransaction {
+            val rows = mChatMessageDao.getMessagePageBeforeBySessionId(
+                sessionId = sessionId,
+                beforeCreateTime = beforeCreateTime,
+                beforeMessageId = beforeMessageId,
+                limit = pageSize + 1
+            )
+            rows.toChatMessagePage(
+                pageSize = pageSize,
+                totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
+            )
+        }
+    }
+
+    /**
      * 获取会话当前生效的最新总结快照。
      *
      * @param sessionId 会话 id。
@@ -540,6 +609,11 @@ class ChatRepository(
      */
     suspend fun getLatestMessageBySessionId(sessionId: Long): ChatMessage? {
         return mChatMessageDao.getLatestMessageBySessionId(sessionId)
+    }
+
+    /** 获取指定会话最后一条角色消息。 */
+    suspend fun getLatestCharacterMessageBySessionId(sessionId: Long): ChatMessage? {
+        return mChatMessageDao.getLatestCharacterMessageBySessionId(sessionId)
     }
 
     /**
@@ -845,6 +919,18 @@ class ChatRepository(
      */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
         mChatMessageDao.deleteMessagesBySessionId(sessionId)
+    }
+
+    /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */
+    private fun List<ChatMessage>.toChatMessagePage(
+        pageSize: Int,
+        totalMessageCount: Int
+    ): ChatMessagePage {
+        return ChatMessagePage(
+            messages = take(pageSize).asReversed(),
+            canLoadOlderMessages = size > pageSize,
+            totalMessageCount = totalMessageCount
+        )
     }
 
     private fun String.toLorebookEntryIds(): List<Long> {

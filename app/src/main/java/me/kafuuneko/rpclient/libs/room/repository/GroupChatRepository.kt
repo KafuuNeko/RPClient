@@ -32,6 +32,28 @@ data class GroupChatData(
 )
 
 /**
+ * 群聊页面使用的最近消息窗口及其聚合元数据。
+ *
+ * @property data 会话、成员、当前消息窗口和摘要组成的聚合数据。
+ * @property canLoadOlderMessages 当前窗口之前是否仍有更早消息。
+ */
+data class GroupChatPageData(
+    val data: GroupChatData,
+    val canLoadOlderMessages: Boolean
+)
+
+/**
+ * 群聊页面向前加载的一页历史消息。
+ *
+ * @property messages 当前页按创建时间正序排列的消息。
+ * @property canLoadOlderMessages 当前页之前是否仍有更早消息。
+ */
+data class GroupChatMessagePage(
+    val messages: List<GroupChatMessage>,
+    val canLoadOlderMessages: Boolean
+)
+
+/**
  * 群聊会话聚合仓库。
  *
  * 负责跨会话、成员、角色、消息和摘要表的事务操作，并保证成员排序、会话活跃时间
@@ -71,18 +93,68 @@ class GroupChatRepository(
     suspend fun getGroupChatData(sessionId: Long): GroupChatData? {
         return mAppDatabase.withTransaction {
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
-            val members = mMemberDao.getMembers(sessionId).mapNotNull { relation ->
-                mCharacterDao.getCharacterById(relation.characterId)?.let {
-                    GroupChatMemberData(relation, it)
-                }
-            }
             GroupChatData(
                 session = session,
-                members = members,
+                members = getMemberData(sessionId),
                 messages = mMessageDao.getMessages(sessionId),
                 summary = mSummaryDao.getLatest(sessionId)
             )
         }
+    }
+
+    /**
+     * 在同一事务中读取群聊页面元数据和末尾消息窗口。
+     *
+     * 生成与摘要流程继续使用完整聚合接口，避免页面窗口限制模型上下文。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 群聊页面数据；会话不存在时返回 null。
+     */
+    suspend fun getGroupChatPageData(
+        sessionId: Long,
+        pageSize: Int
+    ): GroupChatPageData? {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mAppDatabase.withTransaction {
+            // 页面聚合必须共享同一快照，避免会话元数据与消息窗口不一致
+            val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
+            val page = mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
+                .toGroupChatMessagePage(pageSize)
+            GroupChatPageData(
+                data = GroupChatData(
+                    session = session,
+                    members = getMemberData(sessionId),
+                    messages = page.messages,
+                    summary = mSummaryDao.getLatest(sessionId)
+                ),
+                canLoadOlderMessages = page.canLoadOlderMessages
+            )
+        }
+    }
+
+    /**
+     * 使用稳定游标向前读取一页群聊消息。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @param beforeCreateTime 当前最早已加载消息的创建时间。
+     * @param beforeMessageId 当前最早已加载消息的 ID。
+     * @param pageSize 页面实际接收的最大消息数量。
+     * @return 更早消息页。
+     */
+    suspend fun getMessagePageBefore(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        pageSize: Int
+    ): GroupChatMessagePage {
+        require(pageSize > 0) { "pageSize must be positive" }
+        return mMessageDao.getMessagePageBefore(
+            sessionId = sessionId,
+            beforeCreateTime = beforeCreateTime,
+            beforeMessageId = beforeMessageId,
+            limit = pageSize + 1
+        ).toGroupChatMessagePage(pageSize)
     }
 
     /**
@@ -419,7 +491,31 @@ class GroupChatRepository(
         return mMessageDao.getLatestMessage(sessionId)
     }
 
+    /** 根据主键读取一条群聊消息。 */
+    suspend fun getMessageById(id: Long): GroupChatMessage? {
+        return mMessageDao.getMessageById(id)
+    }
+
     suspend fun getMessageCount(sessionId: Long): Int {
         return mMessageDao.getMessageCount(sessionId)
+    }
+
+    /** 补全群聊成员关系对应的角色卡，已被删除的角色不会进入业务聚合。 */
+    private suspend fun getMemberData(sessionId: Long): List<GroupChatMemberData> {
+        return mMemberDao.getMembers(sessionId).mapNotNull { relation ->
+            mCharacterDao.getCharacterById(relation.characterId)?.let { character ->
+                GroupChatMemberData(relation, character)
+            }
+        }
+    }
+
+    /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */
+    private fun List<GroupChatMessage>.toGroupChatMessagePage(
+        pageSize: Int
+    ): GroupChatMessagePage {
+        return GroupChatMessagePage(
+            messages = take(pageSize).asReversed(),
+            canLoadOlderMessages = size > pageSize
+        )
     }
 }

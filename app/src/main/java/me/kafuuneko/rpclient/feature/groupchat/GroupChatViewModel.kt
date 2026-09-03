@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.groupchat
 import android.content.Context
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -127,6 +128,10 @@ class GroupChatViewModel :
     private var mLastPromptInspection: PromptInspection? = null
     /** 一次成员拖动的原始顺序与等待持久化的最终顺序。 */
     private var mPendingMemberOrder: PendingMemberOrder? = null
+    /** 当前消息窗口最早记录的稳定分页游标。 */
+    private var mOldestLoadedMessageCursor: GroupChatMessageCursor? = null
+    /** 分页消息执行 Display Regex 所需的不含消息正文的群聊聚合快照。 */
+    private var mMessageDisplayContext: GroupChatData? = null
 
     /**
      * 初始化群聊会话。
@@ -169,6 +174,70 @@ class GroupChatViewModel :
             editingMessageDraft = uiState.conversationState.editingMessageDraft,
             dialogState = uiState.dialogState
         )
+    }
+
+    /**
+     * 用户滚动到群聊消息窗口顶部时向前加载一页历史消息。
+     *
+     * - 使用创建时间和消息 ID 组成的稳定游标处理同时间消息。
+     * - 生成与摘要继续读取完整持久化历史，不依赖当前 UI 消息窗口。
+     * - 合并时保留加载期间可能发生的尾部状态更新。
+     */
+    @UiIntentObserver(GroupChatUiIntent.LoadOlderMessages::class)
+    private suspend fun onLoadOlderMessages() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val cursor = mOldestLoadedMessageCursor ?: return
+        val displayContext = mMessageDisplayContext ?: return
+        if (!uiState.conversationState.canLoadOlderMessages ||
+            uiState.conversationState.isLoadingOlderMessages
+        ) return
+
+        // 先发布加载标记，阻止列表顶部连续发出相同请求
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                isLoadingOlderMessages = true
+            )
+        ).setup()
+        val loadedPage = try {
+            withContext(Dispatchers.IO) {
+                val page = mGroupChatRepository.getMessagePageBefore(
+                    sessionId = sessionId,
+                    beforeCreateTime = cursor.createTime,
+                    beforeMessageId = cursor.messageId,
+                    pageSize = MESSAGE_PAGE_SIZE
+                )
+                LoadedGroupChatMessagePage(
+                    items = displayContext.copy(messages = page.messages).toMessageItems(
+                        newerMessageCount = uiState.conversationState.messages.size
+                    ),
+                    cursor = page.messages.firstOrNull()?.toGroupChatMessageCursor(),
+                    canLoadOlderMessages = page.canLoadOlderMessages
+                )
+            }
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+            val currentState = getOrNull<GroupChatUiState.Normal>() ?: return
+            currentState.copy(
+                conversationState = currentState.conversationState.copy(
+                    isLoadingOlderMessages = false
+                )
+            ).setup()
+            return
+        }
+
+        // 使用最新状态合并页面，避免覆盖流式生成的末尾消息内容
+        val currentState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val existingIds = currentState.conversationState.messages.mapTo(mutableSetOf()) { it.id }
+        val olderItems = loadedPage.items.filterNot { it.id in existingIds }
+        mOldestLoadedMessageCursor = loadedPage.cursor ?: cursor
+        currentState.copy(
+            conversationState = currentState.conversationState.copy(
+                messages = olderItems + currentState.conversationState.messages,
+                canLoadOlderMessages = loadedPage.canLoadOlderMessages,
+                isLoadingOlderMessages = false
+            )
+        ).setup()
     }
 
     /**
@@ -986,9 +1055,8 @@ class GroupChatViewModel :
             .firstOrNull { it.id == intent.messageId } ?: return
         // 异步从数据库读取未经 Display 正则修改的原始文本
         val rawContent = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getGroupChatData(uiState.sessionId)
-                ?.messages
-                ?.firstOrNull { it.id == intent.messageId }
+            mGroupChatRepository.getMessageById(intent.messageId)
+                ?.takeIf { it.sessionId == uiState.sessionId }
                 ?.content
         } ?: return
         // 将 UI 切换为编辑模式并填入草稿
@@ -1069,10 +1137,9 @@ class GroupChatViewModel :
         if (uiState.conversationState.editingMessageDraft.isBlank()) return
         // 异步对编辑后文本应用对应 Source 阶段正则规则（isEdit = true）
         withContext(Dispatchers.IO) {
-            val data = mGroupChatRepository.getGroupChatData(uiState.sessionId)
-                ?: return@withContext
-            val message = data.messages.firstOrNull { it.id == messageId }
-                ?: return@withContext
+            val data = mMessageDisplayContext ?: return@withContext
+            val message = mGroupChatRepository.getMessageById(messageId)
+                ?.takeIf { it.sessionId == uiState.sessionId } ?: return@withContext
             val content = when (message.source) {
                 GroupChatMessage.Source.User -> applyUserRegex(
                     data,
@@ -1752,7 +1819,11 @@ class GroupChatViewModel :
         editingMessageDraft: String =
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.editingMessageDraft.orEmpty(),
         dialogState: GroupChatDialogState =
-            getOrNull<GroupChatUiState.Normal>()?.dialogState ?: GroupChatDialogState.None
+            getOrNull<GroupChatUiState.Normal>()?.dialogState ?: GroupChatDialogState.None,
+        messageLimit: Int = getOrNull<GroupChatUiState.Normal>()
+            ?.conversationState?.messages?.size
+            ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
+            ?: MESSAGE_PAGE_SIZE
     ) {
         val sessionId = mSessionId ?: return
         val next = withContext(Dispatchers.IO) {
@@ -1766,7 +1837,8 @@ class GroupChatViewModel :
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
-                dialogState = dialogState
+                dialogState = dialogState,
+                messageLimit = messageLimit
             )
         } ?: return
         mPendingMemberOrder = null
@@ -1783,6 +1855,7 @@ class GroupChatViewModel :
      * - 设置页草稿与世界书条目列表构建。
      *
      * @param sessionId 群聊会话 ID
+     * @param messageLimit 从会话末尾保留的消息窗口大小
      * @return 组装好的 [GroupChatUiState.Normal]，若群聊不存在返回 null
      */
     private suspend fun loadState(
@@ -1795,10 +1868,17 @@ class GroupChatViewModel :
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: Long? = null,
         editingMessageDraft: String = "",
-        dialogState: GroupChatDialogState = GroupChatDialogState.None
+        dialogState: GroupChatDialogState = GroupChatDialogState.None,
+        messageLimit: Int = MESSAGE_PAGE_SIZE
     ): GroupChatUiState.Normal? {
-        // 查询群聊会话与成员聚合数据
-        val data = mGroupChatRepository.getGroupChatData(sessionId) ?: return null
+        // 查询群聊会话、成员与最近消息窗口
+        val pageData = mGroupChatRepository.getGroupChatPageData(
+            sessionId = sessionId,
+            pageSize = messageLimit
+        ) ?: return null
+        val data = pageData.data
+        mMessageDisplayContext = data.copy(messages = emptyList())
+        mOldestLoadedMessageCursor = data.messages.firstOrNull()?.toGroupChatMessageCursor()
         val members = data.members.map {
             GroupChatMemberItem(
                 id = it.character.id,
@@ -1872,6 +1952,7 @@ class GroupChatViewModel :
             page = page,
             conversationState = GroupChatConversationState(
                 messages = data.toMessageItems(),
+                canLoadOlderMessages = pageData.canLoadOlderMessages,
                 selectedSpeakerId = effectiveSpeakerId,
                 inputDraft = inputDraft,
                 generationState = generationState,
@@ -1938,9 +2019,12 @@ class GroupChatViewModel :
      * 将数据库群聊消息转换为 UI 渲染模型，并执行 Display 阶段正则。
      *
      * @receiver 群聊聚合数据快照
+     * @param newerMessageCount 当前片段之后已经加载的消息数量
      * @return 转换并正则渲染后的 [GroupChatMessageItem] 列表
      */
-    private suspend fun GroupChatData.toMessageItems(): List<GroupChatMessageItem> {
+    private suspend fun GroupChatData.toMessageItems(
+        newerMessageCount: Int = 0
+    ): List<GroupChatMessageItem> {
         val scripts = mRegexRepository.activeScripts(members.map { it.character })
         // 遍历消息并执行针对该消息发言角色的 Display 阶段正则
         return messages.mapIndexed { index, message ->
@@ -1950,7 +2034,7 @@ class GroupChatViewModel :
                 members.firstOrNull()?.character?.name.orEmpty()
             }
             val macros = groupRegexMacros(this, characterName)
-            val depth = messages.lastIndex - index
+            val depth = newerMessageCount + messages.lastIndex - index
             val displayContent = when (message.source) {
                 GroupChatMessage.Source.User -> mRegexProcessor.applyDisplay(
                     input = message.content,
@@ -2070,6 +2154,11 @@ class GroupChatViewModel :
         GroupChatUiState.finished(uiStateFlow.value).setup()
     }
 
+    /** 将持久化群聊消息转换为向前分页使用的稳定游标。 */
+    private fun GroupChatMessage.toGroupChatMessageCursor(): GroupChatMessageCursor {
+        return GroupChatMessageCursor(createTime = createTime, messageId = id)
+    }
+
     /**
      * 仅在设置页更新表单草稿，保持页面状态边界明确。
      *
@@ -2127,9 +2216,24 @@ class GroupChatViewModel :
         val orderedCharacterIds: List<Long>
     )
 
+    /** 群聊消息由创建时间与 ID 组成的稳定分页游标。 */
+    private data class GroupChatMessageCursor(
+        val createTime: Long,
+        val messageId: Long
+    )
+
+    /** 已完成展示转换、可直接合并进 UiState 的一页群聊消息。 */
+    private data class LoadedGroupChatMessagePage(
+        val items: List<GroupChatMessageItem>,
+        val cursor: GroupChatMessageCursor?,
+        val canLoadOlderMessages: Boolean
+    )
+
     private companion object {
         /** 自动群聊模式下，两轮生成之间的短暂缓冲延时（毫秒）。 */
         const val AUTO_MODE_DELAY_MS = 500L
+        /** 群聊页面首次和后续向前加载的单页消息数量。 */
+        const val MESSAGE_PAGE_SIZE = 50
     }
 }
 

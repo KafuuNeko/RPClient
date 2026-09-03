@@ -23,7 +23,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index("sessionId"),
-        Index(value = ["sessionId", "createTime"]),
+        Index(value = ["sessionId", "createTime", "id"]),
         Index("speakerCharacterId"),
         Index("generationBatchId")
     ]

@@ -18,6 +18,40 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getMessages(sessionId: Long): List<GroupChatMessage>
 
+    /** 从会话末尾开始读取一页群聊消息，Repository 会把结果恢复为展示正序。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagePage(
+        sessionId: Long,
+        limit: Int
+    ): List<GroupChatMessage>
+
+    /** 使用创建时间和消息 ID 组成的稳定游标向前读取一页群聊消息。 */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId
+          AND (
+              createTime < :beforeCreateTime
+              OR (createTime = :beforeCreateTime AND id < :beforeMessageId)
+          )
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessagePageBefore(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        limit: Int
+    ): List<GroupChatMessage>
+
     /** 读取指定消息边界之后的内容，供增量摘要使用。 */
     @Query(
         """

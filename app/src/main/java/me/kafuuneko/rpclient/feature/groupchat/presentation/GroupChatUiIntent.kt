@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 sealed class GroupChatUiIntent {
     data class Init(val sessionId: String?) : GroupChatUiIntent()
     data object Resume : GroupChatUiIntent()
+    data object LoadOlderMessages : GroupChatUiIntent()
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
     data object ShowSessionLoreDialog : GroupChatUiIntent()

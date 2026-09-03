@@ -22,6 +22,49 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getMessagesBySessionId(sessionId: Long): List<ChatMessage>
 
     /**
+     * 从会话末尾开始读取一页普通消息。
+     *
+     * 查询保持倒序以利用索引快速定位最新记录，Repository 会在返回业务层前恢复为正序。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId AND source != 'Summary'
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getLatestMessagePageBySessionId(
+        sessionId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /**
+     * 读取稳定游标之前的一页普通消息。
+     *
+     * 创建时间相同时使用消息 ID 继续排序，避免跨页重复或遗漏导入的同时间消息。
+     */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId
+          AND source != 'Summary'
+          AND (
+              createTime < :beforeCreateTime
+              OR (createTime = :beforeCreateTime AND id < :beforeMessageId)
+          )
+        ORDER BY createTime DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun getMessagePageBeforeBySessionId(
+        sessionId: Long,
+        beforeCreateTime: Long,
+        beforeMessageId: Long,
+        limit: Int
+    ): List<ChatMessage>
+
+    /**
      * 按稳定的创建时间与主键顺序分页读取普通消息。
      *
      * 使用键集边界而不是 OFFSET，避免大型会话越往后扫描成本越高；调用方需要在同一读取
@@ -217,6 +260,17 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      */
     @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' ORDER BY createTime DESC, id DESC LIMIT 1")
     suspend fun getLatestMessageBySessionId(sessionId: Long): ChatMessage?
+
+    /** 获取指定会话最后一条角色消息。 */
+    @Query(
+        """
+        SELECT * FROM chat_messages
+        WHERE sessionId = :sessionId AND source = 'Char'
+        ORDER BY createTime DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestCharacterMessageBySessionId(sessionId: Long): ChatMessage?
 
     /**
      * 修改消息正文。

@@ -98,6 +98,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
@@ -131,6 +132,9 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
+
+/** 当前窗口顶部进入该范围时预取更早消息。 */
+private const val HISTORY_LOAD_THRESHOLD = 4
 
 /** 群聊页 Compose 入口，根据状态渲染对话、成员与世界书设置。 */
 @Composable
@@ -254,6 +258,8 @@ private fun GroupChatNormalView(
             )
             MessageList(
                 messages = state.conversationState.messages,
+                canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
+                isLoadingOlderMessages = state.conversationState.isLoadingOlderMessages,
                 expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
                 editingMessageId = state.conversationState.editingMessageId,
                 editingMessageDraft = state.conversationState.editingMessageDraft,
@@ -1081,6 +1087,8 @@ private fun MemberChip(
 @Composable
 private fun MessageList(
     messages: List<GroupChatMessageItem>,
+    canLoadOlderMessages: Boolean,
+    isLoadingOlderMessages: Boolean,
     expandedThinkBlockIds: Set<String>,
     editingMessageId: Long?,
     editingMessageDraft: String,
@@ -1089,9 +1097,12 @@ private fun MessageList(
 ) {
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
+    val latestCanLoadOlderMessages by rememberUpdatedState(canLoadOlderMessages)
+    val latestIsLoadingOlderMessages by rememberUpdatedState(isLoadingOlderMessages)
     var shouldFollowBottom by remember { mutableStateOf(true) }
     var isFirstLoad by remember { mutableStateOf(true) }
     var isScrollIndicatorDragged by remember { mutableStateOf(false) }
+    var lastTailMessageId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
@@ -1111,13 +1122,36 @@ private fun MessageList(
                 }
         }
     }
-    // - 只要收到新消息或发送消息，立即恢复底部跟随并平滑滚动到末尾
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+
+    // 首次定位到底部完成后，用户接近当前窗口顶部才请求更早历史
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to isFirstLoad }
+            .distinctUntilChanged()
+            .collect { (firstVisibleItemIndex, firstLoad) ->
+                if (!firstLoad &&
+                    firstVisibleItemIndex <= HISTORY_LOAD_THRESHOLD &&
+                    latestCanLoadOlderMessages &&
+                    !latestIsLoadingOlderMessages
+                ) {
+                    emitIntent(GroupChatUiIntent.LoadOlderMessages)
+                }
+            }
+    }
+
+    // 只有尾部消息身份改变时才滚到底部，头部加载历史不会打断用户位置
+    val tailMessageId = messages.lastOrNull()?.id
+    LaunchedEffect(tailMessageId) {
+        if (tailMessageId == null) {
+            lastTailMessageId = null
+            isFirstLoad = true
+        } else if (isFirstLoad || tailMessageId != lastTailMessageId) {
             shouldFollowBottom = true
-            listState.scrollToItem(messages.size)
+            listState.scrollToItem(
+                messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0
+            )
             isFirstLoad = false
         }
+        lastTailMessageId = tailMessageId
     }
 
     // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
@@ -1127,7 +1161,9 @@ private fun MessageList(
     ) {
         if (messages.isNotEmpty()) {
             if (isFirstLoad || shouldFollowBottom) {
-                listState.scrollToItem(messages.size)
+                listState.scrollToItem(
+                    messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0
+                )
                 isFirstLoad = false
             }
         }
@@ -1154,6 +1190,11 @@ private fun MessageList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        if (canLoadOlderMessages || isLoadingOlderMessages) {
+            item(key = "older-messages-loader") {
+                OlderMessagesLoadIndicator(loading = isLoadingOlderMessages)
+            }
+        }
         items(
             count = messages.size,
             key = { messages[it].id }
@@ -1174,6 +1215,21 @@ private fun MessageList(
         }
         item(key = "conversation-end") {
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+/** 在消息窗口顶部保留稳定高度，并在读取历史时展示轻量进度。 */
+@Composable
+private fun OlderMessagesLoadIndicator(loading: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
         }
     }
 }

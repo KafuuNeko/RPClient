@@ -23,7 +23,8 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index("sessionId"),
-        Index(value = ["sessionId", "source"])
+        Index(value = ["sessionId", "source"]),
+        Index(value = ["sessionId", "createTime", "id"])
     ]
 )
 data class ChatMessage(

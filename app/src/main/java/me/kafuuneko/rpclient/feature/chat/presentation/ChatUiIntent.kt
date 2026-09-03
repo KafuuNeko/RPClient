@@ -8,6 +8,8 @@ sealed class ChatUiIntent {
 
     data object Resume : ChatUiIntent()
 
+    data object LoadOlderMessages : ChatUiIntent()
+
     data object Back : ChatUiIntent()
 
     data object SendMessage : ChatUiIntent()
