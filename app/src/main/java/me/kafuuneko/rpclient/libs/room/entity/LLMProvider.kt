@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -55,6 +56,9 @@ data class LLMProvider(
     val useServerReportedUsage: Boolean = false,
     // 当前模型配置独立使用的 Prompt 后处理模式 ordinal。
     val promptPostProcessingMode: Int = 0,
+    // 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。
+    @ColumnInfo(defaultValue = "'Auto'")
+    val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
     // 是否启用
     val isEnabled: Boolean = true,
     // 创建时间
@@ -85,5 +89,6 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     sendTemperature = sendTemperature,
     sendTopP = sendTopP,
     useServerReportedUsage = useServerReportedUsage,
+    imageInputSetting = imageInputSetting,
     providerId = id
 )

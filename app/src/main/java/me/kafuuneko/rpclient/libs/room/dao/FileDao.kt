@@ -47,4 +47,24 @@ interface FileDao {
      */
     @Query("SELECT COUNT(*) FROM files WHERE hash = :hash")
     suspend fun countByHash(hash: String): Int
+
+    /**
+     * 按 UUID 列表批量读取文件记录，供消息附件批量加载使用。
+     *
+     * 长列表需要在 Repository 层分批调用以规避 SQLite 查询参数上限。
+     *
+     * @param uuids 文件 UUID 列表。
+     * @return 匹配的文件实体列表；不存在的 UUID 不出现在结果中。
+     */
+    @Query("SELECT * FROM files WHERE uuid IN (:uuids)")
+    suspend fun getByUuids(uuids: List<String>): List<FileEntity>
+
+    /**
+     * 读取指定哈希值的全部文件记录，用于查询共享同一物理文件的引用。
+     *
+     * @param hash 文件的 SHA-256 哈希值。
+     * @return 引用该哈希值的所有文件实体。
+     */
+    @Query("SELECT * FROM files WHERE hash = :hash")
+    suspend fun getByHash(hash: String): List<FileEntity>
 }

@@ -230,7 +230,7 @@ class AppDatabaseMigrationTest {
         }
         migrated.query(
             """
-            SELECT id, useServerReportedUsage, localTokenEstimatorType
+            SELECT id, useServerReportedUsage, localTokenEstimatorType, imageInputSetting
             FROM llm_providers
             WHERE id IN (404, 405, 406)
             ORDER BY id
@@ -240,14 +240,25 @@ class AppDatabaseMigrationTest {
             assertEquals(404L, cursor.getLong(0))
             assertEquals(0, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
             assertEquals(true, cursor.moveToNext())
             assertEquals(405L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
             assertEquals(true, cursor.moveToNext())
             assertEquals(406L, cursor.getLong(0))
             assertEquals(1, cursor.getInt(1))
             assertEquals("Automatic", cursor.getString(2))
+            assertEquals("Auto", cursor.getString(3))
+        }
+
+        // 验证 message_images 表及其字段在 3→4 迁移中正确生成
+        migrated.query("PRAGMA table_info(message_images)").use { cursor ->
+            val columnNames = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(1))
+            }
+            assertEquals(setOf("messageType", "messageId", "position", "imageUuid"), columnNames)
         }
     }
 

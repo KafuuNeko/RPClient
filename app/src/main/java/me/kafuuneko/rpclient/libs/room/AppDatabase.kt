@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.room.dao.LLMProviderDao
 import me.kafuuneko.rpclient.libs.room.dao.LLMTokenUsageDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
+import me.kafuuneko.rpclient.libs.room.dao.MessageImageDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
@@ -36,6 +37,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.Story
@@ -69,7 +71,8 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
         StoryChapter::class,
         StoryCharacter::class,
         StoryLorebookEntry::class,
-        LLMTokenUsageRecord::class
+        LLMTokenUsageRecord::class,
+        MessageImageEntity::class
     ],
     version = 4,
     autoMigrations = [
@@ -100,5 +103,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getStoryCharacterDao(): StoryCharacterDao
     abstract fun getStoryLorebookEntryDao(): StoryLorebookEntryDao
     abstract fun getLLMTokenUsageDao(): LLMTokenUsageDao
+    abstract fun getMessageImageDao(): MessageImageDao
 
 }

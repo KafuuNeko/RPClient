@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "5d594b96773600eb4e0e54294be3574a",
+    "identityHash": "d3b5250768313b4bc6a770a3f03b6743",
     "entities": [
       {
         "tableName": "character",
@@ -717,7 +717,7 @@
       },
       {
         "tableName": "llm_providers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `imageInputSetting` TEXT NOT NULL DEFAULT 'Auto', `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -836,6 +836,13 @@
             "columnName": "promptPostProcessingMode",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "imageInputSetting",
+            "columnName": "imageInputSetting",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Auto'"
           },
           {
             "fieldPath": "isEnabled",
@@ -2031,11 +2038,84 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_llm_token_usage_records_effectiveModel_apiHost_apiPort_createTime` ON `${TABLE_NAME}` (`effectiveModel`, `apiHost`, `apiPort`, `createTime`)"
           }
         ]
+      },
+      {
+        "tableName": "message_images",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`messageType` TEXT NOT NULL DEFAULT 'single', `messageId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `imageUuid` TEXT NOT NULL, PRIMARY KEY(`messageType`, `messageId`, `position`), FOREIGN KEY(`imageUuid`) REFERENCES `files`(`uuid`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "messageType",
+            "columnName": "messageType",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'single'"
+          },
+          {
+            "fieldPath": "messageId",
+            "columnName": "messageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUuid",
+            "columnName": "imageUuid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "messageType",
+            "messageId",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_message_images_imageUuid",
+            "unique": true,
+            "columnNames": [
+              "imageUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_message_images_imageUuid` ON `${TABLE_NAME}` (`imageUuid`)"
+          },
+          {
+            "name": "index_message_images_messageType_messageId",
+            "unique": false,
+            "columnNames": [
+              "messageType",
+              "messageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_message_images_messageType_messageId` ON `${TABLE_NAME}` (`messageType`, `messageId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "files",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "imageUuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5d594b96773600eb4e0e54294be3574a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd3b5250768313b4bc6a770a3f03b6743')"
     ]
   }
 }

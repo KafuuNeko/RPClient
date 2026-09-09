@@ -109,6 +109,8 @@ data class LLMProviderConfig(
     val sendTopP: Boolean = true,
     /** 是否优先采用服务端上报的 Token 用量；关闭后完全使用本地估算。 */
     val useServerReportedUsage: Boolean = false,
+    /** 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。 */
+    val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
     /** 已持久化配置的主键；编辑页未保存的临时配置为空。 */
     val providerId: Long? = null
 )

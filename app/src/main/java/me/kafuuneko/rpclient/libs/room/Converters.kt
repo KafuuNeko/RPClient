@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room
 
 import androidx.room.TypeConverter
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -8,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageSource
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 
 /**
  * 将业务枚举按名称写入 Room 字符串列。
@@ -96,6 +98,30 @@ class Converters {
     /** 将 Token 用量来源转换为稳定的数据库持久化名称。 */
     @TypeConverter
     fun fromLLMTokenUsageSource(value: LLMTokenUsageSource): String {
+        return value.name
+    }
+
+    /** 从数据库持久化编码恢复消息类型枚举；使用 stableCode 而非 ordinal。 */
+    @TypeConverter
+    fun toMessageType(value: String): MessageType {
+        return MessageType.fromStableCode(value)
+    }
+
+    /** 将消息类型枚举转换为稳定的数据库持久化编码。 */
+    @TypeConverter
+    fun fromMessageType(value: MessageType): String {
+        return value.stableCode
+    }
+
+    /** 从数据库持久化名称恢复图片输入能力设置。 */
+    @TypeConverter
+    fun toImageInputSetting(value: String): ImageInputSetting {
+        return ImageInputSetting.valueOf(value)
+    }
+
+    /** 将图片输入能力设置转换为稳定的数据库持久化名称。 */
+    @TypeConverter
+    fun fromImageInputSetting(value: ImageInputSetting): String {
         return value.name
     }
 }
