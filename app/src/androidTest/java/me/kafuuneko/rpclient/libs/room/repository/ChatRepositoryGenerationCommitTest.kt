@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -28,7 +30,7 @@ class ChatRepositoryGenerationCommitTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ChatRepository(database, Gson())
+        repository = ChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
         val characterId = database.getCharacterDao().insertOrReplace(
             Character(
                 name = "Character",

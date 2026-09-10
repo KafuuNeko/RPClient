@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -58,7 +60,8 @@ class LLMProviderDeletionTest {
         mCharacterRepository = CharacterRepository(
             mDatabase,
             gson,
-            RegexScriptCodec(gson)
+            RegexScriptCodec(gson),
+            MessageImageRepository(mDatabase, FileRepository(context, mDatabase))
         )
     }
 

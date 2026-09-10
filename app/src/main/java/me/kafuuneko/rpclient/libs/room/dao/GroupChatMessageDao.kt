@@ -8,6 +8,14 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 /** 群聊消息的顺序查询、更新和截断删除接口。 */
 @Dao
 interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
+    /** 清理附件时只读取父消息 ID，避免将整个会话正文加载到内存。 */
+    @Query("SELECT id FROM group_chat_messages WHERE sessionId = :sessionId AND id >= :fromId")
+    suspend fun getMessageIdsBySessionId(sessionId: Long, fromId: Long = 0): List<Long>
+
+    /** 批量读取指定消息，调用方按批次控制参数数量并恢复所需顺序。 */
+    @Query("SELECT * FROM group_chat_messages WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<GroupChatMessage>
+
     /** 按创建时间和 ID 稳定读取完整群聊历史。 */
     @Query(
         """

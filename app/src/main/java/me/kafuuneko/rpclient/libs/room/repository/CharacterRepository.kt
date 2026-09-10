@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.regex.toEntity
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
@@ -15,7 +16,8 @@ import me.kafuuneko.rpclient.utils.toStringList
 class CharacterRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
-    private val mRegexCodec: RegexScriptCodec
+    private val mRegexCodec: RegexScriptCodec,
+    private val mImages: MessageImageRepository
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mCharacterLLMProviderAssociationDao =
@@ -127,7 +129,12 @@ class CharacterRepository(
      * @param id 角色 id。
      */
     suspend fun deleteCharacter(id: Long) {
-        mAppDatabase.withTransaction {
+        mImages.mutate {
+            // 角色删除会级联单聊，群聊用户图片不属于该角色，必须保留。
+            mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
+                mImages.deleteInTransaction(this, MessageType.Single,
+                    mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id))
+            }
             mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
             mCharacterDao.deleteCharacterById(id)
         }

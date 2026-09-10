@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -29,8 +31,8 @@ class SessionOverviewRepositoryTest {
         mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        mChatRepository = ChatRepository(mDatabase, Gson())
-        mGroupChatRepository = GroupChatRepository(mDatabase, Gson())
+        mChatRepository = ChatRepository(mDatabase, Gson(), MessageImageRepository(mDatabase, FileRepository(context, mDatabase)))
+        mGroupChatRepository = GroupChatRepository(mDatabase, Gson(), MessageImageRepository(mDatabase, FileRepository(context, mDatabase)))
     }
 
     @After

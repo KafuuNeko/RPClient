@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -34,8 +36,8 @@ class ConversationPageRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        chatRepository = ChatRepository(database, Gson())
-        groupChatRepository = GroupChatRepository(database, Gson())
+        chatRepository = ChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
+        groupChatRepository = GroupChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
 
         // 创建单聊和群聊页面查询需要的最小会话数据
         val characterId = database.getCharacterDao().insertOrReplace(

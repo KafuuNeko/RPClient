@@ -48,6 +48,10 @@ interface FileDao {
     @Query("SELECT COUNT(*) FROM files WHERE hash = :hash")
     suspend fun countByHash(hash: String): Int
 
+    /** 按批次释放专属文件索引；调用方先删除附件关系。 */
+    @Query("DELETE FROM files WHERE uuid IN (:uuids)")
+    suspend fun deleteByUuids(uuids: List<String>)
+
     /**
      * 按 UUID 列表批量读取文件记录，供消息附件批量加载使用。
      *

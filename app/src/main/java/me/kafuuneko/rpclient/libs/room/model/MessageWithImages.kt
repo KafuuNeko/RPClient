@@ -40,3 +40,10 @@ data class MessageImageWithFile(
     /** 对应的文件索引实体；不存在时为空。 */
     val file: FileEntity?
 )
+
+/** 消息分页的附件聚合结果，游标仍取首条消息的 createTime 和真实消息 ID。 */
+data class MessageImagePage(
+    val messages: List<MessageWithImages>,
+    val canLoadOlderMessages: Boolean,
+    val totalMessageCount: Int
+)

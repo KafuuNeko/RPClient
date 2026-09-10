@@ -47,6 +47,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -77,6 +78,7 @@ class RPClientApp : Application() {
         runBlocking(Dispatchers.IO) {
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
+            koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
         }
     }
 }
@@ -173,6 +175,7 @@ internal val appModules = module {
     singleOf(::LLMRequestLogRepository)
     singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
+    singleOf(::MessageImageRepository)
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)

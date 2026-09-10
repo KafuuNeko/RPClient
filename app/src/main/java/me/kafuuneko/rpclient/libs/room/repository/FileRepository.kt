@@ -4,14 +4,22 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import androidx.exifinterface.media.ExifInterface
 import android.net.Uri
 import androidx.core.graphics.scale
+import androidx.exifinterface.media.ExifInterface
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.model.SquareCropSelection
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
+import me.kafuuneko.rpclient.model.SquareCropSelection
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -19,7 +27,9 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
+import java.util.Properties
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 文件存储库，提供文件的保存、获取和删除功能。
@@ -29,9 +39,9 @@ import java.util.UUID
  */
 class FileRepository(
     private val mContext: Context,
-    appDatabase: AppDatabase
+    private val mAppDatabase: AppDatabase
 ) {
-    private val mFileDao = appDatabase.getFileDao()
+    private val mFileDao = mAppDatabase.getFileDao()
 
     /**
      * 私有存储目录，用于存放所有通过该 Repository 保存的文件。
@@ -55,7 +65,7 @@ class FileRepository(
         val resolvedMimeType = mimeType ?: mContext.contentResolver.getType(uri)
         mContext.contentResolver.openInputStream(uri)?.use { inputStream ->
             saveStream(inputStream, resolvedMimeType)
-        } ?: throw IllegalArgumentException("Cannot open input stream from URI: $uri")
+        } ?: throw IllegalArgumentException("无法读取所选文件")
     }
 
     /**
@@ -68,11 +78,12 @@ class FileRepository(
      * @param mimeType 文件的 MIME 类型（可选）。
      * @return 保存成功后生成的 UUID。
      */
-    suspend fun saveFile(file: File, mimeType: String? = null): String = withContext(Dispatchers.IO) {
-        FileInputStream(file).use { inputStream ->
-            saveStream(inputStream, mimeType)
+    suspend fun saveFile(file: File, mimeType: String? = null): String =
+        withContext(Dispatchers.IO) {
+            FileInputStream(file).use { inputStream ->
+                saveStream(inputStream, mimeType)
+            }
         }
-    }
 
     /**
      * 从输入流保存数据到本地。
@@ -86,37 +97,318 @@ class FileRepository(
      * @return 保存成功后生成的 UUID。
      */
     private suspend fun saveStream(inputStream: InputStream, mimeType: String?): String {
-        val tempFile = withContext(Dispatchers.IO) {
-            File.createTempFile("temp_", ".tmp", mRepositoryDir)
+        val prepared =
+            prepareStream(UUID.randomUUID().toString(), inputStream, mimeType, Long.MAX_VALUE)
+        try {
+            return mutate(listOf(prepared)) { prepared.file.uuid }
+        } finally {
+            releasePrepared(prepared)
         }
-        val hash = try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            withContext(Dispatchers.IO) {
-                FileOutputStream(tempFile).use { outputStream ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        digest.update(buffer, 0, bytesRead)
-                    }
+    }
+
+    private val mStagingDir: File by lazy { File(mRepositoryDir, "staging").apply { mkdirs() } }
+    private val mState by lazy { mStorageStates.getOrPut(mRepositoryDir.absolutePath) { StorageState() } }
+    private val mActiveDrafts get() = mState.activeDrafts
+    private val mLeases get() = mState.leases
+
+    /** 将系统选择结果流式复制到草稿；无法读取时不泄露 URI。 */
+    suspend fun prepareFile(ownerId: String, uri: Uri, mimeType: String? = null): PreparedFile {
+        // 持有已完成结果，覆盖切回调用方调度器时被取消的窗口。
+        var completed: PreparedFile? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                val input = mContext.contentResolver.openInputStream(uri)
+                    ?: throw IllegalArgumentException("无法读取所选图片")
+                input.use {
+                    prepareStreamInContext(
+                        ownerId,
+                        it,
+                        mimeType ?: mContext.contentResolver.getType(uri)
+                    )
+                        .also { prepared -> completed = prepared }
                 }
             }
-            digest.digest().joinToString("") { "%02x".format(it) }
-        } catch (e: Exception) {
-            tempFile.delete()
-            throw e
+        } catch (error: Throwable) {
+            completed?.let { releasePrepared(it) }
+            throw error
+        }
+    }
+
+    /** 流式准备原图，并覆盖切回调用协程时发生取消的清理窗口。 */
+    suspend fun prepareStream(
+        ownerId: String,
+        input: InputStream,
+        mimeType: String?,
+        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES
+    ): PreparedFile {
+        // 持有已完成结果，覆盖切回调用方调度器时被取消的窗口。
+        var completed: PreparedFile? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                prepareStreamInContext(ownerId, input, mimeType, maxBytes).also { completed = it }
+            }
+        } catch (error: Throwable) {
+            completed?.let { releasePrepared(it) }
+            throw error
+        }
+    }
+
+    /** 有界复制并计算原图哈希；调用者负责关闭输入流，失败时清理本次独占暂存。 */
+    private suspend fun prepareStreamInContext(
+        ownerId: String,
+        input: InputStream,
+        mimeType: String?,
+        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES
+    ): PreparedFile {
+        require(ownerId.isNotBlank() && maxBytes > 0)
+        val handle = UUID.randomUUID().toString()
+        val temporary = File(mStagingDir, handle)
+        // 登记正在写入的草稿，防止恢复清理与流式复制竞争。
+        mStorageMutex.withLock { mActiveDrafts.add(handle) }
+        try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            var size = 0L
+            withContext(Dispatchers.IO) {
+                FileOutputStream(temporary).use { output ->
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        require(count.toLong() <= maxBytes - size) { "原图文件超过大小限制" }
+                        output.write(buffer, 0, count)
+                        digest.update(buffer, 0, count)
+                        size += count
+                    }
+                    output.fd.sync()
+                }
+            }
+            require(size > 0) { "图片文件为空" }
+            val hash = digest.digest().joinToString("") { "%02x".format(it) }
+            val prepared = PreparedFile(ownerId, handle, FileEntity(handle, hash, mimeType), size)
+            // 元数据最后落盘；没有完整元数据的文件不会被恢复为可提交草稿。
+            val metadata = Properties().apply {
+                setProperty("owner", ownerId)
+                setProperty("hash", hash)
+                setProperty("size", size.toString())
+                if (mimeType != null) setProperty("mime", mimeType)
+            }
+            withContext(Dispatchers.IO) {
+                FileOutputStream(File(mStagingDir, "$handle.meta")).use {
+                    metadata.store(it, null)
+                    it.fd.sync()
+                }
+            }
+            return prepared
+        } catch (error: Throwable) {
+            withContext(NonCancellable) {
+                mStorageMutex.withLock { discardStaging(handle) }
+            }
+            throw error
+        }
+    }
+
+    /** 根据草稿所有者和句柄恢复暂存引用；资源失效时返回 null，要求重新选择。 */
+    suspend fun restorePrepared(ownerId: String, handle: String): PreparedFile? =
+        withContext(Dispatchers.IO) {
+            mStorageMutex.withLock {
+                val prepared =
+                    readPrepared(handle)?.takeIf { it.ownerId == ownerId } ?: return@withLock null
+                val file = File(mStagingDir, handle)
+                if (!file.isFile || file.length() != prepared.byteCount || mFileDao.getByUuid(handle) != null) {
+                    return@withLock null
+                }
+                mActiveDrafts.add(handle)
+                prepared
+            }
         }
 
-        val targetFile = File(mRepositoryDir, hash)
-        if (!targetFile.exists()) {
-            tempFile.renameTo(targetFile)
-        } else {
-            tempFile.delete()
+    /** 放弃草稿只释放其暂存文件，绝不删除已提交的共享原图。 */
+    suspend fun releasePrepared(prepared: PreparedFile) =
+        withContext(NonCancellable + Dispatchers.IO) {
+            mStorageMutex.withLock {
+                if (readPrepared(prepared.handle) == prepared) discardStaging(prepared.handle)
+            }
         }
 
-        val uuid = UUID.randomUUID().toString()
-        mFileDao.insert(FileEntity(uuid = uuid, hash = hash, mimeType = mimeType))
-        return uuid
+    /**
+     * 在统一文件锁内提交索引和调用方的消息事务。
+     * - 原图先可靠落盘，数据库事务内不复制图片字节。
+     * - 事务开始前接受取消；短事务及成功登记不可中断，避免提交成功后误删草稿资源。
+     * - 失败后保留暂存，回收只依据真实剩余索引和读取租约。
+     */
+    internal suspend fun <T> mutate(
+        prepared: List<PreparedFile> = emptyList(),
+        block: suspend Mutation.() -> T
+    ): T = withContext(Dispatchers.IO) {
+        mStorageMutex.withLock {
+            require(prepared.map { it.handle }
+                .distinct().size == prepared.size) { "同一草稿不能重复提交" }
+            val mutation = Mutation()
+            try {
+                // 发布时仍保留 staging 副本，事务失败后可以直接重试。
+                prepared.forEach {
+                    require(readPrepared(it.handle) == it) { "图片草稿已失效或已经提交" }
+                    publish(it)
+                    mutation.garbage.add(it.file.hash)
+                }
+                currentCoroutineContext().ensureActive()
+                withContext(NonCancellable) {
+                    val result = mAppDatabase.withTransaction {
+                        prepared.forEach {
+                            require(mFileDao.getByUuid(it.file.uuid) == null) { "图片草稿已经提交" }
+                            mFileDao.insert(it.file)
+                        }
+                        mutation.block()
+                    }
+                    prepared.forEach { discardStaging(it.handle) }
+                    result
+                }
+            } finally {
+                withContext(NonCancellable) { mutation.garbage.forEach { collectHash(it) } }
+            }
+        }
+    }
+
+    /** 已持文件锁的事务操作；不得从中重新调用公开文件写入入口。 */
+    internal inner class Mutation {
+        val garbage = mutableSetOf<String>()
+
+        /** 释放附件专属索引，并登记事务结束后可能需要回收的 hash。 */
+        suspend fun removeFiles(uuids: List<String>) {
+            uuids.distinct().chunked(900).forEach { batch ->
+                val files = mFileDao.getByUuids(batch)
+                garbage.addAll(files.map { it.hash })
+                mFileDao.deleteByUuids(batch)
+            }
+        }
+
+        /** 分支仅创建独立索引，文件字节仍由原来的 hash 共享。 */
+        suspend fun copyReference(uuid: String): FileEntity {
+            val original = requireNotNull(mFileDao.getByUuid(uuid)) { "图片文件索引缺失" }
+            val copy = original.copy(uuid = UUID.randomUUID().toString())
+            mFileDao.insert(copy)
+            return copy
+        }
+    }
+
+    /** 为非消息资源复制引用；附件复制由消息仓库在同一事务内调用底层能力。 */
+    suspend fun copyFileReference(uuid: String): String = mutate { copyReference(uuid).uuid }
+
+    /** 持租约读取原图；使用结束或协程取消后释放保护并尝试回收。 */
+    suspend fun <T> withFileLease(uuid: String, block: suspend (File) -> T): T =
+        readWithLease(uuid, { throw IllegalArgumentException("图片文件缺失") }, block)
+
+    /** 缺失判断与租约登记在同一锁内完成，兼容头像返回 null 和发送请求明确失败两种语义。 */
+    private suspend fun <T> readWithLease(
+        uuid: String,
+        onMissing: () -> T,
+        block: suspend (File) -> T
+    ): T = withContext(Dispatchers.IO) {
+        // 读取索引和登记租约必须与删除共用文件锁。
+        val entity = mStorageMutex.withLock {
+            val entity = mFileDao.getByUuid(uuid) ?: return@withLock null
+            if (!File(mRepositoryDir, entity.hash).isFile) return@withLock null
+            mLeases[entity.hash] = mLeases.getOrDefault(entity.hash, 0) + 1
+            entity
+        } ?: return@withContext onMissing()
+        try {
+            block(File(mRepositoryDir, entity.hash))
+        } finally {
+            withContext(NonCancellable) {
+                mStorageMutex.withLock {
+                    val remaining = mLeases.getValue(entity.hash) - 1
+                    if (remaining == 0) mLeases.remove(entity.hash) else mLeases[entity.hash] =
+                        remaining
+                    collectHash(entity.hash)
+                }
+            }
+        }
+    }
+
+    /** 启动及恢复时回收孤立 hash 和过期草稿；近期草稿保留一天供状态恢复，不删头像索引。 */
+    suspend fun cleanupAbandonedFiles(now: Long = System.currentTimeMillis()) =
+        withContext(Dispatchers.IO) {
+            mStorageMutex.withLock {
+                // 已有文件索引全部视为有效所有权，不能按“没有附件关系”删除头像。
+                mRepositoryDir.listFiles()?.filter { it.name.matches(Regex("[0-9a-f]{64}")) }
+                    ?.forEach { collectHash(it.name) }
+                mStagingDir.listFiles()?.forEach {
+                    val handle = it.name.removeSuffix(".meta")
+                    if (handle !in mActiveDrafts && now - it.lastModified() > STAGING_RETENTION_MILLIS) {
+                        discardStaging(handle)
+                    }
+                }
+                // 旧版中断保存留下的临时文件没有索引，也没有可恢复草稿凭据。
+                mRepositoryDir.listFiles()
+                    ?.filter { it.name.startsWith("temp_") || it.name.endsWith(".publishing") }
+                    ?.forEach { it.delete() }
+            }
+        }
+
+    /** 校验句柄格式，防止恢复状态将任意路径作为私有草稿读取。 */
+    private fun readPrepared(handle: String): PreparedFile? {
+        if (!handle.matches(Regex("[0-9a-f-]{36}"))) return null
+        val metadata = File(mStagingDir, "$handle.meta")
+        if (!metadata.isFile) return null
+        return runCatching {
+            val values = Properties().apply { metadata.inputStream().use { load(it) } }
+            require(values.getProperty("hash").matches(Regex("[0-9a-f]{64}")))
+            require(
+                values.getProperty("owner").isNotBlank() && values.getProperty("size").toLong() > 0
+            )
+            PreparedFile(
+                values.getProperty("owner"), handle,
+                FileEntity(handle, values.getProperty("hash"), values.getProperty("mime")),
+                values.getProperty("size").toLong()
+            )
+        }.getOrNull()
+    }
+
+    /** 复制到同目录临时文件并同步落盘，检查原图哈希和最终原子重命名的结果。 */
+    private suspend fun publish(prepared: PreparedFile) {
+        val source = File(mStagingDir, prepared.handle)
+        require(source.isFile && source.length() == prepared.byteCount) { "图片草稿文件缺失或损坏" }
+        val target = File(mRepositoryDir, prepared.file.hash)
+        val temporary = File(mRepositoryDir, "${prepared.handle}.publishing")
+        try {
+            // 即使已有相同 hash，也重新校验暂存内容，避免把损坏草稿绑定到其他原图。
+            val digest = MessageDigest.getInstance("SHA-256")
+            source.inputStream().use { input ->
+                FileOutputStream(temporary).use { output ->
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        digest.update(buffer, 0, count)
+                    }
+                    output.fd.sync()
+                }
+            }
+            require(digest.digest().joinToString("") { "%02x".format(it) } == prepared.file.hash) {
+                "图片草稿校验失败"
+            }
+            if (!target.exists()) check(temporary.renameTo(target)) { "图片原文件提交失败" }
+            else check(target.isFile && target.length() == prepared.byteCount) { "已有图片原文件损坏" }
+        } finally {
+            temporary.delete()
+        }
+    }
+
+    /** 只回收数据库和所有读取者都已释放的物理资源。 */
+    private suspend fun collectHash(hash: String) {
+        if (mLeases.getOrDefault(hash, 0) == 0 && mFileDao.countByHash(hash) == 0) {
+            File(mRepositoryDir, hash).delete()
+        }
+    }
+
+    /** 删除操作独占的暂存字节及元数据；失败残留由恢复清理再次处理。 */
+    private fun discardStaging(handle: String) {
+        File(mStagingDir, handle).delete()
+        File(mStagingDir, "$handle.meta").delete()
+        mActiveDrafts.remove(handle)
     }
 
     /**
@@ -258,11 +550,22 @@ class FileRepository(
         ) {
             return@withContext null
         }
-        val file = getFile(uuid) ?: return@withContext null
+        readWithLease(uuid, { null }) { file ->
+            decodeSampledBitmap(file, requestedWidthPx, requestedHeightPx)
+        }
+    }
+
+    /** 在已有租约保护下解码头像，物理回收不能在边界读取和解码之间发生。 */
+    private fun decodeSampledBitmap(
+        file: File,
+        requestedWidthPx: Int,
+        requestedHeightPx: Int
+    ): Bitmap? {
+        // 先读取尺寸，采样解码仍处于文件租约保护内。
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
-        val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return@withContext null
-        val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return@withContext null
+        val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return null
+        val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return null
         val sampleSize = calculateInSampleSize(
             sourceWidth,
             sourceHeight,
@@ -275,9 +578,9 @@ class FileRepository(
                 inSampleSize = sampleSize
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-        ) ?: return@withContext null
+        ) ?: return null
         if (decoded.width <= requestedWidthPx && decoded.height <= requestedHeightPx) {
-            return@withContext decoded
+            return decoded
         }
         val scale = minOf(
             requestedWidthPx.toDouble() / decoded.width.toDouble(),
@@ -287,7 +590,7 @@ class FileRepository(
         val targetHeight = (decoded.height * scale).toInt().coerceAtLeast(1)
         val scaled = decoded.scale(targetWidth, targetHeight, filter = true)
         if (scaled !== decoded) decoded.recycle()
-        scaled
+        return scaled
     }
 
     /**
@@ -298,17 +601,8 @@ class FileRepository(
      *
      * @param uuid 要删除的文件的唯一标识符。
      */
-    suspend fun deleteFile(uuid: String) = withContext(Dispatchers.IO) {
-        val entity = mFileDao.getByUuid(uuid) ?: return@withContext
-        mFileDao.deleteByUuid(uuid)
-        
-        val count = mFileDao.countByHash(entity.hash)
-        if (count == 0) {
-            val file = File(mRepositoryDir, entity.hash)
-            if (file.exists()) {
-                file.delete()
-            }
-        }
+    suspend fun deleteFile(uuid: String) {
+        mutate { removeFiles(listOf(uuid)) }
     }
 
     private fun calculateInSampleSize(
@@ -356,11 +650,13 @@ class FileRepository(
                 matrix.setRotate(90f)
                 matrix.postScale(-1f, 1f)
             }
+
             ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
             ExifInterface.ORIENTATION_TRANSVERSE -> {
                 matrix.setRotate(-90f)
                 matrix.postScale(-1f, 1f)
             }
+
             ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
             else -> return bitmap
         }
@@ -369,7 +665,16 @@ class FileRepository(
         return oriented
     }
 
+    /** 同目录的多个仓库实例共用保护状态，所有访问由文件锁串行化。 */
+    private class StorageState {
+        val activeDrafts = mutableSetOf<String>()
+        val leases = mutableMapOf<String, Int>()
+    }
+
     private companion object {
+        val mStorageStates = ConcurrentHashMap<String, StorageState>()
+        val mStorageMutex = Mutex()
+        const val STAGING_RETENTION_MILLIS = 24L * 60 * 60 * 1000
         const val MAX_THUMBNAIL_DIMENSION = 4_096
         const val MAX_CROP_SOURCE_DIMENSION = 2_048
         const val AVATAR_DECODE_DIMENSION = 512

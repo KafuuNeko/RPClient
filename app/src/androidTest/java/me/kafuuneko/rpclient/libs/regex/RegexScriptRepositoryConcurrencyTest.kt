@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.regex
 
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -35,7 +37,7 @@ class RegexScriptRepositoryConcurrencyTest {
             .build()
         val gson = Gson()
         val codec = RegexScriptCodec(gson)
-        characterRepository = CharacterRepository(database, gson, codec)
+        characterRepository = CharacterRepository(database, gson, codec, MessageImageRepository(database, FileRepository(context, database)))
         repository = RegexScriptRepository(
             context,
             gson,

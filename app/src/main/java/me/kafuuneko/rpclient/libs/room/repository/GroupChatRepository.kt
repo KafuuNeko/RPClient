@@ -10,6 +10,12 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 import me.kafuuneko.rpclient.libs.room.model.GroupChatSessionOverview
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePage
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
+import me.kafuuneko.rpclient.libs.room.model.MessageKey
+import me.kafuuneko.rpclient.libs.room.model.MessageType
+import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 
 /** 群成员关系及其对应角色卡的聚合数据。 */
 data class GroupChatMemberData(
@@ -102,8 +108,75 @@ data class GroupChatMessagePage(
  */
 class GroupChatRepository(
     private val mAppDatabase: AppDatabase,
-    private val mGson: Gson
+    private val mGson: Gson,
+    private val mImages: MessageImageRepository
 ) {
+    /** 在同一读取事务内取得原有游标窗口和附件快照，不按图片数量改变分页单位。 */
+    suspend fun getMessageImagePage(
+        sessionId: Long,
+        pageSize: Int,
+        beforeCreateTime: Long? = null,
+        beforeMessageId: Long? = null
+    ): MessageImagePage {
+        require(pageSize in 1 until Int.MAX_VALUE)
+        require((beforeCreateTime == null) == (beforeMessageId == null))
+        return mAppDatabase.withTransaction {
+            // 沿用原有倒序 SQL 和双字段游标，仅在组装结果时恢复展示顺序。
+            val rows = if (beforeCreateTime == null) {
+                mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
+            } else {
+                mMessageDao.getMessagePageBefore(sessionId, beforeCreateTime,
+                    requireNotNull(beforeMessageId), pageSize + 1)
+            }
+            val messages = rows.take(pageSize).asReversed()
+            MessageImagePage(getMessagesWithImages(messages.map { it.id }), rows.size > pageSize,
+                mMessageDao.getMessageCount(sessionId))
+        }
+    }
+
+    /** 原子保存用户正文、原图索引及有序附件；失败保留未提交草稿。 */
+    suspend fun createUserMessageWithImages(
+        sessionId: Long,
+        content: String,
+        images: List<MessageImageInput.Prepared>,
+        speakerNameSnapshot: String
+    ): MessageWithImages {
+        require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "每条消息最多四张图片" }
+        require(content.isNotBlank() || images.isNotEmpty()) { "消息正文和图片不能同时为空" }
+        return mImages.mutate(images.map { it.value }) {
+            // 原图已在事务外发布；正文、索引和图片关系共同提交。
+            val now = System.currentTimeMillis()
+            val id = mMessageDao.insertOrReplace(GroupChatMessage(sessionId = sessionId, createTime = now,
+                source = GroupChatMessage.Source.User, content = content, speakerNameSnapshot = speakerNameSnapshot))
+            mSessionDao.updateLatestTime(sessionId, now)
+            val key = MessageKey(MessageType.Group, id)
+            mImages.replaceInTransaction(this, key, sessionId, images)
+            mImages.getMessages(listOf(key)).single()
+        }
+    }
+
+    /** 原子编辑用户图文；附件移除和顺序变化与正文使用同一摘要失效边界。 */
+    suspend fun editUserMessageWithImages(
+        sessionId: Long,
+        messageId: Long,
+        content: String,
+        images: List<MessageImageInput>
+    ): MessageWithImages {
+        require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "每条消息最多四张图片" }
+        require(content.isNotBlank() || images.isNotEmpty()) { "消息正文和图片不能同时为空" }
+        val prepared = images.filterIsInstance<MessageImageInput.Prepared>().map { it.value }
+        return mImages.mutate(prepared) {
+            val key = MessageKey(MessageType.Group, messageId)
+            mImages.replaceInTransaction(this, key, sessionId, images)
+            updateMessageContent(messageId, content)
+            mImages.getMessages(listOf(key)).single()
+        }
+    }
+
+    /** 读取调用方选定消息的正文及附件快照，保留传入的分页顺序。 */
+    suspend fun getMessagesWithImages(messageIds: List<Long>): List<MessageWithImages> =
+        mImages.getMessages(messageIds.map { MessageKey(MessageType.Group, it) })
+
     /** 群聊会话基本信息。 */
     private val mSessionDao = mAppDatabase.getGroupChatSessionDao()
     /** 成员关系、静音和顺序。 */
@@ -408,6 +481,9 @@ class GroupChatRepository(
         generationBatchId: String? = null,
         createTime: Long = System.currentTimeMillis()
     ): Long {
+        require(source != GroupChatMessage.Source.User || content.isNotBlank()) {
+            "纯文本用户消息不能为空，纯图片请使用图文提交入口"
+        }
         return mAppDatabase.withTransaction {
             val messageId = mMessageDao.insertOrReplace(
                 GroupChatMessage(
@@ -429,6 +505,8 @@ class GroupChatRepository(
     suspend fun updateMessageContent(id: Long, content: String) {
         mAppDatabase.withTransaction {
             val message = mMessageDao.getMessageById(id) ?: return@withTransaction
+            require(message.source != GroupChatMessage.Source.User || content.isNotBlank() ||
+                mAppDatabase.getMessageImageDao().getByMessage(MessageType.Group, id).isNotEmpty()) { "消息正文和图片不能同时为空" }
             mMessageDao.updateContent(id, content)
             mSummaryDao.deleteCovering(message.sessionId, message.id)
         }
@@ -436,18 +514,21 @@ class GroupChatRepository(
 
     /** 删除单条消息，并清理覆盖范围已失效的摘要。 */
     suspend fun deleteMessage(id: Long) {
-        mAppDatabase.withTransaction {
-            val message = mMessageDao.getMessageById(id) ?: return@withTransaction
+        mImages.mutate {
+            val message = mMessageDao.getMessageById(id) ?: return@mutate
             mSummaryDao.deleteCovering(message.sessionId, message.id)
+            mImages.deleteInTransaction(this, MessageType.Group, listOf(id))
             mMessageDao.deleteById(id)
         }
     }
 
     /** 从指定消息起删除后续历史，用于重新生成。 */
     suspend fun deleteMessagesFrom(id: Long) {
-        mAppDatabase.withTransaction {
-            val message = mMessageDao.getMessageById(id) ?: return@withTransaction
+        mImages.mutate {
+            val message = mMessageDao.getMessageById(id) ?: return@mutate
             mSummaryDao.deleteCovering(message.sessionId, message.id)
+            mImages.deleteInTransaction(this, MessageType.Group,
+                mMessageDao.getMessageIdsBySessionId(message.sessionId, id))
             mMessageDao.deleteFrom(message.sessionId, message.id)
         }
     }
@@ -660,7 +741,11 @@ class GroupChatRepository(
     }
 
     suspend fun deleteSession(id: Long) {
-        mSessionDao.deleteById(id)
+        mImages.mutate {
+            mImages.deleteInTransaction(this, MessageType.Group,
+                mMessageDao.getMessageIdsBySessionId(id))
+            mSessionDao.deleteById(id)
+        }
     }
 
     suspend fun getLatestMessage(sessionId: Long): GroupChatMessage? {
