@@ -16,10 +16,12 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
@@ -104,13 +106,16 @@ internal val appModules = module {
             mOkHttpClient = get(),
             mLLMRequestLogRepository = get(),
             mLLMTokenUsageRepository = get(),
-            mPromptTokenizerRegistry = get()
+            mPromptTokenizerRegistry = get(),
+            mImageRuntime = get(),
+            mImageCapabilities = get()
         )
     }
     singleOf(::LLMProviderSelectionResolver)
     singleOf(::AppThemeManager)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
+    singleOf(::ImageInputCapabilityResolver)
     singleOf(::FormattedHistoryBuilder)
     singleOf(::PromptMacroResolver)
     singleOf(::WorldBookActivator)
@@ -176,6 +181,7 @@ internal val appModules = module {
     singleOf(::LLMTokenUsageRepository)
     singleOf(::FileRepository)
     singleOf(::MessageImageRepository)
+    singleOf(::MessageImageRuntime)
     singleOf(::CharacterCardRepository)
     singleOf(::GroupChatRepository)
     singleOf(::RegexScriptRepository)

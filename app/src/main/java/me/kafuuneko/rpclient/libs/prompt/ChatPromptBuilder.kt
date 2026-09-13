@@ -16,14 +16,15 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.usesCharacterReplyTask
-import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
+import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
+import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
 /**
@@ -42,7 +43,7 @@ class ChatPromptBuilder(
     private val mHistoryBuilder: FormattedHistoryBuilder,
     private val mWorldBookActivator: WorldBookActivator,
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
-        me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
+        RegexScriptEngine()
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
@@ -122,7 +123,7 @@ class ChatPromptBuilder(
         val inChatPieces = buildInChatPieces(context, worldInfo)
         val examplePieces = buildExamplePieces(context, worldInfo, exampleBehavior)
         // 清洗历史消息推理块，并执行用户输入/AI 输出的 Prompt 阶段 Regex 处理
-        val historyMessages = context.messages.sanitizeThinkBlocks().mapIndexed { index, message ->
+        val historyMessages = context.messages.sanitizeThinkBlocks(context.messageImages.keys).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
                 ChatMessage.Source.User -> mRegexProcessor.applyPrompt(
@@ -151,7 +152,7 @@ class ChatPromptBuilder(
             }
         }
         // 组装格式化历史文本供 {{history}} 宏使用
-        val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name)
+        val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name, context.messageImages.mapValues { it.value.size })
         // 组装合并了 At Depth 注入项的聊天历史草稿列表
         val chatMessages = buildChatMessages(
             historyMessages,
@@ -591,8 +592,8 @@ class ChatPromptBuilder(
         val chatMessages = historyMessages.mapIndexed { index, message ->
             message.toPromptDraft(
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != lastHistoryIndex
-            )
+                canDrop = index != lastHistoryIndex && (context.messageImages[message.id].isNullOrEmpty() || message.id != historyMessages.lastOrNull { it.source == ChatMessage.Source.User }?.id)
+            ).copy(images = context.messageImages[message.id].orEmpty())
         }.toMutableList()
         // 若存在当前用户正在输入的消息，执行正则替换并作为末尾 User 消息加入
         context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {
@@ -793,7 +794,7 @@ class ChatPromptBuilder(
         return PromptMessageDraft(
             role = role,
             content = content,
-            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
+            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id", id),
             retentionPriority = retentionPriority,
             canDrop = canDrop
         )
@@ -804,12 +805,12 @@ class ChatPromptBuilder(
      *
      * 已保存的推理块只用于 UI 展示；默认不再带回后续上下文，避免模型复读或继承旧思路。
      */
-    private fun List<ChatMessage>.sanitizeThinkBlocks(): List<ChatMessage> {
+    private fun List<ChatMessage>.sanitizeThinkBlocks(imageMessageIds: Set<Long>): List<ChatMessage> {
         if (mPreferences.includeThinkInContext) return this
         return mapNotNull { message ->
             val cleaned = message.content.stripThinkBlocks().trim()
             when {
-                cleaned.isBlank() -> null
+                cleaned.isBlank() && message.id !in imageMessageIds -> null
                 cleaned == message.content -> message
                 else -> message.copy(content = cleaned)
             }

@@ -17,6 +17,10 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
  */
 @Dao
 interface MessageImageDao {
+    /** 导出前仅检测附件是否存在，不加载整份历史。 */
+    @Query("SELECT EXISTS(SELECT 1 FROM message_images AS images INNER JOIN chat_messages AS messages ON messages.id = images.messageId WHERE images.messageType = 'Single' AND messages.sessionId = :sessionId)")
+    suspend fun hasSingleSessionImages(sessionId: Long): Boolean
+
     /**
      * 读取单条消息的全部图片附件，按 position 排序。
      *

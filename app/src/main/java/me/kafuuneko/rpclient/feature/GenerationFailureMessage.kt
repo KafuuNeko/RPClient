@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.StringRes
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
+import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderRequestException
 import me.kafuuneko.rpclient.libs.llm.UnavailableLLMProviderSelectionException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
@@ -71,6 +72,7 @@ private fun GenerationFailure.toGenerationFailurePresentation(
             title = context.getString(R.string.model_request_failed_title),
             message = context.getString(R.string.model_request_failed_desc, message)
         )
+        is GenerationFailure.Image,
         is GenerationFailure.PromptBudget,
         GenerationFailure.Network,
         GenerationFailure.EmptyResponse,
@@ -85,6 +87,13 @@ private fun GenerationFailure.toGenerationFailureMessage(
     @StringRes fallbackMessageResId: Int,
     providerName: String?
 ): String = when (this) {
+    is GenerationFailure.Image -> context.getString(when (kind) {
+        ImageRequestFailure.Unsupported -> R.string.image_error_unsupported
+        ImageRequestFailure.Missing -> R.string.image_error_missing
+        ImageRequestFailure.InvalidImage -> R.string.image_error_invalid
+        ImageRequestFailure.TooLarge -> R.string.image_error_large
+        ImageRequestFailure.TooMany -> R.string.image_error_count
+    })
     GenerationFailure.NoProvider -> context.getString(R.string.generation_error_no_provider)
     GenerationFailure.CharacterProviderUnavailable -> providerName?.let {
         context.getString(R.string.generation_error_character_provider_unavailable_named, it)

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.prompt.model
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
@@ -56,7 +57,9 @@ data class PromptSource(
 /** Prompt 内容未进入最终请求的原因。 */
 enum class PromptOmissionReason {
     ContextBudget,
-    WorldInfoBudget
+    WorldInfoBudget,
+    ImageCount,
+    RequestBytes
 }
 
 /** 一项被预算器移除的内容及其估算成本。 */
@@ -73,8 +76,10 @@ data class PromptOmittedItem(
 enum class PromptTokenizerStrategy {
     /** 根据模型选择已知编码器，统计结果更接近模型服务的实际值。 */
     ModelAware,
+
     /** 使用其他离线 BPE 作为代理，并应用模型配置的估算预留率。 */
     Estimated,
+
     /** 预留给将来可证明不会低估的统计实现。 */
     Conservative
 }
@@ -90,7 +95,8 @@ data class PromptInspectionItem(
     /** 当前文本或 Prompt 项估算得到的 Token 数。 */
     val tokenCount: Int,
     /** 当前对象承载的正文内容。 */
-    val content: String
+    val content: String,
+    val images: List<LLMImageReference> = emptyList()
 )
 
 /**
@@ -148,5 +154,6 @@ data class PromptMessageDraft(
     /** 核心设定不可静默移除；空间不足时由预算器阻止请求。 */
     val canDrop: Boolean,
     /** 合并消息包含的全部领域来源；未合并消息默认只包含 [source]。 */
-    val sources: List<PromptSource> = listOf(source)
+    val sources: List<PromptSource> = listOf(source),
+    val images: List<LLMImageReference> = emptyList()
 )

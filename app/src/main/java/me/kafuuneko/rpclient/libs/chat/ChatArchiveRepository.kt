@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 import java.io.FilterInputStream
 import java.io.InputStream
 import java.io.Writer
@@ -29,6 +30,9 @@ class ChatArchiveRepository(
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
+
+    /** 文字导出前检查是否需要提示用户图片遗漏。 */
+    suspend fun hasImages(sessionId: Long): Boolean = mAppDatabase.getMessageImageDao().hasSingleSessionImages(sessionId)
 
     /** 将指定会话的原始 Room 数据导出到用户选择的文档 URI。 */
     suspend fun exportToUri(sessionId: Long, uri: Uri) = withContext(Dispatchers.IO) {
@@ -62,8 +66,12 @@ class ChatArchiveRepository(
                 limit = EXPORT_PAGE_SIZE
             )
             if (messages.isEmpty()) return
+            val images = mAppDatabase.getMessageImageDao().getByMessages(
+                MessageType.Single, messages.map { it.id }).groupBy { it.messageId }
             messages.forEach { message ->
-                mCodec.encodeMessage(archive, message.toArchiveMessage(), writer)
+                val count = images[message.id].orEmpty().size
+                val text = if (count == 0) message.content else message.content + "\n[Images omitted: $count]"
+                mCodec.encodeMessage(archive, message.copy(content = text).toArchiveMessage(), writer)
             }
             val lastMessage = messages.last()
             afterCreateTime = lastMessage.createTime

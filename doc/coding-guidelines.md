@@ -75,6 +75,13 @@ Compose View --UiIntent--> ViewModel --UiState--> Compose View
 10. 不做无关重构，不改动与需求无关的框架代码。
 11. 不引入未经需求确认的大型框架或架构重写。
 
+### 导入与类型引用
+
+- 类型、构造函数及顶层函数优先通过明确的 `import` 引入，在声明、参数、返回值、泛型和函数体内使用简短名称。
+- 不得为了省略 `import` 而反复内联完整包名。例如使用 `val imageState: MessageImageState = MessageImageState()`，避免写成 `val imageState: me.kafuuneko.rpclient.feature.common.media.MessageImageState = me.kafuuneko.rpclient.feature.common.media.MessageImageState()`。
+- 只有存在名称冲突或必须消除歧义时才使用全限定名；名称冲突优先考虑语义清晰的 `import ... as ...` 别名，需要全限定名时限制在最小范围。
+- 修改代码后检查新增引用，清理冗余包名前缀与未使用的导入，不引入通配符导入。
+
 ---
 
 ## 5. 注释规范概要

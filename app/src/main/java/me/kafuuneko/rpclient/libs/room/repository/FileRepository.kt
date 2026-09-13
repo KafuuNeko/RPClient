@@ -15,6 +15,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.llm.ImageRequestException
+import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
@@ -295,9 +297,18 @@ class FileRepository(
     /** 为非消息资源复制引用；附件复制由消息仓库在同一事务内调用底层能力。 */
     suspend fun copyFileReference(uuid: String): String = mutate { copyReference(uuid).uuid }
 
+    /** 在文件锁内读取已签发暂存，避免图像验证与释放草稿竞争。 */
+    suspend fun <T> withPreparedFile(prepared: PreparedFile, block: suspend (File) -> T): T =
+        withContext(Dispatchers.IO) {
+            mStorageMutex.withLock {
+                require(readPrepared(prepared.handle) == prepared) { "图片草稿已失效，请重新选择" }
+                block(File(mStagingDir, prepared.handle))
+            }
+        }
+
     /** 持租约读取原图；使用结束或协程取消后释放保护并尝试回收。 */
     suspend fun <T> withFileLease(uuid: String, block: suspend (File) -> T): T =
-        readWithLease(uuid, { throw IllegalArgumentException("图片文件缺失") }, block)
+        readWithLease(uuid, { throw ImageRequestException(ImageRequestFailure.Missing) }, block)
 
     /** 缺失判断与租约登记在同一锁内完成，兼容头像返回 null 和发送请求明确失败两种语义。 */
     private suspend fun <T> readWithLease(

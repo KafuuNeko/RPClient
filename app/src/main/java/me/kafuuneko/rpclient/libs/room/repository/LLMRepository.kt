@@ -292,7 +292,8 @@ class LLMRepository(
             mode = PromptPostProcessingMode.fromOrdinal(
                 provider.promptPostProcessingMode
             ),
-            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER
+            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
+            protocol = provider.protocol
         )
     }
 

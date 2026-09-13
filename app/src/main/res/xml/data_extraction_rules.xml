@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="root" path="app_repository/staging/" />
         <exclude domain="database" path="request_logs.sqlite" />
         <exclude domain="database" path="request_logs.sqlite-journal" />
         <exclude domain="database" path="request_logs.sqlite-shm" />
         <exclude domain="database" path="request_logs.sqlite-wal" />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="root" path="app_repository/staging/" />
         <exclude domain="database" path="request_logs.sqlite" />
         <exclude domain="database" path="request_logs.sqlite-journal" />
         <exclude domain="database" path="request_logs.sqlite-shm" />

@@ -19,5 +19,6 @@ data class ChatMessageUiModel(
     /** 当前文本或 Prompt 项估算得到的 Token 数。 */
     val tokenCount: Int,
     /** 当前消息或请求是否处于流式生成状态。 */
+    val imageUuids: List<String> = emptyList(),
     val isStreaming: Boolean = false
 )

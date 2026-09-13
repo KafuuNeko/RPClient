@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,12 +17,20 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<GroupChatViewModel>()
+    private val mImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(4)
+    ) { uris -> mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Picked(uris))) }
+    private val mImageSaver = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("image/*")
+    ) { uri -> uri?.let { mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) } }
+
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -52,6 +62,9 @@ class GroupChatActivity : CoreActivityWithEvent() {
 
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            GroupChatViewEvent.PickImages -> mImagePicker.launch(PickVisualMediaRequest(
+                ActivityResultContracts.PickVisualMedia.ImageOnly))
+            GroupChatViewEvent.SaveImage -> mImageSaver.launch("image")
             is GroupChatViewEvent.CopyText -> copyText(viewEvent.text)
             else -> super.onReceivedViewEvent(viewEvent)
         }

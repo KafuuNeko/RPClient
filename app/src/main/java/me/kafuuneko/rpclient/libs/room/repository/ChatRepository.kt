@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
@@ -108,12 +109,16 @@ class ChatRepository(
             val rows = if (beforeCreateTime == null) {
                 mChatMessageDao.getLatestMessagePageBySessionId(sessionId, pageSize + 1)
             } else {
-                mChatMessageDao.getMessagePageBeforeBySessionId(sessionId, beforeCreateTime,
-                    requireNotNull(beforeMessageId), pageSize + 1)
+                mChatMessageDao.getMessagePageBeforeBySessionId(
+                    sessionId, beforeCreateTime,
+                    requireNotNull(beforeMessageId), pageSize + 1
+                )
             }
             val messages = rows.take(pageSize).asReversed()
-            MessageImagePage(getMessagesWithImages(messages.map { it.id }), rows.size > pageSize,
-                mChatMessageDao.getMessageCountBySessionId(sessionId))
+            MessageImagePage(
+                getMessagesWithImages(messages.map { it.id }), rows.size > pageSize,
+                mChatMessageDao.getMessageCountBySessionId(sessionId)
+            )
         }
     }
 
@@ -128,8 +133,12 @@ class ChatRepository(
         return mImages.mutate(images.map { it.value }) {
             // 原图已在事务外发布；正文、索引和图片关系共同提交。
             val now = System.currentTimeMillis()
-            val id = mChatMessageDao.insertOrReplace(ChatMessage(sessionId = sessionId, createTime = now,
-                source = ChatMessage.Source.User, content = content))
+            val id = mChatMessageDao.insertOrReplace(
+                ChatMessage(
+                    sessionId = sessionId, createTime = now,
+                    source = ChatMessage.Source.User, content = content
+                )
+            )
             mChatSessionDao.updateSessionLatestTime(sessionId, now)
             val key = MessageKey(MessageType.Single, id)
             mImages.replaceInTransaction(this, key, sessionId, images)
@@ -305,7 +314,8 @@ class ChatRepository(
             val sourceMessages = mChatMessageDao.getMessagesBySessionId(sourceSessionId)
             val branchMessages = sourceMessages.takeWhileInclusive { it.id != throughMessageId }
             if (branchMessages.none { it.id == throughMessageId }) return@mutate 0L
-            val sourceSummary = mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
+            val sourceSummary =
+                mChatMessageDao.getLatestSummaryAtOrBefore(sourceSessionId, throughMessageId)
 
             // 插入新的分支会话记录
             val branchSessionId = mChatSessionDao.insertOrReplace(
@@ -493,8 +503,10 @@ class ChatRepository(
      */
     suspend fun deleteSession(id: Long) {
         mImages.mutate {
-            mImages.deleteInTransaction(this, MessageType.Single,
-                mChatMessageDao.getMessageIdsBySessionId(id))
+            mImages.deleteInTransaction(
+                this, MessageType.Single,
+                mChatMessageDao.getMessageIdsBySessionId(id)
+            )
             mChatMessageDao.deleteMessagesBySessionId(id)
             mChatSessionDao.deleteSessionById(id)
         }
@@ -674,9 +686,9 @@ class ChatRepository(
                 maxHistoryMessages = maxHistoryMessages
             )
             val totalMessageCount = (
-                mChatMessageDao.getMessageCountBySessionId(sessionId) -
-                    if (excludedMessageId == null) 0 else 1
-            ).coerceAtLeast(0)
+                    mChatMessageDao.getMessageCountBySessionId(sessionId) -
+                            if (excludedMessageId == null) 0 else 1
+                    ).coerceAtLeast(0)
             // 待替换消息位于摘要边界时回退摘要，防止继续使用包含旧回复的摘要
             if (
                 excludedMessageId != null &&
@@ -737,8 +749,8 @@ class ChatRepository(
             val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
             val refreshableSummary = latestSummary?.takeIf {
                 it.content.isNotBlank() &&
-                    it.coveredMessageId != 0L &&
-                    it.coveredMessageId == latestMessage?.id
+                        it.coveredMessageId != 0L &&
+                        it.coveredMessageId == latestMessage?.id
             }
             if (refreshableSummary == null) {
                 return@withTransaction ChatSummaryGenerationContext(
@@ -888,7 +900,8 @@ class ChatRepository(
                 if (deleteEmptyPlaceholder && messageId != null) {
                     val placeholder = mChatMessageDao.getMessageById(messageId)
                     if (placeholder?.sessionId == sessionId && placeholder.content.isBlank() &&
-                        mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, messageId).isEmpty()
+                        mAppDatabase.getMessageImageDao()
+                            .getByMessage(MessageType.Single, messageId).isEmpty()
                     ) {
                         mChatMessageDao.deleteMessageById(messageId)
                     }
@@ -957,11 +970,16 @@ class ChatRepository(
     suspend fun updateMessage(message: ChatMessage) {
         mAppDatabase.withTransaction {
             val current = mChatMessageDao.getMessageById(message.id)
-            val attachments = mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, message.id)
-            require(attachments.isEmpty() || (current?.sessionId == message.sessionId &&
-                message.source == ChatMessage.Source.User)) { "含图消息不能改变来源或所属会话" }
-            require(message.source != ChatMessage.Source.User || message.content.isNotBlank() ||
-                attachments.isNotEmpty()) { "消息正文和图片不能同时为空" }
+            val attachments =
+                mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, message.id)
+            require(
+                attachments.isEmpty() || (current?.sessionId == message.sessionId &&
+                        message.source == ChatMessage.Source.User)
+            ) { "含图消息不能改变来源或所属会话" }
+            require(
+                message.source != ChatMessage.Source.User || message.content.isNotBlank() ||
+                        attachments.isNotEmpty()
+            ) { "消息正文和图片不能同时为空" }
             mChatMessageDao.update(message)
             if (current != null && current.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(current.sessionId, current.id)
@@ -978,14 +996,29 @@ class ChatRepository(
     suspend fun updateMessageContent(id: Long, content: String) {
         mAppDatabase.withTransaction {
             val message = mChatMessageDao.getMessageById(id) ?: return@withTransaction
-            require(message.source != ChatMessage.Source.User || content.isNotBlank() ||
-                mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, id).isNotEmpty()) { "消息正文和图片不能同时为空" }
+            require(
+                message.source != ChatMessage.Source.User || content.isNotBlank() ||
+                        mAppDatabase.getMessageImageDao().getByMessage(MessageType.Single, id)
+                            .isNotEmpty()
+            ) { "消息正文和图片不能同时为空" }
             mChatMessageDao.updateMessageContent(id, content)
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
             }
         }
     }
+
+    /** 一致读取摘要基线和消息附件，供网络请求完成后进行乐观校验。 */
+    suspend fun getSummaryInputSnapshot(
+        sessionId: Long,
+        messageIds: List<Long>
+    ): SummaryInputSnapshot =
+        mAppDatabase.withTransaction {
+            SummaryInputSnapshot(
+                getMessagesWithImages(messageIds),
+                mGson.toJson(mChatMessageDao.getLatestSummaryBySessionId(sessionId))
+            )
+        }
 
     /**
      * 新增一条总结快照，并记录其覆盖到的最后一条普通消息。
@@ -1002,13 +1035,20 @@ class ChatRepository(
         content: String,
         coveredMessageId: Long,
         summaryIdToUpdate: Long? = null,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
+        expectedSnapshot: SummaryInputSnapshot? = null
     ): Long {
         return mAppDatabase.withTransaction {
+            if (expectedSnapshot != null) {
+                val current = getSummaryInputSnapshot(
+                    sessionId,
+                    expectedSnapshot.messages.map { it.key.messageId })
+                require(current == expectedSnapshot) { "摘要素材已修改，请重新总结" }
+            }
             val coveredMessage = mChatMessageDao.getMessageById(coveredMessageId)
             require(
                 coveredMessage?.sessionId == sessionId &&
-                    coveredMessage.source != ChatMessage.Source.Summary
+                        coveredMessage.source != ChatMessage.Source.Summary
             ) {
                 "Summary boundary must reference a regular message in the same session"
             }
@@ -1062,7 +1102,8 @@ class ChatRepository(
                     )
                 )
             } else {
-                val latestMessageId = mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
+                val latestMessageId =
+                    mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
                 if (current != null && current.coveredMessageId == latestMessageId) {
                     mChatMessageDao.updateMessageContent(current.id, content)
                     return@withTransaction
@@ -1119,8 +1160,10 @@ class ChatRepository(
      */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
         mImages.mutate {
-            mImages.deleteInTransaction(this, MessageType.Single,
-                mChatMessageDao.getMessageIdsBySessionId(sessionId))
+            mImages.deleteInTransaction(
+                this, MessageType.Single,
+                mChatMessageDao.getMessageIdsBySessionId(sessionId)
+            )
             mChatMessageDao.deleteMessagesBySessionId(sessionId)
         }
     }
@@ -1219,8 +1262,8 @@ class ChatRepository(
         val latestMessage = mChatMessageDao.getLatestMessageBySessionId(sessionId)
         val refreshableSummary = latestSummary.takeIf {
             it.content.isNotBlank() &&
-                it.coveredMessageId != 0L &&
-                it.coveredMessageId == latestMessage?.id
+                    it.coveredMessageId != 0L &&
+                    it.coveredMessageId == latestMessage?.id
         } ?: return ChatPromptHistoryContext(
             summary = latestSummary.content,
             messages = emptyList(),

@@ -1,10 +1,13 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
+    data object RetryImageReply : GroupChatUiIntent()
+    data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
     data class Init(val sessionId: String?) : GroupChatUiIntent()
     data object Resume : GroupChatUiIntent()
     data object LoadOlderMessages : GroupChatUiIntent()

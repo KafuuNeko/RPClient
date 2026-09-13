@@ -38,7 +38,10 @@ interface GroupChatSessionDao : MutableDao<GroupChatSession> {
                    ''
                ) AS memberNames,
                (
-                   SELECT messages.content
+                   SELECT CASE WHEN TRIM(messages.content) = '' AND EXISTS (
+                       SELECT 1 FROM message_images AS images
+                       WHERE images.messageId = messages.id AND images.messageType = 'Group'
+                   ) THEN '[Image]' ELSE messages.content END
                    FROM group_chat_messages AS messages
                    WHERE messages.sessionId = sessions.id
                    ORDER BY messages.createTime DESC, messages.id DESC

@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.common.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
@@ -14,6 +15,7 @@ sealed class ChatUiState {
 
     /** 单聊页面稳定可渲染状态；所有 Compose 临时交互数据也集中保存在此。 */
     data class Normal(
+        val imageState: MessageImageState = MessageImageState(),
         /** 当前页面正在展示的一级功能区域。 */
         val page: ChatPage = ChatPage.Conversation,
         /** 当前页面数据库或资源操作的加载状态。 */
@@ -104,6 +106,8 @@ sealed class ChatDialogState {
         /** 当前会话已启用的世界书条目 ID 集合。 */
         val enabledEntryIds: Set<Long>
     ) : ChatDialogState()
+
+    data object ImageExportWarning : ChatDialogState()
 
     data object Exporting : ChatDialogState()
 

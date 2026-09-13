@@ -141,6 +141,11 @@ class LLMProviderEditViewModel :
         }
     }
 
+    /** 保存用户明确指定的图片输入能力，不发送探测请求。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeImageInput::class)
+    private fun onChangeImageInput(intent: LLMProviderEditUiIntent.ChangeImageInput) =
+        updateForm { copy(imageInputSetting = intent.value) }
+
     /** 修改模型配置显示名称。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeName::class)
     private fun onChangeName(intent: LLMProviderEditUiIntent.ChangeName) =

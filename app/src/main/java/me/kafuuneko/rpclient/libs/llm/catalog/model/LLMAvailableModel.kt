@@ -13,5 +13,6 @@ data class LLMAvailableModel(
     /** 模型目录声明的最大输出 Token 数；未知时为空。 */
     val maxOutputTokens: Int? = null,
     /** 模型目录声明支持的生成参数集合。 */
-    val supportedParameters: Set<String> = emptySet()
+    val supportedParameters: Set<String> = emptySet(),
+    val inputModalities: Set<String>? = null
 )

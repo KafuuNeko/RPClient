@@ -2,38 +2,40 @@ package me.kafuuneko.rpclient.libs.groupchat
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
+import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
+import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
+import me.kafuuneko.rpclient.libs.prompt.filterEntries
+import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
+import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
-import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptRetentionPolicy
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
-import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
-import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
-import me.kafuuneko.rpclient.libs.prompt.filterEntries
-import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
-import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
-import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
-import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
+import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
+import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
+import me.kafuuneko.rpclient.libs.regex.RegexScriptEngine
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -73,7 +75,8 @@ data class GroupChatPromptContext(
     val candidateLorebooks: Map<Long, Lorebook> = emptyMap(),
     val recursiveScanningLorebookIds: Set<Long> = emptySet(),
     val generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
-    val regexScripts: List<ScopedRegexScript> = emptyList()
+    val regexScripts: List<ScopedRegexScript> = emptyList(),
+    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
 )
 
 /** 群聊回复的生成模式。 */
@@ -117,7 +120,7 @@ class GroupChatPromptBuilder(
     private val mPreferences: PromptPreferences,
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
-        me.kafuuneko.rpclient.libs.regex.RegexScriptEngine()
+        RegexScriptEngine()
     ),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
@@ -195,7 +198,7 @@ class GroupChatPromptBuilder(
         // 构建待按深度插入的 In-Chat 注入项
         val inChatPieces = buildInChatPieces(context, worldInfo)
         // 过滤推理块并对群聊历史消息执行 Regex 替换
-        val history = sanitizeHistory(context.messages).mapIndexed { index, message ->
+        val history = sanitizeHistory(context.messages, context.messageImages.keys).mapIndexed { index, message ->
             val depth = context.messages.lastIndex - index
             val result = when (message.source) {
                 GroupChatMessage.Source.User -> mRegexProcessor.applyPrompt(
@@ -227,8 +230,8 @@ class GroupChatPromptBuilder(
             message.toPromptDraft(
                 userName = context.session.userName,
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != history.lastIndex
-            )
+                canDrop = index != history.lastIndex && (context.messageImages[message.id].isNullOrEmpty() || message.id != history.lastOrNull { it.source == GroupChatMessage.Source.User }?.id)
+            ).copy(images = context.messageImages[message.id].orEmpty())
         }.toMutableList()
         // 将 In-Chat 片段按深度插入群聊历史
         insertInChatPieces(historyMessages, inChatPieces)
@@ -729,14 +732,14 @@ class GroupChatPromptBuilder(
     }
 
     /** 过滤群聊历史消息中的 `<think>...</think>` 推理思考块。 */
-    private fun sanitizeHistory(messages: List<GroupChatMessage>): List<GroupChatMessage> {
+    private fun sanitizeHistory(messages: List<GroupChatMessage>, imageMessageIds: Set<Long>): List<GroupChatMessage> {
         return messages.mapNotNull { message ->
             val cleaned = if (mPreferences.includeThinkInContext) {
                 message.content
             } else {
                 message.content.stripThinkBlocks()
             }.trim()
-            if (cleaned.isBlank()) null else message.copy(content = cleaned)
+            if (cleaned.isBlank() && message.id !in imageMessageIds) null else message.copy(content = cleaned)
         }
     }
 
@@ -808,7 +811,7 @@ class GroupChatPromptBuilder(
         return PromptMessageDraft(
             role = role,
             content = "$speaker: $content",
-            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id"),
+            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id", id),
             retentionPriority = retentionPriority,
             canDrop = canDrop
         )

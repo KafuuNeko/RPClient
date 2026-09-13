@@ -1,9 +1,14 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
 
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
+    data object RetryImageReply : ChatUiIntent()
+
+    data class ImageAction(val action: MessageImageAction) : ChatUiIntent()
+
     data class Init(val sessionId: String?) : ChatUiIntent()
 
     data object Resume : ChatUiIntent()
@@ -55,6 +60,8 @@ sealed class ChatUiIntent {
     data class CopyPromptItem(val text: String) : ChatUiIntent()
 
     data object CloseChatSettings : ChatUiIntent()
+
+    data object ConfirmTextExport : ChatUiIntent()
 
     data object ExportChatClick : ChatUiIntent()
 

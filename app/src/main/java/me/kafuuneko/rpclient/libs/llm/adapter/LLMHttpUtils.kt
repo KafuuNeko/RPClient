@@ -3,9 +3,16 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import java.io.File
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
@@ -16,6 +23,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.llm.model.mergeContentBlocks
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.Call
 import okhttp3.Callback
@@ -26,16 +34,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
 /** 已序列化的协议请求，用于同时发起网络调用和记录原始请求日志。 */
 internal data class LLMHttpRequest(
     val request: Request,
-    val payloadJson: String
+    val payloadJson: String,
+    val temporaryFile: File? = null
 )
 
 /**
@@ -51,16 +57,20 @@ internal suspend fun OkHttpClient.await(request: Request): String {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    val body = it.body?.string().orEmpty()
-                    if (!it.isSuccessful) {
-                        continuation.resumeWithException(
-                            LLMHttpStatusException(it.code, body.ifBlank { it.message })
-                        )
-                        return
+                // 读取响应期间的断流或取消也必须恢复挂起调用，不能逸出 OkHttp 回调线程。
+                val result = runCatching {
+                    response.use {
+                        val body = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) {
+                            throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(body.ifBlank { it.message }))
+                        }
+                        body
                     }
-                    continuation.resume(body)
                 }
+                if (!continuation.isCancelled) result.fold(
+                    onSuccess = { continuation.resume(it) },
+                    onFailure = { continuation.resumeWithException(it) }
+                )
             }
         })
     }
@@ -73,18 +83,27 @@ internal fun OkHttpClient.streamLines(
     request: Request,
     onConnected: suspend () -> Unit = {}
 ): Flow<String> = flow {
-    val response = withContext(Dispatchers.IO) { newCall(request).execute() }
-    response.use {
-        val body = it.body ?: throw LLMEmptyResponseException()
-        if (!it.isSuccessful) {
-            val errorBody = withContext(Dispatchers.IO) { body.string() }
-            throw LLMHttpStatusException(it.code, errorBody.ifBlank { it.message })
+    coroutineScope {
+        val call = newCall(request)
+        // 停止生成必须取消正在等待头部或 SSE 下一行的网络调用，随后才能释放请求临时文件。
+        val cancellation = launch {
+            try { awaitCancellation() } finally { call.cancel() }
         }
-        onConnected()
-        while (true) {
-            val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
-            emit(line)
-        }
+        try {
+            val response = withContext(Dispatchers.IO) { call.execute() }
+            response.use {
+                val body = it.body ?: throw LLMEmptyResponseException()
+                if (!it.isSuccessful) {
+                    val errorBody = withContext(Dispatchers.IO) { body.string() }
+                    throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(errorBody.ifBlank { it.message }))
+                }
+                onConnected()
+                while (true) {
+                    val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
+                    emit(line)
+                }
+            }
+        } finally { cancellation.cancel() }
     }
 }
 
@@ -401,7 +420,8 @@ internal fun List<LLMMessage>.toAlternatingConversationMessages(
             merged[merged.lastIndex] = previous.copy(
                 content = listOf(previous.content, message.content)
                     .filter { it.isNotBlank() }
-                    .joinToString("\n\n")
+                    .joinToString("\n\n"),
+                blocks = if (previous.images.isNotEmpty() || message.images.isNotEmpty()) mergeContentBlocks(previous.contentBlocks + message.contentBlocks) else emptyList()
             )
         } else {
             merged += message

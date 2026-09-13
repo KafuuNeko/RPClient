@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -68,6 +69,7 @@ data class LLMProviderEditForm(
     /** Prompt 提交前采用的后处理模式。 */
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     /** 当前记录或配置是否启用。 */
+    val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
     val isEnabled: Boolean = true
 ) {
     /** 校验并转换表单；敏感鉴权字段由 ViewModel 在转换时显式提供。 */
@@ -114,6 +116,7 @@ data class LLMProviderEditForm(
             sendTopP = sendTopP,
             useServerReportedUsage = useServerReportedUsage,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
+            imageInputSetting = imageInputSetting,
             isEnabled = isEnabled,
             createTime = createTime
         )

@@ -1158,4 +1158,26 @@
     <string name="no_model_provider_desc">RPClient is a local-first client and does not provide built-in AI models. Please configure and enable an API Key (e.g. OpenAI, Gemini, Claude, DeepSeek) in Model Settings to start chatting.</string>
     <string name="no_model_provider_banner">No model configured. Tap here to set up an API key.</string>
     <string name="go_to_model_settings">Configure</string>
+    <string name="image_input_capability">Image input</string>
+    <string name="image_capability_auto">Auto</string>
+    <string name="image_capability_supported">Supported</string>
+    <string name="image_capability_unsupported">Unsupported</string>
+    <string name="image_capability_hint">Unknown models may be tried. Images are never silently omitted.</string>
+    <string name="attach_images">Add images</string>
+    <string name="message_image">Message image</string>
+    <string name="image_missing">Image missing</string>
+    <string name="image_loading">Loading image…</string>
+    <string name="image_original">Original</string>
+    <string name="image_send_preview">Send preview</string>
+    <string name="image_close">Close</string>
+    <string name="image_save">Save image</string>
+    <string name="image_error_unsupported">This model does not support images. Change the model and retry.</string>
+    <string name="image_error_missing">A history image is missing. Restore it or edit the message before retrying.</string>
+    <string name="image_error_invalid">The image is damaged or its format is unsupported.</string>
+    <string name="image_error_large">The image request exceeds the size limit. Reduce images or history.</string>
+    <string name="image_error_count">The request contains too many images (maximum 12).</string>
+    <string name="image_retry">Retry reply</string>
+    <string name="image_export_warning">This text export does not include images and cannot restore them. Export text only?</string>
+    <string name="image_export_text">Export text only</string>
+    <string name="image_summary_paused">Image summarization failed. Automatic summaries are paused; change the summary model and resume in settings.</string>
 </resources>

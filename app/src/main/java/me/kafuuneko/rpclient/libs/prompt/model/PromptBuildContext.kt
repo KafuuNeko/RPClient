@@ -1,12 +1,13 @@
 package me.kafuuneko.rpclient.libs.prompt.model
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
-import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 
 /**
  * 单角色聊天 Prompt 构建所需的完整只读快照。
@@ -48,7 +49,8 @@ data class PromptBuildContext(
     /** 本次请求对应的新生成、续写或重生成模式。 */
     val generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
     /** 当前对象关联或允许执行的正则脚本列表。 */
-    val regexScripts: List<ScopedRegexScript> = emptyList()
+    val regexScripts: List<ScopedRegexScript> = emptyList(),
+    val messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
 )
 
 /** 本次构建对应的用户操作，会影响尾部指令和世界书生成类型过滤。 */

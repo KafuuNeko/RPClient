@@ -70,6 +70,7 @@ internal fun parseOpenAIModelCatalog(
                     } else {
                         null
                     },
+                    inputModalities = if (includeExtendedMetadata) item.objectOrNull("architecture")?.arrayOrNull("input_modalities")?.toStringSet() else null,
                     supportedParameters = if (includeExtendedMetadata) {
                         item.arrayOrNull("supported_parameters")
                             ?.toStringSet()

@@ -29,7 +29,10 @@ interface ChatSessionDao : MutableDao<ChatSession> {
                sessions.title,
                sessions.latestTime,
                (
-                   SELECT messages.content
+                   SELECT CASE WHEN TRIM(messages.content) = '' AND EXISTS (
+                       SELECT 1 FROM message_images AS images
+                       WHERE images.messageId = messages.id AND images.messageType = 'Single'
+                   ) THEN '[Image]' ELSE messages.content END
                    FROM chat_messages AS messages
                    WHERE messages.sessionId = sessions.id
                      AND messages.source != 'Summary'

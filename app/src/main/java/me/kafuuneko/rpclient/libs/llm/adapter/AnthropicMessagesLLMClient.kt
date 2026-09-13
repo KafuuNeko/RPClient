@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
@@ -12,6 +13,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
+import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,7 +29,9 @@ import org.json.JSONObject
 class AnthropicMessagesLLMClient(
     private val mOkHttpClient: OkHttpClient,
     private val mLLMRequestLogRepository: LLMRequestLogRepository,
-    private val mProvider: LLMProviderConfig
+    private val mProvider: LLMProviderConfig,
+    private val mImageRuntime: MessageImageRuntime? = null,
+    private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
     /**
      * Anthropic Messages 非流式调用，适用于 Claude 官方接口。
@@ -35,17 +39,21 @@ class AnthropicMessagesLLMClient(
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val httpRequest = buildRequest(request, model, stream = false)
-        val raw = runCatching {
-            mOkHttpClient.await(httpRequest.request)
-        }.onSuccess {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
-        }.onFailure {
-            mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
-        }.getOrThrow()
-        return raw.toAnthropicResponse(
-            fallbackModel = model,
-            includeReasoningInContent = request.includeReasoningInContent
-        )
+        try {
+            val raw = runCatching {
+                mOkHttpClient.await(httpRequest.request)
+            }.onSuccess {
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it)
+            }.onFailure {
+                mLLMRequestLogRepository.trySaveLog(mProvider, model, false, httpRequest.payloadJson, it.toErrorJson())
+            }.getOrElse { error ->
+                throw if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), error) else error
+            }
+            return raw.toAnthropicResponse(
+                fallbackModel = model,
+                includeReasoningInContent = request.includeReasoningInContent
+            )
+        } finally { httpRequest.temporaryFile?.delete() }
     }
 
     /**
@@ -55,45 +63,55 @@ class AnthropicMessagesLLMClient(
         val model = request.model ?: mProvider.model
         return flow {
             val httpRequest = buildRequest(request, model, stream = true)
-            val rawChunks = JSONArray()
-            val partMapper = LLMStreamPartMapper(
-                includeReasoningInContent = request.includeReasoningInContent,
-                captureReasoning = request.captureReasoning
-            )
-            runCatching {
-                mOkHttpClient.streamLines(
-                    request = httpRequest.request,
-                    onConnected = { emit(LLMStreamEvent.Connected) }
-                ).collect { line ->
-                    rawChunks.put(line)
-                    parseAnthropicStreamParts(line).forEach { part ->
-                        partMapper.map(part).forEach { emit(it) }
+            try {
+                val rawChunks = JSONArray()
+                var loggedChars = 0
+                val partMapper = LLMStreamPartMapper(
+                    includeReasoningInContent = request.includeReasoningInContent,
+                    captureReasoning = request.captureReasoning
+                )
+                runCatching {
+                    mOkHttpClient.streamLines(
+                        request = httpRequest.request,
+                        onConnected = { emit(LLMStreamEvent.Connected) }
+                    ).collect { line ->
+                        // 限制流式响应日志大小，并清除图片 Base64 等内容
+                        if (loggedChars < 65_536) {
+                            val safeLine = ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
+                            rawChunks.put(safeLine)
+                            loggedChars += safeLine.length
+                        }
+                        parseAnthropicStreamParts(line).forEach { part ->
+                            partMapper.map(part).forEach { emit(it) }
+                        }
                     }
+                    // 兼容未发送 message_stop 便关闭连接的代理服务
+                    partMapper.finish().forEach { emit(it) }
+                }.onSuccess {
+                    mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
+                }.onFailure {
+                    mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
+                    throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), it) else it
                 }
-                // 兼容未发送 message_stop 便关闭连接的代理服务
-                partMapper.finish().forEach { emit(it) }
-            }.onSuccess {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, rawChunks.toString())
-            }.onFailure {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, httpRequest.payloadJson, it.toErrorJson())
-                throw it
-            }
+            } finally { httpRequest.temporaryFile?.delete() }
         }
     }
 
     /**
      * 构建 Anthropic Messages 请求体。stream 参数控制是否返回 SSE。
      */
-    private fun buildRequest(
+    private suspend fun buildRequest(
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean
     ): LLMHttpRequest {
+        if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(mProvider.copy(model = model))
+        val codec = MultimodalWireCodec(mProvider)
         val options = request.options.resolveFor(mProvider)
         val payload = JSONObject()
             .put("model", model)
             .put("max_tokens", options.maxTokens)
-            .put("messages", request.messages.toAnthropicMessages())
+            .put("messages", request.messages.toAnthropicMessages(codec, request.isPromptFinalized))
             .put("stream", stream)
         options.temperature?.let { payload.put("temperature", it) }
         options.topP?.let { payload.put("top_p", it) }
@@ -101,30 +119,30 @@ class AnthropicMessagesLLMClient(
         if (systemPrompt.isNotBlank()) payload.put("system", systemPrompt)
         if (options.stop.isNotEmpty()) payload.put("stop_sequences", options.stop.toJsonArray())
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
+        val prepared = codec.prepare(finalPayload, request, mImageRuntime)
 
-        return LLMHttpRequest(
-            request = Request.Builder()
+        return prepared.toHttpRequest {
+            Request.Builder()
                 .url("${mProvider.normalizedBaseUrl()}/v1/messages")
-                .post(finalPayload.toRequestBody())
+                .post(prepared.body)
                 .header("x-api-key", mProvider.apiKey)
                 .header("anthropic-version", "2023-06-01")
                 .header("Content-Type", "application/json")
                 .applyProviderHeaders(mProvider)
-                .build(),
-            payloadJson = finalPayload.toString()
-        )
+                .build()
+        }
     }
 
     /**
      * 转换通用消息为 Anthropic messages 数组。
      */
-    private fun List<LLMMessage>.toAnthropicMessages(): JSONArray {
+    private fun List<LLMMessage>.toAnthropicMessages(codec: MultimodalWireCodec, finalized: Boolean): JSONArray {
         return JSONArray().also { array ->
-            toAlternatingConversationMessages().forEach { message ->
+            (if (finalized) dropWhile { it.role == LLMMessageRole.System } else toAlternatingConversationMessages()).forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toAnthropicRole())
-                        .put("content", message.content)
+                        .put("content", codec.content(message))
                 )
             }
         }

@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 
 /** 群成员关系及其对应角色卡的聚合数据。 */
 data class GroupChatMemberData(
@@ -266,24 +267,32 @@ class GroupChatRepository(
      */
     suspend fun getGroupChatPromptData(
         sessionId: Long,
-        maxHistoryMessages: Int
+        maxHistoryMessages: Int,
+        protectedUserMessageId: Long? = null
     ): GroupChatPromptData? {
         require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
         return mAppDatabase.withTransaction {
             // 在事务快照中读取会话及配置允许的最近消息
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
+            val summary = mSummaryDao.getLatest(sessionId)
             val messages = if (maxHistoryMessages == 0) {
                 mMessageDao.getMessages(sessionId)
             } else {
                 mMessageDao.getLatestMessagePage(sessionId, maxHistoryMessages).asReversed()
+            }
+            val retained = messages.filter { it.id > (summary?.coveredMessageId ?: 0L) }.toMutableList()
+            protectedUserMessageId?.let { id ->
+                val trigger = mMessageDao.getMessageById(id)
+                if (trigger != null && trigger.sessionId == sessionId && trigger.source == GroupChatMessage.Source.User &&
+                    trigger.id > (summary?.coveredMessageId ?: 0L) && retained.none { it.id == id }) retained.add(0, trigger)
             }
             // 完整计数独立保留给世界书时序，不能被 Prompt 消息窗口替代
             GroupChatPromptData(
                 data = GroupChatData(
                     session = session,
                     members = getMemberData(sessionId),
-                    messages = messages,
-                    summary = mSummaryDao.getLatest(sessionId)
+                    messages = retained,
+                    summary = summary
                 ),
                 totalMessageCount = mMessageDao.getMessageCount(sessionId)
             )
@@ -612,6 +621,12 @@ class GroupChatRepository(
         true
     }
 
+    /** 图片摘要失败只暂停自动总结，不覆盖其他会话配置。 */
+    suspend fun updateAutoSummaryPaused(sessionId: Long, paused: Boolean) = mAppDatabase.withTransaction {
+        val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction
+        mSessionDao.update(session.copy(autoSummaryPaused = paused))
+    }
+
     /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) {
         mSessionDao.update(session)
@@ -657,19 +672,31 @@ class GroupChatRepository(
         }
     }
 
+    /** 一致读取摘要基线和消息附件，供网络请求完成后进行乐观校验。 */
+    suspend fun getSummaryInputSnapshot(sessionId: Long, messageIds: List<Long>): SummaryInputSnapshot =
+        mAppDatabase.withTransaction {
+            SummaryInputSnapshot(getMessagesWithImages(messageIds),
+                mGson.toJson(mSummaryDao.getLatest(sessionId)))
+        }
+
     /** 新增摘要或更新指定摘要的内容与覆盖边界。 */
     suspend fun saveSummary(
         sessionId: Long,
         content: String,
         coveredMessageId: Long,
-        summaryIdToUpdate: Long? = null
-    ): Long {
+        summaryIdToUpdate: Long? = null,
+        expectedSnapshot: SummaryInputSnapshot? = null
+    ): Long = mAppDatabase.withTransaction {
+            if (expectedSnapshot != null) {
+                val current = getSummaryInputSnapshot(sessionId, expectedSnapshot.messages.map { it.key.messageId })
+                require(current == expectedSnapshot) { "摘要素材已修改，请重新总结" }
+            }
         val now = System.currentTimeMillis()
         if (summaryIdToUpdate != null) {
             mSummaryDao.updateContent(summaryIdToUpdate, content, coveredMessageId, now)
-            return summaryIdToUpdate
+            return@withTransaction summaryIdToUpdate
         }
-        return mSummaryDao.insertOrReplace(
+        mSummaryDao.insertOrReplace(
             GroupChatSummary(
                 sessionId = sessionId,
                 createTime = now,

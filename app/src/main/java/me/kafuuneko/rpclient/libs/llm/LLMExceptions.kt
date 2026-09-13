@@ -43,6 +43,7 @@ class LLMProviderRequestException(
 
 /** 不依赖 Android 资源且只包含安全字段的生成失败分类。 */
 sealed class GenerationFailure {
+    data class Image(val kind: ImageRequestFailure) : GenerationFailure()
     data object NoProvider : GenerationFailure()
     data object CharacterProviderUnavailable : GenerationFailure()
     data object SummaryProviderUnavailable : GenerationFailure()
@@ -64,6 +65,7 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
     if (throwable is CancellationException) return null
     return when (throwable) {
         is LLMProviderRequestException -> classifyGenerationFailure(throwable.requestCause)
+        is ImageRequestException -> GenerationFailure.Image(throwable.failure)
         is NoEnabledLLMProviderException -> GenerationFailure.NoProvider
         is UnavailableLLMProviderSelectionException -> when (throwable.scope) {
             LLMProviderSelectionScope.Character -> GenerationFailure.CharacterProviderUnavailable
@@ -79,7 +81,7 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
             429 -> GenerationFailure.RateLimited
             else -> GenerationFailure.HttpFailure(throwable.statusCode)
         }
-        is LLMRequestException -> GenerationFailure.RequestFailure
+        is LLMRequestException -> if (throwable.cause is ImageRequestException) classifyGenerationFailure(throwable.cause!!) else GenerationFailure.RequestFailure
         is IOException -> GenerationFailure.Network
         is LLMEmptyResponseException -> GenerationFailure.EmptyResponse
         else -> GenerationFailure.Unknown

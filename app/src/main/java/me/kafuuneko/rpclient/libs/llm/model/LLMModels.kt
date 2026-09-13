@@ -131,8 +131,15 @@ data class LLMMessage(
     /** 当前对象在业务流程中承担的角色。 */
     val role: LLMMessageRole,
     /** 当前对象承载的正文内容。 */
-    val content: String
-)
+    val content: String,
+    /** 非空时为实际发送的有序内容；旧调用方继续使用纯文本构造。 */
+    val blocks: List<LLMContentBlock> = emptyList()
+) {
+    val contentBlocks: List<LLMContentBlock>
+        get() = blocks.ifEmpty { listOf(LLMContentBlock.Text(content)) }
+    val images: List<LLMImageReference>
+        get() = blocks.filterIsInstance<LLMContentBlock.Image>().map { it.reference }
+}
 
 /**
  * 通用生成参数。为空时使用当前模型配置的默认值。

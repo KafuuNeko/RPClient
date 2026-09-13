@@ -1,8 +1,11 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
+import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
@@ -47,7 +50,8 @@ class SummaryPromptBuilder(
         session: ChatSession,
         existingSummary: String,
         messages: List<ChatMessage>,
-        provider: LLMProvider?
+        provider: LLMProvider?,
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
@@ -65,7 +69,7 @@ class SummaryPromptBuilder(
             items = limited,
             promptBudget = promptBudget
         ) { prefix ->
-            tokenizer.countMessagesUpTo(
+            countSummaryTokens(tokenizer,
                 renderRequestMessages(
                     userName = userName,
                     userDescription = userDescription,
@@ -73,7 +77,8 @@ class SummaryPromptBuilder(
                     session = session,
                     existingSummary = safeExistingSummary,
                     messages = sanitized.subList(0, prefix.size),
-                    provider = provider
+                    provider = provider,
+                    messageImages = messageImages
                 ),
                 promptBudget
             )
@@ -88,7 +93,7 @@ class SummaryPromptBuilder(
                     session,
                     safeExistingSummary,
                     listOf(sanitized.first()),
-                    provider
+                    provider, messageImages
                 )
             )
             throw PromptBudgetExceededException(required, promptBudget)
@@ -103,7 +108,7 @@ class SummaryPromptBuilder(
                 session,
                 safeExistingSummary,
                 sanitizedSelected,
-                provider
+                provider, messageImages
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
@@ -124,7 +129,8 @@ class SummaryPromptBuilder(
         session: ChatSession,
         existingSummary: String,
         messages: List<ChatMessage>,
-        provider: LLMProvider?
+        provider: LLMProvider?,
+        messageImages: Map<Long, List<LLMImageReference>> = emptyMap()
     ): List<LLMMessage> {
         val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
@@ -157,7 +163,13 @@ class SummaryPromptBuilder(
             "",
             ignoreCase = true
         )
-        return buildRawSummaryMessages(instruction, existingSummary, history)
+        val historyBlocks = messages.flatMap { message ->
+            listOf(LLMContentBlock.Text("${if (message.source == ChatMessage.Source.User) userName else character.name}:")) +
+                messageImages[message.id].orEmpty().map { LLMContentBlock.Image(it) } +
+                LLMContentBlock.Text(message.content)
+        }
+        return buildRawSummaryMessages(instruction, existingSummary, history,
+            historyBlocks.takeIf { messageImages.values.any { images -> images.isNotEmpty() } })
     }
 
 }
@@ -181,7 +193,8 @@ internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
 internal fun buildRawSummaryMessages(
     instruction: String,
     existingSummary: String,
-    history: String
+    history: String,
+    historyBlocks: List<LLMContentBlock>? = null
 ): List<LLMMessage> {
     val rawPrompt = buildList {
         existingSummary.takeIf { it.isNotBlank() }?.let {
@@ -192,9 +205,10 @@ internal fun buildRawSummaryMessages(
         }
     }.joinToString("\n\n")
     return listOf(
-        LLMMessage(LLMMessageRole.System, instruction.trim()),
-        LLMMessage(LLMMessageRole.User, rawPrompt)
-    ).filter { it.content.isNotBlank() }
+        LLMMessage(LLMMessageRole.System, instruction.trim() + if (historyBlocks != null) "\nRecord relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details." else ""),
+        if (historyBlocks == null) LLMMessage(LLMMessageRole.User, rawPrompt)
+        else messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Text("Existing summary:\n$existingSummary\nChat history:")) + historyBlocks)
+    ).filter { it.content.isNotBlank() || it.images.isNotEmpty() }
 }
 
 /**
@@ -274,4 +288,13 @@ private fun Int.saturatedDouble(): Int {
 /** 总结路径始终排除 reasoning，不受普通聊天上下文展示设置影响。 */
 internal fun String.summarySafeContent(): String {
     return stripThinkBlocks()
+}
+
+/** 摘要前缀同时受图片数量、发送字节与视觉 Token 限制，保持连续前缀的单调成本。 */
+internal fun countSummaryTokens(tokenizer: PromptTokenizer, messages: List<LLMMessage>, budget: Int): Int {
+    val images = messages.flatMap { it.images }
+    val bytes = images.sumOf { (it.byteCount + 2) / 3 * 4 + 256 } +
+        messages.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() * 6 } + 4096
+    if (images.size > 12 || (images.isNotEmpty() && bytes > 16L * 1024 * 1024)) return budget + 1
+    return tokenizer.countMessagesUpTo(messages, budget)
 }

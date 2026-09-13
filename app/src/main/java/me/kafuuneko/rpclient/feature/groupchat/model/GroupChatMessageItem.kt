@@ -19,5 +19,6 @@ data class GroupChatMessageItem(
     /** 当前记录对应的时间戳。 */
     val time: String,
     /** 当前消息或请求是否处于流式生成状态。 */
+    val imageUuids: List<String> = emptyList(),
     val isStreaming: Boolean = false
 )

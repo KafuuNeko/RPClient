@@ -22,10 +22,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
@@ -67,7 +67,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -87,12 +86,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -107,7 +106,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
+import me.kafuuneko.rpclient.feature.common.media.MessageImageState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
@@ -123,22 +125,24 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
-import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
-import me.kafuuneko.rpclient.model.MessageContentPart
+import me.kafuuneko.rpclient.ui.message.MessageImageStrip
+import me.kafuuneko.rpclient.ui.message.MessageImageViewer
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
@@ -220,6 +224,12 @@ private fun GroupChatNormalView(
             )
         },
         bottomBar = {
+            Column {
+            MessageImageStrip(state.imageState.draft, state.imageState, editable = true, enabled = !generating) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+            if (state.conversationState.generationState is GroupChatGenerationState.Failed) {
+                TextButton(onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) }) { Text(stringResource(R.string.image_retry)) }
+            }
+            MessageImageViewer(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
             Composer(
                 draft = state.conversationState.inputDraft,
                 generating = generating,
@@ -232,6 +242,7 @@ private fun GroupChatNormalView(
                 onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
                 onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) }
             )
+            }
         }
     ) { padding ->
         Column(
@@ -263,6 +274,7 @@ private fun GroupChatNormalView(
                 }
             )
             MessageList(
+                imageState = state.imageState,
                 messages = state.conversationState.messages,
                 canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
                 isLoadingOlderMessages = state.conversationState.isLoadingOlderMessages,
@@ -585,7 +597,7 @@ private fun GroupSettingsSection(
 /** 展示带图标、标题和可选说明的设置操作项。 */
 @Composable
 private fun SettingsActionRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
@@ -1095,6 +1107,7 @@ private fun MemberChip(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageList(
+    imageState: MessageImageState,
     messages: List<GroupChatMessageItem>,
     canLoadOlderMessages: Boolean,
     isLoadingOlderMessages: Boolean,
@@ -1231,6 +1244,7 @@ private fun MessageList(
         ) { index ->
             val message = messages[index]
             MessageBubble(
+                imageState = imageState,
                 message = message,
                 editing = editingMessageId == message.id,
                 editingDraft = editingMessageDraft
@@ -1307,6 +1321,7 @@ private fun EmptyConversation(modifier: Modifier) {
 
 @Composable
 private fun MessageBubble(
+    imageState: MessageImageState,
     message: GroupChatMessageItem,
     editing: Boolean,
     editingDraft: String,
@@ -1408,6 +1423,8 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    MessageImageStrip(if (editing && isUser) imageState.editing else message.imageUuids,
+                        imageState, editable = editing && isUser, editing = true) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
                     if (editing) {
                         GroupMessageEditContent(
                             draft = editingDraft,
@@ -1877,7 +1894,10 @@ private fun DialogSwitch(
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
-            onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) }
+            onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) },
+            onPreviewImages = { ids, index ->
+                emitIntent(GroupChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true)))
+            }
         )
 
         is GroupChatDialogState.DeleteMessageConfirm -> AppDangerDialog(

@@ -50,7 +50,7 @@ interface PromptTokenizer {
     fun countMessage(message: LLMMessage): Int {
         return MESSAGE_OVERHEAD_TOKENS +
             countText(message.role.name.lowercase()) +
-            countText(message.content)
+            countText(message.content) + message.images.sumOf { it.estimatedTokens }
     }
 
     /** 统计完整消息列表，并预留模型开始回复所需的模板开销。 */
@@ -73,7 +73,7 @@ interface PromptTokenizer {
         if (total > maxTokens) return overLimitTokenCount(maxTokens)
         for (message in messages) {
             val fixedMessageTokens = MESSAGE_OVERHEAD_TOKENS +
-                countText(message.role.name.lowercase())
+                countText(message.role.name.lowercase()) + message.images.sumOf { it.estimatedTokens }
             if (fixedMessageTokens > maxTokens - total) {
                 return overLimitTokenCount(maxTokens)
             }

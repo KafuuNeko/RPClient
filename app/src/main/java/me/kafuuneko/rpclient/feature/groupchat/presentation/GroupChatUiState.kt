@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
+import me.kafuuneko.rpclient.feature.common.media.MessageImageState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
@@ -22,6 +23,7 @@ sealed class GroupChatUiState {
      * 不与普通保存/删除加载状态混用。
      */
     data class Normal(
+        val imageState: MessageImageState = MessageImageState(),
         /** 当前页面数据库或资源操作的加载状态。 */
         val loadState: GroupChatLoadState = GroupChatLoadState.None,
         /** 当前操作关联的会话 ID。 */

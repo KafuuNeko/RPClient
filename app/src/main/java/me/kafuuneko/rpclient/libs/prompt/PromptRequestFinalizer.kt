@@ -1,8 +1,13 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.llm.ImageRequestException
+import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
+import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
@@ -29,7 +34,7 @@ class PromptBudgetExceededException(
     val promptBudget: Int
 ) : IllegalStateException(
     "Prompt requires $requiredTokens tokens, but only $promptBudget input tokens are available. " +
-        "Shorten required prompt content or ignored-budget World Info, or increase the context limit."
+            "Shorten required prompt content or ignored-budget World Info, or increase the context limit."
 )
 
 /**
@@ -54,7 +59,7 @@ class PromptRequestFinalizer(
      * - 校验上下文上限与回复 Token 预留的合法性；
      * - 过滤空消息，并根据后处理模式选择缓存增量裁剪或逐轮精确复算；
      * - 若满足预算则封装并返回 [PromptFinalizationResult] 及详细检查报告；
-     * - 若超额则按保留优先级（[me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft.retentionPriority]）最低者淘汰一条非必需消息并重新计算；
+     * - 若超额则按保留优先级（[PromptMessageDraft.retentionPriority]）最低者淘汰一条非必需消息并重新计算；
      * - 若所有可丢弃消息均淘汰后依然超限，则抛出 [PromptBudgetExceededException]。
      */
     fun finalize(
@@ -90,11 +95,13 @@ class PromptRequestFinalizer(
             promptBudget = promptBudget,
             postProcessingMode = postProcessingMode
         )
-        val filteredDrafts = drafts.filter { it.content.isNotBlank() }
+        val filteredDrafts = drafts.filter { it.content.isNotBlank() || it.images.isNotEmpty() }
         val omitted = preOmittedItems.toMutableList()
         if (
             postProcessingMode == PromptPostProcessingMode.None &&
-            environment.tokenizer.supportsIncrementalMessageCounting
+            environment.tokenizer.supportsIncrementalMessageCounting &&
+            filteredDrafts.none { it.images.isNotEmpty() } &&
+            (provider == null || provider.protocol == LLMProviderProtocol.OpenAICompatible)
         ) {
             return finalizeWithoutPostProcessing(
                 drafts = filteredDrafts,
@@ -106,15 +113,29 @@ class PromptRequestFinalizer(
 
         // 迭代裁剪循环：每次淘汰消息后重新执行后处理与统计（因合并可能改变 Token 总数）
         while (true) {
-            val processed = kept.postProcess(
-                postProcessingMode,
-                strictPromptPlaceholder,
-                postProcessingNames
+            val processed = normalizeProtocolMessages(
+                kept.postProcess(
+                    postProcessingMode,
+                    strictPromptPlaceholder,
+                    postProcessingNames
+                ), provider?.protocol
             )
-            val messages = processed.map { LLMMessage(it.role, it.content) }
+            val messages = processed.map { messageWithBlocks(it.role, it.blocks) }
             val finalTokenCount = environment.tokenizer.countMessages(messages)
             // 满足输入预算，构建最终请求与检查报告
-            if (finalTokenCount <= promptBudget) {
+            val imageCount = messages.sumOf { it.images.size }
+            val imageBytes =
+                messages.sumOf { message -> message.images.sumOf { ((it.byteCount + 2) / 3) * 4 + 256 } }
+            val requestBytes =
+                imageBytes + messages.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() * 6 } +
+                        (provider?.requestBodyPatchJson?.toByteArray(Charsets.UTF_8)?.size
+                            ?: 0) + 4096
+            val reason = when {
+                imageCount > 12 -> PromptOmissionReason.ImageCount
+                imageCount > 0 && requestBytes > 16L * 1024 * 1024 -> PromptOmissionReason.RequestBytes
+                else -> PromptOmissionReason.ContextBudget
+            }
+            if (finalTokenCount <= promptBudget && imageCount <= 12 && (imageCount == 0 || requestBytes <= 16L * 1024 * 1024)) {
                 return createFinalizationResult(
                     processed = processed,
                     messages = messages,
@@ -133,6 +154,8 @@ class PromptRequestFinalizer(
                 )
             // 无可丢弃消息，终止并抛出异常
             if (removable == null) {
+                if (reason == PromptOmissionReason.ImageCount) throw ImageRequestException(ImageRequestFailure.TooMany)
+                if (reason == PromptOmissionReason.RequestBytes) throw ImageRequestException(ImageRequestFailure.TooLarge)
                 throw PromptBudgetExceededException(finalTokenCount, promptBudget)
             }
             // 移除消息并记录遗漏明细
@@ -140,8 +163,8 @@ class PromptRequestFinalizer(
             removed.sources.forEach { source ->
                 omitted += PromptOmittedItem(
                     source = source,
-                    tokenCount = environment.tokenizer.countText(removed.content),
-                    reason = PromptOmissionReason.ContextBudget
+                    tokenCount = environment.tokenizer.countText(removed.content) + removed.images.sumOf { it.estimatedTokens },
+                    reason = reason
                 )
             }
         }
@@ -262,7 +285,8 @@ class PromptRequestFinalizer(
                         sources = message.sources.distinct(),
                         tokenCount = itemTokenCounts?.get(index)
                             ?: environment.tokenizer.countMessage(messages[index]),
-                        content = message.content
+                        content = message.content,
+                        images = messages[index].images
                     )
                 },
                 omittedItems = omitted
@@ -281,7 +305,10 @@ class PromptRequestFinalizer(
                 TrackedPromptMessage(
                     role = it.role,
                     content = it.content,
-                    sources = it.sources
+                    sources = it.sources,
+                    blocks = it.images.map { image -> LLMContentBlock.Image(image) } + LLMContentBlock.Text(
+                        it.content
+                    )
                 )
             },
             mode = mode,

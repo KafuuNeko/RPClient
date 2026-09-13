@@ -21,10 +21,10 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -83,7 +83,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
@@ -104,6 +103,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
@@ -119,7 +119,9 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
-import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.feature.common.media.MessageImageAction
+import me.kafuuneko.rpclient.feature.common.media.MessageImageState
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
@@ -127,21 +129,23 @@ import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
-import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
-import me.kafuuneko.rpclient.model.MessageContentPart
+import me.kafuuneko.rpclient.ui.message.MessageImageStrip
+import me.kafuuneko.rpclient.ui.message.MessageImageViewer
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+import me.kafuuneko.rpclient.utils.toggle
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -349,6 +353,7 @@ private fun ChatNormal(
                 contentType = { _, message -> message.role }
             ) { index, message ->
                 MessageBubble(
+                    imageState = state.imageState,
                     message = message,
                     character = state.character,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
@@ -364,6 +369,12 @@ private fun ChatNormal(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+        MessageImageStrip(state.imageState.draft, state.imageState, editable = true,
+            enabled = !state.conversationState.generationState.isGenerating()) { ChatUiIntent.ImageAction(it).emit() }
+        if (state.conversationState.generationState is ChatGenerationState.Failed) {
+            TextButton(onClick = { ChatUiIntent.RetryImageReply.emit() }) { Text(stringResource(R.string.image_retry)) }
+        }
+        MessageImageViewer(state.imageState) { ChatUiIntent.ImageAction(it).emit() }
         ChatInputBar(
             draft = state.conversationState.inputDraft,
             isGenerating = state.conversationState.generationState.isGenerating(),
@@ -716,6 +727,7 @@ private fun LorebookSearchField(
 
 @Composable
 private fun MessageBubble(
+    imageState: MessageImageState,
     message: ChatMessageUiModel,
     character: ChatCharacterItem,
     expandedThinkBlockIds: Set<String>,
@@ -816,6 +828,8 @@ private fun MessageBubble(
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                         )
                     }
+                    MessageImageStrip(if (editing && isUser) imageState.editing else message.imageUuids,
+                        imageState, editable = editing && isUser, editing = true) { ChatUiIntent.ImageAction(it).emit() }
                     if (editing) {
                         MessageEditContent(
                             draft = editingDraft,
@@ -1620,6 +1634,15 @@ private fun DialogSwitch(
             onConfirm = { ChatUiIntent.OpenProviderSettings.emit() }
         )
 
+        ChatDialogState.ImageExportWarning -> AppConfirmDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.image_export_text),
+            message = stringResource(R.string.image_export_warning),
+            confirmText = stringResource(R.string.image_export_text),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ChatUiIntent.ConfirmTextExport.emit() }
+        )
+
         ChatDialogState.Exporting -> LoadingDialog(
             title = stringResource(R.string.exporting_chat),
             description = stringResource(R.string.export_chat_desc)
@@ -1634,7 +1657,10 @@ private fun DialogSwitch(
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
-            onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() }
+            onCopyRequest = { ChatUiIntent.CopyPromptItem(it).emit() },
+            onPreviewImages = { ids, index ->
+                ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index, sendVersion = true)).emit()
+            }
         )
 
         is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
@@ -1748,7 +1774,7 @@ private fun AutoSaveTextField(
 
 @Composable
 private fun MenuAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,

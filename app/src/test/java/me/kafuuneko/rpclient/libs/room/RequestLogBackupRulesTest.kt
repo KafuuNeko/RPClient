@@ -43,8 +43,9 @@ class RequestLogBackupRulesTest {
     }
 
     private fun List<Element>.databasePaths(): Set<String> {
-        forEach { assertEquals("database", it.getAttribute("domain")) }
-        return mapTo(mutableSetOf()) { it.getAttribute("path") }
+        val temporary = filter { it.getAttribute("domain") == "root" }
+        assertEquals(setOf("app_repository/staging/"), temporary.map { it.getAttribute("path") }.toSet())
+        return filter { it.getAttribute("domain") == "database" }.mapTo(mutableSetOf()) { it.getAttribute("path") }
     }
 
     private companion object {

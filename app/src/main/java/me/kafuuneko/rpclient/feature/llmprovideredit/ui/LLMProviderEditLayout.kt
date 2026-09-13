@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -88,8 +88,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.CredentialEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
@@ -104,6 +106,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -119,15 +122,14 @@ import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
-import kotlin.math.roundToInt
-import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 模型配置创建与编辑页 Compose 入口。 */
 @Composable
@@ -284,6 +286,20 @@ private fun BasicPanel(
 ) {
     Panel {
         RpSectionHeader(title = stringResource(R.string.basic_info))
+        Text(stringResource(R.string.image_input_capability))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ImageInputSetting.entries.forEach { setting ->
+                FilterChip(selected = form.imageInputSetting == setting,
+                    onClick = { LLMProviderEditUiIntent.ChangeImageInput(setting).emit() },
+                    label = { Text(stringResource(when (setting) {
+                        ImageInputSetting.Auto -> R.string.image_capability_auto
+                        ImageInputSetting.Supported -> R.string.image_capability_supported
+                        ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
+                    })) })
+            }
+        }
+        Text(stringResource(R.string.image_capability_hint), style = MaterialTheme.typography.bodySmall)
+
         FormTextField(
             stringResource(R.string.name),
             form.name
@@ -1286,7 +1302,7 @@ private fun JsonSyntaxHighlightPreview(
     title: String,
     jsonString: String,
     modifier: Modifier = Modifier,
-    maxHeight: androidx.compose.ui.unit.Dp = 180.dp,
+    maxHeight: Dp = 180.dp,
     onEditClick: (() -> Unit)? = null
 ) {
     if (jsonString.isBlank()) return

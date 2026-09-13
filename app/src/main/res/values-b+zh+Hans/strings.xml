@@ -1153,4 +1153,26 @@
     <string name="no_model_provider_desc">RPClient 是本地客户端工具，不包含内置模型服务。请先在“模型配置”中添加并启用您的 API Key（如 OpenAI、Gemini、Claude、DeepSeek 等）即可开始对话。</string>
     <string name="no_model_provider_banner">尚未配置模型服务，点击前往配置 API Key</string>
     <string name="go_to_model_settings">前往配置</string>
+    <string name="image_input_capability">图片输入</string>
+    <string name="image_capability_auto">自动</string>
+    <string name="image_capability_supported">支持</string>
+    <string name="image_capability_unsupported">不支持</string>
+    <string name="image_capability_hint">未知能力的模型允许尝试。图片不会被自动忽略。</string>
+    <string name="attach_images">添加图片</string>
+    <string name="message_image">消息图片</string>
+    <string name="image_missing">图片已丢失</string>
+    <string name="image_loading">正在加载图片…</string>
+    <string name="image_original">原图</string>
+    <string name="image_send_preview">发送效果</string>
+    <string name="image_close">关闭</string>
+    <string name="image_save">保存图片</string>
+    <string name="image_error_unsupported">此模型不支持图片，请更换模型后重试。</string>
+    <string name="image_error_missing">历史图片已丢失，请恢复图片或编辑消息后重试。</string>
+    <string name="image_error_invalid">图片已损坏或格式不受支持。</string>
+    <string name="image_error_large">图片请求超过大小限制，请减少图片或历史消息。</string>
+    <string name="image_error_count">请求包含过多图片（最多 12 张）。</string>
+    <string name="image_retry">重试回复</string>
+    <string name="image_export_warning">文字导出不包含图片，也无法恢复图片。是否仅导出文字？</string>
+    <string name="image_export_text">仅导出文字</string>
+    <string name="image_summary_paused">图片摘要失败，已暂停自动摘要。请更换摘要模型后在设置中恢复。</string>
 </resources>
