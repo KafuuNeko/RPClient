@@ -1215,4 +1215,5 @@
     <string name="chat_import_reading_images">画像を読み込み中…</string>
     <string name="chat_import_image_directory_failed">画像フォルダーを読み込めませんでした</string>
     <string name="chat_archive_images_skipped">完了しました。読み込めない画像 %1$d 枚をスキップしました。</string>
+    <string name="text_selection_share">共有</string>
 </resources>

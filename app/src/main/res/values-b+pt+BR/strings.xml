@@ -1223,4 +1223,5 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="chat_import_reading_images">Lendo imagens…</string>
     <string name="chat_import_image_directory_failed">Não foi possível ler a pasta de imagens</string>
     <string name="chat_archive_images_skipped">Concluído. %1$d imagens indisponíveis foram ignoradas.</string>
+    <string name="text_selection_share">Compartilhar</string>
 </resources>

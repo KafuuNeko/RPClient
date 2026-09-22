@@ -1220,4 +1220,5 @@
     <string name="chat_import_reading_images">Lecture des images…</string>
     <string name="chat_import_image_directory_failed">Impossible de lire le dossier des images</string>
     <string name="chat_archive_images_skipped">Terminé. %1$d images indisponibles ont été ignorées.</string>
+    <string name="text_selection_share">Partager</string>
 </resources>

@@ -1219,4 +1219,5 @@
     <string name="chat_import_reading_images">Bilder werden gelesen…</string>
     <string name="chat_import_image_directory_failed">Der Bilderordner konnte nicht gelesen werden</string>
     <string name="chat_archive_images_skipped">Abgeschlossen. %1$d nicht verfügbare Bilder übersprungen.</string>
+    <string name="text_selection_share">Teilen</string>
 </resources>

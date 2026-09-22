@@ -1216,4 +1216,5 @@
     <string name="chat_import_reading_images">正在读取图片…</string>
     <string name="chat_import_image_directory_failed">无法读取图片目录</string>
     <string name="chat_archive_images_skipped">已完成，跳过了 %1$d 张无法读取的图片。</string>
+    <string name="text_selection_share">分享</string>
 </resources>

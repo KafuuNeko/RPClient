@@ -1220,4 +1220,5 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="chat_import_reading_images">Membaca gambar…</string>
     <string name="chat_import_image_directory_failed">Tidak dapat membaca folder gambar</string>
     <string name="chat_archive_images_skipped">Selesai. %1$d gambar yang tidak tersedia dilewati.</string>
+    <string name="text_selection_share">Bagikan</string>
 </resources>

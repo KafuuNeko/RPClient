@@ -1214,4 +1214,5 @@
     <string name="chat_import_reading_images">이미지 읽는 중…</string>
     <string name="chat_import_image_directory_failed">이미지 폴더를 읽을 수 없습니다</string>
     <string name="chat_archive_images_skipped">완료되었습니다. 읽을 수 없는 이미지 %1$d개를 건너뛰었습니다.</string>
+    <string name="text_selection_share">공유</string>
 </resources>

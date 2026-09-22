@@ -1198,4 +1198,5 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="chat_import_reading_images">Lettura immagini…</string>
     <string name="chat_import_image_directory_failed">Impossibile leggere la cartella immagini</string>
     <string name="chat_archive_images_skipped">Completato. %1$d immagini non disponibili ignorate.</string>
+    <string name="text_selection_share">Condividi</string>
 </resources>
