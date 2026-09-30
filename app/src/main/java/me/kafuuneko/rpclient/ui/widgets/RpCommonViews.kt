@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.ui.widgets
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,8 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,13 +107,22 @@ fun RpSectionHeader(
     }
 }
 
-/** 项目统一的文字占位头像，采用现代化柔和 Squircle 圆角与微弱高光边框。 */
+/**
+ * 展示统一圆角头像，图片不可用时使用文字占位。
+ *
+ * @param text 头像不可用时显示的文字。
+ * @param color 占位文字、背景与边框的强调色。
+ * @param modifier 头像布局与尺寸。
+ * @param shape 头像裁剪形状。
+ * @param image 已解码的头像图片；为空时保留文字占位样式。
+ */
 @Composable
 fun RpAvatar(
     text: String,
     color: Color,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp)
+    shape: Shape = RoundedCornerShape(16.dp),
+    image: ImageBitmap? = null
 ) {
     Surface(
         modifier = modifier.size(46.dp),
@@ -117,16 +130,26 @@ fun RpAvatar(
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(0.5.dp, color.copy(alpha = 0.28f))
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = color,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+        // 图片沿用 Surface 的裁剪与边框，文字占位仍保留原有布局。
+        if (image != null) {
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = text,
+                    color = color,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

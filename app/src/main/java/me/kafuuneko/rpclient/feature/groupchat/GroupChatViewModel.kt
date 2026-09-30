@@ -2,6 +2,9 @@ package me.kafuuneko.rpclient.feature.groupchat
 
 import android.content.Context
 import android.os.Bundle
+import android.util.LruCache
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -127,6 +130,11 @@ class GroupChatViewModel :
     ), KoinComponent {
     // 数据仓库与服务依赖注入
     private val mFileRepository by inject<FileRepository>()
+    /** 以文件 UUID 共享头像，按像素内存限制缓存，避免每条消息重复解码。 */
+    private val mAvatarCache = object : LruCache<String, ImageBitmap>(AVATAR_CACHE_SIZE_BYTES) {
+        /** 文件仓库使用 ARGB_8888 解码，按每个像素四字节计算缓存占用。 */
+        override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
+    }
     /** 只保存失败批次尚未完成的角色，模式与触发消息作为同一快照更新。 */
     private data class ReplyRetryContext(
         val sessionId: Long,
@@ -165,9 +173,10 @@ class GroupChatViewModel :
         )).setup()
     }
 
-    /** 结束页面时释放本 ViewModel 拥有的未提交图片。 */
+    /** 结束页面时释放头像缓存和本 ViewModel 拥有的未提交图片。 */
     override fun onCleared() {
         clearReplyRetry()
+        mAvatarCache.evictAll()
         super.onCleared()
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
@@ -281,6 +290,8 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        // 返回页面时重新确认文件可读性，避免外部编辑或文件删除后仍展示旧头像。
+        mAvatarCache.evictAll()
         refreshState(
             inputDraft = uiState.conversationState.inputDraft,
             selectedSpeakerId = uiState.conversationState.selectedSpeakerId,
@@ -2168,7 +2179,8 @@ class GroupChatViewModel :
                     characterName = it.character.name,
                     userName = data.session.userName
                 ),
-                muted = it.relation.muted
+                muted = it.relation.muted,
+                avatarImage = loadAvatarImage(it.character.avatar)
             )
         }
         // 计算当前激活策略下的有效选中发言人
@@ -2311,6 +2323,17 @@ class GroupChatViewModel :
         newerMessageCount: Int = 0
     ): List<GroupChatMessageItem> {
         val scripts = mRegexRepository.activeScripts(members.map { it.character })
+        // 历史发言者可能已移出群聊；按角色 ID 补查，避免同名或改名后串用头像。
+        val memberCharacters = members.associate { it.character.id to it.character }
+        val speakerAvatars = messages
+            .filter { it.source == GroupChatMessage.Source.Character }
+            .mapNotNull { it.speakerCharacterId }
+            .distinct()
+            .associateWith { characterId ->
+                val character = memberCharacters[characterId]
+                    ?: mCharacterRepository.getCharacterById(characterId)
+                character?.let { loadAvatarImage(it.avatar) }
+            }
         val imageMap = messageImages.associate { snapshot ->
             snapshot.key.messageId to snapshot.images.map { it.image.imageUuid }
         }
@@ -2348,8 +2371,25 @@ class GroupChatViewModel :
                 parts = displayContent.toMessageContentParts(message.id.toString()),
                 time = message.createTime.formatTimestamp("HH:mm"),
                 imageUuids = imageMap[message.id].orEmpty(),
-                isStreaming = message.id == mStreamingMessageId
+                isStreaming = message.id == mStreamingMessageId,
+                avatarImage = if (message.source == GroupChatMessage.Source.Character) {
+                    speakerAvatars[message.speakerCharacterId]
+                } else null
             )
+        }
+    }
+
+    /**
+     * 从文件仓库读取头像并共享成功解码的图片；失败结果不缓存，允许后续刷新重试。
+     *
+     * @param uuid 角色卡保存的头像文件 UUID。
+     * @return 已解码头像；引用为空、文件缺失或无法解码时返回 null。
+     */
+    private suspend fun loadAvatarImage(uuid: String): ImageBitmap? {
+        if (uuid.isBlank()) return null
+        mAvatarCache.get(uuid)?.let { return it }
+        return mFileRepository.loadAvatarBitmap(uuid)?.asImageBitmap()?.also {
+            mAvatarCache.put(uuid, it)
         }
     }
 
@@ -2531,6 +2571,8 @@ class GroupChatViewModel :
         const val AUTO_MODE_DELAY_MS = 500L
         /** 群聊页面首次和后续向前加载的单页消息数量。 */
         const val MESSAGE_PAGE_SIZE = 50
+        /** 头像缓存最多持有约八兆字节的像素数据。 */
+        const val AVATAR_CACHE_SIZE_BYTES = 8 * 1024 * 1024
     }
 }
 
