@@ -1252,15 +1252,20 @@
     <string name="appearance_background_hint">Более плотная вуаль и непрозрачные карточки улучшают читаемость. Изменения применяются после сохранения.</string>
     <string name="appearance_preview">Предпросмотр</string>
     <string name="appearance_preview_story">Вечерний свет озарил страницы, и началась новая история.</string>
-    <string name="appearance_preview_message">Нам ещё многое предстоит открыть.</string>
-    <string name="appearance_preview_reply">Продолжим.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Не удалось загрузить или сохранить фон. Повторите попытку.</string>
     <string name="appearance_image_error">Невозможно использовать изображение. Выберите JPEG, PNG или WebP меньшего размера.</string>
     <string name="appearance_top_bar_transparency">Прозрачность панели меню</string>
     <string name="appearance_bottom_bar_transparency">Прозрачность нижней панели</string>
-    <string name="appearance_bubble_transparency">Прозрачность сообщений</string>
-    <string name="appearance_content_transparency">Прозрачность области текста</string>
-    <string name="appearance_preview_input">Сообщение или указание для продолжения…</string>
+    <string name="appearance_content_transparency">Прозрачность области содержимого</string>
     <string name="appearance_transparency_hint">0% — непрозрачно, 100% — прозрачно. Текст и кнопки остаются видимыми. У каждого типа страницы свои настройки.</string>
+    <string name="appearance_top_bar_blur">Размытие фона меню</string>
+    <string name="appearance_bottom_bar_blur">Размытие фона нижней панели</string>
+    <string name="appearance_content_blur">Размытие области содержимого</string>
+    <string name="appearance_surface_blur_hint">Размытие применяется только к фону. При прозрачности 0% оно не действует.</string>
+    <string name="appearance_preview_input">Сообщение или указание для продолжения…</string>
+    <string name="appearance_save_changes_title">Сохранить изменения?</string>
+    <string name="appearance_save_changes_message">Сохранить изменения этого фона перед выходом?</string>
 </resources>

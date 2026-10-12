@@ -23,7 +23,9 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
                 page = page, fileUuid = it.fileUuid, blur = it.blur, scrim = it.scrim,
                 opacity = it.opacity, topBarOpacity = it.topBarOpacity,
                 bottomBarOpacity = it.bottomBarOpacity, bubbleOpacity = it.bubbleOpacity,
-                focalX = it.focalX, focalY = it.focalY
+                focalX = it.focalX, focalY = it.focalY,
+                topBarBlur = it.topBarBlur, bottomBarBlur = it.bottomBarBlur,
+                bubbleBlur = it.bubbleBlur, contentBlur = it.contentBlur
             ).normalized()
         } ?: PageBackground(page)
     }
@@ -43,7 +45,9 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
                 scrim = settings.scrim, opacity = settings.opacity,
                 focalX = settings.focalX, focalY = settings.focalY,
                 topBarOpacity = settings.topBarOpacity, bottomBarOpacity = settings.bottomBarOpacity,
-                bubbleOpacity = settings.bubbleOpacity
+                bubbleOpacity = settings.bubbleOpacity,
+                topBarBlur = settings.topBarBlur, bottomBarBlur = settings.bottomBarBlur,
+                bubbleBlur = settings.bubbleBlur, contentBlur = settings.contentBlur
             ))
             previous?.fileUuid?.takeIf { it != uuid }?.let { removeFiles(listOf(it)) }
         }

@@ -53,6 +53,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustmen
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -63,6 +64,7 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
+import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 
 /** 外观选择和背景编辑共用入口，所有持久化操作通过 Intent 交给 ViewModel。 */
@@ -84,6 +86,7 @@ fun AppearanceLayout(state: AppearanceUiState, emit: (AppearanceUiIntent) -> Uni
         if (state.editor != null) BackgroundEditor(state.editor, Modifier.padding(padding), emit)
         else AppearanceChoices(state, Modifier.padding(padding), emit)
     }
+    state.editor?.let { BackgroundEditorDialog(it, emit) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -180,12 +183,17 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
         }
         // 栏位背景独立于图片；0% 不透明、100% 完全透明，不降低文字和按钮透明度。
         item { AdjustmentSlider(R.string.appearance_top_bar_transparency, 1f - state.settings.topBarOpacity, 0f..1f, BackgroundAdjustment.TopBarTransparency, state, emit) }
+        item { AdjustmentSlider(R.string.appearance_top_bar_blur, state.settings.topBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.TopBarBlur, state, emit, enabled = state.settings.topBarOpacity < 1f) }
         item { AdjustmentSlider(R.string.appearance_bottom_bar_transparency, 1f - state.settings.bottomBarOpacity, 0f..1f, BackgroundAdjustment.BottomBarTransparency, state, emit) }
+        item { AdjustmentSlider(R.string.appearance_bottom_bar_blur, state.settings.bottomBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.BottomBarBlur, state, emit, enabled = state.settings.bottomBarOpacity < 1f) }
         if (state.settings.page == BackgroundPage.Story) {
             item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.opacity, 0f..1f, BackgroundAdjustment.ContentTransparency, state, emit) }
+            item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.contentBlur.toFloat(), 0f..100f, BackgroundAdjustment.ContentBlur, state, emit, enabled = state.settings.opacity < 1f) }
         } else {
-            item { AdjustmentSlider(R.string.appearance_bubble_transparency, 1f - state.settings.bubbleOpacity, 0f..1f, BackgroundAdjustment.BubbleTransparency, state, emit) }
+            item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.bubbleOpacity, 0f..1f, BackgroundAdjustment.BubbleTransparency, state, emit) }
+            item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.bubbleBlur.toFloat(), 0f..100f, BackgroundAdjustment.BubbleBlur, state, emit, enabled = state.settings.bubbleOpacity < 1f) }
         }
+        item { Text(stringResource(R.string.appearance_surface_blur_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { Text(stringResource(R.string.appearance_transparency_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         state.error?.let { error -> item { Text(stringResource(error), color = MaterialTheme.colorScheme.error) } }
         item {
@@ -203,26 +211,29 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
 @Composable
 private fun BackgroundPreview(state: BackgroundEditorState) {
     Box(Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(24.dp))) {
-        PageBackdrop(PageBackgroundUiState(state.settings, state.image)) {
+        PageBackdrop(PageBackgroundUiState(state.settings, state.image, state.surfaceImages)) {
             // 预览与真实页面共用透明度来源，三块表面分别反映对应滑块。
             Column(Modifier.fillMaxSize()) {
-                Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)) {
+                PageSurface(kind = PageSurfaceKind.TopBar, color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)) {
                     Text(stringResource(R.string.appearance_preview),
                         Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.titleSmall)
                 }
-                Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // 消息变短也保持整行宽度，避免右侧气泡随内容收窄后左移。
+                Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val isStory = state.settings.page == BackgroundPage.Story
                     val opacity = if (isStory) LocalPageContentOpacity.current else LocalPageBubbleOpacity.current
-                    Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = opacity)) {
+                    PageSurface(kind = if (isStory) PageSurfaceKind.Content else PageSurfaceKind.Bubble,
+                        shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = opacity)) {
                         Text(stringResource(if (isStory) R.string.appearance_preview_story else R.string.appearance_preview_message),
                             Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
                     }
-                    if (!isStory) Surface(
+                    if (!isStory) PageSurface(kind = PageSurfaceKind.Bubble,
                         modifier = Modifier.align(Alignment.End), shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = opacity), contentColor = pageUserBubbleContentColor()
                     ) { Text(stringResource(R.string.appearance_preview_reply), Modifier.padding(12.dp)) }
                 }
-                Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)) {
+                PageSurface(kind = PageSurfaceKind.BottomBar,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)) {
                     Text(stringResource(R.string.appearance_preview_input),
                         Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -234,16 +245,16 @@ private fun BackgroundPreview(state: BackgroundEditorState) {
 
 @Composable
 private fun AdjustmentSlider(@StringRes title: Int, value: Float, range: ClosedFloatingPointRange<Float>, field: BackgroundAdjustment,
-    state: BackgroundEditorState, emit: (AppearanceUiIntent) -> Unit) {
+    state: BackgroundEditorState, emit: (AppearanceUiIntent) -> Unit, enabled: Boolean = true) {
     val label = stringResource(title)
     Column {
         Row {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            Text(stringResource(R.string.appearance_percent, (if (field == BackgroundAdjustment.Blur) value else value * 100).roundToInt()),
+            Text(stringResource(R.string.appearance_percent, (if (field.isBlur) value else value * 100).roundToInt()),
                 style = MaterialTheme.typography.labelLarge)
         }
         Slider(modifier = Modifier.semantics { contentDescription = label }, value = value, onValueChange = { emit(AppearanceUiIntent.ChangeAdjustment(field, it)) },
-            onValueChangeFinished = { emit(AppearanceUiIntent.FinishAdjustment) }, valueRange = range, enabled = !state.working)
+            onValueChangeFinished = { emit(AppearanceUiIntent.FinishAdjustment) }, valueRange = range, enabled = !state.working && enabled)
     }
 }
 

@@ -1251,15 +1251,20 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_background_hint">Uma camada mais forte e cartões mais opacos facilitam a leitura. As alterações são aplicadas ao salvar.</string>
     <string name="appearance_preview">Prévia</string>
     <string name="appearance_preview_story">A luz do entardecer iluminou as páginas e uma nova história começou.</string>
-    <string name="appearance_preview_message">Ainda há muito para descobrir.</string>
-    <string name="appearance_preview_reply">Vamos continuar.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Não foi possível carregar ou salvar este fundo. Tente novamente.</string>
     <string name="appearance_image_error">Não foi possível usar esta imagem. Escolha uma imagem JPEG, PNG ou WebP menor.</string>
     <string name="appearance_top_bar_transparency">Transparência da barra de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparência da barra inferior</string>
-    <string name="appearance_bubble_transparency">Transparência dos balões</string>
-    <string name="appearance_content_transparency">Transparência do conteúdo</string>
-    <string name="appearance_preview_input">Mensagem ou orientação para continuar…</string>
+    <string name="appearance_content_transparency">Transparência da área de conteúdo</string>
     <string name="appearance_transparency_hint">0% é opaco; 100% é transparente. Texto e botões permanecem visíveis. Cada tipo de página tem suas próprias configurações.</string>
+    <string name="appearance_top_bar_blur">Desfoque do fundo do menu</string>
+    <string name="appearance_bottom_bar_blur">Desfoque do fundo da barra inferior</string>
+    <string name="appearance_content_blur">Desfoque da área de conteúdo</string>
+    <string name="appearance_surface_blur_hint">O desfoque afeta apenas o fundo. Fica inativo quando a transparência é 0%.</string>
+    <string name="appearance_preview_input">Mensagem ou orientação para continuar…</string>
+    <string name="appearance_save_changes_title">Salvar alterações?</string>
+    <string name="appearance_save_changes_message">Salvar as alterações deste plano de fundo antes de sair?</string>
 </resources>

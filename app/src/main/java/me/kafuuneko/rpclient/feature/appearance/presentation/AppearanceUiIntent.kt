@@ -17,7 +17,21 @@ sealed interface AppearanceUiIntent {
     data object FinishAdjustment : AppearanceUiIntent
     data object ResetBackground : AppearanceUiIntent
     data object ApplyBackground : AppearanceUiIntent
+    data object DiscardBackgroundChanges : AppearanceUiIntent
+    data object DismissDialog : AppearanceUiIntent
 }
 
 /** 可调参数与预览位置对应，滑块数值统一在领域模型边界校验。 */
-enum class BackgroundAdjustment { Blur, Scrim, ContentTransparency, TopBarTransparency, BottomBarTransparency, BubbleTransparency, Horizontal, Vertical }
+enum class BackgroundAdjustment {
+    Blur, TopBarBlur, BottomBarBlur, BubbleBlur, ContentBlur,
+    Scrim, ContentTransparency, TopBarTransparency, BottomBarTransparency, BubbleTransparency,
+    Horizontal, Vertical;
+
+    /** 模糊滑块使用整数百分比，并触发可取消图像预览。 */
+    val isBlur: Boolean get() = this in setOf(Blur, TopBarBlur, BottomBarBlur, BubbleBlur, ContentBlur)
+
+    /** 改变透明度时需要重新判断栏位模糊是否启用。 */
+    val isTransparency: Boolean get() = this in setOf(
+        ContentTransparency, TopBarTransparency, BottomBarTransparency, BubbleTransparency
+    )
+}

@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustment
+import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
@@ -42,6 +43,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     private var mPreviewJob: Job? = null
     private var mWorkJob: Job? = null
     private var mSaving = false
+    private var mOriginalSettings: PageBackground? = null
 
     init {
         viewModelScope.launch {
@@ -73,10 +75,13 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         val state = getOrNull<AppearanceUiState.Normal>() ?: return
         if (state.editor != null) return
         // 加载期间禁用编辑，避免默认参数抢先覆盖已有配置。
-        state.copy(editor = BackgroundEditorState(PageBackground(intent.page), working = true)).setup()
+        val initial = PageBackground(intent.page)
+        mOriginalSettings = initial
+        state.copy(editor = BackgroundEditorState(initial, working = true)).setup()
         mWorkJob = viewModelScope.launch {
             try {
                 val settings = mBackgrounds.observe(intent.page).first()
+                mOriginalSettings = settings
                 updateEditor { it.copy(settings = settings, working = false) }
                 requestPreview(false)
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -121,6 +126,10 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         val value = intent.value
         val settings = when (intent.field) {
             BackgroundAdjustment.Blur -> editor.settings.copy(blur = value.roundToInt())
+            BackgroundAdjustment.TopBarBlur -> editor.settings.copy(topBarBlur = value.roundToInt())
+            BackgroundAdjustment.BottomBarBlur -> editor.settings.copy(bottomBarBlur = value.roundToInt())
+            BackgroundAdjustment.BubbleBlur -> editor.settings.copy(bubbleBlur = value.roundToInt())
+            BackgroundAdjustment.ContentBlur -> editor.settings.copy(contentBlur = value.roundToInt())
             BackgroundAdjustment.Scrim -> editor.settings.copy(scrim = value)
             BackgroundAdjustment.ContentTransparency -> editor.settings.copy(opacity = 1f - value)
             BackgroundAdjustment.TopBarTransparency -> editor.settings.copy(topBarOpacity = 1f - value)
@@ -130,7 +139,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             BackgroundAdjustment.Vertical -> editor.settings.copy(focalY = value)
         }.normalized()
         updateEditor { it.copy(settings = settings) }
-        if (intent.field == BackgroundAdjustment.Blur) requestPreview(true)
+        if (intent.field.isBlur || intent.field.isTransparency) requestPreview(true)
     }
 
     /** 用户松开滑块后生成最终尺寸，位移与遮罩变化复用已有图片缓存。 */
@@ -148,7 +157,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         mPreviewJob?.cancel()
         mRuntime.discard(mPrepared)
         mPrepared = null
-        updateEditor { it.copy(settings = it.settings.copy(fileUuid = null), image = null, rendering = false, error = null) }
+        updateEditor { it.copy(settings = it.settings.copy(fileUuid = null), image = null, surfaceImages = emptyMap(), rendering = false, error = null) }
     }
 
     /** 文件与配置成功提交后再关闭编辑器，失败时仍可重试或取消。 */
@@ -158,12 +167,13 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         if (editor.working) return
         mSaving = true
         mPreviewJob?.cancel()
-        updateEditor { it.copy(working = true, error = null) }
+        updateEditor { it.copy(working = true, error = null, dialogState = BackgroundEditorDialogState.None) }
         mWorkJob = viewModelScope.launch {
             // 文件仓库负责发布和回收，UI 不先行删除旧引用。
             try {
                 mBackgrounds.save(editor.settings, mPrepared)
                 mPrepared = null
+                mOriginalSettings = null
                 getOrNull<AppearanceUiState.Normal>()?.copy(editor = null)?.setup()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { updateEditor { it.copy(working = false, error = R.string.appearance_background_error) } }
@@ -171,17 +181,44 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         }
     }
 
-    /** 返回取消后台预览与导入；正在提交的短事务不被重复返回打断。 */
+    /** 有未提交修改时先询问保存；无修改则沿用直接返回。 */
     @UiIntentObserver(AppearanceUiIntent.Back::class)
     private fun onBack() {
         val state = getOrNull<AppearanceUiState.Normal>() ?: return
         if (mSaving) return
+        val editor = state.editor
+        if (editor != null && editor.settings != mOriginalSettings) {
+            updateEditor { it.copy(dialogState = BackgroundEditorDialogState.UnsavedChanges) }
+            return
+        }
+        if (editor != null) closeEditor() else AppearanceUiState.Finished(state).setup()
+    }
+
+    /** 明确选择放弃后才释放临时图片，已提交配置保持不变。 */
+    @UiIntentObserver(AppearanceUiIntent.DiscardBackgroundChanges::class)
+    private fun onDiscardBackgroundChanges() {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (mSaving || editor.dialogState != BackgroundEditorDialogState.UnsavedChanges) return
+        closeEditor()
+    }
+
+    /** 关闭询问只恢复编辑，不更改草稿或取消仍在进行的预览。 */
+    @UiIntentObserver(AppearanceUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (mSaving || editor.dialogState == BackgroundEditorDialogState.None) return
+        updateEditor { it.copy(dialogState = BackgroundEditorDialogState.None) }
+    }
+
+    /** 返回外观列表并结束草稿生命周期，取消的后台任务不能再覆盖下一次编辑。 */
+    private fun closeEditor() {
+        val state = getOrNull<AppearanceUiState.Normal>() ?: return
         mWorkJob?.cancel()
         mPreviewJob?.cancel()
         mRuntime.discard(mPrepared)
         mPrepared = null
-        if (state.editor != null) state.copy(editor = null).setup()
-        else AppearanceUiState.Finished(state).setup()
+        mOriginalSettings = null
+        state.copy(editor = null).setup()
     }
 
     /** 预览请求只由外观参数触发，不参与聊天或正文的高频状态流。 */
@@ -193,8 +230,11 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         mPreviewJob = viewModelScope.launch {
             try {
                 if (preview) delay(80)
+                // 底图与栏位派生图一起发布，避免同一次预览出现不同处理版本。
                 val image = mRuntime.render(editor.settings, prepared, preview)?.asImageBitmap()
-                updateEditor { it.copy(image = image, rendering = false) }
+                val surfaces = mRuntime.renderSurfaces(editor.settings, prepared, preview)
+                    .mapValues { it.value.asImageBitmap() }
+                updateEditor { it.copy(image = image, surfaceImages = surfaces, rendering = false) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { updateEditor { it.copy(rendering = false, error = R.string.appearance_background_error) } }
             catch (_: OutOfMemoryError) { updateEditor { it.copy(rendering = false, error = R.string.appearance_image_error) } }

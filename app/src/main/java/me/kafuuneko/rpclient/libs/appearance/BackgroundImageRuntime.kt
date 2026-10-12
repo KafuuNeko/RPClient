@@ -85,14 +85,16 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     /**
      * 读取标准化图片并生成静态模糊结果，返回位图由缓存与 UI 共享，不得提前 recycle。
      * @param preview 拖动时使用较小处理分辨率且不写磁盘。
+     * @param surfaceBlur 在页面背景模糊之上叠加的栏位强度，默认不做附加处理。
      */
-    suspend fun render(settings: PageBackground, prepared: PreparedFile? = null, preview: Boolean = false): Bitmap? {
+    suspend fun render(settings: PageBackground, prepared: PreparedFile? = null, preview: Boolean = false, surfaceBlur: Int = 0): Bitmap? {
         if (settings.fileUuid == null && prepared == null) return null
         return withContext(Dispatchers.IO) {
             val entity = prepared?.file ?: mFiles.getFileEntity(requireNotNull(settings.fileUuid))
                 ?: error("Missing background")
             val edge = if (preview) 400 else if (mLowMemory) 768 else 1280
-            val key = "v2_${entity.hash}_${settings.blur}_$edge"
+            val extraBlur = surfaceBlur.coerceIn(0, 100)
+            val key = "v3_${entity.hash}_${settings.blur}_${extraBlur}_$edge"
             mCache.get(key)?.let { return@withContext it }
             // 同时只允许一项图像处理，避免三页恢复或快速预览造成内存峰值。
             mMutex.withLock {
@@ -107,13 +109,33 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
                 }
                 val source = if (prepared != null) mFiles.withPreparedFile(prepared) { decode(it, edge) }
                     else mFiles.withFileLease(entity.uuid) { decode(it, edge) }
-                val result = blur(source, settings.blur)
+                // 附加模糊只改变背景像素，不对任何文字或操作控件截图。
+                val result = blur(blur(source, settings.blur), extraBlur)
                 currentCoroutineContext().ensureActive()
                 if (!preview) runCatching { store(cached, result) }
                 mCache.put(key, result)
                 result
             }
         }
+    }
+
+    /**
+     * 生成仍能透出背景的栏位派生图；不透明、零强度或无图时跳过计算。
+     * - 同一强度复用已有缓存，四种栏位依次处理以限制内存峰值。
+     * @return 仅包含实际启用模糊的栏位。
+     */
+    suspend fun renderSurfaces(
+        settings: PageBackground, prepared: PreparedFile? = null, preview: Boolean = false
+    ): Map<PageSurfaceKind, Bitmap> {
+        if (settings.fileUuid == null && prepared == null) return emptyMap()
+        val result = mutableMapOf<PageSurfaceKind, Bitmap>()
+        // 透明度为零即不透明，不为不可见的背景模糊消耗像素内存。
+        for (kind in PageSurfaceKind.entries) {
+            val amount = settings.surfaceBlur(kind)
+            if (settings.surfaceOpacity(kind) >= 1f || amount == 0) continue
+            render(settings, prepared, preview, amount)?.let { result[kind] = it }
+        }
+        return result
     }
 
     /** 模糊半径按标准图片长边归一化，预览和最终图使用相同视觉强度。 */

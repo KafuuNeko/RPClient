@@ -1242,15 +1242,20 @@
     <string name="appearance_background_hint">提高遮罩和內容不透明度可讓文字更清晰。修改僅在儲存後生效。</string>
     <string name="appearance_preview">預覽</string>
     <string name="appearance_preview_story">暮色灑落書頁，新的故事緩緩展開。</string>
-    <string name="appearance_preview_message">還有許多風景，等待我們一起發現。</string>
-    <string name="appearance_preview_reply">繼續我們的故事吧。</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">無法載入或儲存背景，請重試。</string>
     <string name="appearance_image_error">無法使用此圖片，請選擇較小的 JPEG、PNG 或 WebP 圖片。</string>
     <string name="appearance_top_bar_transparency">選單列透明度</string>
     <string name="appearance_bottom_bar_transparency">底部操作列透明度</string>
-    <string name="appearance_bubble_transparency">聊天氣泡透明度</string>
     <string name="appearance_content_transparency">內容區透明度</string>
-    <string name="appearance_preview_input">輸入訊息或續寫引導…</string>
     <string name="appearance_transparency_hint">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
+    <string name="appearance_top_bar_blur">選單背景模糊度</string>
+    <string name="appearance_bottom_bar_blur">底部操作列背景模糊度</string>
+    <string name="appearance_content_blur">內容區模糊度</string>
+    <string name="appearance_surface_blur_hint">模糊僅作用於背景；透明度為 0% 時不生效。</string>
+    <string name="appearance_preview_input">輸入訊息或續寫引導…</string>
+    <string name="appearance_save_changes_title">儲存變更？</string>
+    <string name="appearance_save_changes_message">離開前是否儲存此背景的變更？</string>
 </resources>

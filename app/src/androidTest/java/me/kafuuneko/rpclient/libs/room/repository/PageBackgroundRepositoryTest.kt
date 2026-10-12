@@ -2,16 +2,21 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -96,11 +101,52 @@ class PageBackgroundRepositoryTest {
         val first = files.prepareStream("draft", ByteArrayInputStream("old".toByteArray()), "image/png")
         val next = files.prepareStream("draft", ByteArrayInputStream("new".toByteArray()), "image/png")
         backgrounds.save(PageBackground(BackgroundPage.Chat), first)
-        backgrounds.save(PageBackground(BackgroundPage.Chat, blur = 100, focalX = 0.2f), next)
+        backgrounds.save(PageBackground(BackgroundPage.Chat, blur = 100, focalX = 0.2f,
+            topBarBlur = 20, bottomBarBlur = 40, bubbleBlur = 60, contentBlur = 80), next)
         assertNull(files.getFileEntity(first.file.uuid))
         val settings = backgrounds.observe(BackgroundPage.Chat).first()
         assertEquals(100, settings.blur)
         assertEquals(0.2f, settings.focalX)
+        assertEquals(20, settings.topBarBlur)
+        assertEquals(40, settings.bottomBarBlur)
+        assertEquals(60, settings.bubbleBlur)
+        assertEquals(80, settings.contentBlur)
         files.withFileLease(next.file.uuid) { assertEquals("new", it.readText()) }
     }
+
+    /** 栏位模糊在不透明时不读取源图，启用后只模糊指定栏位并保持全局底图清晰。 */
+    @Test
+    fun surfaceBlurSkipsOpaqueLayersAndKeepsBaseImageUnchanged() = runBlocking {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(base) {
+            override fun getCacheDir(): File = File(directory, "cache").apply { mkdirs() }
+        }
+        val runtime = BackgroundImageRuntime(context, files)
+        val settings = PageBackground(BackgroundPage.Chat, fileUuid = "not-read-while-opaque",
+            blur = 0, topBarBlur = 100, bottomBarBlur = 100, bubbleBlur = 100)
+        // 无效引用也不会触发读取，证明不透明栏位在像素处理之前已被跳过。
+        assertTrue(runtime.renderSurfaces(settings).isEmpty())
+        val pixels = IntArray(256 * 256) { index ->
+            if ((index % 256 / 4 + index / 256 / 4) % 2 == 0) Color.BLACK else Color.WHITE
+        }
+        val source = Bitmap.createBitmap(pixels, 256, 256, Bitmap.Config.ARGB_8888)
+        val bytes = ByteArrayOutputStream().use {
+            source.compress(Bitmap.CompressFormat.PNG, 100, it)
+            it.toByteArray()
+        }
+        source.recycle()
+        val prepared = files.prepareStream("blur-test", ByteArrayInputStream(bytes), "image/png")
+        try {
+            val active = settings.copy(fileUuid = prepared.file.uuid, bubbleOpacity = 0.5f)
+            val clear = requireNotNull(runtime.render(active, prepared, preview = true))
+            val surfaces = runtime.renderSurfaces(active, prepared, preview = true)
+            assertEquals(setOf(PageSurfaceKind.Bubble), surfaces.keys)
+            val blurred = requireNotNull(surfaces[PageSurfaceKind.Bubble])
+            val value = Color.red(blurred.getPixel(128, 128))
+            assertTrue(value in 30..225)
+            assertEquals(Color.BLACK, clear.getPixel(128, 128))
+            assertTrue(runtime.renderSurfaces(active.copy(bubbleBlur = 0), prepared, preview = true).isEmpty())
+        } finally { files.releasePrepared(prepared) }
+    }
+
 }

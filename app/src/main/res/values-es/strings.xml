@@ -1249,15 +1249,20 @@
     <string name="appearance_background_hint">Un velo más intenso y tarjetas más opacas facilitan la lectura. Los cambios se aplican al guardar.</string>
     <string name="appearance_preview">Vista previa</string>
     <string name="appearance_preview_story">La luz del atardecer bañó las páginas y comenzó una nueva historia.</string>
-    <string name="appearance_preview_message">Aún queda mucho por descubrir.</string>
-    <string name="appearance_preview_reply">Continuemos.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">No se pudo cargar o guardar este fondo. Inténtalo de nuevo.</string>
     <string name="appearance_image_error">No se puede usar esta imagen. Elige una imagen JPEG, PNG o WebP más pequeña.</string>
     <string name="appearance_top_bar_transparency">Transparencia de la barra de menú</string>
     <string name="appearance_bottom_bar_transparency">Transparencia de la barra inferior</string>
-    <string name="appearance_bubble_transparency">Transparencia de las burbujas</string>
-    <string name="appearance_content_transparency">Transparencia del contenido</string>
-    <string name="appearance_preview_input">Mensaje o indicación para continuar…</string>
+    <string name="appearance_content_transparency">Transparencia del área de contenido</string>
     <string name="appearance_transparency_hint">0% es opaco; 100% es transparente. El texto y los botones siguen visibles. Cada tipo de página tiene ajustes independientes.</string>
+    <string name="appearance_top_bar_blur">Desenfoque del fondo del menú</string>
+    <string name="appearance_bottom_bar_blur">Desenfoque del fondo de la barra inferior</string>
+    <string name="appearance_content_blur">Desenfoque del área de contenido</string>
+    <string name="appearance_surface_blur_hint">El desenfoque solo afecta al fondo. Se desactiva cuando la transparencia es del 0%.</string>
+    <string name="appearance_preview_input">Mensaje o indicación para continuar…</string>
+    <string name="appearance_save_changes_title">¿Guardar cambios?</string>
+    <string name="appearance_save_changes_message">¿Guardar los cambios de este fondo antes de salir?</string>
 </resources>

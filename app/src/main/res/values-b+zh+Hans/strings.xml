@@ -1244,15 +1244,20 @@
     <string name="appearance_background_hint">提高遮罩和内容不透明度可让文字更清晰。修改仅在保存后生效。</string>
     <string name="appearance_preview">预览</string>
     <string name="appearance_preview_story">暮色洒落书页，新的故事缓缓展开。</string>
-    <string name="appearance_preview_message">还有许多风景，等待我们一起发现。</string>
-    <string name="appearance_preview_reply">继续我们的故事吧。</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">无法加载或保存背景，请重试。</string>
     <string name="appearance_image_error">无法使用此图片，请选择较小的 JPEG、PNG 或 WebP 图片。</string>
     <string name="appearance_top_bar_transparency">菜单栏透明度</string>
     <string name="appearance_bottom_bar_transparency">底部操作栏透明度</string>
-    <string name="appearance_bubble_transparency">聊天气泡透明度</string>
-    <string name="appearance_content_transparency">内容栏透明度</string>
-    <string name="appearance_preview_input">输入消息或续写引导…</string>
+    <string name="appearance_content_transparency">内容区透明度</string>
     <string name="appearance_transparency_hint">0% 为不透明，100% 为完全透明。文字和按钮保持清晰，每类页面独立保存设置。</string>
+    <string name="appearance_top_bar_blur">菜单背景模糊度</string>
+    <string name="appearance_bottom_bar_blur">底部操作栏背景模糊度</string>
+    <string name="appearance_content_blur">内容区模糊度</string>
+    <string name="appearance_surface_blur_hint">模糊仅作用于背景；透明度为 0% 时不生效。</string>
+    <string name="appearance_preview_input">输入消息或续写引导…</string>
+    <string name="appearance_save_changes_title">保存修改？</string>
+    <string name="appearance_save_changes_message">离开前是否保存对此背景的修改？</string>
 </resources>

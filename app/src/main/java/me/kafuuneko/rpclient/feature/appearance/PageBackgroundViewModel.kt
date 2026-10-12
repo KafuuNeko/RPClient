@@ -31,7 +31,12 @@ class PageBackgroundViewModel : ViewModel(), KoinComponent {
     fun observe(page: BackgroundPage): StateFlow<PageBackgroundUiState> = mStates.getOrPut(page) {
         // 图片加载失败不丢弃独立栏位设置，仍按主题底色显示页面。
         mRepository.observe(page).mapLatest { settings ->
-            try { PageBackgroundUiState(settings, mRuntime.render(settings)?.asImageBitmap()) }
+            try {
+                PageBackgroundUiState(
+                    settings, mRuntime.render(settings)?.asImageBitmap(),
+                    mRuntime.renderSurfaces(settings).mapValues { it.value.asImageBitmap() }
+                )
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { PageBackgroundUiState(settings) }
             catch (_: OutOfMemoryError) { PageBackgroundUiState(settings) }

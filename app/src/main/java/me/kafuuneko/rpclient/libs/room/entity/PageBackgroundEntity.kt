@@ -25,5 +25,9 @@ data class PageBackgroundEntity(
     val focalY: Float,
     @ColumnInfo(defaultValue = "1.0") val topBarOpacity: Float = 1f,
     @ColumnInfo(defaultValue = "1.0") val bottomBarOpacity: Float = 1f,
-    @ColumnInfo(defaultValue = "1.0") val bubbleOpacity: Float = 1f
+    @ColumnInfo(defaultValue = "1.0") val bubbleOpacity: Float = 1f,
+    @ColumnInfo(defaultValue = "0") val topBarBlur: Int = 0,
+    @ColumnInfo(defaultValue = "0") val bottomBarBlur: Int = 0,
+    @ColumnInfo(defaultValue = "0") val bubbleBlur: Int = 0,
+    @ColumnInfo(defaultValue = "0") val contentBlur: Int = 0
 )

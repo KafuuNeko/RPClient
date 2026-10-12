@@ -1252,15 +1252,20 @@
     <string name="appearance_background_hint">A stronger veil and more opaque cards make text easier to read. Changes apply only after saving.</string>
     <string name="appearance_preview">Preview</string>
     <string name="appearance_preview_story">Evening light spilled across the pages, and a new story began.</string>
-    <string name="appearance_preview_message">There is still so much to discover.</string>
-    <string name="appearance_preview_reply">Let’s continue.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Could not load or save this background. Please try again.</string>
     <string name="appearance_image_error">Could not use this image. Choose a smaller JPEG, PNG, or WebP image.</string>
     <string name="appearance_top_bar_transparency">Menu bar transparency</string>
     <string name="appearance_bottom_bar_transparency">Bottom bar transparency</string>
-    <string name="appearance_bubble_transparency">Chat bubble transparency</string>
-    <string name="appearance_content_transparency">Content panel transparency</string>
-    <string name="appearance_preview_input">Message or continuation guidance…</string>
+    <string name="appearance_content_transparency">Content area transparency</string>
     <string name="appearance_transparency_hint">0% is opaque; 100% is transparent. Text and buttons stay visible. Each page type has its own settings.</string>
+    <string name="appearance_top_bar_blur">Menu background blur</string>
+    <string name="appearance_bottom_bar_blur">Bottom bar background blur</string>
+    <string name="appearance_content_blur">Content area blur</string>
+    <string name="appearance_surface_blur_hint">Blur applies to the background only. It is inactive when transparency is 0%.</string>
+    <string name="appearance_preview_input">Message or continuation guidance…</string>
+    <string name="appearance_save_changes_title">Save changes?</string>
+    <string name="appearance_save_changes_message">Save changes to this background before leaving?</string>
 </resources>

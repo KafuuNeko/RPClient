@@ -281,35 +281,14 @@ class AppDatabaseMigrationTest {
             assertEquals(true, cursor.moveToFirst())
             assertEquals(0, cursor.getInt(0))
         }
-    }
-
-    /** 拆分透明度后保留旧背景与气泡设置，并允许无图配置独立落库。 */
-    @Test
-    fun migrate5To6_preservesBubbleOpacityAndAllowsSettingsWithoutImage() {
-        // 使用旧表真实记录验证迁移，不仅检查新列是否存在。
-        migrationHelper.createDatabase("app-opacity-migration-test", 5).apply {
-            execSQL("INSERT INTO files (uuid, hash, mimeType) VALUES ('wallpaper', 'image-hash', 'image/png')")
-            execSQL("INSERT INTO page_backgrounds VALUES ('chat', 'wallpaper', 42, 0.25, 0.82, 0.2, 0.8)")
-            close()
-        }
-        val migrated = migrationHelper.runMigrationsAndValidate("app-opacity-migration-test", 6, true)
-        migrated.query("SELECT fileUuid, blur, bubbleOpacity, topBarOpacity, bottomBarOpacity FROM page_backgrounds").use { cursor ->
+        // 一次 4→5 升级后即可保存无图透明度，所有附加模糊列默认关闭。
+        migrated.execSQL("""
+            INSERT INTO page_backgrounds (page, fileUuid, blur, scrim, opacity, focalX, focalY)
+            VALUES ('chat', NULL, 25, 0.25, 1.0, 0.5, 0.5)
+        """.trimIndent())
+        migrated.query("SELECT topBarBlur, bottomBarBlur, bubbleBlur, contentBlur FROM page_backgrounds").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
-            assertEquals("wallpaper", cursor.getString(0))
-            assertEquals(42, cursor.getInt(1))
-            assertEquals(0.82f, cursor.getFloat(2), 0.001f)
-            assertEquals(1f, cursor.getFloat(3), 0.001f)
-            assertEquals(1f, cursor.getFloat(4), 0.001f)
-        }
-        // 清图后保留配置，文件外键可释放而不删除透明度设置。
-        migrated.execSQL("UPDATE page_backgrounds SET fileUuid = NULL, topBarOpacity = 0.1, bottomBarOpacity = 0.4")
-        migrated.execSQL("DELETE FROM files WHERE uuid = 'wallpaper'")
-        migrated.query("SELECT fileUuid, topBarOpacity, bottomBarOpacity, bubbleOpacity FROM page_backgrounds").use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals(true, cursor.isNull(0))
-            assertEquals(0.1f, cursor.getFloat(1), 0.001f)
-            assertEquals(0.4f, cursor.getFloat(2), 0.001f)
-            assertEquals(0.82f, cursor.getFloat(3), 0.001f)
+            repeat(4) { assertEquals(0, cursor.getInt(it)) }
         }
     }
 

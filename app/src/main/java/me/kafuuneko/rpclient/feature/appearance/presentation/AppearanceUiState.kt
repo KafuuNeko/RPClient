@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.appearance.presentation
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 
@@ -22,11 +23,17 @@ data class BackgroundEditorState(
     val image: ImageBitmap? = null,
     val working: Boolean = false,
     val rendering: Boolean = false,
-    @param:StringRes val error: Int? = null
+    @param:StringRes val error: Int? = null,
+    val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap(),
+    val dialogState: BackgroundEditorDialogState = BackgroundEditorDialogState.None
 )
+
+/** 背景编辑器的返回确认状态，由 ViewModel 统一控制。 */
+enum class BackgroundEditorDialogState { None, UnsavedChanges }
 
 /** 内容页可观察的背景子状态，图片不可用时使用原有主题表面。 */
 data class PageBackgroundUiState(
     val settings: PageBackground? = null,
-    val image: ImageBitmap? = null
+    val image: ImageBitmap? = null,
+    val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap()
 )

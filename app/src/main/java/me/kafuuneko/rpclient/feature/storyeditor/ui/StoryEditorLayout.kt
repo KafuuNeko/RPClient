@@ -161,6 +161,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPha
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySettingsSection
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
@@ -180,6 +181,7 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
+import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -187,6 +189,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 
@@ -350,6 +353,7 @@ private fun StoryEditorTopBar(
     AppTopBar(
         title = state.topBarState.title,
         containerColor = MaterialTheme.colorScheme.background.copy(alpha = LocalPageTopBarOpacity.current),
+        modifier = Modifier.pageSurfaceBlur(PageSurfaceKind.TopBar),
         onBack = { StoryEditorUiIntent.Back.emit() },
         actions = {
             // 保存状态常驻顶栏，窗口紧凑时仍能看到草稿是否安全落库。
@@ -519,7 +523,7 @@ private fun StoryEditorLeftRail(
     compactMode: Boolean,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Surface(
+    PageSurface(kind = PageSurfaceKind.TopBar,
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f * LocalPageTopBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
@@ -698,7 +702,7 @@ private fun StoryEditorRightDock(
     val hapticFeedback = LocalHapticFeedback.current
     val historyEnabled = contentState.editable && generationState is StoryGenerationState.Idle
 
-    Surface(
+    PageSurface(kind = PageSurfaceKind.BottomBar,
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f * LocalPageBottomBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
@@ -1149,18 +1153,14 @@ private fun CurrentChapterBar(
     compact: Boolean,
     onClick: (() -> Unit)?
 ) {
-    // 外层容器采用 Secondary Container 柔和配色与微边框
-    Surface(
+    // 章节卡片与正文共用内容区设置，不额外绘制装饰边框。
+    PageSurface(kind = PageSurfaceKind.Content,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f * LocalPageContentOpacity.current),
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
-        )
     ) {
         Row(
             modifier = Modifier.padding(
@@ -1324,18 +1324,13 @@ private fun StoryTextEditor(
         }
     }
 
-    Surface(
+    PageSurface(kind = PageSurfaceKind.Content,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        shadowElevation = if (isStreaming) 2.dp else 0.dp,
-        border = BorderStroke(
-            width = if (isStreaming) 1.5.dp else 1.dp,
-            color = if (isStreaming) {
-                MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            }
-        ),
+        shadowElevation = if (isStreaming) 2.dp * LocalPageContentOpacity.current else 0.dp,
+        border = if (isStreaming) BorderStroke(
+            1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha * LocalPageContentOpacity.current)
+        ) else null,
         color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageContentOpacity.current)
     ) {
         BasicTextField(
@@ -1590,7 +1585,7 @@ private fun EditorCompactBottomBar(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val historyEnabled = contentState.editable && generationState is StoryGenerationState.Idle
-    Surface(
+    PageSurface(kind = PageSurfaceKind.BottomBar,
         shape = RoundedCornerShape(18.dp),
         tonalElevation = 3.dp * LocalPageBottomBarOpacity.current,
         color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
@@ -1794,7 +1789,7 @@ private fun EditorBottomBar(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
-    Surface(
+    PageSurface(kind = PageSurfaceKind.BottomBar,
         modifier = modifier,
         tonalElevation = 3.dp * LocalPageBottomBarOpacity.current,
         color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),

@@ -120,6 +120,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
@@ -146,12 +147,14 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
+import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
+import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
@@ -195,6 +198,7 @@ private fun GroupChatNormalView(
             AppTopBar(
                 title = state.title,
                 containerColor = MaterialTheme.colorScheme.background.copy(alpha = LocalPageTopBarOpacity.current),
+                modifier = Modifier.pageSurfaceBlur(PageSurfaceKind.TopBar),
                 onBack = { emitIntent(GroupChatUiIntent.Back) },
                 actions = {
                     IconButton(
@@ -952,7 +956,7 @@ private fun GroupHeader(
     hasAvailableProvider: Boolean = true,
     onContinue: () -> Unit
 ) {
-    Surface(
+    PageSurface(kind = PageSurfaceKind.TopBar,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageTopBarOpacity.current)
     ) {
         Row(
@@ -1056,6 +1060,7 @@ private fun MemberChip(
     Card(
         modifier = Modifier
             .width(138.dp)
+            .pageSurfaceBlur(PageSurfaceKind.Bubble, RoundedCornerShape(16.dp))
             .alpha(if (member.muted) 0.55f else 1f)
             .clickable(
                 enabled = enabled,
@@ -1065,19 +1070,14 @@ private fun MemberChip(
                 }
             ),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            if (selected) 1.5.dp else 1.dp,
-            if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-            }
-        ),
+        border = if (selected) BorderStroke(
+            1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
+        ) else null,
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageTopBarOpacity.current)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageBubbleOpacity.current)
             } else {
-                MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)
+                MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
             }
         )
     ) {
@@ -1405,7 +1405,7 @@ private fun MessageBubble(
                     MessageImageEditButton(imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
                 }
             }
-            Surface(
+            PageSurface(kind = PageSurfaceKind.Bubble,
                 modifier = Modifier
                     .padding(top = 5.dp)
                     .clickable(enabled = !editing) {
@@ -1431,18 +1431,6 @@ private fun MessageBubble(
                     isUser -> MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
                     isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f * LocalPageBubbleOpacity.current)
                     else -> MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
-                },
-                border = when {
-                    isUser -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                    isSystem -> BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                    )
-
-                    else -> BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-                    )
                 },
                 shadowElevation = (if (isUser) 1.5.dp else 0.5.dp) * LocalPageBubbleOpacity.current
             ) {
@@ -1485,10 +1473,6 @@ private fun MessageBubble(
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f * LocalPageBubbleOpacity.current),
-                            border = BorderStroke(
-                                0.5.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                            ),
                             modifier = Modifier.padding(top = 2.dp)
                         ) {
                             Row(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
@@ -1585,7 +1569,6 @@ private fun GroupThinkBlock(
             .clickable(onClick = onToggle),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f * LocalPageBubbleOpacity.current),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1811,14 +1794,6 @@ private fun QuickActionPill(
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * LocalPageBottomBarOpacity.current)
         },
-        border = BorderStroke(
-            0.5.dp,
-            if (enabled) {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.10f)
-            }
-        ),
         modifier = Modifier.clickable(
             enabled = enabled,
             onClick = {
@@ -1870,7 +1845,7 @@ private fun Composer(
         label = "sendButtonColor"
     )
 
-    Surface(
+    PageSurface(kind = PageSurfaceKind.BottomBar,
         tonalElevation = 5.dp * LocalPageBottomBarOpacity.current,
         shadowElevation = 8.dp * LocalPageBottomBarOpacity.current,
         color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)

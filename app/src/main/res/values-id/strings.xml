@@ -1248,15 +1248,20 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_background_hint">Lapisan lebih kuat dan kartu lebih pekat membuat teks lebih mudah dibaca. Perubahan berlaku setelah disimpan.</string>
     <string name="appearance_preview">Pratinjau</string>
     <string name="appearance_preview_story">Cahaya senja menyinari halaman, dan cerita baru pun dimulai.</string>
-    <string name="appearance_preview_message">Masih banyak hal yang bisa ditemukan.</string>
-    <string name="appearance_preview_reply">Mari lanjutkan.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Tidak dapat memuat atau menyimpan latar ini. Coba lagi.</string>
     <string name="appearance_image_error">Gambar ini tidak dapat digunakan. Pilih gambar JPEG, PNG, atau WebP yang lebih kecil.</string>
     <string name="appearance_top_bar_transparency">Transparansi bilah menu</string>
     <string name="appearance_bottom_bar_transparency">Transparansi bilah bawah</string>
-    <string name="appearance_bubble_transparency">Transparansi gelembung obrolan</string>
-    <string name="appearance_content_transparency">Transparansi panel konten</string>
-    <string name="appearance_preview_input">Pesan atau arahan kelanjutan…</string>
+    <string name="appearance_content_transparency">Transparansi area konten</string>
     <string name="appearance_transparency_hint">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
+    <string name="appearance_top_bar_blur">Blur latar menu</string>
+    <string name="appearance_bottom_bar_blur">Blur latar bilah bawah</string>
+    <string name="appearance_content_blur">Keburaman area konten</string>
+    <string name="appearance_surface_blur_hint">Blur hanya memengaruhi latar. Tidak aktif saat transparansi 0%.</string>
+    <string name="appearance_preview_input">Pesan atau arahan kelanjutan…</string>
+    <string name="appearance_save_changes_title">Simpan perubahan?</string>
+    <string name="appearance_save_changes_message">Simpan perubahan latar belakang ini sebelum keluar?</string>
 </resources>

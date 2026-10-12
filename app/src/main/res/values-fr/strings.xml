@@ -1248,15 +1248,20 @@
     <string name="appearance_background_hint">Un voile plus fort et des cartes plus opaques facilitent la lecture. Les modifications prennent effet après enregistrement.</string>
     <string name="appearance_preview">Aperçu</string>
     <string name="appearance_preview_story">La lumière du soir baignait les pages, et une nouvelle histoire commença.</string>
-    <string name="appearance_preview_message">Il reste tant de choses à découvrir.</string>
-    <string name="appearance_preview_reply">Continuons.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Impossible de charger ou enregistrer ce fond. Réessayez.</string>
     <string name="appearance_image_error">Cette image ne peut pas être utilisée. Choisissez une image JPEG, PNG ou WebP plus petite.</string>
     <string name="appearance_top_bar_transparency">Transparence de la barre de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparence de la barre inférieure</string>
-    <string name="appearance_bubble_transparency">Transparence des bulles</string>
-    <string name="appearance_content_transparency">Transparence du contenu</string>
-    <string name="appearance_preview_input">Message ou consigne de continuation…</string>
+    <string name="appearance_content_transparency">Transparence de la zone de contenu</string>
     <string name="appearance_transparency_hint">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
+    <string name="appearance_top_bar_blur">Flou du fond du menu</string>
+    <string name="appearance_bottom_bar_blur">Flou du fond de la barre inférieure</string>
+    <string name="appearance_content_blur">Flou de la zone de contenu</string>
+    <string name="appearance_surface_blur_hint">Le flou concerne uniquement le fond. Il est inactif lorsque la transparence est à 0%.</string>
+    <string name="appearance_preview_input">Message ou consigne de continuation…</string>
+    <string name="appearance_save_changes_title">Enregistrer les modifications ?</string>
+    <string name="appearance_save_changes_message">Enregistrer les modifications de cet arrière-plan avant de quitter ?</string>
 </resources>

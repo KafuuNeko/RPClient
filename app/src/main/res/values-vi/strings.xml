@@ -1248,15 +1248,20 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_background_hint">Tăng lớp phủ và độ đục của thẻ để chữ dễ đọc hơn. Thay đổi chỉ áp dụng sau khi lưu.</string>
     <string name="appearance_preview">Xem trước</string>
     <string name="appearance_preview_story">Ánh chiều phủ lên những trang sách, và một câu chuyện mới bắt đầu.</string>
-    <string name="appearance_preview_message">Vẫn còn nhiều điều để cùng khám phá.</string>
-    <string name="appearance_preview_reply">Hãy tiếp tục nhé.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Không thể tải hoặc lưu nền này. Vui lòng thử lại.</string>
     <string name="appearance_image_error">Không thể dùng ảnh này. Hãy chọn ảnh JPEG, PNG hoặc WebP nhỏ hơn.</string>
     <string name="appearance_top_bar_transparency">Độ trong suốt thanh menu</string>
     <string name="appearance_bottom_bar_transparency">Độ trong suốt thanh thao tác dưới</string>
-    <string name="appearance_bubble_transparency">Độ trong suốt bong bóng chat</string>
     <string name="appearance_content_transparency">Độ trong suốt vùng nội dung</string>
-    <string name="appearance_preview_input">Tin nhắn hoặc hướng dẫn viết tiếp…</string>
     <string name="appearance_transparency_hint">0% là đục; 100% là trong suốt. Văn bản và nút vẫn hiển thị. Mỗi loại trang có cài đặt riêng.</string>
+    <string name="appearance_top_bar_blur">Độ mờ nền menu</string>
+    <string name="appearance_bottom_bar_blur">Độ mờ nền thanh thao tác dưới</string>
+    <string name="appearance_content_blur">Độ mờ vùng nội dung</string>
+    <string name="appearance_surface_blur_hint">Hiệu ứng làm mờ chỉ áp dụng cho nền. Không có hiệu lực khi độ trong suốt là 0%.</string>
+    <string name="appearance_preview_input">Tin nhắn hoặc hướng dẫn viết tiếp…</string>
+    <string name="appearance_save_changes_title">Lưu thay đổi?</string>
+    <string name="appearance_save_changes_message">Lưu các thay đổi của hình nền này trước khi thoát?</string>
 </resources>

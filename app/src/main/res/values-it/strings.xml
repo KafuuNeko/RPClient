@@ -1226,15 +1226,20 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_background_hint">Un velo più forte e schede più opache migliorano la leggibilità. Le modifiche si applicano dopo il salvataggio.</string>
     <string name="appearance_preview">Anteprima</string>
     <string name="appearance_preview_story">La luce della sera illuminò le pagine e iniziò una nuova storia.</string>
-    <string name="appearance_preview_message">Ci sono ancora tante cose da scoprire.</string>
-    <string name="appearance_preview_reply">Continuiamo.</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">Impossibile caricare o salvare questo sfondo. Riprova.</string>
     <string name="appearance_image_error">Impossibile usare questa immagine. Scegli una JPEG, PNG o WebP più piccola.</string>
     <string name="appearance_top_bar_transparency">Trasparenza della barra menu</string>
     <string name="appearance_bottom_bar_transparency">Trasparenza della barra inferiore</string>
-    <string name="appearance_bubble_transparency">Trasparenza dei fumetti</string>
-    <string name="appearance_content_transparency">Trasparenza del contenuto</string>
-    <string name="appearance_preview_input">Messaggio o indicazione per continuare…</string>
+    <string name="appearance_content_transparency">Trasparenza dell’area dei contenuti</string>
     <string name="appearance_transparency_hint">0% è opaco; 100% è trasparente. Testo e pulsanti restano visibili. Ogni tipo di pagina ha impostazioni indipendenti.</string>
+    <string name="appearance_top_bar_blur">Sfocatura dello sfondo del menu</string>
+    <string name="appearance_bottom_bar_blur">Sfocatura dello sfondo della barra inferiore</string>
+    <string name="appearance_content_blur">Sfocatura dell’area dei contenuti</string>
+    <string name="appearance_surface_blur_hint">La sfocatura riguarda solo lo sfondo. Non è attiva quando la trasparenza è 0%.</string>
+    <string name="appearance_preview_input">Messaggio o indicazione per continuare…</string>
+    <string name="appearance_save_changes_title">Salvare le modifiche?</string>
+    <string name="appearance_save_changes_message">Salvare le modifiche a questo sfondo prima di uscire?</string>
 </resources>

@@ -1243,15 +1243,20 @@
     <string name="appearance_background_hint">ベールとコンテンツの不透明度を上げると文字が読みやすくなります。変更は保存後に適用されます。</string>
     <string name="appearance_preview">プレビュー</string>
     <string name="appearance_preview_story">夕暮れの光がページに差し込み、新たな物語が始まった。</string>
-    <string name="appearance_preview_message">まだ一緒に見つけたい景色がたくさんある。</string>
-    <string name="appearance_preview_reply">物語を続けよう。</string>
+    <string name="appearance_preview_message">Message1</string>
+    <string name="appearance_preview_reply">Message2</string>
     <string name="appearance_percent">%1$d%%</string>
     <string name="appearance_background_error">背景を読み込み、または保存できませんでした。もう一度お試しください。</string>
     <string name="appearance_image_error">この画像は使用できません。小さめの JPEG、PNG、WebP 画像を選んでください。</string>
     <string name="appearance_top_bar_transparency">メニューバーの透明度</string>
     <string name="appearance_bottom_bar_transparency">下部操作バーの透明度</string>
-    <string name="appearance_bubble_transparency">チャット吹き出しの透明度</string>
-    <string name="appearance_content_transparency">本文パネルの透明度</string>
-    <string name="appearance_preview_input">メッセージや続きの指示を入力…</string>
+    <string name="appearance_content_transparency">コンテンツ領域の透明度</string>
     <string name="appearance_transparency_hint">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
+    <string name="appearance_top_bar_blur">メニュー背景のぼかし</string>
+    <string name="appearance_bottom_bar_blur">下部操作バー背景のぼかし</string>
+    <string name="appearance_content_blur">コンテンツ領域のぼかし</string>
+    <string name="appearance_surface_blur_hint">ぼかしは背景のみに適用されます。透明度が 0% の場合は無効です。</string>
+    <string name="appearance_preview_input">メッセージや続きの指示を入力…</string>
+    <string name="appearance_save_changes_title">変更を保存しますか？</string>
+    <string name="appearance_save_changes_message">この背景の変更を保存してから戻りますか？</string>
 </resources>
