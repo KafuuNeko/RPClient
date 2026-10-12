@@ -1221,4 +1221,42 @@
     <string name="chat_import_image_directory_failed">Impossible de lire le dossier des images</string>
     <string name="chat_archive_images_skipped">Terminé. %1$d images indisponibles ont été ignorées.</string>
     <string name="text_selection_share">Partager</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Apparence</string>
+    <string name="appearance_entry_desc">Thèmes et arrière-plans</string>
+    <string name="appearance_palette_heading">Choisissez votre palette</string>
+    <string name="appearance_palette_desc">Des surfaces douces et des couleurs harmonieuses pour une lecture agréable.</string>
+    <string name="appearance_classic">Bleu classique</string>
+    <string name="appearance_sakura">Fleur de cerisier</string>
+    <string name="appearance_forest">Forêt</string>
+    <string name="appearance_twilight">Crépuscule</string>
+    <string name="appearance_parchment">Parchemin</string>
+    <string name="appearance_graphite">Graphite</string>
+    <string name="appearance_dynamic">Couleurs du système</string>
+    <string name="appearance_selected">Sélectionné</string>
+    <string name="appearance_backgrounds">Arrière-plans des pages</string>
+    <string name="appearance_chat_background">Arrière-plan du chat</string>
+    <string name="appearance_group_background">Arrière-plan du groupe</string>
+    <string name="appearance_story_background">Arrière-plan du récit</string>
+    <string name="appearance_choose_image">Choisir une image</string>
+    <string name="appearance_reset_background">Utiliser le fond du thème</string>
+    <string name="appearance_blur">Flou</string>
+    <string name="appearance_scrim">Voile du fond</string>
+    <string name="appearance_horizontal">Position horizontale</string>
+    <string name="appearance_vertical">Position verticale</string>
+    <string name="appearance_background_hint">Un voile plus fort et des cartes plus opaques facilitent la lecture. Les modifications prennent effet après enregistrement.</string>
+    <string name="appearance_preview">Aperçu</string>
+    <string name="appearance_preview_story">La lumière du soir baignait les pages, et une nouvelle histoire commença.</string>
+    <string name="appearance_preview_message">Il reste tant de choses à découvrir.</string>
+    <string name="appearance_preview_reply">Continuons.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Impossible de charger ou enregistrer ce fond. Réessayez.</string>
+    <string name="appearance_image_error">Cette image ne peut pas être utilisée. Choisissez une image JPEG, PNG ou WebP plus petite.</string>
+    <string name="appearance_top_bar_transparency">Transparence de la barre de menu</string>
+    <string name="appearance_bottom_bar_transparency">Transparence de la barre inférieure</string>
+    <string name="appearance_bubble_transparency">Transparence des bulles</string>
+    <string name="appearance_content_transparency">Transparence du contenu</string>
+    <string name="appearance_preview_input">Message ou consigne de continuation…</string>
+    <string name="appearance_transparency_hint">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
 </resources>

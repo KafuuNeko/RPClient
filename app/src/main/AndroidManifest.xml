@@ -137,6 +137,9 @@
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".feature.appearance.AppearanceActivity"
+            android:exported="false" />
+        <activity
             android:name=".feature.main.MainActivity"
             android:exported="true"
             android:label="@string/app_name"

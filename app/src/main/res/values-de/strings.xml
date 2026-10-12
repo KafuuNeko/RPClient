@@ -1220,4 +1220,42 @@
     <string name="chat_import_image_directory_failed">Der Bilderordner konnte nicht gelesen werden</string>
     <string name="chat_archive_images_skipped">Abgeschlossen. %1$d nicht verfügbare Bilder übersprungen.</string>
     <string name="text_selection_share">Teilen</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Aussehen</string>
+    <string name="appearance_entry_desc">Themen und Seitenhintergründe</string>
+    <string name="appearance_palette_heading">Wähle deine Farben</string>
+    <string name="appearance_palette_desc">Sanfte Flächen und harmonische Farben für angenehmes Lesen.</string>
+    <string name="appearance_classic">Klassisches Blau</string>
+    <string name="appearance_sakura">Kirschblüte</string>
+    <string name="appearance_forest">Wald</string>
+    <string name="appearance_twilight">Abenddämmerung</string>
+    <string name="appearance_parchment">Pergament</string>
+    <string name="appearance_graphite">Graphit</string>
+    <string name="appearance_dynamic">Systemfarben</string>
+    <string name="appearance_selected">Ausgewählt</string>
+    <string name="appearance_backgrounds">Seitenhintergründe</string>
+    <string name="appearance_chat_background">Chat-Hintergrund</string>
+    <string name="appearance_group_background">Gruppenchat-Hintergrund</string>
+    <string name="appearance_story_background">Geschichtshintergrund</string>
+    <string name="appearance_choose_image">Bild auswählen</string>
+    <string name="appearance_reset_background">Themenhintergrund verwenden</string>
+    <string name="appearance_blur">Unschärfe</string>
+    <string name="appearance_scrim">Hintergrundschleier</string>
+    <string name="appearance_horizontal">Horizontale Position</string>
+    <string name="appearance_vertical">Vertikale Position</string>
+    <string name="appearance_background_hint">Ein stärkerer Schleier und höhere Deckkraft verbessern die Lesbarkeit. Änderungen gelten erst nach dem Speichern.</string>
+    <string name="appearance_preview">Vorschau</string>
+    <string name="appearance_preview_story">Abendlicht fiel auf die Seiten, und eine neue Geschichte begann.</string>
+    <string name="appearance_preview_message">Es gibt noch so viel zu entdecken.</string>
+    <string name="appearance_preview_reply">Machen wir weiter.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Der Hintergrund konnte nicht geladen oder gespeichert werden. Bitte erneut versuchen.</string>
+    <string name="appearance_image_error">Dieses Bild kann nicht verwendet werden. Wähle ein kleineres JPEG-, PNG- oder WebP-Bild.</string>
+    <string name="appearance_top_bar_transparency">Transparenz der Menüleiste</string>
+    <string name="appearance_bottom_bar_transparency">Transparenz der unteren Leiste</string>
+    <string name="appearance_bubble_transparency">Transparenz der Sprechblasen</string>
+    <string name="appearance_content_transparency">Transparenz des Inhaltsbereichs</string>
+    <string name="appearance_preview_input">Nachricht oder Vorgabe zum Fortsetzen…</string>
+    <string name="appearance_transparency_hint">0% ist undurchsichtig, 100% transparent. Text und Schaltflächen bleiben sichtbar. Jeder Seitentyp hat eigene Einstellungen.</string>
 </resources>

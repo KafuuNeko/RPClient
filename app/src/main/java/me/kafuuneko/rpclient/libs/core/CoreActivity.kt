@@ -42,9 +42,10 @@ abstract class CoreActivity : ComponentActivity(), KoinComponent {
         }
         setContent {
             val themeMode by mAppThemeManager.themeModeFlow.collectAsState()
+            val palette by mAppThemeManager.paletteFlow.collectAsState()
             val darkTheme = themeMode.resolveDarkTheme(isSystemInDarkTheme())
             ApplySystemBarTheme(darkTheme)
-            AppTheme(darkTheme = darkTheme, content = getContent())
+            AppTheme(darkTheme = darkTheme, palette = palette, content = getContent())
         }
     }
 

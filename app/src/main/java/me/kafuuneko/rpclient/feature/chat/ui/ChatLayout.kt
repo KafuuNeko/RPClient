@@ -109,6 +109,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
@@ -141,8 +142,12 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
+import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -151,6 +156,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 import me.kafuuneko.rpclient.utils.toggle
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
@@ -160,6 +166,7 @@ private const val HISTORY_LOAD_THRESHOLD = 4
 @Composable
 fun ChatLayout(
     uiState: ChatUiState,
+    background: PageBackgroundUiState = PageBackgroundUiState(),
     emit: ChatUiIntent.() -> Unit
 ) {
     BackHandler(enabled = uiState is ChatUiState.Normal) { ChatUiIntent.Back.emit() }
@@ -172,11 +179,11 @@ fun ChatLayout(
             )
         }
 
-        is ChatUiState.Finished -> ChatLayout(uiState.previous) {}
+        is ChatUiState.Finished -> ChatLayout(uiState.previous, background) {}
 
         is ChatUiState.Normal -> {
             when (uiState.page) {
-                ChatPage.Conversation -> ChatNormal(uiState, emit)
+                ChatPage.Conversation -> PageBackdrop(background) { ChatNormal(uiState, emit) }
                 ChatPage.Settings -> ChatSettingsPage(
                     session = uiState.session,
                     lorebookState = uiState.lorebookState,
@@ -278,7 +285,7 @@ private fun ChatNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Transparent)
     ) {
         CustomChatTopBar(
             session = state.session,
@@ -425,8 +432,8 @@ private fun CustomChatTopBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current),
+        tonalElevation = 1.dp * LocalPageTopBarOpacity.current,
         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
     ) {
         Row(
@@ -799,9 +806,9 @@ private fun MessageBubble(
                     MessageRole.Narrator -> RoundedCornerShape(14.dp)
                 },
                 color = when (message.role) {
-                    MessageRole.User -> MaterialTheme.colorScheme.primary
-                    MessageRole.Assistant -> MaterialTheme.colorScheme.surface
-                    MessageRole.Narrator -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                    MessageRole.User -> MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
+                    MessageRole.Assistant -> MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
+                    MessageRole.Narrator -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f * LocalPageBubbleOpacity.current)
                 },
                 border = when (message.role) {
                     MessageRole.User -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
@@ -815,7 +822,7 @@ private fun MessageBubble(
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
                     )
                 },
-                shadowElevation = if (isUser) 1.5.dp else 0.5.dp
+                shadowElevation = (if (isUser) 1.5.dp else 0.5.dp) * LocalPageBubbleOpacity.current
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
@@ -833,13 +840,13 @@ private fun MessageBubble(
                             text = message.speaker,
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = message.time,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                            color = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.72f)
                             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                         )
                         if (canAddImages) {
@@ -855,7 +862,7 @@ private fun MessageBubble(
                     if (editing) imageState.errorResId?.let { errorResId ->
                         Text(
                             text = stringResource(errorResId),
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.error,
+                            color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -884,7 +891,7 @@ private fun MessageBubble(
             ) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f * LocalPageBubbleOpacity.current),
                     border = BorderStroke(
                         0.5.dp,
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
@@ -984,13 +991,13 @@ private fun MessageEditContent(
             maxLines = 8,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                cursorColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                focusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.06f) else Color.Transparent,
-                unfocusedContainerColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.04f) else Color.Transparent,
-                focusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
+                focusedTextColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface,
+                cursorColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.primary,
+                focusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.06f * LocalPageBubbleOpacity.current) else Color.Transparent,
+                unfocusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.04f * LocalPageBubbleOpacity.current) else Color.Transparent,
+                focusedBorderColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline
             )
         )
         Row(
@@ -1004,7 +1011,7 @@ private fun MessageEditContent(
             ) {
                 Text(
                     stringResource(R.string.cancel),
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
+                    color = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Normal
                 )
             }
@@ -1017,7 +1024,7 @@ private fun MessageEditContent(
                 Text(
                     stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                    color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -1036,7 +1043,7 @@ private fun ThinkBlock(
             .fillMaxWidth()
             .clickable { ChatUiIntent.ToggleThinkBlock(part.id).emit() },
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isThinking) 0.55f else 0.38f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = (if (isThinking) 0.55f else 0.38f) * LocalPageBubbleOpacity.current),
         border = BorderStroke(
             0.8.dp,
             if (isThinking) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
@@ -1108,9 +1115,9 @@ private fun QuickActionPill(
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
         } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * LocalPageBottomBarOpacity.current)
         },
         border = BorderStroke(
             0.5.dp,
@@ -1239,9 +1246,9 @@ private fun ChatInputBar(
     )
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 3.dp
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
+        tonalElevation = 2.dp * LocalPageBottomBarOpacity.current,
+        shadowElevation = 3.dp * LocalPageBottomBarOpacity.current
     ) {
         Column(
             modifier = Modifier
@@ -1347,9 +1354,9 @@ private fun ChatInputBar(
                         focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                         disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f * LocalPageBottomBarOpacity.current),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                            alpha = 0.22f
+                            alpha = 0.22f * LocalPageBottomBarOpacity.current
                         )
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium

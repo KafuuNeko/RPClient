@@ -111,11 +111,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -126,11 +128,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.window.core.layout.WindowSizeClass
+import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import java.util.Locale
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropPosition
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropTarget
@@ -171,8 +174,12 @@ import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
 import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
+import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
+import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -182,19 +189,19 @@ import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
-import androidx.compose.ui.platform.LocalLocale
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
 @Composable
 fun StoryEditorLayout(
     uiState: StoryEditorUiState,
     document: StoryEditorDocument?,
+    background: PageBackgroundUiState = PageBackgroundUiState(),
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     when (uiState) {
         StoryEditorUiState.None -> EditorLoading()
-        is StoryEditorUiState.Normal -> StoryEditorNormal(uiState, document, emit)
-        is StoryEditorUiState.Finished -> StoryEditorLayout(uiState.previous, document) {}
+        is StoryEditorUiState.Normal -> StoryEditorNormal(uiState, document, background, emit)
+        is StoryEditorUiState.Finished -> StoryEditorLayout(uiState.previous, document, background) {}
     }
 }
 
@@ -202,6 +209,7 @@ fun StoryEditorLayout(
 private fun StoryEditorNormal(
     state: StoryEditorUiState.Normal,
     document: StoryEditorDocument?,
+    background: PageBackgroundUiState,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     BackHandler {
@@ -213,7 +221,7 @@ private fun StoryEditorNormal(
         }
     }
     when (val pageState = state.pageState) {
-        StoryEditorPageState.Editor -> StoryEditorPage(state, document, emit)
+        StoryEditorPageState.Editor -> PageBackdrop(background) { StoryEditorPage(state, document, emit) }
         StoryEditorPageState.Outline -> StoryOutlinePage(
             storyTitle = state.topBarState.title,
             structureState = state.structureState,
@@ -275,7 +283,7 @@ private fun StoryEditorScaffold(
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
             // 手机横屏模式由左侧导航轨承载，Scaffold 顶栏隐藏以释放纵向空间
             if (layoutMode != StoryEditorLayoutMode.CompactWide) {
@@ -341,6 +349,7 @@ private fun StoryEditorTopBar(
 ) {
     AppTopBar(
         title = state.topBarState.title,
+        containerColor = MaterialTheme.colorScheme.background.copy(alpha = LocalPageTopBarOpacity.current),
         onBack = { StoryEditorUiIntent.Back.emit() },
         actions = {
             // 保存状态常驻顶栏，窗口紧凑时仍能看到草稿是否安全落库。
@@ -512,7 +521,7 @@ private fun StoryEditorLeftRail(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f * LocalPageTopBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxHeight()
     ) {
@@ -691,7 +700,7 @@ private fun StoryEditorRightDock(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f * LocalPageBottomBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxHeight()
     ) {
@@ -706,7 +715,7 @@ private fun StoryEditorRightDock(
             if (!compactMode) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f * LocalPageBottomBarOpacity.current)
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -912,7 +921,7 @@ private fun StoryEditorLandscapeCenterPane(
                     }
                 ),
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f * LocalPageContentOpacity.current)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -1146,7 +1155,7 @@ private fun CurrentChapterBar(
             .fillMaxWidth()
             .clickable(enabled = enabled && onClick != null) { onClick?.invoke() },
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f * LocalPageContentOpacity.current),
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         border = BorderStroke(
             1.dp,
@@ -1203,7 +1212,7 @@ private fun CurrentChapterBar(
             // 进入大纲的轻量胶囊按钮提示
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f * LocalPageContentOpacity.current)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -1327,7 +1336,7 @@ private fun StoryTextEditor(
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             }
         ),
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageContentOpacity.current)
     ) {
         BasicTextField(
             state = editorState,
@@ -1583,8 +1592,8 @@ private fun EditorCompactBottomBar(
     val historyEnabled = contentState.editable && generationState is StoryGenerationState.Idle
     Surface(
         shape = RoundedCornerShape(18.dp),
-        tonalElevation = 3.dp,
-        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp * LocalPageBottomBarOpacity.current,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
     ) {
         Row(
@@ -1787,8 +1796,8 @@ private fun EditorBottomBar(
     val hapticFeedback = LocalHapticFeedback.current
     Surface(
         modifier = modifier,
-        tonalElevation = 3.dp,
-        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp * LocalPageBottomBarOpacity.current,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f))
     ) {
         Column(
@@ -1988,7 +1997,7 @@ private fun StoryGenerationStatusCard(
     Surface(
         modifier = cardModifier,
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f * LocalPageBottomBarOpacity.current),
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         border = BorderStroke(
             1.dp,
@@ -2113,7 +2122,7 @@ private fun StoryGenerationReasoningDetail(
         // 内层 Surface 将模型文本与可操作的外层状态卡作视觉分组
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f * LocalPageBottomBarOpacity.current),
             border = BorderStroke(
                 0.5.dp,
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
@@ -2163,7 +2172,7 @@ private fun StoryGenerationStatusIcon() {
 private fun StoryGenerationElapsedBadge(elapsedSeconds: Long) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.70f)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.70f * LocalPageBottomBarOpacity.current)
     ) {
         Text(
             text = stringResource(R.string.story_generation_elapsed_seconds, elapsedSeconds),

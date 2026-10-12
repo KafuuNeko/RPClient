@@ -1199,4 +1199,42 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="chat_import_image_directory_failed">Impossibile leggere la cartella immagini</string>
     <string name="chat_archive_images_skipped">Completato. %1$d immagini non disponibili ignorate.</string>
     <string name="text_selection_share">Condividi</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Aspetto</string>
+    <string name="appearance_entry_desc">Temi e sfondi delle pagine</string>
+    <string name="appearance_palette_heading">Scegli la tua palette</string>
+    <string name="appearance_palette_desc">Superfici delicate e colori armoniosi per una lettura piacevole.</string>
+    <string name="appearance_classic">Blu classico</string>
+    <string name="appearance_sakura">Ciliegio</string>
+    <string name="appearance_forest">Foresta</string>
+    <string name="appearance_twilight">Crepuscolo</string>
+    <string name="appearance_parchment">Pergamena</string>
+    <string name="appearance_graphite">Grafite</string>
+    <string name="appearance_dynamic">Colori di sistema</string>
+    <string name="appearance_selected">Selezionato</string>
+    <string name="appearance_backgrounds">Sfondi delle pagine</string>
+    <string name="appearance_chat_background">Sfondo della chat</string>
+    <string name="appearance_group_background">Sfondo della chat di gruppo</string>
+    <string name="appearance_story_background">Sfondo della storia</string>
+    <string name="appearance_choose_image">Scegli immagine</string>
+    <string name="appearance_reset_background">Usa lo sfondo del tema</string>
+    <string name="appearance_blur">Sfocatura</string>
+    <string name="appearance_scrim">Velo dello sfondo</string>
+    <string name="appearance_horizontal">Posizione orizzontale</string>
+    <string name="appearance_vertical">Posizione verticale</string>
+    <string name="appearance_background_hint">Un velo più forte e schede più opache migliorano la leggibilità. Le modifiche si applicano dopo il salvataggio.</string>
+    <string name="appearance_preview">Anteprima</string>
+    <string name="appearance_preview_story">La luce della sera illuminò le pagine e iniziò una nuova storia.</string>
+    <string name="appearance_preview_message">Ci sono ancora tante cose da scoprire.</string>
+    <string name="appearance_preview_reply">Continuiamo.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Impossibile caricare o salvare questo sfondo. Riprova.</string>
+    <string name="appearance_image_error">Impossibile usare questa immagine. Scegli una JPEG, PNG o WebP più piccola.</string>
+    <string name="appearance_top_bar_transparency">Trasparenza della barra menu</string>
+    <string name="appearance_bottom_bar_transparency">Trasparenza della barra inferiore</string>
+    <string name="appearance_bubble_transparency">Trasparenza dei fumetti</string>
+    <string name="appearance_content_transparency">Trasparenza del contenuto</string>
+    <string name="appearance_preview_input">Messaggio o indicazione per continuare…</string>
+    <string name="appearance_transparency_hint">0% è opaco; 100% è trasparente. Testo e pulsanti restano visibili. Ogni tipo di pagina ha impostazioni indipendenti.</string>
 </resources>

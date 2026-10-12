@@ -1215,4 +1215,42 @@
     <string name="chat_import_image_directory_failed">無法讀取圖片目錄</string>
     <string name="chat_archive_images_skipped">已完成，略過了 %1$d 張無法讀取的圖片。</string>
     <string name="text_selection_share">分享</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">外觀</string>
+    <string name="appearance_entry_desc">主題配色與頁面背景</string>
+    <string name="appearance_palette_heading">選擇喜歡的配色</string>
+    <string name="appearance_palette_desc">柔和的底色、協調的層次，讓閱讀更舒適。</string>
+    <string name="appearance_classic">經典藍</string>
+    <string name="appearance_sakura">櫻花粉</string>
+    <string name="appearance_forest">森林綠</string>
+    <string name="appearance_twilight">暮光紫</string>
+    <string name="appearance_parchment">暖紙棕</string>
+    <string name="appearance_graphite">石墨灰</string>
+    <string name="appearance_dynamic">系統動態配色</string>
+    <string name="appearance_selected">已選取</string>
+    <string name="appearance_backgrounds">頁面背景</string>
+    <string name="appearance_chat_background">對話背景</string>
+    <string name="appearance_group_background">群聊背景</string>
+    <string name="appearance_story_background">故事背景</string>
+    <string name="appearance_choose_image">選擇圖片</string>
+    <string name="appearance_reset_background">使用主題底色</string>
+    <string name="appearance_blur">模糊度</string>
+    <string name="appearance_scrim">背景遮罩</string>
+    <string name="appearance_horizontal">水平位置</string>
+    <string name="appearance_vertical">垂直位置</string>
+    <string name="appearance_background_hint">提高遮罩和內容不透明度可讓文字更清晰。修改僅在儲存後生效。</string>
+    <string name="appearance_preview">預覽</string>
+    <string name="appearance_preview_story">暮色灑落書頁，新的故事緩緩展開。</string>
+    <string name="appearance_preview_message">還有許多風景，等待我們一起發現。</string>
+    <string name="appearance_preview_reply">繼續我們的故事吧。</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">無法載入或儲存背景，請重試。</string>
+    <string name="appearance_image_error">無法使用此圖片，請選擇較小的 JPEG、PNG 或 WebP 圖片。</string>
+    <string name="appearance_top_bar_transparency">選單列透明度</string>
+    <string name="appearance_bottom_bar_transparency">底部操作列透明度</string>
+    <string name="appearance_bubble_transparency">聊天氣泡透明度</string>
+    <string name="appearance_content_transparency">內容區透明度</string>
+    <string name="appearance_preview_input">輸入訊息或續寫引導…</string>
+    <string name="appearance_transparency_hint">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
 </resources>

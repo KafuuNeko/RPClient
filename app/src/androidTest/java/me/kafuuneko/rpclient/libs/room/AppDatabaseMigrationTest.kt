@@ -265,6 +265,54 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    /** 外观表升级必须保留现有文件索引，不给旧用户自动设置背景。 */
+    @Test
+    fun migrate4To5_preservesFilesAndStartsWithThemeBackgrounds() {
+        migrationHelper.createDatabase("app-background-migration-test", 4).apply {
+            execSQL("INSERT INTO files (uuid, hash, mimeType) VALUES ('existing-avatar', 'avatar-hash', 'image/png')")
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate("app-background-migration-test", 5, true)
+        migrated.query("SELECT hash FROM files WHERE uuid = 'existing-avatar'").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("avatar-hash", cursor.getString(0))
+        }
+        migrated.query("SELECT COUNT(*) FROM page_backgrounds").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(0, cursor.getInt(0))
+        }
+    }
+
+    /** 拆分透明度后保留旧背景与气泡设置，并允许无图配置独立落库。 */
+    @Test
+    fun migrate5To6_preservesBubbleOpacityAndAllowsSettingsWithoutImage() {
+        // 使用旧表真实记录验证迁移，不仅检查新列是否存在。
+        migrationHelper.createDatabase("app-opacity-migration-test", 5).apply {
+            execSQL("INSERT INTO files (uuid, hash, mimeType) VALUES ('wallpaper', 'image-hash', 'image/png')")
+            execSQL("INSERT INTO page_backgrounds VALUES ('chat', 'wallpaper', 42, 0.25, 0.82, 0.2, 0.8)")
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate("app-opacity-migration-test", 6, true)
+        migrated.query("SELECT fileUuid, blur, bubbleOpacity, topBarOpacity, bottomBarOpacity FROM page_backgrounds").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("wallpaper", cursor.getString(0))
+            assertEquals(42, cursor.getInt(1))
+            assertEquals(0.82f, cursor.getFloat(2), 0.001f)
+            assertEquals(1f, cursor.getFloat(3), 0.001f)
+            assertEquals(1f, cursor.getFloat(4), 0.001f)
+        }
+        // 清图后保留配置，文件外键可释放而不删除透明度设置。
+        migrated.execSQL("UPDATE page_backgrounds SET fileUuid = NULL, topBarOpacity = 0.1, bottomBarOpacity = 0.4")
+        migrated.execSQL("DELETE FROM files WHERE uuid = 'wallpaper'")
+        migrated.query("SELECT fileUuid, topBarOpacity, bottomBarOpacity, bubbleOpacity FROM page_backgrounds").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(true, cursor.isNull(0))
+            assertEquals(0.1f, cursor.getFloat(1), 0.001f)
+            assertEquals(0.4f, cursor.getFloat(2), 0.001f)
+            assertEquals(0.82f, cursor.getFloat(3), 0.001f)
+        }
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"

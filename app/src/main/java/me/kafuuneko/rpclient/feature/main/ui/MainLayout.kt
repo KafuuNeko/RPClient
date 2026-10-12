@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -178,7 +179,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 private val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
 
@@ -1507,7 +1507,8 @@ private fun AppearancePanel(
             iconColor = AccentIndigoColor,
             iconContainerColor = AccentIndigoColor.copy(alpha = 0.14f),
             title = stringResource(R.string.appearance_theme),
-            subtitle = stringResource(R.string.appearance_theme_desc)
+            subtitle = stringResource(R.string.appearance_entry_desc),
+            onClick = { MainUiIntent.OpenAppearance.emit() }
         )
         RpSettingsDivider(startIndent = false)
         // 使用可换行选项，避免较长译文在小屏设备上被截断。

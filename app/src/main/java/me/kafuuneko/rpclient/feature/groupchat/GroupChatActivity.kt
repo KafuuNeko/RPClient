@@ -12,18 +12,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.flowWithLifecycle
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
-import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
+    private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
+    private val mBackgroundFlow by lazy { mBackgroundViewModel.observe(BackgroundPage.Group).flowWithLifecycle(lifecycle) }
     private val mViewModel by viewModels<GroupChatViewModel>()
     private val mImagePicker = registerForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(4)
@@ -38,11 +44,13 @@ class GroupChatActivity : CoreActivityWithEvent() {
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
+        val background by mBackgroundFlow.collectAsState(PageBackgroundUiState())
         LaunchedEffect(uiState) {
             if (uiState is GroupChatUiState.Finished) finish()
         }
         GroupChatLayout(
             uiState = uiState,
+            background = background,
             emitIntent = mViewModel::emit
         )
     }

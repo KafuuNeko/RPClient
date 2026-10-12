@@ -109,8 +109,7 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
-import me.kafuuneko.rpclient.libs.media.MessageImageState
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
@@ -126,9 +125,12 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
@@ -136,17 +138,21 @@ import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
-import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
+import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
+import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
+import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -155,6 +161,7 @@ private const val HISTORY_LOAD_THRESHOLD = 4
 @Composable
 fun GroupChatLayout(
     uiState: GroupChatUiState,
+    background: PageBackgroundUiState = PageBackgroundUiState(),
     emitIntent: (GroupChatUiIntent) -> Unit = {}
 ) {
     BackHandler(enabled = uiState is GroupChatUiState.Normal) {
@@ -162,9 +169,9 @@ fun GroupChatLayout(
     }
     when (uiState) {
         GroupChatUiState.None -> Unit
-        is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous) {}
+        is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
-            GroupChatNormalView(uiState, emitIntent)
+            PageBackdrop(background) { GroupChatNormalView(uiState, emitIntent) }
             DialogSwitch(uiState, emitIntent)
             LoadStateOverlay(uiState.loadState)
         }
@@ -183,9 +190,11 @@ private fun GroupChatNormalView(
     val generating = state.conversationState.generationState is GroupChatGenerationState.Generating
     val canContinue = state.conversationState.hasCharacterMessage
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
                 title = state.title,
+                containerColor = MaterialTheme.colorScheme.background.copy(alpha = LocalPageTopBarOpacity.current),
                 onBack = { emitIntent(GroupChatUiIntent.Back) },
                 actions = {
                     IconButton(
@@ -944,7 +953,7 @@ private fun GroupHeader(
     onContinue: () -> Unit
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageTopBarOpacity.current)
     ) {
         Row(
             modifier = Modifier
@@ -1066,9 +1075,9 @@ private fun MemberChip(
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageTopBarOpacity.current)
             } else {
-                MaterialTheme.colorScheme.surface
+                MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)
             }
         )
     ) {
@@ -1419,9 +1428,9 @@ private fun MessageBubble(
                     )
                 },
                 color = when {
-                    isUser -> MaterialTheme.colorScheme.primary
-                    isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                    else -> MaterialTheme.colorScheme.surface
+                    isUser -> MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
+                    isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f * LocalPageBubbleOpacity.current)
+                    else -> MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
                 },
                 border = when {
                     isUser -> BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
@@ -1435,7 +1444,7 @@ private fun MessageBubble(
                         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
                     )
                 },
-                shadowElevation = if (isUser) 1.5.dp else 0.5.dp
+                shadowElevation = (if (isUser) 1.5.dp else 0.5.dp) * LocalPageBubbleOpacity.current
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
@@ -1448,7 +1457,7 @@ private fun MessageBubble(
                     if (editing) imageState.errorResId?.let { errorResId ->
                         Text(
                             text = stringResource(errorResId),
-                            color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.error,
+                            color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -1475,7 +1484,7 @@ private fun MessageBubble(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f * LocalPageBubbleOpacity.current),
                             border = BorderStroke(
                                 0.5.dp,
                                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
@@ -1575,7 +1584,7 @@ private fun GroupThinkBlock(
             .fillMaxWidth()
             .clickable(onClick = onToggle),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f * LocalPageBubbleOpacity.current),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Column(
@@ -1653,27 +1662,27 @@ private fun GroupMessageEditContent(
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimary
+                    pageUserBubbleContentColor()
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
                 unfocusedTextColor = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimary
+                    pageUserBubbleContentColor()
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
                 cursorColor = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimary
+                    pageUserBubbleContentColor()
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
                 focusedBorderColor = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
+                    pageUserBubbleContentColor().copy(alpha = 0.72f)
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
                 unfocusedBorderColor = if (isUser) {
-                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.42f)
+                    pageUserBubbleContentColor().copy(alpha = 0.42f)
                 } else {
                     MaterialTheme.colorScheme.outline
                 }
@@ -1691,7 +1700,7 @@ private fun GroupMessageEditContent(
                 Text(
                     text = stringResource(R.string.cancel),
                     color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                        pageUserBubbleContentColor().copy(alpha = 0.85f)
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
@@ -1707,7 +1716,7 @@ private fun GroupMessageEditContent(
                     text = stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimary
+                        pageUserBubbleContentColor()
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
@@ -1725,7 +1734,7 @@ private fun GroupMessageActions(
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
     val iconColor = if (isUser) {
-        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+        pageUserBubbleContentColor().copy(alpha = 0.85f)
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
     }
@@ -1740,9 +1749,9 @@ private fun GroupMessageActions(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = if (isUser) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * LocalPageBubbleOpacity.current)
         } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.55f * LocalPageBubbleOpacity.current)
         }
     ) {
         Row(
@@ -1798,9 +1807,9 @@ private fun QuickActionPill(
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
         } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * LocalPageBottomBarOpacity.current)
         },
         border = BorderStroke(
             0.5.dp,
@@ -1862,9 +1871,9 @@ private fun Composer(
     )
 
     Surface(
-        tonalElevation = 5.dp,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        tonalElevation = 5.dp * LocalPageBottomBarOpacity.current,
+        shadowElevation = 8.dp * LocalPageBottomBarOpacity.current,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)
     ) {
         Column(
             modifier = Modifier

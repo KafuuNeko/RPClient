@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -39,12 +40,14 @@ fun AppTopBar(
     height: Dp = 50.dp,
     backIconPainter: Painter = painterResource(R.drawable.ic_back),
     onBack: () -> Unit = {},
+    containerColor: Color = MaterialTheme.colorScheme.background,
     actions: @Composable () -> Unit = {}
 ) {
+    // 容器颜色由页面指定，前景与触摸区域保持不变。
     Surface(
         modifier = modifier
             .fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background,
+        color = containerColor,
         contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Row(

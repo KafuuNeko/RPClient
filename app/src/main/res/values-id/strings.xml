@@ -1221,4 +1221,42 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="chat_import_image_directory_failed">Tidak dapat membaca folder gambar</string>
     <string name="chat_archive_images_skipped">Selesai. %1$d gambar yang tidak tersedia dilewati.</string>
     <string name="text_selection_share">Bagikan</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Tampilan</string>
+    <string name="appearance_entry_desc">Tema dan latar halaman</string>
+    <string name="appearance_palette_heading">Pilih palet favorit</string>
+    <string name="appearance_palette_desc">Permukaan lembut dan warna selaras untuk membaca dengan nyaman.</string>
+    <string name="appearance_classic">Biru klasik</string>
+    <string name="appearance_sakura">Sakura</string>
+    <string name="appearance_forest">Hutan</string>
+    <string name="appearance_twilight">Senja</string>
+    <string name="appearance_parchment">Perkamen</string>
+    <string name="appearance_graphite">Grafit</string>
+    <string name="appearance_dynamic">Warna sistem</string>
+    <string name="appearance_selected">Dipilih</string>
+    <string name="appearance_backgrounds">Latar halaman</string>
+    <string name="appearance_chat_background">Latar obrolan</string>
+    <string name="appearance_group_background">Latar obrolan grup</string>
+    <string name="appearance_story_background">Latar cerita</string>
+    <string name="appearance_choose_image">Pilih gambar</string>
+    <string name="appearance_reset_background">Gunakan latar tema</string>
+    <string name="appearance_blur">Keburaman</string>
+    <string name="appearance_scrim">Lapisan latar</string>
+    <string name="appearance_horizontal">Posisi horizontal</string>
+    <string name="appearance_vertical">Posisi vertikal</string>
+    <string name="appearance_background_hint">Lapisan lebih kuat dan kartu lebih pekat membuat teks lebih mudah dibaca. Perubahan berlaku setelah disimpan.</string>
+    <string name="appearance_preview">Pratinjau</string>
+    <string name="appearance_preview_story">Cahaya senja menyinari halaman, dan cerita baru pun dimulai.</string>
+    <string name="appearance_preview_message">Masih banyak hal yang bisa ditemukan.</string>
+    <string name="appearance_preview_reply">Mari lanjutkan.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Tidak dapat memuat atau menyimpan latar ini. Coba lagi.</string>
+    <string name="appearance_image_error">Gambar ini tidak dapat digunakan. Pilih gambar JPEG, PNG, atau WebP yang lebih kecil.</string>
+    <string name="appearance_top_bar_transparency">Transparansi bilah menu</string>
+    <string name="appearance_bottom_bar_transparency">Transparansi bilah bawah</string>
+    <string name="appearance_bubble_transparency">Transparansi gelembung obrolan</string>
+    <string name="appearance_content_transparency">Transparansi panel konten</string>
+    <string name="appearance_preview_input">Pesan atau arahan kelanjutan…</string>
+    <string name="appearance_transparency_hint">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
 </resources>

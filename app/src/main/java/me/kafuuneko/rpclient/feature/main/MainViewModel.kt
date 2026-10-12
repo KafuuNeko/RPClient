@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
+import me.kafuuneko.rpclient.feature.appearance.AppearanceActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
@@ -926,6 +927,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenTokenUsage() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(TokenUsageActivity::class.java).tryEmit()
+    }
+
+    /** 打开独立外观页，主题及背景草稿由该 feature 管理。 */
+    @UiIntentObserver(MainUiIntent.OpenAppearance::class)
+    private fun onOpenAppearance() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(AppearanceActivity::class.java).tryEmit()
     }
 
     /** 打开关于软件页面。 */

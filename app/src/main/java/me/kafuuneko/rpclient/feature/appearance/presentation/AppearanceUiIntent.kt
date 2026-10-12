@@ -1,0 +1,23 @@
+package me.kafuuneko.rpclient.feature.appearance.presentation
+
+import android.net.Uri
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+
+/** 外观页的用户动作，后台处理细节不进入 Intent。 */
+sealed interface AppearanceUiIntent {
+    data object Back : AppearanceUiIntent
+    data class SelectPalette(val palette: AppThemePalette) : AppearanceUiIntent
+    data class SelectMode(val mode: AppThemeMode) : AppearanceUiIntent
+    data class EditBackground(val page: BackgroundPage) : AppearanceUiIntent
+    data object PickImage : AppearanceUiIntent
+    data class ImageSelected(val uri: Uri) : AppearanceUiIntent
+    data class ChangeAdjustment(val field: BackgroundAdjustment, val value: Float) : AppearanceUiIntent
+    data object FinishAdjustment : AppearanceUiIntent
+    data object ResetBackground : AppearanceUiIntent
+    data object ApplyBackground : AppearanceUiIntent
+}
+
+/** 可调参数与预览位置对应，滑块数值统一在领域模型边界校验。 */
+enum class BackgroundAdjustment { Blur, Scrim, ContentTransparency, TopBarTransparency, BottomBarTransparency, BubbleTransparency, Horizontal, Vertical }

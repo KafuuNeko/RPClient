@@ -162,6 +162,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var currentLLMProvider by longPref()
 
     // 应用配色主题，使用 AppThemeMode.persistedValue 持久化。
+    // 配色与明暗模式分开保存，切换配色不改变用户的明暗偏好。
+    var themePalette by stringPref(default = "classic")
+
     var themeMode by stringPref(default = AppThemeMode.FollowSystem.persistedValue)
 
     // 摘要专用模型配置 ID；0 表示跟随当前全局模型配置。

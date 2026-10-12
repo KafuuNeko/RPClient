@@ -1216,4 +1216,42 @@
     <string name="chat_import_image_directory_failed">画像フォルダーを読み込めませんでした</string>
     <string name="chat_archive_images_skipped">完了しました。読み込めない画像 %1$d 枚をスキップしました。</string>
     <string name="text_selection_share">共有</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">外観</string>
+    <string name="appearance_entry_desc">テーマカラーとページの背景</string>
+    <string name="appearance_palette_heading">お気に入りの配色を選ぶ</string>
+    <string name="appearance_palette_desc">柔らかな背景と調和のとれた色で、心地よい読書を。</string>
+    <string name="appearance_classic">クラシックブルー</string>
+    <string name="appearance_sakura">桜</string>
+    <string name="appearance_forest">森</string>
+    <string name="appearance_twilight">夕暮れ</string>
+    <string name="appearance_parchment">羊皮紙</string>
+    <string name="appearance_graphite">グラファイト</string>
+    <string name="appearance_dynamic">システムカラー</string>
+    <string name="appearance_selected">選択中</string>
+    <string name="appearance_backgrounds">ページの背景</string>
+    <string name="appearance_chat_background">チャットの背景</string>
+    <string name="appearance_group_background">グループチャットの背景</string>
+    <string name="appearance_story_background">ストーリーの背景</string>
+    <string name="appearance_choose_image">画像を選択</string>
+    <string name="appearance_reset_background">テーマの背景を使う</string>
+    <string name="appearance_blur">ぼかし</string>
+    <string name="appearance_scrim">背景のベール</string>
+    <string name="appearance_horizontal">横の位置</string>
+    <string name="appearance_vertical">縦の位置</string>
+    <string name="appearance_background_hint">ベールとコンテンツの不透明度を上げると文字が読みやすくなります。変更は保存後に適用されます。</string>
+    <string name="appearance_preview">プレビュー</string>
+    <string name="appearance_preview_story">夕暮れの光がページに差し込み、新たな物語が始まった。</string>
+    <string name="appearance_preview_message">まだ一緒に見つけたい景色がたくさんある。</string>
+    <string name="appearance_preview_reply">物語を続けよう。</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">背景を読み込み、または保存できませんでした。もう一度お試しください。</string>
+    <string name="appearance_image_error">この画像は使用できません。小さめの JPEG、PNG、WebP 画像を選んでください。</string>
+    <string name="appearance_top_bar_transparency">メニューバーの透明度</string>
+    <string name="appearance_bottom_bar_transparency">下部操作バーの透明度</string>
+    <string name="appearance_bubble_transparency">チャット吹き出しの透明度</string>
+    <string name="appearance_content_transparency">本文パネルの透明度</string>
+    <string name="appearance_preview_input">メッセージや続きの指示を入力…</string>
+    <string name="appearance_transparency_hint">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
 </resources>

@@ -1225,4 +1225,42 @@
     <string name="chat_import_image_directory_failed">Could not read the image folder</string>
     <string name="chat_archive_images_skipped">Completed. Skipped %1$d unavailable images.</string>
     <string name="text_selection_share">Share</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_entry_desc">Themes and page backgrounds</string>
+    <string name="appearance_palette_heading">Find your palette</string>
+    <string name="appearance_palette_desc">Soft surfaces, balanced colors, and a look that feels like you.</string>
+    <string name="appearance_classic">Classic blue</string>
+    <string name="appearance_sakura">Sakura</string>
+    <string name="appearance_forest">Forest</string>
+    <string name="appearance_twilight">Twilight</string>
+    <string name="appearance_parchment">Parchment</string>
+    <string name="appearance_graphite">Graphite</string>
+    <string name="appearance_dynamic">System colors</string>
+    <string name="appearance_selected">Selected</string>
+    <string name="appearance_backgrounds">Page backgrounds</string>
+    <string name="appearance_chat_background">Chat background</string>
+    <string name="appearance_group_background">Group chat background</string>
+    <string name="appearance_story_background">Story background</string>
+    <string name="appearance_choose_image">Choose image</string>
+    <string name="appearance_reset_background">Use theme background</string>
+    <string name="appearance_blur">Blur</string>
+    <string name="appearance_scrim">Background veil</string>
+    <string name="appearance_horizontal">Horizontal position</string>
+    <string name="appearance_vertical">Vertical position</string>
+    <string name="appearance_background_hint">A stronger veil and more opaque cards make text easier to read. Changes apply only after saving.</string>
+    <string name="appearance_preview">Preview</string>
+    <string name="appearance_preview_story">Evening light spilled across the pages, and a new story began.</string>
+    <string name="appearance_preview_message">There is still so much to discover.</string>
+    <string name="appearance_preview_reply">Let’s continue.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Could not load or save this background. Please try again.</string>
+    <string name="appearance_image_error">Could not use this image. Choose a smaller JPEG, PNG, or WebP image.</string>
+    <string name="appearance_top_bar_transparency">Menu bar transparency</string>
+    <string name="appearance_bottom_bar_transparency">Bottom bar transparency</string>
+    <string name="appearance_bubble_transparency">Chat bubble transparency</string>
+    <string name="appearance_content_transparency">Content panel transparency</string>
+    <string name="appearance_preview_input">Message or continuation guidance…</string>
+    <string name="appearance_transparency_hint">0% is opaque; 100% is transparent. Text and buttons stay visible. Each page type has its own settings.</string>
 </resources>

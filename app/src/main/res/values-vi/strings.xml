@@ -1221,4 +1221,42 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="chat_import_image_directory_failed">Không thể đọc thư mục ảnh</string>
     <string name="chat_archive_images_skipped">Đã hoàn tất. Đã bỏ qua %1$d ảnh không đọc được.</string>
     <string name="text_selection_share">Chia sẻ</string>
+
+    <!-- 主题配色与独立页面背景 -->
+    <string name="appearance_title">Giao diện</string>
+    <string name="appearance_entry_desc">Chủ đề và hình nền trang</string>
+    <string name="appearance_palette_heading">Chọn bảng màu yêu thích</string>
+    <string name="appearance_palette_desc">Nền dịu nhẹ và màu sắc hài hòa giúp đọc thoải mái hơn.</string>
+    <string name="appearance_classic">Xanh cổ điển</string>
+    <string name="appearance_sakura">Hoa anh đào</string>
+    <string name="appearance_forest">Rừng xanh</string>
+    <string name="appearance_twilight">Hoàng hôn</string>
+    <string name="appearance_parchment">Giấy da</string>
+    <string name="appearance_graphite">Than chì</string>
+    <string name="appearance_dynamic">Màu hệ thống</string>
+    <string name="appearance_selected">Đã chọn</string>
+    <string name="appearance_backgrounds">Hình nền trang</string>
+    <string name="appearance_chat_background">Nền trò chuyện</string>
+    <string name="appearance_group_background">Nền trò chuyện nhóm</string>
+    <string name="appearance_story_background">Nền câu chuyện</string>
+    <string name="appearance_choose_image">Chọn ảnh</string>
+    <string name="appearance_reset_background">Dùng nền chủ đề</string>
+    <string name="appearance_blur">Độ mờ</string>
+    <string name="appearance_scrim">Lớp phủ nền</string>
+    <string name="appearance_horizontal">Vị trí ngang</string>
+    <string name="appearance_vertical">Vị trí dọc</string>
+    <string name="appearance_background_hint">Tăng lớp phủ và độ đục của thẻ để chữ dễ đọc hơn. Thay đổi chỉ áp dụng sau khi lưu.</string>
+    <string name="appearance_preview">Xem trước</string>
+    <string name="appearance_preview_story">Ánh chiều phủ lên những trang sách, và một câu chuyện mới bắt đầu.</string>
+    <string name="appearance_preview_message">Vẫn còn nhiều điều để cùng khám phá.</string>
+    <string name="appearance_preview_reply">Hãy tiếp tục nhé.</string>
+    <string name="appearance_percent">%1$d%%</string>
+    <string name="appearance_background_error">Không thể tải hoặc lưu nền này. Vui lòng thử lại.</string>
+    <string name="appearance_image_error">Không thể dùng ảnh này. Hãy chọn ảnh JPEG, PNG hoặc WebP nhỏ hơn.</string>
+    <string name="appearance_top_bar_transparency">Độ trong suốt thanh menu</string>
+    <string name="appearance_bottom_bar_transparency">Độ trong suốt thanh thao tác dưới</string>
+    <string name="appearance_bubble_transparency">Độ trong suốt bong bóng chat</string>
+    <string name="appearance_content_transparency">Độ trong suốt vùng nội dung</string>
+    <string name="appearance_preview_input">Tin nhắn hoặc hướng dẫn viết tiếp…</string>
+    <string name="appearance_transparency_hint">0% là đục; 100% là trong suốt. Văn bản và nút vẫn hiển thị. Mỗi loại trang có cài đặt riêng.</string>
 </resources>
