@@ -1258,4 +1258,8 @@
     <string name="appearance_preview_input">메시지 또는 이어쓰기 지침…</string>
     <string name="appearance_save_changes_title">변경 사항을 저장할까요?</string>
     <string name="appearance_save_changes_message">나가기 전에 이 배경의 변경 사항을 저장할까요?</string>
+    <string name="appearance_general_background">공통 페이지</string>
+    <string name="appearance_general_background_hint">앱 정보와 색상 테마를 제외한 모든 페이지에 적용됩니다. 대화, 그룹 채팅, 스토리도 모든 영역의 투명도와 흐림이 0이면 공통 영역 설정을 따릅니다. 각 페이지의 배경 이미지를 우선 사용하며, 없으면 공통 배경을 사용합니다.</string>
+    <string name="appearance_follow_general_hint">모든 영역의 투명도와 흐림이 0이면 공통 영역 설정을 따릅니다. 이 페이지의 배경 이미지를 유지하며, 없으면 공통 배경을 사용합니다.</string>
+    <string name="appearance_preview_content">콘텐츠 영역</string>
 </resources>

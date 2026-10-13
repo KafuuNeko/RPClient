@@ -1260,4 +1260,8 @@
     <string name="appearance_preview_input">输入消息或续写引导…</string>
     <string name="appearance_save_changes_title">保存修改？</string>
     <string name="appearance_save_changes_message">离开前是否保存对此背景的修改？</string>
+    <string name="appearance_general_background">通用页面</string>
+    <string name="appearance_general_background_hint">用于除关于页和配色主题页之外的所有页面。对话、群聊和故事页的各区域透明度、模糊度均为 0 时，区域设置也跟随通用页面；背景图优先使用各页自己的，没有时使用通用背景。</string>
+    <string name="appearance_follow_general_hint">各区域透明度、模糊度均为 0 时，区域设置跟随通用页面；保留本页自己的背景图，没有时使用通用背景。</string>
+    <string name="appearance_preview_content">内容区域</string>
 </resources>

@@ -83,7 +83,6 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -94,8 +93,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -174,6 +171,9 @@ import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
 import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
@@ -189,6 +189,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
@@ -284,7 +286,7 @@ private fun StoryEditorScaffold(
     onContinue: (() -> Unit)?,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
@@ -634,7 +636,7 @@ private fun SaveStatusMini(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val clickable = saveState == StorySaveState.Failed
-    Surface(
+    AppSurface(
         modifier = Modifier.clickable(enabled = clickable) {
             StoryEditorUiIntent.RetrySave.emit()
         },
@@ -717,7 +719,7 @@ private fun StoryEditorRightDock(
         ) {
             // 顶部：字数微型指示
             if (!compactMode) {
-                Surface(
+                AppSurface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f * LocalPageBottomBarOpacity.current)
                 ) {
@@ -747,7 +749,7 @@ private fun StoryEditorRightDock(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 // 灵感引导展开按钮
-                Surface(
+                AppSurface(
                     modifier = Modifier.clickable(
                         enabled = contentState.editable && generationState is StoryGenerationState.Idle,
                         onClick = {
@@ -848,7 +850,7 @@ private fun LandscapeGenerationAction(
         }
 
         StoryGenerationState.Preparing,
-        StoryGenerationState.Applying -> Surface(
+        StoryGenerationState.Applying -> AppSurface(
             modifier = Modifier.size(42.dp),
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.primaryContainer
@@ -907,7 +909,7 @@ private fun StoryEditorLandscapeCenterPane(
             horizontalArrangement = Arrangement.Start
         ) {
             // 当前章节名称微胶囊
-            Surface(
+            AppSurface(
                 modifier = Modifier.clickable(
                     enabled = documentMatchesChapter &&
                             state.contentState.editable &&
@@ -962,7 +964,7 @@ private fun StoryEditorLandscapeCenterPane(
             exit = fadeOut() + shrinkVertically()
         ) {
             OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
                 value = state.continuationInputState.guidanceDraft,
                 onValueChange = { StoryEditorUiIntent.ChangeContinuationGuidance(it).emit() },
                 enabled = state.contentState.editable && state.generationState is StoryGenerationState.Idle,
@@ -1210,7 +1212,7 @@ private fun CurrentChapterBar(
                 }
             }
             // 进入大纲的轻量胶囊按钮提示
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f * LocalPageContentOpacity.current)
             ) {
@@ -1374,7 +1376,7 @@ private fun SaveStatus(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val clickable = saveState == StorySaveState.Failed
-    Surface(
+    AppSurface(
         modifier = Modifier.clickable(enabled = clickable) {
             StoryEditorUiIntent.RetrySave.emit()
         },
@@ -1427,7 +1429,7 @@ private fun SaveProblemBanner(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     when (saveState) {
-        StorySaveState.Failed -> Card(
+        StorySaveState.Failed -> AppCard(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer
             ),
@@ -1450,7 +1452,7 @@ private fun SaveProblemBanner(
             }
         }
 
-        StorySaveState.Conflict -> Card(
+        StorySaveState.Conflict -> AppCard(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
             ),
@@ -1495,7 +1497,7 @@ private fun GenerationProblemBanner(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     val failure = generationState as? StoryGenerationState.Failed ?: return
-    Card(
+    AppCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
         ),
@@ -1600,7 +1602,7 @@ private fun EditorCompactBottomBar(
         ) {
             // 引导输入压缩为单行，避免紧凑窗口继续堆叠两层底部控件。
             OutlinedTextField(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).generalContentBackground(RoundedCornerShape(14.dp)),
                 value = continuationInputState.guidanceDraft,
                 onValueChange = { StoryEditorUiIntent.ChangeContinuationGuidance(it).emit() },
                 enabled = contentState.editable && generationState is StoryGenerationState.Idle,
@@ -1989,7 +1991,7 @@ private fun StoryGenerationStatusCard(
             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             StoryEditorUiIntent.ToggleGenerationReasoning.emit()
         }
-    Surface(
+    AppSurface(
         modifier = cardModifier,
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f * LocalPageBottomBarOpacity.current),
@@ -2115,7 +2117,7 @@ private fun StoryGenerationReasoningDetail(
         exit = fadeOut() + shrinkVertically()
     ) {
         // 内层 Surface 将模型文本与可操作的外层状态卡作视觉分组
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f * LocalPageBottomBarOpacity.current),
             border = BorderStroke(
@@ -2165,7 +2167,7 @@ private fun StoryGenerationStatusIcon() {
 /** 用弱强调胶囊展示当前生成任务已经持续的秒数。 */
 @Composable
 private fun StoryGenerationElapsedBadge(elapsedSeconds: Long) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(50),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.70f * LocalPageBottomBarOpacity.current)
     ) {
@@ -2451,7 +2453,7 @@ private fun ImportPreviewDialog(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(14.dp), hasLabel = true),
                 value = preview.title,
                 onValueChange = { StoryEditorUiIntent.ChangeImportTitle(it).emit() },
                 label = { Text(stringResource(R.string.story_title)) },
@@ -2510,7 +2512,7 @@ private fun StoryOutlinePage(
         onDragEnd = { StoryEditorUiIntent.CommitStoryChapterOrder.emit() }
     )
 
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.story_outline),
@@ -2691,7 +2693,7 @@ private fun OutlineSummary(
     updating: Boolean
 ) {
     // 汇总卡片采用 Primary Container 柔和主色调与通透圆角
-    Card(
+    AppCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
         ),
@@ -2796,7 +2798,7 @@ private fun StoryVolumeOutlineHeader(
         volume.chapters.sumOf { it.characterCount }
     }
     // 分卷头部采用容器卡片样式，包含章节数与总字数统计
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
         border = BorderStroke(
@@ -2880,7 +2882,7 @@ private fun StoryChapterOutlineRow(
 ) {
     val haptic = LocalHapticFeedback.current
     // 章节行卡片容器，包含序号、高亮边框、当前编辑状态徽标与拖拽手柄
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) {
@@ -2910,7 +2912,7 @@ private fun StoryChapterOutlineRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // 章节两位工整序号徽标
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(8.dp),
                 color = if (selected) {
                     MaterialTheme.colorScheme.primary
@@ -2948,7 +2950,7 @@ private fun StoryChapterOutlineRow(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     if (selected) {
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                             contentColor = MaterialTheme.colorScheme.primary
@@ -2975,7 +2977,7 @@ private fun StoryChapterOutlineRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (chapter.characterCount < 50) {
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(4.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3015,7 +3017,7 @@ private fun OutlineAddChapterButton(
     onClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) {
@@ -3058,7 +3060,7 @@ private fun OutlineEmptyMessage(
     actionTextRes: Int? = null,
     enabled: Boolean = true
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -3244,7 +3246,7 @@ private fun StorySettingsPage(
     state: StoryEditorPageState.Settings,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -3293,7 +3295,7 @@ private fun StorySettingsPage(
 
 @Composable
 private fun StorySettingsLoadingPage(emit: StoryEditorUiIntent.() -> Unit) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -3618,7 +3620,7 @@ private fun CharacterSettingCard(
     canMoveDown: Boolean,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
             1.dp,
@@ -3779,7 +3781,7 @@ private fun LorebookGroupCard(
     emit: StoryEditorUiIntent.() -> Unit
 ) {
     var expanded by remember(group.id) { mutableStateOf(false) }
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
@@ -3865,7 +3867,7 @@ private fun LorebookEntryRow(
     entry: StoryLorebookEntryItem,
     emit: StoryEditorUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit() },
@@ -3956,7 +3958,7 @@ private fun EditorLoading() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(pageCanvasColor()),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()
@@ -4017,7 +4019,7 @@ private fun StoryEditorLayoutTabletLandscapePreview() {
 @Composable
 private fun StoryGenerationStatusCardPreview() {
     AppTheme(dynamicColor = false) {
-        Surface(color = MaterialTheme.colorScheme.background) {
+        AppSurface(color = MaterialTheme.colorScheme.background) {
             StoryGenerationStatusCard(
                 generationState = StoryGenerationState.Streaming(
                     partialText = "",

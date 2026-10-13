@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,8 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,17 +61,21 @@ import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupI
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadState
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
-import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.utils.toggle
 
 /** 新建 Story 页面 Compose 入口。 */
 @Composable
@@ -101,7 +102,7 @@ private fun StoryCreateNormal(
     val searchingLorebooks = state.lorebookQuery.isNotBlank()
     val controlsEnabled = state.loadState == StoryCreateLoadState.Ready
 
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.story_create_story),
@@ -250,7 +251,7 @@ private fun StoryTitleField(
     emit: StoryCreateUiIntent.() -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
         value = form.title,
         onValueChange = { StoryCreateUiIntent.ChangeTitle(it).emit() },
         label = { Text(stringResource(R.string.story_title)) },
@@ -271,7 +272,7 @@ private fun CharacterOption(
     onActivationModeClick: (StoryCreateCharacterActivationMode) -> Unit
 ) {
     val accent = getMacaronColor(character.name)
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick),
@@ -321,7 +322,7 @@ private fun CharacterOption(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(30.dp),
                 shape = CircleShape,
                 color = if (selected) {
@@ -401,7 +402,7 @@ private fun CharacterSearchField(
     onQueryChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp)),
         value = query,
         onValueChange = onQueryChange,
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
@@ -420,7 +421,7 @@ private fun CharacterSearchField(
 
 @Composable
 private fun EmptyCharacterSearchCard() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -451,7 +452,7 @@ private fun LorebookGroupOption(
     onExpandedChange: () -> Unit,
     emit: StoryCreateUiIntent.() -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -533,7 +534,7 @@ private fun LorebookEntryOption(
         entry.order,
         entry.depth
     )
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick),
@@ -595,7 +596,7 @@ private fun LorebookSearchField(
     onQueryChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
@@ -631,7 +632,7 @@ private fun CreateBottomBar(
     emit: StoryCreateUiIntent.() -> Unit
 ) {
     val creating = loadState == StoryCreateLoadState.Creating
-    Surface(
+    AppSurface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 3.dp,
         shadowElevation = 8.dp,
@@ -681,7 +682,7 @@ private fun EmptyCard(
     icon: ImageVector,
     text: String
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)

@@ -1,13 +1,18 @@
 package me.kafuuneko.rpclient.ui.widgets
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Modifier
@@ -44,21 +49,28 @@ class PageSurfaceTest {
             AppTheme(darkTheme = mode.intValue % 2 == 1, dynamicColor = false) {
                 Box(Modifier.size(240.dp, 160.dp).testTag("corners")) {
                     PageBackdrop(PageBackgroundUiState(
-                        PageBackground(BackgroundPage.Chat, scrim = 0f, bubbleOpacity = 0.2f, bubbleBlur = 50),
-                        white, mapOf(PageSurfaceKind.Bubble to white)
+                        PageBackground(if (mode.intValue < 4) BackgroundPage.Chat else BackgroundPage.General,
+                            scrim = 0f, bubbleOpacity = 0.2f, bubbleBlur = 50, opacity = 0.2f, contentBlur = 50),
+                        white, mapOf(PageSurfaceKind.Bubble to white, PageSurfaceKind.Content to white)
                     )) {
-                        PageSurface(PageSurfaceKind.Bubble,
-                            modifier = Modifier.padding(30.dp).size(160.dp, 80.dp),
-                            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 4.dp, bottomStart = 18.dp),
-                            color = Color.White.copy(alpha = 0.2f),
-                            shadowElevation = if (mode.intValue < 2) 0.dp else 8.dp
-                        ) {}
+                        val modifier = Modifier.padding(30.dp).size(160.dp, 80.dp)
+                        val shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 4.dp, bottomStart = 18.dp)
+                        when (mode.intValue / 4) {
+                            0 -> PageSurface(PageSurfaceKind.Bubble, modifier, shape,
+                                color = Color.White.copy(alpha = 0.2f),
+                                shadowElevation = if (mode.intValue < 2) 0.dp else 8.dp) {}
+                            1 -> AppSurface(modifier, shape, color = Color.White, shadowElevation = 8.dp,
+                                border = BorderStroke(1.dp, Color.Black)) {}
+                            else -> AppCard(modifier, shape, colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                                border = BorderStroke(1.dp, Color.Black)) {}
+                        }
                     }
                 }
             }
         }
         // 覆盖浅深主题及原有投影开关，直接逐像素检查圆角所在的整个画布。
-        for (value in 0..3) {
+        for (value in 0..11) {
             mCompose.runOnIdle { mode.intValue = value }
             val image = mCompose.onNodeWithTag("corners").captureToImage().toPixelMap()
             for (y in 0 until image.height) for (x in 0 until image.width) {
@@ -161,4 +173,44 @@ class PageSurfaceTest {
             assertTrue(image[image.width * 3 / 4, image.height * 3 / 4].blue > 0.95f)
         }
     }
+    /** 通用顶栏、内容卡片和底栏分别取样各自派生图，内嵌控件保持实色。 */
+    @Test
+    fun generalRegionsUseIndependentLayersWithoutFadingChildren() {
+        fun image(color: Int) = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(color) }.asImageBitmap()
+        val source = image(android.graphics.Color.BLUE)
+        val layers = mapOf(PageSurfaceKind.TopBar to image(android.graphics.Color.RED),
+            PageSurfaceKind.Content to image(android.graphics.Color.GREEN),
+            PageSurfaceKind.BottomBar to image(android.graphics.Color.YELLOW))
+        mCompose.setContent {
+            AppTheme(dynamicColor = false) {
+                Box(Modifier.size(240.dp, 300.dp)) {
+                    PageBackdrop(PageBackgroundUiState(PageBackground(BackgroundPage.General,
+                        scrim = 0f, topBarOpacity = 0f, opacity = 0.5f, bottomBarOpacity = 0.75f,
+                        topBarBlur = 50, contentBlur = 50, bottomBarBlur = 50), source, layers)) {
+                        AppPageScaffold(contentWindowInsets = WindowInsets(0.dp), topBar = {
+                            AppSurface(Modifier.fillMaxWidth().height(50.dp).testTag("general-top"), color = Color.White) {}
+                        }, bottomBar = {
+                            AppSurface(Modifier.fillMaxWidth().height(50.dp).testTag("general-bottom"), color = Color.White) {}
+                        }) { padding ->
+                            AppCard(Modifier.padding(padding).size(160.dp, 100.dp).testTag("general-card"),
+                                colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                                AppSurface(Modifier.size(20.dp).testTag("general-label"), color = Color.Red) {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 使用精确背景色检测区域串线、重复透明度和顶层实色遮挡。
+        val expected = mapOf("general-top" to Color.Red, "general-bottom" to Color(1f, 1f, 0.75f),
+            "general-card" to Color(0.5f, 1f, 0.5f), "general-label" to Color.Red)
+        expected.forEach { (tag, color) ->
+            val pixels = mCompose.onNodeWithTag(tag, useUnmergedTree = true).captureToImage().toPixelMap()
+            val actual = pixels[pixels.width / 2, pixels.height / 2]
+            assertTrue("Unexpected region $tag: $actual", abs(actual.red - color.red) < 0.015f &&
+                abs(actual.green - color.green) < 0.015f && abs(actual.blue - color.blue) < 0.015f)
+        }
+    }
+
 }

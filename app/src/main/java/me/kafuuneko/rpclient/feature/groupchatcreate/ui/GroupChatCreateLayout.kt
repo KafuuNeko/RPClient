@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -32,8 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,16 +50,20 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingMode
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
-import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 
 /** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
 @Composable
@@ -86,7 +87,7 @@ private fun GroupChatCreateNormalView(
     state: GroupChatCreateUiState.Normal,
     emitIntent: (GroupChatCreateUiIntent) -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.group_chat_create_title),
@@ -126,7 +127,7 @@ private fun GroupChatCreateNormalView(
                     onValueChange = {
                         emitIntent(GroupChatCreateUiIntent.ChangeTitle(it))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp), hasLabel = true),
                     label = { Text(stringResource(R.string.group_chat_title_label)) },
                     placeholder = {
                         Text(stringResource(R.string.group_chat_title_placeholder))
@@ -171,7 +172,7 @@ private fun GroupChatCreateNormalView(
                     onValueChange = {
                         emitIntent(GroupChatCreateUiIntent.ChangeSearchQuery(it))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp)),
                     leadingIcon = {
                         Icon(Icons.Rounded.Search, contentDescription = null)
                     },
@@ -268,7 +269,7 @@ private fun SelfResponseSetting(
     enabled: Boolean,
     onChange: (Boolean) -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onChange(!enabled) },
@@ -354,7 +355,7 @@ private fun GreetingModeOption(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -409,7 +410,7 @@ private fun ManualGreetingEditor(
             style = MaterialTheme.typography.labelLarge
         )
         selectedCharacter.greetings.forEachIndexed { index, greeting ->
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
@@ -516,7 +517,7 @@ private fun CharacterChoiceCard(
     onClick: () -> Unit
 ) {
     val accent = getMacaronColor(character.name)
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -566,7 +567,7 @@ private fun CharacterChoiceCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(30.dp),
                 shape = CircleShape,
                 color = if (character.selected) {
@@ -592,7 +593,7 @@ private fun CharacterChoiceCard(
 
 @Composable
 private fun EmptyCharacterCard() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -619,7 +620,7 @@ private fun CreateBottomBar(
     enabled: Boolean,
     onCreate: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         tonalElevation = 4.dp,
         shadowElevation = 8.dp,
         color = MaterialTheme.colorScheme.surface
@@ -672,7 +673,7 @@ private fun LoadStateOverlay(loadState: GroupChatCreateLoadState) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 10.dp

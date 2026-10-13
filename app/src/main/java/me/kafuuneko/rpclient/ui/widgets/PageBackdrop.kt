@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 
 /** 仅作用于消息／正文容器颜色，不降低文字或交互控件的透明度。 */
 val LocalPageContentOpacity = staticCompositionLocalOf { 1f }
@@ -55,6 +56,7 @@ fun PageBackdrop(state: PageBackgroundUiState, content: @Composable () -> Unit) 
             Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background.copy(alpha = settings.scrim)))
         }
         CompositionLocalProvider(
+            LocalGeneralPageSurfaces provides (settings?.page == BackgroundPage.General),
             LocalPageBackdropState provides state,
             LocalPageBackdropFrame provides frame,
             LocalPageContentOpacity provides (settings?.opacity ?: 1f),

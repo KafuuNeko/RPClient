@@ -25,7 +25,9 @@ data class BackgroundEditorState(
     val rendering: Boolean = false,
     @param:StringRes val error: Int? = null,
     val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap(),
-    val dialogState: BackgroundEditorDialogState = BackgroundEditorDialogState.None
+    val dialogState: BackgroundEditorDialogState = BackgroundEditorDialogState.None,
+    /** 已解析继承的预览配置，只用于显示，保存时仍提交 settings。 */
+    val effectiveSettings: PageBackground = settings
 )
 
 /** 背景编辑器的返回确认状态，由 ViewModel 统一控制。 */

@@ -149,4 +149,45 @@ class PageBackgroundRepositoryTest {
         } finally { files.releasePrepared(prepared) }
     }
 
+    /** 继承不复制文件索引，独立背景保留裁切参数，区域自定义和恢复默认可切换跟随。 */
+    @Test
+    fun generalInheritancePreservesIndependentImagesAndRawSettings() = runBlocking {
+        val commonImage = files.prepareStream("general", ByteArrayInputStream("common".toByteArray()), "image/png")
+        val ownImage = files.prepareStream("own", ByteArrayInputStream("own".toByteArray()), "image/png")
+        val common = PageBackground(BackgroundPage.General, opacity = 0.4f, topBarOpacity = 0.2f,
+            bottomBarOpacity = 0.6f, contentBlur = 60, topBarBlur = 20, bottomBarBlur = 40)
+        backgrounds.save(common, commonImage)
+        // 缺省页读取同一套区域值，但持久化原始配置仍为空，不能生成跨页文件引用。
+        for (page in listOf(BackgroundPage.Chat, BackgroundPage.Group, BackgroundPage.Story)) {
+            val inherited = backgrounds.observeEffective(page).first()
+            assertEquals(commonImage.file.uuid, inherited.fileUuid)
+            assertEquals(0.4f, inherited.bubbleOpacity)
+            assertEquals(0.4f, inherited.opacity)
+            assertEquals(60, inherited.bubbleBlur)
+            assertEquals(60, inherited.contentBlur)
+            assertNull(backgrounds.observe(page).first().fileUuid)
+        }
+        backgrounds.save(PageBackground(BackgroundPage.Chat, blur = 17, scrim = 0.1f, focalX = 0.2f), ownImage)
+        val inheritedWithOwnImage = backgrounds.observeEffective(BackgroundPage.Chat).first()
+        assertEquals(ownImage.file.uuid, inheritedWithOwnImage.fileUuid)
+        assertEquals(17, inheritedWithOwnImage.blur)
+        assertEquals(0.1f, inheritedWithOwnImage.scrim)
+        assertEquals(0.2f, inheritedWithOwnImage.focalX)
+        assertEquals(20, inheritedWithOwnImage.topBarBlur)
+        // 单个非零区域设置也会保留整套独立配置；归零后重新读取当前通用值。
+        val raw = backgrounds.observe(BackgroundPage.Chat).first()
+        backgrounds.save(raw.copy(topBarBlur = 1), null)
+        assertEquals(1f, backgrounds.observeEffective(BackgroundPage.Chat).first().bubbleOpacity)
+        backgrounds.save(raw, null)
+        val commonRaw = backgrounds.observe(BackgroundPage.General).first()
+        backgrounds.save(commonRaw.copy(opacity = 0.7f), null)
+        assertEquals(0.7f, backgrounds.observeEffective(BackgroundPage.Chat).first().bubbleOpacity)
+        assertEquals(1f, backgrounds.observe(BackgroundPage.Chat).first().bubbleOpacity)
+        // 删除通用图片不会影响独立图片的生命周期，也不会留下继承者的悬挂索引。
+        backgrounds.save(commonRaw.copy(fileUuid = null), null)
+        assertNull(backgrounds.observeEffective(BackgroundPage.Group).first().fileUuid)
+        assertNull(files.getFileEntity(commonImage.file.uuid))
+        files.withFileLease(ownImage.file.uuid) { assertEquals("own", it.readText()) }
+    }
+
 }

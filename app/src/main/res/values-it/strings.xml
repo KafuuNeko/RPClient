@@ -1242,4 +1242,8 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_preview_input">Messaggio o indicazione per continuare…</string>
     <string name="appearance_save_changes_title">Salvare le modifiche?</string>
     <string name="appearance_save_changes_message">Salvare le modifiche a questo sfondo prima di uscire?</string>
+    <string name="appearance_general_background">Pagine generali</string>
+    <string name="appearance_general_background_hint">Si applica a tutte le pagine tranne Informazioni e temi colore. Chat, gruppi e storie seguono queste impostazioni se trasparenza e sfocatura di tutte le aree sono a zero. Lo sfondo personale ha priorità; altrimenti viene usato quello generale.</string>
+    <string name="appearance_follow_general_hint">Se trasparenza e sfocatura di tutte le aree sono a zero, si applicano le impostazioni generali. Lo sfondo personale ha priorità; altrimenti viene usato quello generale.</string>
+    <string name="appearance_preview_content">Area contenuti</string>
 </resources>

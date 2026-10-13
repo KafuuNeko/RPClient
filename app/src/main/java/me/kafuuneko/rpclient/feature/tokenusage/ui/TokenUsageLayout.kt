@@ -41,15 +41,12 @@ import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Stream
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,16 +89,20 @@ import me.kafuuneko.rpclient.ui.theme.TokenUsageInputColor
 import me.kafuuneko.rpclient.ui.theme.TokenUsageLatencyColor
 import me.kafuuneko.rpclient.ui.theme.TokenUsageOutputColor
 import me.kafuuneko.rpclient.ui.theme.TokenUsageReasoningColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpChartDataPoint
 import me.kafuuneko.rpclient.ui.widgets.RpChartMode
 import me.kafuuneko.rpclient.ui.widgets.RpChartSegment
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpStackedRatioBar
 import me.kafuuneko.rpclient.ui.widgets.RpTrendChartCard
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /**
  * Token 消耗总览、时序图表、模型排行榜与近期请求明细的 Compose 布局入口。
@@ -136,7 +137,7 @@ private fun NormalView(
 ) {
     // 清空入口与内容空态采用同一周期内的请求数判断。
     val hasRecords = uiState.summary.requestCount > 0L
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
@@ -173,7 +174,7 @@ private fun UsageContent(
             .padding(paddingValues)
             .fillMaxSize()
             .navigationBarsPadding()
-            .background(MaterialTheme.colorScheme.background),
+            .background(pageCanvasColor()),
         contentPadding = PaddingValues(
             start = 18.dp,
             top = 18.dp,
@@ -290,7 +291,7 @@ private fun UsageTrendCard(
 @Composable
 private fun TrendPointDetails(selectedPoint: TokenUsageTrendPoint) {
     // 仅展示传入日期，选中项不存在时由趋势卡片省略提示。
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
@@ -344,7 +345,7 @@ private fun PeriodFilters(
 @Composable
 private fun HeroSummaryCard(summary: TokenUsageSummaryItem) {
     // 分区组件直接沿用此处的间距，保持总览卡片布局稳定。
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -390,7 +391,7 @@ private fun SummaryHeader(summary: TokenUsageSummaryItem) {
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
             border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
@@ -500,7 +501,7 @@ private fun SummaryMetricCell(
     accentColor: Color
 ) {
     // 指标配色同时用于图标与边框，单行数值溢出时省略。
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
@@ -541,7 +542,7 @@ private fun SummaryMetricCell(
 /** 展示单个模型分组的排名及消耗占比。 */
 @Composable
 private fun UsageGroupRankCard(index: Int, item: TokenUsageGroupItem) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -594,7 +595,7 @@ private fun RankBadge(index: Int) {
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    Surface(
+    AppSurface(
         modifier = Modifier.size(28.dp),
         shape = CircleShape,
         color = rankBadgeBg
@@ -689,7 +690,7 @@ private fun RecentRequestCard(item: TokenUsageRecordItem) {
     // 展开状态属于当前请求卡片，外围列表以记录 ID 保持身份稳定。
     var isExpanded by remember { mutableStateOf(false) }
 
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { isExpanded = !isExpanded },
@@ -744,7 +745,7 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)
             ) {
@@ -762,7 +763,7 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
 
         Spacer(Modifier.width(8.dp))
 
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
             border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))

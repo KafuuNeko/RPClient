@@ -1,11 +1,11 @@
 package me.kafuuneko.rpclient.libs.appearance
 
-/** 三类内容页独立保存背景，标识不依赖枚举顺序。 */
+/** 通用外观与三类内容页独立保存背景，标识不依赖枚举顺序。 */
 enum class BackgroundPage(val key: String) {
-    Chat("chat"), Group("group"), Story("story")
+    General("general"), Chat("chat"), Group("group"), Story("story")
 }
 
-/** 背景展示参数；图片为空时恢复主题底色，图片永不参与模型请求。 */
+/** 背景原始参数；实际显示前解析通用继承，图片永不参与模型请求。 */
 data class PageBackground(
     val page: BackgroundPage,
     val fileUuid: String? = null,
@@ -54,8 +54,28 @@ fun PageBackground.surfaceOpacity(kind: PageSurfaceKind): Float = when (kind) {
 fun PageBackground.surfaceBlur(kind: PageSurfaceKind): Int = when (kind) {
     PageSurfaceKind.TopBar -> topBarBlur
     PageSurfaceKind.BottomBar -> bottomBarBlur
-    PageSurfaceKind.Bubble -> if (page == BackgroundPage.Story) 0 else bubbleBlur
-    PageSurfaceKind.Content -> if (page == BackgroundPage.Story) contentBlur else 0
+    PageSurfaceKind.Bubble -> if (page == BackgroundPage.Chat || page == BackgroundPage.Group) bubbleBlur else 0
+    PageSurfaceKind.Content -> if (page == BackgroundPage.Story || page == BackgroundPage.General) contentBlur else 0
 }
 
 private fun Float.finite(fallback: Float): Float = if (isFinite()) this else fallback
+
+/**
+ * 解析内容页的通用区域设置，继承结果仅用于显示，不能写回独立配置。
+ * - UI 的零透明度对应不透明度 1；区域模糊只要非零就视为自定义。
+ * - 有独立图片时保留图片、全图模糊、遮罩和焦点，无图片时继承通用背景。
+ */
+fun PageBackground.resolveWith(general: PageBackground): PageBackground {
+    if (page == BackgroundPage.General ||
+        topBarOpacity != 1f || bottomBarOpacity != 1f || bubbleOpacity != 1f || opacity != 1f ||
+        topBarBlur != 0 || bottomBarBlur != 0 || bubbleBlur != 0 || contentBlur != 0
+    ) return this
+    // 图片归属与区域外观分别决定，独立图片不会因跟随通用区域设置而被替换。
+    val source = if (fileUuid != null) this else general.copy(page = page)
+    return source.copy(
+        topBarOpacity = general.topBarOpacity, bottomBarOpacity = general.bottomBarOpacity,
+        opacity = general.opacity, bubbleOpacity = general.opacity,
+        topBarBlur = general.topBarBlur, bottomBarBlur = general.bottomBarBlur,
+        contentBlur = general.contentBlur, bubbleBlur = general.contentBlur
+    )
+}

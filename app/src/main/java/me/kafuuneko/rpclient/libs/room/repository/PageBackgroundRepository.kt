@@ -1,9 +1,12 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.appearance.resolveWith
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.PageBackgroundEntity
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
@@ -28,6 +31,14 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
                 bubbleBlur = it.bubbleBlur, contentBlur = it.contentBlur
             ).normalized()
         } ?: PageBackground(page)
+    }
+
+    /** 观察实际显示配置；编辑器仍读取原始值，继承不创建图片引用或覆盖独立草稿。 */
+    fun observeEffective(page: BackgroundPage): Flow<PageBackground> {
+        if (page == BackgroundPage.General) return observe(page)
+        return combine(observe(page), observe(BackgroundPage.General)) { own, general ->
+            own.resolveWith(general)
+        }.distinctUntilChanged()
     }
 
     /** 原子应用预览草稿；prepared 非空时发布新源图，为空时只更新已有设置。 */

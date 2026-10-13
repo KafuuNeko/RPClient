@@ -1268,4 +1268,8 @@
     <string name="appearance_preview_input">Message or continuation guidance…</string>
     <string name="appearance_save_changes_title">Save changes?</string>
     <string name="appearance_save_changes_message">Save changes to this background before leaving?</string>
+    <string name="appearance_general_background">General pages</string>
+    <string name="appearance_general_background_hint">Applies to all pages except About and color themes. Chat, group chat and story pages follow these area settings when their area transparency and blur are all zero. Their own background image takes priority; otherwise they use the general background.</string>
+    <string name="appearance_follow_general_hint">When all area transparency and blur settings are zero, this page follows general area settings. Its own background image takes priority; otherwise it uses the general background.</string>
+    <string name="appearance_preview_content">Content area</string>
 </resources>

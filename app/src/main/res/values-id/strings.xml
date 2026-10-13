@@ -1264,4 +1264,8 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_preview_input">Pesan atau arahan kelanjutan…</string>
     <string name="appearance_save_changes_title">Simpan perubahan?</string>
     <string name="appearance_save_changes_message">Simpan perubahan latar belakang ini sebelum keluar?</string>
+    <string name="appearance_general_background">Halaman umum</string>
+    <string name="appearance_general_background_hint">Berlaku untuk semua halaman kecuali Tentang dan tema warna. Obrolan, grup, dan cerita mengikuti pengaturan area ini jika transparansi dan keburaman semua area bernilai nol. Gambar sendiri diutamakan; jika tidak ada, latar umum digunakan.</string>
+    <string name="appearance_follow_general_hint">Jika transparansi dan keburaman semua area bernilai nol, pengaturan area umum digunakan. Gambar sendiri diutamakan; jika tidak ada, latar umum digunakan.</string>
+    <string name="appearance_preview_content">Area konten</string>
 </resources>

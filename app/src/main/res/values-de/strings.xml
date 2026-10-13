@@ -1263,4 +1263,8 @@
     <string name="appearance_preview_input">Nachricht oder Vorgabe zum Fortsetzen…</string>
     <string name="appearance_save_changes_title">Änderungen speichern?</string>
     <string name="appearance_save_changes_message">Änderungen an diesem Hintergrund vor dem Verlassen speichern?</string>
+    <string name="appearance_general_background">Allgemeine Seiten</string>
+    <string name="appearance_general_background_hint">Gilt für alle Seiten außer Info und Farbdesigns. Chats, Gruppen und Geschichten übernehmen diese Bereichseinstellungen, wenn Transparenz und Unschärfe überall null sind. Ein eigenes Hintergrundbild hat Vorrang, sonst gilt der allgemeine Hintergrund.</string>
+    <string name="appearance_follow_general_hint">Sind Transparenz und Unschärfe aller Bereiche null, gelten die allgemeinen Bereichseinstellungen. Ein eigenes Bild hat Vorrang, sonst gilt der allgemeine Hintergrund.</string>
+    <string name="appearance_preview_content">Inhaltsbereich</string>
 </resources>

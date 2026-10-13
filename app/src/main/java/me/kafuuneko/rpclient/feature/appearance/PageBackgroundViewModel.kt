@@ -30,7 +30,7 @@ class PageBackgroundViewModel : ViewModel(), KoinComponent {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observe(page: BackgroundPage): StateFlow<PageBackgroundUiState> = mStates.getOrPut(page) {
         // 图片加载失败不丢弃独立栏位设置，仍按主题底色显示页面。
-        mRepository.observe(page).mapLatest { settings ->
+        mRepository.observeEffective(page).mapLatest { settings ->
             try {
                 PageBackgroundUiState(
                     settings, mRuntime.render(settings)?.asImageBitmap(),

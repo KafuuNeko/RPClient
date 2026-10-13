@@ -54,7 +54,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -66,10 +65,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -125,6 +122,8 @@ import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -132,6 +131,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
@@ -161,7 +162,7 @@ private fun LLMProviderEditNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = if (state.mode == LLMProviderEditMode.Create) {
@@ -390,7 +391,7 @@ private fun ModelField(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             value = value,
             onValueChange = {
                 LLMProviderEditUiIntent.ChangeModel(it).emit()
@@ -471,7 +472,7 @@ private fun ModelCatalogSupportingView(
                     modifier = Modifier.padding(start = 4.dp)
                 )
             } else {
-                Surface(
+                AppSurface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                     border = BorderStroke(
@@ -554,7 +555,7 @@ private fun ModernCredentialControl(
     onClear: () -> Unit,
     onKeepExisting: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
@@ -693,7 +694,7 @@ private fun CollapsibleAdvancedPanel(
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
 
-    Card(
+    AppCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
@@ -923,8 +924,10 @@ private fun ImageTokenEstimatorSelector(
         )
         var expanded by remember { mutableStateOf(false) }
         Box {
-            OutlinedCard(
+            AppCard(
                 onClick = { expanded = true },
+                colors = CardDefaults.outlinedCardColors(),
+                elevation = CardDefaults.outlinedCardElevation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -1288,7 +1291,7 @@ private fun ModelPickerDialog(
                 onValueChange = {
                     LLMProviderEditUiIntent.ChangeModelSearch(it).emit()
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
                 label = { Text(stringResource(R.string.search_models)) },
                 leadingIcon = {
                     Icon(Icons.Rounded.Search, contentDescription = null)
@@ -1324,7 +1327,7 @@ private fun ModelPickerItem(
     model: LLMAvailableModel,
     emit: LLMProviderEditUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         border = BorderStroke(
@@ -1390,7 +1393,7 @@ private fun FormTextField(
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = modifier,
+        modifier = modifier.generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
         value = value,
         enabled = enabled,
         onValueChange = onChange,
@@ -1457,7 +1460,7 @@ private fun JsonSyntaxHighlightPreview(
         }
     }
 
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
@@ -1539,7 +1542,7 @@ private fun ModernRequestBodyPatchControl(
         trimmed.isNotBlank() && trimmed != "{}"
     }
 
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),

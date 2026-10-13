@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 
 /** 项目统一顶部栏，按需显示返回按钮和右侧操作区。 */
@@ -44,7 +44,8 @@ fun AppTopBar(
     actions: @Composable () -> Unit = {}
 ) {
     // 容器颜色由页面指定，前景与触摸区域保持不变。
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.TopBar,
         modifier = modifier
             .fillMaxWidth(),
         color = containerColor,

@@ -28,14 +28,12 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -65,6 +63,8 @@ import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -72,6 +72,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 角色列表页 Compose 入口，包含搜索、选择及导入导出操作。 */
 @Composable
@@ -111,7 +113,7 @@ private fun CharacterListNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = stringResource(R.string.character_manager),
@@ -222,7 +224,7 @@ private fun SearchField(
     emit: CharacterListUiIntent.() -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(14.dp)),
         value = searchText,
         onValueChange = { CharacterListUiIntent.ChangeSearchText(it).emit() },
         placeholder = {
@@ -278,7 +280,7 @@ private fun LoadingRow(loadState: CharacterListLoadState) {
 
 @Composable
 private fun EmptyCharacterCard(emit: CharacterListUiIntent.() -> Unit) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -326,7 +328,7 @@ private fun CharacterListCard(
     onClick: () -> Unit,
     onExport: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -409,7 +411,7 @@ private fun AvatarPreview(
     image: ImageBitmap?,
     size: Int
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.size(size.dp),
         shape = RoundedCornerShape(16.dp),
         color = avatarColor.copy(alpha = 0.14f),

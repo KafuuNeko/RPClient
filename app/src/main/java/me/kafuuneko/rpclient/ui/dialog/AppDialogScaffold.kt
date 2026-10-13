@@ -47,8 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.WithoutGeneralPageSurfaces
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 
 /** Dialog 顶部状态徽标的色彩风格。 */
 enum class DialogBadgeTone {
@@ -89,45 +90,47 @@ fun AppDialogScaffold(
         onDismissRequest = onDismissRequest,
         properties = properties
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            shadowElevation = 12.dp,
-            border = BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
+        WithoutGeneralPageSurfaces {
+            Surface(
+                modifier = modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                AppDialogHeader(
-                    title = title,
-                    subtitle = subtitle,
-                    badgeIcon = badgeIcon,
-                    badgeTone = badgeTone,
-                    compact = compactHeader
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                 )
-                AppDialogContent(scrollableContent, content)
-                if (onConfirm != null || onDismiss != null) {
-                    AppDialogActions(
-                        confirmText = confirmText,
-                        dismissText = dismissText,
-                        confirmEnabled = confirmEnabled,
-                        isConfirmLoading = isConfirmLoading,
-                        confirmIsDestructive = confirmIsDestructive,
-                        stacked = stackButtons ?: shouldStackActionButtons(confirmText, dismissText),
-                        onConfirm = onConfirm,
-                        onDismiss = onDismiss
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    AppDialogHeader(
+                        title = title,
+                        subtitle = subtitle,
+                        badgeIcon = badgeIcon,
+                        badgeTone = badgeTone,
+                        compact = compactHeader
                     )
+                    AppDialogContent(scrollableContent, content)
+                    if (onConfirm != null || onDismiss != null) {
+                        AppDialogActions(
+                            confirmText = confirmText,
+                            dismissText = dismissText,
+                            confirmEnabled = confirmEnabled,
+                            isConfirmLoading = isConfirmLoading,
+                            confirmIsDestructive = confirmIsDestructive,
+                            stacked = stackButtons ?: shouldStackActionButtons(confirmText, dismissText),
+                            onConfirm = onConfirm,
+                            onDismiss = onDismiss
+                        )
+                    }
                 }
             }
         }

@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.feature.requestlog.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,28 +16,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,11 +55,15 @@ import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogDialogState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** LLM 请求日志列表与清理确认对话框的 Compose 入口。 */
 @Composable
@@ -87,7 +88,7 @@ private fun NormalView(
     emit: RequestLogUiIntent.() -> Unit
 ) {
     val logs = uiState.logs
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
@@ -114,7 +115,7 @@ private fun NormalView(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .background(MaterialTheme.colorScheme.background),
+                .background(pageCanvasColor()),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 18.dp,
@@ -169,7 +170,7 @@ private fun RequestLogCard(
     emit: RequestLogUiIntent.() -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded },

@@ -18,7 +18,9 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustmen
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.appearance.resolveWith
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
@@ -44,6 +46,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     private var mWorkJob: Job? = null
     private var mSaving = false
     private var mOriginalSettings: PageBackground? = null
+    private var mGeneralSettings = PageBackground(BackgroundPage.General)
 
     init {
         viewModelScope.launch {
@@ -81,6 +84,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         mWorkJob = viewModelScope.launch {
             try {
                 val settings = mBackgrounds.observe(intent.page).first()
+                mGeneralSettings = mBackgrounds.observe(BackgroundPage.General).first()
                 mOriginalSettings = settings
                 updateEditor { it.copy(settings = settings, working = false) }
                 requestPreview(false)
@@ -158,6 +162,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         mRuntime.discard(mPrepared)
         mPrepared = null
         updateEditor { it.copy(settings = it.settings.copy(fileUuid = null), image = null, surfaceImages = emptyMap(), rendering = false, error = null) }
+        requestPreview(false)
     }
 
     /** 文件与配置成功提交后再关闭编辑器，失败时仍可重试或取消。 */
@@ -231,8 +236,8 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             try {
                 if (preview) delay(80)
                 // 底图与栏位派生图一起发布，避免同一次预览出现不同处理版本。
-                val image = mRuntime.render(editor.settings, prepared, preview)?.asImageBitmap()
-                val surfaces = mRuntime.renderSurfaces(editor.settings, prepared, preview)
+                val image = mRuntime.render(editor.effectiveSettings, prepared, preview)?.asImageBitmap()
+                val surfaces = mRuntime.renderSurfaces(editor.effectiveSettings, prepared, preview)
                     .mapValues { it.value.asImageBitmap() }
                 updateEditor { it.copy(image = image, surfaceImages = surfaces, rendering = false) }
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -245,7 +250,8 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     private fun updateEditor(change: (BackgroundEditorState) -> BackgroundEditorState) {
         val state = getOrNull<AppearanceUiState.Normal>() ?: return
         val editor = state.editor ?: return
-        state.copy(editor = change(editor)).setup()
+        val updated = change(editor)
+        state.copy(editor = updated.copy(effectiveSettings = updated.settings.resolveWith(mGeneralSettings))).setup()
     }
 
     /** 页面销毁后释放未提交源图，配置旋转由保留的 ViewModel 继续承载。 */

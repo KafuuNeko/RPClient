@@ -1267,4 +1267,8 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_preview_input">Mensagem ou orientação para continuar…</string>
     <string name="appearance_save_changes_title">Salvar alterações?</string>
     <string name="appearance_save_changes_message">Salvar as alterações deste plano de fundo antes de sair?</string>
+    <string name="appearance_general_background">Páginas gerais</string>
+    <string name="appearance_general_background_hint">Aplica-se a todas as páginas, exceto Sobre e temas de cores. Conversas, grupos e histórias seguem estas opções quando a transparência e o desfoque de todas as áreas são zero. A imagem própria tem prioridade; sem ela, usam o fundo geral.</string>
+    <string name="appearance_follow_general_hint">Com transparência e desfoque de todas as áreas em zero, esta página segue as opções gerais. A imagem própria tem prioridade; sem ela, usa o fundo geral.</string>
+    <string name="appearance_preview_content">Área de conteúdo</string>
 </resources>

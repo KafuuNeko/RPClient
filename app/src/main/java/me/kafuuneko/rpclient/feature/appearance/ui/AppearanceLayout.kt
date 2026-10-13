@@ -164,6 +164,11 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { BackgroundPreview(state) }
         item {
+            Text(stringResource(if (state.settings.page == BackgroundPage.General)
+                R.string.appearance_general_background_hint else R.string.appearance_follow_general_hint),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = { emit(AppearanceUiIntent.PickImage) }, enabled = !state.working) {
                     Text(stringResource(R.string.appearance_choose_image))
@@ -186,7 +191,7 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
         item { AdjustmentSlider(R.string.appearance_top_bar_blur, state.settings.topBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.TopBarBlur, state, emit, enabled = state.settings.topBarOpacity < 1f) }
         item { AdjustmentSlider(R.string.appearance_bottom_bar_transparency, 1f - state.settings.bottomBarOpacity, 0f..1f, BackgroundAdjustment.BottomBarTransparency, state, emit) }
         item { AdjustmentSlider(R.string.appearance_bottom_bar_blur, state.settings.bottomBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.BottomBarBlur, state, emit, enabled = state.settings.bottomBarOpacity < 1f) }
-        if (state.settings.page == BackgroundPage.Story) {
+        if (state.settings.page == BackgroundPage.Story || state.settings.page == BackgroundPage.General) {
             item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.opacity, 0f..1f, BackgroundAdjustment.ContentTransparency, state, emit) }
             item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.contentBlur.toFloat(), 0f..100f, BackgroundAdjustment.ContentBlur, state, emit, enabled = state.settings.opacity < 1f) }
         } else {
@@ -211,7 +216,7 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
 @Composable
 private fun BackgroundPreview(state: BackgroundEditorState) {
     Box(Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(24.dp))) {
-        PageBackdrop(PageBackgroundUiState(state.settings, state.image, state.surfaceImages)) {
+        PageBackdrop(PageBackgroundUiState(state.effectiveSettings, state.image, state.surfaceImages)) {
             // 预览与真实页面共用透明度来源，三块表面分别反映对应滑块。
             Column(Modifier.fillMaxSize()) {
                 PageSurface(kind = PageSurfaceKind.TopBar, color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)) {
@@ -221,13 +226,14 @@ private fun BackgroundPreview(state: BackgroundEditorState) {
                 // 消息变短也保持整行宽度，避免右侧气泡随内容收窄后左移。
                 Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val isStory = state.settings.page == BackgroundPage.Story
-                    val opacity = if (isStory) LocalPageContentOpacity.current else LocalPageBubbleOpacity.current
-                    PageSurface(kind = if (isStory) PageSurfaceKind.Content else PageSurfaceKind.Bubble,
+                    val isContent = isStory || state.settings.page == BackgroundPage.General
+                    val opacity = if (isContent) LocalPageContentOpacity.current else LocalPageBubbleOpacity.current
+                    PageSurface(kind = if (isContent) PageSurfaceKind.Content else PageSurfaceKind.Bubble,
                         shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = opacity)) {
-                        Text(stringResource(if (isStory) R.string.appearance_preview_story else R.string.appearance_preview_message),
+                        Text(stringResource(if (isStory) R.string.appearance_preview_story else if (isContent) R.string.appearance_preview_content else R.string.appearance_preview_message),
                             Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
                     }
-                    if (!isStory) PageSurface(kind = PageSurfaceKind.Bubble,
+                    if (!isContent) PageSurface(kind = PageSurfaceKind.Bubble,
                         modifier = Modifier.align(Alignment.End), shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = opacity), contentColor = pageUserBubbleContentColor()
                     ) { Text(stringResource(R.string.appearance_preview_reply), Modifier.padding(12.dp)) }
@@ -260,6 +266,7 @@ private fun AdjustmentSlider(@StringRes title: Int, value: Float, range: ClosedF
 
 @StringRes
 private fun BackgroundPage.title(): Int = when (this) {
+    BackgroundPage.General -> R.string.appearance_general_background
     BackgroundPage.Chat -> R.string.appearance_chat_background
     BackgroundPage.Group -> R.string.appearance_group_background
     BackgroundPage.Story -> R.string.appearance_story_background

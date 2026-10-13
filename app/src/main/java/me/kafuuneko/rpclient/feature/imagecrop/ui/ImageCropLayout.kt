@@ -36,12 +36,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,12 +68,17 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.imagecrop.presentation.CropMaskShape
 import me.kafuuneko.rpclient.feature.imagecrop.presentation.ImageCropUiIntent
 import me.kafuuneko.rpclient.feature.imagecrop.presentation.ImageCropUiState
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
-import kotlin.math.roundToInt
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 
 private val DarkroomBackgroundColor = Color(0xFF090C10)
 private val DarkroomSurfaceColor = Color(0xFF141923)
@@ -99,12 +105,8 @@ private fun DarkroomContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = DarkroomBackgroundColor,
-        contentColor = Color.White
-    ) {
-        content()
+    CompositionLocalProvider(LocalContentColor provides Color.White) {
+        Box(modifier.fillMaxSize().background(pageCanvasColor(DarkroomBackgroundColor))) { content() }
     }
 }
 
@@ -115,7 +117,8 @@ private fun ImageCropTopBar(
     isSaving: Boolean,
     emit: ImageCropUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.TopBar,
         color = DarkroomBackgroundColor,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -186,7 +189,9 @@ private fun ImageCropNormal(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .clipToBounds(),
+                    .clipToBounds()
+                    .pageSurfaceBlur(PageSurfaceKind.Content)
+                    .background(DarkroomBackgroundColor.copy(alpha = LocalPageContentOpacity.current)),
                 contentAlignment = Alignment.Center
             ) {
                 val density = LocalDensity.current
@@ -367,118 +372,119 @@ private fun ImageCropBottomControls(
     state: ImageCropUiState.Normal,
     emit: ImageCropUiIntent.() -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DarkroomSurfaceColor)
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 提示文案
-        Text(
-            text = stringResource(R.string.image_crop_helper),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color(0x99FFFFFF)
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        // 核心编辑工具条（旋转、水平镜像、形态切换）
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CropToolButton(
-                icon = Icons.AutoMirrored.Rounded.RotateRight,
-                label = stringResource(R.string.image_crop_rotate),
-                enabled = !state.saving,
-                onClick = { ImageCropUiIntent.RotateRight.emit() }
-            )
-
-            CropToolButton(
-                icon = Icons.Rounded.Flip,
-                label = stringResource(R.string.image_crop_flip),
-                enabled = !state.saving,
-                isActive = state.transform.isFlippedHorizontal,
-                onClick = { ImageCropUiIntent.FlipHorizontal.emit() }
-            )
-
-            CropToolButton(
-                icon = if (state.maskShape == CropMaskShape.Circle) {
-                    Icons.Rounded.CropSquare
-                } else {
-                    Icons.Rounded.AccountCircle
-                },
-                label = if (state.maskShape == CropMaskShape.Circle) {
-                    stringResource(R.string.image_crop_shape_squircle)
-                } else {
-                    stringResource(R.string.image_crop_shape_circle)
-                },
-                enabled = !state.saving,
-                onClick = { ImageCropUiIntent.ToggleMaskShape.emit() }
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // 操作按钮行（取消 / 完成）
-        Row(
+    AppSurface(kind = PageSurfaceKind.BottomBar, color = DarkroomSurfaceColor) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            OutlinedButton(
-                onClick = { ImageCropUiIntent.Back.emit() },
-                enabled = !state.saving,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(24.dp),
-                border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color.White,
-                    disabledContentColor = Color(0x44FFFFFF)
-                )
+            // 提示文案
+            Text(
+                text = stringResource(R.string.image_crop_helper),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0x99FFFFFF)
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // 核心编辑工具条（旋转、水平镜像、形态切换）
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.cancel),
-                    fontWeight = FontWeight.Medium
+                CropToolButton(
+                    icon = Icons.AutoMirrored.Rounded.RotateRight,
+                    label = stringResource(R.string.image_crop_rotate),
+                    enabled = !state.saving,
+                    onClick = { ImageCropUiIntent.RotateRight.emit() }
+                )
+
+                CropToolButton(
+                    icon = Icons.Rounded.Flip,
+                    label = stringResource(R.string.image_crop_flip),
+                    enabled = !state.saving,
+                    isActive = state.transform.isFlippedHorizontal,
+                    onClick = { ImageCropUiIntent.FlipHorizontal.emit() }
+                )
+
+                CropToolButton(
+                    icon = if (state.maskShape == CropMaskShape.Circle) {
+                        Icons.Rounded.CropSquare
+                    } else {
+                        Icons.Rounded.AccountCircle
+                    },
+                    label = if (state.maskShape == CropMaskShape.Circle) {
+                        stringResource(R.string.image_crop_shape_squircle)
+                    } else {
+                        stringResource(R.string.image_crop_shape_circle)
+                    },
+                    enabled = !state.saving,
+                    onClick = { ImageCropUiIntent.ToggleMaskShape.emit() }
                 )
             }
 
-            Button(
-                onClick = { ImageCropUiIntent.Confirm.emit() },
-                enabled = !state.saving,
+            Spacer(Modifier.height(16.dp))
+
+            // 操作按钮行（取消 / 完成）
+            Row(
                 modifier = Modifier
-                    .weight(1.5f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
-                )
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (state.saving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
+                OutlinedButton(
+                    onClick = { ImageCropUiIntent.Back.emit() },
+                    enabled = !state.saving,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White,
+                        disabledContentColor = Color(0x44FFFFFF)
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
+                ) {
                     Text(
-                        text = stringResource(R.string.confirm),
-                        fontWeight = FontWeight.SemiBold
+                        text = stringResource(R.string.cancel),
+                        fontWeight = FontWeight.Medium
                     )
+                }
+
+                Button(
+                    onClick = { ImageCropUiIntent.Confirm.emit() },
+                    enabled = !state.saving,
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    if (state.saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.confirm),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }

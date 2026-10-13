@@ -114,7 +114,7 @@ fun RpScrollableOutlinedTextField(
     // 状态与滚动位置由调用方和文本框分别持有，指示器只负责展示和拖动纵向位置。
     OutlinedTextField(
         state = state,
-        modifier = if (singleLine) modifier else modifier.draggableScrollIndicator(scrollState),
+        modifier = (if (singleLine) modifier else modifier.draggableScrollIndicator(scrollState)).generalContentBackground(shape, hasLabel = label != null),
         enabled = enabled,
         readOnly = readOnly,
         textStyle = textStyle,

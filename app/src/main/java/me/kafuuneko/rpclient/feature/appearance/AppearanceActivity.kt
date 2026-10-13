@@ -16,6 +16,9 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 外观页面宿主，仅负责系统选图和 ViewEvent 分发。 */
 class AppearanceActivity : CoreActivityWithEvent() {
+    /** 本页用于展示应用介绍或主题原色，排除通用背景。 */
+    override fun usesGeneralBackground(): Boolean = false
+
     private val mViewModel by viewModels<AppearanceViewModel>()
     private val mPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { mViewModel.emit(AppearanceUiIntent.ImageSelected(it)) }

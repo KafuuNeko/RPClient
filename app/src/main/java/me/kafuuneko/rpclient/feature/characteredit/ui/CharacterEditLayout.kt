@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -35,7 +35,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -49,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -80,28 +78,33 @@ import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
-import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
 import me.kafuuneko.rpclient.ui.widgets.DIALOGUE_EXAMPLE_MACROS
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
-import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 
 private enum class CharacterEditTab {
@@ -137,7 +140,7 @@ private fun CharacterEditNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = if (state.mode == CharacterEditMode.Create) {
@@ -264,7 +267,7 @@ private fun HeroHeaderPanel(
         availableLorebooks.firstOrNull { it.id == form.characterLorebookId }?.name
     }
 
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
@@ -317,7 +320,7 @@ private fun HeroHeaderPanel(
                         image = avatarImage,
                         size = 92
                     )
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .size(28.dp),
@@ -350,7 +353,7 @@ private fun HeroHeaderPanel(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                 ) {
                     if (form.characterVersion.isNotBlank()) {
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                         ) {
@@ -368,7 +371,7 @@ private fun HeroHeaderPanel(
                         }
                     }
 
-                    Surface(
+                    AppSurface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (boundLorebookName != null)
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
@@ -416,7 +419,8 @@ private fun CharacterEditTabBar(
     onTabSelected: (CharacterEditTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.TopBar,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -434,7 +438,7 @@ private fun CharacterEditTabBar(
             )
             tabs.forEach { (tab, title) ->
                 val selected = selectedTab == tab
-                Surface(
+                AppSurface(
                     onClick = { onTabSelected(tab) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -721,7 +725,7 @@ private fun RawExtensionsPanel(
     onExpandedChange: (Boolean) -> Unit,
     onChange: (String) -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -1052,7 +1056,7 @@ private fun CharacterProviderSelector(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(
@@ -1119,7 +1123,7 @@ private fun LorebookSelector(
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
                 shape = RoundedCornerShape(12.dp)
             )
             ExposedDropdownMenu(

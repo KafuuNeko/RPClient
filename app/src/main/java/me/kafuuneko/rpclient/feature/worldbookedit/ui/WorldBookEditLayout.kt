@@ -11,10 +11,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -33,7 +33,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -42,7 +41,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,20 +58,24 @@ import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookBudgetMode
 import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEditForm
 import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEntryListItem
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditDialogState
-import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEntryFilter
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditLoadState
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditMode
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiState
+import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEntryFilter
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 世界书元数据与条目列表编辑页 Compose 入口。 */
 @Composable
@@ -100,7 +102,7 @@ private fun WorldBookEditNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(R.string.edit_world_book_title),
@@ -212,7 +214,7 @@ private fun BasicPanel(
             }
         }
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             value = form.name,
             onValueChange = { WorldBookEditUiIntent.ChangeName(it).emit() },
             label = { Text(stringResource(R.string.name)) },
@@ -262,7 +264,7 @@ private fun WorldBookBudgetEditor(
             )
 
             WorldBookBudgetMode.FixedTokens -> OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
                 value = form.tokenBudgetInput,
                 onValueChange = { WorldBookEditUiIntent.ChangeTokenBudgetTokens(it).emit() },
                 label = { Text(stringResource(R.string.world_book_budget_fixed_tokens)) },
@@ -307,7 +309,7 @@ private fun EntrySearchBar(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_entries_placeholder),
@@ -397,7 +399,7 @@ private fun EntryCard(
         else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
     }
 
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -444,7 +446,7 @@ private fun EntryCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     if (entry.constant) {
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                         ) {

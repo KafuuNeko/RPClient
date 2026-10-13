@@ -1264,4 +1264,8 @@
     <string name="appearance_preview_input">Message ou consigne de continuation…</string>
     <string name="appearance_save_changes_title">Enregistrer les modifications ?</string>
     <string name="appearance_save_changes_message">Enregistrer les modifications de cet arrière-plan avant de quitter ?</string>
+    <string name="appearance_general_background">Pages générales</string>
+    <string name="appearance_general_background_hint">S’applique à toutes les pages sauf À propos et les thèmes de couleurs. Les conversations, groupes et histoires suivent ces réglages si la transparence et le flou de toutes les zones sont à zéro. Leur image de fond est prioritaire ; sinon, le fond général est utilisé.</string>
+    <string name="appearance_follow_general_hint">Si la transparence et le flou de toutes les zones sont à zéro, les réglages généraux sont utilisés. L’image propre à cette page est prioritaire ; sinon, le fond général est utilisé.</string>
+    <string name="appearance_preview_content">Zone de contenu</string>
 </resources>

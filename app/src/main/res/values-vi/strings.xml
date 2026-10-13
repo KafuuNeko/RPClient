@@ -1264,4 +1264,8 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_preview_input">Tin nhắn hoặc hướng dẫn viết tiếp…</string>
     <string name="appearance_save_changes_title">Lưu thay đổi?</string>
     <string name="appearance_save_changes_message">Lưu các thay đổi của hình nền này trước khi thoát?</string>
+    <string name="appearance_general_background">Trang chung</string>
+    <string name="appearance_general_background_hint">Áp dụng cho mọi trang trừ Giới thiệu và chủ đề màu. Trò chuyện, nhóm và truyện dùng thiết lập vùng chung khi độ trong suốt và độ mờ của mọi vùng đều bằng 0. Ưu tiên ảnh nền riêng; nếu không có thì dùng nền chung.</string>
+    <string name="appearance_follow_general_hint">Khi độ trong suốt và độ mờ của mọi vùng đều bằng 0, trang dùng thiết lập vùng chung. Giữ ảnh nền riêng; nếu không có thì dùng nền chung.</string>
+    <string name="appearance_preview_content">Vùng nội dung</string>
 </resources>

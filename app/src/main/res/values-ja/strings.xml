@@ -1259,4 +1259,8 @@
     <string name="appearance_preview_input">メッセージや続きの指示を入力…</string>
     <string name="appearance_save_changes_title">変更を保存しますか？</string>
     <string name="appearance_save_changes_message">この背景の変更を保存してから戻りますか？</string>
+    <string name="appearance_general_background">共通ページ</string>
+    <string name="appearance_general_background_hint">アプリ情報と配色テーマ以外の全ページに適用します。会話・グループ・ストーリーも全領域の透明度とぼかしが 0 の場合、共通の領域設定に従います。独自の背景画像を優先し、なければ共通の背景を使用します。</string>
+    <string name="appearance_follow_general_hint">全領域の透明度とぼかしが 0 の場合、共通の領域設定に従います。このページ独自の背景画像を優先し、なければ共通の背景を使用します。</string>
+    <string name="appearance_preview_content">コンテンツ領域</string>
 </resources>

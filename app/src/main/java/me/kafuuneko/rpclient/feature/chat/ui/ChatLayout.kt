@@ -67,7 +67,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +139,7 @@ import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
@@ -155,6 +155,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 import me.kafuuneko.rpclient.utils.toggle
 
@@ -174,7 +176,7 @@ fun ChatLayout(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(pageCanvasColor())
             )
         }
 
@@ -697,7 +699,7 @@ private fun LorebookSearchField(
     onQueryChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
@@ -1004,7 +1006,7 @@ private fun ThinkBlock(
     isThinking: Boolean,
     emit: ChatUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { ChatUiIntent.ToggleThinkBlock(part.id).emit() },
@@ -1073,7 +1075,7 @@ private fun QuickActionPill(
     onClick: () -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
@@ -1315,7 +1317,7 @@ private fun ChatInputBar(
                     textStyle = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Surface(
+                AppSurface(
                     modifier = Modifier.size(48.dp),
                     shape = CircleShape,
                     color = sendButtonColor,
@@ -1353,7 +1355,7 @@ private fun ChatSettingsPage(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = stringResource(R.string.chat_settings),
@@ -1554,7 +1556,7 @@ private fun SettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
@@ -1749,7 +1751,7 @@ private fun MenuAction(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) { onClick() },
@@ -1909,7 +1911,7 @@ private fun AvatarPreview(
     modifier: Modifier = Modifier
 ) {
     val cornerRadius = remember(size) { (size * 0.28).coerceAtLeast(8.0).dp }
-    Surface(
+    AppSurface(
         modifier = modifier.size(size.dp),
         shape = RoundedCornerShape(cornerRadius),
         color = avatarColor.copy(alpha = 0.14f),

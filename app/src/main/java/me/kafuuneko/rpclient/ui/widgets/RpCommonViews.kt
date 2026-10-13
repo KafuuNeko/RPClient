@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -264,7 +263,7 @@ fun RpInfoCard(
     subtitle: String,
     trailing: @Composable (() -> Unit)? = null
 ) {
-    Card(
+    AppCard(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -306,7 +305,7 @@ fun RpInfoCard(
 /** 使用项目统一圆角与背景色的内容面板。 */
 @Composable
 fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
@@ -331,7 +330,7 @@ fun RpSettingsGroup(
     shape: Shape = RoundedCornerShape(20.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
@@ -526,7 +525,7 @@ fun StoryUserPersonaCard(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    Card(
+    AppCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))

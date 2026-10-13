@@ -1265,4 +1265,8 @@
     <string name="appearance_preview_input">Mensaje o indicación para continuar…</string>
     <string name="appearance_save_changes_title">¿Guardar cambios?</string>
     <string name="appearance_save_changes_message">¿Guardar los cambios de este fondo antes de salir?</string>
+    <string name="appearance_general_background">Páginas generales</string>
+    <string name="appearance_general_background_hint">Se aplica a todas las páginas excepto Acerca de y temas de color. Chats, grupos e historias siguen estos ajustes cuando la transparencia y el desenfoque de todas las áreas son cero. La imagen propia tiene prioridad; si no existe, se usa el fondo general.</string>
+    <string name="appearance_follow_general_hint">Si la transparencia y el desenfoque de todas las áreas son cero, se usan los ajustes generales. La imagen propia tiene prioridad; si no existe, se usa el fondo general.</string>
+    <string name="appearance_preview_content">Área de contenido</string>
 </resources>

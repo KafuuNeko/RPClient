@@ -65,7 +65,6 @@ import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -79,8 +78,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -137,6 +134,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
@@ -162,6 +160,9 @@ import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
 import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
 import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
@@ -177,6 +178,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 
@@ -201,17 +204,17 @@ private fun MainNormal(
     uiState: MainUiState.Normal,
     emit: MainUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(pageCanvasColor()),
         contentWindowInsets = WindowInsets(0.dp)
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(MaterialThemeLike.background())
+                .background(pageCanvasColor(MaterialThemeLike.background()))
         ) {
             when (uiState.selectedPage) {
                 MainPage.Home -> HomePage(uiState.homeState, emit)
@@ -251,7 +254,8 @@ private fun MainBottomBar(
     selectedPage: MainPage,
     emit: MainUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.BottomBar,
         modifier = modifier,
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
@@ -292,7 +296,8 @@ private fun MultiSelectBottomBar(
     selectedCount: Int,
     emit: MainUiIntent.() -> Unit
 ) {
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.BottomBar,
         modifier = modifier,
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
@@ -524,7 +529,7 @@ private fun HeroEntryCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -543,7 +548,7 @@ private fun HeroEntryCard(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(15.dp),
                 color = MaterialTheme.colorScheme.primary,
@@ -577,7 +582,7 @@ private fun HeroEntryCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -603,7 +608,7 @@ private fun HomeQuickActionCard(
     title: String,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -677,7 +682,7 @@ private fun HomeAssetCapsule(
     count: Int? = null,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -696,7 +701,7 @@ private fun HomeAssetCapsule(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(contentAlignment = Alignment.TopEnd) {
-                Surface(
+                AppSurface(
                     modifier = Modifier.size(36.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -711,7 +716,7 @@ private fun HomeAssetCapsule(
                     }
                 }
                 if (count != null) {
-                    Surface(
+                    AppSurface(
                         modifier = Modifier.offset(x = 6.dp, y = (-4).dp),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary,
@@ -1249,7 +1254,7 @@ private fun HomeContentCard(
         label = "homeContentCardContainer"
     )
 
-    Card(
+    AppCard(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -1658,8 +1663,7 @@ private fun UserIdentityPanel(
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(14.dp), hasLabel = true))
                 UserPersonaDescriptionField(
                     value = state.userDescription,
                     onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
@@ -1752,7 +1756,7 @@ private fun UserAvatarPicker(
     ) {
         val avatarState = state.avatarState
         val avatarImage = (avatarState as? MainUserAvatarState.Configured)?.image
-        Surface(
+        AppSurface(
             modifier = Modifier.size(70.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1780,7 +1784,7 @@ private fun UserAvatarPicker(
                 )
             }
         }
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .size(26.dp),
@@ -1912,7 +1916,7 @@ private fun PromptPostProcessingModeRow(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -1991,7 +1995,7 @@ private fun ProviderCard(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -2059,7 +2063,7 @@ private fun ProviderCard(
                 !provider.isConfigured -> stringResource(R.string.pending_config)
                 else -> stringResource(R.string.available)
             }
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(8.dp),
                 color = dotColor.copy(alpha = 0.12f),
                 border = BorderStroke(0.5.dp, dotColor.copy(alpha = 0.28f))
@@ -2214,7 +2218,7 @@ private fun SummaryPanel(
             ) {
                 MainSummarySettingsTab.entries.forEach { tab ->
                     val isSelected = tab == state.selectedTab
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(9.dp))
@@ -2295,7 +2299,7 @@ private fun SummaryProviderSelector(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(
@@ -2466,7 +2470,7 @@ private fun NumberSettingRow(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            modifier = Modifier.width(100.dp),
+            modifier = Modifier.width(100.dp).generalContentBackground(RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,

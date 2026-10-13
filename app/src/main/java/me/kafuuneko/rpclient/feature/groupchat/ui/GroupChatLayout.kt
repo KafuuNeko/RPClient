@@ -59,7 +59,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -69,8 +68,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +137,9 @@ import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
@@ -154,6 +154,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 
@@ -174,7 +175,11 @@ fun GroupChatLayout(
         GroupChatUiState.None -> Unit
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
-            PageBackdrop(background) { GroupChatNormalView(uiState, emitIntent) }
+            if (uiState.page == GroupChatPage.Settings) {
+                GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
+            } else {
+                PageBackdrop(background) { GroupChatNormalView(uiState, emitIntent) }
+            }
             DialogSwitch(uiState, emitIntent)
             LoadStateOverlay(uiState.loadState)
         }
@@ -186,13 +191,9 @@ private fun GroupChatNormalView(
     state: GroupChatUiState.Normal,
     emitIntent: (GroupChatUiIntent) -> Unit
 ) {
-    if (state.page == GroupChatPage.Settings) {
-        GroupChatSettingsView(state.settingsState, state.members, emitIntent)
-        return
-    }
     val generating = state.conversationState.generationState is GroupChatGenerationState.Generating
     val canContinue = state.conversationState.hasCharacterMessage
-    Scaffold(
+    AppPageScaffold(
         containerColor = Color.Transparent,
         topBar = {
             AppTopBar(
@@ -320,7 +321,7 @@ private fun GroupChatSettingsView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = stringResource(R.string.group_chat_settings),
@@ -597,7 +598,7 @@ private fun GroupSettingsSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
@@ -625,7 +626,7 @@ private fun SettingsActionRow(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -881,7 +882,7 @@ private fun GroupMemberSettingsRow(
     onMoveDown: () -> Unit,
     onRemove: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -1057,7 +1058,7 @@ private fun MemberChip(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val accent = getMacaronColor(member.name)
-    Card(
+    AppCard(
         modifier = Modifier
             .width(138.dp)
             .pageSurfaceBlur(PageSurfaceKind.Bubble, RoundedCornerShape(16.dp))
@@ -1310,7 +1311,7 @@ private fun EmptyConversation(modifier: Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(64.dp),
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -1470,7 +1471,7 @@ private fun MessageBubble(
                         enter = fadeIn() + expandVertically(),
                         exit = fadeOut() + shrinkVertically()
                     ) {
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f * LocalPageBubbleOpacity.current),
                             modifier = Modifier.padding(top = 2.dp)
@@ -1563,7 +1564,7 @@ private fun GroupThinkBlock(
     indicatorColor: Color,
     onToggle: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggle),
@@ -1728,7 +1729,7 @@ private fun GroupMessageActions(
             .clickable(onClick = onClick)
             .padding(6.dp)
     }
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = if (isUser) {
@@ -1787,7 +1788,7 @@ private fun QuickActionPill(
     onClick: () -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
@@ -1924,7 +1925,7 @@ private fun Composer(
                     }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Surface(
+                AppSurface(
                     modifier = Modifier.size(48.dp),
                     shape = CircleShape,
                     color = sendButtonColor,
@@ -2086,7 +2087,7 @@ private fun LoadStateOverlay(loadState: GroupChatLoadState) {
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f)),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(18.dp),
             shadowElevation = 10.dp
         ) {

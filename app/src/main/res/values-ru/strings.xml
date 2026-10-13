@@ -1268,4 +1268,8 @@
     <string name="appearance_preview_input">Сообщение или указание для продолжения…</string>
     <string name="appearance_save_changes_title">Сохранить изменения?</string>
     <string name="appearance_save_changes_message">Сохранить изменения этого фона перед выходом?</string>
+    <string name="appearance_general_background">Общие страницы</string>
+    <string name="appearance_general_background_hint">Применяется ко всем страницам, кроме «О приложении» и цветовых тем. Чаты, группы и истории используют общие настройки областей, если прозрачность и размытие везде равны нулю. Собственное фоновое изображение имеет приоритет; иначе используется общий фон.</string>
+    <string name="appearance_follow_general_hint">Если прозрачность и размытие всех областей равны нулю, используются общие настройки областей. Собственное изображение имеет приоритет; иначе используется общий фон.</string>
+    <string name="appearance_preview_content">Область содержимого</string>
 </resources>
