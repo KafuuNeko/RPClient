@@ -33,11 +33,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
 
-/** 通用页面只装饰最外层容器，内嵌标签、图标和按钮保留原本对比度。 */
+/** 公共容器只装饰最外层容器，内嵌标签、图标和按钮保留原本对比度。 */
 internal val LocalGeneralPageSurfaces = staticCompositionLocalOf { false }
-private val LocalGeneralSurfaceKind = staticCompositionLocalOf { PageSurfaceKind.Content }
+internal val LocalGeneralSurfaceKind = staticCompositionLocalOf { PageSurfaceKind.Content }
 
 /** 通用壁纸启用后清除页面重复铺设的画布底色，其他场景保留传入颜色。 */
 @Composable
@@ -49,14 +50,16 @@ fun pageCanvasColor(color: Color = MaterialTheme.colorScheme.background): Color 
 fun Modifier.generalContentBackground(shape: Shape, hasLabel: Boolean = false): Modifier {
     if (!LocalGeneralPageSurfaces.current) return this
     val settings = LocalPageBackdropState.current.settings ?: return this
-    if (settings.fileUuid == null && settings.opacity == 1f && settings.contentBlur == 0) return this
+    val kind = LocalGeneralSurfaceKind.current
+    val opacity = settings.surfaceOpacity(kind)
+    if (settings.fileUuid == null && opacity == 1f && settings.surfaceBlur(kind) == 0) return this
     // 描边输入框为浮动标签预留半行高度；底板避开此留白，防止出现错位的双圆角。
     val labelInset = if (hasLabel) with(LocalDensity.current) {
         (MaterialTheme.typography.bodySmall.lineHeight / 2).toDp()
     } else 0.dp
     val backgroundShape = if (hasLabel) LabelInsetShape(shape, labelInset) else shape
-    return pageSurfaceBlur(PageSurfaceKind.Content, backgroundShape)
-        .background(MaterialTheme.colorScheme.surface.copy(alpha = settings.opacity), backgroundShape)
+    return pageSurfaceBlur(kind, backgroundShape)
+        .background(MaterialTheme.colorScheme.surface.copy(alpha = opacity), backgroundShape)
 }
 
 /** 将底板边界下移到输入容器，不修改输入框的测量、光标或触摸坐标。 */

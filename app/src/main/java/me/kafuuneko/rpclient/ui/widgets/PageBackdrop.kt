@@ -23,6 +23,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 
 /** 仅作用于消息／正文容器颜色，不降低文字或交互控件的透明度。 */
 val LocalPageContentOpacity = staticCompositionLocalOf { 1f }
@@ -36,9 +37,18 @@ val LocalPageBottomBarOpacity = staticCompositionLocalOf { 1f }
 /** 聊天气泡背景不透明度，独立作用于各消息角色。 */
 val LocalPageBubbleOpacity = staticCompositionLocalOf { 1f }
 
-/** 绘制已准备的背景和主题遮罩，图片位于滚动内容之外且不处理任何 IO。 */
+/**
+ * 绘制已准备的背景和主题遮罩，图片位于滚动内容之外且不处理任何 IO。
+ * @param state 已解析继承关系并准备好图片的页面背景。
+ * @param useContainerAppearance 子页面启用公共容器装饰，仍使用所属页面已解析的背景配置。
+ * @param content 使用该背景的页面内容。
+ */
 @Composable
-fun PageBackdrop(state: PageBackgroundUiState, content: @Composable () -> Unit) {
+fun PageBackdrop(
+    state: PageBackgroundUiState,
+    useContainerAppearance: Boolean = state.settings?.page == BackgroundPage.General,
+    content: @Composable () -> Unit
+) {
     val settings = state.settings
     val image = state.image
     var frame by remember { mutableStateOf(PageBackdropFrame()) }
@@ -56,7 +66,11 @@ fun PageBackdrop(state: PageBackgroundUiState, content: @Composable () -> Unit) 
             Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background.copy(alpha = settings.scrim)))
         }
         CompositionLocalProvider(
-            LocalGeneralPageSurfaces provides (settings?.page == BackgroundPage.General),
+            LocalGeneralPageSurfaces provides useContainerAppearance,
+            LocalGeneralSurfaceKind provides when (settings?.page) {
+                BackgroundPage.Chat, BackgroundPage.Group -> PageSurfaceKind.Bubble
+                else -> PageSurfaceKind.Content
+            },
             LocalPageBackdropState provides state,
             LocalPageBackdropFrame provides frame,
             LocalPageContentOpacity provides (settings?.opacity ?: 1f),

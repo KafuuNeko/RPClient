@@ -175,10 +175,13 @@ fun GroupChatLayout(
         GroupChatUiState.None -> Unit
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
-            if (uiState.page == GroupChatPage.Settings) {
-                GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
-            } else {
-                PageBackdrop(background) { GroupChatNormalView(uiState, emitIntent) }
+            // 群聊设置与会话使用相同背景，不能落回 Activity 的通用背景。
+            PageBackdrop(background, useContainerAppearance = uiState.page == GroupChatPage.Settings) {
+                if (uiState.page == GroupChatPage.Settings) {
+                    GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
+                } else {
+                    GroupChatNormalView(uiState, emitIntent)
+                }
             }
             DialogSwitch(uiState, emitIntent)
             LoadStateOverlay(uiState.loadState)

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.appearance.ui
 
+import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -7,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,6 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -159,10 +164,41 @@ private fun PaletteCard(palette: AppThemePalette, selected: Boolean, modifier: M
     }
 }
 
+/** 预览独立于设置列表，方向切换后保留列表位置和当前草稿。 */
 @Composable
 private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, emit: (AppearanceUiIntent) -> Unit) {
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { BackgroundPreview(state) }
+    val listState = rememberLazyListState()
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        // 竖屏限制预览占用高度，为设置保留可滚动空间；横屏将两区并排。
+        if (landscape) {
+            Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                BackgroundPreview(state, Modifier.weight(1f).fillMaxSize())
+                BackgroundAdjustments(state, Modifier.weight(1f).fillMaxSize(), listState, emit)
+            }
+        } else {
+            val previewHeight = (maxHeight * 0.45f).coerceAtMost(280.dp)
+            Column(Modifier.fillMaxSize()) {
+                BackgroundPreview(
+                    state,
+                    Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp)
+                        .fillMaxWidth().height(previewHeight)
+                )
+                BackgroundAdjustments(state, Modifier.weight(1f).fillMaxWidth(), listState, emit)
+            }
+        }
+    }
+}
+
+/** 仅设置项滚动，预览区域始终可见。 */
+@Composable
+private fun BackgroundAdjustments(
+    state: BackgroundEditorState,
+    modifier: Modifier,
+    listState: LazyListState,
+    emit: (AppearanceUiIntent) -> Unit
+) {
+    LazyColumn(modifier, state = listState, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text(stringResource(if (state.settings.page == BackgroundPage.General)
                 R.string.appearance_general_background_hint else R.string.appearance_follow_general_hint),
@@ -214,34 +250,37 @@ private fun BackgroundEditor(state: BackgroundEditorState, modifier: Modifier, e
 }
 
 @Composable
-private fun BackgroundPreview(state: BackgroundEditorState) {
-    Box(Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(24.dp))) {
+private fun BackgroundPreview(state: BackgroundEditorState, modifier: Modifier) {
+    BoxWithConstraints(modifier.clip(RoundedCornerShape(24.dp))) {
+        // 横屏高度较小时压缩内部留白，保留菜单、两条消息和底部栏的完整预览。
+        val compact = maxHeight < 240.dp
+        val padding = if (compact) 8.dp else 16.dp
         PageBackdrop(PageBackgroundUiState(state.effectiveSettings, state.image, state.surfaceImages)) {
             // 预览与真实页面共用透明度来源，三块表面分别反映对应滑块。
             Column(Modifier.fillMaxSize()) {
                 PageSurface(kind = PageSurfaceKind.TopBar, color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current)) {
                     Text(stringResource(R.string.appearance_preview),
-                        Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.titleSmall)
+                        Modifier.fillMaxWidth().padding(padding), style = MaterialTheme.typography.titleSmall)
                 }
                 // 消息变短也保持整行宽度，避免右侧气泡随内容收窄后左移。
-                Column(Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f).fillMaxWidth().padding(padding), verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp)) {
                     val isStory = state.settings.page == BackgroundPage.Story
                     val isContent = isStory || state.settings.page == BackgroundPage.General
                     val opacity = if (isContent) LocalPageContentOpacity.current else LocalPageBubbleOpacity.current
                     PageSurface(kind = if (isContent) PageSurfaceKind.Content else PageSurfaceKind.Bubble,
                         shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = opacity)) {
                         Text(stringResource(if (isStory) R.string.appearance_preview_story else if (isContent) R.string.appearance_preview_content else R.string.appearance_preview_message),
-                            Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
+                            Modifier.padding(padding), style = MaterialTheme.typography.bodyMedium)
                     }
                     if (!isContent) PageSurface(kind = PageSurfaceKind.Bubble,
                         modifier = Modifier.align(Alignment.End), shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = opacity), contentColor = pageUserBubbleContentColor()
-                    ) { Text(stringResource(R.string.appearance_preview_reply), Modifier.padding(12.dp)) }
+                    ) { Text(stringResource(R.string.appearance_preview_reply), Modifier.padding(if (compact) 8.dp else 12.dp)) }
                 }
                 PageSurface(kind = PageSurfaceKind.BottomBar,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)) {
                     Text(stringResource(R.string.appearance_preview_input),
-                        Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.bodySmall,
+                        Modifier.fillMaxWidth().padding(padding), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

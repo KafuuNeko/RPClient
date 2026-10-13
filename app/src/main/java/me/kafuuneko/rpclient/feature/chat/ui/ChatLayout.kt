@@ -183,14 +183,17 @@ fun ChatLayout(
         is ChatUiState.Finished -> ChatLayout(uiState.previous, background) {}
 
         is ChatUiState.Normal -> {
-            when (uiState.page) {
-                ChatPage.Conversation -> PageBackdrop(background) { ChatNormal(uiState, emit) }
-                ChatPage.Settings -> ChatSettingsPage(
-                    session = uiState.session,
-                    lorebookState = uiState.lorebookState,
-                    loadState = uiState.loadState,
-                    emit = emit
-                )
+            // 设置子页沿用会话背景，公共表面按该页内容区参数装饰。
+            PageBackdrop(background, useContainerAppearance = uiState.page == ChatPage.Settings) {
+                when (uiState.page) {
+                    ChatPage.Conversation -> ChatNormal(uiState, emit)
+                    ChatPage.Settings -> ChatSettingsPage(
+                        session = uiState.session,
+                        lorebookState = uiState.lorebookState,
+                        loadState = uiState.loadState,
+                        emit = emit
+                    )
+                }
             }
             DialogSwitch(uiState, emit)
         }

@@ -225,16 +225,19 @@ private fun StoryEditorNormal(
             is StoryEditorPageState.Settings -> StoryEditorUiIntent.CloseStorySettings.emit()
         }
     }
-    when (val pageState = state.pageState) {
-        StoryEditorPageState.Editor -> PageBackdrop(background) { StoryEditorPage(state, document, emit) }
-        StoryEditorPageState.Outline -> StoryOutlinePage(
-            storyTitle = state.topBarState.title,
-            structureState = state.structureState,
-            emit = emit
-        )
+    // 章节、大纲及设置都属于当前故事，加载设置时也保留同一张背景。
+    PageBackdrop(background, useContainerAppearance = state.pageState != StoryEditorPageState.Editor) {
+        when (val pageState = state.pageState) {
+            StoryEditorPageState.Editor -> StoryEditorPage(state, document, emit)
+            StoryEditorPageState.Outline -> StoryOutlinePage(
+                storyTitle = state.topBarState.title,
+                structureState = state.structureState,
+                emit = emit
+            )
 
-        StoryEditorPageState.LoadingSettings -> StorySettingsLoadingPage(emit)
-        is StoryEditorPageState.Settings -> StorySettingsPage(pageState, emit)
+            StoryEditorPageState.LoadingSettings -> StorySettingsLoadingPage(emit)
+            is StoryEditorPageState.Settings -> StorySettingsPage(pageState, emit)
+        }
     }
     EditorDialogSwitch(state, emit)
 }

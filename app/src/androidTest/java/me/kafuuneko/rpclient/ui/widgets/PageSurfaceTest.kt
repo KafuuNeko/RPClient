@@ -173,21 +173,24 @@ class PageSurfaceTest {
             assertTrue(image[image.width * 3 / 4, image.height * 3 / 4].blue > 0.95f)
         }
     }
-    /** 通用顶栏、内容卡片和底栏分别取样各自派生图，内嵌控件保持实色。 */
+    /** 通用页面及会话子页分别取样所属区域派生图，内嵌控件保持实色。 */
     @Test
     fun generalRegionsUseIndependentLayersWithoutFadingChildren() {
+        val pageIndex = mutableIntStateOf(0)
         fun image(color: Int) = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
             .apply { eraseColor(color) }.asImageBitmap()
         val source = image(android.graphics.Color.BLUE)
         val layers = mapOf(PageSurfaceKind.TopBar to image(android.graphics.Color.RED),
             PageSurfaceKind.Content to image(android.graphics.Color.GREEN),
+            PageSurfaceKind.Bubble to image(android.graphics.Color.MAGENTA),
             PageSurfaceKind.BottomBar to image(android.graphics.Color.YELLOW))
         mCompose.setContent {
             AppTheme(dynamicColor = false) {
                 Box(Modifier.size(240.dp, 300.dp)) {
-                    PageBackdrop(PageBackgroundUiState(PageBackground(BackgroundPage.General,
+                    PageBackdrop(PageBackgroundUiState(PageBackground(BackgroundPage.entries[pageIndex.intValue],
                         scrim = 0f, topBarOpacity = 0f, opacity = 0.5f, bottomBarOpacity = 0.75f,
-                        topBarBlur = 50, contentBlur = 50, bottomBarBlur = 50), source, layers)) {
+                        topBarBlur = 50, contentBlur = 50, bottomBarBlur = 50, bubbleOpacity = 0.25f, bubbleBlur = 50),
+                        source, layers), useContainerAppearance = true) {
                         AppPageScaffold(contentWindowInsets = WindowInsets(0.dp), topBar = {
                             AppSurface(Modifier.fillMaxWidth().height(50.dp).testTag("general-top"), color = Color.White) {}
                         }, bottomBar = {
@@ -203,13 +206,18 @@ class PageSurfaceTest {
             }
         }
         // 使用精确背景色检测区域串线、重复透明度和顶层实色遮挡。
-        val expected = mapOf("general-top" to Color.Red, "general-bottom" to Color(1f, 1f, 0.75f),
-            "general-card" to Color(0.5f, 1f, 0.5f), "general-label" to Color.Red)
-        expected.forEach { (tag, color) ->
-            val pixels = mCompose.onNodeWithTag(tag, useUnmergedTree = true).captureToImage().toPixelMap()
-            val actual = pixels[pixels.width / 2, pixels.height / 2]
-            assertTrue("Unexpected region $tag: $actual", abs(actual.red - color.red) < 0.015f &&
-                abs(actual.green - color.green) < 0.015f && abs(actual.blue - color.blue) < 0.015f)
+        for (page in BackgroundPage.entries) {
+            mCompose.runOnIdle { pageIndex.intValue = page.ordinal }
+            val content = if (page == BackgroundPage.Chat || page == BackgroundPage.Group)
+                Color(1f, 0.25f, 1f) else Color(0.5f, 1f, 0.5f)
+            val expected = mapOf("general-top" to Color.Red, "general-bottom" to Color(1f, 1f, 0.75f),
+                "general-card" to content, "general-label" to Color.Red)
+            expected.forEach { (tag, color) ->
+                val pixels = mCompose.onNodeWithTag(tag, useUnmergedTree = true).captureToImage().toPixelMap()
+                val actual = pixels[pixels.width / 2, pixels.height / 2]
+                assertTrue("Unexpected region $page/$tag: $actual", abs(actual.red - color.red) < 0.015f &&
+                    abs(actual.green - color.green) < 0.015f && abs(actual.blue - color.blue) < 0.015f)
+            }
         }
     }
 
