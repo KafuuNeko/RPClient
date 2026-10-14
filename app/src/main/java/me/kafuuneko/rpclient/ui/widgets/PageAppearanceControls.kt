@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 
 /**
  * 筛选项沿用所属区域的背景透明度和模糊度，标签与选择语义保持 Material 行为。
@@ -100,11 +101,15 @@ fun PageSwitch(
     interactionSource: MutableInteractionSource? = null
 ) {
     val opacity = interactiveSurfaceOpacity()
+    val emphasizeThumb = !LocalAppDarkTheme.current && opacity < 1f
     fun Color.track() = copy(alpha = alpha * opacity)
     // 内部轨道与外层最小触摸尺寸不同，取样只落在居中的胶囊范围。
     Switch(checked, onCheckedChange,
         modifier.controlBackground(CenteredControlShape(CircleShape, 32.dp, 52.dp)), thumbContent, enabled,
         colors.copy(
+            // 亮色透明轨道不再能承托浅色滑块，开启时用原轨道强调色保证前景可见。
+            checkedThumbColor = if (emphasizeThumb) colors.checkedTrackColor else colors.checkedThumbColor,
+            checkedIconColor = if (emphasizeThumb) colors.checkedThumbColor else colors.checkedIconColor,
             checkedTrackColor = colors.checkedTrackColor.track(),
             uncheckedTrackColor = colors.uncheckedTrackColor.track(),
             checkedBorderColor = colors.checkedBorderColor.track(),

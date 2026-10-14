@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.positionInRoot
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 
 /** 仅作用于消息／正文容器颜色，不降低文字或交互控件的透明度。 */
 val LocalPageContentOpacity = staticCompositionLocalOf { 1f }
@@ -51,6 +52,7 @@ fun PageBackdrop(
 ) {
     val settings = state.settings
     val image = state.image
+    val scrimColor = pageBackdropScrimColor()
     var frame by remember { mutableStateOf(PageBackdropFrame()) }
     // 图片失效只回退画布底色；各栏位透明度不依赖图片是否存在。
     Box(Modifier.fillMaxSize().clipToBounds().background(MaterialTheme.colorScheme.background)
@@ -63,7 +65,7 @@ fun PageBackdrop(
                 contentScale = ContentScale.Crop,
                 alignment = BiasAlignment(settings.focalX * 2 - 1, settings.focalY * 2 - 1)
             )
-            Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background.copy(alpha = settings.scrim)))
+            Box(Modifier.matchParentSize().background(scrimColor.copy(alpha = settings.scrim)))
         }
         CompositionLocalProvider(
             LocalGeneralPageSurfaces provides useContainerAppearance,
@@ -95,4 +97,12 @@ fun pageUserBubbleContentColor(): Color {
     val primaryContrast = (maxOf(background, primary) + 0.05f) / (minOf(background, primary) + 0.05f)
     val surfaceContrast = (maxOf(background, surface) + 0.05f) / (minOf(background, surface) + 0.05f)
     return if (primaryContrast >= surfaceContrast) colors.onPrimary else colors.onSurface
+}
+
+/** 壁纸和局部模糊共用遮罩色，亮色使用灰调表面，避免白色蒙层抬高图片亮度。 */
+@Composable
+internal fun pageBackdropScrimColor(): Color = if (LocalAppDarkTheme.current) {
+    MaterialTheme.colorScheme.background
+} else {
+    MaterialTheme.colorScheme.surfaceDim
 }

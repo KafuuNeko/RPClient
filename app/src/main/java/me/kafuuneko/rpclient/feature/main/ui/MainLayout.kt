@@ -52,7 +52,6 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.MoreVert
@@ -77,6 +76,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -160,6 +160,7 @@ import me.kafuuneko.rpclient.ui.theme.AccentRedColor
 import me.kafuuneko.rpclient.ui.theme.AccentSkyColor
 import me.kafuuneko.rpclient.ui.theme.AccentVioletColor
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 import me.kafuuneko.rpclient.ui.theme.ProviderAvailableColor
 import me.kafuuneko.rpclient.ui.theme.ProviderDisabledColor
 import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
@@ -2000,9 +2001,10 @@ private fun ProviderCard(
     onClick: () -> Unit
 ) {
     AppCard(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .semantics { this.selected = selected; role = Role.RadioButton },
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 0.5.dp,
@@ -2012,7 +2014,8 @@ private fun ProviderCard(
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.surface
+                if (LocalAppDarkTheme.current) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.surfaceContainerHighest
             } else {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
             }
@@ -2022,14 +2025,10 @@ private fun ProviderCard(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RpIconBubble(
-                icon = if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage,
-                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                containerColor = if (selected) {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-                } else {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)
-                }
+            RadioButton(
+                selected = selected,
+                onClick = null,
+                modifier = Modifier.size(38.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
             Column(

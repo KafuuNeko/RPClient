@@ -53,7 +53,12 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = SecondaryContainerColor,
     onSecondaryContainer = OnSecondaryContainerColor,
     outline = OutlineColor,
-    outlineVariant = OutlineVariantColor
+    outlineVariant = OutlineVariantColor,
+    surfaceContainer = SurfaceVariantColor,
+    surfaceContainerLow = BackgroundColor,
+    surfaceContainerHigh = SecondaryContainerColor,
+    surfaceContainerHighest = SecondaryContainerColor,
+    surfaceDim = OutlineVariantColor
 )
 
 /** 页面遮罩使用实际应用的明暗模式，包括用户强制指定的模式。 */
@@ -79,8 +84,14 @@ fun AppTheme(
         else -> LightColorScheme
     }
 
+    // 亮色画布与卡片采用柔和的分层表面，避免壁纸遮罩和纯白卡片叠加发白。
+    val pageColors = if (darkTheme) colorScheme else colorScheme.copy(
+        background = colorScheme.surfaceContainerLow,
+        surface = colorScheme.surfaceContainer,
+        surfaceBright = colorScheme.surfaceContainer
+    )
     CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
-        MaterialTheme(colorScheme = colorScheme, typography = Typography) {
+        MaterialTheme(colorScheme = pageColors, typography = Typography) {
             Surface(
                 color = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onBackground,

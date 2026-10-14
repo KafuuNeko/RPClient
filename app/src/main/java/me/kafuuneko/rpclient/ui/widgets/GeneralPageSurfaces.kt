@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
+import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 
 /** 页面外观开关与区域分类；弹窗可显式隔离，嵌套容器继续继承背景参数。 */
 internal val LocalGeneralPageSurfaces = staticCompositionLocalOf { false }
@@ -85,6 +87,28 @@ private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
 internal fun generalOpacity(kind: PageSurfaceKind): Float =
     if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f else 1f
 
+/**
+ * 亮色半透明卡片内的主题底板使用更深的色阶，避免内外层浅色叠加后边界消失。
+ * - 只处理主题中性和主色容器，保留品牌色、错误色及原始 alpha。
+ * - 加深量随区域透明度平滑增加，最终仍统一乘以用户的不透明度，完全透明时不留底板。
+ */
+@Composable
+private fun nestedSurfaceColor(color: Color, opacity: Float): Color {
+    if (!LocalGeneralPageSurfaces.current || !LocalPageSurfaceCovered.current ||
+        LocalAppDarkTheme.current || opacity >= 1f || color.alpha == 0f) return color
+    val colors = MaterialTheme.colorScheme
+    val base = color.copy(alpha = 1f)
+    // 不从壁纸重新取样，也不增加描边；仅拉开内层填充与外层卡片的色差。
+    val adjusted = when (base) {
+        colors.primaryContainer -> lerp(base, colors.primary, (1f - opacity) * 0.8f)
+        colors.surface, colors.surfaceVariant, colors.secondaryContainer,
+        colors.surfaceContainer, colors.surfaceContainerHigh, colors.surfaceContainerHighest ->
+            lerp(base, colors.onSurface, (1f - opacity) * 0.6f)
+        else -> base
+    }
+    return adjusted.copy(alpha = color.alpha)
+}
+
 /** 弹窗与独立预览使用自己的表面，不继承页面透明度。 */
 @Composable
 fun WithoutGeneralPageSurfaces(content: @Composable () -> Unit) {
@@ -114,7 +138,7 @@ fun AppSurface(
     val opacity = generalOpacity(kind)
     val decorated = if (LocalGeneralPageSurfaces.current && !LocalPageSurfaceCovered.current)
         modifier.pageSurfaceBlur(kind, shape) else modifier
-    val fill = color.copy(alpha = color.alpha * opacity)
+    val fill = nestedSurfaceColor(color, opacity).copy(alpha = color.alpha * opacity)
     val outline = if (opacity < 1f) null else border
     val elevation = if (opacity < 1f) 0.dp else shadowElevation
     // 两种 Surface 重载保留各自的点击与无障碍语义。
@@ -149,8 +173,10 @@ fun AppCard(
     val decorated = if (LocalGeneralPageSurfaces.current && !LocalPageSurfaceCovered.current)
         modifier.pageSurfaceBlur(kind, shape) else modifier
     val fill = colors.copy(
-        containerColor = colors.containerColor.copy(alpha = colors.containerColor.alpha * opacity),
-        disabledContainerColor = colors.disabledContainerColor.copy(alpha = colors.disabledContainerColor.alpha * opacity)
+        containerColor = nestedSurfaceColor(colors.containerColor, opacity)
+            .copy(alpha = colors.containerColor.alpha * opacity),
+        disabledContainerColor = nestedSurfaceColor(colors.disabledContainerColor, opacity)
+            .copy(alpha = colors.disabledContainerColor.alpha * opacity)
     )
     val outline = if (opacity < 1f) null else border
     val depth = if (opacity < 1f) CardDefaults.cardElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp, 0.dp) else elevation

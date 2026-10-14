@@ -83,6 +83,7 @@ fun Modifier.pageSurfaceBlur(kind: PageSurfaceKind, shape: Shape = RectangleShap
     val image = state.surfaceImages[kind] ?: return this
     val frame = LocalPageBackdropFrame.current
     val background = MaterialTheme.colorScheme.background
+    val scrimColor = pageBackdropScrimColor()
     var origin by remember { mutableStateOf(Offset.Zero) }
     // 只记录布局边界；图片始终相对于外层画布裁切，不能在每个气泡中重新居中。
     return onGloballyPositioned { origin = it.positionInRoot() }.drawWithCache {
@@ -108,7 +109,7 @@ fun Modifier.pageSurfaceBlur(kind: PageSurfaceKind, shape: Shape = RectangleShap
                 try {
                     drawRect(background)
                     drawImage(image, dstOffset = destination, dstSize = scaledSize)
-                    drawRect(background.copy(alpha = settings.scrim))
+                    drawRect(scrimColor.copy(alpha = settings.scrim))
                 } finally {
                     drawContext.canvas.restore()
                 }
