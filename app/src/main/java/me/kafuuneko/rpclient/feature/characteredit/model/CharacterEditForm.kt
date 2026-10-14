@@ -55,7 +55,9 @@ data class CharacterEditForm(
     /** 角色卡直接绑定的世界书 ID；未绑定时为 0。 */
     val characterLorebookId: Long = 0L,
     /** 角色默认关联的模型配置 ID；未关联时为空。 */
-    val llmProviderId: Long = 0L
+    val llmProviderId: Long = 0L,
+    /** 本地背景引用，只参与编辑草稿与本地持久化。 */
+    val backgroundFileUuid: String? = null
 ) {
     /** ID 为 0 表示尚未写入数据库的新角色。 */
     val isNew: Boolean
@@ -88,7 +90,8 @@ data class CharacterEditForm(
             depthPromptDepth = character.depthPromptDepth.toString(),
             depthPromptRole = character.depthPromptRole.toString(),
             characterLorebookId = character.characterLorebookId,
-            llmProviderId = llmProviderId
+            llmProviderId = llmProviderId,
+            backgroundFileUuid = character.backgroundFileUuid
         )
     }
 
@@ -116,7 +119,8 @@ data class CharacterEditForm(
             depthPromptPrompt = depthPromptPrompt.trim(),
             depthPromptDepth = depthPromptDepth.trim().toIntOrNull()?.coerceAtLeast(0) ?: 4,
             depthPromptRole = depthPromptRole.trim().toIntOrNull()?.coerceIn(0, 2) ?: 0,
-            characterLorebookId = characterLorebookId
+            characterLorebookId = characterLorebookId,
+            backgroundFileUuid = backgroundFileUuid
         )
     }
 }

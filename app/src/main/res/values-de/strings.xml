@@ -1239,7 +1239,7 @@
     <string name="appearance_group_background">Gruppenchat-Hintergrund</string>
     <string name="appearance_story_background">Geschichtshintergrund</string>
     <string name="appearance_choose_image">Bild auswählen</string>
-    <string name="appearance_reset_background">Themenhintergrund verwenden</string>
+    <string name="appearance_reset_background">Hintergrundbild entfernen</string>
     <string name="appearance_blur">Unschärfe</string>
     <string name="appearance_scrim">Hintergrundschleier</string>
     <string name="appearance_horizontal">Horizontale Position</string>
@@ -1264,7 +1264,12 @@
     <string name="appearance_save_changes_title">Änderungen speichern?</string>
     <string name="appearance_save_changes_message">Änderungen an diesem Hintergrund vor dem Verlassen speichern?</string>
     <string name="appearance_general_background">Allgemeine Seiten</string>
-    <string name="appearance_general_background_hint">Gilt für alle Seiten außer Info und Farbdesigns. Chats, Gruppen und Geschichten übernehmen diese Bereichseinstellungen, wenn Transparenz und Unschärfe überall null sind. Ein eigenes Hintergrundbild hat Vorrang, sonst gilt der allgemeine Hintergrund.</string>
-    <string name="appearance_follow_general_hint">Sind Transparenz und Unschärfe aller Bereiche null, gelten die allgemeinen Bereichseinstellungen. Ein eigenes Bild hat Vorrang, sonst gilt der allgemeine Hintergrund.</string>
+    <string name="appearance_general_background_hint">Gilt für alle Seiten außer Info und Farbthemen. Chats, Gruppenchats und Geschichten übernehmen diese Parameter, wenn Allgemeine Einstellungen übernehmen aktiviert ist. Jede Seite behält ihr eigenes Bild oder verwendet das allgemeine Bild, wenn keines festgelegt ist.</string>
+    <string name="appearance_follow_general_hint">Wenn aktiviert, werden alle Einstellungen außer dem Bild übernommen. Zum Anpassen dieser Seite deaktivieren.</string>
     <string name="appearance_preview_content">Inhaltsbereich</string>
+    <string name="appearance_follow_general">Allgemeine Einstellungen übernehmen</string>
+    <string name="appearance_use_character_background">Charakterhintergründe verwenden</string>
+    <string name="appearance_character_background_hint">Verwendet das Charakterbild, falls vorhanden; sonst das Chatbild und danach das allgemeine Bild.</string>
+    <string name="character_choose_background">Charakterhintergrund auswählen</string>
+    <string name="character_remove_background">Charakterhintergrund entfernen</string>
 </resources>

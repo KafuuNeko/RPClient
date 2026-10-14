@@ -20,7 +20,9 @@ data class PageBackground(
     val topBarBlur: Int = 0,
     val bottomBarBlur: Int = 0,
     val bubbleBlur: Int = 0,
-    val contentBlur: Int = 0
+    val contentBlur: Int = 0,
+    val followGeneral: Boolean = true,
+    val useCharacterBackground: Boolean = false
 ) {
     /** 在持久化与渲染边界统一限制数值，拒绝非有限浮点数。 */
     fun normalized(): PageBackground = copy(
@@ -61,21 +63,16 @@ fun PageBackground.surfaceBlur(kind: PageSurfaceKind): Int = when (kind) {
 private fun Float.finite(fallback: Float): Float = if (isFinite()) this else fallback
 
 /**
- * 解析内容页的通用区域设置，继承结果仅用于显示，不能写回独立配置。
- * - UI 的零透明度对应不透明度 1；区域模糊只要非零就视为自定义。
- * - 有独立图片时保留图片、全图模糊、遮罩和焦点，无图片时继承通用背景。
+ * 图片与参数分别解析，继承结果仅用于显示，不能写回独立配置。
+ * - 页面没有图片时始终回退通用图片；跟随开关不改变图片归属。
+ * - 开启跟随后，图片处理及区域外观参数均来自通用配置。
  */
 fun PageBackground.resolveWith(general: PageBackground): PageBackground {
-    if (page == BackgroundPage.General ||
-        topBarOpacity != 1f || bottomBarOpacity != 1f || bubbleOpacity != 1f || opacity != 1f ||
-        topBarBlur != 0 || bottomBarBlur != 0 || bubbleBlur != 0 || contentBlur != 0
-    ) return this
-    // 图片归属与区域外观分别决定，独立图片不会因跟随通用区域设置而被替换。
-    val source = if (fileUuid != null) this else general.copy(page = page)
-    return source.copy(
-        topBarOpacity = general.topBarOpacity, bottomBarOpacity = general.bottomBarOpacity,
-        opacity = general.opacity, bubbleOpacity = general.opacity,
-        topBarBlur = general.topBarBlur, bottomBarBlur = general.bottomBarBlur,
-        contentBlur = general.contentBlur, bubbleBlur = general.contentBlur
+    if (page == BackgroundPage.General) return this
+    val image = fileUuid ?: general.fileUuid
+    if (!followGeneral) return copy(fileUuid = image)
+    return general.copy(
+        page = page, fileUuid = image, bubbleOpacity = general.opacity, bubbleBlur = general.contentBlur,
+        followGeneral = true, useCharacterBackground = useCharacterBackground
     )
 }

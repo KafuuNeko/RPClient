@@ -1240,7 +1240,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_group_background">Latar obrolan grup</string>
     <string name="appearance_story_background">Latar cerita</string>
     <string name="appearance_choose_image">Pilih gambar</string>
-    <string name="appearance_reset_background">Gunakan latar tema</string>
+    <string name="appearance_reset_background">Hapus gambar latar</string>
     <string name="appearance_blur">Keburaman</string>
     <string name="appearance_scrim">Lapisan latar</string>
     <string name="appearance_horizontal">Posisi horizontal</string>
@@ -1265,7 +1265,12 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_save_changes_title">Simpan perubahan?</string>
     <string name="appearance_save_changes_message">Simpan perubahan latar belakang ini sebelum keluar?</string>
     <string name="appearance_general_background">Halaman umum</string>
-    <string name="appearance_general_background_hint">Berlaku untuk semua halaman kecuali Tentang dan tema warna. Obrolan, grup, dan cerita mengikuti pengaturan area ini jika transparansi dan keburaman semua area bernilai nol. Gambar sendiri diutamakan; jika tidak ada, latar umum digunakan.</string>
-    <string name="appearance_follow_general_hint">Jika transparansi dan keburaman semua area bernilai nol, pengaturan area umum digunakan. Gambar sendiri diutamakan; jika tidak ada, latar umum digunakan.</string>
+    <string name="appearance_general_background_hint">Berlaku untuk semua halaman kecuali Tentang dan tema warna. Obrolan, grup, dan cerita mewarisi parameter ini saat Ikuti pengaturan umum aktif. Setiap halaman memakai gambarnya sendiri, atau gambar umum jika belum diatur.</string>
+    <string name="appearance_follow_general_hint">Saat aktif, semua pengaturan kecuali gambar mengikuti pengaturan umum. Nonaktifkan untuk menyesuaikan halaman ini.</string>
     <string name="appearance_preview_content">Area konten</string>
+    <string name="appearance_follow_general">Ikuti pengaturan umum</string>
+    <string name="appearance_use_character_background">Gunakan latar karakter</string>
+    <string name="appearance_character_background_hint">Gunakan gambar karakter jika tersedia; jika tidak, gunakan gambar obrolan, lalu gambar umum.</string>
+    <string name="character_choose_background">Pilih latar karakter</string>
+    <string name="character_remove_background">Hapus latar karakter</string>
 </resources>

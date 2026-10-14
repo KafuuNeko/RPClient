@@ -1243,7 +1243,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_group_background">Fundo da conversa em grupo</string>
     <string name="appearance_story_background">Fundo da história</string>
     <string name="appearance_choose_image">Escolher imagem</string>
-    <string name="appearance_reset_background">Usar fundo do tema</string>
+    <string name="appearance_reset_background">Remover imagem de fundo</string>
     <string name="appearance_blur">Desfoque</string>
     <string name="appearance_scrim">Camada sobre o fundo</string>
     <string name="appearance_horizontal">Posição horizontal</string>
@@ -1268,7 +1268,12 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_save_changes_title">Salvar alterações?</string>
     <string name="appearance_save_changes_message">Salvar as alterações deste plano de fundo antes de sair?</string>
     <string name="appearance_general_background">Páginas gerais</string>
-    <string name="appearance_general_background_hint">Aplica-se a todas as páginas, exceto Sobre e temas de cores. Conversas, grupos e histórias seguem estas opções quando a transparência e o desfoque de todas as áreas são zero. A imagem própria tem prioridade; sem ela, usam o fundo geral.</string>
-    <string name="appearance_follow_general_hint">Com transparência e desfoque de todas as áreas em zero, esta página segue as opções gerais. A imagem própria tem prioridade; sem ela, usa o fundo geral.</string>
+    <string name="appearance_general_background_hint">Aplica-se a todas as páginas, exceto Sobre e temas de cores. Chats, grupos e histórias herdam estes parâmetros ao ativar Seguir configurações gerais. Cada página mantém sua imagem ou usa a geral se não houver uma definida.</string>
+    <string name="appearance_follow_general_hint">Quando ativado, todas as configurações, exceto a imagem, seguem as gerais. Desative para personalizar esta página.</string>
     <string name="appearance_preview_content">Área de conteúdo</string>
+    <string name="appearance_follow_general">Seguir configurações gerais</string>
+    <string name="appearance_use_character_background">Usar fundos dos personagens</string>
+    <string name="appearance_character_background_hint">Use a imagem do personagem, se houver; caso contrário, use a do chat e depois a geral.</string>
+    <string name="character_choose_background">Escolher fundo do personagem</string>
+    <string name="character_remove_background">Remover fundo do personagem</string>
 </resources>

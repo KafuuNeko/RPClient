@@ -11,6 +11,8 @@ sealed interface AppearanceUiIntent {
     data class SelectPalette(val palette: AppThemePalette) : AppearanceUiIntent
     data class SelectMode(val mode: AppThemeMode) : AppearanceUiIntent
     data class EditBackground(val page: BackgroundPage) : AppearanceUiIntent
+    data class SetFollowGeneral(val enabled: Boolean) : AppearanceUiIntent
+    data class SetUseCharacterBackground(val enabled: Boolean) : AppearanceUiIntent
     data object PickImage : AppearanceUiIntent
     data class ImageSelected(val uri: Uri) : AppearanceUiIntent
     data class ChangeAdjustment(val field: BackgroundAdjustment, val value: Float) : AppearanceUiIntent

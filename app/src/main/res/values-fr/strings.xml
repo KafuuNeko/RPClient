@@ -1240,7 +1240,7 @@
     <string name="appearance_group_background">Arrière-plan du groupe</string>
     <string name="appearance_story_background">Arrière-plan du récit</string>
     <string name="appearance_choose_image">Choisir une image</string>
-    <string name="appearance_reset_background">Utiliser le fond du thème</string>
+    <string name="appearance_reset_background">Retirer l’image de fond</string>
     <string name="appearance_blur">Flou</string>
     <string name="appearance_scrim">Voile du fond</string>
     <string name="appearance_horizontal">Position horizontale</string>
@@ -1265,7 +1265,12 @@
     <string name="appearance_save_changes_title">Enregistrer les modifications ?</string>
     <string name="appearance_save_changes_message">Enregistrer les modifications de cet arrière-plan avant de quitter ?</string>
     <string name="appearance_general_background">Pages générales</string>
-    <string name="appearance_general_background_hint">S’applique à toutes les pages sauf À propos et les thèmes de couleurs. Les conversations, groupes et histoires suivent ces réglages si la transparence et le flou de toutes les zones sont à zéro. Leur image de fond est prioritaire ; sinon, le fond général est utilisé.</string>
-    <string name="appearance_follow_general_hint">Si la transparence et le flou de toutes les zones sont à zéro, les réglages généraux sont utilisés. L’image propre à cette page est prioritaire ; sinon, le fond général est utilisé.</string>
+    <string name="appearance_general_background_hint">S’applique à toutes les pages sauf À propos et les thèmes de couleurs. Les chats, groupes et histoires héritent de ces paramètres si Suivre les réglages généraux est activé. Chaque page conserve son image ou utilise l’image générale si aucune n’est définie.</string>
+    <string name="appearance_follow_general_hint">Si activé, tous les réglages sauf l’image suivent les réglages généraux. Désactivez pour personnaliser cette page.</string>
     <string name="appearance_preview_content">Zone de contenu</string>
+    <string name="appearance_follow_general">Suivre les réglages généraux</string>
+    <string name="appearance_use_character_background">Utiliser les fonds des personnages</string>
+    <string name="appearance_character_background_hint">Utilise l’image du personnage si disponible, sinon celle du chat, puis l’image générale.</string>
+    <string name="character_choose_background">Choisir le fond du personnage</string>
+    <string name="character_remove_background">Retirer le fond du personnage</string>
 </resources>

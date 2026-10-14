@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material3.Button
@@ -93,6 +94,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
 import me.kafuuneko.rpclient.ui.widgets.DIALOGUE_EXAMPLE_MACROS
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
@@ -124,7 +126,7 @@ fun CharacterEditLayout(
         CharacterEditUiState.None -> Unit
         is CharacterEditUiState.Finished -> CharacterEditLayout(uiState.previous) {}
         is CharacterEditUiState.Normal -> {
-            CharacterEditNormal(uiState, emit)
+            PageBackdrop(uiState.background) { CharacterEditNormal(uiState, emit) }
             DialogSwitch(uiState.dialogState, emit)
         }
     }
@@ -288,20 +290,6 @@ private fun HeroHeaderPanel(
                     )
             )
 
-            IconButton(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
-                onClick = { CharacterEditUiIntent.DeleteCharacterClick.emit() }
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Delete,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                )
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -406,6 +394,22 @@ private fun HeroHeaderPanel(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                    }
+                }
+            }
+
+            // 背景操作与角色删除分开排列，触摸层置于头像内容之上。
+            Column(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                val enabled = loadState == CharacterEditLoadState.None
+                IconButton(onClick = { CharacterEditUiIntent.DeleteCharacterClick.emit() }, enabled = enabled) {
+                    Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
+                }
+                IconButton(onClick = { CharacterEditUiIntent.PickBackground.emit() }, enabled = enabled) {
+                    Icon(Icons.Rounded.Image, stringResource(R.string.character_choose_background), tint = MaterialTheme.colorScheme.primary)
+                }
+                if (form.backgroundFileUuid != null) {
+                    IconButton(onClick = { CharacterEditUiIntent.RemoveBackground.emit() }, enabled = enabled) {
+                        Icon(Icons.Rounded.Close, stringResource(R.string.character_remove_background))
                     }
                 }
             }

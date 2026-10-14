@@ -1234,7 +1234,7 @@
     <string name="appearance_group_background">群聊背景</string>
     <string name="appearance_story_background">故事背景</string>
     <string name="appearance_choose_image">選擇圖片</string>
-    <string name="appearance_reset_background">使用主題底色</string>
+    <string name="appearance_reset_background">移除背景圖片</string>
     <string name="appearance_blur">模糊度</string>
     <string name="appearance_scrim">背景遮罩</string>
     <string name="appearance_horizontal">水平位置</string>
@@ -1259,7 +1259,12 @@
     <string name="appearance_save_changes_title">儲存變更？</string>
     <string name="appearance_save_changes_message">離開前是否儲存此背景的變更？</string>
     <string name="appearance_general_background">通用頁面</string>
-    <string name="appearance_general_background_hint">套用至關於頁和配色主題頁以外的所有頁面。對話、群聊和故事頁的各區域透明度、模糊度皆為 0 時，區域設定也會跟隨通用頁面；優先使用各頁自己的背景圖片，沒有時使用通用背景。</string>
-    <string name="appearance_follow_general_hint">各區域透明度、模糊度皆為 0 時，區域設定跟隨通用頁面；保留本頁自己的背景圖片，沒有時使用通用背景。</string>
+    <string name="appearance_general_background_hint">套用至關於頁及配色主題頁以外的頁面。對話、群聊與故事頁開啟「跟隨通用設定」後使用這些參數；優先使用各自的背景圖片，未設定時使用通用背景圖片。</string>
+    <string name="appearance_follow_general_hint">開啟後，除背景圖片外的所有參數跟隨通用設定；關閉後可獨立調整。</string>
     <string name="appearance_preview_content">內容區域</string>
+    <string name="appearance_follow_general">跟隨通用設定</string>
+    <string name="appearance_use_character_background">使用角色卡背景</string>
+    <string name="appearance_character_background_hint">優先使用角色卡背景；未設定時使用對話背景，再回退至通用背景。</string>
+    <string name="character_choose_background">選擇角色背景</string>
+    <string name="character_remove_background">移除角色背景</string>
 </resources>

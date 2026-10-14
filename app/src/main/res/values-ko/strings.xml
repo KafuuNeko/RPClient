@@ -1234,7 +1234,7 @@
     <string name="appearance_group_background">그룹 대화 배경</string>
     <string name="appearance_story_background">이야기 배경</string>
     <string name="appearance_choose_image">이미지 선택</string>
-    <string name="appearance_reset_background">테마 배경 사용</string>
+    <string name="appearance_reset_background">배경 이미지 제거</string>
     <string name="appearance_blur">흐림 정도</string>
     <string name="appearance_scrim">배경 덮개</string>
     <string name="appearance_horizontal">가로 위치</string>
@@ -1259,7 +1259,12 @@
     <string name="appearance_save_changes_title">변경 사항을 저장할까요?</string>
     <string name="appearance_save_changes_message">나가기 전에 이 배경의 변경 사항을 저장할까요?</string>
     <string name="appearance_general_background">공통 페이지</string>
-    <string name="appearance_general_background_hint">앱 정보와 색상 테마를 제외한 모든 페이지에 적용됩니다. 대화, 그룹 채팅, 스토리도 모든 영역의 투명도와 흐림이 0이면 공통 영역 설정을 따릅니다. 각 페이지의 배경 이미지를 우선 사용하며, 없으면 공통 배경을 사용합니다.</string>
-    <string name="appearance_follow_general_hint">모든 영역의 투명도와 흐림이 0이면 공통 영역 설정을 따릅니다. 이 페이지의 배경 이미지를 유지하며, 없으면 공통 배경을 사용합니다.</string>
+    <string name="appearance_general_background_hint">정보 및 색상 테마 페이지를 제외한 모든 페이지에 적용됩니다. 채팅, 그룹 채팅, 스토리는 공통 설정 따르기를 켜면 이 매개변수를 사용합니다. 각 페이지의 이미지를 우선 사용하며, 설정하지 않은 경우 공통 이미지를 사용합니다.</string>
+    <string name="appearance_follow_general_hint">켜면 배경 이미지를 제외한 모든 설정이 공통 설정을 따릅니다. 개별 조정하려면 끄세요.</string>
     <string name="appearance_preview_content">콘텐츠 영역</string>
+    <string name="appearance_follow_general">공통 설정 따르기</string>
+    <string name="appearance_use_character_background">캐릭터 배경 사용</string>
+    <string name="appearance_character_background_hint">캐릭터 이미지가 있으면 우선 사용하고, 없으면 채팅 이미지, 그다음 공통 이미지를 사용합니다.</string>
+    <string name="character_choose_background">캐릭터 배경 선택</string>
+    <string name="character_remove_background">캐릭터 배경 제거</string>
 </resources>

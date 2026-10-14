@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -199,10 +200,11 @@ private fun BackgroundAdjustments(
     emit: (AppearanceUiIntent) -> Unit
 ) {
     LazyColumn(modifier, state = listState, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Text(stringResource(if (state.settings.page == BackgroundPage.General)
-                R.string.appearance_general_background_hint else R.string.appearance_follow_general_hint),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (state.settings.page == BackgroundPage.General) {
+            item {
+                Text(stringResource(R.string.appearance_general_background_hint),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -214,28 +216,38 @@ private fun BackgroundAdjustments(
                 }
             }
         }
-        // 参数数值清晰展示，拖动保持低分辨率预览，松手再渲染最终图。
-        if (state.settings.fileUuid != null) {
-            item { AdjustmentSlider(R.string.appearance_blur, state.settings.blur.toFloat(), 0f..100f, BackgroundAdjustment.Blur, state, emit) }
-            item { AdjustmentSlider(R.string.appearance_scrim, state.settings.scrim, 0f..0.9f, BackgroundAdjustment.Scrim, state, emit) }
-            item { AdjustmentSlider(R.string.appearance_horizontal, state.settings.focalX, 0f..1f, BackgroundAdjustment.Horizontal, state, emit) }
-            item { AdjustmentSlider(R.string.appearance_vertical, state.settings.focalY, 0f..1f, BackgroundAdjustment.Vertical, state, emit) }
-            item { Text(stringResource(R.string.appearance_background_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (state.settings.page == BackgroundPage.Chat) {
+            item { BackgroundOption(R.string.appearance_use_character_background, R.string.appearance_character_background_hint,
+                state.settings.useCharacterBackground, !state.working) { emit(AppearanceUiIntent.SetUseCharacterBackground(it)) } }
         }
-        // 栏位背景独立于图片；0% 不透明、100% 完全透明，不降低文字和按钮透明度。
-        item { AdjustmentSlider(R.string.appearance_top_bar_transparency, 1f - state.settings.topBarOpacity, 0f..1f, BackgroundAdjustment.TopBarTransparency, state, emit) }
-        item { AdjustmentSlider(R.string.appearance_top_bar_blur, state.settings.topBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.TopBarBlur, state, emit, enabled = state.settings.topBarOpacity < 1f) }
-        item { AdjustmentSlider(R.string.appearance_bottom_bar_transparency, 1f - state.settings.bottomBarOpacity, 0f..1f, BackgroundAdjustment.BottomBarTransparency, state, emit) }
-        item { AdjustmentSlider(R.string.appearance_bottom_bar_blur, state.settings.bottomBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.BottomBarBlur, state, emit, enabled = state.settings.bottomBarOpacity < 1f) }
-        if (state.settings.page == BackgroundPage.Story || state.settings.page == BackgroundPage.General) {
-            item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.opacity, 0f..1f, BackgroundAdjustment.ContentTransparency, state, emit) }
-            item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.contentBlur.toFloat(), 0f..100f, BackgroundAdjustment.ContentBlur, state, emit, enabled = state.settings.opacity < 1f) }
-        } else {
-            item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.bubbleOpacity, 0f..1f, BackgroundAdjustment.BubbleTransparency, state, emit) }
-            item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.bubbleBlur.toFloat(), 0f..100f, BackgroundAdjustment.BubbleBlur, state, emit, enabled = state.settings.bubbleOpacity < 1f) }
+        if (state.settings.page != BackgroundPage.General) {
+            item { BackgroundOption(R.string.appearance_follow_general, R.string.appearance_follow_general_hint,
+                state.settings.followGeneral, !state.working) { emit(AppearanceUiIntent.SetFollowGeneral(it)) } }
         }
-        item { Text(stringResource(R.string.appearance_surface_blur_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        item { Text(stringResource(R.string.appearance_transparency_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (state.settings.page == BackgroundPage.General || !state.settings.followGeneral) {
+            // 参数数值清晰展示，拖动保持低分辨率预览，松手再渲染最终图。
+            if (state.effectiveSettings.fileUuid != null) {
+                item { AdjustmentSlider(R.string.appearance_blur, state.settings.blur.toFloat(), 0f..100f, BackgroundAdjustment.Blur, state, emit) }
+                item { AdjustmentSlider(R.string.appearance_scrim, state.settings.scrim, 0f..0.9f, BackgroundAdjustment.Scrim, state, emit) }
+                item { AdjustmentSlider(R.string.appearance_horizontal, state.settings.focalX, 0f..1f, BackgroundAdjustment.Horizontal, state, emit) }
+                item { AdjustmentSlider(R.string.appearance_vertical, state.settings.focalY, 0f..1f, BackgroundAdjustment.Vertical, state, emit) }
+                item { Text(stringResource(R.string.appearance_background_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            // 栏位背景独立于图片；0% 不透明、100% 完全透明，不降低文字和按钮透明度。
+            item { AdjustmentSlider(R.string.appearance_top_bar_transparency, 1f - state.settings.topBarOpacity, 0f..1f, BackgroundAdjustment.TopBarTransparency, state, emit) }
+            item { AdjustmentSlider(R.string.appearance_top_bar_blur, state.settings.topBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.TopBarBlur, state, emit, enabled = state.settings.topBarOpacity < 1f) }
+            item { AdjustmentSlider(R.string.appearance_bottom_bar_transparency, 1f - state.settings.bottomBarOpacity, 0f..1f, BackgroundAdjustment.BottomBarTransparency, state, emit) }
+            item { AdjustmentSlider(R.string.appearance_bottom_bar_blur, state.settings.bottomBarBlur.toFloat(), 0f..100f, BackgroundAdjustment.BottomBarBlur, state, emit, enabled = state.settings.bottomBarOpacity < 1f) }
+            if (state.settings.page == BackgroundPage.Story || state.settings.page == BackgroundPage.General) {
+                item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.opacity, 0f..1f, BackgroundAdjustment.ContentTransparency, state, emit) }
+                item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.contentBlur.toFloat(), 0f..100f, BackgroundAdjustment.ContentBlur, state, emit, enabled = state.settings.opacity < 1f) }
+            } else {
+                item { AdjustmentSlider(R.string.appearance_content_transparency, 1f - state.settings.bubbleOpacity, 0f..1f, BackgroundAdjustment.BubbleTransparency, state, emit) }
+                item { AdjustmentSlider(R.string.appearance_content_blur, state.settings.bubbleBlur.toFloat(), 0f..100f, BackgroundAdjustment.BubbleBlur, state, emit, enabled = state.settings.bubbleOpacity < 1f) }
+            }
+            item { Text(stringResource(R.string.appearance_surface_blur_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text(stringResource(R.string.appearance_transparency_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
         state.error?.let { error -> item { Text(stringResource(error), color = MaterialTheme.colorScheme.error) } }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -246,6 +258,19 @@ private fun BackgroundAdjustments(
                 if (state.working || state.rendering) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             }
         }
+    }
+}
+
+/** 外观开关复用设置页的文字与开关排列，不额外引入卡片层级。 */
+@Composable
+private fun BackgroundOption(@StringRes title: Int, @StringRes subtitle: Int, checked: Boolean,
+    enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 

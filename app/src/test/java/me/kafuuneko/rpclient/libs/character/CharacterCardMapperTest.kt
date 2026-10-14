@@ -10,6 +10,19 @@ class CharacterCardMapperTest {
     private val gson = Gson()
     private val mapper = CharacterCardMapper(gson)
 
+    /** 本地背景引用不进入 JSON/PNG 共用的角色卡载荷，外部同名字段也不会导入。 */
+    @Test
+    fun localBackgroundIsNotExportedOrImported() {
+        val imported = mapper.parseCharacter(
+            """{"spec":"chara_card_v2","data":{"name":"Iris","backgroundFileUuid":"external-local-id"}}"""
+        ).character
+        assertEquals(null, imported.backgroundFileUuid)
+        val exported = mapper.toV2Json(imported.copy(backgroundFileUuid = "local-only-background"))
+        assertEquals(false, exported.contains("backgroundFileUuid"))
+        assertEquals(false, exported.contains("local-only-background"))
+        assertEquals(null, mapper.parseCharacter(exported).character.backgroundFileUuid)
+    }
+
     @Test
     fun localProviderAssociationIsNotExportedOrImported() {
         val imported = mapper.parseCharacter(

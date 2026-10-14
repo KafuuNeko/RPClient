@@ -1244,7 +1244,7 @@
     <string name="appearance_group_background">Фон группового чата</string>
     <string name="appearance_story_background">Фон истории</string>
     <string name="appearance_choose_image">Выбрать изображение</string>
-    <string name="appearance_reset_background">Использовать фон темы</string>
+    <string name="appearance_reset_background">Удалить фоновое изображение</string>
     <string name="appearance_blur">Размытие</string>
     <string name="appearance_scrim">Вуаль фона</string>
     <string name="appearance_horizontal">Положение по горизонтали</string>
@@ -1269,7 +1269,12 @@
     <string name="appearance_save_changes_title">Сохранить изменения?</string>
     <string name="appearance_save_changes_message">Сохранить изменения этого фона перед выходом?</string>
     <string name="appearance_general_background">Общие страницы</string>
-    <string name="appearance_general_background_hint">Применяется ко всем страницам, кроме «О приложении» и цветовых тем. Чаты, группы и истории используют общие настройки областей, если прозрачность и размытие везде равны нулю. Собственное фоновое изображение имеет приоритет; иначе используется общий фон.</string>
-    <string name="appearance_follow_general_hint">Если прозрачность и размытие всех областей равны нулю, используются общие настройки областей. Собственное изображение имеет приоритет; иначе используется общий фон.</string>
+    <string name="appearance_general_background_hint">Применяется ко всем страницам, кроме разделов «О приложении» и цветовых тем. Чаты, группы и истории наследуют эти параметры, когда включено «Использовать общие настройки». Каждая страница сохраняет своё изображение или использует общее, если своё не задано.</string>
+    <string name="appearance_follow_general_hint">При включении все параметры, кроме изображения, берутся из общих настроек. Выключите для отдельной настройки страницы.</string>
     <string name="appearance_preview_content">Область содержимого</string>
+    <string name="appearance_follow_general">Использовать общие настройки</string>
+    <string name="appearance_use_character_background">Использовать фоны персонажей</string>
+    <string name="appearance_character_background_hint">Используется изображение персонажа, если оно есть; иначе — изображение чата, затем общий фон.</string>
+    <string name="character_choose_background">Выбрать фон персонажа</string>
+    <string name="character_remove_background">Удалить фон персонажа</string>
 </resources>

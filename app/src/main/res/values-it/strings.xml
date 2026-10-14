@@ -1218,7 +1218,7 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_group_background">Sfondo della chat di gruppo</string>
     <string name="appearance_story_background">Sfondo della storia</string>
     <string name="appearance_choose_image">Scegli immagine</string>
-    <string name="appearance_reset_background">Usa lo sfondo del tema</string>
+    <string name="appearance_reset_background">Rimuovi immagine di sfondo</string>
     <string name="appearance_blur">Sfocatura</string>
     <string name="appearance_scrim">Velo dello sfondo</string>
     <string name="appearance_horizontal">Posizione orizzontale</string>
@@ -1243,7 +1243,12 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_save_changes_title">Salvare le modifiche?</string>
     <string name="appearance_save_changes_message">Salvare le modifiche a questo sfondo prima di uscire?</string>
     <string name="appearance_general_background">Pagine generali</string>
-    <string name="appearance_general_background_hint">Si applica a tutte le pagine tranne Informazioni e temi colore. Chat, gruppi e storie seguono queste impostazioni se trasparenza e sfocatura di tutte le aree sono a zero. Lo sfondo personale ha priorità; altrimenti viene usato quello generale.</string>
-    <string name="appearance_follow_general_hint">Se trasparenza e sfocatura di tutte le aree sono a zero, si applicano le impostazioni generali. Lo sfondo personale ha priorità; altrimenti viene usato quello generale.</string>
+    <string name="appearance_general_background_hint">Si applica a tutte le pagine tranne Informazioni e temi colore. Chat, gruppi e storie ereditano questi parametri quando Segui le impostazioni generali è attivo. Ogni pagina mantiene la propria immagine o usa quella generale se non ne ha una.</string>
+    <string name="appearance_follow_general_hint">Se attivo, tutte le impostazioni tranne l’immagine seguono quelle generali. Disattiva per personalizzare questa pagina.</string>
     <string name="appearance_preview_content">Area contenuti</string>
+    <string name="appearance_follow_general">Segui le impostazioni generali</string>
+    <string name="appearance_use_character_background">Usa sfondi dei personaggi</string>
+    <string name="appearance_character_background_hint">Usa l’immagine del personaggio se disponibile; altrimenti quella della chat e poi quella generale.</string>
+    <string name="character_choose_background">Scegli sfondo del personaggio</string>
+    <string name="character_remove_background">Rimuovi sfondo del personaggio</string>
 </resources>

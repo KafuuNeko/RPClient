@@ -277,6 +277,13 @@ class AppDatabaseMigrationTest {
             assertEquals(true, cursor.moveToFirst())
             assertEquals("avatar-hash", cursor.getString(0))
         }
+        migrated.query("PRAGMA table_info(character)").use { cursor ->
+            var found = false
+            while (cursor.moveToNext()) {
+                if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "backgroundFileUuid") found = true
+            }
+            assertEquals(true, found)
+        }
         migrated.query("SELECT COUNT(*) FROM page_backgrounds").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(0, cursor.getInt(0))
@@ -286,6 +293,11 @@ class AppDatabaseMigrationTest {
             INSERT INTO page_backgrounds (page, fileUuid, blur, scrim, opacity, focalX, focalY)
             VALUES ('chat', NULL, 25, 0.25, 1.0, 0.5, 0.5)
         """.trimIndent())
+        migrated.query("SELECT followGeneral, useCharacterBackground FROM page_backgrounds").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+            assertEquals(0, cursor.getInt(1))
+        }
         migrated.query("SELECT topBarBlur, bottomBarBlur, bubbleBlur, contentBlur FROM page_backgrounds").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             repeat(4) { assertEquals(0, cursor.getInt(it)) }

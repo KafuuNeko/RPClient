@@ -1235,7 +1235,7 @@
     <string name="appearance_group_background">グループチャットの背景</string>
     <string name="appearance_story_background">ストーリーの背景</string>
     <string name="appearance_choose_image">画像を選択</string>
-    <string name="appearance_reset_background">テーマの背景を使う</string>
+    <string name="appearance_reset_background">背景画像を削除</string>
     <string name="appearance_blur">ぼかし</string>
     <string name="appearance_scrim">背景のベール</string>
     <string name="appearance_horizontal">横の位置</string>
@@ -1260,7 +1260,12 @@
     <string name="appearance_save_changes_title">変更を保存しますか？</string>
     <string name="appearance_save_changes_message">この背景の変更を保存してから戻りますか？</string>
     <string name="appearance_general_background">共通ページ</string>
-    <string name="appearance_general_background_hint">アプリ情報と配色テーマ以外の全ページに適用します。会話・グループ・ストーリーも全領域の透明度とぼかしが 0 の場合、共通の領域設定に従います。独自の背景画像を優先し、なければ共通の背景を使用します。</string>
-    <string name="appearance_follow_general_hint">全領域の透明度とぼかしが 0 の場合、共通の領域設定に従います。このページ独自の背景画像を優先し、なければ共通の背景を使用します。</string>
+    <string name="appearance_general_background_hint">アプリ情報とカラーテーマ以外のページに適用されます。チャット・グループチャット・ストーリーは「共通設定に従う」が有効な場合にこれらの設定を使います。各ページの背景画像を優先し、未設定の場合は共通の画像を使います。</string>
+    <string name="appearance_follow_general_hint">有効にすると、背景画像以外のすべての設定が共通設定に従います。個別に調整するには無効にしてください。</string>
     <string name="appearance_preview_content">コンテンツ領域</string>
+    <string name="appearance_follow_general">共通設定に従う</string>
+    <string name="appearance_use_character_background">キャラクターの背景を使う</string>
+    <string name="appearance_character_background_hint">キャラクターの画像を優先し、未設定ならチャットの画像、次に共通の画像を使います。</string>
+    <string name="character_choose_background">キャラクターの背景を選択</string>
+    <string name="character_remove_background">キャラクターの背景を削除</string>
 </resources>

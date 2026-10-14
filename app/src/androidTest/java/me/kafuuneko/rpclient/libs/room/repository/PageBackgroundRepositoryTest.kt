@@ -1,6 +1,9 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import android.content.Context
+import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.character.CharacterCardMapper
+import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -149,7 +152,7 @@ class PageBackgroundRepositoryTest {
         } finally { files.releasePrepared(prepared) }
     }
 
-    /** 继承不复制文件索引，独立背景保留裁切参数，区域自定义和恢复默认可切换跟随。 */
+    /** 图片继承不复制索引；显式开关控制全部参数，关闭时全零参数也不会重新跟随。 */
     @Test
     fun generalInheritancePreservesIndependentImagesAndRawSettings() = runBlocking {
         val commonImage = files.prepareStream("general", ByteArrayInputStream("common".toByteArray()), "image/png")
@@ -170,14 +173,18 @@ class PageBackgroundRepositoryTest {
         backgrounds.save(PageBackground(BackgroundPage.Chat, blur = 17, scrim = 0.1f, focalX = 0.2f), ownImage)
         val inheritedWithOwnImage = backgrounds.observeEffective(BackgroundPage.Chat).first()
         assertEquals(ownImage.file.uuid, inheritedWithOwnImage.fileUuid)
-        assertEquals(17, inheritedWithOwnImage.blur)
-        assertEquals(0.1f, inheritedWithOwnImage.scrim)
-        assertEquals(0.2f, inheritedWithOwnImage.focalX)
+        assertEquals(common.blur, inheritedWithOwnImage.blur)
+        assertEquals(common.scrim, inheritedWithOwnImage.scrim)
+        assertEquals(common.focalX, inheritedWithOwnImage.focalX)
         assertEquals(20, inheritedWithOwnImage.topBarBlur)
-        // 单个非零区域设置也会保留整套独立配置；归零后重新读取当前通用值。
+        // 关闭跟随时保留独立参数，即使区域值全零也不隐式重新跟随。
         val raw = backgrounds.observe(BackgroundPage.Chat).first()
-        backgrounds.save(raw.copy(topBarBlur = 1), null)
-        assertEquals(1f, backgrounds.observeEffective(BackgroundPage.Chat).first().bubbleOpacity)
+        backgrounds.save(raw.copy(followGeneral = false), null)
+        val independent = backgrounds.observeEffective(BackgroundPage.Chat).first()
+        assertEquals(1f, independent.bubbleOpacity)
+        assertEquals(17, independent.blur)
+        assertEquals(0.2f, independent.focalX)
+        assertEquals(false, PageBackgroundRepository(database, files).observe(BackgroundPage.Chat).first().followGeneral)
         backgrounds.save(raw, null)
         val commonRaw = backgrounds.observe(BackgroundPage.General).first()
         backgrounds.save(commonRaw.copy(opacity = 0.7f), null)
@@ -188,6 +195,61 @@ class PageBackgroundRepositoryTest {
         assertNull(backgrounds.observeEffective(BackgroundPage.Group).first().fileUuid)
         assertNull(files.getFileEntity(commonImage.file.uuid))
         files.withFileLease(ownImage.file.uuid) { assertEquals("own", it.readText()) }
+    }
+
+    /** 角色图片独占索引，启用和禁用开关都按角色、对话、通用顺序回退。 */
+    @Test
+    fun characterBackgroundPriorityAndDeletionPreserveSharedFiles() = runBlocking {
+        val gson = Gson()
+        val characters = CharacterRepository(database, gson, RegexScriptCodec(gson), MessageImageRepository(database, files))
+        val character = CharacterCardMapper(gson).parseCharacter("""{"name":"Lyra"}""").character
+        val common = files.prepareStream("general", ByteArrayInputStream("shared".toByteArray()), "image/png")
+        val portrait = files.prepareStream("character", ByteArrayInputStream("shared".toByteArray()), "image/png")
+        val chat = files.prepareStream("chat", ByteArrayInputStream("chat".toByteArray()), "image/png")
+        backgrounds.save(PageBackground(BackgroundPage.General, opacity = 0.3f), common)
+        backgrounds.save(PageBackground(BackgroundPage.Chat, useCharacterBackground = true), chat)
+        val id = characters.saveCharacterWithAppearance(character, 0, null, portrait)
+        assertEquals(portrait.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertEquals(0.3f, backgrounds.observeChat(id).first().bubbleOpacity)
+        // 禁用角色背景后使用对话图片；再清除对话图片，独立参数仍可配合通用图片。
+        val raw = backgrounds.observe(BackgroundPage.Chat).first()
+        backgrounds.save(raw.copy(useCharacterBackground = false), null)
+        assertEquals(chat.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        backgrounds.save(raw.copy(fileUuid = null, useCharacterBackground = false, followGeneral = false), null)
+        assertEquals(common.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertEquals(1f, backgrounds.observeChat(id).first().bubbleOpacity)
+        backgrounds.save(raw.copy(fileUuid = null), null)
+        assertEquals(portrait.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        characters.deleteCharacter(id)
+        assertNull(files.getFileEntity(portrait.file.uuid))
+        assertEquals(common.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        files.withFileLease(common.file.uuid) { assertEquals("shared", it.readText()) }
+    }
+
+    /** 无效模型关联导致角色与图片一起回滚；同一草稿可重试，替换和移除会回收旧索引。 */
+    @Test
+    fun characterBackgroundRollbackReplacementAndRemovalAreAtomic() = runBlocking {
+        val gson = Gson()
+        val characters = CharacterRepository(database, gson, RegexScriptCodec(gson), MessageImageRepository(database, files))
+        val character = CharacterCardMapper(gson).parseCharacter("""{"name":"Lyra"}""").character
+        val first = files.prepareStream("character", ByteArrayInputStream("first".toByteArray()), "image/png")
+        val id = characters.saveCharacterWithAppearance(character, 0, null, first)
+        val saved = requireNotNull(characters.getCharacterById(id))
+        val next = files.prepareStream("character", ByteArrayInputStream("next".toByteArray()), "image/png")
+        try {
+            val failure = runCatching { characters.saveCharacterWithAppearance(saved.copy(name = "Changed"), Long.MAX_VALUE, null, next) }
+            assertTrue(failure.isFailure)
+            assertEquals(saved, characters.getCharacterById(id))
+            assertNull(files.getFileEntity(next.file.uuid))
+            files.withFileLease(first.file.uuid) { assertEquals("first", it.readText()) }
+            // 重试只发布新的独占索引，旧图在成功事务之后才被删除。
+            characters.saveCharacterWithAppearance(saved, 0, null, next)
+            assertNull(files.getFileEntity(first.file.uuid))
+            assertEquals(next.file.uuid, characters.getCharacterById(id)?.backgroundFileUuid)
+            characters.saveCharacterWithAppearance(requireNotNull(characters.getCharacterById(id)), 0, null, null)
+            assertNull(characters.getCharacterById(id)?.backgroundFileUuid)
+            assertNull(files.getFileEntity(next.file.uuid))
+        } finally { files.releasePrepared(next) }
     }
 
 }

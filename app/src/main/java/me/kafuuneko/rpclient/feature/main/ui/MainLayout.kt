@@ -2012,9 +2012,9 @@ private fun ProviderCard(
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-            } else {
                 MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
             }
         )
     ) {
@@ -2026,9 +2026,9 @@ private fun ProviderCard(
                 icon = if (provider.isEnabled) Icons.Rounded.Key else Icons.Rounded.Storage,
                 contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                 containerColor = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)
-                } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)
                 }
             )
             Spacer(modifier = Modifier.width(14.dp))

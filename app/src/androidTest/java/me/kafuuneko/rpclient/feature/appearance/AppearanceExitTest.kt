@@ -24,6 +24,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustmen
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
+import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -63,6 +64,7 @@ class AppearanceExitTest {
         mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         val files = FileRepository(context, mDatabase)
         mRepository = PageBackgroundRepository(mDatabase, files)
+        runBlocking { mRepository.save(PageBackground(BackgroundPage.Chat, followGeneral = false), null) }
         val runtime = BackgroundImageRuntime(context, files)
         // 只覆盖背景依赖并在结束时恢复，主题偏好只读。
         mOriginalRepository = GlobalContext.get().get()

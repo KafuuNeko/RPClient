@@ -93,6 +93,23 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         }
     }
 
+    /** 跟随开关只改变解析策略，保留用户以前的独立参数供关闭后恢复。 */
+    @UiIntentObserver(AppearanceUiIntent.SetFollowGeneral::class)
+    private fun onSetFollowGeneral(intent: AppearanceUiIntent.SetFollowGeneral) {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (editor.working || editor.settings.page == BackgroundPage.General) return
+        updateEditor { it.copy(settings = it.settings.copy(followGeneral = intent.enabled)) }
+        requestPreview(false)
+    }
+
+    /** 聊天页按角色选择背景，开关与图片继承、参数继承相互独立。 */
+    @UiIntentObserver(AppearanceUiIntent.SetUseCharacterBackground::class)
+    private fun onSetUseCharacterBackground(intent: AppearanceUiIntent.SetUseCharacterBackground) {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (editor.working || editor.settings.page != BackgroundPage.Chat) return
+        updateEditor { it.copy(settings = it.settings.copy(useCharacterBackground = intent.enabled)) }
+    }
+
     /** 发出系统选图事件，已有导入或保存尚未完成时忽略重复操作。 */
     @UiIntentObserver(AppearanceUiIntent.PickImage::class)
     private fun onPickImage() {
@@ -125,7 +142,8 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.ChangeAdjustment::class)
     private fun onChangeAdjustment(intent: AppearanceUiIntent.ChangeAdjustment) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working || !intent.value.isFinite()) return
+        if (editor.working || !intent.value.isFinite() ||
+            (editor.settings.page != BackgroundPage.General && editor.settings.followGeneral)) return
         // UI 使用透明度百分比，持久化与颜色渲染统一使用不透明度。
         val value = intent.value
         val settings = when (intent.field) {
@@ -153,7 +171,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         if (!editor.working) requestPreview(false)
     }
 
-    /** 恢复主题底色仅改变草稿，直到应用后才释放已提交文件。 */
+    /** 移除独立图片仅改变草稿；页面可回退通用图片，保存后才释放旧文件。 */
     @UiIntentObserver(AppearanceUiIntent.ResetBackground::class)
     private fun onResetBackground() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return

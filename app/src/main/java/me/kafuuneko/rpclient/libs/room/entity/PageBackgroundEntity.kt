@@ -29,5 +29,7 @@ data class PageBackgroundEntity(
     @ColumnInfo(defaultValue = "0") val topBarBlur: Int = 0,
     @ColumnInfo(defaultValue = "0") val bottomBarBlur: Int = 0,
     @ColumnInfo(defaultValue = "0") val bubbleBlur: Int = 0,
-    @ColumnInfo(defaultValue = "0") val contentBlur: Int = 0
+    @ColumnInfo(defaultValue = "0") val contentBlur: Int = 0,
+    @ColumnInfo(defaultValue = "1") val followGeneral: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val useCharacterBackground: Boolean = false
 )

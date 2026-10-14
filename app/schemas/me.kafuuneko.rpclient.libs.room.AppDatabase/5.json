@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "45bbb4db425f4567355e9044e5fd15a3",
+    "identityHash": "5629e94a90cfc986c1ed21ef262fcdaf",
     "entities": [
       {
         "tableName": "page_backgrounds",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`page` TEXT NOT NULL, `fileUuid` TEXT, `blur` INTEGER NOT NULL, `scrim` REAL NOT NULL, `opacity` REAL NOT NULL, `focalX` REAL NOT NULL, `focalY` REAL NOT NULL, `topBarOpacity` REAL NOT NULL DEFAULT 1.0, `bottomBarOpacity` REAL NOT NULL DEFAULT 1.0, `bubbleOpacity` REAL NOT NULL DEFAULT 1.0, `topBarBlur` INTEGER NOT NULL DEFAULT 0, `bottomBarBlur` INTEGER NOT NULL DEFAULT 0, `bubbleBlur` INTEGER NOT NULL DEFAULT 0, `contentBlur` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`page`), FOREIGN KEY(`fileUuid`) REFERENCES `files`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`page` TEXT NOT NULL, `fileUuid` TEXT, `blur` INTEGER NOT NULL, `scrim` REAL NOT NULL, `opacity` REAL NOT NULL, `focalX` REAL NOT NULL, `focalY` REAL NOT NULL, `topBarOpacity` REAL NOT NULL DEFAULT 1.0, `bottomBarOpacity` REAL NOT NULL DEFAULT 1.0, `bubbleOpacity` REAL NOT NULL DEFAULT 1.0, `topBarBlur` INTEGER NOT NULL DEFAULT 0, `bottomBarBlur` INTEGER NOT NULL DEFAULT 0, `bubbleBlur` INTEGER NOT NULL DEFAULT 0, `contentBlur` INTEGER NOT NULL DEFAULT 0, `followGeneral` INTEGER NOT NULL DEFAULT 1, `useCharacterBackground` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`page`), FOREIGN KEY(`fileUuid`) REFERENCES `files`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "page",
@@ -97,6 +97,20 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "followGeneral",
+            "columnName": "followGeneral",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "useCharacterBackground",
+            "columnName": "useCharacterBackground",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
@@ -132,7 +146,7 @@
       },
       {
         "tableName": "character",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `avatar` TEXT NOT NULL, `characterTags` TEXT NOT NULL, `description` TEXT NOT NULL, `creatorNotes` TEXT NOT NULL DEFAULT '', `personality` TEXT NOT NULL, `scenario` TEXT NOT NULL, `firstMessages` TEXT NOT NULL, `examplesOfDialogue` TEXT NOT NULL, `postHistoryInstructions` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL DEFAULT '', `creator` TEXT NOT NULL DEFAULT '', `characterVersion` TEXT NOT NULL DEFAULT '', `alternateGreetings` TEXT NOT NULL DEFAULT '[]', `extensionsJson` TEXT NOT NULL DEFAULT '{}', `depthPromptPrompt` TEXT NOT NULL DEFAULT '', `depthPromptDepth` INTEGER NOT NULL DEFAULT 4, `depthPromptRole` INTEGER NOT NULL DEFAULT 0, `characterLorebookId` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `avatar` TEXT NOT NULL, `characterTags` TEXT NOT NULL, `description` TEXT NOT NULL, `creatorNotes` TEXT NOT NULL DEFAULT '', `personality` TEXT NOT NULL, `scenario` TEXT NOT NULL, `firstMessages` TEXT NOT NULL, `examplesOfDialogue` TEXT NOT NULL, `postHistoryInstructions` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL DEFAULT '', `creator` TEXT NOT NULL DEFAULT '', `characterVersion` TEXT NOT NULL DEFAULT '', `alternateGreetings` TEXT NOT NULL DEFAULT '[]', `extensionsJson` TEXT NOT NULL DEFAULT '{}', `depthPromptPrompt` TEXT NOT NULL DEFAULT '', `depthPromptDepth` INTEGER NOT NULL DEFAULT 4, `depthPromptRole` INTEGER NOT NULL DEFAULT 0, `characterLorebookId` INTEGER NOT NULL DEFAULT 0, `backgroundFileUuid` TEXT DEFAULT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -263,6 +277,12 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "backgroundFileUuid",
+            "columnName": "backgroundFileUuid",
+            "affinity": "TEXT",
+            "defaultValue": "NULL"
           }
         ],
         "primaryKey": {
@@ -2248,7 +2268,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '45bbb4db425f4567355e9044e5fd15a3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5629e94a90cfc986c1ed21ef262fcdaf')"
     ]
   }
 }

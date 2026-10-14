@@ -1240,7 +1240,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_group_background">Nền trò chuyện nhóm</string>
     <string name="appearance_story_background">Nền câu chuyện</string>
     <string name="appearance_choose_image">Chọn ảnh</string>
-    <string name="appearance_reset_background">Dùng nền chủ đề</string>
+    <string name="appearance_reset_background">Xóa hình nền</string>
     <string name="appearance_blur">Độ mờ</string>
     <string name="appearance_scrim">Lớp phủ nền</string>
     <string name="appearance_horizontal">Vị trí ngang</string>
@@ -1265,7 +1265,12 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_save_changes_title">Lưu thay đổi?</string>
     <string name="appearance_save_changes_message">Lưu các thay đổi của hình nền này trước khi thoát?</string>
     <string name="appearance_general_background">Trang chung</string>
-    <string name="appearance_general_background_hint">Áp dụng cho mọi trang trừ Giới thiệu và chủ đề màu. Trò chuyện, nhóm và truyện dùng thiết lập vùng chung khi độ trong suốt và độ mờ của mọi vùng đều bằng 0. Ưu tiên ảnh nền riêng; nếu không có thì dùng nền chung.</string>
-    <string name="appearance_follow_general_hint">Khi độ trong suốt và độ mờ của mọi vùng đều bằng 0, trang dùng thiết lập vùng chung. Giữ ảnh nền riêng; nếu không có thì dùng nền chung.</string>
+    <string name="appearance_general_background_hint">Áp dụng cho mọi trang trừ Giới thiệu và chủ đề màu. Trò chuyện, nhóm và truyện dùng các thông số này khi bật Theo cài đặt chung. Mỗi trang ưu tiên ảnh riêng, hoặc dùng ảnh chung nếu chưa đặt ảnh.</string>
+    <string name="appearance_follow_general_hint">Khi bật, mọi thông số trừ hình nền đều theo cài đặt chung. Tắt để tùy chỉnh trang này.</string>
     <string name="appearance_preview_content">Vùng nội dung</string>
+    <string name="appearance_follow_general">Theo cài đặt chung</string>
+    <string name="appearance_use_character_background">Dùng hình nền nhân vật</string>
+    <string name="appearance_character_background_hint">Ưu tiên ảnh nhân vật; nếu chưa đặt, dùng ảnh cuộc trò chuyện, rồi đến ảnh chung.</string>
+    <string name="character_choose_background">Chọn hình nền nhân vật</string>
+    <string name="character_remove_background">Xóa hình nền nhân vật</string>
 </resources>

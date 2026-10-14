@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
+import kotlinx.coroutines.flow.mapNotNull
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
@@ -21,7 +22,6 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
-import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
@@ -30,7 +30,11 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
     private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
-    private val mBackgroundFlow by lazy { mBackgroundViewModel.observe(BackgroundPage.Chat).flowWithLifecycle(lifecycle) }
+    private val mBackgroundFlow by lazy {
+        mBackgroundViewModel.observeChat(mViewModel.uiStateFlow.mapNotNull {
+            (it as? ChatUiState.Normal)?.character?.id
+        }).flowWithLifecycle(lifecycle)
+    }
     private val mViewModel by viewModels<ChatViewModel>()
     private val mImagePicker = registerForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(4)
