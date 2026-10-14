@@ -79,6 +79,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -175,12 +177,16 @@ fun GroupChatLayout(
         GroupChatUiState.None -> Unit
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
+            // 页面切换只卸载视图，保留会话和设置各自的列表位置。
+            val pageStateHolder = rememberSaveableStateHolder()
             // 群聊设置与会话使用相同背景，不能落回 Activity 的通用背景。
             PageBackdrop(background, useContainerAppearance = uiState.page == GroupChatPage.Settings) {
-                if (uiState.page == GroupChatPage.Settings) {
-                    GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
-                } else {
-                    GroupChatNormalView(uiState, emitIntent)
+                pageStateHolder.SaveableStateProvider("${uiState.sessionId}:${uiState.page.name}") {
+                    if (uiState.page == GroupChatPage.Settings) {
+                        GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
+                    } else {
+                        GroupChatNormalView(uiState, emitIntent)
+                    }
                 }
             }
             DialogSwitch(uiState, emitIntent)
@@ -1145,20 +1151,25 @@ private fun MessageList(
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     val latestCanLoadOlderMessages by rememberUpdatedState(canLoadOlderMessages)
     val latestIsLoadingOlderMessages by rememberUpdatedState(isLoadingOlderMessages)
-    var shouldFollowBottom by remember { mutableStateOf(true) }
-    var isFirstLoad by remember { mutableStateOf(true) }
+    // 与列表位置一起恢复，返回设置前的历史阅读位置不应被首次定位或流式跟随覆盖。
+    var shouldFollowBottom by rememberSaveable { mutableStateOf(true) }
+    var isFirstLoad by rememberSaveable { mutableStateOf(true) }
     var isScrollIndicatorDragged by remember { mutableStateOf(false) }
-    var lastTailMessageId by remember { mutableStateOf<Long?>(null) }
+    var lastTailMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
-            .collect { (canScrollForward, indicatorDragged) ->
-                if (indicatorDragged) {
-                    shouldFollowBottom = false
-                } else if (!canScrollForward) {
-                    shouldFollowBottom = true
-                }
+        // 恢复列表尚未完成测量时 canScrollForward 暂为 false，不能据此重新开启底部跟随。
+        snapshotFlow {
+            if (listState.layoutInfo.visibleItemsInfo.isEmpty()) null
+            else listState.canScrollForward to isScrollIndicatorDragged
+        }.collect { position ->
+            val (canScrollForward, indicatorDragged) = position ?: return@collect
+            if (indicatorDragged) {
+                shouldFollowBottom = false
+            } else if (!canScrollForward) {
+                shouldFollowBottom = true
             }
+        }
     }
     LaunchedEffect(isListDragged) {
         if (isListDragged) {

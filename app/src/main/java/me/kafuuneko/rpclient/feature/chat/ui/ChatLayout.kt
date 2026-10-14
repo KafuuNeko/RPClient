@@ -77,6 +77,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -183,16 +185,20 @@ fun ChatLayout(
         is ChatUiState.Finished -> ChatLayout(uiState.previous, background) {}
 
         is ChatUiState.Normal -> {
+            // 页面切换只卸载视图，保留会话和设置各自的列表位置。
+            val pageStateHolder = rememberSaveableStateHolder()
             // 设置子页沿用会话背景，公共表面按该页内容区参数装饰。
             PageBackdrop(background, useContainerAppearance = uiState.page == ChatPage.Settings) {
-                when (uiState.page) {
-                    ChatPage.Conversation -> ChatNormal(uiState, emit)
-                    ChatPage.Settings -> ChatSettingsPage(
-                        session = uiState.session,
-                        lorebookState = uiState.lorebookState,
-                        loadState = uiState.loadState,
-                        emit = emit
-                    )
+                pageStateHolder.SaveableStateProvider("${uiState.session.id}:${uiState.page.name}") {
+                    when (uiState.page) {
+                        ChatPage.Conversation -> ChatNormal(uiState, emit)
+                        ChatPage.Settings -> ChatSettingsPage(
+                            session = uiState.session,
+                            lorebookState = uiState.lorebookState,
+                            loadState = uiState.loadState,
+                            emit = emit
+                        )
+                    }
                 }
             }
             DialogSwitch(uiState, emit)
@@ -214,20 +220,25 @@ private fun ChatNormal(
     val isLoadingOlderMessages by rememberUpdatedState(
         state.conversationState.isLoadingOlderMessages
     )
-    var shouldFollowBottom by remember { mutableStateOf(true) }
-    var isFirstLoad by remember { mutableStateOf(true) }
+    // 与列表位置一起恢复，返回设置前的历史阅读位置不应被首次定位或流式跟随覆盖。
+    var shouldFollowBottom by rememberSaveable { mutableStateOf(true) }
+    var isFirstLoad by rememberSaveable { mutableStateOf(true) }
     var isScrollIndicatorDragged by remember { mutableStateOf(false) }
-    var lastTailMessageId by remember { mutableStateOf<String?>(null) }
+    var lastTailMessageId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.canScrollForward to isScrollIndicatorDragged }
-            .collect { (canScrollForward, indicatorDragged) ->
-                if (indicatorDragged) {
-                    shouldFollowBottom = false
-                } else if (!canScrollForward) {
-                    shouldFollowBottom = true
-                }
+        // 恢复列表尚未完成测量时 canScrollForward 暂为 false，不能据此重新开启底部跟随。
+        snapshotFlow {
+            if (listState.layoutInfo.visibleItemsInfo.isEmpty()) null
+            else listState.canScrollForward to isScrollIndicatorDragged
+        }.collect { position ->
+            val (canScrollForward, indicatorDragged) = position ?: return@collect
+            if (indicatorDragged) {
+                shouldFollowBottom = false
+            } else if (!canScrollForward) {
+                shouldFollowBottom = true
             }
+        }
     }
 
     LaunchedEffect(isListDragged) {
