@@ -137,7 +137,7 @@ fun RpScrollableOutlinedTextField(
         },
         scrollState = scrollState,
         shape = shape,
-        colors = colors
+        colors = pageOutlinedTextFieldColors(colors)
     )
 }
 

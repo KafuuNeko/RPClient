@@ -67,6 +67,7 @@ fun PageBackdrop(
         }
         CompositionLocalProvider(
             LocalGeneralPageSurfaces provides useContainerAppearance,
+            LocalPageSurfaceCovered provides false,
             LocalGeneralSurfaceKind provides when (settings?.page) {
                 BackgroundPage.Chat, BackgroundPage.Group -> PageSurfaceKind.Bubble
                 else -> PageSurfaceKind.Content

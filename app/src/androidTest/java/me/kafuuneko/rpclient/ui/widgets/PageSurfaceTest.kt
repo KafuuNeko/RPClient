@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -173,7 +174,7 @@ class PageSurfaceTest {
             assertTrue(image[image.width * 3 / 4, image.height * 3 / 4].blue > 0.95f)
         }
     }
-    /** 通用页面及会话子页分别取样所属区域派生图，内嵌控件保持实色。 */
+    /** 通用页面及会话子页分别取样所属区域，内嵌底板继承透明度且前景保持实色。 */
     @Test
     fun generalRegionsUseIndependentLayersWithoutFadingChildren() {
         val pageIndex = mutableIntStateOf(0)
@@ -198,7 +199,11 @@ class PageSurfaceTest {
                         }) { padding ->
                             AppCard(Modifier.padding(padding).size(160.dp, 100.dp).testTag("general-card"),
                                 colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                                AppSurface(Modifier.size(20.dp).testTag("general-label"), color = Color.Red) {}
+                                AppSurface(Modifier.size(20.dp).testTag("general-label"), color = Color.Red) {
+                                    Box(Modifier.fillMaxSize()) {
+                                        Box(Modifier.offset(12.dp, 12.dp).size(3.dp).background(Color.Red).testTag("foreground"))
+                                    }
+                                }
                             }
                         }
                     }
@@ -211,13 +216,55 @@ class PageSurfaceTest {
             val content = if (page == BackgroundPage.Chat || page == BackgroundPage.Group)
                 Color(1f, 0.25f, 1f) else Color(0.5f, 1f, 0.5f)
             val expected = mapOf("general-top" to Color.Red, "general-bottom" to Color(1f, 1f, 0.75f),
-                "general-card" to content, "general-label" to Color.Red)
+                "general-card" to content, "general-label" to if (page == BackgroundPage.Chat || page == BackgroundPage.Group)
+                    Color(1f, 0.1875f, 0.75f) else Color(0.75f, 0.5f, 0.25f), "foreground" to Color.Red)
             expected.forEach { (tag, color) ->
                 val pixels = mCompose.onNodeWithTag(tag, useUnmergedTree = true).captureToImage().toPixelMap()
                 val actual = pixels[pixels.width / 2, pixels.height / 2]
                 assertTrue("Unexpected region $page/$tag: $actual", abs(actual.red - color.red) < 0.015f &&
                     abs(actual.green - color.green) < 0.015f && abs(actual.blue - color.blue) < 0.015f)
             }
+        }
+    }
+
+    /** 覆盖栏必须取样滚动内容，不能直接盖上壁纸；动态内容改变后也要更新取样。 */
+    @Test
+    fun overlaySamplesActualContentInsteadOfErasingIt() {
+        val mode = mutableIntStateOf(0)
+        val wallpaper = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(android.graphics.Color.BLUE) }.asImageBitmap()
+        mCompose.setContent {
+            AppTheme(dynamicColor = false) {
+                Box(Modifier.size(240.dp, 300.dp)) {
+                    PageBackdrop(PageBackgroundUiState(PageBackground(BackgroundPage.General,
+                        scrim = 0f, bottomBarOpacity = 0f, bottomBarBlur = 50), wallpaper,
+                        mapOf(PageSurfaceKind.BottomBar to wallpaper))) {
+                        PageOverlayHost(content = {
+                            Box(Modifier.fillMaxSize().background(if (mode.intValue == 0) Color.Red else Color.Green))
+                        }, overlay = {
+                            Box(Modifier.fillMaxSize()) {
+                                AppSurface(Modifier.align(Alignment.BottomCenter).size(200.dp, 80.dp).testTag("overlay"),
+                                    shape = RoundedCornerShape(20.dp), kind = PageSurfaceKind.BottomBar) {
+                                    Box(Modifier.fillMaxSize()) {
+                                        Box(Modifier.offset(30.dp, 30.dp).size(8.dp).background(Color.White).testTag("overlay-icon"))
+                                    }
+                                }
+                            }
+                        })
+                    }
+                }
+            }
+        }
+        // 中心像素必须来自实际页面；导航栏自己的图标不能被模糊或录入后景。
+        for (value in 0..1) {
+            mCompose.runOnIdle { mode.intValue = value }
+            mCompose.waitForIdle()
+            val pixels = mCompose.onNodeWithTag("overlay").captureToImage().toPixelMap()
+            val center = pixels[pixels.width / 2, pixels.height / 2]
+            assertTrue("Overlay erased its source: $center", center.blue < 0.01f &&
+                (if (value == 0) center.red else center.green) > 0.99f)
+            val icon = mCompose.onNodeWithTag("overlay-icon").captureToImage().toPixelMap()[0, 0]
+            assertTrue(icon.red > 0.99f && icon.green > 0.99f && icon.blue > 0.99f)
         }
     }
 

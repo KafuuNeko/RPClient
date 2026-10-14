@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -73,11 +74,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -95,6 +95,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -163,6 +167,8 @@ import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOverlayHost
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
@@ -216,32 +222,26 @@ private fun MainNormal(
                 .fillMaxSize()
                 .background(pageCanvasColor(MaterialThemeLike.background()))
         ) {
-            when (uiState.selectedPage) {
-                MainPage.Home -> HomePage(uiState.homeState, emit)
-                MainPage.Settings -> SettingsPage(uiState.settingsState, emit)
-            }
-
-            val selectionState = uiState.homeState.selectionState
-                    as? MainHomeSelectionState.Selecting
-            if (selectionState != null && uiState.selectedPage == MainPage.Home) {
-                MultiSelectBottomBar(
-                    modifier = Modifier
+            // 滚动内容单独记录为后景，底栏不会把后方卡片擦成壁纸。
+            PageOverlayHost(content = {
+                when (uiState.selectedPage) {
+                    MainPage.Home -> HomePage(uiState.homeState, emit)
+                    MainPage.Settings -> SettingsPage(uiState.settingsState, emit)
+                }
+            }, overlay = {
+                Box(Modifier.fillMaxSize()) {
+                    val selectionState = uiState.homeState.selectionState as? MainHomeSelectionState.Selecting
+                    val barModifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 24.dp, vertical = 16.dp)
-                        .navigationBarsPadding(),
-                    selectedCount = selectionState.selectedItems.size,
-                    emit = emit
-                )
-            } else {
-                MainBottomBar(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
-                        .navigationBarsPadding(),
-                    selectedPage = uiState.selectedPage,
-                    emit = emit
-                )
-            }
+                        .navigationBarsPadding()
+                    if (selectionState != null && uiState.selectedPage == MainPage.Home) {
+                        MultiSelectBottomBar(barModifier, selectionState.selectedItems.size, emit)
+                    } else {
+                        MainBottomBar(barModifier, uiState.selectedPage, emit)
+                    }
+                }
+            })
         }
     }
 
@@ -529,10 +529,10 @@ private fun HeroEntryCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
+    // 点击由卡片接管，使焦点反馈与模糊底板共用完整圆角边界。
     AppCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -608,8 +608,10 @@ private fun HomeQuickActionCard(
     title: String,
     onClick: () -> Unit
 ) {
+    // 快捷入口共用卡片点击语义，避免额外的矩形焦点层。
     AppCard(
-        modifier = modifier.clickable { onClick() },
+        modifier = modifier,
+        onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -682,8 +684,10 @@ private fun HomeAssetCapsule(
     count: Int? = null,
     onClick: () -> Unit
 ) {
+    // 资产入口与数量徽标分别布局，点击反馈由外层卡片统一裁切。
     AppCard(
-        modifier = modifier.clickable { onClick() },
+        modifier = modifier,
+        onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -2196,6 +2200,7 @@ private fun SummaryPanel(
     state: MainSummarySettingsState,
     emit: MainUiIntent.() -> Unit
 ) {
+    // 分段栏和设置内容共用区域外观，切换时只替换对应的表单。
     RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -2206,44 +2211,37 @@ private fun SummaryPanel(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                MainSummarySettingsTab.entries.forEach { tab ->
-                    val isSelected = tab == state.selectedTab
-                    AppSurface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .clickable { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
-                        color = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                        shape = RoundedCornerShape(9.dp),
-                        shadowElevation = if (isSelected) 1.dp else 0.dp
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(tab.titleRes()),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
+            SummarySectionTabs(state.selectedTab, emit)
             when (state.selectedTab) {
                 MainSummarySettingsTab.General -> GeneralSummarySettings(state, emit)
                 MainSummarySettingsTab.Conversation -> ConversationSummarySettings(state, emit)
+            }
+        }
+    }
+}
+
+/** 分段选择与设置卡片使用同一层次，轻量底板和选中标记适应透明背景。 */
+@Composable
+private fun SummarySectionTabs(selectedTab: MainSummarySettingsTab, emit: MainUiIntent.() -> Unit) {
+    AppSurface(shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
+        Row(Modifier.fillMaxWidth().selectableGroup().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // 选中状态通过强调色与字重表达，完全透明时仍能辨认。
+            MainSummarySettingsTab.entries.forEach { tab ->
+                val isSelected = tab == selectedTab
+                AppSurface(
+                    modifier = Modifier.weight(1f).semantics { selected = isSelected; role = Role.Tab },
+                    onClick = { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        val color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(stringResource(tab.titleRes()), style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = color)
+                    }
+                }
             }
         }
     }

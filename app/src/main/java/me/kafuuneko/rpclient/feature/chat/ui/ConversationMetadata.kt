@@ -15,8 +15,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 
-/** 角色介绍卡的状态标签；使用实色底保证照片背景下的对比度，窄屏自动换行。 */
+/** 角色介绍卡的状态标签；底板跟随内容区透明度，窄屏自动换行。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ConversationMetadata(messageCount: Int, enabledLorebookCount: Int, streamEnabled: Boolean) {
@@ -31,12 +32,12 @@ internal fun ConversationMetadata(messageCount: Int, enabledLorebookCount: Int, 
     }
 }
 
-/** 标签属于前景信息，独立于卡片壁纸透明度，不叠加灰色描边或半透明文字。 */
+/** 标签复用介绍卡已经模糊的后景，只调整填充色，文字保持不透明。 */
 @Composable
 private fun MetadataLabel(text: String) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = LocalPageBubbleOpacity.current),
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Text(

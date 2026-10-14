@@ -36,8 +36,10 @@ import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
 
-/** 公共容器只装饰最外层容器，内嵌标签、图标和按钮保留原本对比度。 */
+/** 页面外观开关与区域分类；弹窗可显式隔离，嵌套容器继续继承背景参数。 */
 internal val LocalGeneralPageSurfaces = staticCompositionLocalOf { false }
+/** 外层已铺设模糊背景时，内层只调整填充，避免重画壁纸覆盖父容器。 */
+internal val LocalPageSurfaceCovered = staticCompositionLocalOf { false }
 internal val LocalGeneralSurfaceKind = staticCompositionLocalOf { PageSurfaceKind.Content }
 
 /** 通用壁纸启用后清除页面重复铺设的画布底色，其他场景保留传入颜色。 */
@@ -48,7 +50,7 @@ fun pageCanvasColor(color: Color = MaterialTheme.colorScheme.background): Color 
 /** 独立输入区补充内容底板；卡片内部不重复绘制，未配置通用背景时保留原有透明输入框。 */
 @Composable
 fun Modifier.generalContentBackground(shape: Shape, hasLabel: Boolean = false): Modifier {
-    if (!LocalGeneralPageSurfaces.current) return this
+    if (!LocalGeneralPageSurfaces.current || LocalPageSurfaceCovered.current) return this
     val settings = LocalPageBackdropState.current.settings ?: return this
     val kind = LocalGeneralSurfaceKind.current
     val opacity = settings.surfaceOpacity(kind)
@@ -80,10 +82,10 @@ private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
 
 /** 仅在通用页面读取区域不透明度，避免对专用页面再次应用颜色参数。 */
 @Composable
-private fun generalOpacity(kind: PageSurfaceKind): Float =
+internal fun generalOpacity(kind: PageSurfaceKind): Float =
     if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f else 1f
 
-/** 外层容器处理完成后停止向装饰性子表面传递背景效果；弹窗也使用此边界。 */
+/** 弹窗与独立预览使用自己的表面，不继承页面透明度。 */
 @Composable
 fun WithoutGeneralPageSurfaces(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalGeneralPageSurfaces provides false, content = content)
@@ -92,7 +94,7 @@ fun WithoutGeneralPageSurfaces(content: @Composable () -> Unit) {
 /**
  * 通用表面保留 Material 点击、语义和布局，仅调整背景。
  * - 透明容器去除装饰描边与投影，沿用 PageSurface 的圆角模糊裁切。
- * - 内部控件不重复应用透明度或重画壁纸。
+ * - 内部控件继承背景透明度，但不重复取样壁纸；文字与图标保持清晰。
  */
 @Composable
 fun AppSurface(
@@ -110,20 +112,21 @@ fun AppSurface(
     content: @Composable () -> Unit
 ) {
     val opacity = generalOpacity(kind)
-    val decorated = if (LocalGeneralPageSurfaces.current) modifier.pageSurfaceBlur(kind, shape) else modifier
+    val decorated = if (LocalGeneralPageSurfaces.current && !LocalPageSurfaceCovered.current)
+        modifier.pageSurfaceBlur(kind, shape) else modifier
     val fill = color.copy(alpha = color.alpha * opacity)
     val outline = if (opacity < 1f) null else border
     val elevation = if (opacity < 1f) 0.dp else shadowElevation
     // 两种 Surface 重载保留各自的点击与无障碍语义。
     if (onClick == null) {
         Surface(decorated, shape, fill, contentColor, tonalElevation, elevation, outline) {
-            WithoutGeneralPageSurfaces(content)
+            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind, content = content)
         }
     } else {
         Surface(onClick = onClick, modifier = decorated, enabled = enabled, shape = shape,
             color = fill, contentColor = contentColor, tonalElevation = tonalElevation,
             shadowElevation = elevation, border = outline, interactionSource = interactionSource) {
-            WithoutGeneralPageSurfaces(content)
+            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind, content = content)
         }
     }
 }
@@ -143,7 +146,8 @@ fun AppCard(
 ) {
     val kind = LocalGeneralSurfaceKind.current
     val opacity = generalOpacity(kind)
-    val decorated = if (LocalGeneralPageSurfaces.current) modifier.pageSurfaceBlur(kind, shape) else modifier
+    val decorated = if (LocalGeneralPageSurfaces.current && !LocalPageSurfaceCovered.current)
+        modifier.pageSurfaceBlur(kind, shape) else modifier
     val fill = colors.copy(
         containerColor = colors.containerColor.copy(alpha = colors.containerColor.alpha * opacity),
         disabledContainerColor = colors.disabledContainerColor.copy(alpha = colors.disabledContainerColor.alpha * opacity)
@@ -153,11 +157,11 @@ fun AppCard(
     // 子内容仍在 Card 的 ColumnScope 中布局，只隔离外观效果。
     if (onClick == null) {
         Card(decorated, shape, fill, depth, outline) {
-            WithoutGeneralPageSurfaces { content() }
+            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind) { content() }
         }
     } else {
         Card(onClick, decorated, enabled, shape, fill, depth, outline, interactionSource) {
-            WithoutGeneralPageSurfaces { content() }
+            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind) { content() }
         }
     }
 }

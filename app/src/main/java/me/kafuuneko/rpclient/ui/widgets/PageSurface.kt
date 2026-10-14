@@ -18,8 +18,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -78,6 +78,8 @@ fun Modifier.pageSurfaceBlur(kind: PageSurfaceKind, shape: Shape = RectangleShap
     val state = LocalPageBackdropState.current
     val settings = state.settings ?: return this
     if (settings.surfaceOpacity(kind) >= 1f || settings.surfaceBlur(kind) == 0) return this
+    val source = if (kind == PageSurfaceKind.BottomBar) LocalPageOverlaySource.current else null
+    if (source != null) return pageOverlayBlur(source, settings.surfaceBlur(kind), shape)
     val image = state.surfaceImages[kind] ?: return this
     val frame = LocalPageBackdropFrame.current
     val background = MaterialTheme.colorScheme.background

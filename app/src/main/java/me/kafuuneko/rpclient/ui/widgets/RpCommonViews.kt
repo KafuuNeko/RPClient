@@ -30,7 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 页面主标题，带辅助说明，统一页面顶部视觉规范。 */
 @Composable
@@ -161,7 +161,8 @@ fun RpIconBubble(
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     contentColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    Surface(
+    // 图标底板继承所在内容区，图标本身保持原有强调色。
+    AppSurface(
         modifier = modifier.size(38.dp),
         shape = RoundedCornerShape(13.dp),
         color = containerColor,
@@ -200,7 +201,7 @@ fun RpTagRow(
 /** 单个强调标签，采用胶囊结构与轻量填充，去除粗糙黑边。 */
 @Composable
 fun RpTagPill(text: String) {
-    Surface(
+    AppSurface(
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
@@ -236,7 +237,7 @@ fun RpMetaRow(items: List<String>) {
 /** 单个弱化元信息标签。 */
 @Composable
 fun RpMetaPill(text: String) {
-    Surface(
+    AppSurface(
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),

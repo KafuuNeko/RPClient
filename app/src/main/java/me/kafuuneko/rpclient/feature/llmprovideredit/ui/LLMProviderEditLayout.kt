@@ -58,16 +58,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -125,6 +122,8 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
@@ -133,6 +132,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
+import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
@@ -273,7 +274,7 @@ private fun ProviderPresetsSection(
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
+                    colors = pageFilterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
                             alpha = 0.7f
                         ),
@@ -366,7 +367,7 @@ private fun ImageInputCapabilityField(
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
-                    colors = FilterChipDefaults.filterChipColors(
+                    colors = pageFilterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
                             alpha = 0.7f
                         ),
@@ -1035,7 +1036,9 @@ private fun TokenEstimateReserveSlider(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+        // 轨道跟随内容区底板，手柄保持清晰可拖动。
         Slider(
+            colors = pageSliderColors(),
             value = percent.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },
             valueRange = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat()..
