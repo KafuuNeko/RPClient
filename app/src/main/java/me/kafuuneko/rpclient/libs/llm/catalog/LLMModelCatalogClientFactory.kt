@@ -13,7 +13,8 @@ class LLMModelCatalogClientFactory(
 ) {
     fun create(provider: LLMProviderConfig): LLMModelCatalogClient {
         return when (provider.protocol) {
-            LLMProviderProtocol.OpenAICompatible -> {
+            LLMProviderProtocol.OpenAICompatible,
+            LLMProviderProtocol.OpenAIResponses -> {
                 OpenAICompatibleModelCatalogClient(mOkHttpClient, provider)
             }
 

@@ -1276,4 +1276,6 @@
     <string name="dialog_appearance_behind_blur">後方頁面模糊度</string>
     <string name="dialog_appearance_blur_unavailable">目前裝置不支援視窗模糊或模糊暫時被系統關閉。設定模糊後，將以更實的底色或更深的遮罩代替。</string>
     <string name="dialog_appearance_open_preview">開啟對話框預覽</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">輸出上限包含推理 Token。推理模型啟用推理時不會傳送 temperature 和 top_p，可在進階請求 JSON 中設定 reasoning。</string>
 </resources>

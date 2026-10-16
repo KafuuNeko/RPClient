@@ -1285,4 +1285,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="dialog_appearance_behind_blur">Desfoque da página</string>
     <string name="dialog_appearance_blur_unavailable">O desfoque de janelas não está disponível ou foi desativado temporariamente pelo sistema. Será usado um fundo mais opaco ou um escurecimento maior.</string>
     <string name="dialog_appearance_open_preview">Abrir prévia do diálogo</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">O limite de saída inclui tokens de raciocínio. Modelos de raciocínio omitem temperature e top_p enquanto o raciocínio está ativado. Configure reasoning no JSON avançado da solicitação.</string>
 </resources>

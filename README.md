@@ -64,7 +64,8 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
 
 ### Models and Prompts
 
-- OpenAI Compatible API
+- OpenAI Responses API (native protocol; [integration notes](doc/OpenAI-Responses接入与规范复核.md))
+- OpenAI Compatible API (Chat Completions)
 - Google Gemini API
 - Anthropic Messages API
 - Built-in configuration templates for ChatGPT, Gemini, Claude, DeepSeek, Grok, and OpenRouter

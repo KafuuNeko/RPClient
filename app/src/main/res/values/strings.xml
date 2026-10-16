@@ -1286,4 +1286,6 @@
     <string name="dialog_appearance_behind_blur">Page blur</string>
     <string name="dialog_appearance_blur_unavailable">Window blur is unavailable on this device or is temporarily disabled. Requested blur uses a more opaque background or stronger dimming instead.</string>
     <string name="dialog_appearance_open_preview">Open dialog preview</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">The output limit includes reasoning tokens. Reasoning models omit temperature and top_p while reasoning is enabled. Configure reasoning in the advanced request JSON.</string>
 </resources>

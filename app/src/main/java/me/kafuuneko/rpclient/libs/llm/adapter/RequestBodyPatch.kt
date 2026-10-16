@@ -112,6 +112,7 @@ internal fun protectedRequestBodyPaths(
     protocol: LLMProviderProtocol
 ): Set<String> {
     val protocolPaths = when (protocol) {
+        LLMProviderProtocol.OpenAIResponses -> OPEN_AI_RESPONSES_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.OpenAICompatible -> OPEN_AI_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.AnthropicMessages -> ANTHROPIC_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.Gemini -> GEMINI_PROTECTED_REQUEST_FIELDS
@@ -159,6 +160,14 @@ private val OPEN_AI_PROTECTED_REQUEST_FIELDS = setOf(
     "temperature",
     "top_p",
     "stop"
+)
+
+/** 本地完整上下文是唯一来源，禁止 Patch 引入额外服务端历史或改变生成生命周期。 */
+private val OPEN_AI_RESPONSES_PROTECTED_REQUEST_FIELDS = setOf(
+    "model", "input", "instructions", "stream", "max_output_tokens", "temperature", "top_p",
+    "store", "background", "conversation", "previous_response_id", "prompt", "truncation",
+    "messages", "max_tokens", "max_completion_tokens", "stop", "response_format", "reasoning_effort",
+    "stream_options.include_usage"
 )
 
 private val ANTHROPIC_PROTECTED_REQUEST_FIELDS = setOf(

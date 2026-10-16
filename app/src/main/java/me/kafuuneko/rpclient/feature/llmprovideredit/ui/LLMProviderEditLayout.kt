@@ -632,6 +632,7 @@ private fun ModernCredentialControl(
     }
 }
 
+/** 展示参数与发送开关，并说明原生 Responses 推理对采样和输出额度的约束。 */
 @Composable
 private fun ParameterPanel(
     form: LLMProviderEditForm,
@@ -672,6 +673,14 @@ private fun ParameterPanel(
             checked = form.sendTopP,
             onCheckedChange = { LLMProviderEditUiIntent.ToggleSendTopP(it).emit() }
         )
+        // 推理模型可能忽略已勾选的采样开关，需要在参数旁说明实际发送行为。
+        if (form.protocol == LLMProviderProtocol.OpenAIResponses) {
+            Text(
+                text = stringResource(R.string.provider_responses_parameters_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         TokenPresetField(
             label = stringResource(R.string.max_tokens),
@@ -776,7 +785,11 @@ private fun CollapsibleAdvancedPanel(
                     EnumChipRow(
                         values = LLMProviderProtocol.entries,
                         selected = form.protocol,
-                        label = { it.name },
+                        label = {
+                            if (it == LLMProviderProtocol.OpenAIResponses) {
+                                stringResource(R.string.protocol_openai_responses)
+                            } else it.name
+                        },
                         onSelect = { LLMProviderEditUiIntent.ChangeProtocol(it).emit() }
                     )
 
@@ -1412,7 +1425,7 @@ private fun FormTextField(
 private fun <T> EnumChipRow(
     values: List<T>,
     selected: T,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onSelect: (T) -> Unit
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

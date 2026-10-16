@@ -30,8 +30,8 @@ class LLMResponseValidatorTest {
 
     @Test
     fun reasoningOnlyTokenLimitSurvivesValidationAndProviderContext() {
-        // 模拟三个协议在思考耗尽输出额度后返回空正文的情况。
-        listOf("length", "max_tokens", "MAX_TOKENS").forEach { finishReason ->
+        // 模拟各协议在思考耗尽输出额度后返回空正文的情况。
+        listOf("length", "max_tokens", "MAX_TOKENS", "max_output_tokens").forEach { finishReason ->
             val error = assertThrows(LLMEmptyResponseException::class.java) {
                 LLMGenerationResponse(
                     content = "",

@@ -944,8 +944,10 @@ private fun LLMTokenUsageSource.titleRes(): Int {
     }
 }
 
+@Composable
 private fun LLMProviderProtocol.shortName(): String {
     return when (this) {
+        LLMProviderProtocol.OpenAIResponses -> stringResource(R.string.protocol_openai_responses)
         LLMProviderProtocol.OpenAICompatible -> "OpenAI"
         LLMProviderProtocol.Gemini -> "Gemini"
         LLMProviderProtocol.AnthropicMessages -> "Anthropic"

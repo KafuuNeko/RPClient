@@ -1277,4 +1277,6 @@
     <string name="dialog_appearance_behind_blur">背後のページのぼかし</string>
     <string name="dialog_appearance_blur_unavailable">ウィンドウのぼかしに対応していないか、システムによって一時的に無効化されています。ぼかしの代わりに背景の不透明度や暗さを高めます。</string>
     <string name="dialog_appearance_open_preview">ダイアログのプレビューを開く</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">出力上限には推論トークンが含まれます。推論モデルでは推論が有効な間、temperature と top_p は送信されません。詳細リクエスト JSON で reasoning を設定できます。</string>
 </resources>

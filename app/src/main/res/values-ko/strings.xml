@@ -1276,4 +1276,6 @@
     <string name="dialog_appearance_behind_blur">뒤쪽 페이지 흐림</string>
     <string name="dialog_appearance_blur_unavailable">창 흐림을 지원하지 않거나 시스템에서 일시적으로 비활성화했습니다. 대신 배경을 더 불투명하게 하거나 더 어둡게 표시합니다.</string>
     <string name="dialog_appearance_open_preview">대화상자 미리보기 열기</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">출력 한도에는 추론 토큰이 포함됩니다. 추론 모델은 추론이 활성화된 동안 temperature와 top_p를 전송하지 않습니다. 고급 요청 JSON에서 reasoning을 설정하세요.</string>
 </resources>

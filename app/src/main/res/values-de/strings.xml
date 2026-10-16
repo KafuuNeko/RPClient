@@ -1281,4 +1281,6 @@
     <string name="dialog_appearance_behind_blur">Unschärfe der Seite</string>
     <string name="dialog_appearance_blur_unavailable">Fensterunschärfe ist nicht verfügbar oder vorübergehend deaktiviert. Stattdessen werden ein deckenderer Hintergrund oder eine stärkere Abdunklung verwendet.</string>
     <string name="dialog_appearance_open_preview">Dialogvorschau öffnen</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">Das Ausgabelimit umfasst Reasoning-Tokens. Reasoning-Modelle senden bei aktivem Reasoning kein temperature und top_p. Konfigurieren Sie reasoning im erweiterten Anfrage-JSON.</string>
 </resources>

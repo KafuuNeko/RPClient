@@ -1282,4 +1282,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="dialog_appearance_behind_blur">Keburaman halaman</string>
     <string name="dialog_appearance_blur_unavailable">Efek buram jendela tidak tersedia atau dinonaktifkan sementara oleh sistem. Sebagai gantinya, latar lebih pekat atau peredupan lebih kuat akan digunakan.</string>
     <string name="dialog_appearance_open_preview">Buka pratinjau dialog</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">Batas keluaran mencakup token penalaran. Model penalaran tidak mengirim temperature dan top_p saat penalaran aktif. Atur reasoning di JSON permintaan lanjutan.</string>
 </resources>

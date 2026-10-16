@@ -16,6 +16,8 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -349,9 +351,12 @@ internal fun createDefaultLLMProviders(
         LLMProvider(
             name = "ChatGPT",
             providerType = LLMProviderType.ChatGPT,
-            protocol = LLMProviderProtocol.OpenAICompatible,
+            protocol = LLMProviderProtocol.OpenAIResponses,
             baseUrl = "https://api.openai.com/v1",
-            model = "gpt-4o-mini",
+            model = DEFAULT_OPENAI_RESPONSES_MODEL,
+            requestBodyPatchJson = DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON,
+            sendTemperature = false,
+            sendTopP = false,
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,

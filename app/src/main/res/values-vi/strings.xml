@@ -1282,4 +1282,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="dialog_appearance_behind_blur">Độ mờ của trang phía sau</string>
     <string name="dialog_appearance_blur_unavailable">Làm mờ cửa sổ không được hỗ trợ hoặc tạm thời bị hệ thống tắt. Nền sẽ đục hơn hoặc tối hơn để thay thế hiệu ứng mờ.</string>
     <string name="dialog_appearance_open_preview">Mở bản xem trước hộp thoại</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">Giới hạn đầu ra bao gồm token suy luận. Mô hình suy luận không gửi temperature và top_p khi bật suy luận. Cấu hình reasoning trong JSON yêu cầu nâng cao.</string>
 </resources>

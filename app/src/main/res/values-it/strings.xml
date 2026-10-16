@@ -1260,4 +1260,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="dialog_appearance_behind_blur">Sfocatura della pagina</string>
     <string name="dialog_appearance_blur_unavailable">La sfocatura delle finestre non è disponibile o è temporaneamente disattivata. Verrà usato uno sfondo più opaco o un oscuramento maggiore.</string>
     <string name="dialog_appearance_open_preview">Apri anteprima del dialogo</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">Il limite di output include i token di ragionamento. I modelli di ragionamento omettono temperature e top_p quando il ragionamento è attivo. Configura reasoning nel JSON avanzato della richiesta.</string>
 </resources>

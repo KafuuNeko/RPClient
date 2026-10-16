@@ -386,7 +386,9 @@ private fun ProviderListCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    RpMetaPill(provider.protocol.name)
+                    RpMetaPill(if (provider.protocol == LLMProviderProtocol.OpenAIResponses) {
+                        stringResource(R.string.protocol_openai_responses)
+                    } else provider.protocol.name)
                     ProviderStatusDot(isEnabled = provider.isEnabled, isConfigured = provider.isConfigured)
                 }
             }

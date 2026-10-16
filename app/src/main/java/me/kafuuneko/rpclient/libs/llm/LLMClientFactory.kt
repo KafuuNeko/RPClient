@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm
 import me.kafuuneko.rpclient.libs.llm.adapter.AnthropicMessagesLLMClient
 import me.kafuuneko.rpclient.libs.llm.adapter.GeminiLLMClient
 import me.kafuuneko.rpclient.libs.llm.adapter.OpenAICompatibleLLMClient
+import me.kafuuneko.rpclient.libs.llm.adapter.OpenAIResponsesLLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
@@ -30,6 +31,13 @@ class LLMClientFactory(
      */
     fun create(provider: LLMProviderConfig): LLMClient {
         val protocolClient = when (provider.protocol) {
+            LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
+                mOkHttpClient,
+                mLLMRequestLogRepository,
+                provider,
+                mImageRuntime,
+                mImageCapabilities
+            )
             LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
                 mOkHttpClient,
                 mLLMRequestLogRepository,

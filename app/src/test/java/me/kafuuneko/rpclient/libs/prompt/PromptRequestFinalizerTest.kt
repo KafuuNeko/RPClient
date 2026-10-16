@@ -30,6 +30,33 @@ class PromptRequestFinalizerTest {
     private val finalizer = PromptRequestFinalizer { tokenizer }
 
     @Test
+    fun responsesKeepsInstructionOrderAndInspectorMatchesBothBudgetPaths() {
+        // 原生协议允许 assistant 开头和中途 system，不应套用其他协议的严格重排。
+        val drafts = listOf(
+            draft("Opening", 100, false).copy(role = LLMMessageRole.Assistant),
+            draft("Old".repeat(80), 1, true).copy(role = LLMMessageRole.User),
+            draft("World book", 100, false, PromptSourceKind.WorldInfo),
+            draft("Continue", 100, false).copy(role = LLMMessageRole.User)
+        )
+        val provider = provider(LLMProviderType.ChatGPT, LLMProviderProtocol.OpenAIResponses, "gpt-6-luna")
+        val results = listOf(true, false).map { incremental ->
+            finalizer.finalize(
+                drafts, provider, provider.model, LLMGenerationOptions(maxTokens = 10), false,
+                maxContextTokens = 100, maxResponseTokens = 10,
+                postProcessingMode = PromptPostProcessingMode.None, strictPromptPlaceholder = "[Start]",
+                tokenizer = LengthPromptTokenizer(incremental)
+            )
+        }
+        // 缓存路径和精确重算必须淘汰同一旧历史，检查器与实际请求保持一致。
+        assertEquals(results[0], results[1])
+        val result = results.first()
+        assertEquals(listOf(LLMMessageRole.Assistant, LLMMessageRole.System, LLMMessageRole.User), result.request.messages.map { it.role })
+        assertEquals(result.request.messages.map { it.content }, result.inspection.items.map { it.content })
+        assertTrue(result.inspection.finalTokenCount <= result.inspection.promptBudget)
+        assertEquals(1, result.inspection.omittedItems.size)
+    }
+
+    @Test
     fun removesLowestPriorityWholeItemUntilFinalRequestFits() {
         val result = finalize(
             drafts = listOf(

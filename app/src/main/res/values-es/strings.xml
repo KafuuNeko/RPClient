@@ -1283,4 +1283,6 @@
     <string name="dialog_appearance_behind_blur">Desenfoque de la página</string>
     <string name="dialog_appearance_blur_unavailable">El desenfoque de ventanas no está disponible o está desactivado temporalmente. Se usará un fondo más opaco o un oscurecimiento mayor.</string>
     <string name="dialog_appearance_open_preview">Abrir vista previa del diálogo</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">El límite de salida incluye tokens de razonamiento. Los modelos de razonamiento omiten temperature y top_p mientras el razonamiento está activado. Configure reasoning en el JSON avanzado de la solicitud.</string>
 </resources>

@@ -1286,4 +1286,6 @@
     <string name="dialog_appearance_behind_blur">Размытие страницы</string>
     <string name="dialog_appearance_blur_unavailable">Размытие окон недоступно или временно отключено системой. Вместо него используется менее прозрачный фон или более сильное затемнение.</string>
     <string name="dialog_appearance_open_preview">Открыть предпросмотр диалога</string>
+    <string name="protocol_openai_responses">OpenAI Responses</string>
+    <string name="provider_responses_parameters_hint">Лимит вывода включает токены рассуждений. Модели рассуждений не передают temperature и top_p при включённых рассуждениях. Настройте reasoning в расширенном JSON запроса.</string>
 </resources>
