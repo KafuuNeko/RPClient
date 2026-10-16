@@ -2,4 +2,14 @@
 <resources>
 
     <style name="Theme.RPClient" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 窗口级背景模糊要求创建时为透明窗口，不能只设置透明 Drawable。 -->
+    <style name="Theme.RPClient.Dialog" parent="android:style/Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

@@ -1276,4 +1276,13 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_character_background_hint">Use a imagem do personagem, se houver; caso contrário, use a do chat e depois a geral.</string>
     <string name="character_choose_background">Escolher fundo do personagem</string>
     <string name="character_remove_background">Remover fundo do personagem</string>
+
+    <string name="dialog_appearance_title">Aparência dos diálogos</string>
+    <string name="dialog_appearance_transparency">Transparência do fundo do diálogo</string>
+    <string name="dialog_appearance_blur">Desfoque do fundo do diálogo</string>
+    <string name="dialog_appearance_controls">Transparência do fundo dos controles</string>
+    <string name="dialog_appearance_dim">Escurecimento da página</string>
+    <string name="dialog_appearance_behind_blur">Desfoque da página</string>
+    <string name="dialog_appearance_blur_unavailable">O desfoque de janelas não está disponível ou foi desativado temporariamente pelo sistema. Será usado um fundo mais opaco ou um escurecimento maior.</string>
+    <string name="dialog_appearance_open_preview">Abrir prévia do diálogo</string>
 </resources>

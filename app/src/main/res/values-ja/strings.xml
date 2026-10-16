@@ -1268,4 +1268,13 @@
     <string name="appearance_character_background_hint">キャラクターの画像を優先し、未設定ならチャットの画像、次に共通の画像を使います。</string>
     <string name="character_choose_background">キャラクターの背景を選択</string>
     <string name="character_remove_background">キャラクターの背景を削除</string>
+
+    <string name="dialog_appearance_title">ダイアログの外観</string>
+    <string name="dialog_appearance_transparency">ダイアログ背景の透明度</string>
+    <string name="dialog_appearance_blur">ダイアログ背景のぼかし</string>
+    <string name="dialog_appearance_controls">内部コントロール背景の透明度</string>
+    <string name="dialog_appearance_dim">背後のページの暗さ</string>
+    <string name="dialog_appearance_behind_blur">背後のページのぼかし</string>
+    <string name="dialog_appearance_blur_unavailable">ウィンドウのぼかしに対応していないか、システムによって一時的に無効化されています。ぼかしの代わりに背景の不透明度や暗さを高めます。</string>
+    <string name="dialog_appearance_open_preview">ダイアログのプレビューを開く</string>
 </resources>

@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -15,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
 import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
+import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
+import me.kafuuneko.rpclient.ui.theme.LocalDialogAppearance
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -28,6 +31,7 @@ import org.koin.core.component.inject
  * 统一应用主题和 Edge-to-Edge 配置，具体页面只实现 [ViewContent]。
  */
 abstract class CoreActivity : ComponentActivity(), KoinComponent {
+    private val mDialogAppearance by inject<DialogAppearanceManager>()
     private val mAppThemeManager by inject<AppThemeManager>()
 
     private val mPageBackgroundViewModel by viewModels<PageBackgroundViewModel>()
@@ -60,7 +64,10 @@ abstract class CoreActivity : ComponentActivity(), KoinComponent {
             val palette by mAppThemeManager.paletteFlow.collectAsState()
             val darkTheme = themeMode.resolveDarkTheme(isSystemInDarkTheme())
             ApplySystemBarTheme(darkTheme)
-            AppTheme(darkTheme = darkTheme, palette = palette, content = getContent())
+            val dialogAppearance by mDialogAppearance.settings.collectAsState()
+            CompositionLocalProvider(LocalDialogAppearance provides dialogAppearance) {
+                AppTheme(darkTheme = darkTheme, palette = palette, content = getContent())
+            }
         }
     }
 

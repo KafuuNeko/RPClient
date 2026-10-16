@@ -1273,4 +1273,13 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_character_background_hint">Ưu tiên ảnh nhân vật; nếu chưa đặt, dùng ảnh cuộc trò chuyện, rồi đến ảnh chung.</string>
     <string name="character_choose_background">Chọn hình nền nhân vật</string>
     <string name="character_remove_background">Xóa hình nền nhân vật</string>
+
+    <string name="dialog_appearance_title">Giao diện hộp thoại</string>
+    <string name="dialog_appearance_transparency">Độ trong suốt nền hộp thoại</string>
+    <string name="dialog_appearance_blur">Độ mờ nền hộp thoại</string>
+    <string name="dialog_appearance_controls">Độ trong suốt nền điều khiển</string>
+    <string name="dialog_appearance_dim">Độ tối của trang phía sau</string>
+    <string name="dialog_appearance_behind_blur">Độ mờ của trang phía sau</string>
+    <string name="dialog_appearance_blur_unavailable">Làm mờ cửa sổ không được hỗ trợ hoặc tạm thời bị hệ thống tắt. Nền sẽ đục hơn hoặc tối hơn để thay thế hiệu ứng mờ.</string>
+    <string name="dialog_appearance_open_preview">Mở bản xem trước hộp thoại</string>
 </resources>

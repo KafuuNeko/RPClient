@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 
 /** 外观页的用户动作，后台处理细节不进入 Intent。 */
 sealed interface AppearanceUiIntent {
+    data object EditDialogAppearance : AppearanceUiIntent
     data object Back : AppearanceUiIntent
     data class SelectPalette(val palette: AppThemePalette) : AppearanceUiIntent
     data class SelectMode(val mode: AppThemeMode) : AppearanceUiIntent
@@ -29,7 +30,7 @@ enum class BackgroundAdjustment {
     Scrim, ContentTransparency, TopBarTransparency, BottomBarTransparency, BubbleTransparency,
     Horizontal, Vertical;
 
-    /** 模糊滑块使用整数百分比，并触发可取消图像预览。 */
+    /** 模糊滑块使用无单位整数强度，并触发可取消图像预览。 */
     val isBlur: Boolean get() = this in setOf(Blur, TopBarBlur, BottomBarBlur, BubbleBlur, ContentBlur)
 
     /** 改变透明度时需要重新判断栏位模糊是否启用。 */

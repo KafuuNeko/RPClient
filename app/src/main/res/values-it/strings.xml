@@ -1251,4 +1251,13 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_character_background_hint">Usa l’immagine del personaggio se disponibile; altrimenti quella della chat e poi quella generale.</string>
     <string name="character_choose_background">Scegli sfondo del personaggio</string>
     <string name="character_remove_background">Rimuovi sfondo del personaggio</string>
+
+    <string name="dialog_appearance_title">Aspetto delle finestre di dialogo</string>
+    <string name="dialog_appearance_transparency">Trasparenza dello sfondo del dialogo</string>
+    <string name="dialog_appearance_blur">Sfocatura dello sfondo del dialogo</string>
+    <string name="dialog_appearance_controls">Trasparenza dello sfondo dei controlli</string>
+    <string name="dialog_appearance_dim">Oscuramento della pagina</string>
+    <string name="dialog_appearance_behind_blur">Sfocatura della pagina</string>
+    <string name="dialog_appearance_blur_unavailable">La sfocatura delle finestre non è disponibile o è temporaneamente disattivata. Verrà usato uno sfondo più opaco o un oscuramento maggiore.</string>
+    <string name="dialog_appearance_open_preview">Apri anteprima del dialogo</string>
 </resources>

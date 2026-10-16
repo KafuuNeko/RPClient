@@ -124,6 +124,15 @@ private fun AppearanceChoices(state: AppearanceUiState.Normal, modifier: Modifie
                 onClick = { emit(AppearanceUiIntent.SelectPalette(AppThemePalette.Dynamic)) },
                 label = { Text(stringResource(R.string.appearance_dynamic)) })
         }
+        item {
+            Surface(onClick = { emit(AppearanceUiIntent.EditDialogAppearance) },
+                shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.dialog_appearance_title), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null)
+                }
+            }
+        }
         item { Text(stringResource(R.string.appearance_backgrounds), style = MaterialTheme.typography.titleLarge) }
         BackgroundPage.entries.forEach { page ->
             item {
@@ -320,7 +329,7 @@ private fun AdjustmentSlider(@StringRes title: Int, value: Float, range: ClosedF
     Column {
         Row {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            Text(stringResource(R.string.appearance_percent, (if (field.isBlur) value else value * 100).roundToInt()),
+            Text(if (field.isBlur) value.roundToInt().toString() else stringResource(R.string.appearance_percent, (value * 100).roundToInt()),
                 style = MaterialTheme.typography.labelLarge)
         }
         Slider(modifier = Modifier.semantics { contentDescription = label }, value = value, onValueChange = { emit(AppearanceUiIntent.ChangeAdjustment(field, it)) },

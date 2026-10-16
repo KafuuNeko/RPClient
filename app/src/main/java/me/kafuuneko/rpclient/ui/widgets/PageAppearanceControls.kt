@@ -143,6 +143,10 @@ fun pageSliderColors(colors: SliderColors = SliderDefaults.colors()): SliderColo
 fun pageOutlinedTextFieldColors(colors: TextFieldColors = OutlinedTextFieldDefaults.colors()): TextFieldColors {
     val opacity = interactiveSurfaceOpacity()
     return colors.copy(
+        focusedContainerColor = colors.focusedContainerColor.copy(alpha = colors.focusedContainerColor.alpha * opacity),
+        unfocusedContainerColor = colors.unfocusedContainerColor.copy(alpha = colors.unfocusedContainerColor.alpha * opacity),
+        disabledContainerColor = colors.disabledContainerColor.copy(alpha = colors.disabledContainerColor.alpha * opacity),
+        errorContainerColor = colors.errorContainerColor.copy(alpha = colors.errorContainerColor.alpha * opacity),
         focusedIndicatorColor = colors.focusedIndicatorColor.copy(alpha = colors.focusedIndicatorColor.alpha * opacity),
         unfocusedIndicatorColor = colors.unfocusedIndicatorColor.copy(alpha = colors.unfocusedIndicatorColor.alpha * opacity),
         disabledIndicatorColor = colors.disabledIndicatorColor.copy(alpha = colors.disabledIndicatorColor.alpha * opacity),

@@ -1273,4 +1273,13 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_character_background_hint">Gunakan gambar karakter jika tersedia; jika tidak, gunakan gambar obrolan, lalu gambar umum.</string>
     <string name="character_choose_background">Pilih latar karakter</string>
     <string name="character_remove_background">Hapus latar karakter</string>
+
+    <string name="dialog_appearance_title">Tampilan dialog</string>
+    <string name="dialog_appearance_transparency">Transparansi latar dialog</string>
+    <string name="dialog_appearance_blur">Keburaman latar dialog</string>
+    <string name="dialog_appearance_controls">Transparansi latar kontrol</string>
+    <string name="dialog_appearance_dim">Peredupan halaman</string>
+    <string name="dialog_appearance_behind_blur">Keburaman halaman</string>
+    <string name="dialog_appearance_blur_unavailable">Efek buram jendela tidak tersedia atau dinonaktifkan sementara oleh sistem. Sebagai gantinya, latar lebih pekat atau peredupan lebih kuat akan digunakan.</string>
+    <string name="dialog_appearance_open_preview">Buka pratinjau dialog</string>
 </resources>

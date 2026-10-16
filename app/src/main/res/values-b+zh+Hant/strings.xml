@@ -1267,4 +1267,13 @@
     <string name="appearance_character_background_hint">優先使用角色卡背景；未設定時使用對話背景，再回退至通用背景。</string>
     <string name="character_choose_background">選擇角色背景</string>
     <string name="character_remove_background">移除角色背景</string>
+
+    <string name="dialog_appearance_title">對話框外觀</string>
+    <string name="dialog_appearance_transparency">對話框背景透明度</string>
+    <string name="dialog_appearance_blur">對話框背景模糊度</string>
+    <string name="dialog_appearance_controls">內部控制項背景透明度</string>
+    <string name="dialog_appearance_dim">後方頁面壓暗程度</string>
+    <string name="dialog_appearance_behind_blur">後方頁面模糊度</string>
+    <string name="dialog_appearance_blur_unavailable">目前裝置不支援視窗模糊或模糊暫時被系統關閉。設定模糊後，將以更實的底色或更深的遮罩代替。</string>
+    <string name="dialog_appearance_open_preview">開啟對話框預覽</string>
 </resources>

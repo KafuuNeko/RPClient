@@ -1273,4 +1273,13 @@
     <string name="appearance_character_background_hint">Utilise l’image du personnage si disponible, sinon celle du chat, puis l’image générale.</string>
     <string name="character_choose_background">Choisir le fond du personnage</string>
     <string name="character_remove_background">Retirer le fond du personnage</string>
+
+    <string name="dialog_appearance_title">Apparence des boîtes de dialogue</string>
+    <string name="dialog_appearance_transparency">Transparence du fond du dialogue</string>
+    <string name="dialog_appearance_blur">Flou du fond du dialogue</string>
+    <string name="dialog_appearance_controls">Transparence du fond des commandes</string>
+    <string name="dialog_appearance_dim">Assombrissement de la page</string>
+    <string name="dialog_appearance_behind_blur">Flou de la page</string>
+    <string name="dialog_appearance_blur_unavailable">Le flou des fenêtres est indisponible ou temporairement désactivé. Un fond plus opaque ou un assombrissement plus fort sera utilisé à la place.</string>
+    <string name="dialog_appearance_open_preview">Ouvrir un aperçu du dialogue</string>
 </resources>

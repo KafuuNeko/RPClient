@@ -1277,4 +1277,13 @@
     <string name="appearance_character_background_hint">Используется изображение персонажа, если оно есть; иначе — изображение чата, затем общий фон.</string>
     <string name="character_choose_background">Выбрать фон персонажа</string>
     <string name="character_remove_background">Удалить фон персонажа</string>
+
+    <string name="dialog_appearance_title">Оформление диалогов</string>
+    <string name="dialog_appearance_transparency">Прозрачность фона диалога</string>
+    <string name="dialog_appearance_blur">Размытие фона диалога</string>
+    <string name="dialog_appearance_controls">Прозрачность фона элементов</string>
+    <string name="dialog_appearance_dim">Затемнение страницы</string>
+    <string name="dialog_appearance_behind_blur">Размытие страницы</string>
+    <string name="dialog_appearance_blur_unavailable">Размытие окон недоступно или временно отключено системой. Вместо него используется менее прозрачный фон или более сильное затемнение.</string>
+    <string name="dialog_appearance_open_preview">Открыть предпросмотр диалога</string>
 </resources>

@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.ui.dialog
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,10 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,12 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-
-import androidx.compose.material3.FilledTonalButton
 
 /** 长任务使用的统一加载对话框，可选提供显式取消操作。 */
 @Composable
@@ -41,24 +37,14 @@ fun LoadingDialog(
     description: String,
     onCancel: (() -> Unit)? = null
 ) {
-    Dialog(
+    AppDialogWindow(
         onDismissRequest = {},
         properties = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false
         )
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            tonalElevation = 6.dp,
-            shadowElevation = 12.dp,
-            modifier = Modifier.width(310.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            )
-        ) {
+        DialogPanelSurface(modifier = Modifier.width(310.dp)) {
             Column(
                 modifier = Modifier.padding(vertical = 32.dp, horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -70,7 +56,7 @@ fun LoadingDialog(
                     modifier = Modifier
                         .size(76.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            color = dialogControlColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                             shape = CircleShape
                         )
                 ) {
@@ -79,7 +65,7 @@ fun LoadingDialog(
                         modifier = Modifier
                             .size(56.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                color = dialogControlColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                                 shape = CircleShape
                             )
                     ) {
@@ -114,6 +100,7 @@ fun LoadingDialog(
                 if (onCancel != null) {
                     Spacer(modifier = Modifier.height(2.dp))
                     FilledTonalButton(
+                        colors = dialogButtonColors(ButtonDefaults.filledTonalButtonColors()),
                         onClick = onCancel,
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier

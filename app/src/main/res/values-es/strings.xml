@@ -1274,4 +1274,13 @@
     <string name="appearance_character_background_hint">Usa la imagen del personaje si existe; de lo contrario, la del chat y luego la general.</string>
     <string name="character_choose_background">Elegir fondo del personaje</string>
     <string name="character_remove_background">Quitar fondo del personaje</string>
+
+    <string name="dialog_appearance_title">Apariencia de los diálogos</string>
+    <string name="dialog_appearance_transparency">Transparencia del fondo del diálogo</string>
+    <string name="dialog_appearance_blur">Desenfoque del fondo del diálogo</string>
+    <string name="dialog_appearance_controls">Transparencia del fondo de los controles</string>
+    <string name="dialog_appearance_dim">Oscurecimiento de la página</string>
+    <string name="dialog_appearance_behind_blur">Desenfoque de la página</string>
+    <string name="dialog_appearance_blur_unavailable">El desenfoque de ventanas no está disponible o está desactivado temporalmente. Se usará un fondo más opaco o un oscurecimiento mayor.</string>
+    <string name="dialog_appearance_open_preview">Abrir vista previa del diálogo</string>
 </resources>

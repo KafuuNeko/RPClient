@@ -27,7 +27,7 @@ import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -280,7 +280,7 @@ private fun PromptEditorViewport(
             .fillMaxWidth()
             .heightIn(min = editorHeightMin, max = editorHeightMax)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            .background(dialogControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)))
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),

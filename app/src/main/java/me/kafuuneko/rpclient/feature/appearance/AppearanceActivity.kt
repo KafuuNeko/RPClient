@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.appearance
 
+import android.content.Intent
+import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -38,6 +40,7 @@ class AppearanceActivity : CoreActivityWithEvent() {
     /** 使用系统 Photo Picker，旧系统由 Activity 库自动回退文档选择器。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            AppearanceViewEvent.OpenDialogAppearance -> startActivity(Intent(this, DialogAppearanceActivity::class.java))
             AppearanceViewEvent.PickImage -> mPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             else -> super.onReceivedViewEvent(viewEvent)
         }

@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
@@ -116,6 +117,7 @@ internal val appModules = module {
         )
     }
     singleOf(::LLMProviderSelectionResolver)
+    singleOf(::DialogAppearanceManager)
     singleOf(::AppThemeManager)
     singleOf(::PageBackgroundRepository)
     singleOf(::BackgroundImageRuntime)

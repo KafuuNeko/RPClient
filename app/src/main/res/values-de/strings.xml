@@ -1272,4 +1272,13 @@
     <string name="appearance_character_background_hint">Verwendet das Charakterbild, falls vorhanden; sonst das Chatbild und danach das allgemeine Bild.</string>
     <string name="character_choose_background">Charakterhintergrund auswählen</string>
     <string name="character_remove_background">Charakterhintergrund entfernen</string>
+
+    <string name="dialog_appearance_title">Dialogdarstellung</string>
+    <string name="dialog_appearance_transparency">Transparenz des Dialoghintergrunds</string>
+    <string name="dialog_appearance_blur">Unschärfe des Dialoghintergrunds</string>
+    <string name="dialog_appearance_controls">Transparenz der Bedienelemente</string>
+    <string name="dialog_appearance_dim">Abdunklung der Seite</string>
+    <string name="dialog_appearance_behind_blur">Unschärfe der Seite</string>
+    <string name="dialog_appearance_blur_unavailable">Fensterunschärfe ist nicht verfügbar oder vorübergehend deaktiviert. Stattdessen werden ein deckenderer Hintergrund oder eine stärkere Abdunklung verwendet.</string>
+    <string name="dialog_appearance_open_preview">Dialogvorschau öffnen</string>
 </resources>

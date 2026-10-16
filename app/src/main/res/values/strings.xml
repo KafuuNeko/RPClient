@@ -1277,4 +1277,13 @@
     <string name="appearance_character_background_hint">Use the character image when available; otherwise use the chat image, then the general image.</string>
     <string name="character_choose_background">Choose character background</string>
     <string name="character_remove_background">Remove character background</string>
+
+    <string name="dialog_appearance_title">Dialog appearance</string>
+    <string name="dialog_appearance_transparency">Dialog background transparency</string>
+    <string name="dialog_appearance_blur">Dialog background blur</string>
+    <string name="dialog_appearance_controls">Control background transparency</string>
+    <string name="dialog_appearance_dim">Page dimming</string>
+    <string name="dialog_appearance_behind_blur">Page blur</string>
+    <string name="dialog_appearance_blur_unavailable">Window blur is unavailable on this device or is temporarily disabled. Requested blur uses a more opaque background or stronger dimming instead.</string>
+    <string name="dialog_appearance_open_preview">Open dialog preview</string>
 </resources>

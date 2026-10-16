@@ -161,7 +161,9 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     // 当前选中的模型配置 ID。
     var currentLLMProvider by longPref()
 
-    // 应用配色主题，使用 AppThemeMode.persistedValue 持久化。
+    // 对话框独立外观参数，不包含文件引用。
+    var dialogAppearance by stringPref(default = "")
+
     // 配色与明暗模式分开保存，切换配色不改变用户的明暗偏好。
     var themePalette by stringPref(default = "classic")
 

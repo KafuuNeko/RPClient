@@ -1267,4 +1267,13 @@
     <string name="appearance_character_background_hint">캐릭터 이미지가 있으면 우선 사용하고, 없으면 채팅 이미지, 그다음 공통 이미지를 사용합니다.</string>
     <string name="character_choose_background">캐릭터 배경 선택</string>
     <string name="character_remove_background">캐릭터 배경 제거</string>
+
+    <string name="dialog_appearance_title">대화상자 모양</string>
+    <string name="dialog_appearance_transparency">대화상자 배경 투명도</string>
+    <string name="dialog_appearance_blur">대화상자 배경 흐림</string>
+    <string name="dialog_appearance_controls">내부 컨트롤 배경 투명도</string>
+    <string name="dialog_appearance_dim">뒤쪽 페이지 어둡기</string>
+    <string name="dialog_appearance_behind_blur">뒤쪽 페이지 흐림</string>
+    <string name="dialog_appearance_blur_unavailable">창 흐림을 지원하지 않거나 시스템에서 일시적으로 비활성화했습니다. 대신 배경을 더 불투명하게 하거나 더 어둡게 표시합니다.</string>
+    <string name="dialog_appearance_open_preview">대화상자 미리보기 열기</string>
 </resources>

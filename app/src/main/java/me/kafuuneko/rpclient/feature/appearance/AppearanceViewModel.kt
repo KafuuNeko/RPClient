@@ -58,6 +58,13 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         }
     }
 
+    /** 独立编辑对话框，不占用页面背景草稿或图片资源。 */
+    @UiIntentObserver(AppearanceUiIntent.EditDialogAppearance::class)
+    private fun onEditDialogAppearance() {
+        val state = getOrNull<AppearanceUiState.Normal>() ?: return
+        if (state.editor == null) AppearanceViewEvent.OpenDialogAppearance.tryEmit()
+    }
+
     /** 切换配色不修改背景草稿。 */
     @UiIntentObserver(AppearanceUiIntent.SelectPalette::class)
     private fun onSelectPalette(intent: AppearanceUiIntent.SelectPalette) {

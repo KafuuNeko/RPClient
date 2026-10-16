@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
+import me.kafuuneko.rpclient.ui.theme.LocalDialogControlOpacity
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 
 /** 页面外观开关与区域分类；弹窗可显式隔离，嵌套容器继续继承背景参数。 */
@@ -82,10 +83,10 @@ private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
     }
 }
 
-/** 仅在通用页面读取区域不透明度，避免对专用页面再次应用颜色参数。 */
+/** 优先读取弹窗内部控件参数，否则沿用所属页面区域的不透明度。 */
 @Composable
 internal fun generalOpacity(kind: PageSurfaceKind): Float =
-    if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f else 1f
+    LocalDialogControlOpacity.current ?: if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f else 1f
 
 /**
  * 亮色半透明卡片内的主题底板使用更深的色阶，避免内外层浅色叠加后边界消失。
