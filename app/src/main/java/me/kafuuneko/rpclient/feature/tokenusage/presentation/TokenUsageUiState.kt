@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.tokenusage.presentation
 
+import java.time.Instant
+import java.time.ZoneId
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageGroupItem
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageRecordItem
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageSummaryItem
@@ -61,3 +63,18 @@ sealed class TokenUsageUiState {
     }
 }
 
+/** 按系统时区计算统计周期起点；全部记录使用零时间戳。 */
+internal fun TokenUsagePeriod.startTimeMillis(nowMillis: Long = System.currentTimeMillis()): Long {
+    if (this == TokenUsagePeriod.AllTime) return 0L
+    val startOfToday = Instant.ofEpochMilli(nowMillis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .atStartOfDay(ZoneId.systemDefault())
+    val daysToSubtract = when (this) {
+        TokenUsagePeriod.Today -> 0L
+        TokenUsagePeriod.LastSevenDays -> 6L
+        TokenUsagePeriod.LastThirtyDays -> 29L
+        TokenUsagePeriod.AllTime -> 0L
+    }
+    return startOfToday.minusDays(daysToSubtract).toInstant().toEpochMilli()
+}

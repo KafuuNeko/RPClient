@@ -5,11 +5,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterActivationMode
-import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateCharacterItem
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
-import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookEntryItem
-import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateOptions
+import me.kafuuneko.rpclient.feature.storycreate.model.filterCharactersForQuery
+import me.kafuuneko.rpclient.feature.storycreate.model.filterForQuery
+import me.kafuuneko.rpclient.feature.storycreate.model.toStorageValue
+import me.kafuuneko.rpclient.feature.storycreate.model.toStoryCreateCharacterItem
+import me.kafuuneko.rpclient.feature.storycreate.model.toStoryCreateLorebookGroups
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadState
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
@@ -18,15 +20,12 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
-import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.toggle
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -245,41 +244,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
         val lorebookNames = lorebooks.associate { it.lorebook.id to it.lorebook.name }
         // 构建包含条目列表的世界书分组项
-        val groups = lorebooks.map { lorebookWithEntries ->
-            val lorebook = lorebookWithEntries.lorebook
-            StoryCreateLorebookGroupItem(
-                lorebookId = lorebook.id,
-                lorebookName = lorebook.name,
-                entries = lorebookWithEntries.entries
-                    .sortedBy { it.order }
-                    .map { entry ->
-                        StoryCreateLorebookEntryItem(
-                            id = entry.id,
-                            lorebookName = lorebook.name,
-                            name = entry.name,
-                            content = entry.content,
-                            keywords = entry.getKeywordList(),
-                            constant = entry.constant,
-                            order = entry.order,
-                            depth = entry.depth
-                        )
-                    }
-            )
-        }.filter { it.entries.isNotEmpty() }
+        val groups = lorebooks.toStoryCreateLorebookGroups()
         // 构建候选角色列表项
         val characters = mCharacterRepository.getAllCharacters().map { character ->
-            StoryCreateCharacterItem(
-                id = character.id,
-                name = character.name,
-                description = resolveCharacterUserMacros(
-                    template = character.description,
-                    characterName = character.name,
-                    userName = userName
-                ),
-                tags = character.getCharacterTagList(),
-                linkedLorebookId = character.characterLorebookId.takeIf { it > 0L },
-                linkedLorebookName = lorebookNames[character.characterLorebookId]
-            )
+            character.toStoryCreateCharacterItem(userName, lorebookNames)
         }
         return StoryCreateOptions(characters, groups)
     }
@@ -296,44 +264,4 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         uiState.copy(form = uiState.form.update()).setup()
     }
 
-    /** 根据检索文本对世界书分组及条目进行匹配过滤。 */
-    private fun List<StoryCreateLorebookGroupItem>.filterForQuery(
-        query: String
-    ): List<StoryCreateLorebookGroupItem> = filterLorebookGroups(
-        query = query,
-        groupName = { it.lorebookName },
-        entries = { it.entries },
-        entrySearchFields = { entry ->
-            sequenceOf(entry.lorebookName, entry.name, entry.content) +
-                entry.keywords.asSequence()
-        },
-        copyWithEntries = { group, entries -> group.copy(entries = entries) }
-    )
-
-    /** 根据检索文本匹配角色名称、简介或标签。 */
-    private fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
-        query: String
-    ): List<StoryCreateCharacterItem> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return filter { character ->
-            character.name.contains(normalizedQuery, ignoreCase = true) ||
-                character.description.contains(normalizedQuery, ignoreCase = true) ||
-                character.tags.any { it.contains(normalizedQuery, ignoreCase = true) }
-        }
-    }
-
-    /** 故事创建候选数据容器。 */
-    private data class StoryCreateOptions(
-        val characters: List<StoryCreateCharacterItem>,
-        val lorebookGroups: List<StoryCreateLorebookGroupItem>
-    )
-}
-
-private fun StoryCreateCharacterActivationMode.toStorageValue(): Int {
-    return when (this) {
-        StoryCreateCharacterActivationMode.Primary -> StoryCharacter.ACTIVATION_PRIMARY
-        StoryCreateCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
-        StoryCreateCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
-    }
 }

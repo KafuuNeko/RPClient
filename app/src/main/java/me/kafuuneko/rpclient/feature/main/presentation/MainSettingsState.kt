@@ -3,12 +3,14 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
@@ -212,3 +214,31 @@ data class MainDebugSettingsState(
     /** 当前对象或功能是否启用。 */
     val enabled: Boolean
 )
+
+/** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
+internal fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
+    return MainGenerationParametersState(
+        temperature = temperature,
+        topP = topP,
+        maxTokens = maxTokens,
+        contextTokens = contextTokens
+    )
+}
+
+/** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
+internal fun buildProviderSettingsState(
+    providers: List<LLMProvider>,
+    selectedProvider: LLMProvider?
+): MainProviderSettingsState {
+    if (selectedProvider == null) return MainProviderSettingsState.Empty
+    return MainProviderSettingsState.Available(
+        selectedProviderId = selectedProvider.id,
+        providers = providers.map { it.toMainProviderItem() },
+        generationParametersState = selectedProvider.toGenerationParametersState()
+    )
+}
+
+/** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
+internal fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
+    return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
+}

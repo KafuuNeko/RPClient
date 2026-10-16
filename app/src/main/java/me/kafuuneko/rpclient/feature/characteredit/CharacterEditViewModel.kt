@@ -13,17 +13,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
+import me.kafuuneko.rpclient.feature.characteredit.model.BackgroundDraft
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
+import me.kafuuneko.rpclient.feature.characteredit.model.ensureListInputs
 import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
+import me.kafuuneko.rpclient.feature.characteredit.model.promptText
+import me.kafuuneko.rpclient.feature.characteredit.model.withPromptText
+import me.kafuuneko.rpclient.feature.characteredit.model.withValidLorebookAssociation
+import me.kafuuneko.rpclient.feature.characteredit.model.withValidProviderAssociation
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
-import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
@@ -66,9 +71,6 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mBackgroundOwner = UUID.randomUUID().toString()
     private var mPreparedBackground: PreparedFile? = null
     private val mBackgroundDraft = MutableStateFlow<BackgroundDraft?>(null)
-
-    /** 图片索引与暂存凭据一同切换，防止新索引误读上一张暂存。 */
-    private data class BackgroundDraft(val uuid: String?, val prepared: PreparedFile? = null)
 
     init {
         viewModelScope.launch {
@@ -630,68 +632,6 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private suspend fun finishEditing() {
         cleanupPendingImages()
         CharacterEditUiState.finished(uiStateFlow.value).setup()
-    }
-
-    /** 确保所有列表输入项至少包含一个输入框。 */
-    private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
-        return copy(
-            tags = tags.orSingleBlank(),
-            firstMessages = firstMessages.orSingleBlank(),
-            alternateGreetings = alternateGreetings.orSingleBlank()
-        )
-    }
-
-    /** 校验绑定的世界书 ID 是否仍然存在，若已被删除则重置为 0。 */
-    private fun CharacterEditForm.withValidLorebookAssociation(
-        availableLorebookIds: Set<Long>
-    ): CharacterEditForm {
-        if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
-        return copy(characterLorebookId = 0L)
-    }
-
-    /** 校验绑定的 LLM 提供商 ID 是否仍然存在，若已被删除则重置为 0。 */
-    private fun CharacterEditForm.withValidProviderAssociation(
-        availableProviderIds: Set<Long>
-    ): CharacterEditForm {
-        if (llmProviderId == 0L || llmProviderId in availableProviderIds) return this
-        return copy(llmProviderId = 0L)
-    }
-
-    /** 根据目标枚举字段读取对应的 Prompt 文本内容。 */
-    private fun CharacterEditForm.promptText(field: CharacterPromptField): String? {
-        return when (field) {
-            CharacterPromptField.Description -> description
-            CharacterPromptField.Personality -> personality
-            CharacterPromptField.Scenario -> scenario
-            is CharacterPromptField.FirstMessage -> firstMessages.getOrNull(field.index)
-            CharacterPromptField.DialogueExamples -> examplesOfDialogue
-            CharacterPromptField.SystemPrompt -> systemPrompt
-            CharacterPromptField.PostHistoryInstructions -> postHistoryInstructions
-            CharacterPromptField.DepthPrompt -> depthPromptPrompt
-            is CharacterPromptField.AlternateGreeting -> alternateGreetings.getOrNull(field.index)
-        }
-    }
-
-    /** 根据目标枚举字段将 Prompt 编辑器中的文本回写至表单对应字段。 */
-    private fun CharacterEditForm.withPromptText(
-        field: CharacterPromptField,
-        text: String
-    ): CharacterEditForm {
-        return when (field) {
-            CharacterPromptField.Description -> copy(description = text)
-            CharacterPromptField.Personality -> copy(personality = text)
-            CharacterPromptField.Scenario -> copy(scenario = text)
-            is CharacterPromptField.FirstMessage -> copy(
-                firstMessages = firstMessages.updateAt(field.index, text)
-            )
-            CharacterPromptField.DialogueExamples -> copy(examplesOfDialogue = text)
-            CharacterPromptField.SystemPrompt -> copy(systemPrompt = text)
-            CharacterPromptField.PostHistoryInstructions -> copy(postHistoryInstructions = text)
-            CharacterPromptField.DepthPrompt -> copy(depthPromptPrompt = text)
-            is CharacterPromptField.AlternateGreeting -> copy(
-                alternateGreetings = alternateGreetings.updateAt(field.index, text)
-            )
-        }
     }
 
 }

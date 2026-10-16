@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.chatcreate.model
 
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
+
 /** 创建单聊会话时尚未持久化的用户选择。 */
 data class ChatCreateForm(
     /** 当前选中角色的 ID。 */
@@ -27,4 +29,9 @@ data class ChatCreateForm(
                 linkedLorebookEntryIds
         )
     }
+}
+
+/** 获取格式化后的会话标题，为空时生成默认日期标题。 */
+internal fun ChatCreateForm.normalizedTitle(createTime: Long): String {
+    return title.trim().ifBlank { createTime.toDefaultChatTitle() }
 }

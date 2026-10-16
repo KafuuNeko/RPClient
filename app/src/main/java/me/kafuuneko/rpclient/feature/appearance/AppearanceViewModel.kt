@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.feature.appearance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -14,9 +13,9 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
-import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustment
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
+import me.kafuuneko.rpclient.feature.appearance.presentation.withAdjustment
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
@@ -151,22 +150,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
         if (editor.working || !intent.value.isFinite() ||
             (editor.settings.page != BackgroundPage.General && editor.settings.followGeneral)) return
-        // UI 使用透明度百分比，持久化与颜色渲染统一使用不透明度。
-        val value = intent.value
-        val settings = when (intent.field) {
-            BackgroundAdjustment.Blur -> editor.settings.copy(blur = value.roundToInt())
-            BackgroundAdjustment.TopBarBlur -> editor.settings.copy(topBarBlur = value.roundToInt())
-            BackgroundAdjustment.BottomBarBlur -> editor.settings.copy(bottomBarBlur = value.roundToInt())
-            BackgroundAdjustment.BubbleBlur -> editor.settings.copy(bubbleBlur = value.roundToInt())
-            BackgroundAdjustment.ContentBlur -> editor.settings.copy(contentBlur = value.roundToInt())
-            BackgroundAdjustment.Scrim -> editor.settings.copy(scrim = value)
-            BackgroundAdjustment.ContentTransparency -> editor.settings.copy(opacity = 1f - value)
-            BackgroundAdjustment.TopBarTransparency -> editor.settings.copy(topBarOpacity = 1f - value)
-            BackgroundAdjustment.BottomBarTransparency -> editor.settings.copy(bottomBarOpacity = 1f - value)
-            BackgroundAdjustment.BubbleTransparency -> editor.settings.copy(bubbleOpacity = 1f - value)
-            BackgroundAdjustment.Horizontal -> editor.settings.copy(focalX = value)
-            BackgroundAdjustment.Vertical -> editor.settings.copy(focalY = value)
-        }.normalized()
+        val settings = editor.settings.withAdjustment(intent.field, intent.value)
         updateEditor { it.copy(settings = settings) }
         if (intent.field.isBlur || intent.field.isTransparency) requestPreview(true)
     }

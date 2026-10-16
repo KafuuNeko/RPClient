@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.main.model
 
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+
 /** 设置页渲染所需的模型配置摘要，不包含任何鉴权信息。 */
 data class MainProviderItem(
     /** 当前记录或列表项的唯一标识。 */
@@ -15,4 +17,15 @@ data class MainProviderItem(
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && model.isNotBlank()
+}
+
+/** 将 LLMProvider 映射为主页供应商下拉列表展示项。 */
+internal fun LLMProvider.toMainProviderItem(): MainProviderItem {
+    return MainProviderItem(
+        id = id,
+        name = name,
+        baseUrl = baseUrl,
+        model = model,
+        isEnabled = isEnabled
+    )
 }

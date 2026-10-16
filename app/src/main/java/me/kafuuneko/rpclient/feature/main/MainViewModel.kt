@@ -23,20 +23,15 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
-import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.model.items.toUiModel
+import me.kafuuneko.rpclient.feature.main.model.toImportCharacterItem
+import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
@@ -57,10 +52,14 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
+import me.kafuuneko.rpclient.feature.main.presentation.buildProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
+import me.kafuuneko.rpclient.feature.main.presentation.hasInvalidTokenRelationship
 import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
+import me.kafuuneko.rpclient.feature.main.presentation.postProcessingMode
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
+import me.kafuuneko.rpclient.feature.main.presentation.toGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
@@ -81,13 +80,10 @@ import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
@@ -96,13 +92,9 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
-import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-
-/** 连续空白字符匹配正则，用于故事内容摘要的空白压缩与规整。 */
-private val WHITESPACE_REGEX = Regex("\\s+")
 
 /**
  * 应用主页面状态持有者。
@@ -831,18 +823,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    /** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
-    private fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
-        provider: LLMProvider
-    ): Boolean {
-        val value = draftValue.toIntOrNull() ?: return false
-        return when (parameter) {
-            MainGenerationParameter.MaxTokens -> value >= provider.contextTokens
-            MainGenerationParameter.ContextTokens -> value <= provider.maxTokens
-            MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> false
-        }
-    }
-
     /** 触发系统图片选择器选择用户自定义头像。 */
     @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
     private fun onPickUserAvatarClick() {
@@ -1406,7 +1386,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val storyOverviews = mStoryRepository.getStoryOverviews()
             // 将单聊会话按角色聚合分组
             val sessionItems = sessions.map { session ->
-                session.toUiModel(characterMap[session.characterId])
+                session.toUiModel(
+                    characterName = characterMap[session.characterId]?.name.orEmpty()
+                        .ifBlank { mContext.getString(R.string.unknown_character) },
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
+                )
             }
             val sessionGroups = sessionItems.groupBy { it.characterId }.map { (id, items) ->
                 MainChatSessionGroup(
@@ -1417,26 +1401,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             }
             // 格式化群聊会话列表项
             val groupChatItems = groupSessions.map { session ->
-                MainGroupChatSessionItem(
-                    id = session.id.toString(),
-                    title = session.title,
-                    memberNames = session.memberNames,
-                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
-                    messageCount = session.messageCount,
-                    updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm"),
-                    latestTime = session.latestTime
+                session.toUiModel(
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
                 )
             }
             // 格式化故事列表项
             val storyItems = storyOverviews.map { story ->
-                MainStoryItem(
-                    id = story.id,
-                    title = story.title,
-                    preview = story.preview.replace(WHITESPACE_REGEX, " ").trim(),
-                    contentCharacterCount = story.contentCharacterCount,
-                    updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm"),
-                    latestTime = story.latestTime
-                )
+                story.toUiModel()
             }
             // 装配完整的首页状态模型
             MainHomeState(
@@ -1527,19 +1498,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
-    /** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
-    private fun buildProviderSettingsState(
-        providers: List<LLMProvider>,
-        selectedProvider: LLMProvider?
-    ): MainProviderSettingsState {
-        if (selectedProvider == null) return MainProviderSettingsState.Empty
-        return MainProviderSettingsState.Available(
-            selectedProviderId = selectedProvider.id,
-            providers = providers.map { it.toMainProviderItem() },
-            generationParametersState = selectedProvider.toGenerationParametersState()
-        )
-    }
-
     /** 构建总结注入配置子状态（根据注入位置分别构建 System 或 InChat 配置）。 */
     private fun buildSummaryInjectionState(
         position: SummaryInjectionPosition
@@ -1547,42 +1505,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return position.toMainSummaryInjectionState(
             depth = AppModel.summaryInjectionDepth,
             role = readSummaryInjectionRole()
-        )
-    }
-
-    /** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
-    private fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
-        return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
-    }
-
-    /** 将 LLMProvider 映射为主页供应商下拉列表展示项。 */
-    private fun LLMProvider.toMainProviderItem(): MainProviderItem {
-        return MainProviderItem(
-            id = id,
-            name = name,
-            baseUrl = baseUrl,
-            model = model,
-            isEnabled = isEnabled
-        )
-    }
-
-    /** 将 Character 实体映射为导入角色绑定弹窗中的条目。 */
-    private fun Character.toImportCharacterItem(): MainImportCharacterItem {
-        return MainImportCharacterItem(
-            id = id,
-            name = name,
-            details = creator.takeIf { it.isNotBlank() }
-                ?: description.lineSequence().firstOrNull().orEmpty().take(80)
-        )
-    }
-
-    /** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
-    private fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
-        return MainGenerationParametersState(
-            temperature = temperature,
-            topP = topP,
-            maxTokens = maxTokens,
-            contextTokens = contextTokens
         )
     }
 
@@ -1611,29 +1533,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             }
 
-    /** 从当前首页状态中按 ID 查找故事。 */
-    private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
-        val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
-        return content.stories.firstOrNull { it.id == storyId }
-    }
-
-    /** 从当前首页快照中读取可重命名内容的标题。 */
-    private fun MainHomeState.findItemTitle(item: MainHomeItemSelection): String? {
-        return when (item.type) {
-            MainHomeItemType.Chat -> allRecentItems
-                .filterIsInstance<MainChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
-            MainHomeItemType.GroupChat -> allRecentItems
-                .filterIsInstance<MainGroupChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
-            MainHomeItemType.Story -> item.itemId.toLongOrNull()
-                ?.let { storyId -> findStory(storyId) }
-                ?.title
-        }
-    }
-
     /** 辅助函数：安全解析整数设置项并应用更新。 */
     private fun updateSettingsInt(
         value: String,
@@ -1658,17 +1557,4 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         content?.stripThinkBlocks()?.takeIf { it.isNotBlank() }
             ?: mContext.getString(if (hasImages) R.string.message_image else R.string.no_messages_yet)
 
-    /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */
-    private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
-        return MainChatSessionItem(
-            id = id.toString(),
-            characterId = characterId.toString(),
-            characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
-            title = title,
-            preview = messagePreview(latestMessageContent, latestMessageHasImages),
-            messageCount = messageCount,
-            updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
-            latestTime = latestTime
-        )
-    }
 }

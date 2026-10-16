@@ -1,5 +1,11 @@
 package me.kafuuneko.rpclient.feature.storycreate.model
 
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.model.LorebookWithEntries
+import me.kafuuneko.rpclient.utils.filterLorebookGroups
+
 /** 创建 Story 时尚未持久化的角色与世界书选择。 */
 data class StoryCreateForm(
     /** 供界面展示或持久化的标题。 */
@@ -115,4 +121,86 @@ data class StoryCreateLorebookGroupItem(
 ) {
     val entryCount: Int
         get() = entries.size
+}
+
+/** 根据检索文本对世界书分组及条目进行匹配过滤。 */
+internal fun List<StoryCreateLorebookGroupItem>.filterForQuery(
+    query: String
+): List<StoryCreateLorebookGroupItem> = filterLorebookGroups(
+    query = query,
+    groupName = { it.lorebookName },
+    entries = { it.entries },
+    entrySearchFields = { entry ->
+        sequenceOf(entry.lorebookName, entry.name, entry.content) +
+            entry.keywords.asSequence()
+    },
+    copyWithEntries = { group, entries -> group.copy(entries = entries) }
+)
+
+/** 根据检索文本匹配角色名称、简介或标签。 */
+internal fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
+    query: String
+): List<StoryCreateCharacterItem> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return this
+    return filter { character ->
+        character.name.contains(normalizedQuery, ignoreCase = true) ||
+            character.description.contains(normalizedQuery, ignoreCase = true) ||
+            character.tags.any { it.contains(normalizedQuery, ignoreCase = true) }
+    }
+}
+
+/** 将创建页角色激活模式转换为持久化值。 */
+internal fun StoryCreateCharacterActivationMode.toStorageValue(): Int {
+    return when (this) {
+        StoryCreateCharacterActivationMode.Primary -> StoryCharacter.ACTIVATION_PRIMARY
+        StoryCreateCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
+        StoryCreateCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
+    }
+}
+
+/** 将持久化角色转换为当前页面的候选展示项。 */
+internal fun Character.toStoryCreateCharacterItem(
+    userName: String,
+    lorebookNames: Map<Long, String>
+): StoryCreateCharacterItem {
+    // 保留角色绑定世界书的原始查询规则；显示名称与有效 ID 分别解析。
+    return StoryCreateCharacterItem(
+        id = id,
+        name = name,
+        description = resolveCharacterUserMacros(
+            template = description,
+            characterName = name,
+            userName = userName
+        ),
+        tags = getCharacterTagList(),
+        linkedLorebookId = characterLorebookId.takeIf { it > 0L },
+        linkedLorebookName = lorebookNames[characterLorebookId]
+    )
+}
+
+/** 按条目的 order 构建创建页世界书分组，并排除空分组。 */
+internal fun List<LorebookWithEntries>.toStoryCreateLorebookGroups(): List<StoryCreateLorebookGroupItem> {
+    // 保持各创建页原有字段投影，避免搜索能力或默认勾选状态变化。
+    return map { lorebookWithEntries ->
+        val lorebook = lorebookWithEntries.lorebook
+        StoryCreateLorebookGroupItem(
+            lorebookId = lorebook.id,
+            lorebookName = lorebook.name,
+            entries = lorebookWithEntries.entries
+                .sortedBy { it.order }
+                .map { entry ->
+                    StoryCreateLorebookEntryItem(
+                        id = entry.id,
+                        lorebookName = lorebook.name,
+                        name = entry.name,
+                        content = entry.content,
+                        keywords = entry.getKeywordList(),
+                        constant = entry.constant,
+                        order = entry.order,
+                        depth = entry.depth
+                    )
+                }
+        )
+    }.filter { it.entries.isNotEmpty() }
 }

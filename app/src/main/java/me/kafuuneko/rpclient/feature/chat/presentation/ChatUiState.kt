@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
+import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
@@ -110,7 +111,6 @@ sealed class ChatDialogState {
         val enabledEntryIds: Set<Long>
     ) : ChatDialogState()
 
-
     data object Exporting : ChatDialogState()
 
     data object Summarizing : ChatDialogState()
@@ -150,4 +150,9 @@ internal fun ChatDialogState.resolveExportDialogState(
     } else {
         this
     }
+}
+
+/** 将公共模型配置引导转换为单聊页面的对话框状态。 */
+internal fun ModelSettingsGuideContent.toChatDialogState(): ChatDialogState.ModelSettingsGuide {
+    return ChatDialogState.ModelSettingsGuide(title = title, message = message)
 }

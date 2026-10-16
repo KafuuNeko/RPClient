@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.model
 
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.room.entity.Character
+
 /** 创建群聊时使用的角色选项，并记录角色卡绑定的世界书。 */
 data class GroupChatCreateCharacterItem(
     /** 当前记录或列表项的唯一标识。 */
@@ -15,3 +18,31 @@ data class GroupChatCreateCharacterItem(
     /** 当前角色或群聊可选择的开场白列表。 */
     val greetings: List<String> = emptyList()
 )
+
+/** 根据检索关键词过滤可见角色。 */
+internal fun List<GroupChatCreateCharacterItem>.visibleFor(
+    query: String
+): List<GroupChatCreateCharacterItem> {
+    val normalized = query.trim()
+    return filter {
+        normalized.isBlank() ||
+            it.name.contains(normalized, ignoreCase = true) ||
+            it.description.contains(normalized, ignoreCase = true)
+    }
+}
+
+/** 将持久化角色转换为当前页面的候选展示项。 */
+internal fun Character.toGroupChatCreateCharacterItem(userName: String): GroupChatCreateCharacterItem {
+    return GroupChatCreateCharacterItem(
+        id = id,
+        name = name,
+        description = resolveCharacterUserMacros(
+            template = description,
+            characterName = name,
+            userName = userName
+        ),
+        selected = false,
+        characterLorebookId = characterLorebookId,
+        greetings = getChatFirstMessageList()
+    )
+}

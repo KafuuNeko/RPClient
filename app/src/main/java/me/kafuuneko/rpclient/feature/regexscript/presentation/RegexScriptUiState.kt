@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexExecutionMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
 
 /** Regex 管理页的完整状态树。 */
 sealed class RegexScriptUiState {
@@ -75,4 +76,14 @@ sealed class RegexScriptDialogState {
         val scriptId: String,
         val scriptName: String
     ) : RegexScriptDialogState()
+}
+
+/** 从当前 UI 状态解析对应的 Regex 脚本定位目标。 */
+internal fun RegexScriptUiState.Normal.targetOrNull(): RegexScriptTarget? {
+    return when (scope) {
+        RegexScriptScope.Global -> RegexScriptTarget(RegexScriptScope.Global)
+        RegexScriptScope.Character -> selectedCharacterId?.let {
+            RegexScriptTarget(RegexScriptScope.Character, it)
+        }
+    }
 }

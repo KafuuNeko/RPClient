@@ -18,15 +18,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
-import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
+import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageCursor
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
+import me.kafuuneko.rpclient.feature.groupchat.model.GroupLorebookContext
+import me.kafuuneko.rpclient.feature.groupchat.model.LoadedGroupChatMessagePage
+import me.kafuuneko.rpclient.feature.groupchat.model.PendingMemberOrder
+import me.kafuuneko.rpclient.feature.groupchat.model.PreparedGroupSummaryRequest
+import me.kafuuneko.rpclient.feature.groupchat.model.ReplyRetryContext
+import me.kafuuneko.rpclient.feature.groupchat.model.filterForQuery
+import me.kafuuneko.rpclient.feature.groupchat.model.toGroupChatMessageCursor
+import me.kafuuneko.rpclient.feature.groupchat.model.toSpeakerHistory
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatLoadState
@@ -35,13 +40,16 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsSta
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
+import me.kafuuneko.rpclient.feature.groupchat.presentation.toGroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.withSettingsDraft
+import me.kafuuneko.rpclient.feature.groupchat.utils.groupRegexMacros
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.MainActivity
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -49,7 +57,6 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatGenerationMode
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptContext
-import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerHistory
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
@@ -65,11 +72,12 @@ import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
-import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -81,27 +89,22 @@ import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
-import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.entity.Lorebook
-import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
-import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
-import me.kafuuneko.rpclient.libs.room.repository.GroupChatSpeakerSelectionData
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.model.toMessageContentParts
-import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
@@ -135,13 +138,6 @@ class GroupChatViewModel :
         /** 文件仓库使用 ARGB_8888 解码，按每个像素四字节计算缓存占用。 */
         override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
     }
-    /** 只保存失败批次尚未完成的角色，模式与触发消息作为同一快照更新。 */
-    private data class ReplyRetryContext(
-        val sessionId: Long,
-        val speakers: List<GroupChatMemberData>,
-        val generationMode: GroupChatGenerationMode,
-        val triggerUserMessageId: Long?
-    )
 
     private var mReplyRetryContext: ReplyRetryContext? = null
 
@@ -2452,28 +2448,6 @@ class GroupChatViewModel :
     }
 
     /**
-     * 生成群聊专用的正则宏字典。
-     *
-     * 注入变量包括：`{{user}}`, `{{char}}`, `{{description}}`, `{{scenario}}`, `{{group}}`（所有群成员名称列表）。
-     *
-     * @param data 群聊聚合数据
-     * @param characterName 当前角色的名称
-     * @return 宏映射 Map
-     */
-    private fun groupRegexMacros(
-        data: GroupChatData,
-        characterName: String
-    ): Map<String, String> {
-        return RegexScriptRuntime.macros(
-            userName = data.session.userName,
-            characterName = characterName,
-            userDescription = data.session.userDescription,
-            scenario = data.session.scenario,
-            groupNames = data.members.joinToString(", ") { it.character.name }
-        )
-    }
-
-    /**
      * 弹出 Toast 提示并退出当前群聊页面。
      *
      * @param messageResId 字符串资源 ID
@@ -2482,11 +2456,6 @@ class GroupChatViewModel :
         AppViewEvent.PopupToastMessageByResId(messageResId).tryEmit()
         clearReplyRetry()
         GroupChatUiState.finished(uiStateFlow.value).setup()
-    }
-
-    /** 将持久化群聊消息转换为向前分页使用的稳定游标。 */
-    private fun GroupChatMessage.toGroupChatMessageCursor(): GroupChatMessageCursor {
-        return GroupChatMessageCursor(createTime = createTime, messageId = id)
     }
 
     /**
@@ -2502,70 +2471,6 @@ class GroupChatViewModel :
         uiState.withSettingsDraft(transform).setup()
     }
 
-    /**
-     * 依据搜索词过滤世界书分组及条目列表。
-     *
-     * @param query 搜索关键词
-     * @return 过滤后的世界书分组列表
-     */
-    private fun List<GroupChatLorebookGroupItem>.filterForQuery(
-        query: String
-    ): List<GroupChatLorebookGroupItem> = filterLorebookGroups(
-        query = query,
-        groupName = { it.lorebookName },
-        entries = { it.entries },
-        entrySearchFields = { entry ->
-            sequenceOf(entry.lorebookName, entry.name, entry.content) +
-                entry.keywords.asSequence() +
-                entry.secondaryKeywords.asSequence()
-        },
-        copyWithEntries = { group, entries -> group.copy(entries = entries) }
-    )
-
-    /**
-     * 群聊世界书上下文数据模型。
-     *
-     * @property entries 候选世界书条目列表
-     * @property lorebooks 关联的世界书实体映射
-     * @property recursiveLorebookIds 开启了递归扫描的世界书 ID 集合
-     */
-    private data class GroupLorebookContext(
-        /** 当前分组、请求或结果包含的条目列表。 */
-        val entries: List<LorebookEntry>,
-        /** 当前页面或流程可使用的世界书列表。 */
-        val lorebooks: Map<Long, Lorebook>,
-        /** 本轮实际参与递归扫描的世界书 ID 集合。 */
-        val recursiveLorebookIds: Set<Long>
-    )
-
-    /** 一次成员拖动的原始顺序与最终顺序快照。 */
-    private data class PendingMemberOrder(
-        /** 应用排序或筛选前的角色 ID 顺序。 */
-        val originalCharacterIds: List<Long>,
-        /** 应用业务规则后得到的角色 ID 顺序。 */
-        val orderedCharacterIds: List<Long>
-    )
-
-    /** 群聊消息由创建时间与 ID 组成的稳定分页游标。 */
-    private data class GroupChatMessageCursor(
-        val createTime: Long,
-        val messageId: Long
-    )
-
-    /** 已完成展示转换、可直接合并进 UiState 的一页群聊消息。 */
-    private data class LoadedGroupChatMessagePage(
-        val items: List<GroupChatMessageItem>,
-        val cursor: GroupChatMessageCursor?,
-        val canLoadOlderMessages: Boolean
-    )
-
-    /** 已完成预算选择、可以直接发送并写回覆盖边界的群聊摘要请求。 */
-    private data class PreparedGroupSummaryRequest(
-        val request: LLMGenerationRequest,
-        val coveredMessageId: Long,
-        val inputSnapshot: SummaryInputSnapshot
-    )
-
     private companion object {
         /** 自动群聊模式下，两轮生成之间的短暂缓冲延时（毫秒）。 */
         const val AUTO_MODE_DELAY_MS = 500L
@@ -2574,17 +2479,4 @@ class GroupChatViewModel :
         /** 头像缓存最多持有约八兆字节的像素数据。 */
         const val AVATAR_CACHE_SIZE_BYTES = 8 * 1024 * 1024
     }
-}
-
-/** 将公共模型配置引导转换为群聊页面的对话框状态。 */
-private fun ModelSettingsGuideContent.toGroupChatDialogState(): GroupChatDialogState.ModelSettingsGuide {
-    return GroupChatDialogState.ModelSettingsGuide(title = title, message = message)
-}
-
-/** 将数据库最小投影转换为发言者选择领域上下文。 */
-private fun GroupChatSpeakerSelectionData.toSpeakerHistory(): GroupChatSpeakerHistory {
-    return GroupChatSpeakerHistory(
-        spokenCharacterIdsSinceLastUserMessage = spokenCharacterIdsSinceLastUserMessage,
-        lastCharacterSpeakerId = lastCharacterSpeakerId
-    )
 }

@@ -5,10 +5,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
-import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
-import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
-import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingCharacterItem
-import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingMode
+import me.kafuuneko.rpclient.feature.groupchat.model.filterForQuery
+import me.kafuuneko.rpclient.feature.groupchat.model.withEnabledIds
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.reconcile
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.toGroupChatCreateCharacterItem
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.toGroupChatCreateLorebookGroups
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.toSelection
+import me.kafuuneko.rpclient.feature.groupchatcreate.model.visibleFor
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
@@ -18,18 +21,13 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
-import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingSelection
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
-import me.kafuuneko.rpclient.utils.toDefaultChatTitle
-import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -63,44 +61,10 @@ class GroupChatCreateViewModel :
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters().map {
-                GroupChatCreateCharacterItem(
-                    id = it.id,
-                    name = it.name,
-                    description = resolveCharacterUserMacros(
-                        template = it.description,
-                        characterName = it.name,
-                        userName = userName
-                    ),
-                    selected = false,
-                    characterLorebookId = it.characterLorebookId,
-                    greetings = it.getChatFirstMessageList()
-                )
+                it.toGroupChatCreateCharacterItem(userName)
             }
             val lorebookGroups = mLorebookRepository.getAllLorebooksWithEntries()
-                .map { lorebookWithEntries ->
-                    val lorebook = lorebookWithEntries.lorebook
-                    GroupChatLorebookGroupItem(
-                        lorebookId = lorebook.id,
-                        lorebookName = lorebook.name,
-                        entries = lorebookWithEntries.entries
-                            .sortedBy { it.order }
-                            .map { entry ->
-                                GroupChatLorebookEntryItem(
-                                    id = entry.id,
-                                    lorebookId = lorebook.id,
-                                    lorebookName = lorebook.name,
-                                    name = entry.name,
-                                    content = entry.content,
-                                    keywords = entry.getKeywordList(),
-                                    secondaryKeywords = entry.getSecondaryKeywordList(),
-                                    constant = entry.constant,
-                                    order = entry.order,
-                                    depth = entry.depth,
-                                    enabled = false
-                                )
-                            }
-                    )
-                }.filter { it.entries.isNotEmpty() }
+                .toGroupChatCreateLorebookGroups()
             characters to lorebookGroups
         }
         // 渲染就绪状态
@@ -363,89 +327,4 @@ class GroupChatCreateViewModel :
         GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }
 
-    /** 根据检索关键词过滤可见角色。 */
-    private fun List<GroupChatCreateCharacterItem>.visibleFor(
-        query: String
-    ): List<GroupChatCreateCharacterItem> {
-        val normalized = query.trim()
-        return filter {
-            normalized.isBlank() ||
-                it.name.contains(normalized, ignoreCase = true) ||
-                it.description.contains(normalized, ignoreCase = true)
-        }
-    }
-
-    /** 更新世界书分组列表中所有条目的勾选激活状态。 */
-    private fun List<GroupChatLorebookGroupItem>.withEnabledIds(
-        selectedIds: Set<Long>
-    ): List<GroupChatLorebookGroupItem> = map { group ->
-        group.copy(entries = group.entries.map { it.copy(enabled = it.id in selectedIds) })
-    }
-
-    /** 根据检索关键词多字段过滤世界书分组与条目。 */
-    private fun List<GroupChatLorebookGroupItem>.filterForQuery(
-        query: String
-    ): List<GroupChatLorebookGroupItem> = filterLorebookGroups(
-        query = query,
-        groupName = { it.lorebookName },
-        entries = { it.entries },
-        entrySearchFields = { entry ->
-            sequenceOf(entry.lorebookName, entry.name, entry.content) +
-                entry.keywords.asSequence() +
-                entry.secondaryKeywords.asSequence()
-        },
-        copyWithEntries = { group, entries -> group.copy(entries = entries) }
-    )
-
-    /**
-     * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。
-     *
-     * @param characters 当前全量角色项列表
-     */
-    private fun GroupChatCreateGreetingState.reconcile(
-        characters: List<GroupChatCreateCharacterItem>
-    ): GroupChatCreateGreetingState {
-        // 仅保留已勾选为群成员的角色作为开场白候选
-        val candidates = characters.filter { it.selected }.map {
-            GroupChatGreetingCharacterItem(
-                id = it.id,
-                name = it.name,
-                greetings = it.greetings
-            )
-        }
-        val current = candidates.firstOrNull { it.id == selectedCharacterId }
-        // 按模式推导首选开场角色
-        val preferred = when (mode) {
-            GroupChatGreetingMode.Manual ->
-                current?.takeIf { it.greetings.isNotEmpty() }
-                    ?: candidates.firstOrNull { it.greetings.isNotEmpty() }
-            else -> current ?: candidates.firstOrNull()
-        }
-        // 校验并收敛开场白索引
-        val greetingIndex = selectedGreetingIndex
-            ?.takeIf { it in preferred?.greetings.orEmpty().indices }
-            ?: preferred?.greetings?.indices?.firstOrNull()
-        return copy(
-            characters = candidates,
-            selectedCharacterId = preferred?.id,
-            selectedGreetingIndex = greetingIndex
-        )
-    }
-
-    /** 将开场白状态映射为领域层开场白选择实体。 */
-    private fun GroupChatCreateGreetingState.toSelection(): GroupChatGreetingSelection {
-        return when (mode) {
-            GroupChatGreetingMode.RandomPerCharacter ->
-                GroupChatGreetingSelection.RandomPerCharacter
-            GroupChatGreetingMode.Manual -> GroupChatGreetingSelection.Manual(
-                characterId = requireNotNull(selectedCharacterId),
-                greetingIndex = requireNotNull(selectedGreetingIndex)
-            )
-            GroupChatGreetingMode.Custom -> GroupChatGreetingSelection.Custom(
-                characterId = requireNotNull(selectedCharacterId),
-                content = customGreeting
-            )
-            GroupChatGreetingMode.None -> GroupChatGreetingSelection.None
-        }
-    }
 }

@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.model
 
+import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingSelection
+
 /** 创建群聊时支持的开场白来源。 */
 enum class GroupChatGreetingMode {
     RandomPerCharacter,
@@ -43,4 +45,56 @@ data class GroupChatCreateGreetingState(
             GroupChatGreetingMode.Custom ->
                 selectedCharacter != null && customGreeting.isNotBlank()
         }
+}
+
+/**
+ * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。
+ *
+ * @param characters 当前全量角色项列表
+ */
+internal fun GroupChatCreateGreetingState.reconcile(
+    characters: List<GroupChatCreateCharacterItem>
+): GroupChatCreateGreetingState {
+    // 仅保留已勾选为群成员的角色作为开场白候选
+    val candidates = characters.filter { it.selected }.map {
+        GroupChatGreetingCharacterItem(
+            id = it.id,
+            name = it.name,
+            greetings = it.greetings
+        )
+    }
+    val current = candidates.firstOrNull { it.id == selectedCharacterId }
+    // 按模式推导首选开场角色
+    val preferred = when (mode) {
+        GroupChatGreetingMode.Manual ->
+            current?.takeIf { it.greetings.isNotEmpty() }
+                ?: candidates.firstOrNull { it.greetings.isNotEmpty() }
+        else -> current ?: candidates.firstOrNull()
+    }
+    // 校验并收敛开场白索引
+    val greetingIndex = selectedGreetingIndex
+        ?.takeIf { it in preferred?.greetings.orEmpty().indices }
+        ?: preferred?.greetings?.indices?.firstOrNull()
+    return copy(
+        characters = candidates,
+        selectedCharacterId = preferred?.id,
+        selectedGreetingIndex = greetingIndex
+    )
+}
+
+/** 将开场白状态映射为领域层开场白选择实体。 */
+internal fun GroupChatCreateGreetingState.toSelection(): GroupChatGreetingSelection {
+    return when (mode) {
+        GroupChatGreetingMode.RandomPerCharacter ->
+            GroupChatGreetingSelection.RandomPerCharacter
+        GroupChatGreetingMode.Manual -> GroupChatGreetingSelection.Manual(
+            characterId = requireNotNull(selectedCharacterId),
+            greetingIndex = requireNotNull(selectedGreetingIndex)
+        )
+        GroupChatGreetingMode.Custom -> GroupChatGreetingSelection.Custom(
+            characterId = requireNotNull(selectedCharacterId),
+            content = customGreeting
+        )
+        GroupChatGreetingMode.None -> GroupChatGreetingSelection.None
+    }
 }

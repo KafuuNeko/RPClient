@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
-import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
+import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 
 /** Compose 文本编辑状态与 ViewModel 草稿之间的轻量同步快照。 */
 data class StoryEditorDocument(
@@ -257,3 +257,12 @@ data class StoryImportPreview(
     /** 当前页面是否正在执行保存操作。 */
     val isSaving: Boolean = false
 )
+
+/** 计算撤销条目中插入文本所覆盖的范围。 */
+internal fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {
+    if (insertedText.isEmpty()) return null
+    return StoryEditedTextRange(
+        start = start,
+        end = start + insertedText.length
+    )
+}

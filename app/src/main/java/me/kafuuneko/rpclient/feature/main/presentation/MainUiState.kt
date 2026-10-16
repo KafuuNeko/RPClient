@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
 sealed class MainUiState {
@@ -109,4 +110,16 @@ sealed class MainDialogState {
 enum class MainPage {
     Home,
     Settings
+}
+
+/** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
+internal fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
+    provider: LLMProvider
+): Boolean {
+    val value = draftValue.toIntOrNull() ?: return false
+    return when (parameter) {
+        MainGenerationParameter.MaxTokens -> value >= provider.contextTokens
+        MainGenerationParameter.ContextTokens -> value <= provider.maxTokens
+        MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> false
+    }
 }

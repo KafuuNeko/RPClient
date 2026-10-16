@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
+import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
@@ -24,7 +25,31 @@ data class MainHomeState(
     val selectedContentTab: MainHomeContentTab = MainHomeContentTab.All,
     /** 主页多选模式与已选项目的状态。 */
     val selectionState: MainHomeSelectionState = MainHomeSelectionState.None
-)
+) {
+    /** 从当前首页状态中按 ID 查找故事。 */
+    internal fun findStory(storyId: Long): MainStoryItem? {
+        val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
+        return content.stories.firstOrNull { it.id == storyId }
+    }
+
+    /** 从当前首页快照中读取可重命名内容的标题。 */
+    internal fun findItemTitle(item: MainHomeItemSelection): String? {
+        // 故事从故事分区读取；会话继续从合并列表读取，保留原有查找范围。
+        return when (item.type) {
+            MainHomeItemType.Chat -> allRecentItems
+                .filterIsInstance<MainChatSessionItem>()
+                .firstOrNull { it.id == item.itemId }
+                ?.title
+            MainHomeItemType.GroupChat -> allRecentItems
+                .filterIsInstance<MainGroupChatSessionItem>()
+                .firstOrNull { it.id == item.itemId }
+                ?.title
+            MainHomeItemType.Story -> item.itemId.toLongOrNull()
+                ?.let { storyId -> findStory(storyId) }
+                ?.title
+        }
+    }
+}
 
 /** 合并不同内容类型，并仅依据最近一次对话或写作时间倒序排列。 */
 internal fun mergeAllRecentItems(

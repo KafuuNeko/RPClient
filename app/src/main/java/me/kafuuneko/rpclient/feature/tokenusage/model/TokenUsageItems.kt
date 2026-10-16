@@ -1,7 +1,11 @@
 package me.kafuuneko.rpclient.feature.tokenusage.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageSource
+import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageGroup
+import me.kafuuneko.rpclient.libs.utils.formatEndpoint
+import me.kafuuneko.rpclient.utils.formatTimestamp
 
 /** 消耗统计页顶部 Hero 综合总览。 */
 data class TokenUsageSummaryItem(
@@ -113,3 +117,38 @@ data class TokenUsageRecordItem(
         get() = inputTokens + outputTokens
 }
 
+/** 将模型分组统计与已计算的用量占比转换为展示项。 */
+internal fun LLMTokenUsageGroup.toUiModel(ratio: Float): TokenUsageGroupItem {
+    return TokenUsageGroupItem(
+        model = effectiveModel,
+        endpoint = formatEndpoint(apiHost, apiPort),
+        requestCount = requestCount,
+        inputTokens = inputTokens,
+        outputTokens = outputTokens,
+        cachedInputTokens = cachedInputTokens,
+        reasoningTokens = reasoningTokens,
+        ratio = ratio
+    )
+}
+
+/** 将持久化用量明细转换为页面展示项，保留统计来源与服务端附加指标。 */
+internal fun LLMTokenUsageRecord.toUiModel(): TokenUsageRecordItem {
+    // 只格式化时间和端点，其余指标按记录原值展示。
+    return TokenUsageRecordItem(
+        id = id,
+        createTimeText = createTime.formatTimestamp("MM-dd HH:mm:ss"),
+        providerName = providerName,
+        protocol = protocol,
+        model = effectiveModel,
+        endpoint = formatEndpoint(apiHost, apiPort),
+        isStreaming = isStreaming,
+        inputTokens = inputTokens,
+        outputTokens = outputTokens,
+        inputSource = inputTokenSource,
+        outputSource = outputTokenSource,
+        tokenizerName = tokenizerName,
+        cachedInputTokens = cachedInputTokens,
+        reasoningTokens = reasoningTokens,
+        durationMs = durationMs
+    )
+}

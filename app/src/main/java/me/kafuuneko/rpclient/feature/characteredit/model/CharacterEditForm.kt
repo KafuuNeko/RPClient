@@ -1,9 +1,12 @@
 package me.kafuuneko.rpclient.feature.characteredit.model
 
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.libs.room.entity.Character
-import me.kafuuneko.rpclient.utils.trimmedNotBlank
+import me.kafuuneko.rpclient.utils.orSingleBlank
 import me.kafuuneko.rpclient.utils.toJsonString
+import me.kafuuneko.rpclient.utils.trimmedNotBlank
+import me.kafuuneko.rpclient.utils.updateAt
 
 /**
  * 角色编辑器表单模型。
@@ -153,4 +156,67 @@ fun CharacterEditForm.toComparableForm(): CharacterEditForm {
         depthPromptDepth = depthPromptDepth.trim(),
         depthPromptRole = depthPromptRole.trim()
     )
+}
+
+/** 确保所有列表输入项至少包含一个输入框。 */
+internal fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
+    return copy(
+        tags = tags.orSingleBlank(),
+        firstMessages = firstMessages.orSingleBlank(),
+        alternateGreetings = alternateGreetings.orSingleBlank()
+    )
+}
+
+/** 校验绑定的世界书 ID 是否仍然存在，若已被删除则重置为 0。 */
+internal fun CharacterEditForm.withValidLorebookAssociation(
+    availableLorebookIds: Set<Long>
+): CharacterEditForm {
+    if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
+    return copy(characterLorebookId = 0L)
+}
+
+/** 校验绑定的 LLM 提供商 ID 是否仍然存在，若已被删除则重置为 0。 */
+internal fun CharacterEditForm.withValidProviderAssociation(
+    availableProviderIds: Set<Long>
+): CharacterEditForm {
+    if (llmProviderId == 0L || llmProviderId in availableProviderIds) return this
+    return copy(llmProviderId = 0L)
+}
+
+/** 根据目标枚举字段读取对应的 Prompt 文本内容。 */
+internal fun CharacterEditForm.promptText(field: CharacterPromptField): String? {
+    return when (field) {
+        CharacterPromptField.Description -> description
+        CharacterPromptField.Personality -> personality
+        CharacterPromptField.Scenario -> scenario
+        is CharacterPromptField.FirstMessage -> firstMessages.getOrNull(field.index)
+        CharacterPromptField.DialogueExamples -> examplesOfDialogue
+        CharacterPromptField.SystemPrompt -> systemPrompt
+        CharacterPromptField.PostHistoryInstructions -> postHistoryInstructions
+        CharacterPromptField.DepthPrompt -> depthPromptPrompt
+        is CharacterPromptField.AlternateGreeting -> alternateGreetings.getOrNull(field.index)
+    }
+}
+
+/** 根据目标枚举字段将 Prompt 编辑器中的文本回写至表单对应字段。 */
+internal fun CharacterEditForm.withPromptText(
+    field: CharacterPromptField,
+    text: String
+): CharacterEditForm {
+    // 多条开场白按原索引回写，沿用 updateAt 对无效索引的处理。
+    return when (field) {
+        CharacterPromptField.Description -> copy(description = text)
+        CharacterPromptField.Personality -> copy(personality = text)
+        CharacterPromptField.Scenario -> copy(scenario = text)
+        is CharacterPromptField.FirstMessage -> copy(
+            firstMessages = firstMessages.updateAt(field.index, text)
+        )
+        CharacterPromptField.DialogueExamples -> copy(examplesOfDialogue = text)
+        CharacterPromptField.SystemPrompt -> copy(systemPrompt = text)
+        CharacterPromptField.PostHistoryInstructions -> copy(postHistoryInstructions = text)
+        CharacterPromptField.DepthPrompt -> copy(depthPromptPrompt = text)
+        is CharacterPromptField.AlternateGreeting -> copy(
+            alternateGreetings = alternateGreetings.updateAt(field.index, text)
+        )
+    }
 }

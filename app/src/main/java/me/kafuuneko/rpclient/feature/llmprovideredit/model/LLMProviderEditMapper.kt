@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
+import me.kafuuneko.rpclient.libs.llm.adapter.readOpenRouterRoutingPreferences
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.utils.formatJsonPretty
@@ -31,3 +34,15 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     imageTokenEstimatorType = imageTokenEstimatorType,
     isEnabled = isEnabled
 )
+
+/** 提取 OpenRouter 专属路由配置状态。 */
+internal fun LLMProviderEditForm.toRequestExtensionsState():
+        LLMProviderEditRequestExtensionsState {
+    val routing = requestBodyPatchJson.readOpenRouterRoutingPreferences()
+    return LLMProviderEditRequestExtensionsState(
+        isOpenRouter = providerType == LLMProviderType.OpenRouter,
+        usesPreferredProvider = routing.usesPreferredProvider,
+        preferredProvider = routing.preferredProvider,
+        allowFallbacks = routing.allowFallbacks
+    )
+}

@@ -3,8 +3,8 @@ package me.kafuuneko.rpclient.feature.characterlist
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -12,25 +12,26 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.feature.characterlist.model.CharacterCardImportBatch
 import me.kafuuneko.rpclient.feature.characterlist.model.CharacterListItem
-import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDialogState
+import me.kafuuneko.rpclient.feature.characterlist.model.toCharacterListItem
+import me.kafuuneko.rpclient.feature.characterlist.model.toSearchCorpus
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterImportStage
+import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDialogState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
-import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
+import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -466,33 +467,12 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val userName = AppModel.resolvedUserName
         // 构建 UI 渲染列表项
         val allCharacterItems = characters.map { character ->
-            CharacterListItem(
-                id = character.id,
-                name = character.name,
-                description = resolveCharacterUserMacros(
-                    template = character.description,
-                    characterName = character.name,
-                    userName = userName
-                ),
-                tags = character.getCharacterTagList(),
-                avatarText = character.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                avatarColor = CharacterAccentColors[
-                    (character.id % CharacterAccentColors.size).toInt()
-                ]
-            )
+            character.toCharacterListItem(userName)
         }
         val avatarUuids = characters.associate { it.id to it.avatar }
         // 构建多字段全文检索语料库
         val searchCorpus = characters.associate { character ->
-            character.id to listOf(
-                character.name,
-                character.description,
-                character.creatorNotes,
-                character.personality,
-                character.scenario,
-                character.postHistoryInstructions,
-                character.getCharacterTagList().joinToString(" ")
-            ).joinToString("\n")
+            character.id to character.toSearchCorpus()
         }
         // 校验代数防止旧请求覆盖
         if (generation != mRefreshGeneration) return
@@ -644,16 +624,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             item.copy(avatarImage = mVisibleAvatars[item.id]?.image)
         }
     }
-
-    /** 一次角色卡导入选择对应的有效草稿与解析失败统计。 */
-    private data class CharacterCardImportBatch(
-        /** 批量导入解析成功、等待确认的角色草稿列表。 */
-        val drafts: List<CharacterCardImportDraft>,
-        /** 批量导入中无法解析的文件数量。 */
-        val parseFailureCount: Int,
-        /** 当前查询或统计包含的总数量。 */
-        val totalCount: Int
-    )
 
     /** 头像内存缓存键，由文件 UUID 与宽高像素共同决定。 */
     private data class AvatarCacheKey(
