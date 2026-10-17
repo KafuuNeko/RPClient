@@ -35,7 +35,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -46,7 +46,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,6 +88,7 @@ import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
@@ -100,7 +100,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -108,6 +107,7 @@ import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 private enum class CharacterEditTab {
     Profile,
@@ -163,23 +163,12 @@ private fun CharacterEditNormal(
                 ),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = state.form.name.ifBlank {
-                        if (state.mode == CharacterEditMode.Create) {
-                            stringResource(R.string.create_character)
-                        } else {
-                            stringResource(R.string.character)
-                        }
-                    },
-                    subtitle = stringResource(R.string.character_editor_subtitle)
-                )
-            }
             if (state.loadState == CharacterEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
@@ -781,9 +770,11 @@ private fun ActionPanel(
     loadState: CharacterEditLoadState,
     emit: CharacterEditUiIntent.() -> Unit
 ) {
+    // 次操作保留次级填充，透明度较高时仍与页面上的普通文字区分。
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(
+        Button(
             modifier = Modifier.weight(1f),
+            colors = ButtonDefaults.filledTonalButtonColors(),
             shape = RoundedCornerShape(12.dp),
             enabled = loadState != CharacterEditLoadState.Saving && loadState != CharacterEditLoadState.Deleting,
             onClick = { CharacterEditUiIntent.Back.emit() }

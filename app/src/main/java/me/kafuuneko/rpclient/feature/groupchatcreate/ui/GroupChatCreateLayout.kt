@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
@@ -22,7 +21,6 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -57,8 +55,8 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
@@ -115,12 +113,6 @@ private fun GroupChatCreateNormalView(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.group_chat_build_cast),
-                    subtitle = stringResource(R.string.group_chat_build_cast_desc)
-                )
-            }
             item {
                 OutlinedTextField(
                     value = state.title,
@@ -620,50 +612,15 @@ private fun CreateBottomBar(
     enabled: Boolean,
     onCreate: () -> Unit
 ) {
-    AppSurface(
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.group_chat_member_count,
-                        selectedCount,
-                        selectedCount
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(
-                        if (selectedCount >= 2) {
-                            R.string.group_chat_ready_to_begin
-                        } else {
-                            R.string.group_chat_select_at_least_two
-                        }
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(
-                onClick = onCreate,
-                enabled = enabled,
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
-            ) {
-                Text(stringResource(R.string.create))
-            }
-        }
-    }
+    RpCreationBottomBar(
+        title = pluralStringResource(R.plurals.group_chat_member_count, selectedCount, selectedCount),
+        subtitle = stringResource(
+            if (selectedCount >= 2) R.string.group_chat_ready_to_begin
+            else R.string.group_chat_select_at_least_two
+        ),
+        enabled = enabled,
+        onCreate = onCreate
+    )
 }
 
 @Composable

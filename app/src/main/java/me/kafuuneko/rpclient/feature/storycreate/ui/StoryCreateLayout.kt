@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,8 +67,8 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
@@ -112,6 +110,8 @@ private fun StoryCreateNormal(
         bottomBar = {
             CreateBottomBar(
                 loadState = state.loadState,
+                selectedCharacterCount = state.selectedCharacterCount,
+                selectedEntryCount = state.form.selectedLorebookEntryIds.size,
                 emit = emit
             )
         }
@@ -122,17 +122,12 @@ private fun StoryCreateNormal(
                 .padding(padding),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.story_create_story),
-                    subtitle = stringResource(R.string.story_create_subtitle)
-                )
-            }
             if (state.loadState == StoryCreateLoadState.Loading) {
                 item { LoadingRow() }
             } else {
@@ -629,40 +624,17 @@ private fun LorebookSearchField(
 @Composable
 private fun CreateBottomBar(
     loadState: StoryCreateLoadState,
+    selectedCharacterCount: Int,
+    selectedEntryCount: Int,
     emit: StoryCreateUiIntent.() -> Unit
 ) {
-    val creating = loadState == StoryCreateLoadState.Creating
-    AppSurface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-        )
-    ) {
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            enabled = loadState == StoryCreateLoadState.Ready,
-            shape = RoundedCornerShape(14.dp),
-            contentPadding = PaddingValues(vertical = 13.dp),
-            onClick = { StoryCreateUiIntent.CreateStory.emit() }
-        ) {
-            if (creating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Rounded.Check, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.story_create_story))
-            }
-        }
-    }
+    RpCreationBottomBar(
+        title = stringResource(R.string.creation_selected_characters, selectedCharacterCount),
+        subtitle = stringResource(R.string.world_books_enabled, selectedEntryCount),
+        enabled = loadState == StoryCreateLoadState.Ready,
+        creating = loadState == StoryCreateLoadState.Creating,
+        onCreate = { StoryCreateUiIntent.CreateStory.emit() }
+    )
 }
 
 @Composable

@@ -1284,4 +1284,5 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="dialog_appearance_open_preview">Mở bản xem trước hộp thoại</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Giới hạn đầu ra bao gồm token suy luận. Mô hình suy luận không gửi temperature và top_p khi bật suy luận. Cấu hình reasoning trong JSON yêu cầu nâng cao.</string>
+    <string name="creation_selected_characters">Nhân vật đã chọn: %1$d</string>
 </resources>

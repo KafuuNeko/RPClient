@@ -1278,4 +1278,5 @@
     <string name="dialog_appearance_open_preview">開啟對話框預覽</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">輸出上限包含推理 Token。推理模型啟用推理時不會傳送 temperature 和 top_p，可在進階請求 JSON 中設定 reasoning。</string>
+    <string name="creation_selected_characters">已選 %1$d 個角色</string>
 </resources>

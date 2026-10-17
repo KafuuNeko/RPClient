@@ -126,7 +126,6 @@ import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -162,12 +161,6 @@ internal fun MainSettingsPage(
     ) {
         item {
             Spacer(modifier = Modifier.statusBarsPadding())
-        }
-        item {
-            RpPageTitle(
-                title = stringResource(R.string.setting_page_title),
-                subtitle = stringResource(R.string.setting_subtitle)
-            )
         }
 
         // 用户身份与人设

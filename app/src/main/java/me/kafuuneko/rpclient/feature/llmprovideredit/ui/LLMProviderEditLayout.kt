@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -62,7 +63,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -126,7 +126,6 @@ import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
@@ -137,6 +136,7 @@ import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 /** 模型配置创建与编辑页 Compose 入口。 */
 @Composable
@@ -184,21 +184,12 @@ private fun LLMProviderEditNormal(
                 ),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 32.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = if (state.mode == LLMProviderEditMode.Create) {
-                        stringResource(R.string.create_model_subtitle)
-                    } else {
-                        state.form.name.ifBlank { stringResource(R.string.model_provider_title) }
-                    },
-                    subtitle = stringResource(R.string.edit_model_subtitle)
-                )
-            }
             if (state.mode == LLMProviderEditMode.Create) {
                 item {
                     ProviderPresetsSection(
@@ -350,7 +341,11 @@ private fun ImageInputCapabilityField(
             text = stringResource(R.string.image_input_capability),
             style = MaterialTheme.typography.titleSmall
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 选项整体换行，避免窄屏或长译文将单个词拆开。
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             ImageInputSetting.entries.forEach { setting ->
                 FilterChip(
                     selected = selected == setting,
@@ -363,7 +358,9 @@ private fun ImageInputCapabilityField(
                                     ImageInputSetting.Supported -> R.string.image_capability_supported
                                     ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
                                 }
-                            )
+                            ),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     },
                     shape = RoundedCornerShape(10.dp),

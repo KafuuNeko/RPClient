@@ -1288,4 +1288,5 @@
     <string name="dialog_appearance_open_preview">Open dialog preview</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">The output limit includes reasoning tokens. Reasoning models omit temperature and top_p while reasoning is enabled. Configure reasoning in the advanced request JSON.</string>
+    <string name="creation_selected_characters">Characters selected: %1$d</string>
 </resources>

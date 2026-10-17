@@ -1283,4 +1283,5 @@
     <string name="dialog_appearance_open_preview">Dialogvorschau öffnen</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Das Ausgabelimit umfasst Reasoning-Tokens. Reasoning-Modelle senden bei aktivem Reasoning kein temperature und top_p. Konfigurieren Sie reasoning im erweiterten Anfrage-JSON.</string>
+    <string name="creation_selected_characters">Ausgewählte Charaktere: %1$d</string>
 </resources>

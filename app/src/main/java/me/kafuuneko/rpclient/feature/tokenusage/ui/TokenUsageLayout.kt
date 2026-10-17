@@ -98,7 +98,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpChartMode
 import me.kafuuneko.rpclient.ui.widgets.RpChartSegment
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpStackedRatioBar
 import me.kafuuneko.rpclient.ui.widgets.RpTrendChartCard
@@ -183,12 +182,6 @@ private fun UsageContent(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
-            RpPageTitle(
-                title = stringResource(R.string.token_usage),
-                subtitle = stringResource(R.string.token_usage_subtitle)
-            )
-        }
         item { PeriodFilters(uiState.selectedPeriod, emit) }
         item { HeroSummaryCard(uiState.summary) }
 

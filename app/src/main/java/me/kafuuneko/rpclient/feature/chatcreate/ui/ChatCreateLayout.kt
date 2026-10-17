@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,13 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,8 +59,8 @@ import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
@@ -103,7 +100,8 @@ private fun ChatCreateNormal(
         bottomBar = {
             CreateBottomBar(
                 loadState = state.loadState,
-                hasCharacter = state.characters.isNotEmpty(),
+                characterName = state.characters.firstOrNull { it.id == state.form.selectedCharacterId }?.name,
+                selectedEntryCount = state.form.selectedLorebookEntryIds.size,
                 emit = emit
             )
         }
@@ -114,17 +112,12 @@ private fun ChatCreateNormal(
                 .padding(padding),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.create_chat_title),
-                    subtitle = stringResource(R.string.create_chat_subtitle)
-                )
-            }
             if (state.loadState == ChatCreateLoadState.Loading) {
                 item { LoadingRow() }
             } else {
@@ -447,41 +440,17 @@ private fun ChatCreateLorebookEntryItem.displayTags(
 @Composable
 private fun CreateBottomBar(
     loadState: ChatCreateLoadState,
-    hasCharacter: Boolean,
+    characterName: String?,
+    selectedEntryCount: Int,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
-    val creating = loadState == ChatCreateLoadState.Creating
-    AppSurface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-        )
-    ) {
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            enabled = hasCharacter && loadState == ChatCreateLoadState.None,
-            shape = RoundedCornerShape(14.dp),
-            contentPadding = PaddingValues(vertical = 13.dp),
-            onClick = { ChatCreateUiIntent.CreateChat.emit() }
-        ) {
-            if (creating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Rounded.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.create_chat))
-            }
-        }
-    }
+    RpCreationBottomBar(
+        title = characterName ?: stringResource(R.string.character_editor_empty),
+        subtitle = stringResource(R.string.world_books_enabled, selectedEntryCount),
+        enabled = characterName != null && loadState == ChatCreateLoadState.None,
+        creating = loadState == ChatCreateLoadState.Creating,
+        onCreate = { ChatCreateUiIntent.CreateChat.emit() }
+    )
 }
 
 @Composable

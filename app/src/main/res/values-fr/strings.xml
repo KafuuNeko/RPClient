@@ -1284,4 +1284,5 @@
     <string name="dialog_appearance_open_preview">Ouvrir un aperçu du dialogue</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">La limite de sortie inclut les tokens de raisonnement. Les modèles de raisonnement omettent temperature et top_p lorsque le raisonnement est activé. Configurez reasoning dans le JSON avancé de la requête.</string>
+    <string name="creation_selected_characters">Personnages sélectionnés : %1$d</string>
 </resources>

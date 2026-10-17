@@ -32,7 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -72,6 +71,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 /** 外观选择和背景编辑共用入口，所有持久化操作通过 Intent 交给 ViewModel。 */
 @Composable

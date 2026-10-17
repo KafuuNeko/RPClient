@@ -1284,4 +1284,5 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="dialog_appearance_open_preview">Buka pratinjau dialog</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Batas keluaran mencakup token penalaran. Model penalaran tidak mengirim temperature dan top_p saat penalaran aktif. Atur reasoning di JSON permintaan lanjutan.</string>
+    <string name="creation_selected_characters">Karakter dipilih: %1$d</string>
 </resources>

@@ -49,7 +49,6 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 分层 JSON 查看器 Compose 入口。 */
@@ -131,12 +130,6 @@ private fun NormalView(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.json_viewer),
-                    subtitle = stringResource(R.string.json_viewer_subtitle)
-                )
-            }
             item {
                 JsonPathBar(path = uiState.path)
             }

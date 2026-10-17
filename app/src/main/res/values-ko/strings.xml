@@ -1278,4 +1278,5 @@
     <string name="dialog_appearance_open_preview">대화상자 미리보기 열기</string>
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">출력 한도에는 추론 토큰이 포함됩니다. 추론 모델은 추론이 활성화된 동안 temperature와 top_p를 전송하지 않습니다. 고급 요청 JSON에서 reasoning을 설정하세요.</string>
+    <string name="creation_selected_characters">선택한 캐릭터: %1$d</string>
 </resources>
