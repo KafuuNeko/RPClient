@@ -1285,4 +1285,43 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Batas keluaran mencakup token penalaran. Model penalaran tidak mengirim temperature dan top_p saat penalaran aktif. Atur reasoning di JSON permintaan lanjutan.</string>
     <string name="creation_selected_characters">Karakter dipilih: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Cari konten</string>
+    <string name="content_search_submit">Cari</string>
+    <string name="content_search_placeholder">Cari pesan, cerita, judul, atau karakter</string>
+    <string name="content_search_all">Semua konten</string>
+    <string name="content_search_metadata">Judul dan karakter</string>
+    <string name="content_search_body">Teks isi</string>
+    <string name="content_search_idle">Cari percakapan tersimpan dan semua bab cerita. Masukkan teks lalu ketuk Cari.</string>
+    <string name="content_search_empty">Tidak ada hasil yang cocok.</string>
+    <string name="content_search_preparing">Menyiapkan konten. Hasil mungkin belum lengkap.</string>
+    <string name="content_search_unavailable">Pencarian teks tidak tersedia. Cari judul dan karakter atau coba lagi.</string>
+    <string name="content_search_partial">Hasil sebagian. Beberapa konten masih disiapkan.</string>
+    <string name="content_search_stopped">Dihentikan. Hasil mungkin belum lengkap.</string>
+    <string name="content_search_error">Pencarian gagal. Coba lagi atau persempit cakupan.</string>
+    <string name="content_search_changed">Konten berubah. Segarkan hasil.</string>
+    <string name="content_search_more">Tampilkan lainnya</string>
+    <string name="content_search_within">Cari kecocokan dalam item ini</string>
+    <string name="content_search_clear_scope">Cari semua item</string>
+    <string name="content_search_too_long">Gunakan maksimal 128 karakter.</string>
+    <string name="content_search_refresh">Segarkan</string>
+    <string name="content_search_missing">Konten ini sudah tidak tersedia.</string>
+    <string name="content_search_open_match">Buka kecocokan</string>
+    <string name="content_search_slow">Cari tanpa indeks (lebih lambat)</string>
+    <string name="content_search_newer">Muat pesan yang lebih baru</string>
+    <string name="content_search_latest">Kembali ke pesan terbaru</string>
+    <string name="content_search_index_title">Percepatan pencarian</string>
+    <string name="content_search_index_enabled">Percepatan pencarian aktif</string>
+    <string name="content_search_index_disabled">Pencarian standar memindai konten tersimpan</string>
+    <string name="content_search_index_enable">Aktifkan</string>
+    <string name="content_search_index_disable">Nonaktifkan dan bersihkan</string>
+    <string name="content_search_index_confirm_title">Aktifkan percepatan pencarian?</string>
+    <string name="content_search_index_confirm_message">Buat indeks semua percakapan dan cerita tersimpan. Ini memerlukan waktu dan ruang penyimpanan tambahan. Anda dapat membatalkan pembuatannya; menonaktifkannya akan menghapus indeks dan mengosongkan ruang.</string>
+    <string name="content_search_index_disable_confirm_title">Nonaktifkan percepatan pencarian?</string>
+    <string name="content_search_index_disable_confirm_message">Indeks pencarian akan dihapus untuk mengosongkan ruang. Percakapan dan cerita tersimpan tetap ada, dan pencarian standar tetap tersedia. Mengaktifkan kembali percepatan akan membuat ulang indeks.</string>
+    <string name="content_search_index_building">Membuat indeks… %1$d item diproses</string>
+    <string name="content_search_index_cleaning">Menghapus indeks dan mengosongkan ruang…</string>
+    <string name="content_search_index_cleanup_failed">Pembersihan belum selesai. Kosongkan ruang atau tunggu tugas lain selesai, lalu coba lagi. Percepatan pencarian tetap nonaktif.</string>
+    <string name="content_search_index_failed">Percepatan pencarian tidak tersedia. Pencarian standar tersedia.</string>
 </resources>

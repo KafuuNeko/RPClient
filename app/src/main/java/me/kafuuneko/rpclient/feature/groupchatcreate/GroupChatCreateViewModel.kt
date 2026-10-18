@@ -1,7 +1,12 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate
 
 import android.os.Bundle
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
@@ -25,6 +30,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -45,6 +51,7 @@ class GroupChatCreateViewModel :
     CoreViewModelWithEvent<GroupChatCreateUiIntent, GroupChatCreateUiState>(
         GroupChatCreateUiState.None
     ), KoinComponent {
+    private var mCharacterSearchJob: Job? = null
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
@@ -90,19 +97,26 @@ class GroupChatCreateViewModel :
         uiState.copy(title = intent.value).setup()
     }
 
-    /** 修改角色搜索关键词，实时过滤展示的候选成员。 */
+    /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeSearchQuery::class)
     private fun onChangeSearchQuery(intent: GroupChatCreateUiIntent.ChangeSearchQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
-        val query = intent.value.trim()
-        uiState.copy(
-            searchQuery = intent.value,
-            visibleCharacters = uiState.characters.filter {
-                query.isBlank() ||
-                    it.name.contains(query, ignoreCase = true) ||
-                    it.description.contains(query, ignoreCase = true)
+        mCharacterSearchJob?.cancel()
+        uiState.copy(searchQuery = intent.value).setup()
+        // 后台计算仅返回 ID，回写时从最新列表恢复选择状态。
+        mCharacterSearchJob = viewModelScope.launch {
+            val visibleIds = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                uiState.characters.filter {
+                    context.ensureActive()
+                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
+                }.mapTo(HashSet()) { it.id }
             }
-        ).setup()
+            val current = getOrNull<GroupChatCreateUiState.Normal>() ?: return@launch
+            if (current.searchQuery == intent.value) {
+                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+            }
+        }
     }
 
     /** 修改世界书检索关键词，实时过滤展示的分组与条目。 */

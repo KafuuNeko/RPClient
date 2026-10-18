@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
@@ -32,7 +33,9 @@ data class MainSettingsState(
     /** 设置页中调试功能区域的状态。 */
     val debugState: MainDebugSettingsState,
     /** 设置页中图片发送方式和自定义参数草稿。 */
-    val imageSendState: MainImageSendState = MainImageSendState()
+    val imageSendState: MainImageSendState = MainImageSendState(),
+    /** 搜索加速开关与应用级索引维护进度。 */
+    val searchIndexState: SearchIndexState = SearchIndexState.Disabled
 )
 
 /** 应用外观设置面板状态。 */

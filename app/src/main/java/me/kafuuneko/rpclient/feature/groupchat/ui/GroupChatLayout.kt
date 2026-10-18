@@ -51,18 +51,14 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +79,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -104,6 +101,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
@@ -147,9 +145,7 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -159,6 +155,10 @@ import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
+import androidx.compose.material.icons.rounded.Image as ImageIcon
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -310,6 +310,9 @@ private fun GroupChatNormalView(
                 messages = state.conversationState.messages,
                 canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
                 isLoadingOlderMessages = state.conversationState.isLoadingOlderMessages,
+                searchAnchorMessageId = state.conversationState.searchAnchorMessageId,
+                canLoadNewerMessages = state.conversationState.canLoadNewerMessages,
+                isLoadingNewerMessages = state.conversationState.isLoadingNewerMessages,
                 expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
                 editingMessageId = state.conversationState.editingMessageId,
                 editingMessageDraft = state.conversationState.editingMessageDraft,
@@ -1141,12 +1144,16 @@ private fun MessageList(
     messages: List<GroupChatMessageItem>,
     canLoadOlderMessages: Boolean,
     isLoadingOlderMessages: Boolean,
+    searchAnchorMessageId: Long?,
+    canLoadNewerMessages: Boolean,
+    isLoadingNewerMessages: Boolean,
     expandedThinkBlockIds: Set<String>,
     editingMessageId: Long?,
     editingMessageDraft: String,
     emitIntent: (GroupChatUiIntent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val activeSearchAnchor by rememberUpdatedState(searchAnchorMessageId)
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     val latestCanLoadOlderMessages by rememberUpdatedState(canLoadOlderMessages)
@@ -1156,6 +1163,7 @@ private fun MessageList(
     var isFirstLoad by rememberSaveable { mutableStateOf(true) }
     var isScrollIndicatorDragged by remember { mutableStateOf(false) }
     var lastTailMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var lastSearchAnchor by rememberSaveable { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(listState) {
         // 恢复列表尚未完成测量时 canScrollForward 暂为 false，不能据此重新开启底部跟随。
@@ -1166,7 +1174,7 @@ private fun MessageList(
             val (canScrollForward, indicatorDragged) = position ?: return@collect
             if (indicatorDragged) {
                 shouldFollowBottom = false
-            } else if (!canScrollForward) {
+            } else if (activeSearchAnchor == null && !canScrollForward) {
                 shouldFollowBottom = true
             }
         }
@@ -1175,8 +1183,27 @@ private fun MessageList(
         if (isListDragged) {
             snapshotFlow { listState.canScrollForward }
                 .collect { canScrollForward ->
-                    shouldFollowBottom = !canScrollForward
+                    shouldFollowBottom = activeSearchAnchor == null && !canScrollForward
                 }
+        }
+    }
+
+    val currentMessages by rememberUpdatedState(messages)
+    val latestCanLoadNewerMessages by rememberUpdatedState(canLoadNewerMessages)
+    val latestIsLoadingNewerMessages by rememberUpdatedState(isLoadingNewerMessages)
+    LaunchedEffect(listState) {
+        // 页头加载项也计入布局数量，防止分页后旧测量结果提前结束历史定位。
+        snapshotFlow {
+            val headerCount = if (latestCanLoadOlderMessages || latestIsLoadingOlderMessages) 1 else 0
+            val layout = listState.layoutInfo
+            currentMessages.lastOrNull()?.id?.takeIf {
+                !isFirstLoad && activeSearchAnchor != null &&
+                    !latestCanLoadNewerMessages && !latestIsLoadingNewerMessages &&
+                    layout.totalItemsCount == currentMessages.size + headerCount + 1 &&
+                    layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
+            }
+        }.filterNotNull().distinctUntilChanged().collect { messageId ->
+            emitIntent(GroupChatUiIntent.ReachLatestMessage(messageId))
         }
     }
 
@@ -1197,18 +1224,24 @@ private fun MessageList(
 
     // 只有尾部消息身份改变时才滚到底部，头部加载历史不会打断用户位置
     val tailMessageId = messages.lastOrNull()?.id
-    LaunchedEffect(tailMessageId) {
-        if (tailMessageId == null) {
-            lastTailMessageId = null
+    LaunchedEffect(tailMessageId, activeSearchAnchor) {
+        if (activeSearchAnchor != null) {
+            // 只在首次进入定位窗口时滚动，继续分页和流式刷新保持阅读位置。
+            if (isFirstLoad) {
+                val targetIndex = messages.indexOfFirst { it.id == activeSearchAnchor }
+                if (targetIndex >= 0) listState.scrollToItem(targetIndex + (if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0))
+                isFirstLoad = false
+            }
+            shouldFollowBottom = false
+        } else if (tailMessageId == null) {
             isFirstLoad = true
-        } else if (isFirstLoad || tailMessageId != lastTailMessageId) {
+        } else if (isFirstLoad || tailMessageId != lastTailMessageId || lastSearchAnchor != null) {
             shouldFollowBottom = true
-            listState.scrollToItem(
-                messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0
-            )
+            listState.scrollToItem(messages.size + (if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0))
             isFirstLoad = false
         }
         lastTailMessageId = tailMessageId
+        lastSearchAnchor = activeSearchAnchor
     }
 
     // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
@@ -1217,7 +1250,7 @@ private fun MessageList(
         expandedThinkBlockIds
     ) {
         if (messages.isNotEmpty()) {
-            if (isFirstLoad || shouldFollowBottom) {
+            if (activeSearchAnchor == null && (isFirstLoad || shouldFollowBottom)) {
                 listState.scrollToItem(
                     messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0
                 )
@@ -1239,9 +1272,11 @@ private fun MessageList(
             .fillMaxWidth()
             .onSizeChanged { size ->
                 val newHeight = size.height
-                if (previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
+                if (activeSearchAnchor == null && previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
                     val delta = (previousListHeight - newHeight).toFloat()
                     coroutineScope.launch {
+                        // 尺寸回调仍处于测量阶段，下一帧再滚动以免重入布局。
+                        withFrameNanos { }
                         if (shouldFollowBottom && delta > 0) {
                             listState.scrollToItem(
                                 messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0
@@ -1293,6 +1328,22 @@ private fun MessageList(
             )
         }
         item(key = "conversation-end") {
+            if (activeSearchAnchor != null && canLoadNewerMessages) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    TextButton(
+                        onClick = { emitIntent(GroupChatUiIntent.LoadNewerMessages) },
+                        enabled = !isLoadingNewerMessages
+                    ) {
+                        Text(stringResource(R.string.content_search_newer))
+                    }
+                    TextButton(onClick = { emitIntent(GroupChatUiIntent.ReturnToLatest) }) {
+                        Text(stringResource(R.string.content_search_latest))
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

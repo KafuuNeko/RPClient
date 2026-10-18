@@ -6,6 +6,8 @@ sealed class ChatCreateUiIntent {
 
     data object Back : ChatCreateUiIntent()
 
+    data class ChangeCharacterQuery(val value: String) : ChatCreateUiIntent()
+
     data class SelectCharacter(val characterId: Long) : ChatCreateUiIntent()
 
     data class SelectFirstMessage(val index: Int) : ChatCreateUiIntent()

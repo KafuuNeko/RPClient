@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
@@ -19,6 +20,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
  * 通用确认对话框。
  *
  * 用于引导用户进行常规操作确认或重要前置选择。
+ * @param properties 窗口交互规则；需要用户明确处理的失败提示可禁止外侧点击关闭。
  */
 @Composable
 fun AppConfirmDialog(
@@ -35,6 +37,7 @@ fun AppConfirmDialog(
     confirmIsDestructive: Boolean = false,
     stackButtons: Boolean? = null,
     onConfirm: () -> Unit,
+    properties: DialogProperties = DialogProperties(),
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     AppDialogScaffold(
@@ -51,6 +54,7 @@ fun AppConfirmDialog(
         confirmIsDestructive = confirmIsDestructive,
         stackButtons = stackButtons,
         onConfirm = onConfirm,
+        properties = properties,
         content = content
     )
 }

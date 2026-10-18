@@ -1284,4 +1284,43 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Das Ausgabelimit umfasst Reasoning-Tokens. Reasoning-Modelle senden bei aktivem Reasoning kein temperature und top_p. Konfigurieren Sie reasoning im erweiterten Anfrage-JSON.</string>
     <string name="creation_selected_characters">Ausgewählte Charaktere: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Inhalte suchen</string>
+    <string name="content_search_submit">Suchen</string>
+    <string name="content_search_placeholder">Nachrichten, Geschichten, Titel oder Figuren suchen</string>
+    <string name="content_search_all">Alle Inhalte</string>
+    <string name="content_search_metadata">Titel und Figuren</string>
+    <string name="content_search_body">Textinhalt</string>
+    <string name="content_search_idle">Gespeicherte Chats und alle Kapitel durchsuchen. Text eingeben und Suchen antippen.</string>
+    <string name="content_search_empty">Keine Treffer.</string>
+    <string name="content_search_preparing">Inhalte werden vorbereitet. Ergebnisse sind möglicherweise unvollständig.</string>
+    <string name="content_search_unavailable">Textsuche nicht verfügbar. Titel und Figuren durchsuchen oder erneut versuchen.</string>
+    <string name="content_search_partial">Teilergebnisse. Einige Inhalte werden noch vorbereitet.</string>
+    <string name="content_search_stopped">Angehalten. Ergebnisse sind möglicherweise unvollständig.</string>
+    <string name="content_search_error">Suche fehlgeschlagen. Erneut versuchen oder den Bereich eingrenzen.</string>
+    <string name="content_search_changed">Inhalte geändert. Ergebnisse aktualisieren.</string>
+    <string name="content_search_more">Mehr anzeigen</string>
+    <string name="content_search_within">In diesem Eintrag suchen</string>
+    <string name="content_search_clear_scope">Alle Einträge durchsuchen</string>
+    <string name="content_search_too_long">Höchstens 128 Zeichen eingeben.</string>
+    <string name="content_search_refresh">Aktualisieren</string>
+    <string name="content_search_missing">Dieser Inhalt ist nicht mehr verfügbar.</string>
+    <string name="content_search_open_match">Fundstelle öffnen</string>
+    <string name="content_search_slow">Ohne Index durchsuchen (langsamer)</string>
+    <string name="content_search_newer">Neuere Nachrichten laden</string>
+    <string name="content_search_latest">Zu den neuesten Nachrichten</string>
+    <string name="content_search_index_title">Suchbeschleunigung</string>
+    <string name="content_search_index_enabled">Suchbeschleunigung ist aktiviert</string>
+    <string name="content_search_index_disabled">Die Standardsuche durchsucht gespeicherte Inhalte</string>
+    <string name="content_search_index_enable">Aktivieren</string>
+    <string name="content_search_index_disable">Deaktivieren und leeren</string>
+    <string name="content_search_index_confirm_title">Suchbeschleunigung aktivieren?</string>
+    <string name="content_search_index_confirm_message">Ein Index aller gespeicherten Gespräche und Geschichten wird erstellt. Das benötigt Zeit und zusätzlichen Speicherplatz. Die Erstellung kann abgebrochen werden. Beim Deaktivieren wird der Index gelöscht und Speicherplatz freigegeben.</string>
+    <string name="content_search_index_disable_confirm_title">Suchbeschleunigung deaktivieren?</string>
+    <string name="content_search_index_disable_confirm_message">Der Suchindex wird gelöscht und Speicherplatz freigegeben. Gespeicherte Gespräche und Geschichten bleiben erhalten. Die Standardsuche ist weiterhin verfügbar. Beim erneuten Aktivieren wird der Index neu erstellt.</string>
+    <string name="content_search_index_building">Index wird erstellt… %1$d Einträge verarbeitet</string>
+    <string name="content_search_index_cleaning">Index wird gelöscht und Speicherplatz freigegeben…</string>
+    <string name="content_search_index_cleanup_failed">Die Bereinigung konnte nicht abgeschlossen werden. Gib Speicherplatz frei oder warte auf andere Aufgaben und versuche es erneut. Die Suchbeschleunigung bleibt deaktiviert.</string>
+    <string name="content_search_index_failed">Die Suchbeschleunigung ist nicht verfügbar. Die Standardsuche ist verfügbar.</string>
 </resources>

@@ -14,7 +14,9 @@ data class StoryEditorDocument(
     /** 用于隔离过期异步结果的同步版本号。 */
     val syncVersion: Long,
     /** 当前编辑器最近一次修改的文本区间。 */
-    val latestEditedRange: StoryEditedTextRange? = null
+    val latestEditedRange: StoryEditedTextRange? = null,
+    /** 从完整内容搜索进入时的可靠原文定位；编辑后由新文档快照清除。 */
+    val searchRange: StoryEditedTextRange? = null
 )
 
 /** 当前编辑会话中最近一次正文修改所插入或替换内容的半开字符区间。 */

@@ -34,7 +34,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,16 +63,18 @@ import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
+import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建 Story 页面 Compose 入口。 */
 @Composable
@@ -387,30 +388,6 @@ private fun UserPersonaOption(
             StoryCreateUiIntent.SetIncludeUserPersona(it).emit()
         },
         enabled = enabled
-    )
-}
-
-@Composable
-private fun CharacterSearchField(
-    query: String,
-    enabled: Boolean,
-    onQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp)),
-        value = query,
-        onValueChange = onQueryChange,
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-        placeholder = {
-            Text(
-                text = stringResource(R.string.search_characters),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        enabled = enabled,
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp)
     )
 }
 

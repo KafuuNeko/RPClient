@@ -52,6 +52,8 @@ ViewModel 执行业务并关闭 dialogState
 
 Compose 不直接用本地状态控制业务对话框。
 
+页面的业务弹窗统一通过 `DialogSwitch` 按状态分发，即使只有一个弹窗也保留该入口。参照 `GroupChatLayout`，优先复用 `ui/dialog/` 下的 `AppConfirmDialog`、`AppDangerDialog`、`LoadingDialog` 等公共组件；页面负责适配文案、状态和 Intent，不重复使用 `AppDialogScaffold` 拼装已有类型的弹窗。
+
 ---
 
 ## 2. Activity

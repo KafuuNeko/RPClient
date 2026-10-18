@@ -1,13 +1,17 @@
 package me.kafuuneko.rpclient.feature.storycreate
 
 import android.os.Bundle
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateOptions
-import me.kafuuneko.rpclient.feature.storycreate.model.filterCharactersForQuery
 import me.kafuuneko.rpclient.feature.storycreate.model.filterForQuery
 import me.kafuuneko.rpclient.feature.storycreate.model.toStorageValue
 import me.kafuuneko.rpclient.feature.storycreate.model.toStoryCreateCharacterItem
@@ -25,6 +29,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
 import org.koin.core.component.KoinComponent
@@ -42,6 +47,7 @@ import org.koin.core.component.inject
 class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCreateUiState>(
     StoryCreateUiState.None
 ), KoinComponent {
+    private var mCharacterSearchJob: Job? = null
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mStoryRepository by inject<StoryRepository>()
@@ -92,14 +98,26 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         updateReadyForm { copy(includeUserPersona = intent.enabled) }
     }
 
-    /** 修改角色检索关键词，实时按名称、简介和标签过滤候选角色。 */
+    /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
     @UiIntentObserver(StoryCreateUiIntent.ChangeCharacterQuery::class)
     private fun onChangeCharacterQuery(intent: StoryCreateUiIntent.ChangeCharacterQuery) {
         val uiState = readyState() ?: return
-        uiState.copy(
-            characterQuery = intent.value,
-            visibleCharacters = uiState.characters.filterCharactersForQuery(intent.value)
-        ).setup()
+        mCharacterSearchJob?.cancel()
+        uiState.copy(characterQuery = intent.value).setup()
+        // 后台计算仅返回 ID，回写时从最新列表恢复选择状态。
+        mCharacterSearchJob = viewModelScope.launch {
+            val visibleIds = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                uiState.characters.filter {
+                    context.ensureActive()
+                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
+                }.mapTo(HashSet()) { it.id }
+            }
+            val current = readyState() ?: return@launch
+            if (current.characterQuery == intent.value) {
+                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+            }
+        }
     }
 
     /**

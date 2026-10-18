@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterLLMProviderAssociationDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatMessageDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatSessionDao
+import me.kafuuneko.rpclient.libs.room.dao.ContentSearchDao
 import me.kafuuneko.rpclient.libs.room.dao.FileDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatMemberDao
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatMessageDao
@@ -20,6 +21,7 @@ import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.MessageImageDao
 import me.kafuuneko.rpclient.libs.room.dao.PageBackgroundDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
+import me.kafuuneko.rpclient.libs.room.dao.SearchSourceDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryDao
@@ -42,6 +44,10 @@ import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.entity.PageBackgroundEntity
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
+import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
+import me.kafuuneko.rpclient.libs.room.entity.SearchChunkFts
+import me.kafuuneko.rpclient.libs.room.entity.SearchProgress
+import me.kafuuneko.rpclient.libs.room.entity.SearchSource
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
@@ -54,6 +60,10 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        SearchSource::class,
+        SearchChunk::class,
+        SearchChunkFts::class,
+        SearchProgress::class,
         PageBackgroundEntity::class,
         Character::class,
         CharacterLLMProviderAssociation::class,
@@ -88,6 +98,10 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** 提供独立内容搜索的数据访问入口。 */
+    abstract fun getContentSearchDao(): ContentSearchDao
+    /** 提供原始业务数据的搜索投影，普通扫描不依赖 FTS 派生表。 */
+    abstract fun getSearchSourceDao(): SearchSourceDao
     abstract fun getPageBackgroundDao(): PageBackgroundDao
     abstract fun getCharacterDao(): CharacterDao
     abstract fun getCharacterLLMProviderAssociationDao(): CharacterLLMProviderAssociationDao

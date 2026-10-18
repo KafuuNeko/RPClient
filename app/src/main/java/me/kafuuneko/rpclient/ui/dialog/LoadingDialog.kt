@@ -30,17 +30,21 @@ import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
-/** 长任务使用的统一加载对话框，可选提供显式取消操作。 */
+/**
+ * 长任务使用的统一加载对话框，可选提供显式取消操作。
+ * @param cancelOnBackPress 是否将返回键交给取消回调；默认只能通过取消按钮停止任务。
+ */
 @Composable
 fun LoadingDialog(
     title: String,
     description: String,
-    onCancel: (() -> Unit)? = null
+    onCancel: (() -> Unit)? = null,
+    cancelOnBackPress: Boolean = false
 ) {
     AppDialogWindow(
-        onDismissRequest = {},
+        onDismissRequest = { if (cancelOnBackPress) onCancel?.invoke() },
         properties = DialogProperties(
-            dismissOnBackPress = false,
+            dismissOnBackPress = cancelOnBackPress && onCancel != null,
             dismissOnClickOutside = false
         )
     ) {

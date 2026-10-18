@@ -1279,4 +1279,43 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">輸出上限包含推理 Token。推理模型啟用推理時不會傳送 temperature 和 top_p，可在進階請求 JSON 中設定 reasoning。</string>
     <string name="creation_selected_characters">已選 %1$d 個角色</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">搜尋內容</string>
+    <string name="content_search_submit">搜尋</string>
+    <string name="content_search_placeholder">搜尋訊息、故事、標題或角色</string>
+    <string name="content_search_all">全部內容</string>
+    <string name="content_search_metadata">標題與角色</string>
+    <string name="content_search_body">正文</string>
+    <string name="content_search_idle">搜尋已儲存的聊天與全部故事章節。輸入文字後點選搜尋。</string>
+    <string name="content_search_empty">找不到相符內容。</string>
+    <string name="content_search_preparing">正在準備可搜尋內容，結果可能不完整。</string>
+    <string name="content_search_unavailable">正文搜尋暫時無法使用，可先查標題與角色或重試。</string>
+    <string name="content_search_partial">目前為部分結果，仍有內容正在準備。</string>
+    <string name="content_search_stopped">已停止，結果可能不完整。</string>
+    <string name="content_search_error">搜尋失敗，請重試或縮小範圍。</string>
+    <string name="content_search_changed">內容已變更，請重新整理結果。</string>
+    <string name="content_search_more">顯示更多</string>
+    <string name="content_search_within">查看此內容中的相符項目</string>
+    <string name="content_search_clear_scope">搜尋全部內容</string>
+    <string name="content_search_too_long">搜尋文字最多為 128 個字元。</string>
+    <string name="content_search_refresh">重新整理</string>
+    <string name="content_search_missing">該內容已不存在。</string>
+    <string name="content_search_open_match">開啟相符位置</string>
+    <string name="content_search_slow">直接搜尋完整內容（較慢）</string>
+    <string name="content_search_newer">載入較新訊息</string>
+    <string name="content_search_latest">回到最新訊息</string>
+    <string name="content_search_index_title">搜尋加速</string>
+    <string name="content_search_index_enabled">搜尋加速已開啟</string>
+    <string name="content_search_index_disabled">一般搜尋逐筆掃描已儲存內容</string>
+    <string name="content_search_index_enable">開啟</string>
+    <string name="content_search_index_disable">關閉並清理</string>
+    <string name="content_search_index_confirm_title">開啟搜尋加速？</string>
+    <string name="content_search_index_confirm_message">為全部已儲存的對話和故事建立索引，需要時間和額外儲存空間。建立期間可以取消；關閉後會清除索引並回收空間。</string>
+    <string name="content_search_index_disable_confirm_title">關閉搜尋加速？</string>
+    <string name="content_search_index_disable_confirm_message">關閉後將清除搜尋索引並回收空間，已儲存的對話和故事不受影響，仍可使用一般搜尋。再次開啟需要重新建立索引。</string>
+    <string name="content_search_index_building">正在建立索引…已處理 %1$d 項</string>
+    <string name="content_search_index_cleaning">正在清除索引並回收空間…</string>
+    <string name="content_search_index_cleanup_failed">清理未完成。請釋放部分儲存空間或等待其他工作結束後重試。搜尋加速保持關閉。</string>
+    <string name="content_search_index_failed">搜尋加速無法使用，可以使用一般搜尋。</string>
 </resources>

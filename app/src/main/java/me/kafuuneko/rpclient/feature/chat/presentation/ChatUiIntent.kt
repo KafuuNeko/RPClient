@@ -12,11 +12,18 @@ sealed class ChatUiIntent {
 
     data class ImageAction(val action: MessageImageAction) : ChatUiIntent()
 
-    data class Init(val sessionId: String?) : ChatUiIntent()
+    data class Init(val sessionId: String?, val searchMessageId: Long? = null) : ChatUiIntent()
 
     data object Resume : ChatUiIntent()
 
     data object LoadOlderMessages : ChatUiIntent()
+
+    data object LoadNewerMessages : ChatUiIntent()
+
+    data object ReturnToLatest : ChatUiIntent()
+
+    /** 列表已经到达真实末尾，携带尾消息 ID 防止过期滚动事件误清除定位。 */
+    data class ReachLatestMessage(val messageId: String) : ChatUiIntent()
 
     data object Back : ChatUiIntent()
 

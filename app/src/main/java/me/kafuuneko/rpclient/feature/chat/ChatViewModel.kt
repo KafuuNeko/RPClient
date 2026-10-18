@@ -220,6 +220,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
+    private var mUnloadedNewerMessageCount = 0
+    private var mSearchAnchorId: Long? = null
     private var mSessionId: Long? = null
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
@@ -257,6 +259,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         mSessionId = sessionId
+        mSearchAnchorId = intent.searchMessageId
         val loaded = withContext(Dispatchers.IO) { loadNormalState(sessionId, inputDraft = "") }
         if (loaded == null) {
             finishWithToast(R.string.session_not_found)
@@ -306,6 +309,62 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
+    /** 历史定位后继续向较新消息分页，保留现有历史窗口与阅读位置。 */
+    @UiIntentObserver(ChatUiIntent.LoadNewerMessages::class)
+    private suspend fun onLoadNewerMessages() {
+        val state = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val displayContext = mMessageDisplayContext ?: return
+        val lastId = state.conversationState.messages.lastOrNull()?.id?.toLongOrNull() ?: return
+        if (!state.conversationState.canLoadNewerMessages || state.conversationState.isLoadingNewerMessages) return
+        state.copy(conversationState = state.conversationState.copy(isLoadingNewerMessages = true)).setup()
+        // 分页只转换新窗口，避免重新执行全部已展示正文的 Display 处理。
+        try {
+            val loaded = withContext(Dispatchers.IO) {
+                val page = mChatRepository.getMessagePageAfter(sessionId, lastId, MESSAGE_PAGE_SIZE) ?: return@withContext null
+                page.messages.toDisplayMessageItems(context = displayContext, messageImages = page.messageImages, newerMessageCount = page.newerMessageCount) to page
+            }
+            val current = getOrNull<ChatUiState.Normal>() ?: return
+            mUnloadedNewerMessageCount = loaded?.second?.newerMessageCount ?: 0
+            val ids = current.conversationState.messages.mapTo(HashSet()) { it.id }
+            current.copy(conversationState = current.conversationState.copy(
+                messages = current.conversationState.messages + loaded?.first.orEmpty().filterNot { it.id in ids },
+                canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false, isLoadingNewerMessages = false
+            )).setup()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_error).tryEmit()
+        } finally {
+            val current = getOrNull<ChatUiState.Normal>()
+            current?.copy(conversationState = current.conversationState.copy(isLoadingNewerMessages = false))?.setup()
+        }
+    }
+
+    /**
+     * 用户到达已加载的最新消息后退出搜索定位，保留现有窗口与草稿。
+     *
+     * @param intent 产生滚动事件时的尾消息 ID，用于排除分页或刷新前的过期事件。
+     */
+    @UiIntentObserver(ChatUiIntent.ReachLatestMessage::class)
+    private fun onReachLatestMessage(intent: ChatUiIntent.ReachLatestMessage) {
+        val state = getOrNull<ChatUiState.Normal>() ?: return
+        val conversation = state.conversationState
+        if (conversation.searchAnchorMessageId == null || conversation.canLoadNewerMessages ||
+            conversation.isLoadingNewerMessages || conversation.messages.lastOrNull()?.id != intent.messageId
+        ) return
+        mSearchAnchorId = null
+        state.copy(conversationState = conversation.copy(searchAnchorMessageId = null)).setup()
+    }
+
+    /** 点击返回按钮时重新加载最新窗口并恢复自动跟随。 */
+    @UiIntentObserver(ChatUiIntent.ReturnToLatest::class)
+    private suspend fun onReturnToLatest() {
+        if (!isStateOf<ChatUiState.Normal>()) return
+        mSearchAnchorId = null
+        refreshUiState(sessionId = mSessionId ?: return)
+    }
+
     /**
      * 用户滚动到当前消息窗口顶部时向前加载一页历史消息。
      *
@@ -340,7 +399,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 LoadedChatMessagePage(
                     items = page.messages.toDisplayMessageItems(
                         context = displayContext,
-                        newerMessageCount = uiState.conversationState.messages.size,
+                        newerMessageCount = mUnloadedNewerMessageCount + uiState.conversationState.messages.size,
                         messageImages = page.messageImages
                     ),
                     cursor = page.messages.firstOrNull()?.toChatMessageCursor(),
@@ -2227,10 +2286,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
-        val pageData = mChatRepository.getChatPageData(sessionId, messageLimit)
+        // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
+        val olderWindowSize = mSearchAnchorId?.let { anchor ->
+            getOrNull<ChatUiState.Normal>()?.conversationState?.messages
+                ?.indexOfFirst { it.id == anchor.toString() }?.takeIf { it >= 0 }
+        }
+        val pageData = mChatRepository.getChatPageData(sessionId, messageLimit, mSearchAnchorId, olderWindowSize)
         val messagePage = pageData.page
+        if (mSearchAnchorId != null && messagePage.messages.none { it.id == mSearchAnchorId }) {
+            mSearchAnchorId = null
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
+        }
+        mUnloadedNewerMessageCount = messagePage.newerMessageCount
         val displayContext = ChatMessageDisplayContext(session, character)
-        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext, messageImages = messagePage.messageImages)
+        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext, messageImages = messagePage.messageImages, newerMessageCount = messagePage.newerMessageCount)
         mMessageDisplayContext = displayContext
         mOldestLoadedMessageCursor = messagePage.messages.firstOrNull()?.toChatMessageCursor()
         // 获取摘要、世界书及角色头像资源
@@ -2258,6 +2327,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 avatarImage = avatarImage
             ),
             conversationState = ChatConversationState(
+                searchAnchorMessageId = mSearchAnchorId?.toString(),
+                canLoadNewerMessages = messagePage.canLoadNewerMessages,
                 messages = displayMessages,
                 hasAssistantMessage = pageData.hasCharacterMessage,
                 canLoadOlderMessages = messagePage.canLoadOlderMessages,
@@ -2369,6 +2440,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE
     ) {
+        // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
+        if (generationState is ChatGenerationState.Requesting || generationState is ChatGenerationState.Streaming) mSearchAnchorId = null
         val nextState = withContext(Dispatchers.IO) {
             loadNormalState(
                 sessionId = sessionId,

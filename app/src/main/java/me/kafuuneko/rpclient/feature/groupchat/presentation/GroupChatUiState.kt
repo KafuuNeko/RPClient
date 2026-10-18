@@ -87,7 +87,11 @@ data class GroupChatConversationState(
     /** 当前正在编辑的消息 ID；未编辑时为空。 */
     val editingMessageId: Long? = null,
     /** 当前消息编辑器中尚未保存的草稿。 */
-    val editingMessageDraft: String = ""
+    val editingMessageDraft: String = "",
+    /** 搜索历史位置；非空时禁止流式更新抢回底部。 */
+    val searchAnchorMessageId: Long? = null,
+    val canLoadNewerMessages: Boolean = false,
+    val isLoadingNewerMessages: Boolean = false
 )
 
 /** 群聊设置草稿、候选成员与世界书选择子状态。 */

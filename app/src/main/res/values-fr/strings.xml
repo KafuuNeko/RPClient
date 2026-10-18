@@ -1285,4 +1285,43 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">La limite de sortie inclut les tokens de raisonnement. Les modèles de raisonnement omettent temperature et top_p lorsque le raisonnement est activé. Configurez reasoning dans le JSON avancé de la requête.</string>
     <string name="creation_selected_characters">Personnages sélectionnés : %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Rechercher du contenu</string>
+    <string name="content_search_submit">Rechercher</string>
+    <string name="content_search_placeholder">Messages, histoires, titres ou personnages</string>
+    <string name="content_search_all">Tout le contenu</string>
+    <string name="content_search_metadata">Titres et personnages</string>
+    <string name="content_search_body">Texte</string>
+    <string name="content_search_idle">Recherchez dans les conversations enregistrées et tous les chapitres. Saisissez du texte puis lancez la recherche.</string>
+    <string name="content_search_empty">Aucun résultat.</string>
+    <string name="content_search_preparing">Préparation du contenu. Les résultats peuvent être incomplets.</string>
+    <string name="content_search_unavailable">Recherche de texte indisponible. Recherchez les titres et personnages ou réessayez.</string>
+    <string name="content_search_partial">Résultats partiels. Du contenu est encore en préparation.</string>
+    <string name="content_search_stopped">Recherche arrêtée. Les résultats peuvent être incomplets.</string>
+    <string name="content_search_error">Échec de la recherche. Réessayez ou limitez la portée.</string>
+    <string name="content_search_changed">Le contenu a changé. Actualisez les résultats.</string>
+    <string name="content_search_more">Afficher plus</string>
+    <string name="content_search_within">Rechercher dans cet élément</string>
+    <string name="content_search_clear_scope">Rechercher dans tous les éléments</string>
+    <string name="content_search_too_long">Utilisez au maximum 128 caractères.</string>
+    <string name="content_search_refresh">Actualiser</string>
+    <string name="content_search_missing">Ce contenu est indisponible.</string>
+    <string name="content_search_open_match">Ouvrir le passage</string>
+    <string name="content_search_slow">Rechercher sans index (plus lent)</string>
+    <string name="content_search_newer">Charger les messages plus récents</string>
+    <string name="content_search_latest">Revenir aux derniers messages</string>
+    <string name="content_search_index_title">Accélération de la recherche</string>
+    <string name="content_search_index_enabled">Accélération de la recherche activée</string>
+    <string name="content_search_index_disabled">La recherche standard parcourt le contenu enregistré</string>
+    <string name="content_search_index_enable">Activer</string>
+    <string name="content_search_index_disable">Désactiver et effacer</string>
+    <string name="content_search_index_confirm_title">Activer la recherche accélérée ?</string>
+    <string name="content_search_index_confirm_message">Crée un index de toutes les conversations et histoires enregistrées. Cela prend du temps et utilise du stockage supplémentaire. Vous pouvez annuler la création. La désactivation efface cet index et libère de la place.</string>
+    <string name="content_search_index_disable_confirm_title">Désactiver la recherche accélérée ?</string>
+    <string name="content_search_index_disable_confirm_message">L’index de recherche sera effacé pour libérer de l’espace. Vos conversations et histoires enregistrées seront conservées, et la recherche standard restera disponible. Réactiver la recherche accélérée recréera l’index.</string>
+    <string name="content_search_index_building">Création de l’index… %1$d éléments traités</string>
+    <string name="content_search_index_cleaning">Suppression de l’index et libération de la place…</string>
+    <string name="content_search_index_cleanup_failed">Le nettoyage a échoué. Libérez de la place ou attendez la fin des autres tâches, puis réessayez. La recherche accélérée reste désactivée.</string>
+    <string name="content_search_index_failed">La recherche accélérée est indisponible. La recherche standard reste disponible.</string>
 </resources>

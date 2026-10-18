@@ -231,6 +231,8 @@ class GroupChatViewModel :
     private val mContext by inject<Context>()
 
     /** 当前页面绑定的群聊会话 ID。 */
+    private var mUnloadedNewerMessageCount = 0
+    private var mSearchAnchorId: Long? = null
     private var mSessionId: Long? = null
     /** 当前正在运行的模型生成任务协程 Job，用于停止生成并防止并发请求。 */
     private var mGenerationJob: Job? = null
@@ -268,6 +270,7 @@ class GroupChatViewModel :
             return
         }
         mSessionId = sessionId
+        mSearchAnchorId = intent.searchMessageId
         // 异步从数据库加载群聊聚合状态
         val state = withContext(Dispatchers.IO) {
             loadState(sessionId, inputDraft = "")
@@ -296,6 +299,62 @@ class GroupChatViewModel :
             editingMessageDraft = uiState.conversationState.editingMessageDraft,
             dialogState = uiState.dialogState
         )
+    }
+
+    /** 历史定位后继续向较新消息分页，保留现有历史窗口与阅读位置。 */
+    @UiIntentObserver(GroupChatUiIntent.LoadNewerMessages::class)
+    private suspend fun onLoadNewerMessages() {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val displayContext = mMessageDisplayContext ?: return
+        val lastId = state.conversationState.messages.lastOrNull()?.id ?: return
+        if (!state.conversationState.canLoadNewerMessages || state.conversationState.isLoadingNewerMessages) return
+        state.copy(conversationState = state.conversationState.copy(isLoadingNewerMessages = true)).setup()
+        // 分页只转换新窗口，避免重新执行全部已展示正文的 Display 处理。
+        try {
+            val loaded = withContext(Dispatchers.IO) {
+                val page = mGroupChatRepository.getMessagePageAfter(sessionId, lastId, MESSAGE_PAGE_SIZE) ?: return@withContext null
+                displayContext.copy(messages = page.messages).toMessageItems(messageImages = page.messageImages, newerMessageCount = page.newerMessageCount) to page
+            }
+            val current = getOrNull<GroupChatUiState.Normal>() ?: return
+            mUnloadedNewerMessageCount = loaded?.second?.newerMessageCount ?: 0
+            val ids = current.conversationState.messages.mapTo(HashSet()) { it.id }
+            current.copy(conversationState = current.conversationState.copy(
+                messages = current.conversationState.messages + loaded?.first.orEmpty().filterNot { it.id in ids },
+                canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false, isLoadingNewerMessages = false
+            )).setup()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_error).tryEmit()
+        } finally {
+            val current = getOrNull<GroupChatUiState.Normal>()
+            current?.copy(conversationState = current.conversationState.copy(isLoadingNewerMessages = false))?.setup()
+        }
+    }
+
+    /**
+     * 用户到达已加载的最新消息后退出搜索定位，保留现有窗口与草稿。
+     *
+     * @param intent 产生滚动事件时的尾消息 ID，用于排除分页或刷新前的过期事件。
+     */
+    @UiIntentObserver(GroupChatUiIntent.ReachLatestMessage::class)
+    private fun onReachLatestMessage(intent: GroupChatUiIntent.ReachLatestMessage) {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        val conversation = state.conversationState
+        if (conversation.searchAnchorMessageId == null || conversation.canLoadNewerMessages ||
+            conversation.isLoadingNewerMessages || conversation.messages.lastOrNull()?.id != intent.messageId
+        ) return
+        mSearchAnchorId = null
+        state.copy(conversationState = conversation.copy(searchAnchorMessageId = null)).setup()
+    }
+
+    /** 点击返回按钮时重新加载最新窗口并恢复自动跟随。 */
+    @UiIntentObserver(GroupChatUiIntent.ReturnToLatest::class)
+    private suspend fun onReturnToLatest() {
+        if (!isStateOf<GroupChatUiState.Normal>()) return
+        mSearchAnchorId = null
+        refreshState()
     }
 
     /**
@@ -331,7 +390,7 @@ class GroupChatViewModel :
                 )
                 LoadedGroupChatMessagePage(
                     items = displayContext.copy(messages = page.messages).toMessageItems(
-                        newerMessageCount = uiState.conversationState.messages.size,
+                        newerMessageCount = mUnloadedNewerMessageCount + uiState.conversationState.messages.size,
                         messageImages = page.messageImages
                     ),
                     cursor = page.messages.firstOrNull()?.toGroupChatMessageCursor(),
@@ -2112,6 +2171,8 @@ class GroupChatViewModel :
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE
     ) {
+        // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
+        if (generationState is GroupChatGenerationState.Generating) mSearchAnchorId = null
         val sessionId = mSessionId ?: return
         val next = withContext(Dispatchers.IO) {
             loadState(
@@ -2159,11 +2220,23 @@ class GroupChatViewModel :
         messageLimit: Int = MESSAGE_PAGE_SIZE
     ): GroupChatUiState.Normal? {
         // 查询群聊会话、成员与最近消息窗口
+        // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
+        val olderWindowSize = mSearchAnchorId?.let { anchor ->
+            getOrNull<GroupChatUiState.Normal>()?.conversationState?.messages
+                ?.indexOfFirst { it.id == anchor }?.takeIf { it >= 0 }
+        }
         val pageData = mGroupChatRepository.getGroupChatPageData(
             sessionId = sessionId,
-            pageSize = messageLimit
+            pageSize = messageLimit,
+            anchorMessageId = mSearchAnchorId,
+            olderWindowSize = olderWindowSize
         ) ?: return null
         val data = pageData.data
+        if (mSearchAnchorId != null && data.messages.none { it.id == mSearchAnchorId }) {
+            mSearchAnchorId = null
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
+        }
+        mUnloadedNewerMessageCount = pageData.newerMessageCount
         mMessageDisplayContext = data.copy(messages = emptyList())
         mOldestLoadedMessageCursor = data.messages.firstOrNull()?.toGroupChatMessageCursor()
         val members = data.members.map {
@@ -2240,7 +2313,9 @@ class GroupChatViewModel :
                 .toGroupChatActivationStrategy(),
             page = page,
             conversationState = GroupChatConversationState(
-                messages = data.toMessageItems(messageImages = pageData.messageImages),
+                searchAnchorMessageId = mSearchAnchorId,
+                canLoadNewerMessages = pageData.canLoadNewerMessages,
+                messages = data.toMessageItems(messageImages = pageData.messageImages, newerMessageCount = pageData.newerMessageCount),
                 hasCharacterMessage = pageData.hasCharacterMessage,
                 canLoadOlderMessages = pageData.canLoadOlderMessages,
                 selectedSpeakerId = effectiveSpeakerId,

@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
@@ -59,7 +60,8 @@ class GroupChatActivity : CoreActivityWithEvent() {
         super.onCreate(savedInstanceState)
         mViewModel.emit(
             GroupChatUiIntent.Init(
-                sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
+                sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
+                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 }
             )
         )
     }

@@ -1281,4 +1281,43 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">输出上限包含推理 Token。推理模型启用推理时不会发送 temperature 和 top_p，可在高级请求 JSON 中配置 reasoning。</string>
     <string name="creation_selected_characters">已选 %1$d 个角色</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">搜索内容</string>
+    <string name="content_search_submit">搜索</string>
+    <string name="content_search_placeholder">搜索消息、故事、标题或角色</string>
+    <string name="content_search_all">全部内容</string>
+    <string name="content_search_metadata">标题与角色</string>
+    <string name="content_search_body">正文</string>
+    <string name="content_search_idle">搜索已保存的聊天与全部故事章节。输入文字后点击搜索。</string>
+    <string name="content_search_empty">没有找到匹配内容。</string>
+    <string name="content_search_preparing">正在准备可搜索内容，结果可能不完整。</string>
+    <string name="content_search_unavailable">正文搜索暂不可用，可先查标题与角色或重试。</string>
+    <string name="content_search_partial">当前为部分结果，仍有内容正在准备。</string>
+    <string name="content_search_stopped">已停止，结果可能不完整。</string>
+    <string name="content_search_error">搜索失败，请重试或缩小范围。</string>
+    <string name="content_search_changed">内容已变化，请刷新结果。</string>
+    <string name="content_search_more">显示更多</string>
+    <string name="content_search_within">查看此内容中的匹配</string>
+    <string name="content_search_clear_scope">搜索全部内容</string>
+    <string name="content_search_too_long">搜索文字最多为 128 个字符。</string>
+    <string name="content_search_refresh">刷新</string>
+    <string name="content_search_missing">该内容已不存在。</string>
+    <string name="content_search_open_match">打开匹配位置</string>
+    <string name="content_search_slow">直接搜索完整内容（较慢）</string>
+    <string name="content_search_newer">加载较新消息</string>
+    <string name="content_search_latest">回到最新消息</string>
+    <string name="content_search_index_title">搜索加速</string>
+    <string name="content_search_index_enabled">搜索加速已开启</string>
+    <string name="content_search_index_disabled">普通搜索逐条扫描已保存内容</string>
+    <string name="content_search_index_enable">开启</string>
+    <string name="content_search_index_disable">关闭并清理</string>
+    <string name="content_search_index_confirm_title">开启搜索加速？</string>
+    <string name="content_search_index_confirm_message">为全部已保存的会话和故事建立索引，需要时间和额外存储空间。构建期间可以取消；关闭后会清除索引并回收空间。</string>
+    <string name="content_search_index_disable_confirm_title">关闭搜索加速？</string>
+    <string name="content_search_index_disable_confirm_message">关闭后将清除搜索索引并回收空间，已保存的会话和故事不受影响，仍可使用普通搜索。再次开启需要重新构建索引。</string>
+    <string name="content_search_index_building">正在构建索引…已处理 %1$d 项</string>
+    <string name="content_search_index_cleaning">正在清除索引并回收空间…</string>
+    <string name="content_search_index_cleanup_failed">清理未完成。请释放部分存储空间或等待其他任务结束后重试。搜索加速保持关闭。</string>
+    <string name="content_search_index_failed">搜索加速不可用，可以使用普通搜索。</string>
 </resources>

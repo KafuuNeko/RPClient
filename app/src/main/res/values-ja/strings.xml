@@ -1280,4 +1280,43 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">出力上限には推論トークンが含まれます。推論モデルでは推論が有効な間、temperature と top_p は送信されません。詳細リクエスト JSON で reasoning を設定できます。</string>
     <string name="creation_selected_characters">選択したキャラクター：%1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">コンテンツを検索</string>
+    <string name="content_search_submit">検索</string>
+    <string name="content_search_placeholder">メッセージ、物語、タイトル、キャラクターを検索</string>
+    <string name="content_search_all">すべての内容</string>
+    <string name="content_search_metadata">タイトルとキャラクター</string>
+    <string name="content_search_body">本文</string>
+    <string name="content_search_idle">保存済みの会話と物語の全章を検索します。文字を入力して検索を押してください。</string>
+    <string name="content_search_empty">一致する内容がありません。</string>
+    <string name="content_search_preparing">検索の準備中です。結果が不完全な場合があります。</string>
+    <string name="content_search_unavailable">本文検索を利用できません。タイトルとキャラクターを検索するか、再試行してください。</string>
+    <string name="content_search_partial">一部の結果です。準備中の内容があります。</string>
+    <string name="content_search_stopped">停止しました。結果が不完全な場合があります。</string>
+    <string name="content_search_error">検索に失敗しました。再試行するか範囲を絞ってください。</string>
+    <string name="content_search_changed">内容が変更されました。結果を更新してください。</string>
+    <string name="content_search_more">もっと表示</string>
+    <string name="content_search_within">この項目内を検索</string>
+    <string name="content_search_clear_scope">すべての項目を検索</string>
+    <string name="content_search_too_long">検索文字列は128文字以内にしてください。</string>
+    <string name="content_search_refresh">更新</string>
+    <string name="content_search_missing">この内容は利用できなくなりました。</string>
+    <string name="content_search_open_match">一致箇所を開く</string>
+    <string name="content_search_slow">索引なしで全文検索（低速）</string>
+    <string name="content_search_newer">新しいメッセージを読み込む</string>
+    <string name="content_search_latest">最新のメッセージへ</string>
+    <string name="content_search_index_title">検索の高速化</string>
+    <string name="content_search_index_enabled">検索の高速化はオンです</string>
+    <string name="content_search_index_disabled">通常検索は保存済みの内容を順に検索します</string>
+    <string name="content_search_index_enable">有効にする</string>
+    <string name="content_search_index_disable">無効にして削除</string>
+    <string name="content_search_index_confirm_title">検索を高速化しますか？</string>
+    <string name="content_search_index_confirm_message">保存済みの会話とストーリー全体の索引を作成します。時間と追加の保存容量が必要です。作成中はキャンセルできます。無効にすると索引が削除され、容量が解放されます。</string>
+    <string name="content_search_index_disable_confirm_title">検索の高速化をオフにしますか？</string>
+    <string name="content_search_index_disable_confirm_message">検索用の索引を削除して、保存容量を解放します。保存済みの会話とストーリーは保持され、通常の検索は引き続き利用できます。再度有効にする場合は、索引を作り直す必要があります。</string>
+    <string name="content_search_index_building">索引を作成中…%1$d 件処理済み</string>
+    <string name="content_search_index_cleaning">索引を削除して容量を解放中…</string>
+    <string name="content_search_index_cleanup_failed">削除が完了しませんでした。空き容量を増やすか、他の処理が終わってから再試行してください。検索の高速化は無効のままです。</string>
+    <string name="content_search_index_failed">検索の高速化を利用できません。通常検索は利用できます。</string>
 </resources>

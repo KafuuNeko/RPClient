@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.chatcreate.presentation
 
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateCharacterItem
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
 
 /** 新建单聊页面状态树。 */
@@ -16,6 +16,9 @@ sealed class ChatCreateUiState {
         val form: ChatCreateForm = ChatCreateForm(),
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<ChatCreateCharacterItem> = emptyList(),
+        /** 角色区独立的查询与展示列表，过滤不影响已选角色。 */
+        val characterQuery: String = "",
+        val visibleCharacters: List<ChatCreateCharacterItem> = characters,
         /** 当前角色可供选择的开场白列表。 */
         val selectedCharacterFirstMessages: List<String> = emptyList(),
         /** 世界书列表当前使用的搜索关键词。 */

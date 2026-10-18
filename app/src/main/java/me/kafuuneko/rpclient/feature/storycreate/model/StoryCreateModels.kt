@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.model.LorebookWithEntries
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 
 /** 创建 Story 时尚未持久化的角色与世界书选择。 */
 data class StoryCreateForm(
@@ -144,9 +145,7 @@ internal fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
     val normalizedQuery = query.trim()
     if (normalizedQuery.isBlank()) return this
     return filter { character ->
-        character.name.contains(normalizedQuery, ignoreCase = true) ||
-            character.description.contains(normalizedQuery, ignoreCase = true) ||
-            character.tags.any { it.contains(normalizedQuery, ignoreCase = true) }
+        matchesCharacterQuery(character.name, character.description, character.tags, normalizedQuery)
     }
 }
 

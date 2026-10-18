@@ -38,6 +38,8 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
         settingsState = settingsState.copy(
             chatDataManagementState = this.settingsState.chatDataManagementState,
+            // 恢复页面的读取可能挂起，索引进度以订阅期间收到的最新状态为准。
+            searchIndexState = this.settingsState.searchIndexState,
             summaryState = settingsState.summaryState.copy(
                 selectedTab = this.settingsState.summaryState.selectedTab
             )
@@ -53,6 +55,10 @@ internal fun MainUiState.Normal.canOpenDialog(): Boolean {
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()
+
+    data object EnableSearchIndex : MainDialogState()
+
+    data object DisableSearchIndex : MainDialogState()
 
     data class DeleteSelectedItems(
         /** 当前对象或操作涉及的数量。 */

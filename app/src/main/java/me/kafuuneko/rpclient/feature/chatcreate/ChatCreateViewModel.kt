@@ -1,7 +1,12 @@
 package me.kafuuneko.rpclient.feature.chatcreate
 
 import android.os.Bundle
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
@@ -27,6 +32,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import org.koin.core.component.KoinComponent
@@ -46,6 +52,7 @@ import org.koin.core.component.inject
 class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreateUiState>(
     ChatCreateUiState.None
 ), KoinComponent {
+    private var mCharacterSearchJob: Job? = null
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
@@ -89,6 +96,28 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             lorebookGroups = data.second,
             visibleLorebookGroups = data.second
         ).setup()
+    }
+
+    /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
+    @UiIntentObserver(ChatCreateUiIntent.ChangeCharacterQuery::class)
+    private fun onChangeCharacterQuery(intent: ChatCreateUiIntent.ChangeCharacterQuery) {
+        val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
+        mCharacterSearchJob?.cancel()
+        uiState.copy(characterQuery = intent.value).setup()
+        // 后台计算仅返回 ID，回写时从最新列表恢复选择状态。
+        mCharacterSearchJob = viewModelScope.launch {
+            val visibleIds = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                uiState.characters.filter {
+                    context.ensureActive()
+                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
+                }.mapTo(HashSet()) { it.id }
+            }
+            val current = getOrNull<ChatCreateUiState.Normal>() ?: return@launch
+            if (current.characterQuery == intent.value) {
+                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+            }
+        }
     }
 
     /** 处理返回操作，迁移至 Finished 状态。 */
