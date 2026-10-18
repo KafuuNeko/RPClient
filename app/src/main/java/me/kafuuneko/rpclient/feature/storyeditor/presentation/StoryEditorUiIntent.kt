@@ -1,18 +1,18 @@
 package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import android.net.Uri
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropTarget
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
-import android.net.Uri
 
 /** 分卷/章节编辑器可接收的用户行为和生命周期意图。 */
 sealed class StoryEditorUiIntent {
     /** 从摘要额度提示前往全局设置。 */
     data object OpenSummarySettings : StoryEditorUiIntent()
 
-    data class Init(val storyId: Long) : StoryEditorUiIntent()
+    data class Init(val storyId: Long, val searchChapterId: Long? = null, val searchQuery: String = "") : StoryEditorUiIntent()
     data object Back : StoryEditorUiIntent()
     data class EditorSnapshotChanged(val snapshot: StoryEditorSnapshot) : StoryEditorUiIntent()
     data object FlushDraft : StoryEditorUiIntent()

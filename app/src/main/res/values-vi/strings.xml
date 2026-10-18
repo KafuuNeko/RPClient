@@ -1285,4 +1285,30 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Giới hạn đầu ra bao gồm token suy luận. Mô hình suy luận không gửi temperature và top_p khi bật suy luận. Cấu hình reasoning trong JSON yêu cầu nâng cao.</string>
     <string name="creation_selected_characters">Nhân vật đã chọn: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Tìm nội dung</string>
+    <string name="content_search_submit">Tìm kiếm</string>
+    <string name="content_search_placeholder">Tìm tin nhắn, truyện, tiêu đề hoặc nhân vật</string>
+    <string name="content_search_all">Tất cả nội dung</string>
+    <string name="content_search_metadata">Tiêu đề và nhân vật</string>
+    <string name="content_search_body">Văn bản</string>
+    <string name="content_search_idle">Tìm trong hội thoại đã lưu và mọi chương truyện. Nhập văn bản rồi nhấn Tìm kiếm.</string>
+    <string name="content_search_empty">Không tìm thấy kết quả phù hợp.</string>
+    <string name="content_search_preparing">Đang chuẩn bị nội dung. Kết quả có thể chưa đầy đủ.</string>
+    <string name="content_search_unavailable">Không thể tìm trong văn bản. Hãy tìm tiêu đề và nhân vật hoặc thử lại.</string>
+    <string name="content_search_partial">Kết quả một phần. Một số nội dung vẫn đang được chuẩn bị.</string>
+    <string name="content_search_stopped">Đã dừng. Kết quả có thể chưa đầy đủ.</string>
+    <string name="content_search_error">Tìm kiếm thất bại. Hãy thử lại hoặc thu hẹp phạm vi.</string>
+    <string name="content_search_changed">Nội dung đã thay đổi. Hãy làm mới kết quả.</string>
+    <string name="content_search_more">Hiển thị thêm</string>
+    <string name="content_search_within">Tìm kết quả trong mục này</string>
+    <string name="content_search_clear_scope">Tìm trong mọi mục</string>
+    <string name="content_search_too_long">Dùng tối đa 128 ký tự.</string>
+    <string name="content_search_refresh">Làm mới</string>
+    <string name="content_search_missing">Nội dung này không còn tồn tại.</string>
+    <string name="content_search_open_match">Mở vị trí phù hợp</string>
+    <string name="content_search_slow">Tìm không dùng chỉ mục (chậm hơn)</string>
+    <string name="content_search_newer">Tải tin nhắn mới hơn</string>
+    <string name="content_search_latest">Về tin nhắn mới nhất</string>
 </resources>

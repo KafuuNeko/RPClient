@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.ui.StoryEditorLayout
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 分卷/章节编辑器宿主，负责页面生命周期与剪贴板系统能力。 */
 class StoryEditorActivity : CoreActivityWithEvent() {
@@ -71,7 +72,9 @@ class StoryEditorActivity : CoreActivityWithEvent() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val storyId = intent.getLongExtra(EXTRA_STORY_ID, 0L)
-        mViewModel.emit(StoryEditorUiIntent.Init(storyId))
+        mViewModel.emit(StoryEditorUiIntent.Init(storyId,
+            intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 },
+            intent.getStringExtra(SearchNavigation.EXTRA_QUERY).orEmpty()))
     }
 
     override fun onResume() {

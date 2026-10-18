@@ -89,7 +89,9 @@ data class GroupChatPageData(
     val data: GroupChatData,
     val canLoadOlderMessages: Boolean,
     val hasCharacterMessage: Boolean,
-    val messageImages: List<MessageWithImages> = emptyList()
+    val messageImages: List<MessageWithImages> = emptyList(),
+    val canLoadNewerMessages: Boolean = false,
+    val newerMessageCount: Int = 0
 )
 
 /**
@@ -102,7 +104,10 @@ data class GroupChatMessagePage(
     val messages: List<GroupChatMessage>,
     val canLoadOlderMessages: Boolean,
     /** 与本页正文在同一事务读取的有序附件。 */
-    val messageImages: List<MessageWithImages> = emptyList()
+    val messageImages: List<MessageWithImages> = emptyList(),
+    /** 搜索窗口后方仍有较新消息。 */
+    val canLoadNewerMessages: Boolean = false,
+    val newerMessageCount: Int = 0
 )
 
 /**
@@ -331,6 +336,33 @@ class GroupChatRepository(
         }
     }
 
+    /** 直接读取锚点前后有限窗口，历史定位不遍历最新页到目标之间的消息。 */
+    private suspend fun messageWindow(sessionId: Long, messageId: Long, pageSize: Int, olderWindowSize: Int?): GroupChatMessagePage? {
+        val anchor = mMessageDao.getMessageById(messageId)?.takeIf { it.sessionId == sessionId } ?: return null
+        val olderLimit = olderWindowSize?.coerceIn(0, pageSize) ?: (pageSize / 2).coerceAtLeast(1)
+        val newerLimit = if (olderWindowSize == null) olderLimit else (pageSize - olderLimit - 1).coerceAtLeast(0)
+        // 各多取一条判断两端是否可继续，不牺牲同时间消息的稳定顺序。
+        val older = mMessageDao.getMessagePageBefore(sessionId, anchor.createTime, anchor.id, olderLimit + 1)
+        val newer = mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, newerLimit + 1)
+        val messages = older.take(olderLimit).asReversed() + anchor + newer.take(newerLimit)
+        return GroupChatMessagePage(
+            messages = messages, canLoadOlderMessages = older.size > olderLimit,
+            messageImages = getMessagesWithImages(messages.map { it.id }),
+            canLoadNewerMessages = newer.size > newerLimit,
+            newerMessageCount = mMessageDao.countAfter(sessionId, messages.last().createTime, messages.last().id)
+        )
+    }
+
+    /** 从当前窗口尾部向较新消息继续浏览，消息与附件共享读取事务。 */
+    suspend fun getMessagePageAfter(sessionId: Long, afterMessageId: Long, pageSize: Int): GroupChatMessagePage? = mAppDatabase.withTransaction {
+        val anchor = mMessageDao.getMessageById(afterMessageId)?.takeIf { it.sessionId == sessionId } ?: return@withTransaction null
+        val rows = mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, pageSize + 1)
+        val messages = rows.take(pageSize)
+        GroupChatMessagePage(messages = messages, canLoadOlderMessages = true,
+            messageImages = getMessagesWithImages(messages.map { it.id }), canLoadNewerMessages = rows.size > pageSize,
+            newerMessageCount = messages.lastOrNull()?.let { mMessageDao.countAfter(sessionId, it.createTime, it.id) } ?: 0)
+    }
+
     /**
      * 在同一事务中读取群聊页面元数据和末尾消息窗口。
      *
@@ -342,13 +374,15 @@ class GroupChatRepository(
      */
     suspend fun getGroupChatPageData(
         sessionId: Long,
-        pageSize: Int
+        pageSize: Int,
+        anchorMessageId: Long? = null,
+        olderWindowSize: Int? = null
     ): GroupChatPageData? {
         require(pageSize > 0) { "pageSize must be positive" }
         return mAppDatabase.withTransaction {
             // 页面聚合必须共享同一快照，避免会话元数据与消息窗口不一致
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
-            val page = mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
+            val page = anchorMessageId?.let { messageWindow(sessionId, it, pageSize, olderWindowSize) } ?: mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
                 .toGroupChatMessagePage(pageSize)
             GroupChatPageData(
                 data = GroupChatData(
@@ -359,7 +393,9 @@ class GroupChatRepository(
                 ),
                 canLoadOlderMessages = page.canLoadOlderMessages,
                 hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId),
-                messageImages = page.messageImages
+                messageImages = page.messageImages,
+                canLoadNewerMessages = page.canLoadNewerMessages,
+                newerMessageCount = page.newerMessageCount
             )
         }
     }

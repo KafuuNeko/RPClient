@@ -1279,4 +1279,30 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">출력 한도에는 추론 토큰이 포함됩니다. 추론 모델은 추론이 활성화된 동안 temperature와 top_p를 전송하지 않습니다. 고급 요청 JSON에서 reasoning을 설정하세요.</string>
     <string name="creation_selected_characters">선택한 캐릭터: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">콘텐츠 검색</string>
+    <string name="content_search_submit">검색</string>
+    <string name="content_search_placeholder">메시지, 이야기, 제목 또는 캐릭터 검색</string>
+    <string name="content_search_all">모든 콘텐츠</string>
+    <string name="content_search_metadata">제목 및 캐릭터</string>
+    <string name="content_search_body">본문</string>
+    <string name="content_search_idle">저장된 대화와 이야기의 모든 장을 검색합니다. 텍스트를 입력한 후 검색을 누르세요.</string>
+    <string name="content_search_empty">일치하는 내용이 없습니다.</string>
+    <string name="content_search_preparing">검색할 콘텐츠를 준비하고 있습니다. 결과가 불완전할 수 있습니다.</string>
+    <string name="content_search_unavailable">본문 검색을 사용할 수 없습니다. 제목과 캐릭터를 검색하거나 다시 시도하세요.</string>
+    <string name="content_search_partial">일부 결과입니다. 아직 준비 중인 콘텐츠가 있습니다.</string>
+    <string name="content_search_stopped">중지되었습니다. 결과가 불완전할 수 있습니다.</string>
+    <string name="content_search_error">검색에 실패했습니다. 다시 시도하거나 범위를 좁히세요.</string>
+    <string name="content_search_changed">콘텐츠가 변경되었습니다. 결과를 새로고침하세요.</string>
+    <string name="content_search_more">더 보기</string>
+    <string name="content_search_within">이 항목에서 일치 항목 찾기</string>
+    <string name="content_search_clear_scope">모든 항목 검색</string>
+    <string name="content_search_too_long">검색어는 128자 이내로 입력하세요.</string>
+    <string name="content_search_refresh">새로고침</string>
+    <string name="content_search_missing">이 콘텐츠는 더 이상 사용할 수 없습니다.</string>
+    <string name="content_search_open_match">일치 위치 열기</string>
+    <string name="content_search_slow">색인 없이 전체 검색 (느림)</string>
+    <string name="content_search_newer">더 최근 메시지 불러오기</string>
+    <string name="content_search_latest">최신 메시지로 돌아가기</string>
 </resources>

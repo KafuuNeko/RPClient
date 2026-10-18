@@ -1284,4 +1284,30 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Das Ausgabelimit umfasst Reasoning-Tokens. Reasoning-Modelle senden bei aktivem Reasoning kein temperature und top_p. Konfigurieren Sie reasoning im erweiterten Anfrage-JSON.</string>
     <string name="creation_selected_characters">Ausgewählte Charaktere: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Inhalte suchen</string>
+    <string name="content_search_submit">Suchen</string>
+    <string name="content_search_placeholder">Nachrichten, Geschichten, Titel oder Figuren suchen</string>
+    <string name="content_search_all">Alle Inhalte</string>
+    <string name="content_search_metadata">Titel und Figuren</string>
+    <string name="content_search_body">Textinhalt</string>
+    <string name="content_search_idle">Gespeicherte Chats und alle Kapitel durchsuchen. Text eingeben und Suchen antippen.</string>
+    <string name="content_search_empty">Keine Treffer.</string>
+    <string name="content_search_preparing">Inhalte werden vorbereitet. Ergebnisse sind möglicherweise unvollständig.</string>
+    <string name="content_search_unavailable">Textsuche nicht verfügbar. Titel und Figuren durchsuchen oder erneut versuchen.</string>
+    <string name="content_search_partial">Teilergebnisse. Einige Inhalte werden noch vorbereitet.</string>
+    <string name="content_search_stopped">Angehalten. Ergebnisse sind möglicherweise unvollständig.</string>
+    <string name="content_search_error">Suche fehlgeschlagen. Erneut versuchen oder den Bereich eingrenzen.</string>
+    <string name="content_search_changed">Inhalte geändert. Ergebnisse aktualisieren.</string>
+    <string name="content_search_more">Mehr anzeigen</string>
+    <string name="content_search_within">In diesem Eintrag suchen</string>
+    <string name="content_search_clear_scope">Alle Einträge durchsuchen</string>
+    <string name="content_search_too_long">Höchstens 128 Zeichen eingeben.</string>
+    <string name="content_search_refresh">Aktualisieren</string>
+    <string name="content_search_missing">Dieser Inhalt ist nicht mehr verfügbar.</string>
+    <string name="content_search_open_match">Fundstelle öffnen</string>
+    <string name="content_search_slow">Ohne Index durchsuchen (langsamer)</string>
+    <string name="content_search_newer">Neuere Nachrichten laden</string>
+    <string name="content_search_latest">Zu den neuesten Nachrichten</string>
 </resources>

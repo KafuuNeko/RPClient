@@ -1289,4 +1289,30 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">The output limit includes reasoning tokens. Reasoning models omit temperature and top_p while reasoning is enabled. Configure reasoning in the advanced request JSON.</string>
     <string name="creation_selected_characters">Characters selected: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Search content</string>
+    <string name="content_search_submit">Search</string>
+    <string name="content_search_placeholder">Search messages, stories, titles or characters</string>
+    <string name="content_search_all">All content</string>
+    <string name="content_search_metadata">Titles and characters</string>
+    <string name="content_search_body">Body text</string>
+    <string name="content_search_idle">Search saved conversations and every story chapter. Enter text, then tap Search.</string>
+    <string name="content_search_empty">No matches found.</string>
+    <string name="content_search_preparing">Preparing content for search. Results may be incomplete.</string>
+    <string name="content_search_unavailable">Body search is unavailable. Search titles and characters, or retry.</string>
+    <string name="content_search_partial">Partial results. Some content is still being prepared.</string>
+    <string name="content_search_stopped">Stopped. Results may be incomplete.</string>
+    <string name="content_search_error">Search failed. Retry or narrow the scope.</string>
+    <string name="content_search_changed">Content has changed. Refresh the results.</string>
+    <string name="content_search_more">Show more</string>
+    <string name="content_search_within">Find matches in this item</string>
+    <string name="content_search_clear_scope">Search all items</string>
+    <string name="content_search_too_long">Use at most 128 characters.</string>
+    <string name="content_search_refresh">Refresh</string>
+    <string name="content_search_missing">This content is no longer available.</string>
+    <string name="content_search_open_match">Open match</string>
+    <string name="content_search_slow">Search without index (slower)</string>
+    <string name="content_search_newer">Load newer messages</string>
+    <string name="content_search_latest">Return to latest messages</string>
 </resources>

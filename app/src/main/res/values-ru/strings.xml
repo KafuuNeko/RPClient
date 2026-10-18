@@ -1289,4 +1289,30 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Лимит вывода включает токены рассуждений. Модели рассуждений не передают temperature и top_p при включённых рассуждениях. Настройте reasoning в расширенном JSON запроса.</string>
     <string name="creation_selected_characters">Выбрано персонажей: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Поиск содержимого</string>
+    <string name="content_search_submit">Найти</string>
+    <string name="content_search_placeholder">Сообщения, истории, названия или персонажи</string>
+    <string name="content_search_all">Всё содержимое</string>
+    <string name="content_search_metadata">Названия и персонажи</string>
+    <string name="content_search_body">Текст</string>
+    <string name="content_search_idle">Поиск по сохранённым беседам и всем главам. Введите текст и нажмите «Найти».</string>
+    <string name="content_search_empty">Совпадений не найдено.</string>
+    <string name="content_search_preparing">Подготовка содержимого. Результаты могут быть неполными.</string>
+    <string name="content_search_unavailable">Поиск по тексту недоступен. Ищите по названиям и персонажам или повторите попытку.</string>
+    <string name="content_search_partial">Частичные результаты. Часть содержимого ещё готовится.</string>
+    <string name="content_search_stopped">Остановлено. Результаты могут быть неполными.</string>
+    <string name="content_search_error">Ошибка поиска. Повторите попытку или сузьте область поиска.</string>
+    <string name="content_search_changed">Содержимое изменилось. Обновите результаты.</string>
+    <string name="content_search_more">Показать ещё</string>
+    <string name="content_search_within">Найти совпадения в этом элементе</string>
+    <string name="content_search_clear_scope">Искать во всех элементах</string>
+    <string name="content_search_too_long">Введите не более 128 символов.</string>
+    <string name="content_search_refresh">Обновить</string>
+    <string name="content_search_missing">Это содержимое больше недоступно.</string>
+    <string name="content_search_open_match">Открыть совпадение</string>
+    <string name="content_search_slow">Поиск без индекса (медленнее)</string>
+    <string name="content_search_newer">Загрузить более новые сообщения</string>
+    <string name="content_search_latest">К последним сообщениям</string>
 </resources>

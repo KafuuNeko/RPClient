@@ -31,7 +31,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,14 +57,16 @@ import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
+import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建单角色会话页 Compose 入口。 */
 @Composable
@@ -128,7 +129,18 @@ private fun ChatCreateNormal(
                 if (state.characters.isEmpty()) {
                     item { EmptyCard(Icons.Rounded.Person, stringResource(R.string.no_characters_for_chat)) }
                 }
-                items(state.characters) { character ->
+                if (state.characters.isNotEmpty()) {
+                    item {
+                        CharacterSearchField(
+                            query = state.characterQuery,
+                            onQueryChange = { ChatCreateUiIntent.ChangeCharacterQuery(it).emit() }
+                        )
+                    }
+                    if (state.visibleCharacters.isEmpty()) {
+                        item { EmptyCard(Icons.Rounded.Search, stringResource(R.string.no_matching_characters)) }
+                    }
+                }
+                items(state.visibleCharacters, key = { "character-${it.id}" }) { character ->
                     CharacterOption(
                         character = character,
                         selected = character.id == state.form.selectedCharacterId,

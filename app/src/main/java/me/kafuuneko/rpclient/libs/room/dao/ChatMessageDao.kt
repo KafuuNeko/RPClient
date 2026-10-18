@@ -12,6 +12,11 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
  */
 @Dao
 interface ChatMessageDao : MutableDao<ChatMessage> {
+    /** 统计定位窗口之后的消息数，保持 Display Regex 的全历史深度语义。 */
+    @Query("""SELECT COUNT(*) FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary'
+        AND (createTime > :time OR (createTime = :time AND id > :id))""")
+    suspend fun countAfter(sessionId: Long, time: Long, id: Long): Int
+
     /** 清理附件时只读取父消息 ID，避免将整个会话正文加载到内存。 */
     @Query("SELECT id FROM chat_messages WHERE sessionId = :sessionId AND id >= :fromId")
     suspend fun getMessageIdsBySessionId(sessionId: Long, fromId: Long = 0): List<Long>

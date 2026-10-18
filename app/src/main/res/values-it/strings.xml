@@ -1263,4 +1263,30 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">Il limite di output include i token di ragionamento. I modelli di ragionamento omettono temperature e top_p quando il ragionamento è attivo. Configura reasoning nel JSON avanzato della richiesta.</string>
     <string name="creation_selected_characters">Personaggi selezionati: %1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">Cerca contenuti</string>
+    <string name="content_search_submit">Cerca</string>
+    <string name="content_search_placeholder">Cerca messaggi, storie, titoli o personaggi</string>
+    <string name="content_search_all">Tutti i contenuti</string>
+    <string name="content_search_metadata">Titoli e personaggi</string>
+    <string name="content_search_body">Testo</string>
+    <string name="content_search_idle">Cerca nelle conversazioni salvate e in tutti i capitoli. Inserisci il testo e tocca Cerca.</string>
+    <string name="content_search_empty">Nessun risultato.</string>
+    <string name="content_search_preparing">Preparazione dei contenuti. I risultati potrebbero essere incompleti.</string>
+    <string name="content_search_unavailable">Ricerca nel testo non disponibile. Cerca titoli e personaggi o riprova.</string>
+    <string name="content_search_partial">Risultati parziali. Alcuni contenuti sono ancora in preparazione.</string>
+    <string name="content_search_stopped">Ricerca interrotta. I risultati potrebbero essere incompleti.</string>
+    <string name="content_search_error">Ricerca non riuscita. Riprova o restringi il campo.</string>
+    <string name="content_search_changed">I contenuti sono cambiati. Aggiorna i risultati.</string>
+    <string name="content_search_more">Mostra altro</string>
+    <string name="content_search_within">Cerca in questo elemento</string>
+    <string name="content_search_clear_scope">Cerca in tutti gli elementi</string>
+    <string name="content_search_too_long">Usa al massimo 128 caratteri.</string>
+    <string name="content_search_refresh">Aggiorna</string>
+    <string name="content_search_missing">Questo contenuto non è più disponibile.</string>
+    <string name="content_search_open_match">Apri corrispondenza</string>
+    <string name="content_search_slow">Cerca senza indice (più lento)</string>
+    <string name="content_search_newer">Carica messaggi più recenti</string>
+    <string name="content_search_latest">Torna agli ultimi messaggi</string>
 </resources>

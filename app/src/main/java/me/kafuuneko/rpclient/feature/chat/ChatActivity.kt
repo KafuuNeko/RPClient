@@ -26,6 +26,7 @@ import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
@@ -77,7 +78,8 @@ class ChatActivity : CoreActivityWithEvent() {
         super.onCreate(savedInstanceState)
         mViewModel.emit(
             ChatUiIntent.Init(
-                sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
+                sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
+                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 }
             )
         )
     }

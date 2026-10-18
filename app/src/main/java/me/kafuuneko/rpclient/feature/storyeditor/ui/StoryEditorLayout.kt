@@ -83,7 +83,6 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Button
-import me.kafuuneko.rpclient.ui.widgets.PageButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -92,7 +91,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -102,6 +100,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -124,10 +123,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.window.core.layout.WindowSizeClass
-import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
@@ -180,9 +179,8 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageButton
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -195,6 +193,9 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
 @Composable
@@ -1259,6 +1260,8 @@ private fun StoryTextEditor(
 ) {
     // 正文不使用 rememberSaveable，避免长文进入 Activity Bundle；Room 承担进程恢复。
     val editorScrollState = rememberScrollState()
+    val searchScope = rememberCoroutineScope()
+    var pendingSearchScroll by remember(document.chapterId, document.searchRange) { mutableStateOf(document.searchRange != null) }
     val followStreamingOutput = generationState is StoryGenerationState.Streaming
     val generatedTextColor = MaterialTheme.colorScheme.primary
     val isStreaming = generationState is StoryGenerationState.Streaming ||
@@ -1277,7 +1280,7 @@ private fun StoryTextEditor(
         label = "GlowAlpha"
     )
 
-    val displayedEditedRange = document.latestEditedRange.takeUnless {
+    val displayedEditedRange = document.searchRange ?: document.latestEditedRange.takeUnless {
         generationState is StoryGenerationState.Streaming ||
                 generationState is StoryGenerationState.Applying
     }
@@ -1311,6 +1314,11 @@ private fun StoryTextEditor(
             editorState.syncTextPreservingSelection(document.content)
         }
     }
+    LaunchedEffect(document.searchRange) {
+        document.searchRange?.let { range ->
+            if (range.end <= editorState.text.length) editorState.edit { selection = TextRange(range.start, range.end) }
+        }
+    }
     LaunchedEffect(followStreamingOutput, editorScrollState) {
         if (!followStreamingOutput) return@LaunchedEffect
         // 流式文本布局完成后 maxValue 会持续增长，跟随它才能稳定滚到最新输出。
@@ -1341,6 +1349,15 @@ private fun StoryTextEditor(
     ) {
         BasicTextField(
             state = editorState,
+            onTextLayout = { result ->
+                val range = document.searchRange
+                val layout = result()
+                if (pendingSearchScroll && range != null && layout != null && range.start < layout.layoutInput.text.length) {
+                    pendingSearchScroll = false
+                    val top = layout.getBoundingBox(range.start).top.toInt()
+                    searchScope.launch { editorScrollState.scrollTo(top) }
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .draggableScrollIndicator(editorScrollState),

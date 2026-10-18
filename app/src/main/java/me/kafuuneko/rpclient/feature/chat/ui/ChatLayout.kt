@@ -52,7 +52,6 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -64,7 +63,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,6 +78,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,6 +103,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
@@ -148,7 +148,6 @@ import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -160,7 +159,10 @@ import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 import me.kafuuneko.rpclient.utils.toggle
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 当前窗口顶部进入该范围时预取更早消息。 */
 private const val HISTORY_LOAD_THRESHOLD = 4
@@ -212,6 +214,7 @@ private fun ChatNormal(
     state: ChatUiState.Normal,
     emit: ChatUiIntent.() -> Unit
 ) {
+    val activeSearchAnchor by rememberUpdatedState(state.conversationState.searchAnchorMessageId)
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     val canLoadOlderMessages by rememberUpdatedState(
@@ -225,6 +228,7 @@ private fun ChatNormal(
     var isFirstLoad by rememberSaveable { mutableStateOf(true) }
     var isScrollIndicatorDragged by remember { mutableStateOf(false) }
     var lastTailMessageId by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastSearchAnchor by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(listState) {
         // 恢复列表尚未完成测量时 canScrollForward 暂为 false，不能据此重新开启底部跟随。
@@ -235,7 +239,7 @@ private fun ChatNormal(
             val (canScrollForward, indicatorDragged) = position ?: return@collect
             if (indicatorDragged) {
                 shouldFollowBottom = false
-            } else if (!canScrollForward) {
+            } else if (activeSearchAnchor == null && !canScrollForward) {
                 shouldFollowBottom = true
             }
         }
@@ -245,8 +249,25 @@ private fun ChatNormal(
         if (isListDragged) {
             snapshotFlow { listState.canScrollForward }
                 .collect { canScrollForward ->
-                    shouldFollowBottom = !canScrollForward
+                    shouldFollowBottom = activeSearchAnchor == null && !canScrollForward
                 }
+        }
+    }
+
+    val currentConversation by rememberUpdatedState(state.conversationState)
+    LaunchedEffect(listState) {
+        // 等待首次定位和新窗口测量完成，避免把旧布局的底部误认为最新消息。
+        snapshotFlow {
+            val conversation = currentConversation
+            val layout = listState.layoutInfo
+            conversation.messages.lastOrNull()?.id?.takeIf {
+                !isFirstLoad && conversation.searchAnchorMessageId != null &&
+                    !conversation.canLoadNewerMessages && !conversation.isLoadingNewerMessages &&
+                    layout.totalItemsCount == conversation.messages.size + 2 &&
+                    layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
+            }
+        }.filterNotNull().distinctUntilChanged().collect { messageId ->
+            ChatUiIntent.ReachLatestMessage(messageId).emit()
         }
     }
 
@@ -267,16 +288,24 @@ private fun ChatNormal(
 
     // 只有尾部消息身份改变时才滚到底部，头部加载历史不会打断用户位置
     val tailMessageId = state.conversationState.messages.lastOrNull()?.id
-    LaunchedEffect(tailMessageId) {
-        if (tailMessageId == null) {
-            lastTailMessageId = null
+    LaunchedEffect(tailMessageId, activeSearchAnchor) {
+        if (activeSearchAnchor != null) {
+            // 只在首次进入定位窗口时滚动，继续分页和流式刷新保持阅读位置。
+            if (isFirstLoad) {
+                val targetIndex = state.conversationState.messages.indexOfFirst { it.id == activeSearchAnchor }
+                if (targetIndex >= 0) listState.scrollToItem(targetIndex + 1)
+                isFirstLoad = false
+            }
+            shouldFollowBottom = false
+        } else if (tailMessageId == null) {
             isFirstLoad = true
-        } else if (isFirstLoad || tailMessageId != lastTailMessageId) {
+        } else if (isFirstLoad || tailMessageId != lastTailMessageId || lastSearchAnchor != null) {
             shouldFollowBottom = true
             listState.scrollToItem(state.conversationState.messages.size + 1)
             isFirstLoad = false
         }
         lastTailMessageId = tailMessageId
+        lastSearchAnchor = activeSearchAnchor
     }
 
     // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
@@ -285,7 +314,7 @@ private fun ChatNormal(
         state.conversationState.expandedThinkBlockIds
     ) {
         if (state.conversationState.messages.isNotEmpty()) {
-            if (isFirstLoad || shouldFollowBottom) {
+            if (activeSearchAnchor == null && (isFirstLoad || shouldFollowBottom)) {
                 listState.scrollToItem(state.conversationState.messages.size + 1)
                 isFirstLoad = false
             }
@@ -330,9 +359,11 @@ private fun ChatNormal(
                 )
                 .onSizeChanged { size ->
                     val newHeight = size.height
-                    if (previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
+                    if (activeSearchAnchor == null && previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight) {
                         val delta = (previousListHeight - newHeight).toFloat()
                         coroutineScope.launch {
+                            // 尺寸回调仍处于测量阶段，下一帧再滚动以免重入布局。
+                            withFrameNanos { }
                             if (shouldFollowBottom && delta > 0) {
                                 listState.scrollToItem(state.conversationState.messages.size + 1)
                             } else {
@@ -394,6 +425,22 @@ private fun ChatNormal(
                 )
             }
             item(key = "conversation-end") {
+                if (activeSearchAnchor != null && state.conversationState.canLoadNewerMessages) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        TextButton(
+                            onClick = { ChatUiIntent.LoadNewerMessages.emit() },
+                            enabled = !state.conversationState.isLoadingNewerMessages
+                        ) {
+                            Text(stringResource(R.string.content_search_newer))
+                        }
+                        TextButton(onClick = { ChatUiIntent.ReturnToLatest.emit() }) {
+                            Text(stringResource(R.string.content_search_latest))
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

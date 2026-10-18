@@ -1280,4 +1280,30 @@
     <string name="protocol_openai_responses">OpenAI Responses</string>
     <string name="provider_responses_parameters_hint">出力上限には推論トークンが含まれます。推論モデルでは推論が有効な間、temperature と top_p は送信されません。詳細リクエスト JSON で reasoning を設定できます。</string>
     <string name="creation_selected_characters">選択したキャラクター：%1$d</string>
+
+    <!-- 内容搜索 -->
+    <string name="content_search_title">コンテンツを検索</string>
+    <string name="content_search_submit">検索</string>
+    <string name="content_search_placeholder">メッセージ、物語、タイトル、キャラクターを検索</string>
+    <string name="content_search_all">すべての内容</string>
+    <string name="content_search_metadata">タイトルとキャラクター</string>
+    <string name="content_search_body">本文</string>
+    <string name="content_search_idle">保存済みの会話と物語の全章を検索します。文字を入力して検索を押してください。</string>
+    <string name="content_search_empty">一致する内容がありません。</string>
+    <string name="content_search_preparing">検索の準備中です。結果が不完全な場合があります。</string>
+    <string name="content_search_unavailable">本文検索を利用できません。タイトルとキャラクターを検索するか、再試行してください。</string>
+    <string name="content_search_partial">一部の結果です。準備中の内容があります。</string>
+    <string name="content_search_stopped">停止しました。結果が不完全な場合があります。</string>
+    <string name="content_search_error">検索に失敗しました。再試行するか範囲を絞ってください。</string>
+    <string name="content_search_changed">内容が変更されました。結果を更新してください。</string>
+    <string name="content_search_more">もっと表示</string>
+    <string name="content_search_within">この項目内を検索</string>
+    <string name="content_search_clear_scope">すべての項目を検索</string>
+    <string name="content_search_too_long">検索文字列は128文字以内にしてください。</string>
+    <string name="content_search_refresh">更新</string>
+    <string name="content_search_missing">この内容は利用できなくなりました。</string>
+    <string name="content_search_open_match">一致箇所を開く</string>
+    <string name="content_search_slow">索引なしで全文検索（低速）</string>
+    <string name="content_search_newer">新しいメッセージを読み込む</string>
+    <string name="content_search_latest">最新のメッセージへ</string>
 </resources>

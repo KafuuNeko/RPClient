@@ -68,7 +68,6 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -90,6 +89,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryEditTarget
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
@@ -102,6 +102,7 @@ import me.kafuuneko.rpclient.libs.story.prepareStoryContinuationText
 import me.kafuuneko.rpclient.libs.story.storyTextHash
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 
 /**
  * 分卷/章节故事编辑器（Story Editor）的 ViewModel（状态持有者与业务控制器）。
@@ -207,7 +208,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
         // 异步从数据库加载故事基础数据与关联统计
         val loaded = withContext(Dispatchers.IO) {
-            val editorData = mStoryRepository.getStoryEditorData(intent.storyId)
+            val editorData = mStoryRepository.getStoryEditorData(intent.storyId, intent.searchChapterId)
                 ?: return@withContext null
             val characterCount = mStoryRepository
                 .getStoryCharacterCandidates(editorData.story.id)
@@ -234,7 +235,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = chapter.contentRevision
         mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
-        publishDocument(chapter.content)
+        val searchTargetAvailable = intent.searchChapterId == null || intent.searchChapterId == chapter.id
+        if (!searchTargetAvailable) {
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
+        }
+        val searchRange = if (!searchTargetAvailable) null else withContext(Dispatchers.Default) {
+            SearchTextCodec.literalRange(chapter.content, intent.searchQuery)
+                ?.let { StoryEditedTextRange(it.first, it.last + 1) }
+        }
+        publishDocument(chapter.content, searchRange = searchRange)
         // 检查全局是否存在已启用的模型服务配置
         val hasAvailableProvider = withContext(Dispatchers.IO) {
             mLLMRepository.getSelectedProvider() != null
@@ -2708,7 +2717,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun publishDocument(
         content: String,
-        latestEditedRange: StoryEditedTextRange? = null
+        latestEditedRange: StoryEditedTextRange? = null,
+        searchRange: StoryEditedTextRange? = null
     ) {
         val story = mStory ?: return
         val chapter = mChapter ?: return
@@ -2717,7 +2727,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             chapterId = chapter.id,
             content = content,
             syncVersion = ++mDocumentSyncVersion,
-            latestEditedRange = latestEditedRange
+            latestEditedRange = latestEditedRange,
+            searchRange = searchRange
         )
     }
 

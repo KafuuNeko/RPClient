@@ -2,8 +2,232 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "5629e94a90cfc986c1ed21ef262fcdaf",
+    "identityHash": "d378939e997dc2bd4b1b3777e0538530",
     "entities": [
+      {
+        "tableName": "search_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`kind` INTEGER NOT NULL, `sourceId` INTEGER NOT NULL, `parentId` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `indexedRevision` INTEGER NOT NULL, `deleted` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `changedTime` INTEGER NOT NULL, PRIMARY KEY(`kind`, `sourceId`))",
+        "fields": [
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentId",
+            "columnName": "parentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "indexedRevision",
+            "columnName": "indexedRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dirty",
+            "columnName": "dirty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changedTime",
+            "columnName": "changedTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "kind",
+            "sourceId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_search_sources_dirty_changedTime",
+            "unique": false,
+            "columnNames": [
+              "dirty",
+              "changedTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_sources_dirty_changedTime` ON `${TABLE_NAME}` (`dirty`, `changedTime`)"
+          },
+          {
+            "name": "index_search_sources_deleted_dirty_kind_sourceId",
+            "unique": false,
+            "columnNames": [
+              "deleted",
+              "dirty",
+              "kind",
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_sources_deleted_dirty_kind_sourceId` ON `${TABLE_NAME}` (`deleted`, `dirty`, `kind`, `sourceId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "search_chunks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rowid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` INTEGER NOT NULL, `sourceId` INTEGER NOT NULL, `parentId` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `position` INTEGER NOT NULL, `tokens` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "rowid",
+            "columnName": "rowid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentId",
+            "columnName": "parentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tokens",
+            "columnName": "tokens",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "rowid"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_search_chunks_kind_sourceId",
+            "unique": false,
+            "columnNames": [
+              "kind",
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_chunks_kind_sourceId` ON `${TABLE_NAME}` (`kind`, `sourceId`)"
+          },
+          {
+            "name": "index_search_chunks_kind_parentId",
+            "unique": false,
+            "columnNames": [
+              "kind",
+              "parentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_chunks_kind_parentId` ON `${TABLE_NAME}` (`kind`, `parentId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "search_chunks_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`tokens` TEXT NOT NULL, content=`search_chunks`)",
+        "fields": [
+          {
+            "fieldPath": "tokens",
+            "columnName": "tokens",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "search_chunks",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_search_chunks_fts_BEFORE_UPDATE BEFORE UPDATE ON `search_chunks` BEGIN DELETE FROM `search_chunks_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_search_chunks_fts_BEFORE_DELETE BEFORE DELETE ON `search_chunks` BEGIN DELETE FROM `search_chunks_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_search_chunks_fts_AFTER_UPDATE AFTER UPDATE ON `search_chunks` BEGIN INSERT INTO `search_chunks_fts`(`docid`, `tokens`) VALUES (NEW.`rowid`, NEW.`tokens`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_search_chunks_fts_AFTER_INSERT AFTER INSERT ON `search_chunks` BEGIN INSERT INTO `search_chunks_fts`(`docid`, `tokens`) VALUES (NEW.`rowid`, NEW.`tokens`); END"
+        ]
+      },
+      {
+        "tableName": "search_progress",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`kind` INTEGER NOT NULL, `cursor` INTEGER NOT NULL, `complete` INTEGER NOT NULL, PRIMARY KEY(`kind`))",
+        "fields": [
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "complete",
+            "columnName": "complete",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "kind"
+          ]
+        }
+      },
       {
         "tableName": "page_backgrounds",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`page` TEXT NOT NULL, `fileUuid` TEXT, `blur` INTEGER NOT NULL, `scrim` REAL NOT NULL, `opacity` REAL NOT NULL, `focalX` REAL NOT NULL, `focalY` REAL NOT NULL, `topBarOpacity` REAL NOT NULL DEFAULT 1.0, `bottomBarOpacity` REAL NOT NULL DEFAULT 1.0, `bubbleOpacity` REAL NOT NULL DEFAULT 1.0, `topBarBlur` INTEGER NOT NULL DEFAULT 0, `bottomBarBlur` INTEGER NOT NULL DEFAULT 0, `bubbleBlur` INTEGER NOT NULL DEFAULT 0, `contentBlur` INTEGER NOT NULL DEFAULT 0, `followGeneral` INTEGER NOT NULL DEFAULT 1, `useCharacterBackground` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`page`), FOREIGN KEY(`fileUuid`) REFERENCES `files`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
@@ -2268,7 +2492,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5629e94a90cfc986c1ed21ef262fcdaf')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd378939e997dc2bd4b1b3777e0538530')"
     ]
   }
 }

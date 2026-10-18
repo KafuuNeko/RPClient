@@ -17,12 +17,14 @@ import me.kafuuneko.rpclient.feature.appearance.AppearanceActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
+import me.kafuuneko.rpclient.feature.contentsearch.ContentSearchActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
+import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.main.model.items.toUiModel
@@ -91,6 +93,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
@@ -650,6 +653,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = ChatActivity::class.java,
             extras = Bundle().apply { putString(ChatActivity.EXTRA_SESSION_ID, intent.sessionId) }
         ).tryEmit()
+    }
+
+    /** 从最近内容标题进入独立搜索页，沿用当前内容分类。 */
+    @UiIntentObserver(MainUiIntent.OpenContentSearch::class)
+    private fun onOpenContentSearch() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val kind = when (state.homeState.selectedContentTab) {
+            MainHomeContentTab.All -> SearchKind.All
+            MainHomeContentTab.Single -> SearchKind.Chat
+            MainHomeContentTab.Group -> SearchKind.Group
+            MainHomeContentTab.Story -> SearchKind.Story
+        }
+        AppViewEvent.StartActivity(ContentSearchActivity::class.java,
+            Bundle().apply { putInt(ContentSearchActivity.EXTRA_KIND, kind.code) }).tryEmit()
     }
 
     /** 打开新建单聊会话页。 */

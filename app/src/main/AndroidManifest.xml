@@ -23,6 +23,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".feature.contentsearch.ContentSearchActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <!-- 仅供应用内选择菜单调用，避免在其他应用中增加同名分享入口。 -->
         <activity
             android:name=".feature.textshare.TextShareActivity"
