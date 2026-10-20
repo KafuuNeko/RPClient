@@ -1311,4 +1311,15 @@
     <string name="content_search_slow">Rechercher sans index (plus lent)</string>
     <string name="content_search_newer">Charger les messages plus récents</string>
     <string name="content_search_latest">Revenir aux derniers messages</string>
+    <string name="content_search_index_title">Accélération de la recherche</string>
+    <string name="content_search_index_enabled">Accélération de la recherche activée</string>
+    <string name="content_search_index_disabled">La recherche standard parcourt le contenu enregistré</string>
+    <string name="content_search_index_enable">Activer</string>
+    <string name="content_search_index_disable">Désactiver et effacer</string>
+    <string name="content_search_index_confirm_title">Activer la recherche accélérée ?</string>
+    <string name="content_search_index_confirm_message">Crée un index de toutes les conversations et histoires enregistrées. Cela prend du temps et utilise du stockage supplémentaire. Vous pouvez annuler la création. La désactivation efface cet index et libère de la place.</string>
+    <string name="content_search_index_building">Création de l’index… %1$d éléments traités</string>
+    <string name="content_search_index_cleaning">Suppression de l’index et libération de la place…</string>
+    <string name="content_search_index_cleanup_failed">Le nettoyage a échoué. Libérez de la place ou attendez la fin des autres tâches, puis réessayez. La recherche accélérée reste désactivée.</string>
+    <string name="content_search_index_failed">La recherche accélérée est indisponible. La recherche standard reste disponible.</string>
 </resources>

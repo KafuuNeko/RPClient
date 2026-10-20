@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchDialogState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchInputState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchResultState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchScopeState
@@ -23,6 +24,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.search.SearchChangedException
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
 import me.kafuuneko.rpclient.libs.search.SearchRequest
@@ -55,12 +57,16 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             inputState = ContentSearchInputState(draft = mSavedState["query"] ?: ""),
             scopeState = ContentSearchScopeState(kind, scope)
         ).setup()
-        // 工作器属于应用，离开搜索页只取消查询，不终止可恢复补建。
-        mRepository.start()
+        // 仅恢复持久状态；进入搜索页不代表用户确认开启。
+        mRepository.restore()
         viewModelScope.launch {
             mRepository.indexState.collect { index ->
                 val current = getOrNull<ContentSearchUiState.Normal>() ?: return@collect
-                current.copy(indexState = index).setup()
+                val changed = current.indexState.enabled != index.enabled || current.indexState.busy != index.busy
+                if (changed) { cancelQuery(); mDirectScan = false }
+                current.copy(indexState = index,
+                    dialogState = if (index.busy) ContentSearchDialogState.None else current.dialogState,
+                    resultState = if (changed) ContentSearchResultState.Idle else current.resultState).setup()
             }
         }
     }
@@ -68,7 +74,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 从目标页面返回后提示刷新，保留输入、结果和滚动位置。 */
     @UiIntentObserver(ContentSearchUiIntent.Resume::class)
     private fun onResume() {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         if (!mRefreshOnResume) return
         mRefreshOnResume = false
         state.copy(resultState = ContentSearchResultState.Error(state.resultState.items(), R.string.content_search_changed)).setup()
@@ -77,7 +83,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 编辑立即使旧请求失效，但不在按键时扫描正文。 */
     @UiIntentObserver(ContentSearchUiIntent.ChangeQuery::class)
     private fun onChangeQuery(intent: ContentSearchUiIntent.ChangeQuery) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         cancelQuery()
         mSavedState["query"] = intent.value.takeIf { it.length <= 4096 }.orEmpty()
         state.copy(inputState = state.inputState.copy(draft = intent.value), resultState = ContentSearchResultState.Idle).setup()
@@ -86,14 +92,14 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 已提交且未编辑时切分类自动重查，其余情况只更新草稿范围。 */
     @UiIntentObserver(ContentSearchUiIntent.SelectKind::class)
     private fun onSelectKind(intent: ContentSearchUiIntent.SelectKind) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         updateScope(state.scopeState.copy(kind = intent.kind, parentId = null, parentTitle = ""))
     }
 
     /** 切换标题／正文范围保留查询，避免无意触发未提交文本。 */
     @UiIntentObserver(ContentSearchUiIntent.SelectScope::class)
     private fun onSelectScope(intent: ContentSearchUiIntent.SelectScope) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         updateScope(state.scopeState.copy(scope = intent.scope, parentId = if (intent.scope == SearchScope.Body) state.scopeState.parentId else null))
     }
 
@@ -112,7 +118,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 停止后保留真实结果，完整性明确标为未完成。 */
     @UiIntentObserver(ContentSearchUiIntent.Stop::class)
     private fun onStop() {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         cancelQuery()
         state.copy(resultState = ContentSearchResultState.Content(state.resultState.items(), null, false, stopped = true)).setup()
     }
@@ -121,25 +127,81 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     @UiIntentObserver(ContentSearchUiIntent.Back::class)
     private fun onBack() {
         val state = getOrNull<ContentSearchUiState.Normal>() ?: return
-        if (state.scopeState.parentId != null) { onClearObjectScope(); return }
+        if (state.dialogState != ContentSearchDialogState.None) { onDismissIndexDialog(); return }
+        if (state.indexState is SearchIndexState.Building) { onCancelIndexBuild(); return }
+        if (state.indexState.busy && state.indexState != SearchIndexState.CleanupFailed) return
+        if (state.scopeState.parentId != null && !state.indexState.busy) { onClearObjectScope(); return }
         cancelQuery()
         ContentSearchUiState.Finished(state).setup()
     }
 
-    /** 用户显式恢复损坏或失败的索引，不影响当前元数据结果。 */
-    @UiIntentObserver(ContentSearchUiIntent.RetryIndex::class)
-    private fun onRetryIndex() {
-        if (!isStateOf<ContentSearchUiState.Normal>()) return
+    /** 开关关闭立即执行清理，开启则先显示用户确认。 */
+    @UiIntentObserver(ContentSearchUiIntent.ChangeIndexMode::class)
+    private fun onChangeIndexMode() {
+        val state = interactiveState() ?: return
+        cancelQuery()
+        if (state.indexState.enabled) {
+            state.copy(indexState = SearchIndexState.Cleaning, resultState = ContentSearchResultState.Idle).setup()
+            viewModelScope.launch { mRepository.disable() }
+        } else state.copy(dialogState = ContentSearchDialogState.EnableIndex,
+            resultState = stoppedResult(state.resultState)).setup()
+    }
+
+    /** 确认后才进入阻断交互的构建状态，不提前展示已经启用。 */
+    @UiIntentObserver(ContentSearchUiIntent.ConfirmEnableIndex::class)
+    private fun onConfirmEnableIndex() {
+        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        if (state.dialogState != ContentSearchDialogState.EnableIndex || state.indexState.busy) return
+        cancelQuery()
+        state.copy(dialogState = ContentSearchDialogState.None, indexState = SearchIndexState.Building(),
+            resultState = ContentSearchResultState.Idle).setup()
         viewModelScope.launch {
-            try { mRepository.retry() } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { AppViewEvent.PopupToastMessageByResId(R.string.content_search_error).tryEmit() }
+            if (state.indexState.enabled) mRepository.retry() else mRepository.enable()
         }
     }
+
+    /** 取消确认不会修改持久开关。 */
+    @UiIntentObserver(ContentSearchUiIntent.DismissIndexDialog::class)
+    private fun onDismissIndexDialog() {
+        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        state.copy(dialogState = ContentSearchDialogState.None).setup()
+    }
+
+    /** 返回与取消按钮共用关闭路径，不能仅隐藏加载对话框。 */
+    @UiIntentObserver(ContentSearchUiIntent.CancelIndexBuild::class)
+    private fun onCancelIndexBuild() {
+        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        if (state.indexState !is SearchIndexState.Building) return
+        state.copy(indexState = SearchIndexState.Cleaning).setup()
+        viewModelScope.launch { mRepository.disable() }
+    }
+
+    /** 清理失败只重试清理，不能隐式重新启用。 */
+    @UiIntentObserver(ContentSearchUiIntent.RetryCleanup::class)
+    private fun onRetryCleanup() {
+        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        if (state.indexState != SearchIndexState.CleanupFailed) return
+        state.copy(indexState = SearchIndexState.Cleaning).setup()
+        viewModelScope.launch { mRepository.disable() }
+    }
+
+    /** 损坏或格式变化后重建同样必须确认并展示可取消进度。 */
+    @UiIntentObserver(ContentSearchUiIntent.RetryIndex::class)
+    private fun onRetryIndex() {
+        val state = interactiveState() ?: return
+        cancelQuery()
+        state.copy(dialogState = ContentSearchDialogState.EnableIndex,
+            resultState = stoppedResult(state.resultState)).setup()
+    }
+
+    /** 停止的查询保留已取得结果，取消确认后不能留下无人执行的 Loading。 */
+    private fun stoppedResult(result: ContentSearchResultState): ContentSearchResultState =
+        if (result is ContentSearchResultState.Searching) ContentSearchResultState.Content(result.items, null, false, stopped = true) else result
 
     /** 在同一页面内按单个对象展示命中消息／章节。 */
     @UiIntentObserver(ContentSearchUiIntent.SearchWithin::class)
     private fun onSearchWithin(intent: ContentSearchUiIntent.SearchWithin) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         val kind = SearchKind.entries.first { it.code == intent.hit.kind }
         updateScope(state.scopeState.copy(kind = kind, scope = SearchScope.Body, parentId = intent.hit.parentId, parentTitle = intent.hit.title))
     }
@@ -147,14 +209,14 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 回到当前分类中的全部对象。 */
     @UiIntentObserver(ContentSearchUiIntent.ClearObjectScope::class)
     private fun onClearObjectScope() {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         updateScope(state.scopeState.copy(parentId = null, parentTitle = ""))
     }
 
     /** 验证目标后分发导航事件；点击标题保留普通打开行为。 */
     @UiIntentObserver(ContentSearchUiIntent.Open::class)
     private fun onOpen(intent: ContentSearchUiIntent.Open) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         val hit = intent.hit
         cancelQuery()
         val generation = mGeneration
@@ -194,7 +256,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     }
 
     private fun updateScope(scope: ContentSearchScopeState) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         cancelQuery()
         mSavedState["kind"] = scope.kind.code
         mSavedState["scope"] = scope.scope.name
@@ -204,7 +266,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
 
     /** 启动独立任务，所有回写都使用代次守卫和最新父状态。 */
     private fun search(append: Boolean = false) {
-        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        val state = interactiveState() ?: return
         if (state.resultState is ContentSearchResultState.Searching) return
         if (state.inputState.draft.length > 4096) {
             state.copy(resultState = ContentSearchResultState.Error(emptyList(), R.string.content_search_too_long)).setup()
@@ -240,6 +302,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             }
         }
     }
+
+    /** 忙碌与确认阶段拒绝排队中的旧 Intent，界面遮罩不是唯一守卫。 */
+    private fun interactiveState(): ContentSearchUiState.Normal? = getOrNull<ContentSearchUiState.Normal>()
+        ?.takeUnless { it.indexState.busy || it.dialogState != ContentSearchDialogState.None }
 
     private fun publish(generation: Long, result: ContentSearchResultState) {
         if (generation != mGeneration) return

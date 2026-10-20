@@ -4,50 +4,128 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * 安装源变更触发器，保证所有 DAO、批量导入及级联删除都留下同事务脏标记。
- * 触发器只记录代次，文字投影与 FTS 写入交给后台工作器。
+ * 搜索维护入口与主库打开契约。
+ * - 未确认开启时移除业务触发器；中断的构建转为待清理，不静默重建。
+ * - 生命周期与触发器安装在同一事务提交，定义变化可更新已安装的同名触发器。
+ * - 只隔离派生任务；主库损坏、空间耗尽或启用期间触发器写入失败仍可能影响业务事务。
  */
 object SearchDatabaseCallback : RoomDatabase.Callback() {
-    /** 每次打开幂等安装；结构迁移不会遍历历史正文。 */
+    /** 打开时仅处理轻量状态与 DDL，大量派生数据交给管理器分批清理。 */
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
-        // 进度行须先存在，业务写入才可以原子推进全库代次。
-        for (kind in 0..3) {
-            db.execSQL("INSERT OR IGNORE INTO search_progress(kind, cursor, complete) VALUES($kind, 0, 0)")
-        }
-        db.execSQL("INSERT OR IGNORE INTO search_progress(kind, cursor, complete) VALUES(-1, 0, 1)")
-        installSource(db, "chat_messages", 1, "sessionId", "content, source, sessionId", "NEW.source = 'Summary'")
-        installSource(db, "group_chat_messages", 2, "sessionId", "content, speakerNameSnapshot, sessionId", "0")
-        installSource(db, "story_chapters", 3, "storyId", "content, title, storyId", "0")
-        // 元数据和排序字段的变更也使旧游标失效，但无需重建所有正文块。
-        listOf("chat_sessions", "group_chat_sessions", "stories", "character", "group_chat_members", "story_characters")
-            .forEach { table ->
-                listOf("INSERT", "UPDATE", "DELETE").forEach { operation ->
-                    db.execSQL("""
-                        CREATE TRIGGER IF NOT EXISTS search_meta_${table}_$operation AFTER $operation ON `$table`
-                        BEGIN UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0; END
-                    """.trimIndent())
-                }
+        db.beginTransaction()
+        try {
+            val phase = phase(db)
+            val compatible = db.query("SELECT cursor FROM search_progress WHERE kind = -1").use {
+                it.moveToFirst() && it.getLong(0) == SearchTextCodec.FORMAT_VERSION
             }
+            // 已完成索引才恢复维护，丢失的检查点不能被误认为全量完成。
+            val complete = db.query("SELECT count(*) FROM search_progress WHERE kind BETWEEN 1 AND 3 AND complete = 1").use {
+                it.moveToFirst() && it.getInt(0) == 3
+            }
+            if (phase == SearchIndexPhase.Enabled && compatible && complete) {
+                install(db)
+            } else {
+                uninstall(db)
+                val clean = phase == null || phase == SearchIndexPhase.Disabled
+                val remains = db.query("SELECT EXISTS(SELECT 1 FROM search_progress WHERE kind != -2) OR EXISTS(SELECT 1 FROM search_sources) OR EXISTS(SELECT 1 FROM search_chunks)").use {
+                    it.moveToFirst() && it.getInt(0) != 0
+                }
+                setPhase(db, if (clean && !remains) SearchIndexPhase.Disabled else SearchIndexPhase.Cleaning)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
-    private fun installSource(db: SupportSQLiteDatabase, table: String, kind: Int, parent: String, columns: String, hidden: String) {
-        // INSERT OR IGNORE 加 UPDATE 兼容 API 26，不依赖新版本 UPSERT。
-        listOf("INSERT", "UPDATE OF $columns", "DELETE").forEach { operation ->
-            val deleting = operation == "DELETE"
-            val row = if (deleting) "OLD" else "NEW"
-            val deleted = if (deleting) "1" else hidden
-            val suffix = operation.substringBefore(' ')
-            db.execSQL("""
-                CREATE TRIGGER IF NOT EXISTS search_source_${table}_$suffix AFTER $operation ON `$table`
-                BEGIN
-                    INSERT OR IGNORE INTO search_sources(kind, sourceId, parentId, revision, indexedRevision, deleted, dirty, changedTime)
-                        VALUES($kind, $row.id, $row.$parent, 0, 0, $deleted, 1, CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER));
-                    UPDATE search_sources SET parentId = $row.$parent, revision = revision + 1, deleted = $deleted, dirty = 1, changedTime = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
-                        WHERE kind = $kind AND sourceId = $row.id;
-                    UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0;
-                END
-            """.trimIndent())
+    /** 读取唯一权威开关；缺失表示旧自动索引实现，不能视为用户同意开启。 */
+    internal fun phase(db: SupportSQLiteDatabase): SearchIndexPhase? =
+        db.query("SELECT cursor FROM search_progress WHERE kind = -2").use {
+            if (it.moveToFirst()) {
+                val code = it.getLong(0)
+                SearchIndexPhase.entries.firstOrNull { phase -> phase.code == code }
+            } else null
+        }
+
+    /** 调用方必须与维护入口变更放在同一事务内。 */
+    internal fun setPhase(db: SupportSQLiteDatabase, phase: SearchIndexPhase) {
+        db.execSQL("INSERT OR REPLACE INTO search_progress(kind, cursor, complete) VALUES(-2, ?, 1)", arrayOf(phase.code))
+    }
+
+    /** 显式开启时初始化全部检查点，不能继承上次关闭前的修订号。 */
+    internal fun beginBuild(db: SupportSQLiteDatabase) {
+        for (kind in 0..3) {
+            db.execSQL("INSERT INTO search_progress(kind, cursor, complete) VALUES(?, 0, 0)", arrayOf(kind))
+        }
+        db.execSQL("INSERT INTO search_progress(kind, cursor, complete) VALUES(-1, ?, 1)", arrayOf(SearchTextCodec.FORMAT_VERSION))
+        setPhase(db, SearchIndexPhase.Building)
+        install(db)
+    }
+
+    /** 校验实际定义再替换，重复打开无 DDL；安装失败由调用方事务完整回滚。 */
+    private fun install(db: SupportSQLiteDatabase) {
+        val installed = installedTriggers(db)
+        val expected = definitions()
+        // 清理被后续规则删除的旧名字，同时保护 Room 的 FTS 同步触发器。
+        for (name in installed.keys - expected.keys) db.execSQL("DROP TRIGGER `$name`")
+        for ((name, sql) in expected) {
+            if (installed[name] == sql) continue
+            db.execSQL("DROP TRIGGER IF EXISTS `$name`")
+            db.execSQL(sql)
         }
     }
+
+    /** 先停用业务维护再删派生数据，普通保存不会重新生成待办。 */
+    internal fun uninstall(db: SupportSQLiteDatabase) {
+        installedTriggers(db).keys.forEach { db.execSQL("DROP TRIGGER `$it`") }
+    }
+
+    /** 仅读取本模块拥有的名字，旧定义也可在关闭路径移除。 */
+    private fun installedTriggers(db: SupportSQLiteDatabase): Map<String, String> =
+        db.query("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND (name GLOB 'search_source_*' OR name GLOB 'search_meta_*')").use {
+            buildMap { while (it.moveToNext()) put(it.getString(0), it.getString(1)) }
+        }
+
+    /** 所有原文表与查询依赖集中声明；字段实际变化才触发，兼容 Room 全字段 UPDATE。 */
+    private fun definitions(): Map<String, String> = buildMap {
+        for (source in SearchSql.sources) {
+            for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
+                val row = if (operation == "DELETE") "OLD" else "NEW"
+                val deleted = if (operation == "DELETE") "1" else source.hidden
+                val name = "search_source_${source.table}_$operation"
+                val event = event(operation, source.columns)
+                val guard = guard(operation, source.columns)
+                // 外层 INSERT OR REPLACE 会覆盖内层冲突策略，必须先判断存在，不能依赖 OR IGNORE。
+                put(name, """
+                    CREATE TRIGGER `$name` AFTER $event ON `${source.table}` $guard
+                    BEGIN
+                        INSERT INTO search_sources(kind, sourceId, parentId, revision, indexedRevision, deleted, dirty, changedTime)
+                            SELECT ${source.kind}, $row.id, $row.${source.parent}, 0, 0, $deleted, 1, 0
+                            WHERE NOT EXISTS(SELECT 1 FROM search_sources WHERE kind = ${source.kind} AND sourceId = $row.id);
+                        UPDATE search_sources SET parentId = $row.${source.parent}, revision = revision + 1, deleted = $deleted, dirty = 1,
+                            changedTime = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+                            WHERE kind = ${source.kind} AND sourceId = $row.id;
+                        UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0;
+                    END
+                """.trimIndent())
+            }
+        }
+        // 这些列覆盖标题、角色关联、结果排序与发言者标注，其他更新无需作废分页。
+        for ((table, columns) in SearchSql.metadataColumns) {
+            for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
+                val name = "search_meta_${table}_$operation"
+                put(name, """
+                    CREATE TRIGGER `$name` AFTER ${event(operation, columns)} ON `$table` ${guard(operation, columns)}
+                    BEGIN UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0; END
+                """.trimIndent())
+            }
+        }
+    }
+
+    private fun event(operation: String, columns: List<String>): String =
+        if (operation == "UPDATE") "UPDATE OF ${columns.joinToString()}" else operation
+
+    private fun guard(operation: String, columns: List<String>): String =
+        if (operation == "UPDATE") "WHEN " + columns.joinToString(" OR ") { "OLD.$it IS NOT NEW.$it" } else ""
 }

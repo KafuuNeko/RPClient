@@ -1312,4 +1312,15 @@
     <string name="content_search_slow">Buscar sin índice (más lento)</string>
     <string name="content_search_newer">Cargar mensajes más recientes</string>
     <string name="content_search_latest">Volver a los mensajes más recientes</string>
+    <string name="content_search_index_title">Aceleración de búsqueda</string>
+    <string name="content_search_index_enabled">Aceleración de búsqueda activada</string>
+    <string name="content_search_index_disabled">La búsqueda estándar recorre el contenido guardado</string>
+    <string name="content_search_index_enable">Activar</string>
+    <string name="content_search_index_disable">Desactivar y borrar</string>
+    <string name="content_search_index_confirm_title">¿Activar la aceleración de búsqueda?</string>
+    <string name="content_search_index_confirm_message">Crea un índice de todas las conversaciones e historias guardadas. Requiere tiempo y almacenamiento adicional. Puedes cancelar la creación; al desactivarlo, se borra el índice y se libera espacio.</string>
+    <string name="content_search_index_building">Creando índice… %1$d elementos procesados</string>
+    <string name="content_search_index_cleaning">Borrando el índice y liberando espacio…</string>
+    <string name="content_search_index_cleanup_failed">No se pudo completar la limpieza. Libera espacio o espera a que terminen otras tareas y vuelve a intentarlo. La aceleración sigue desactivada.</string>
+    <string name="content_search_index_failed">La aceleración no está disponible. Puedes usar la búsqueda estándar.</string>
 </resources>

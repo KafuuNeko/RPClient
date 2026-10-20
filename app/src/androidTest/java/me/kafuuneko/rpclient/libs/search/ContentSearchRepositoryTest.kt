@@ -56,6 +56,7 @@ class ContentSearchRepositoryTest {
             name = "雪乃", avatar = "", characterTags = "[]", description = "", personality = "",
             scenario = "", firstMessages = "[]", examplesOfDialogue = "", postHistoryInstructions = ""
         ))
+        mIndex.enable()
     }
 
     /** 等待工作器退出后关闭数据库和前台夹具，避免异步写入越过用例边界。 */
@@ -153,6 +154,7 @@ class ContentSearchRepositoryTest {
 
     @Test
     fun directScanCancelsAfterPartialResultsAndRemainsUsable() = runBlocking {
+        mIndex.disable()
         val chat = chat("Cancel", 1)
         repeat(150) { message(chat, "x".repeat(20_000) + "needle") }
         val partial = CompletableDeferred<Unit>()
@@ -174,7 +176,7 @@ class ContentSearchRepositoryTest {
     fun longSourceResumesAfterConcurrentEditWithoutPublishingOldRevision() = runBlocking {
         val chat = chat("Long", 1)
         val id = message(chat, "x".repeat(1_100_000) + "oldneedle")
-        mIndex.start()
+        mIndex.restore()
         delay(650)
         mDatabase.getChatMessageDao().updateMessageContent(id, "x".repeat(1_100_000) + "newneedle")
         // 中途停止和重新启动使用持久待办恢复，不能把旧代次当作已经完成。
@@ -189,7 +191,7 @@ class ContentSearchRepositoryTest {
     fun deletionDuringIndexingAndReusedIdNeverResurrectOldChunks() = runBlocking {
         val chat = chat("Reuse", 1)
         val id = message(chat, "oldneedle " + "雪".repeat(300_000))
-        mIndex.start()
+        mIndex.restore()
         withTimeout(30_000) {
             while (scalar("SELECT count(*) FROM search_chunks") == 0L) delay(10)
         }
@@ -230,9 +232,11 @@ class ContentSearchRepositoryTest {
         // 未来格式升级的入口必须先屏蔽旧结果，再逐源恢复。
         mIndex.stop()
         db.execSQL("UPDATE search_progress SET cursor = 0 WHERE kind = -1")
-        val stale = mQueries.search(SearchRequest("needle", scope = SearchScope.Body))
-        assertFalse(stale.complete)
-        assertTrue(stale.hits.isEmpty())
+        try {
+            mQueries.search(SearchRequest("needle", scope = SearchScope.Body))
+            throw AssertionError("Incompatible format was accepted")
+        } catch (_: IllegalStateException) { }
+        mIndex.retry()
         ready()
         assertEquals(id, mQueries.search(SearchRequest("needle", scope = SearchScope.Body)).hits.single().sourceId)
     }
@@ -260,10 +264,10 @@ class ContentSearchRepositoryTest {
         val chat = chat("Lifecycle", 1)
         val text = "needle " + "雪".repeat(60_000)
         message(chat, text)
-        mIndex.start()
+        mIndex.restore()
         val stopping = launch { mIndex.stop() }
         val retrying = launch { mIndex.retry() }
-        repeat(5) { mIndex.start() }
+        repeat(5) { mIndex.restore() }
         stopping.join()
         retrying.join()
         ready()
@@ -277,12 +281,12 @@ class ContentSearchRepositoryTest {
     }
 
     private suspend fun ready() {
-        mIndex.start()
+        mIndex.enable()
         withTimeout(30_000) {
             while (true) {
                 assertFalse("Index failed", mIndex.indexState.value == SearchIndexState.Unavailable)
                 val progress = mDatabase.getContentSearchDao().progress()
-                if (progress.size == 5 && progress.filter { it.kind > 0 }.all { it.complete } && !mDatabase.getContentSearchDao().hasPending() && mIndex.indexState.value == SearchIndexState.Ready) break
+                if (progress.size == 6 && progress.filter { it.kind > 0 }.all { it.complete } && !mDatabase.getContentSearchDao().hasPending() && mIndex.indexState.value == SearchIndexState.Ready) break
                 delay(50)
             }
         }

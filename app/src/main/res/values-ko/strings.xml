@@ -1305,4 +1305,15 @@
     <string name="content_search_slow">색인 없이 전체 검색 (느림)</string>
     <string name="content_search_newer">더 최근 메시지 불러오기</string>
     <string name="content_search_latest">최신 메시지로 돌아가기</string>
+    <string name="content_search_index_title">검색 가속</string>
+    <string name="content_search_index_enabled">검색 가속이 켜져 있습니다</string>
+    <string name="content_search_index_disabled">일반 검색은 저장된 내용을 순서대로 검색합니다</string>
+    <string name="content_search_index_enable">켜기</string>
+    <string name="content_search_index_disable">끄고 정리</string>
+    <string name="content_search_index_confirm_title">검색 가속을 켤까요?</string>
+    <string name="content_search_index_confirm_message">저장된 모든 대화와 이야기의 색인을 만듭니다. 시간과 추가 저장 공간이 필요합니다. 생성 중 취소할 수 있으며, 끄면 색인을 삭제하고 공간을 확보합니다.</string>
+    <string name="content_search_index_building">색인 생성 중… %1$d개 처리됨</string>
+    <string name="content_search_index_cleaning">색인을 삭제하고 공간을 확보하는 중…</string>
+    <string name="content_search_index_cleanup_failed">정리를 완료하지 못했습니다. 저장 공간을 확보하거나 다른 작업이 끝난 후 다시 시도하세요. 검색 가속은 꺼진 상태로 유지됩니다.</string>
+    <string name="content_search_index_failed">검색 가속을 사용할 수 없습니다. 일반 검색을 사용할 수 있습니다.</string>
 </resources>

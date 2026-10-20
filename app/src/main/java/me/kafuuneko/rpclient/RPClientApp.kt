@@ -89,7 +89,7 @@ class RPClientApp : Application() {
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
             koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
-            koinApplication.koin.get<ContentSearchRepository>().start()
+            koinApplication.koin.get<ContentSearchRepository>().restore()
         }
     }
 }

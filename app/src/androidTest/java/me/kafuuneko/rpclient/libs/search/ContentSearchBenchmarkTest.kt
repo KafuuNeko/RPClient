@@ -61,7 +61,7 @@ class ContentSearchBenchmarkTest {
                 }
             }
             val began = SystemClock.elapsedRealtime()
-            index.start()
+            index.enable()
             awaitReady(database, index)
             val buildMs = SystemClock.elapsedRealtime() - began
             index.stop()
@@ -78,7 +78,7 @@ class ContentSearchBenchmarkTest {
             report.put("databaseAndWalBytes", disk).put("sqlite", database.openHelper.readableDatabase.query("SELECT sqlite_version()").use { it.moveToFirst(); it.getString(0) })
             // 对比删除后的空闲页与墓碑，不能把文件没有缩小当作删除失败。
             database.openHelper.writableDatabase.execSQL("DELETE FROM chat_messages WHERE id <= ?", arrayOf(count / 2))
-            index.start()
+            index.enable()
             awaitReady(database, index)
             index.stop()
             report.put("afterDeleteHalf", storage.snapshot())

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -53,7 +54,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchDialogState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchResultState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchScopeState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiIntent
@@ -63,6 +66,7 @@ import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchScope
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
@@ -79,7 +83,10 @@ fun ContentSearchLayout(state: ContentSearchUiState, emit: ContentSearchUiIntent
     BackHandler { ContentSearchUiIntent.Back.emit() }
     when (state) {
         ContentSearchUiState.None -> Unit
-        is ContentSearchUiState.Normal -> SearchPage(state, emit)
+        is ContentSearchUiState.Normal -> {
+            SearchPage(state, emit)
+            IndexDialogs(state, emit)
+        }
         is ContentSearchUiState.Finished -> ContentSearchLayout(state.previous) {}
     }
 }
@@ -112,10 +119,65 @@ private fun SearchPage(state: ContentSearchUiState.Normal, emit: ContentSearchUi
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { submit() })
             )
+            IndexControls(state.indexState, emit)
             ScopeControls(state.scopeState, busy, state.inputState.draft.isNotBlank(), submit, emit)
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             SearchResults(state, Modifier.weight(1f), emit)
         }
+    }
+}
+
+/** 模式入口位于搜索页，关闭状态也可立即提交普通搜索。 */
+@Composable
+private fun IndexControls(index: SearchIndexState, emit: ContentSearchUiIntent.() -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(when {
+            index.enabled -> R.string.content_search_index_enabled
+            index == SearchIndexState.Unavailable -> R.string.content_search_index_failed
+            else -> R.string.content_search_index_disabled
+        }), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = { ContentSearchUiIntent.ChangeIndexMode.emit() }, enabled = !index.busy) {
+            Text(stringResource(if (index.enabled) R.string.content_search_index_disable else R.string.content_search_index_enable))
+        }
+    }
+}
+
+/** 确认、构建、清理均由状态树驱动，旋转后恢复同一任务与取消入口。 */
+@Composable
+private fun IndexDialogs(state: ContentSearchUiState.Normal, emit: ContentSearchUiIntent.() -> Unit) {
+    if (state.dialogState == ContentSearchDialogState.EnableIndex) {
+        AppDialogScaffold(
+            onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
+            title = stringResource(R.string.content_search_index_confirm_title),
+            onConfirm = { ContentSearchUiIntent.ConfirmEnableIndex.emit() },
+            scrollableContent = true
+        ) {
+            Text(stringResource(R.string.content_search_index_confirm_message), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    val index = state.indexState
+    if (!index.busy) return
+    val building = index is SearchIndexState.Building
+    val failed = index == SearchIndexState.CleanupFailed
+    // 外侧点击不取消；返回键只有构建阶段可以取消，清理必须完成或明确重试。
+    AppDialogScaffold(
+        onDismissRequest = { ContentSearchUiIntent.Back.emit() },
+        title = stringResource(R.string.content_search_index_title),
+        subtitle = when (index) {
+            is SearchIndexState.Building -> stringResource(R.string.content_search_index_building, index.processed)
+            SearchIndexState.CleanupFailed -> null
+            SearchIndexState.Preparing -> stringResource(R.string.loading)
+            else -> stringResource(R.string.content_search_index_cleaning)
+        },
+        confirmText = stringResource(R.string.retry),
+        onConfirm = if (failed) ({ ContentSearchUiIntent.RetryCleanup.emit() }) else null,
+        dismissText = if (building || failed) stringResource(R.string.cancel) else null,
+        onDismiss = if (building || failed) ({ ContentSearchUiIntent.Back.emit() }) else null,
+        properties = DialogProperties(dismissOnBackPress = building || failed, dismissOnClickOutside = false),
+        scrollableContent = true
+    ) {
+        if (failed) Text(stringResource(R.string.content_search_index_cleanup_failed), style = MaterialTheme.typography.bodyMedium)
+        else CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
@@ -158,18 +220,9 @@ private fun SearchResults(state: ContentSearchUiState.Normal, modifier: Modifier
     val result = state.resultState
     // 空态、准备状态、错误及部分结果各自有明确含义，不把未完成显示为无匹配。
     RpLazyColumn(modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp, 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        if (state.indexState != SearchIndexState.Ready && state.scopeState.scope != SearchScope.Metadata) {
+        if (state.indexState == SearchIndexState.Updating && state.scopeState.scope != SearchScope.Metadata) {
             item(key = "index-state") {
-                Column {
-                    Text(stringResource(if (state.indexState == SearchIndexState.Unavailable) R.string.content_search_unavailable else R.string.content_search_preparing), style = MaterialTheme.typography.bodySmall)
-                    if (state.inputState.draft.isNotBlank() && state.resultState !is ContentSearchResultState.Searching) {
-                        TextButton(onClick = { ContentSearchUiIntent.SearchDirectly.emit() }) { Text(stringResource(R.string.content_search_slow)) }
-                    }
-                    Row {
-                        TextButton(onClick = { ContentSearchUiIntent.SelectScope(SearchScope.Metadata).emit() }) { Text(stringResource(R.string.content_search_metadata)) }
-                        if (state.indexState == SearchIndexState.Unavailable) TextButton(onClick = { ContentSearchUiIntent.RetryIndex.emit() }) { Text(stringResource(R.string.retry)) }
-                    }
-                }
+                Text(stringResource(R.string.content_search_preparing), style = MaterialTheme.typography.bodySmall)
             }
         }
         item(key = "query-status") {
@@ -187,7 +240,7 @@ private fun SearchResults(state: ContentSearchUiState.Normal, modifier: Modifier
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                 if (message != null) Text(stringResource(message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (result is ContentSearchResultState.Error && result.message == R.string.content_search_error &&
-                    state.indexState != SearchIndexState.Unavailable && state.scopeState.scope != SearchScope.Metadata) {
+                    state.indexState.enabled && state.scopeState.scope != SearchScope.Metadata) {
                     TextButton(onClick = { ContentSearchUiIntent.SearchDirectly.emit() }) { Text(stringResource(R.string.content_search_slow)) }
                     TextButton(onClick = { ContentSearchUiIntent.RetryIndex.emit() }) { Text(stringResource(R.string.retry)) }
                 }

@@ -1315,4 +1315,15 @@
     <string name="content_search_slow">Search without index (slower)</string>
     <string name="content_search_newer">Load newer messages</string>
     <string name="content_search_latest">Return to latest messages</string>
+    <string name="content_search_index_title">Search acceleration</string>
+    <string name="content_search_index_enabled">Search acceleration is on</string>
+    <string name="content_search_index_disabled">Standard search scans saved content</string>
+    <string name="content_search_index_enable">Enable</string>
+    <string name="content_search_index_disable">Turn off and clear</string>
+    <string name="content_search_index_confirm_title">Enable search acceleration?</string>
+    <string name="content_search_index_confirm_message">Build an index of all saved conversations and stories. This takes time and extra storage. You can cancel while building; turning it off clears the index and reclaims space.</string>
+    <string name="content_search_index_building">Building index… %1$d items processed</string>
+    <string name="content_search_index_cleaning">Clearing the index and reclaiming space…</string>
+    <string name="content_search_index_cleanup_failed">Cleanup could not finish. Free some storage or wait for other tasks to finish, then retry. Search acceleration remains off.</string>
+    <string name="content_search_index_failed">Search acceleration is unavailable. Standard search is available.</string>
 </resources>

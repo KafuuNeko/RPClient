@@ -4,15 +4,17 @@ import androidx.room.withTransaction
 import androidx.sqlite.db.SimpleSQLiteQuery
 import java.io.File
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
@@ -20,18 +22,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
 import me.kafuuneko.rpclient.libs.room.entity.SearchProgress
 import me.kafuuneko.rpclient.libs.room.entity.SearchSource
+import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
+import me.kafuuneko.rpclient.libs.search.SearchIndexPhase
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchSql
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
+import me.kafuuneko.rpclient.libs.search.storage.SearchStorageMaintenance
+import me.kafuuneko.rpclient.libs.search.storage.readSearchText
 
 /**
  * 可恢复的正文索引工作器，生命周期属于应用进程。
- * - 原始业务写入只记录轻量脏标记，索引异常不回滚已经保存的正文。
- * - 补建游标与源代次持久化，进程退出后继续；所有文字转换在数据库事务外完成。
+ * - 默认关闭；用户确认开启后全量构建，成功后才开放索引搜索。
+ * - 启用期间原始业务写入记录轻量脏标记，后台失败不回滚已经保存的正文。
+ * - 首次构建中断后清理；已启用的增量待办可恢复，所有文字转换在数据库事务外完成。
  * - 分块提交并校验代次，旧任务不能覆盖编辑、删除或重新导入的内容。
  */
 class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: ContentSearchQueryRepository) {
@@ -39,62 +47,143 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
     private val mScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var mJob: Job? = null
     private val mLifecycle = Mutex()
+    private var mInitialized = false
     private val mIndexState = MutableStateFlow<SearchIndexState>(SearchIndexState.Preparing)
     val indexState = mIndexState.asStateFlow()
 
-    /** 启动单个工作器；生命周期锁保证停止、重试与新启动不会产生交叠的旧任务。 */
-    fun start() {
-        mScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            mLifecycle.withLock {
-                if (mJob?.isActive == true) return@withLock
-                mJob?.join()
-                startWorker()
-            }
-        }
+    /** 恢复已启用的增量维护或未完成清理，绝不替未确认用户构建索引。 */
+    fun restore() {
+        mScope.launch(start = CoroutineStart.UNDISPATCHED) { control { initializeLocked() } }
     }
 
-    /** 停止并等待投影和事务退出，宿主随后可以安全关闭数据库。 */
+    /** 显式确认后开始构建；调用返回后由应用作用域持有任务，页面重建不丢失进度。 */
+    suspend fun enable() = control {
+        initializeLocked()
+        val phase = SearchDatabaseCallback.phase(mDatabase.openHelper.writableDatabase)
+        if (phase == SearchIndexPhase.Disabled) beginBuildLocked()
+    }
+
+    /** 取消或关闭：先作废查询，等待旧工作器退出，再清理并回收空间。 */
+    suspend fun disable() = control {
+        queries.invalidate()
+        mIndexState.value = SearchIndexState.Cleaning
+        mJob?.cancelAndJoin()
+        mJob = null
+        mInitialized = true
+        cleanLocked()
+    }
+
+    /** 停止进程内任务但保留持久阶段，供宿主退出及文件库恢复验证使用。 */
     suspend fun stop() = mLifecycle.withLock {
         mJob?.cancelAndJoin()
         mJob = null
+        mInitialized = false
     }
 
-    /** 显式恢复 FTS 并重新投影正文；损坏的 token 不会因仅重建 FTS 而永久保留。 */
-    suspend fun retry() = mLifecycle.withLock {
+    /** 重建作为一个串行操作；排队的取消会在构建启动后停止它，不会被重建尾部重新开启。 */
+    suspend fun retry() = control {
+        queries.invalidate()
         mJob?.cancelAndJoin()
-        mIndexState.value = SearchIndexState.Unavailable
-        withContext(Dispatchers.IO) {
-            mDatabase.withTransaction {
-                mDao.invalidateSources()
-                mDao.invalidatePages()
-                mDao.rebuildFts()
-            }
-        }
-        startWorker()
+        mJob = null
+        mInitialized = true
+        cleanLocked()
+        if (mIndexState.value == SearchIndexState.Disabled) beginBuildLocked()
     }
 
-    /** 仅在生命周期锁内替换工作器；异常保留原文与持久待办。 */
+    /** 按调用顺序进入互斥队列，再切回 IO；快速取消不能先于尚未调度的开启执行。 */
+    private suspend fun control(action: suspend () -> Unit) = mScope.async(start = CoroutineStart.UNDISPATCHED) {
+        mLifecycle.withLock {
+            // 首次进入可能在主线程，先让出到本作用域的 IO 调度器再读写数据库。
+            yield()
+            action()
+        }
+    }.await()
+
+    /** 显式操作已持有生命周期锁，安装失败只留下可重试的清理阶段。 */
+    private suspend fun beginBuildLocked() {
+        queries.invalidate()
+        mIndexState.value = SearchIndexState.Building()
+        try {
+            // 状态与维护触发器同事务提交，后台保存从此纳入本次构建。
+            mDatabase.withTransaction { SearchDatabaseCallback.beginBuild(mDatabase.openHelper.writableDatabase) }
+            startWorker()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            cleanLocked(failed = true)
+        }
+    }
+
+    /** 仅在生命周期锁内恢复，已启用的持久待办继续处理，构建中断则清理。 */
+    private suspend fun initializeLocked() {
+        if (mInitialized) return
+        mInitialized = true
+        try {
+            when (SearchDatabaseCallback.phase(mDatabase.openHelper.writableDatabase)) {
+                SearchIndexPhase.Enabled -> startWorker()
+                SearchIndexPhase.Disabled -> mIndexState.value = SearchIndexState.Disabled
+                else -> cleanLocked()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            mIndexState.value = SearchIndexState.CleanupFailed
+        }
+    }
+
+    /** 只有旧工作器退出后才可调用；保留 Cleaning 直到逻辑清理和文件回收全部成功。 */
+    private suspend fun cleanLocked(failed: Boolean = false) {
+        queries.invalidate()
+        mIndexState.value = SearchIndexState.Cleaning
+        try {
+            mDatabase.withTransaction {
+                val db = mDatabase.openHelper.writableDatabase
+                SearchDatabaseCallback.setPhase(db, SearchIndexPhase.Cleaning)
+                SearchDatabaseCallback.uninstall(db)
+            }
+            // 分批释放正文投影，再重建空 FTS，清除外部内容表之外的倒排内部数据。
+            while (mDao.deleteChunkBatch() != 0) currentCoroutineContext().ensureActive()
+            while (mDao.deleteSourceBatch() != 0) currentCoroutineContext().ensureActive()
+            mDatabase.withTransaction {
+                mDao.rebuildFts()
+                mDao.clearProgress()
+            }
+            SearchStorageMaintenance(mDatabase).reclaim()
+            mDatabase.withTransaction {
+                SearchDatabaseCallback.setPhase(mDatabase.openHelper.writableDatabase, SearchIndexPhase.Disabled)
+            }
+            mIndexState.value = if (failed) SearchIndexState.Unavailable else SearchIndexState.Disabled
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            mIndexState.value = SearchIndexState.CleanupFailed
+        }
+    }
+
+    /** 工作器不获取生命周期锁，避免关闭等待任务时发生非重入死锁。 */
     private fun startWorker() {
-        mIndexState.value = SearchIndexState.Preparing
         mJob = mScope.launch {
             try {
-                delay(500)
-                prepareFormat()
+                delay(100)
                 processQueue()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                mIndexState.value = SearchIndexState.Unavailable
+                val failedJob = currentCoroutineContext().job
+                queries.invalidate()
+                mIndexState.value = SearchIndexState.Cleaning
+                // 在工作器退出后串行清理；较新的取消或重建操作具有优先权。
+                mScope.launch {
+                    mLifecycle.withLock {
+                        if (mJob === failedJob) {
+                            failedJob.join()
+                            mJob = null
+                            cleanLocked(failed = true)
+                        }
+                    }
+                }
             }
         }
-    }
-
-    /** 格式变化先原子失效所有旧块，再由正常队列分批重建，避免一次复制整库。 */
-    private suspend fun prepareFormat() = mDatabase.withTransaction {
-        if (mDao.progress().firstOrNull { it.kind == -1 }?.cursor == SearchTextCodec.FORMAT_VERSION) return@withTransaction
-        mDao.invalidateSources()
-        mDao.invalidatePages()
-        mDao.saveProgress(SearchProgress(-1, SearchTextCodec.FORMAT_VERSION, true))
     }
 
     /** 串行处理源快照；本批全部结束之后才允许回收墓碑，避免同 ID 重建的代次复用。 */
@@ -103,16 +192,21 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
         // 重启后仍给已提交的删除留出整理机会，不依赖进程内的删除计数存活。
         var mergeRounds = 8
         while (currentCoroutineContext().isActive) {
-            // 低空间时暂停派生写入，仍允许标题查询和用户主动选择的原文扫描。
-            if (!hasStorageBudget()) {
-                mIndexState.value = SearchIndexState.Unavailable
-                delay(10_000)
-                continue
-            }
+            check(hasStorageBudget()) { "Insufficient storage for search index" }
             val seeded = seedBatch()
             val pending = mDao.pending(System.currentTimeMillis() - 500)
+            // 完成判定与持久启用同事务，构建期间的新增待办也必须全部确认。
+            val building = mDatabase.withTransaction {
+                val db = mDatabase.openHelper.writableDatabase
+                val phase = SearchDatabaseCallback.phase(db)
+                if (phase == SearchIndexPhase.Building && !seeded && !mDao.hasPending()) {
+                    SearchDatabaseCallback.setPhase(db, SearchIndexPhase.Enabled)
+                    queries.invalidate()
+                    false
+                } else phase == SearchIndexPhase.Building
+            }
             mIndexState.value = when {
-                seeded -> SearchIndexState.Preparing
+                building -> SearchIndexState.Building(mDao.indexedSourceCount())
                 pending.isNotEmpty() || mDao.hasPending() -> SearchIndexState.Updating
                 else -> SearchIndexState.Ready
             }

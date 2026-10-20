@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.room.repository
+package me.kafuuneko.rpclient.libs.search.storage
 
 import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.currentCoroutineContext

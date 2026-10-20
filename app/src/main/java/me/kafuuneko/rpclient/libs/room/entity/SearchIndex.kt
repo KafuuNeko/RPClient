@@ -37,7 +37,12 @@ data class SearchChunk(
 @Entity(tableName = "search_chunks_fts")
 data class SearchChunkFts(val tokens: String)
 
-/** kind 为负一保存投影格式，为零保存全库变更代次，正数保存各源表的补建游标。 */
+/**
+ * 搜索持久状态，保留 Version 5 的既有结构。
+ * - kind = -2 是唯一生命周期控制行，cursor 保存 SearchIndexPhase 编码，关闭后仍保留。
+ * - kind = -1 保存投影格式，kind = 0 保存全库变更代次，正数保存各源表的补建游标。
+ * - 清理会删除控制行以外的全部进度，不重置故事等业务修订号。
+ */
 @Entity(tableName = "search_progress")
 data class SearchProgress(
     @PrimaryKey val kind: Int,

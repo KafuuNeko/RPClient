@@ -48,14 +48,32 @@ data class SearchCursor(
     val time: Long,
     val kind: Int,
     val id: Long,
-    val sourceId: Long = 0
+    val sourceId: Long = 0,
+    val engine: SearchEngineKind = SearchEngineKind.Fts,
+    val session: String = ""
 )
 
 /** 一页结果及完整性；未补建完成不能发布确定的零结果。 */
 data class SearchPage(val hits: List<SearchHit>, val next: SearchCursor?, val complete: Boolean)
 
-/** 后台工作器状态，失败只影响派生索引。 */
+/** 查询策略标记，禁止跨模式继续分页。 */
+enum class SearchEngineKind { Scan, Fts }
+
+/** 持久生命周期复用进度表的保留行，不改变 Version 5 的 Room 结构。 */
+internal enum class SearchIndexPhase(val code: Long) {
+    Disabled(0), Building(1), Enabled(2), Cleaning(3)
+}
+
+/** 索引生命周期及增量状态，只有 Ready／Updating 表示用户已成功开启。 */
 sealed class SearchIndexState {
+    data object Disabled : SearchIndexState()
+    data class Building(val processed: Long = 0) : SearchIndexState()
+    data object Cleaning : SearchIndexState()
+    data object CleanupFailed : SearchIndexState()
+
+    val enabled: Boolean get() = this == Ready || this == Updating
+    val busy: Boolean get() = this == Preparing || this is Building || this == Cleaning || this == CleanupFailed
+
     data object Preparing : SearchIndexState()
     data object Ready : SearchIndexState()
     data object Updating : SearchIndexState()

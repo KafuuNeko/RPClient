@@ -1305,4 +1305,15 @@
     <string name="content_search_slow">直接搜尋完整內容（較慢）</string>
     <string name="content_search_newer">載入較新訊息</string>
     <string name="content_search_latest">回到最新訊息</string>
+    <string name="content_search_index_title">搜尋加速</string>
+    <string name="content_search_index_enabled">搜尋加速已開啟</string>
+    <string name="content_search_index_disabled">一般搜尋逐筆掃描已儲存內容</string>
+    <string name="content_search_index_enable">開啟</string>
+    <string name="content_search_index_disable">關閉並清理</string>
+    <string name="content_search_index_confirm_title">開啟搜尋加速？</string>
+    <string name="content_search_index_confirm_message">為全部已儲存的對話和故事建立索引，需要時間和額外儲存空間。建立期間可以取消；關閉後會清除索引並回收空間。</string>
+    <string name="content_search_index_building">正在建立索引…已處理 %1$d 項</string>
+    <string name="content_search_index_cleaning">正在清除索引並回收空間…</string>
+    <string name="content_search_index_cleanup_failed">清理未完成。請釋放部分儲存空間或等待其他工作結束後重試。搜尋加速保持關閉。</string>
+    <string name="content_search_index_failed">搜尋加速無法使用，可以使用一般搜尋。</string>
 </resources>

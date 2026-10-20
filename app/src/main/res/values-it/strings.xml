@@ -1289,4 +1289,15 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="content_search_slow">Cerca senza indice (più lento)</string>
     <string name="content_search_newer">Carica messaggi più recenti</string>
     <string name="content_search_latest">Torna agli ultimi messaggi</string>
+    <string name="content_search_index_title">Ricerca accelerata</string>
+    <string name="content_search_index_enabled">Ricerca accelerata attiva</string>
+    <string name="content_search_index_disabled">La ricerca standard esamina i contenuti salvati</string>
+    <string name="content_search_index_enable">Attiva</string>
+    <string name="content_search_index_disable">Disattiva e cancella</string>
+    <string name="content_search_index_confirm_title">Attivare la ricerca accelerata?</string>
+    <string name="content_search_index_confirm_message">Crea un indice di tutte le conversazioni e storie salvate. Richiede tempo e spazio aggiuntivo. Puoi annullare la creazione; la disattivazione elimina l’indice e libera spazio.</string>
+    <string name="content_search_index_building">Creazione indice… %1$d elementi elaborati</string>
+    <string name="content_search_index_cleaning">Eliminazione dell’indice e recupero dello spazio…</string>
+    <string name="content_search_index_cleanup_failed">Pulizia non completata. Libera spazio o attendi il termine delle altre attività, poi riprova. La ricerca accelerata resta disattivata.</string>
+    <string name="content_search_index_failed">La ricerca accelerata non è disponibile. Puoi usare la ricerca standard.</string>
 </resources>

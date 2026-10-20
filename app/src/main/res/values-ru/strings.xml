@@ -1315,4 +1315,15 @@
     <string name="content_search_slow">Поиск без индекса (медленнее)</string>
     <string name="content_search_newer">Загрузить более новые сообщения</string>
     <string name="content_search_latest">К последним сообщениям</string>
+    <string name="content_search_index_title">Ускорение поиска</string>
+    <string name="content_search_index_enabled">Ускорение поиска включено</string>
+    <string name="content_search_index_disabled">Обычный поиск просматривает сохранённые данные</string>
+    <string name="content_search_index_enable">Включить</string>
+    <string name="content_search_index_disable">Выключить и очистить</string>
+    <string name="content_search_index_confirm_title">Включить ускорение поиска?</string>
+    <string name="content_search_index_confirm_message">Будет создан индекс всех сохранённых бесед и историй. Это требует времени и дополнительного места. Создание можно отменить. При отключении индекс удаляется, а место освобождается.</string>
+    <string name="content_search_index_building">Создание индекса… обработано: %1$d</string>
+    <string name="content_search_index_cleaning">Удаление индекса и освобождение места…</string>
+    <string name="content_search_index_cleanup_failed">Не удалось завершить очистку. Освободите место или дождитесь завершения других задач и повторите попытку. Ускорение поиска остаётся выключенным.</string>
+    <string name="content_search_index_failed">Ускорение поиска недоступно. Можно использовать обычный поиск.</string>
 </resources>

@@ -1310,4 +1310,15 @@
     <string name="content_search_slow">Ohne Index durchsuchen (langsamer)</string>
     <string name="content_search_newer">Neuere Nachrichten laden</string>
     <string name="content_search_latest">Zu den neuesten Nachrichten</string>
+    <string name="content_search_index_title">Suchbeschleunigung</string>
+    <string name="content_search_index_enabled">Suchbeschleunigung ist aktiviert</string>
+    <string name="content_search_index_disabled">Die Standardsuche durchsucht gespeicherte Inhalte</string>
+    <string name="content_search_index_enable">Aktivieren</string>
+    <string name="content_search_index_disable">Deaktivieren und leeren</string>
+    <string name="content_search_index_confirm_title">Suchbeschleunigung aktivieren?</string>
+    <string name="content_search_index_confirm_message">Ein Index aller gespeicherten Gespräche und Geschichten wird erstellt. Das benötigt Zeit und zusätzlichen Speicherplatz. Die Erstellung kann abgebrochen werden. Beim Deaktivieren wird der Index gelöscht und Speicherplatz freigegeben.</string>
+    <string name="content_search_index_building">Index wird erstellt… %1$d Einträge verarbeitet</string>
+    <string name="content_search_index_cleaning">Index wird gelöscht und Speicherplatz freigegeben…</string>
+    <string name="content_search_index_cleanup_failed">Die Bereinigung konnte nicht abgeschlossen werden. Gib Speicherplatz frei oder warte auf andere Aufgaben und versuche es erneut. Die Suchbeschleunigung bleibt deaktiviert.</string>
+    <string name="content_search_index_failed">Die Suchbeschleunigung ist nicht verfügbar. Die Standardsuche ist verfügbar.</string>
 </resources>

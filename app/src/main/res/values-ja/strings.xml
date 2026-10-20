@@ -1306,4 +1306,15 @@
     <string name="content_search_slow">索引なしで全文検索（低速）</string>
     <string name="content_search_newer">新しいメッセージを読み込む</string>
     <string name="content_search_latest">最新のメッセージへ</string>
+    <string name="content_search_index_title">検索の高速化</string>
+    <string name="content_search_index_enabled">検索の高速化はオンです</string>
+    <string name="content_search_index_disabled">通常検索は保存済みの内容を順に検索します</string>
+    <string name="content_search_index_enable">有効にする</string>
+    <string name="content_search_index_disable">無効にして削除</string>
+    <string name="content_search_index_confirm_title">検索を高速化しますか？</string>
+    <string name="content_search_index_confirm_message">保存済みの会話とストーリー全体の索引を作成します。時間と追加の保存容量が必要です。作成中はキャンセルできます。無効にすると索引が削除され、容量が解放されます。</string>
+    <string name="content_search_index_building">索引を作成中…%1$d 件処理済み</string>
+    <string name="content_search_index_cleaning">索引を削除して容量を解放中…</string>
+    <string name="content_search_index_cleanup_failed">削除が完了しませんでした。空き容量を増やすか、他の処理が終わってから再試行してください。検索の高速化は無効のままです。</string>
+    <string name="content_search_index_failed">検索の高速化を利用できません。通常検索は利用できます。</string>
 </resources>

@@ -1314,4 +1314,15 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="content_search_slow">Pesquisar sem índice (mais lento)</string>
     <string name="content_search_newer">Carregar mensagens mais recentes</string>
     <string name="content_search_latest">Voltar às mensagens mais recentes</string>
+    <string name="content_search_index_title">Aceleração da busca</string>
+    <string name="content_search_index_enabled">Aceleração da busca ativada</string>
+    <string name="content_search_index_disabled">A busca padrão examina o conteúdo salvo</string>
+    <string name="content_search_index_enable">Ativar</string>
+    <string name="content_search_index_disable">Desativar e limpar</string>
+    <string name="content_search_index_confirm_title">Ativar aceleração da busca?</string>
+    <string name="content_search_index_confirm_message">Crie um índice de todas as conversas e histórias salvas. Isso leva tempo e usa armazenamento extra. Você pode cancelar a criação; ao desativar, o índice é apagado e o espaço é liberado.</string>
+    <string name="content_search_index_building">Criando índice… %1$d itens processados</string>
+    <string name="content_search_index_cleaning">Limpando o índice e liberando espaço…</string>
+    <string name="content_search_index_cleanup_failed">Não foi possível concluir a limpeza. Libere espaço ou aguarde o fim de outras tarefas e tente novamente. A aceleração permanece desativada.</string>
+    <string name="content_search_index_failed">A aceleração está indisponível. A busca padrão está disponível.</string>
 </resources>

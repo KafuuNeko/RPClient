@@ -15,6 +15,22 @@ import me.kafuuneko.rpclient.libs.search.SearchObject
 /** 搜索派生表与有界投影查询；SQL 组合及索引一致性由 Repository 管理。 */
 @Dao
 interface ContentSearchDao {
+    /** 有界清理正文块，Room 的 FTS 同步触发器仍然保留。 */
+    @Query("DELETE FROM search_chunks WHERE rowid IN (SELECT rowid FROM search_chunks LIMIT 256)")
+    suspend fun deleteChunkBatch(): Int
+
+    /** 清除源修订与待办，不要求修订号匹配。 */
+    @Query("DELETE FROM search_sources WHERE rowid IN (SELECT rowid FROM search_sources LIMIT 256)")
+    suspend fun deleteSourceBatch(): Int
+
+    /** 保留唯一生命周期控制行，清除全局版本、格式和所有播种进度。 */
+    @Query("DELETE FROM search_progress WHERE kind != -2")
+    suspend fun clearProgress()
+
+    /** 构建 UI 展示实际已确认源数，不伪造预计总量或百分比。 */
+    @Query("SELECT count(*) FROM search_sources WHERE dirty = 0 AND deleted = 0")
+    suspend fun indexedSourceCount(): Long
+
     /** 读取各源补建检查点和全库变更代次。 */
     @Query("SELECT * FROM search_progress ORDER BY kind")
     suspend fun progress(): List<SearchProgress>
