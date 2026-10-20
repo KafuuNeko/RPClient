@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.libs.search.engine
 
-import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -11,7 +10,6 @@ import me.kafuuneko.rpclient.libs.search.SearchCursor
 import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchPage
 import me.kafuuneko.rpclient.libs.search.SearchRequest
-import me.kafuuneko.rpclient.libs.search.SearchSql
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.search.query.SearchQuerySupport
 import me.kafuuneko.rpclient.libs.search.storage.SearchDataRevision
@@ -21,7 +19,7 @@ import me.kafuuneko.rpclient.libs.search.storage.readSearchText
 internal class DatabaseScanSearchEngine(
     database: AppDatabase, support: SearchQuerySupport, private val mRevision: SearchDataRevision
 ) : SearchEngineBase(support) {
-    private val mDao = database.getContentSearchDao()
+    private val mDao = database.getSearchSourceDao()
     private val mOrder = compareByDescending<SearchHit> { it.latestTime }.thenBy { it.kind }.thenByDescending { it.parentId }
 
     /** 只观察业务表写入，关闭索引后仍可正确拒绝过期分页。 */
@@ -38,21 +36,13 @@ internal class DatabaseScanSearchEngine(
         // 仅保存本页及一条预读候选；全库扫描可取消，内存不随命中条数增加。
         for (kind in 1..3) {
             if (request.kind.code != 0 && request.kind.code != kind) continue
-            val (table, parentColumn) = SearchSql.sourceTable(kind)
-            val visible = if (kind == 1) "AND source != 'Summary'" else ""
             var sourceId = 0L
             while (true) {
                 currentCoroutineContext().ensureActive()
-                val rows = mDao.sources(SimpleSQLiteQuery("""
-                    SELECT $kind kind, id sourceId, $parentColumn parentId, 1 revision, 0 indexedRevision, 0 deleted, 1 dirty, 0 changedTime
-                    FROM $table WHERE id > ? $visible AND (? IS NULL OR $parentColumn = ?) ORDER BY id LIMIT 32
-                """.trimIndent(), arrayOf<Any?>(sourceId, request.parentId, request.parentId)))
+                val rows = mDao.sourceBatch(kind = kind, afterId = sourceId, parentId = request.parentId, limit = 32)
                 val parents = rows.map { it.parentId }.distinct()
                 if (parents.isEmpty()) break
-                val objects = mDao.objects(SimpleSQLiteQuery(
-                    "SELECT * FROM (${SearchSql.objects}) WHERE kind = ? AND parentId IN (${parents.joinToString { "?" }})",
-                    (listOf<Any>(kind) + parents).toTypedArray()
-                )).associateBy { it.parentId }
+                val objects = mDao.objectsByIds(kind, parents).associateBy { it.parentId }
                 for (source in rows) {
                     currentCoroutineContext().ensureActive()
                     if ("$kind:${source.parentId}" in excluded) continue

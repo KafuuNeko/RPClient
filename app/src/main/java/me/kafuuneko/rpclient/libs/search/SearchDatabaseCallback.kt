@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.search
 
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.kafuuneko.rpclient.libs.search.storage.SearchSourceContract
 
 /**
  * 搜索维护入口与主库打开契约。
@@ -89,7 +90,7 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
 
     /** 所有原文表与查询依赖集中声明；字段实际变化才触发，兼容 Room 全字段 UPDATE。 */
     private fun definitions(): Map<String, String> = buildMap {
-        for (source in SearchSql.sources) {
+        for (source in SearchSourceContract.sources) {
             for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
                 val row = if (operation == "DELETE") "OLD" else "NEW"
                 val deleted = if (operation == "DELETE") "1" else source.hidden
@@ -112,7 +113,7 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
             }
         }
         // 这些列覆盖标题、角色关联、结果排序与发言者标注，其他更新无需作废分页。
-        for ((table, columns) in SearchSql.metadataColumns) {
+        for ((table, columns) in SearchSourceContract.metadataColumns) {
             for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
                 val name = "search_meta_${table}_$operation"
                 put(name, """

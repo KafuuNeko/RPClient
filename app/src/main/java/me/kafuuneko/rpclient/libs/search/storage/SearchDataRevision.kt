@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.libs.search.storage
 
 import androidx.room.withTransaction
 import me.kafuuneko.rpclient.libs.room.AppDatabase
-import me.kafuuneko.rpclient.libs.search.SearchSql
 
 /**
  * 普通扫描的连接内版本，不使用 FTS 状态或持久待办。
@@ -18,7 +17,7 @@ internal class SearchDataRevision(private val mDatabase: AppDatabase) {
             db.execSQL("CREATE TEMP TABLE IF NOT EXISTS search_scan_revision(value INTEGER NOT NULL)")
             db.execSQL("INSERT INTO search_scan_revision SELECT 0 WHERE NOT EXISTS(SELECT 1 FROM search_scan_revision)")
             // 普通搜索只需知道业务数据发生变化，不把临时版本写进主库或 WAL。
-            for (table in SearchSql.observedTables) {
+            for (table in SearchSourceContract.observedTables) {
                 for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
                     db.execSQL("""
                         CREATE TEMP TRIGGER IF NOT EXISTS search_scan_${table}_$operation AFTER $operation ON main.`$table`

@@ -17,13 +17,18 @@ Repository 保留数据层对外入口，具体搜索算法和数据库辅助能
 
 ```text
 libs/
+├── room/dao/
+│   ├── ContentSearchDao.kt               # 派生索引读写与 FTS 分页
+│   ├── SearchSourceDao.kt                # 原始业务数据的搜索读取
+│   └── search/
+│       ├── SearchProjectionSql.kt        # 编译期共享投影与标签规则
+│       └── SearchFtsSql.kt               # 完整的 FTS 聚合分页 SQL
 ├── room/repository/
 │   ├── ContentSearchRepository.kt        # 索引生命周期与后台增量
 │   └── ContentSearchQueryRepository.kt   # 查询路由、模式切换与请求失效
 └── search/
     ├── ContentSearchModels.kt            # 请求、结果、分页及状态
     ├── SearchDatabaseCallback.kt         # 打开契约与业务触发器
-    ├── SearchSql.kt                      # 三类正文及元数据的 SQL 契约
     ├── SearchTextCodec.kt                # 可见文字投影与规范化
     ├── SearchNavigation.kt
     ├── engine/
@@ -35,6 +40,7 @@ libs/
     │   └── SearchQuerySupport.kt         # 元数据、片段、导航复核
     └── storage/
         ├── SearchDataRevision.kt        # 普通扫描的连接内变更版本
+        ├── SearchSourceContract.kt      # 业务变更观察与摘要隐藏条件
         ├── SearchSourceReader.kt        # 长正文读取
         └── SearchStorageMaintenance.kt  # 关闭后的文件回收
 ```
@@ -73,7 +79,9 @@ libs/
 
 ## 触发器与空间清理
 
-业务表及相关字段集中在 `SearchSql`。打开已启用数据库时对比 `sqlite_master` 中的实际 SQL，仅替换变化的同名触发器；重复打开且定义未变时不重复执行 DDL。更新触发器同时限制 `UPDATE OF` 字段并比较新旧值，避免 Room 全字段同值更新造成不必要的分页失效。
+业务表及相关字段集中在 `SearchSourceContract`。打开已启用数据库时对比 `sqlite_master` 中的实际 SQL，仅替换变化的同名触发器；重复打开且定义未变时不重复执行 DDL。更新触发器同时限制 `UPDATE OF` 字段并比较新旧值，避免 Room 全字段同值更新造成不必要的分页失效。
+
+后续 SQL 收敛、编译校验和规则复用见 [搜索 SQL 维护性优化](./Issue-21-搜索SQL维护性优化.md)。本节之前记录的生命周期与性能测试属于可选索引实现阶段，不作为后续 SQL 调整的性能结论。
 
 取消或关闭时先移除本模块的 `search_source_*`／`search_meta_*` 业务维护触发器，保留 Room 的 FTS 同步结构，再分批删除正文块、源状态和进度。对空内容执行 FTS4 `rebuild`，清理倒排内部数据。
 

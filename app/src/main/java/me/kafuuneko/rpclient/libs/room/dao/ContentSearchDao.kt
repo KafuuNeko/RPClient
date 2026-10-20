@@ -4,15 +4,13 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RawQuery
-import androidx.sqlite.db.SupportSQLiteQuery
+import me.kafuuneko.rpclient.libs.room.dao.search.SearchFtsSql
 import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
 import me.kafuuneko.rpclient.libs.room.entity.SearchProgress
 import me.kafuuneko.rpclient.libs.room.entity.SearchSource
 import me.kafuuneko.rpclient.libs.search.SearchChunkMatch
-import me.kafuuneko.rpclient.libs.search.SearchObject
 
-/** 搜索派生表与有界投影查询；SQL 组合及索引一致性由 Repository 管理。 */
+/** 搜索派生表的读写与全文分页；生命周期和跨表事务由 Repository 管理。 */
 @Dao
 interface ContentSearchDao {
     /** 有界清理正文块，Room 的 FTS 同步触发器仍然保留。 */
@@ -94,21 +92,12 @@ interface ContentSearchDao {
         WHERE c.rowid = :id AND s.deleted = 0 AND s.dirty = 0 AND s.revision = c.revision""")
     suspend fun chunk(id: Long): SearchChunk?
 
-    /** 按类型读取有界历史源元信息，不加载正文。 */
-    @RawQuery
-    suspend fun sources(query: SupportSQLiteQuery): List<SearchSource>
-
-    /** 分段读取超长单源，避免 Android CursorWindow 的单行大小限制。 */
-    @RawQuery
-    suspend fun text(query: SupportSQLiteQuery): String?
-
-    /** 轻量对象元数据，不包含角色卡扩展字段或正文。 */
-    @RawQuery
-    suspend fun objects(query: SupportSQLiteQuery): List<SearchObject>
-
-    /** 全文聚合、排序及分页在 SQL 内完成。 */
-    @RawQuery
-    suspend fun matches(query: SupportSQLiteQuery): List<SearchChunkMatch>
+    /** 全文聚合、排序及分页在 SQL 内完成；parentId 非空时按源分页，否则按对象分页。 */
+    @Query(SearchFtsSql.MATCH_PAGE)
+    suspend fun matchPage(
+        phrase: String, filterKind: Int, parentId: Long?,
+        afterTime: Long, afterKind: Int, afterParentId: Long, afterSourceId: Long, limit: Int
+    ): List<SearchChunkMatch>
 
     /** 仅重建可派生的全文结构，用于错误后的显式恢复。 */
     @Query("INSERT INTO search_chunks_fts(search_chunks_fts) VALUES('rebuild')")

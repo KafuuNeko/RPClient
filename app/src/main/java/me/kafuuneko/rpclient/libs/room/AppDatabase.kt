@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.MessageImageDao
 import me.kafuuneko.rpclient.libs.room.dao.PageBackgroundDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
+import me.kafuuneko.rpclient.libs.room.dao.SearchSourceDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryDao
@@ -99,6 +100,8 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 abstract class AppDatabase : RoomDatabase() {
     /** 提供独立内容搜索的数据访问入口。 */
     abstract fun getContentSearchDao(): ContentSearchDao
+    /** 提供原始业务数据的搜索投影，普通扫描不依赖 FTS 派生表。 */
+    abstract fun getSearchSourceDao(): SearchSourceDao
     abstract fun getPageBackgroundDao(): PageBackgroundDao
     abstract fun getCharacterDao(): CharacterDao
     abstract fun getCharacterLLMProviderAssociationDao(): CharacterLLMProviderAssociationDao

@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
-import androidx.sqlite.db.SimpleSQLiteQuery
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -30,7 +29,6 @@ import me.kafuuneko.rpclient.libs.room.entity.SearchSource
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.search.SearchIndexPhase
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
-import me.kafuuneko.rpclient.libs.search.SearchSql
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.search.storage.SearchStorageMaintenance
 import me.kafuuneko.rpclient.libs.search.storage.readSearchText
@@ -44,6 +42,7 @@ import me.kafuuneko.rpclient.libs.search.storage.readSearchText
  */
 class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: ContentSearchQueryRepository) {
     private val mDao = mDatabase.getContentSearchDao()
+    private val mSourceDao = mDatabase.getSearchSourceDao()
     private val mScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var mJob: Job? = null
     private val mLifecycle = Mutex()
@@ -235,14 +234,8 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
     /** 分批登记历史源，检查点与登记必须同事务提交。 */
     private suspend fun seedBatch(): Boolean {
         val checkpoint = mDao.progress().firstOrNull { it.kind > 0 && !it.complete } ?: return false
-        val (table, parent) = SearchSql.sourceTable(checkpoint.kind)
-        val visible = if (checkpoint.kind == 1) "AND source != 'Summary'" else ""
         // 只读键，不把历史正文带入迁移或播种事务。
-        val rows = mDao.sources(SimpleSQLiteQuery("""
-            SELECT ${checkpoint.kind} kind, id sourceId, $parent parentId, 1 revision,
-                0 indexedRevision, 0 deleted, 1 dirty, 0 changedTime FROM $table
-            WHERE id > ? $visible ORDER BY id LIMIT 200
-        """.trimIndent(), arrayOf(checkpoint.cursor)))
+        val rows = mSourceDao.sourceBatch(kind = checkpoint.kind, afterId = checkpoint.cursor, parentId = null, limit = 200)
         mDatabase.withTransaction {
             mDao.seed(rows)
             mDao.saveProgress(checkpoint.copy(cursor = rows.lastOrNull()?.sourceId ?: checkpoint.cursor, complete = rows.size < 200))
@@ -253,7 +246,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
     /** 计算可见正文副本并分块提交，最后确认的代次才对查询可见。 */
     private suspend fun indexSource(source: SearchSource) {
         currentCoroutineContext().ensureActive()
-        val text = if (source.deleted) "" else mDao.readSearchText(source)
+        val text = if (source.deleted) "" else mSourceDao.readSearchText(source)
         val normalized = withContext(Dispatchers.Default) {
             SearchTextCodec.normalize(SearchTextCodec.project(text))
         }

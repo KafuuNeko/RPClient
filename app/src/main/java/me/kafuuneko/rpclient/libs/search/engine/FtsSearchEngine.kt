@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.libs.search.engine
 
-import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -9,7 +8,6 @@ import me.kafuuneko.rpclient.libs.search.SearchCursor
 import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchPage
 import me.kafuuneko.rpclient.libs.search.SearchRequest
-import me.kafuuneko.rpclient.libs.search.SearchSql
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.search.query.SearchQuerySupport
 
@@ -53,44 +51,15 @@ internal class FtsSearchEngine(database: AppDatabase, support: SearchQuerySuppor
     }
 
     /** 只为当前页读取 token，源修订与归属始终在 SQL 中复核。 */
-    private suspend fun bodyMatches(request: SearchRequest, query: String, cursor: SearchCursor?): List<SearchChunkMatch> {
-        val scoped = request.parentId != null
-        val group = if (scoped) "c.kind, c.parentId, c.sourceId" else "c.kind, c.parentId"
-        val time = cursor?.time ?: Long.MAX_VALUE
-        val kind = cursor?.kind ?: 0
-        val id = cursor?.id ?: Long.MAX_VALUE
-        val source = cursor?.sourceId ?: Long.MAX_VALUE
-        // 先选定本页行号，再读 token 与发言者，避免为所有候选加载大字段后排序。
-        // MATCH 参数是应用编码的短语；范围、排序边界和用户内容都使用参数绑定。
-        return mDao.matches(SimpleSQLiteQuery("""
-            WITH matched AS (
-                SELECT MIN(c.rowid) rowid FROM search_chunks_fts
-                JOIN search_chunks c ON c.rowid = search_chunks_fts.rowid
-                JOIN search_sources s ON s.kind = c.kind AND s.sourceId = c.sourceId
-                WHERE search_chunks_fts MATCH ? AND s.dirty = 0 AND s.deleted = 0 AND s.revision = c.revision
-                    AND (? = 0 OR c.kind = ?) AND (? IS NULL OR c.parentId = ?)
-                GROUP BY $group
-            )
-            , selected AS (
-                SELECT c.kind, c.parentId, c.sourceId, c.rowid, o.latestTime, o.title, o.names
-                FROM matched m JOIN search_chunks c ON c.rowid = m.rowid
-                JOIN (${SearchSql.objects}) o ON o.kind = c.kind AND o.parentId = c.parentId
-                WHERE o.latestTime < ? OR (o.latestTime = ? AND c.kind > ?)
-                    OR (o.latestTime = ? AND c.kind = ? AND c.parentId < ?)
-                    OR (? = 1 AND o.latestTime = ? AND c.kind = ? AND c.parentId = ? AND c.sourceId < ?)
-                ORDER BY o.latestTime DESC, c.kind, c.parentId DESC, c.sourceId DESC LIMIT ${PAGE_SIZE + 1}
-            )
-            SELECT p.*, c.tokens,
-                CASE p.kind WHEN 1 THEN IFNULL((SELECT CASE WHEN m.source = 'User' THEN s.userName ELSE p.names END
-                        FROM chat_messages m JOIN chat_sessions s ON s.id = m.sessionId WHERE m.id = p.sourceId), '')
-                    WHEN 2 THEN IFNULL((SELECT speakerNameSnapshot FROM group_chat_messages WHERE id = p.sourceId), '')
-                    WHEN 3 THEN IFNULL((SELECT title FROM story_chapters WHERE id = p.sourceId), '')
-                    ELSE p.names END sourceLabel
-            FROM selected p JOIN search_chunks c ON c.rowid = p.rowid
-            ORDER BY p.latestTime DESC, p.kind, p.parentId DESC, p.sourceId DESC
-        """.trimIndent(), arrayOf<Any?>(SearchTextCodec.phrase(query), request.kind.code, request.kind.code,
-            request.parentId, request.parentId, time, time, kind, time, kind, id,
-            if (scoped) 1 else 0, time, kind, id, source)))
-    }
-
+    private suspend fun bodyMatches(request: SearchRequest, query: String, cursor: SearchCursor?): List<SearchChunkMatch> =
+        mDao.matchPage(
+            phrase = SearchTextCodec.phrase(query),
+            filterKind = request.kind.code,
+            parentId = request.parentId,
+            afterTime = cursor?.time ?: Long.MAX_VALUE,
+            afterKind = cursor?.kind ?: 0,
+            afterParentId = cursor?.id ?: Long.MAX_VALUE,
+            afterSourceId = cursor?.sourceId ?: Long.MAX_VALUE,
+            limit = PAGE_SIZE + 1
+        )
 }
