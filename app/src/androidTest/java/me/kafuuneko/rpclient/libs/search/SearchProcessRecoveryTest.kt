@@ -14,13 +14,13 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import me.kafuuneko.rpclient.libs.room.repository.ContentSearchQueryRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 两次 instrumentation 之间由外部强杀进程，区别于普通 close/reopen 回归。 */
 @RunWith(AndroidJUnit4::class)
@@ -37,33 +37,32 @@ class SearchProcessRecoveryTest {
         scenario.onActivity { it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
         if (stage == "prepare") { context.deleteDatabase(name); marker.delete() }
         val database = Room.databaseBuilder(context, AppDatabase::class.java, name).addCallback(SearchDatabaseCallback).build()
-        val queries = ContentSearchQueryRepository(database)
-        val index = ContentSearchRepository(database, queries)
+        val index = ContentSearchRepository(database)
         try {
             if (stage == "prepare") {
                 prepareCorpus(database)
                 index.enable()
-                withTimeout(30_000) {
+                withTimeout(30_000.milliseconds) {
                     while (scalar(database, "SELECT count(*) FROM search_chunks") == 0L) delay(5)
                 }
                 assertTrue(index.indexState.value is SearchIndexState.Building)
                 marker.writeText("building")
                 // 此等待只能由测试驱动器强杀，不能正常 stop 伪装成崩溃。
-                withTimeout(120_000) { while (true) delay(1000) }
+                withTimeout(120_000.milliseconds) { while (true) delay(1000) }
             } else {
                 assertTrue(marker.exists())
                 index.restore()
-                withTimeout(60_000) {
+                withTimeout(60_000.milliseconds) {
                     while (index.indexState.value != SearchIndexState.Disabled) {
                         check(index.indexState.value != SearchIndexState.CleanupFailed)
-                        delay(25)
+                        delay(25.milliseconds)
                     }
                 }
                 assertEquals(250L, scalar(database, "SELECT count(*) FROM chat_messages"))
                 assertEquals(0L, scalar(database, "SELECT count(*) FROM search_chunks"))
                 assertEquals(0L, scalar(database, "SELECT count(*) FROM search_sources"))
                 assertEquals(0L, scalar(database, "SELECT count(*) FROM search_progress WHERE kind != -2"))
-                assertEquals(1, queries.search(SearchRequest("crashneedle249", scope = SearchScope.Body)).hits.size)
+                assertEquals(1, index.search(SearchRequest("crashneedle249", scope = SearchScope.Body)).hits.size)
             }
         } finally {
             index.stop()

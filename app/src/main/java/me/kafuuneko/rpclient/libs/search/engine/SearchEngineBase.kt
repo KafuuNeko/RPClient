@@ -6,7 +6,6 @@ import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchPage
 import me.kafuuneko.rpclient.libs.search.SearchRequest
 import me.kafuuneko.rpclient.libs.search.SearchScope
-import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.search.query.SearchQuerySupport
 
 /** 复用元数据阶段，正文扫描与倒排检索分别由具体策略实现。 */
@@ -16,10 +15,9 @@ internal abstract class SearchEngineBase(protected val support: SearchQuerySuppo
     /** 捕获该策略独立的数据版本与完整性，不要求扫描策略读取任何索引表。 */
     protected abstract suspend fun snapshot(): Snapshot
 
-    /** 用相同的元数据优先顺序开始查询；正文阶段排除已返回的对象。 */
+    /** 使用仓库已校验、规范化的查询；元数据优先，正文阶段排除已返回的对象。 */
     override suspend fun search(request: SearchRequest, cursor: SearchCursor?, onPartial: suspend (List<SearchHit>) -> Unit): SearchPage {
-        val query = SearchTextCodec.normalize(request.query)
-        require(query.isNotBlank() && query.codePointCount(0, query.length) <= SearchTextCodec.MAX_QUERY_POINTS) { "Invalid search query" }
+        val query = request.query
         val initial = snapshot()
         if (cursor != null && cursor.revision != initial.revision) throw SearchChangedException()
         // 公共元数据规则避免两个策略在章节标题、角色名称与阶段边界上漂移。

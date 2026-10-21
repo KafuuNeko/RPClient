@@ -6,7 +6,7 @@ enum class SearchKind(val code: Int) { All(0), Chat(1), Group(2), Story(3) }
 /** 全部、轻量元数据或完整正文的显式检索范围。 */
 enum class SearchScope { All, Metadata, Body }
 
-/** 一次提交固定的查询快照，不解释用户输入中的 MATCH 运算符。 */
+/** 一次提交固定的原始查询快照，由仓库统一校验和规范化，不解释 MATCH 运算符。 */
 data class SearchRequest(
     val query: String,
     val kind: SearchKind = SearchKind.All,
@@ -14,6 +14,13 @@ data class SearchRequest(
     val parentId: Long? = null,
     val directScan: Boolean = false
 )
+
+/** 输入校验结果；长度规则由仓库维护，页面只映射提示，不依赖正文编解码细节。 */
+sealed interface SearchQueryValidation {
+    data class Valid(val normalizedQuery: String) : SearchQueryValidation
+    data object Empty : SearchQueryValidation
+    data object TooLong : SearchQueryValidation
+}
 
 /** 对象标题及角色名称的轻量投影，不加载角色卡或消息正文。 */
 data class SearchObject(

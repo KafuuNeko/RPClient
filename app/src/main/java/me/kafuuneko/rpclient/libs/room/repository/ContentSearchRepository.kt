@@ -26,21 +26,31 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
 import me.kafuuneko.rpclient.libs.room.entity.SearchProgress
 import me.kafuuneko.rpclient.libs.room.entity.SearchSource
+import me.kafuuneko.rpclient.libs.search.SearchCursor
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
+import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchIndexPhase
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
+import me.kafuuneko.rpclient.libs.search.SearchPage
+import me.kafuuneko.rpclient.libs.search.SearchQueryValidation
+import me.kafuuneko.rpclient.libs.search.SearchRequest
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
+import me.kafuuneko.rpclient.libs.search.query.SearchQueryCoordinator
 import me.kafuuneko.rpclient.libs.search.storage.SearchStorageMaintenance
 import me.kafuuneko.rpclient.libs.search.storage.readSearchText
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * 可恢复的正文索引工作器，生命周期属于应用进程。
+ * 内容搜索的业务入口，统一提供输入校验、分页查询、目标复核与索引管理。
+ * - 私有持有查询协调器，查询与索引切换共享取消和分页失效机制，调用方不接触内部策略。
+ * - 索引工作器属于应用进程，页面重建不影响正在执行的构建或清理。
  * - 默认关闭；用户确认开启后全量构建，成功后才开放索引搜索。
  * - 启用期间原始业务写入记录轻量脏标记，后台失败不回滚已经保存的正文。
  * - 首次构建中断后清理；已启用的增量待办可恢复，所有文字转换在数据库事务外完成。
  * - 分块提交并校验代次，旧任务不能覆盖编辑、删除或重新导入的内容。
  */
-class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: ContentSearchQueryRepository) {
+class ContentSearchRepository(private val mDatabase: AppDatabase) {
+    private val mQueries = SearchQueryCoordinator(mDatabase)
     private val mDao = mDatabase.getContentSearchDao()
     private val mSourceDao = mDatabase.getSearchSourceDao()
     private val mScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -49,6 +59,49 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
     private var mInitialized = false
     private val mIndexState = MutableStateFlow<SearchIndexState>(SearchIndexState.Preparing)
     val indexState = mIndexState.asStateFlow()
+
+    /**
+     * 预检原始输入，不访问数据库；页面只负责将校验结果映射为提示。
+     * - 先限制原始 UTF-16 长度，再按规范化后的码点数限制查询，避免超大粘贴输入阻塞页面。
+     * - 查询长度与正文分块重叠范围一致，防止跨块命中丢失。
+     *
+     * @param query 用户输入的原始文字，无需调用方预先规范化。
+     * @return 规范化后的有效查询，或空白、超长原因。
+     */
+    fun validateQuery(query: String): SearchQueryValidation {
+        if (query.length > MAX_RAW_QUERY_LENGTH) return SearchQueryValidation.TooLong
+        val normalized = SearchTextCodec.normalize(query)
+        if (normalized.isBlank()) return SearchQueryValidation.Empty
+        if (normalized.codePointCount(0, normalized.length) > SearchTextCodec.MAX_QUERY_POINTS) return SearchQueryValidation.TooLong
+        return SearchQueryValidation.Valid(normalized)
+    }
+
+    /**
+     * 查询一页内容，自动选择原文扫描或已启用的 FTS；始终在入口校验原始输入。
+     *
+     * @param request 固定的原始查询及范围；翻页时保持与首页一致。
+     * @param cursor 上一页返回的游标；数据或模式变化后须从首页重新查询。
+     * @param onPartial 当前页已找到的累计结果，在 IO 上下文调用；取消后不再发布结果。
+     * @return 当前页、下一页游标与完整性状态。
+     * @throws IllegalArgumentException 输入为空白或超过长度限制。
+     */
+    suspend fun search(
+        request: SearchRequest, cursor: SearchCursor? = null,
+        onPartial: suspend (List<SearchHit>) -> Unit = {}
+    ): SearchPage {
+        val validation = validateQuery(request.query)
+        require(validation is SearchQueryValidation.Valid) { "Invalid search query" }
+        return mQueries.search(request.copy(query = validation.normalizedQuery), cursor, onPartial)
+    }
+
+    /**
+     * 打开结果前按当前业务数据复核归属及命中，不要求索引可用。
+     *
+     * @param hit 待打开的搜索结果。
+     * @param query 原始查询；留空时只检查目标存在及归属。
+     * @return 目标是否仍可打开；正文或章节标题结果还会复核非空查询。
+     */
+    suspend fun exists(hit: SearchHit, query: String = ""): Boolean = mQueries.exists(hit, query)
 
     /** 恢复已启用的增量维护或未完成清理，绝不替未确认用户构建索引。 */
     fun restore() {
@@ -64,7 +117,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
 
     /** 取消或关闭：先作废查询，等待旧工作器退出，再清理并回收空间。 */
     suspend fun disable() = control {
-        queries.invalidate()
+        mQueries.invalidate()
         mIndexState.value = SearchIndexState.Cleaning
         mJob?.cancelAndJoin()
         mJob = null
@@ -81,7 +134,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
 
     /** 重建作为一个串行操作；排队的取消会在构建启动后停止它，不会被重建尾部重新开启。 */
     suspend fun retry() = control {
-        queries.invalidate()
+        mQueries.invalidate()
         mJob?.cancelAndJoin()
         mJob = null
         mInitialized = true
@@ -100,7 +153,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
 
     /** 显式操作已持有生命周期锁，安装失败只留下可重试的清理阶段。 */
     private suspend fun beginBuildLocked() {
-        queries.invalidate()
+        mQueries.invalidate()
         mIndexState.value = SearchIndexState.Building()
         try {
             // 状态与维护触发器同事务提交，后台保存从此纳入本次构建。
@@ -132,7 +185,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
 
     /** 只有旧工作器退出后才可调用；保留 Cleaning 直到逻辑清理和文件回收全部成功。 */
     private suspend fun cleanLocked(failed: Boolean = false) {
-        queries.invalidate()
+        mQueries.invalidate()
         mIndexState.value = SearchIndexState.Cleaning
         try {
             mDatabase.withTransaction {
@@ -169,7 +222,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
                 throw cancelled
             } catch (_: Exception) {
                 val failedJob = currentCoroutineContext().job
-                queries.invalidate()
+                mQueries.invalidate()
                 mIndexState.value = SearchIndexState.Cleaning
                 // 在工作器退出后串行清理；较新的取消或重建操作具有优先权。
                 mScope.launch {
@@ -200,7 +253,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
                 val phase = SearchDatabaseCallback.phase(db)
                 if (phase == SearchIndexPhase.Building && !seeded && !mDao.hasPending()) {
                     SearchDatabaseCallback.setPhase(db, SearchIndexPhase.Enabled)
-                    queries.invalidate()
+                    mQueries.invalidate()
                     false
                 } else phase == SearchIndexPhase.Building
             }
@@ -220,7 +273,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
                 mDao.mergeFts()
                 mergeRounds--
             }
-            delay(if (seeded || pending.isNotEmpty()) 50 else 750)
+            delay((if (seeded || pending.isNotEmpty()) 50 else 750).milliseconds)
         }
     }
 
@@ -294,6 +347,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase, val queries: C
     }
 
     private companion object {
+        const val MAX_RAW_QUERY_LENGTH = 4096
         // 限制单批编码量，调整块大小时不会把写事务和 WAL 峰值同步翻倍。
         const val BATCH_BYTES = 128 * 1024
     }

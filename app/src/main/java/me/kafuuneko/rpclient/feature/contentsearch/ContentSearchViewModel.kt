@@ -27,9 +27,9 @@ import me.kafuuneko.rpclient.libs.search.SearchChangedException
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
+import me.kafuuneko.rpclient.libs.search.SearchQueryValidation
 import me.kafuuneko.rpclient.libs.search.SearchRequest
 import me.kafuuneko.rpclient.libs.search.SearchScope
-import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -85,7 +85,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     private fun onChangeQuery(intent: ContentSearchUiIntent.ChangeQuery) {
         val state = interactiveState() ?: return
         cancelQuery()
-        mSavedState["query"] = intent.value.takeIf { it.length <= 4096 }.orEmpty()
+        // 恢复草稿的体积预算独立于查询有效性，尚未提交的无效输入也可以恢复。
+        mSavedState["query"] = intent.value.takeIf { it.length <= MAX_SAVED_DRAFT_LENGTH }.orEmpty()
         state.copy(inputState = state.inputState.copy(draft = intent.value), resultState = ContentSearchResultState.Idle).setup()
     }
 
@@ -226,7 +227,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         mSearchJob = viewModelScope.launch {
             try {
                 val targetHit = if (intent.locate) hit else hit.copy(sourceId = 0)
-                val available = mRepository.queries.exists(targetHit, state.inputState.submitted)
+                val available = mRepository.exists(targetHit, state.inputState.submitted)
                 if (generation != mGeneration) return@launch
                 if (!available) {
                     AppViewEvent.PopupToastMessageByResId(R.string.content_search_changed).tryEmit()
@@ -268,29 +269,27 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     private fun search(append: Boolean = false) {
         val state = interactiveState() ?: return
         if (state.resultState is ContentSearchResultState.Searching) return
-        if (state.inputState.draft.length > 4096) {
-            state.copy(resultState = ContentSearchResultState.Error(emptyList(), R.string.content_search_too_long)).setup()
-            return
-        }
-        val query = SearchTextCodec.normalize(state.inputState.draft)
-        if (query.isBlank()) return
-        if (query.codePointCount(0, query.length) > SearchTextCodec.MAX_QUERY_POINTS) {
-            state.copy(resultState = ContentSearchResultState.Error(emptyList(), R.string.content_search_too_long)).setup()
-            return
+        when (mRepository.validateQuery(state.inputState.draft)) {
+            SearchQueryValidation.Empty -> return
+            SearchQueryValidation.TooLong -> {
+                state.copy(resultState = ContentSearchResultState.Error(emptyList(), R.string.content_search_too_long)).setup()
+                return
+            }
+            is SearchQueryValidation.Valid -> Unit
         }
         val cursor = if (append) (state.resultState as? ContentSearchResultState.Content)?.next ?: return else null
         cancelQuery()
         val generation = mGeneration
         val existing = if (append) state.resultState.items() else emptyList()
-        val request = SearchRequest(query, state.scopeState.kind, state.scopeState.scope, state.scopeState.parentId, mDirectScan)
+        val request = SearchRequest(state.inputState.draft, state.scopeState.kind, state.scopeState.scope, state.scopeState.parentId, mDirectScan)
         state.copy(inputState = state.inputState.copy(submitted = state.inputState.draft),
             resultState = ContentSearchResultState.Searching(existing)).setup()
         // 长任务退出 Intent 消费器，取消和输入才能立即得到处理。
         mSearchJob = viewModelScope.launch {
             try {
-                val page = mRepository.queries.search(request, cursor) { metadata ->
+                val page = mRepository.search(request, cursor) { partial ->
                     withContext(Dispatchers.Main) {
-                        publish(generation, ContentSearchResultState.Searching(existing + metadata))
+                        publish(generation, ContentSearchResultState.Searching(existing + partial))
                     }
                 }
                 publish(generation, ContentSearchResultState.Content(existing + page.hits, page.next, page.complete))
@@ -317,5 +316,9 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         mGeneration++
         mSearchJob?.cancel()
         mSearchJob = null
+    }
+
+    private companion object {
+        const val MAX_SAVED_DRAFT_LENGTH = 4096
     }
 }

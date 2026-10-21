@@ -22,7 +22,6 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import me.kafuuneko.rpclient.libs.room.repository.ContentSearchQueryRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import org.json.JSONArray
 import org.json.JSONObject
@@ -31,6 +30,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 显式启用的合成大库基准，默认回归不生成百 MB 数据。 */
 @RunWith(AndroidJUnit4::class)
@@ -45,8 +45,7 @@ class ContentSearchBenchmarkTest {
         val name = "content-search-benchmark.sqlite"
         context.deleteDatabase(name)
         val database = Room.databaseBuilder(context, AppDatabase::class.java, name).addCallback(SearchDatabaseCallback).build()
-        val queries = ContentSearchQueryRepository(database)
-        val index = ContentSearchRepository(database, queries)
+        val index = ContentSearchRepository(database)
         var monitor: Job? = null
         try {
             val sizeMiB = InstrumentationRegistry.getArguments().getString("benchmarkMiB")?.toInt() ?: 100
@@ -71,7 +70,7 @@ class ContentSearchBenchmarkTest {
                 .put("device", Build.MODEL).put("api", Build.VERSION.SDK_INT).put("label", InstrumentationRegistry.getArguments().getString("benchmarkLabel"))
                 .put("beforeIndex", baseline).put("indexed", storage.snapshot()).put("sampledBuildPeakBytes", sampledPeak)
                 .put("performanceDivisor", 2).put("adjustedBuildMs", buildMs * 2)
-            val queryResults = measureQueries(queries)
+            val queryResults = measureQueries(index)
             queryResults.keys().forEach { key -> report.put(key, queryResults.get(key)) }
             val file = context.getDatabasePath(name)
             val disk = listOf(file, File(file.path + "-wal"), File(file.path + "-shm")).sumOf { it.length() }
@@ -119,13 +118,13 @@ class ContentSearchBenchmarkTest {
     }
 
     /** 计时包含 Repository 的聚合、分页与片段，不只统计裸 MATCH。 */
-    private suspend fun measureQueries(queries: ContentSearchQueryRepository): JSONObject {
+    private suspend fun measureQueries(index: ContentSearchRepository): JSONObject {
         val result = JSONObject()
         // 保留全部排序样本与两倍耗时，避免仅展示最快一次查询。
         for (word in listOf("unique203boundary", "雪乃", "的", "100%_")) {
             val samples = (0 until 20).map {
                 val start = SystemClock.elapsedRealtimeNanos()
-                val result = queries.search(SearchRequest(word, scope = SearchScope.Body))
+                val result = index.search(SearchRequest(word, scope = SearchScope.Body))
                 assertTrue(result.complete)
                 assertEquals(word, if (word.startsWith("unique")) 1 else 20, result.hits.size)
                 (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000.0
@@ -137,13 +136,15 @@ class ContentSearchBenchmarkTest {
     }
 
     /** 给 500 MiB 实机压力库留出建库时间，故障立即失败，不将未完成索引计入结果。 */
-    private suspend fun awaitReady(database: AppDatabase, index: ContentSearchRepository) = withTimeout(1_800_000) {
+    private suspend fun awaitReady(database: AppDatabase, index: ContentSearchRepository) = withTimeout(
+        1_800_000.milliseconds
+    ) {
         while (true) {
             check(index.indexState.value != SearchIndexState.Unavailable) { "Index failed" }
             val progress = database.getContentSearchDao().progress()
             if (progress.filter { it.kind > 0 }.all { it.complete } && !database.getContentSearchDao().hasPending() &&
                 index.indexState.value == SearchIndexState.Ready) break
-            delay(100)
+            delay(100.milliseconds)
         }
     }
 }

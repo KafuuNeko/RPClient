@@ -25,7 +25,6 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
-import me.kafuuneko.rpclient.libs.room.repository.ContentSearchQueryRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import org.json.JSONArray
 import org.json.JSONObject
@@ -33,6 +32,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 显式启用的混合负载观测，默认回归不运行耗时基准。 */
 @RunWith(AndroidJUnit4::class)
@@ -61,15 +61,15 @@ class SearchMixedLoadBenchmarkTest {
         val name = "search-mixed-$mode.sqlite"
         context.deleteDatabase(name)
         val database = Room.databaseBuilder(context, AppDatabase::class.java, name).addCallback(SearchDatabaseCallback).build()
-        val index = ContentSearchRepository(database, ContentSearchQueryRepository(database))
+        val index = ContentSearchRepository(database)
         try {
             val (chat, chapter) = corpus(database)
             if (mode != "disabled") index.enable() else {
                 index.restore()
-                withTimeout(10_000) { while (index.indexState.value != SearchIndexState.Disabled) delay(10) }
+                withTimeout(10_000.milliseconds) { while (index.indexState.value != SearchIndexState.Disabled) delay(10) }
             }
             if (mode == "enabled") awaitReady(index)
-            if (mode == "building") withTimeout(30_000) {
+            if (mode == "building") withTimeout(30_000.milliseconds) {
                 while (database.getContentSearchDao().indexedSourceCount() == 0L) delay(10)
             }
             // 工作器保持运行；峰值采样与主线程调度探针贯穿所有写入样本。

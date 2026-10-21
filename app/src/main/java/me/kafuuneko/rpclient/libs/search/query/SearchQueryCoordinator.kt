@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.room.repository
+package me.kafuuneko.rpclient.libs.search.query
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -21,31 +21,30 @@ import me.kafuuneko.rpclient.libs.search.SearchRequest
 import me.kafuuneko.rpclient.libs.search.engine.ContentSearchEngine
 import me.kafuuneko.rpclient.libs.search.engine.DatabaseScanSearchEngine
 import me.kafuuneko.rpclient.libs.search.engine.FtsSearchEngine
-import me.kafuuneko.rpclient.libs.search.query.SearchQuerySupport
 import me.kafuuneko.rpclient.libs.search.storage.SearchDataRevision
 
 /**
- * 搜索统一入口，页面不负责选择策略。
+ * 仓库私有持有的查询协调器，负责策略路由与查询会话。
  * - 默认扫描业务原文，只有完整启用后才路由到 FTS。
  * - 模式切换取消旧查询；分页绑定策略和本次管理会话，关闭再开启也不能复用旧游标。
  */
-class ContentSearchQueryRepository(private val mDatabase: AppDatabase) {
+internal class SearchQueryCoordinator(private val mDatabase: AppDatabase) {
     private val mSupport = SearchQuerySupport(mDatabase)
     private val mScan by lazy { DatabaseScanSearchEngine(mDatabase, mSupport, SearchDataRevision(mDatabase)) }
     private val mFts = FtsSearchEngine(mDatabase, mSupport)
     private val mJobs = ConcurrentHashMap.newKeySet<Job>()
     @Volatile private var mSession = UUID.randomUUID().toString()
 
-    /** 切换或清理前同步作废所有旧请求；只取消本仓库创建的查询子协程。 */
-    internal fun invalidate() {
+    /** 切换或清理前同步作废所有旧请求；只取消本协调器创建的查询子协程。 */
+    fun invalidate() {
         mSession = UUID.randomUUID().toString()
         mJobs.forEach { it.cancel() }
     }
 
-    /** 提交一页查询；普通扫描与 FTS 共享部分结果、取消及导航语义。 */
+    /** 接收仓库已校验、规范化的查询；两种策略共享部分结果与取消语义。 */
     suspend fun search(
         request: SearchRequest, cursor: SearchCursor? = null,
-        onMetadata: suspend (List<SearchHit>) -> Unit = {}
+        onPartial: suspend (List<SearchHit>) -> Unit = {}
     ): SearchPage = withContext(Dispatchers.IO) {
         coroutineScope {
             val job = coroutineContext.job
@@ -61,7 +60,7 @@ class ContentSearchQueryRepository(private val mDatabase: AppDatabase) {
                 val page = engine.search(request, cursor) {
                     currentCoroutineContext().ensureActive()
                     if (session != mSession) throw SearchChangedException()
-                    onMetadata(it)
+                    onPartial(it)
                 }
                 currentCoroutineContext().ensureActive()
                 if (session != mSession) throw SearchChangedException()

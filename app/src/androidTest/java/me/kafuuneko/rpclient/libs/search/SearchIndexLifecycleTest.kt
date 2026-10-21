@@ -20,7 +20,6 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
-import me.kafuuneko.rpclient.libs.room.repository.ContentSearchQueryRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -31,6 +30,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 文件库验证真实开关、触发器升级、恢复与空间回收，不以 Mock 代替持久边界。 */
 @RunWith(AndroidJUnit4::class)
@@ -39,8 +39,7 @@ class SearchIndexLifecycleTest {
     private val mName = "search-lifecycle-test.sqlite"
     private lateinit var mScenario: ActivityScenario<MainActivity>
     private lateinit var mDatabase: AppDatabase
-    private lateinit var mIndex: ContentSearchRepository
-    private lateinit var mQueries: ContentSearchQueryRepository
+    private lateinit var mRepository: ContentSearchRepository
 
     @get:Rule val migrationHelper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
@@ -56,7 +55,7 @@ class SearchIndexLifecycleTest {
     /** 等待管理器退出后才删除本项合成库。 */
     @After
     fun tearDown() = runBlocking {
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.close()
         mContext.deleteDatabase(mName)
         mScenario.close()
@@ -66,19 +65,19 @@ class SearchIndexLifecycleTest {
     @Test
     fun disabledScanWorksWithoutIndexAcrossReopenAndEdits() = runBlocking {
         val ids = corpus()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
         val request = SearchRequest("hello world", scope = SearchScope.Body)
-        assertEquals(setOf(1, 2, 3), mQueries.search(request).hits.map { it.kind }.toSet())
-        assertTrue(mQueries.search(SearchRequest("hiddenneedle", scope = SearchScope.Body)).hits.isEmpty())
-        assertEquals(3, mQueries.search(SearchRequest("100%_", scope = SearchScope.Body)).hits.size)
+        assertEquals(setOf(1, 2, 3), mRepository.search(request).hits.map { it.kind }.toSet())
+        assertTrue(mRepository.search(SearchRequest("hiddenneedle", scope = SearchScope.Body)).hits.isEmpty())
+        assertEquals(3, mRepository.search(SearchRequest("100%_", scope = SearchScope.Body)).hits.size)
         assertEmptyIndex()
         // 关闭后保存和重启只影响原文，不能重新安装专用维护入口。
         mDatabase.getChatMessageDao().updateMessageContent(ids.first, "changedneedle")
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
-        assertEquals(ids.first, mQueries.search(SearchRequest("changedneedle", scope = SearchScope.Body)).hits.single().sourceId)
+        assertEquals(ids.first, mRepository.search(SearchRequest("changedneedle", scope = SearchScope.Body)).hits.single().sourceId)
         assertEmptyIndex()
     }
 
@@ -91,28 +90,28 @@ class SearchIndexLifecycleTest {
             message(chat, "needle hello **world** 100%_ " + "雪乃".repeat(2500))
         }
         val request = SearchRequest("needle", scope = SearchScope.Body)
-        val scanned = mQueries.search(request)
+        val scanned = mRepository.search(request)
         assertNotNull(scanned.next)
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
         assertStale(request, scanned.next!!)
-        val indexed = mQueries.search(request)
+        val indexed = mRepository.search(request)
         assertEquals(scanned.hits.map { it.key }, indexed.hits.map { it.key })
-        mIndex.stop()
+        mRepository.stop()
         val storage = SearchBenchmarkStorage(mDatabase, mContext.getDatabasePath(mName))
         val before = storage.snapshot().getLong("databaseBytes")
         // 逻辑记录与实际文件必须一起验证，不能仅以空表证明空间已归还。
-        mIndex.disable()
-        assertEquals(SearchIndexState.Disabled, mIndex.indexState.value)
+        mRepository.disable()
+        assertEquals(SearchIndexState.Disabled, mRepository.indexState.value)
         assertEmptyIndex()
         val after = storage.snapshot().getLong("databaseBytes")
         assertTrue("Index files did not shrink: $before -> $after", after < before)
         assertEquals(25L, scalar("SELECT count(*) FROM chat_messages"))
         assertStale(request, indexed.next!!)
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
         assertStale(request, indexed.next)
-        assertEquals(20, mQueries.search(request).hits.size)
+        assertEquals(20, mRepository.search(request).hits.size)
     }
 
     /** 请求入队后立即取消仍以最后一次关闭为准，旧任务不能在清理之后写回。 */
@@ -120,19 +119,19 @@ class SearchIndexLifecycleTest {
     fun immediateCancellationWinsOverQueuedEnableAndRebuild() = runBlocking {
         corpus()
         repeat(8) {
-            val enabling = launch(start = CoroutineStart.UNDISPATCHED) { mIndex.enable() }
-            val disabling = launch(start = CoroutineStart.UNDISPATCHED) { mIndex.disable() }
+            val enabling = launch(start = CoroutineStart.UNDISPATCHED) { mRepository.enable() }
+            val disabling = launch(start = CoroutineStart.UNDISPATCHED) { mRepository.disable() }
             enabling.join()
             disabling.join()
-            assertEquals(SearchIndexState.Disabled, mIndex.indexState.value)
+            assertEquals(SearchIndexState.Disabled, mRepository.indexState.value)
             assertEmptyIndex()
         }
         // 重建本身的清理与启动也是一个有序操作，随后取消不能被尾部开启覆盖。
-        val rebuilding = launch(start = CoroutineStart.UNDISPATCHED) { mIndex.retry() }
-        val cancelling = launch(start = CoroutineStart.UNDISPATCHED) { mIndex.disable() }
+        val rebuilding = launch(start = CoroutineStart.UNDISPATCHED) { mRepository.retry() }
+        val cancelling = launch(start = CoroutineStart.UNDISPATCHED) { mRepository.disable() }
         rebuilding.join()
         cancelling.join()
-        assertEquals(SearchIndexState.Disabled, mIndex.indexState.value)
+        assertEquals(SearchIndexState.Disabled, mRepository.indexState.value)
         assertEmptyIndex()
     }
 
@@ -140,17 +139,17 @@ class SearchIndexLifecycleTest {
     @Test
     fun replacingSameIdPreservesMonotonicSourceRevision() = runBlocking {
         val (id, _) = corpus()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
-        mIndex.stop()
+        mRepository.stop()
         val old = mDatabase.getChatMessageDao().getByIds(listOf(id)).single()
         val revision = mDatabase.getContentSearchDao().source(1, id)!!.revision
         mDatabase.getChatMessageDao().insertOrReplace(old.copy(content = "replacementneedle"))
         assertTrue(mDatabase.getContentSearchDao().source(1, id)!!.revision > revision)
-        assertFalse(mQueries.search(SearchRequest("hello world", scope = SearchScope.Body)).hits.any { it.kind == 1 })
-        mIndex.restore()
+        assertFalse(mRepository.search(SearchRequest("hello world", scope = SearchScope.Body)).hits.any { it.kind == 1 })
+        mRepository.restore()
         awaitReady()
-        assertEquals(id, mQueries.search(SearchRequest("replacementneedle", scope = SearchScope.Body)).hits.single().sourceId)
+        assertEquals(id, mRepository.search(SearchRequest("replacementneedle", scope = SearchScope.Body)).hits.single().sourceId)
     }
 
     /** 普通搜索分页只跟踪业务变更；不靠关闭后残留的搜索版本号。 */
@@ -159,8 +158,8 @@ class SearchIndexLifecycleTest {
         val character = character()
         repeat(25) { message(chat(character, it.toLong()), "needle") }
         val request = SearchRequest("needle", scope = SearchScope.Body)
-        val first = mQueries.search(request)
-        val second = mQueries.search(request, first.next)
+        val first = mRepository.search(request)
+        val second = mRepository.search(request, first.next)
         assertEquals(25, (first.hits + second.hits).map { it.key }.distinct().size)
         mDatabase.openHelper.writableDatabase.execSQL("UPDATE chat_messages SET content = 'replacement' WHERE id = 1")
         assertStale(request, first.next!!)
@@ -172,36 +171,36 @@ class SearchIndexLifecycleTest {
     fun cancelAndInterruptedBuildRemovePartialChunks() = runBlocking {
         val chat = chat(character(), 1)
         message(chat, "needle " + "雪".repeat(1_100_000))
-        mIndex.enable()
+        mRepository.enable()
         awaitChunks()
-        mIndex.disable()
+        mRepository.disable()
         assertEmptyIndex()
-        assertEquals(SearchIndexState.Disabled, mIndex.indexState.value)
+        assertEquals(SearchIndexState.Disabled, mRepository.indexState.value)
         // 再次构建到实际分块写入后关闭文件，重开不得静默完成昂贵补建。
-        mIndex.enable()
+        mRepository.enable()
         awaitChunks()
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
         assertEmptyIndex()
-        assertEquals(chat, mQueries.search(SearchRequest("needle", scope = SearchScope.Body)).hits.single().parentId)
+        assertEquals(chat, mRepository.search(SearchRequest("needle", scope = SearchScope.Body)).hits.single().parentId)
     }
 
     /** 已启用重启保留索引，并处理关闭进程前提交的编辑、删除与同 ID 替换。 */
     @Test
     fun enabledReopenResumesPendingWithoutPublishingStaleContent() = runBlocking {
         val (edited, deleted) = corpus()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.getChatMessageDao().updateMessageContent(edited, "replacementneedle")
         mDatabase.openHelper.writableDatabase.execSQL("DELETE FROM story_chapters WHERE id = ?", arrayOf(deleted))
         reopen()
         assertEquals(SearchIndexPhase.Enabled, SearchDatabaseCallback.phase(mDatabase.openHelper.readableDatabase))
-        assertFalse(mQueries.search(SearchRequest("hello world", scope = SearchScope.Body)).hits.any { it.kind == 1 || it.kind == 3 })
-        mIndex.restore()
+        assertFalse(mRepository.search(SearchRequest("hello world", scope = SearchScope.Body)).hits.any { it.kind == 1 || it.kind == 3 })
+        mRepository.restore()
         awaitReady()
-        assertEquals(edited, mQueries.search(SearchRequest("replacementneedle", scope = SearchScope.Body)).hits.single().sourceId)
+        assertEquals(edited, mRepository.search(SearchRequest("replacementneedle", scope = SearchScope.Body)).hits.single().sourceId)
         assertEquals(0L, scalar("SELECT count(*) FROM search_sources WHERE dirty = 1"))
     }
 
@@ -209,9 +208,9 @@ class SearchIndexLifecycleTest {
     @Test
     fun upgradesInstalledTriggersAndNarrowsMetadataInvalidation() = runBlocking {
         corpus()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
-        mIndex.stop()
+        mRepository.stop()
         val db = mDatabase.openHelper.writableDatabase
         db.execSQL("DROP TRIGGER search_meta_character_UPDATE")
         db.execSQL("CREATE TRIGGER search_meta_character_UPDATE AFTER UPDATE ON character BEGIN UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0; END")
@@ -230,11 +229,11 @@ class SearchIndexLifecycleTest {
     @Test
     fun cleanupFailurePersistsUntilRetryAndDoesNotRegeneratePending() = runBlocking {
         val (message, _) = corpus()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
         mDatabase.openHelper.writableDatabase.execSQL("CREATE TRIGGER test_block_cleanup BEFORE DELETE ON search_chunks BEGIN SELECT RAISE(ABORT, 'Injected cleanup failure'); END")
-        mIndex.disable()
-        assertEquals(SearchIndexState.CleanupFailed, mIndex.indexState.value)
+        mRepository.disable()
+        assertEquals(SearchIndexState.CleanupFailed, mRepository.indexState.value)
         assertEquals(SearchIndexPhase.Cleaning, SearchDatabaseCallback.phase(mDatabase.openHelper.readableDatabase))
         val revision = scalar("SELECT revision FROM search_sources WHERE kind = 1 AND sourceId = $message")
         mDatabase.getChatMessageDao().updateMessageContent(message, "afterfailure")
@@ -242,30 +241,30 @@ class SearchIndexLifecycleTest {
         // 移除注入故障后模拟重启，保留的 Cleaning 不能被错当成 Enabled。
         mDatabase.openHelper.writableDatabase.execSQL("DROP TRIGGER test_block_cleanup")
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
         assertEmptyIndex()
-        assertEquals(message, mQueries.search(SearchRequest("afterfailure", scope = SearchScope.Body)).hits.single().sourceId)
+        assertEquals(message, mRepository.search(SearchRequest("afterfailure", scope = SearchScope.Body)).hits.single().sourceId)
     }
 
     /** 旧自动索引不代表用户同意；投影格式变化同样回退清理，不静默重建。 */
     @Test
     fun legacyAutomaticIndexAndFormatChangesRequireNewConsent() = runBlocking {
         corpus()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.openHelper.writableDatabase.execSQL("DELETE FROM search_progress WHERE kind = -2")
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
         assertEmptyIndex()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.openHelper.writableDatabase.execSQL("UPDATE search_progress SET cursor = 0 WHERE kind = -1")
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitState { it == SearchIndexState.Disabled }
         assertEmptyIndex()
     }
@@ -273,7 +272,7 @@ class SearchIndexLifecycleTest {
     /** 从真实 v4 文件升级，三类历史正文默认可扫描，确认后完整建索引并可再次打开。 */
     @Test
     fun v4MigrationPreservesHistoricalContentAndDefaultsToScan() = runBlocking {
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.close()
         mContext.deleteDatabase(mName)
         migrationHelper.createDatabase(mName, 4).use { db ->
@@ -290,26 +289,25 @@ class SearchIndexLifecycleTest {
         }
         open()
         val request = SearchRequest("legacyneedle 229", scope = SearchScope.Body)
-        assertEquals(setOf(1, 2, 3), mQueries.search(request).hits.map { it.kind }.toSet())
+        assertEquals(setOf(1, 2, 3), mRepository.search(request).hits.map { it.kind }.toSet())
         assertEmptyIndex()
-        mIndex.enable()
+        mRepository.enable()
         awaitReady()
         reopen()
-        mIndex.restore()
+        mRepository.restore()
         awaitReady()
-        assertEquals(setOf(1, 2, 3), mQueries.search(request).hits.map { it.kind }.toSet())
+        assertEquals(setOf(1, 2, 3), mRepository.search(request).hits.map { it.kind }.toSet())
         assertEquals(7L, scalar("SELECT revision FROM stories WHERE id = 1"))
         assertEquals(5L, scalar("PRAGMA user_version"))
     }
 
     private fun open() {
         mDatabase = Room.databaseBuilder(mContext, AppDatabase::class.java, mName).addCallback(SearchDatabaseCallback).build()
-        mQueries = ContentSearchQueryRepository(mDatabase)
-        mIndex = ContentSearchRepository(mDatabase, mQueries)
+        mRepository = ContentSearchRepository(mDatabase)
     }
 
     private suspend fun reopen() {
-        mIndex.stop()
+        mRepository.stop()
         mDatabase.close()
         open()
     }
@@ -339,29 +337,29 @@ class SearchIndexLifecycleTest {
     private suspend fun message(chat: Long, text: String, source: ChatMessage.Source = ChatMessage.Source.User): Long =
         mDatabase.getChatMessageDao().insertOrReplace(ChatMessage(sessionId = chat, createTime = 1, source = source, content = text))
 
-    private suspend fun awaitReady() = withTimeout(60_000) {
-        while (mIndex.indexState.value != SearchIndexState.Ready || mDatabase.getContentSearchDao().hasPending() ||
+    private suspend fun awaitReady() = withTimeout(60_000.milliseconds) {
+        while (mRepository.indexState.value != SearchIndexState.Ready || mDatabase.getContentSearchDao().hasPending() ||
             mDatabase.getContentSearchDao().progress().count { it.kind > 0 && it.complete } != 3) {
-            assertFalse("Index failed", mIndex.indexState.value == SearchIndexState.CleanupFailed || mIndex.indexState.value == SearchIndexState.Unavailable)
-            delay(20)
+            assertFalse("Index failed", mRepository.indexState.value == SearchIndexState.CleanupFailed || mRepository.indexState.value == SearchIndexState.Unavailable)
+            delay(20.milliseconds)
         }
     }
 
-    private suspend fun awaitState(predicate: (SearchIndexState) -> Boolean) = withTimeout(60_000) {
-        while (!predicate(mIndex.indexState.value)) {
-            assertFalse("Index failed: ${mIndex.indexState.value}", mIndex.indexState.value == SearchIndexState.CleanupFailed || mIndex.indexState.value == SearchIndexState.Unavailable)
-            delay(20)
+    private suspend fun awaitState(predicate: (SearchIndexState) -> Boolean) = withTimeout(60_000.milliseconds) {
+        while (!predicate(mRepository.indexState.value)) {
+            assertFalse("Index failed: ${mRepository.indexState.value}", mRepository.indexState.value == SearchIndexState.CleanupFailed || mRepository.indexState.value == SearchIndexState.Unavailable)
+            delay(20.milliseconds)
         }
     }
 
-    private suspend fun awaitChunks() = withTimeout(30_000) {
-        while (scalar("SELECT count(*) FROM search_chunks") == 0L) delay(5)
-        assertTrue(mIndex.indexState.value is SearchIndexState.Building)
+    private suspend fun awaitChunks() = withTimeout(30_000.milliseconds) {
+        while (scalar("SELECT count(*) FROM search_chunks") == 0L) delay(5.milliseconds)
+        assertTrue(mRepository.indexState.value is SearchIndexState.Building)
     }
 
     private suspend fun assertStale(request: SearchRequest, cursor: SearchCursor) {
         try {
-            mQueries.search(request, cursor)
+            mRepository.search(request, cursor)
             throw AssertionError("Stale cursor accepted")
         } catch (_: SearchChangedException) { }
     }

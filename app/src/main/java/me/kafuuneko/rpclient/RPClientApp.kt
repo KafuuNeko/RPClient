@@ -46,7 +46,6 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
-import me.kafuuneko.rpclient.libs.room.repository.ContentSearchQueryRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
@@ -189,7 +188,6 @@ internal val appModules = module {
     }
 
     singleOf(::ContentSearchRepository)
-    singleOf(::ContentSearchQueryRepository)
     singleOf(::CharacterRepository)
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)

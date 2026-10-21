@@ -24,8 +24,7 @@ libs/
 │       ├── SearchProjectionSql.kt        # 编译期共享投影与标签规则
 │       └── SearchFtsSql.kt               # 完整的 FTS 聚合分页 SQL
 ├── room/repository/
-│   ├── ContentSearchRepository.kt        # 索引生命周期与后台增量
-│   └── ContentSearchQueryRepository.kt   # 查询路由、模式切换与请求失效
+│   └── ContentSearchRepository.kt        # 统一业务入口、索引生命周期与后台增量
 └── search/
     ├── ContentSearchModels.kt            # 请求、结果、分页及状态
     ├── SearchDatabaseCallback.kt         # 打开契约与业务触发器
@@ -37,6 +36,7 @@ libs/
     │   ├── DatabaseScanSearchEngine.kt
     │   └── FtsSearchEngine.kt
     ├── query/
+    │   ├── SearchQueryCoordinator.kt     # 内部策略路由、查询会话与请求失效
     │   └── SearchQuerySupport.kt         # 元数据、片段、导航复核
     └── storage/
         ├── SearchDataRevision.kt        # 普通扫描的连接内变更版本
@@ -45,7 +45,26 @@ libs/
         └── SearchStorageMaintenance.kt  # 关闭后的文件回收
 ```
 
-页面仍通过 Repository 使用搜索。依赖方向为 Repository → engine → query／storage；这些实现类保持 `internal`。没有为了目录整齐引入新框架、额外注入容器或逐类接口。
+页面通过 `ContentSearchRepository` 使用搜索。查询依赖方向为 Repository → SearchQueryCoordinator → engine → SearchQuerySupport／storage；这些实现类保持 `internal`。没有为了目录整齐引入新框架、额外注入容器或逐类接口。
+
+## 统一搜索入口
+
+`ContentSearchRepository` 私有持有一个 `SearchQueryCoordinator`，Koin 只注册仓库。外部不再通过 `.queries` 调用另一层公开仓库，也不需要配对构造查询与索引管理对象。
+
+| 能力 | 对外接口与约束 |
+| --- | --- |
+| 输入预检 | `validateQuery(raw)` 返回有效查询、空白或超长；页面只映射本地化提示 |
+| 分页查询 | `search(SearchRequest(raw), cursor, onPartial)` 接收原始输入，自动选择策略；翻页保留首页查询与范围 |
+| 部分结果 | 回调在 IO 上下文发布当前页累计结果；页面在主线程更新状态 |
+| 目标复核 | `exists(hit, raw)` 复核归属，并检查正文或章节标题是否仍命中；省略查询只检查存在与归属 |
+| 索引管理 | `indexState`、`enable()`、`disable()`、`retry()` 保留现有语义；开启确认仍属于页面 |
+| 应用恢复 | `restore()` 恢复已确认索引的增量工作或未完成清理；`stop()` 只停止后台维护，保留持久阶段 |
+
+查询规则只在仓库入口定义：原始文字最多 4096 个 UTF-16 码元，规范化后不得为空，且最多 128 个 Unicode 码点。码点上限复用正文分块重叠约束。`search()` 自行调用同一校验，不依赖页面是否预检；非法输入抛出 `IllegalArgumentException`，不发布部分结果。页面的草稿恢复体积预算独立于查询有效性，仍允许保存尚未提交的无效输入。
+
+开启、关闭、重建和构建完成都通过仓库持有的同一个协调器使旧查询失效。模式切换会取消活跃查询；旧游标仍由策略、会话和数据版本拒绝复用。调用者可取消自己的查询任务；仓库不会因此停止应用作用域内的索引维护。页面继续保留请求代次守卫，以阻止已进入主线程队列的旧结果覆盖新状态。
+
+本次只收敛业务调用边界，保留现有内部引擎与索引工作器分工。页面跳转、对话框和编辑器局部高亮仍由展示层负责。独立索引库及进一步拆分索引控制器留待后续需求评估。
 
 ## 产品行为与持久状态
 
@@ -137,6 +156,14 @@ Android 验证使用独立 applicationId `me.kafuuneko.rpclient.searchlifecyclev
 关闭组的 40 次写入状态均为 Disabled，构建组均为 Building，已启用组为 Ready 21 次／Updating 19 次。关闭组没有发起普通搜索，因此尚未安装扫描使用的连接内临时计数器。此对照量化的是无 FTS 维护与索引工作并行时的写入情况，不包含扫描并行负载。
 
 这是固定顺序、每组 40 轮的单次模拟器采样，没有随机化或重复轮次；缓存、预热和宿主调度会影响组间差异。部分构建组数值低于关闭组不能解释为索引提升写入性能；采样峰值也不是整个完整构建周期的绝对峰值。所有测试库实际为 `auto_vacuum = FULL`。
+
+## 统一入口优化补充验证
+
+- 收敛入口后，离线构建、Debug APK 和 Android 测试 APK 均通过；309 项 JVM 测试通过，无失败或跳过。
+- API 37 隔离模拟器上的 39 项 Android 回归全部通过，包含查询与文件库生命周期、搜索页面定位、开关流程、数据库迁移、会话窗口及概览。
+- 新增真实数据库回归验证原始输入预检与直接搜索一致：全角／空白规范化、128 码点 emoji 跨块命中、129 码点拒绝、NFKC 展开超限及原始输入体积上限。
+- 新增回归验证开启和关闭均取消同一仓库的活跃查询，取消后仍可从该仓库查询与复核目标；既有跨模式旧游标失效回归继续通过。
+- `AppDatabase.version` 保持 5，导出 schema 与优化前逐字节一致。本次未重跑大库基准或外部进程强杀实验，上述历史结果不作为本次新增性能结论。
 
 ## 未验证边界
 
