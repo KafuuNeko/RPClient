@@ -140,6 +140,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -1542,6 +1543,22 @@ private fun AppearancePanel(
                 )
             }
         }
+        RpSettingsDivider(startIndent = false)
+        var storyMarkdownEnabled by remember {
+            mutableStateOf(AppModel.storyMarkdownRenderingEnabled)
+        }
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Edit,
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.story_markdown_rendering),
+            subtitle = stringResource(R.string.story_markdown_rendering_desc),
+            checked = storyMarkdownEnabled,
+            onCheckedChange = { enabled ->
+                AppModel.storyMarkdownRenderingEnabled = enabled
+                storyMarkdownEnabled = enabled
+            }
+        )
     }
 }
 
