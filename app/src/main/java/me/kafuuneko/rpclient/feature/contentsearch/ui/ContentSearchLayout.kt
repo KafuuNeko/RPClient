@@ -9,12 +9,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -55,29 +63,22 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchDialogState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchResultState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchScopeState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiIntent
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.items
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchScope
-import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
-import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
-import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
@@ -87,16 +88,18 @@ fun ContentSearchLayout(state: ContentSearchUiState, emit: ContentSearchUiIntent
     BackHandler { ContentSearchUiIntent.Back.emit() }
     when (state) {
         ContentSearchUiState.None -> Unit
-        is ContentSearchUiState.Normal -> {
-            SearchPage(state, emit)
-            DialogSwitch(state, emit)
-        }
+        is ContentSearchUiState.Normal -> SearchPage(state, emit)
 
         is ContentSearchUiState.Finished -> ContentSearchLayout(state.previous) {}
     }
 }
 
-/** 固定输入及范围操作，结果区域独立滚动，慢查询不会改变首页布局。 */
+/**
+ * 搜索主页面。
+ * - 顶部栏融合返回导航、输入框与提交/停止按钮。
+ * - 筛选栏单行横向滚动，统一收纳对象限定、内容范围与分类标签。
+ * - 搜索结果区域独立滚动，最大化保留可视垂直高度。
+ */
 @Composable
 private fun SearchPage(state: ContentSearchUiState.Normal, emit: ContentSearchUiIntent.() -> Unit) {
     val keyboard = LocalSoftwareKeyboardController.current
@@ -104,219 +107,221 @@ private fun SearchPage(state: ContentSearchUiState.Normal, emit: ContentSearchUi
     var focused by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!focused) {
-            focus.requestFocus(); focused = true
+            focus.requestFocus()
+            focused = true
         }
     }
     val busy = state.resultState is ContentSearchResultState.Searching
-    val submit = { keyboard?.hide(); ContentSearchUiIntent.Submit.emit() }
-    // 输入与操作区不随长结果列表离开屏幕。
+    val submit = {
+        keyboard?.hide()
+        ContentSearchUiIntent.Submit.emit()
+    }
+
     AppPageScaffold(topBar = {
-        AppTopBar(
-            title = stringResource(R.string.content_search_title),
-            onBack = { ContentSearchUiIntent.Back.emit() })
+        SearchTopBar(
+            query = state.inputState.draft,
+            busy = busy,
+            canSubmit = state.inputState.draft.isNotBlank() && !state.indexState.busy,
+            focus = focus,
+            onSubmit = submit,
+            emit = emit
+        )
     }) { padding ->
-        Column(Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .imePadding()) {
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = state.inputState.draft,
-                onValueChange = { ContentSearchUiIntent.ChangeQuery(it).emit() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp)
-                    .focusRequester(focus)
-                    .generalContentBackground(RoundedCornerShape(16.dp)),
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (state.inputState.draft.isNotEmpty()) IconButton(onClick = {
-                        ContentSearchUiIntent.ChangeQuery(
-                            ""
-                        ).emit()
-                    }) {
-                        Icon(Icons.Rounded.Close, stringResource(R.string.clear_search))
-                    }
-                },
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.content_search_placeholder),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                singleLine = true, shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { submit() })
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            IndexControls(state.indexState, emit)
-            Spacer(modifier = Modifier.height(10.dp))
-            ScopeControls(state.scopeState, busy, state.inputState.draft.isNotBlank(), submit, emit)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+        ) {
+            ScopeControls(state.scopeState, emit)
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             SearchResults(state, Modifier.weight(1f), emit)
         }
     }
 }
 
-/** 模式入口位于搜索页，关闭状态也可立即提交普通搜索。 */
+/** 融合返回导航、输入框与提交/停止按钮的统一顶部搜索栏。 */
 @Composable
-private fun IndexControls(index: SearchIndexState, emit: ContentSearchUiIntent.() -> Unit) {
-    AppCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp)
+private fun SearchTopBar(
+    query: String,
+    busy: Boolean,
+    canSubmit: Boolean,
+    focus: FocusRequester,
+    onSubmit: () -> Unit,
+    emit: ContentSearchUiIntent.() -> Unit
+) {
+    // 顶部栏使用标准外观底板，统一管理状态栏与横向安全边距。
+    AppSurface(
+        kind = PageSurfaceKind.TopBar,
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp),
+                .statusBarsPadding()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
+                .padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                stringResource(
-                    when {
-                        index.enabled -> R.string.content_search_index_enabled
-                        index == SearchIndexState.Unavailable -> R.string.content_search_index_failed
-                        else -> R.string.content_search_index_disabled
-                    }
-                ), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall
-            )
-            TextButton(
-                onClick = { ContentSearchUiIntent.ChangeIndexMode.emit() },
-                enabled = !index.busy
+            // 返回上级页面入口。
+            IconButton(
+                onClick = { ContentSearchUiIntent.Back.emit() },
+                modifier = Modifier.size(40.dp)
             ) {
-                Text(stringResource(if (index.enabled) R.string.content_search_index_disable else R.string.content_search_index_enable))
+                Icon(
+                    painter = painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.back),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            // 弹性填充剩余宽度的单行搜索输入框。
+            OutlinedTextField(
+                value = query,
+                onValueChange = { ContentSearchUiIntent.ChangeQuery(it).emit() },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 10.dp)
+                    .focusRequester(focus)
+                    .generalContentBackground(RoundedCornerShape(16.dp)),
+                leadingIcon = {
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { ContentSearchUiIntent.ChangeQuery("").emit() }) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.clear_search),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.content_search_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSubmit() })
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            // 搜索中切换为醒目的停止操作，空闲时按输入状态启用搜索。
+            if (busy) {
+                TextButton(
+                    onClick = { ContentSearchUiIntent.Stop.emit() },
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.stop),
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = onSubmit,
+                    enabled = canSubmit,
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.content_search_submit),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
-
 }
 
-/** 根据页面状态分发公共弹窗组件，确认和进度只显示一个窗口。 */
-@Composable
-private fun DialogSwitch(
-    state: ContentSearchUiState.Normal,
-    emit: ContentSearchUiIntent.() -> Unit
-) {
-    // 进程任务状态优先于确认，避免恢复或清理时叠加两个弹窗。
-    when (val index = state.indexState) {
-        is SearchIndexState.Building -> LoadingDialog(
-            title = stringResource(R.string.content_search_index_title),
-            description = stringResource(
-                R.string.content_search_index_building,
-                index.processed
-            ),
-            onCancel = { ContentSearchUiIntent.CancelIndexBuild.emit() },
-            cancelOnBackPress = true
-        )
-
-        SearchIndexState.Preparing -> LoadingDialog(
-            title = stringResource(R.string.content_search_index_title),
-            description = stringResource(R.string.loading)
-        )
-
-        SearchIndexState.Cleaning -> LoadingDialog(
-            title = stringResource(R.string.content_search_index_title),
-            description = stringResource(R.string.content_search_index_cleaning)
-        )
-
-        SearchIndexState.CleanupFailed -> AppConfirmDialog(
-            onDismissRequest = { ContentSearchUiIntent.Back.emit() },
-            title = stringResource(R.string.content_search_index_title),
-            message = stringResource(R.string.content_search_index_cleanup_failed),
-            confirmText = stringResource(R.string.retry),
-            dismissText = stringResource(R.string.cancel),
-            onConfirm = { ContentSearchUiIntent.RetryCleanup.emit() },
-            properties = DialogProperties(dismissOnClickOutside = false)
-        )
-
-        else -> when (state.dialogState) {
-            ContentSearchDialogState.None -> Unit
-            ContentSearchDialogState.EnableIndex -> AppConfirmDialog(
-                onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
-                title = stringResource(R.string.content_search_index_confirm_title),
-                message = stringResource(R.string.content_search_index_confirm_message),
-                onConfirm = { ContentSearchUiIntent.ConfirmEnableIndex.emit() }
-            )
-
-            ContentSearchDialogState.DisableIndex -> AppDangerDialog(
-                onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
-                title = stringResource(R.string.content_search_index_disable_confirm_title),
-                message = stringResource(R.string.content_search_index_disable_confirm_message),
-                confirmText = stringResource(R.string.confirm),
-                onConfirm = { ContentSearchUiIntent.ConfirmDisableIndex.emit() }
-            )
-        }
-    }
-}
-
+/** 单行横向滚动收纳全部筛选维度：限定对象、内容范围下拉与分类芯片。 */
 @Composable
 private fun ScopeControls(
     scope: ContentSearchScopeState,
-    busy: Boolean,
-    canSubmit: Boolean,
-    submit: () -> Unit,
     emit: ContentSearchUiIntent.() -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    // 分类横向滚动；范围菜单与搜索按钮固定可达，不放进同一滚动条。
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // 当前限定在特定对象内搜索时，首位显示高亮且可一键清除的标签。
+        if (scope.parentId != null) {
+            FilterChip(
+                selected = true,
+                onClick = { ContentSearchUiIntent.ClearObjectScope.emit() },
+                label = {
+                    Text(
+                        text = scope.parentTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.content_search_clear_scope),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
+        }
+        // 内容范围下拉筛选（全部内容、仅元数据、仅正文）。
+        Box {
+            FilterChip(
+                selected = scope.scope != SearchScope.All,
+                onClick = { menuExpanded = true },
+                label = { Text(stringResource(scopeLabel(scope.scope))) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                SearchScope.entries.forEach { range ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(scopeLabel(range))) },
+                        onClick = {
+                            menuExpanded = false
+                            ContentSearchUiIntent.SelectScope(range).emit()
+                        }
+                    )
+                }
+            }
+        }
+        // 会话与故事类型分类筛选。
         SearchKind.entries.forEach { kind ->
             FilterChip(
                 selected = scope.kind == kind,
                 onClick = { ContentSearchUiIntent.SelectKind(kind).emit() },
-                label = { Text(stringResource(kindLabel(kind.code))) })
+                label = { Text(stringResource(kindLabel(kind.code))) }
+            )
         }
-    }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.weight(1f)) {
-            TextButton(onClick = { menuExpanded = true }) {
-                Text(
-                    stringResource(scopeLabel(scope.scope)),
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(Icons.Rounded.KeyboardArrowDown, null)
-            }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                SearchScope.entries.forEach { range ->
-                    DropdownMenuItem(text = { Text(stringResource(scopeLabel(range))) }, onClick = {
-                        menuExpanded = false
-                        ContentSearchUiIntent.SelectScope(range).emit()
-                    })
-                }
-            }
-        }
-        if (busy) Button(onClick = { ContentSearchUiIntent.Stop.emit() }) { Text(stringResource(R.string.stop)) }
-        else Button(
-            onClick = submit,
-            enabled = canSubmit
-        ) { Text(stringResource(R.string.content_search_submit)) }
-    }
-    if (scope.parentId != null) TextButton(
-        onClick = { ContentSearchUiIntent.ClearObjectScope.emit() },
-        modifier = Modifier.padding(horizontal = 18.dp)
-    ) {
-        Text(
-            scope.parentTitle,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Icon(Icons.Rounded.Close, stringResource(R.string.content_search_clear_scope))
     }
 }
 
@@ -333,6 +338,21 @@ private fun SearchResults(
         contentPadding = PaddingValues(18.dp, 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        if (state.indexState.busy) {
+            item(key = "index-maintenance") {
+                // 索引操作统一在设置页处理，搜索页仅展示暂不可查询的原因。
+                val message = when (val index = state.indexState) {
+                    is SearchIndexState.Building -> stringResource(R.string.content_search_index_building, index.processed)
+                    SearchIndexState.Cleaning -> stringResource(R.string.content_search_index_cleaning)
+                    SearchIndexState.CleanupFailed -> stringResource(R.string.content_search_index_cleanup_failed)
+                    else -> stringResource(R.string.loading)
+                }
+                Text(message, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { ContentSearchUiIntent.OpenSearchSettings.emit() }) {
+                    Text(stringResource(R.string.settings))
+                }
+            }
+        }
         if (state.indexState == SearchIndexState.Updating && state.scopeState.scope != SearchScope.Metadata) {
             item(key = "index-state") {
                 Text(
@@ -367,9 +387,9 @@ private fun SearchResults(
                             stringResource(R.string.content_search_slow)
                         )
                     }
-                    TextButton(onClick = { ContentSearchUiIntent.RetryIndex.emit() }) {
+                    TextButton(onClick = { ContentSearchUiIntent.OpenSearchSettings.emit() }) {
                         Text(
-                            stringResource(R.string.retry)
+                            stringResource(R.string.settings)
                         )
                     }
                 }

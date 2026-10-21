@@ -14,7 +14,6 @@ sealed class ContentSearchUiState {
         val inputState: ContentSearchInputState = ContentSearchInputState(),
         val scopeState: ContentSearchScopeState = ContentSearchScopeState(),
         val indexState: SearchIndexState = SearchIndexState.Preparing,
-        val dialogState: ContentSearchDialogState = ContentSearchDialogState.None,
         val resultState: ContentSearchResultState = ContentSearchResultState.Idle
     ) : ContentSearchUiState()
 
@@ -53,6 +52,3 @@ fun ContentSearchResultState.items(): List<SearchHit> = when (this) {
     is ContentSearchResultState.Content -> items
     is ContentSearchResultState.Error -> items
 }
-
-/** 用户确认属于页面状态，构建与清理进度由应用管理器恢复。 */
-enum class ContentSearchDialogState { None, EnableIndex, DisableIndex }

@@ -37,6 +37,16 @@ sealed class MainUiIntent {
 
     data object OpenContentSearch : MainUiIntent()
 
+    data class ToggleSearchAcceleration(val enabled: Boolean) : MainUiIntent()
+
+    data object ConfirmEnableSearchIndex : MainUiIntent()
+
+    data object ConfirmDisableSearchIndex : MainUiIntent()
+
+    data object CancelSearchIndexBuild : MainUiIntent()
+
+    data object RetrySearchIndexCleanup : MainUiIntent()
+
     data object OpenCreateChat : MainUiIntent()
 
     data class OpenGroupChat(val sessionId: String) : MainUiIntent()

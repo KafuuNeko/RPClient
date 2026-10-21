@@ -88,11 +88,13 @@ import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
@@ -117,6 +119,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mLLMRepository by inject<LLMRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
+    private val mContentSearchRepository by inject<ContentSearchRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mStoryRepository by inject<StoryRepository>()
@@ -164,6 +167,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             homeState = buildHomeState(),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
+        // 订阅应用级任务；旋转页面不会重复启动构建或丢失清理进度。
+        observeSearchIndex()
     }
 
     /** 页面从后台恢复可见时触发，增量刷新首页列表与设置项。 */
@@ -187,6 +192,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        // 设置中的索引任务必须通过取消与清理收尾，不能只隐藏进度窗口。
+        if (uiState.selectedPage == MainPage.Settings) {
+            when (uiState.settingsState.searchIndexState) {
+                is SearchIndexState.Building -> {
+                    onCancelSearchIndexBuild()
+                    return
+                }
+                SearchIndexState.Preparing, SearchIndexState.Cleaning -> return
+                else -> Unit
+            }
+        }
         if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) {
             uiState.copy(
                 homeState = uiState.homeState.copy(
@@ -619,6 +635,94 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onSelectPage(intent: MainUiIntent.SelectPage) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         uiState.copy(selectedPage = intent.page).setup()
+    }
+
+    /** 观察持久索引状态，只更新对应面板并撤销已经过期的确认窗口。 */
+    private fun observeSearchIndex() {
+        mContentSearchRepository.restore()
+        viewModelScope.launch {
+            mContentSearchRepository.indexState.collect { index ->
+                val current = getOrNull<MainUiState.Normal>() ?: return@collect
+                // 维护启动后由进度窗口接管，其他业务弹窗仍保留自己的生命周期。
+                val dialog = when (current.dialogState) {
+                    MainDialogState.EnableSearchIndex ->
+                        if (index.busy || index.enabled) MainDialogState.None else current.dialogState
+                    MainDialogState.DisableSearchIndex ->
+                        if (!index.enabled) MainDialogState.None else current.dialogState
+                    else -> current.dialogState
+                }
+                current.copy(
+                    settingsState = current.settingsState.copy(searchIndexState = index),
+                    dialogState = dialog
+                ).setup()
+            }
+        }
+    }
+
+    /**
+     * 开关先请求确认，只有用户确认后才修改持久索引。
+     * @param intent 用户希望切换到的启用状态。
+     */
+    @UiIntentObserver(MainUiIntent.ToggleSearchAcceleration::class)
+    private fun onToggleSearchAcceleration(intent: MainUiIntent.ToggleSearchAcceleration) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.selectedPage != MainPage.Settings || !state.canOpenDialog()) return
+        val index = state.settingsState.searchIndexState
+        if (index.busy || intent.enabled == index.enabled) return
+        state.copy(
+            dialogState = if (intent.enabled) MainDialogState.EnableSearchIndex else MainDialogState.DisableSearchIndex
+        ).setup()
+    }
+
+    /** 确认开启后展示可取消进度，构建完成前开关仍保持关闭。 */
+    @UiIntentObserver(MainUiIntent.ConfirmEnableSearchIndex::class)
+    private fun onConfirmEnableSearchIndex() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.dialogState != MainDialogState.EnableSearchIndex) return
+        val index = state.settingsState.searchIndexState
+        if (index.busy || index.enabled) return
+        state.copy(
+            dialogState = MainDialogState.None,
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Building())
+        ).setup()
+        viewModelScope.launch { mContentSearchRepository.enable() }
+    }
+
+    /** 关闭确认只消费一次，先进入清理状态以拦截重复操作。 */
+    @UiIntentObserver(MainUiIntent.ConfirmDisableSearchIndex::class)
+    private fun onConfirmDisableSearchIndex() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.dialogState != MainDialogState.DisableSearchIndex) return
+        if (!state.settingsState.searchIndexState.enabled) return
+        cleanSearchIndex(state)
+    }
+
+    /** 返回和取消按钮共用清理路径，取消构建不能留下部分索引。 */
+    @UiIntentObserver(MainUiIntent.CancelSearchIndexBuild::class)
+    private fun onCancelSearchIndexBuild() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.settingsState.searchIndexState !is SearchIndexState.Building) return
+        cleanSearchIndex(state)
+    }
+
+    /** 清理失败仅重试清理，不隐式重新启用搜索加速。 */
+    @UiIntentObserver(MainUiIntent.RetrySearchIndexCleanup::class)
+    private fun onRetrySearchIndexCleanup() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.settingsState.searchIndexState != SearchIndexState.CleanupFailed) return
+        cleanSearchIndex(state)
+    }
+
+    /**
+     * 清理任务交给共享仓库，页面只展示进度。
+     * @param state 已通过操作守卫的当前页面状态。
+     */
+    private fun cleanSearchIndex(state: MainUiState.Normal) {
+        state.copy(
+            dialogState = MainDialogState.None,
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Cleaning)
+        ).setup()
+        viewModelScope.launch { mContentSearchRepository.disable() }
     }
 
     /** 选择应用配色主题并同步更新全局主题与设置页状态。 */
@@ -1462,7 +1566,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         selectedProvider: LLMProvider?,
         allProviders: List<LLMProvider>
     ): MainSettingsState {
+        // 全量装配读取共享仓库的当前值，持续变化由状态订阅更新。
         return MainSettingsState(
+            searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
                 themeMode = mAppThemeManager.themeModeFlow.value

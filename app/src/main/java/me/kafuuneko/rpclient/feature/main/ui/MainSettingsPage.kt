@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Stream
@@ -105,6 +106,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AccentAmberColor
 import me.kafuuneko.rpclient.ui.theme.AccentBlueColor
@@ -209,6 +211,7 @@ internal fun MainSettingsPage(
         }
         item { AppearancePanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { SearchAccelerationPanel(state.searchIndexState, emit) }
         item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
@@ -247,6 +250,33 @@ private fun AppearancePanel(
                 )
             }
         }
+    }
+}
+
+/** 全局搜索加速开关使用共享索引状态，确认与维护进度由主页弹窗宿主承载。 */
+@Composable
+private fun SearchAccelerationPanel(index: SearchIndexState, emit: MainUiIntent.() -> Unit) {
+    // 忙碌和失败状态使用现有本地化说明，避免把尚未完成的构建显示为已开启。
+    val subtitle = when (index) {
+        is SearchIndexState.Building -> stringResource(R.string.content_search_index_building, index.processed)
+        SearchIndexState.Preparing -> stringResource(R.string.loading)
+        SearchIndexState.Cleaning -> stringResource(R.string.content_search_index_cleaning)
+        SearchIndexState.CleanupFailed -> stringResource(R.string.content_search_index_cleanup_failed)
+        SearchIndexState.Unavailable -> stringResource(R.string.content_search_index_failed)
+        SearchIndexState.Ready, SearchIndexState.Updating -> stringResource(R.string.content_search_index_enabled)
+        SearchIndexState.Disabled -> stringResource(R.string.content_search_index_disabled)
+    }
+    RpSettingsGroup {
+        RpSettingsSwitchTile(
+            title = stringResource(R.string.content_search_index_title),
+            subtitle = subtitle,
+            icon = Icons.Rounded.Search,
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
+            checked = index.enabled,
+            enabled = !index.busy,
+            onCheckedChange = { MainUiIntent.ToggleSearchAcceleration(it).emit() }
+        )
     }
 }
 

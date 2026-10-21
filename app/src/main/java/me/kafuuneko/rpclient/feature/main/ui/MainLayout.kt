@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
@@ -45,10 +46,13 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.model.TokenPreset
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
@@ -116,7 +120,11 @@ private fun MainNormal(
         }
     }
 
-    DialogSwitch(uiState.dialogState, emit)
+    DialogSwitch(
+        dialogState = uiState.dialogState,
+        searchIndexState = uiState.settingsState.searchIndexState.takeIf { uiState.selectedPage == MainPage.Settings },
+        emit = emit
+    )
 }
 
 @Composable
@@ -204,13 +212,31 @@ private fun MultiSelectBottomBar(
     }
 }
 
+/** 按主页状态分发互斥弹窗，搜索维护窗口只在设置页展示。 */
 @Composable
 private fun DialogSwitch(
     dialogState: MainDialogState,
+    searchIndexState: SearchIndexState?,
     emit: MainUiIntent.() -> Unit
 ) {
+    // 索引进度仅由设置页展示，并与其他业务窗口互斥。
     when (dialogState) {
-        MainDialogState.None -> Unit
+        MainDialogState.None -> SearchIndexProgressDialog(searchIndexState, emit)
+
+        MainDialogState.EnableSearchIndex -> AppConfirmDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.content_search_index_confirm_title),
+            message = stringResource(R.string.content_search_index_confirm_message),
+            onConfirm = { MainUiIntent.ConfirmEnableSearchIndex.emit() }
+        )
+
+        MainDialogState.DisableSearchIndex -> AppDangerDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.content_search_index_disable_confirm_title),
+            message = stringResource(R.string.content_search_index_disable_confirm_message),
+            confirmText = stringResource(R.string.confirm),
+            onConfirm = { MainUiIntent.ConfirmDisableSearchIndex.emit() }
+        )
 
         is MainDialogState.DeleteSelectedItems -> AppDangerDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
@@ -266,6 +292,38 @@ private fun DialogSwitch(
             state = dialogState,
             emit = emit
         )
+    }
+}
+
+/** 维护进度来自应用级任务，旋转页面可恢复；关闭失败后仍能重试清理。 */
+@Composable
+private fun SearchIndexProgressDialog(index: SearchIndexState?, emit: MainUiIntent.() -> Unit) {
+    // 只有构建允许取消，清理完成前不能再次开启或隐藏进度。
+    when (index) {
+        is SearchIndexState.Building -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(R.string.content_search_index_building, index.processed),
+            onCancel = { MainUiIntent.CancelSearchIndexBuild.emit() },
+            cancelOnBackPress = true
+        )
+        SearchIndexState.Preparing -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(R.string.loading)
+        )
+        SearchIndexState.Cleaning -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(R.string.content_search_index_cleaning)
+        )
+        SearchIndexState.CleanupFailed -> AppConfirmDialog(
+            onDismissRequest = { MainUiIntent.Back.emit() },
+            title = stringResource(R.string.content_search_index_title),
+            message = stringResource(R.string.content_search_index_cleanup_failed),
+            confirmText = stringResource(R.string.retry),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { MainUiIntent.RetrySearchIndexCleanup.emit() },
+            properties = DialogProperties(dismissOnClickOutside = false)
+        )
+        else -> Unit
     }
 }
 
