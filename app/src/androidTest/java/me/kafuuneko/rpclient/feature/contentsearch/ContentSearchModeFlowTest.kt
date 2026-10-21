@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.R
@@ -18,6 +19,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.koin.core.context.GlobalContext
@@ -26,7 +28,7 @@ import org.koin.core.context.GlobalContext
 class ContentSearchModeFlowTest {
     @get:Rule val rule = createAndroidComposeRule<ContentSearchActivity>()
 
-    /** 确认前不开启，构建中旋转保持 Loading，取消后清理并可再次开启关闭。 */
+    /** 开关均需确认；旋转保留弹窗或任务，取消关闭不清理索引。 */
     @Test
     fun confirmationRotationCancellationAndDisableFollowPersistentLifecycle() = runBlocking {
         val database = GlobalContext.get().get<AppDatabase>()
@@ -55,7 +57,8 @@ class ContentSearchModeFlowTest {
             rule.activityRule.scenario.recreate()
             rule.onNodeWithText(label(R.string.content_search_index_title)).assertIsDisplayed()
             capture("search-mode-building.png")
-            click(R.string.cancel)
+            pressBack()
+            rule.waitForIdle()
             rule.waitUntil(30_000) { index.indexState.value == SearchIndexState.Disabled }
             assertEquals(0L, database.getContentSearchDao().indexedSourceCount())
             database.getChatMessageDao().updateMessageContent(message, "needle")
@@ -63,8 +66,31 @@ class ContentSearchModeFlowTest {
             click(R.string.confirm)
             rule.waitUntil(15_000) { index.indexState.value == SearchIndexState.Ready }
             capture("search-mode-enabled.png")
+            val indexedCount = database.getContentSearchDao().indexedSourceCount()
+            assertTrue(indexedCount > 0L)
+            // 关闭前显示确认，旋转与取消都不能启动持久清理。
             click(R.string.content_search_index_disable)
+            rule.onNodeWithText(label(R.string.content_search_index_disable_confirm_title)).assertIsDisplayed()
+            assertEquals(SearchIndexState.Ready, index.indexState.value)
+            assertEquals(indexedCount, database.getContentSearchDao().indexedSourceCount())
+            rule.activityRule.scenario.recreate()
+            rule.onNodeWithText(label(R.string.content_search_index_disable_confirm_title)).assertIsDisplayed()
+            capture("search-mode-disable-confirm.png")
+            click(R.string.cancel)
+            rule.onNodeWithText(label(R.string.content_search_index_disable_confirm_title)).assertDoesNotExist()
+            assertEquals(SearchIndexState.Ready, index.indexState.value)
+            assertEquals(indexedCount, database.getContentSearchDao().indexedSourceCount())
+            // 返回与取消具有相同效果；只有确认按钮才能进入清理。
+            click(R.string.content_search_index_disable)
+            pressBack()
+            rule.waitForIdle()
+            rule.onNodeWithText(label(R.string.content_search_index_disable_confirm_title)).assertDoesNotExist()
+            assertEquals(SearchIndexState.Ready, index.indexState.value)
+            assertEquals(indexedCount, database.getContentSearchDao().indexedSourceCount())
+            click(R.string.content_search_index_disable)
+            click(R.string.confirm)
             rule.waitUntil(15_000) { index.indexState.value == SearchIndexState.Disabled }
+            assertEquals(0L, database.getContentSearchDao().indexedSourceCount())
             capture("search-mode-disabled.png")
         } finally {
             index.disable()

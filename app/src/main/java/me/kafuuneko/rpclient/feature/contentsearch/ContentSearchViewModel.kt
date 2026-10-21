@@ -176,21 +176,29 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         ContentSearchUiState.Finished(state).setup()
     }
 
-    /** 开关关闭立即执行清理，开启则先显示用户确认。 */
+    /** 开启和关闭都先显示确认，确认前保留当前索引与已取得的结果。 */
     @UiIntentObserver(ContentSearchUiIntent.ChangeIndexMode::class)
     private fun onChangeIndexMode() {
         val state = interactiveState() ?: return
         cancelQuery()
-        if (state.indexState.enabled) {
-            state.copy(
-                indexState = SearchIndexState.Cleaning,
-                resultState = ContentSearchResultState.Idle
-            ).setup()
-            viewModelScope.launch { mRepository.disable() }
-        } else state.copy(
-            dialogState = ContentSearchDialogState.EnableIndex,
+        state.copy(
+            dialogState = if (state.indexState.enabled) ContentSearchDialogState.DisableIndex else ContentSearchDialogState.EnableIndex,
             resultState = stoppedResult(state.resultState)
         ).setup()
+    }
+
+    /** 仅消费当前关闭确认，重复点击或过期事件不能再次启动清理。 */
+    @UiIntentObserver(ContentSearchUiIntent.ConfirmDisableIndex::class)
+    private fun onConfirmDisableIndex() {
+        val state = getOrNull<ContentSearchUiState.Normal>() ?: return
+        if (state.dialogState != ContentSearchDialogState.DisableIndex || !state.indexState.enabled) return
+        cancelQuery()
+        state.copy(
+            dialogState = ContentSearchDialogState.None,
+            indexState = SearchIndexState.Cleaning,
+            resultState = ContentSearchResultState.Idle
+        ).setup()
+        viewModelScope.launch { mRepository.disable() }
     }
 
     /** 确认后才进入阻断交互的构建状态，不提前展示已经启用。 */

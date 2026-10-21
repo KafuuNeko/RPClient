@@ -1312,6 +1312,8 @@
     <string name="content_search_index_disable">關閉並清理</string>
     <string name="content_search_index_confirm_title">開啟搜尋加速？</string>
     <string name="content_search_index_confirm_message">為全部已儲存的對話和故事建立索引，需要時間和額外儲存空間。建立期間可以取消；關閉後會清除索引並回收空間。</string>
+    <string name="content_search_index_disable_confirm_title">關閉搜尋加速？</string>
+    <string name="content_search_index_disable_confirm_message">關閉後將清除搜尋索引並回收空間，已儲存的對話和故事不受影響，仍可使用一般搜尋。再次開啟需要重新建立索引。</string>
     <string name="content_search_index_building">正在建立索引…已處理 %1$d 項</string>
     <string name="content_search_index_cleaning">正在清除索引並回收空間…</string>
     <string name="content_search_index_cleanup_failed">清理未完成。請釋放部分儲存空間或等待其他工作結束後重試。搜尋加速保持關閉。</string>

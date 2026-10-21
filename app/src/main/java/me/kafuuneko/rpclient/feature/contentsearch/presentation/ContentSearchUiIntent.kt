@@ -18,6 +18,7 @@ sealed class ContentSearchUiIntent {
     data object More : ContentSearchUiIntent()
     data object ChangeIndexMode : ContentSearchUiIntent()
     data object ConfirmEnableIndex : ContentSearchUiIntent()
+    data object ConfirmDisableIndex : ContentSearchUiIntent()
     data object DismissIndexDialog : ContentSearchUiIntent()
     data object CancelIndexBuild : ContentSearchUiIntent()
     data object RetryCleanup : ContentSearchUiIntent()

@@ -1318,6 +1318,8 @@
     <string name="content_search_index_disable">Désactiver et effacer</string>
     <string name="content_search_index_confirm_title">Activer la recherche accélérée ?</string>
     <string name="content_search_index_confirm_message">Crée un index de toutes les conversations et histoires enregistrées. Cela prend du temps et utilise du stockage supplémentaire. Vous pouvez annuler la création. La désactivation efface cet index et libère de la place.</string>
+    <string name="content_search_index_disable_confirm_title">Désactiver la recherche accélérée ?</string>
+    <string name="content_search_index_disable_confirm_message">L’index de recherche sera effacé pour libérer de l’espace. Vos conversations et histoires enregistrées seront conservées, et la recherche standard restera disponible. Réactiver la recherche accélérée recréera l’index.</string>
     <string name="content_search_index_building">Création de l’index… %1$d éléments traités</string>
     <string name="content_search_index_cleaning">Suppression de l’index et libération de la place…</string>
     <string name="content_search_index_cleanup_failed">Le nettoyage a échoué. Libérez de la place ou attendez la fin des autres tâches, puis réessayez. La recherche accélérée reste désactivée.</string>

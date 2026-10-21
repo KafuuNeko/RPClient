@@ -1319,6 +1319,8 @@
     <string name="content_search_index_disable">Desactivar y borrar</string>
     <string name="content_search_index_confirm_title">¿Activar la aceleración de búsqueda?</string>
     <string name="content_search_index_confirm_message">Crea un índice de todas las conversaciones e historias guardadas. Requiere tiempo y almacenamiento adicional. Puedes cancelar la creación; al desactivarlo, se borra el índice y se libera espacio.</string>
+    <string name="content_search_index_disable_confirm_title">¿Desactivar la aceleración de búsqueda?</string>
+    <string name="content_search_index_disable_confirm_message">Se borrará el índice de búsqueda y se liberará espacio. Tus conversaciones e historias guardadas se conservarán y podrás seguir usando la búsqueda estándar. Al volver a activar la aceleración, se reconstruirá el índice.</string>
     <string name="content_search_index_building">Creando índice… %1$d elementos procesados</string>
     <string name="content_search_index_cleaning">Borrando el índice y liberando espacio…</string>
     <string name="content_search_index_cleanup_failed">No se pudo completar la limpieza. Libera espacio o espera a que terminen otras tareas y vuelve a intentarlo. La aceleración sigue desactivada.</string>

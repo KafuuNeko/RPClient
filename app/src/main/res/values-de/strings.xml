@@ -1317,6 +1317,8 @@
     <string name="content_search_index_disable">Deaktivieren und leeren</string>
     <string name="content_search_index_confirm_title">Suchbeschleunigung aktivieren?</string>
     <string name="content_search_index_confirm_message">Ein Index aller gespeicherten Gespräche und Geschichten wird erstellt. Das benötigt Zeit und zusätzlichen Speicherplatz. Die Erstellung kann abgebrochen werden. Beim Deaktivieren wird der Index gelöscht und Speicherplatz freigegeben.</string>
+    <string name="content_search_index_disable_confirm_title">Suchbeschleunigung deaktivieren?</string>
+    <string name="content_search_index_disable_confirm_message">Der Suchindex wird gelöscht und Speicherplatz freigegeben. Gespeicherte Gespräche und Geschichten bleiben erhalten. Die Standardsuche ist weiterhin verfügbar. Beim erneuten Aktivieren wird der Index neu erstellt.</string>
     <string name="content_search_index_building">Index wird erstellt… %1$d Einträge verarbeitet</string>
     <string name="content_search_index_cleaning">Index wird gelöscht und Speicherplatz freigegeben…</string>
     <string name="content_search_index_cleanup_failed">Die Bereinigung konnte nicht abgeschlossen werden. Gib Speicherplatz frei oder warte auf andere Aufgaben und versuche es erneut. Die Suchbeschleunigung bleibt deaktiviert.</string>

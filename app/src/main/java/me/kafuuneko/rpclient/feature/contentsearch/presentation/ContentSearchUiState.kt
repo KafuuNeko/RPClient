@@ -55,4 +55,4 @@ fun ContentSearchResultState.items(): List<SearchHit> = when (this) {
 }
 
 /** 用户确认属于页面状态，构建与清理进度由应用管理器恢复。 */
-enum class ContentSearchDialogState { None, EnableIndex }
+enum class ContentSearchDialogState { None, EnableIndex, DisableIndex }

@@ -1296,6 +1296,8 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="content_search_index_disable">Disattiva e cancella</string>
     <string name="content_search_index_confirm_title">Attivare la ricerca accelerata?</string>
     <string name="content_search_index_confirm_message">Crea un indice di tutte le conversazioni e storie salvate. Richiede tempo e spazio aggiuntivo. Puoi annullare la creazione; la disattivazione elimina l’indice e libera spazio.</string>
+    <string name="content_search_index_disable_confirm_title">Disattivare la ricerca accelerata?</string>
+    <string name="content_search_index_disable_confirm_message">L’indice di ricerca verrà cancellato per liberare spazio. Le conversazioni e le storie salvate saranno conservate e la ricerca standard resterà disponibile. Riattivando la ricerca accelerata, l’indice verrà ricreato.</string>
     <string name="content_search_index_building">Creazione indice… %1$d elementi elaborati</string>
     <string name="content_search_index_cleaning">Eliminazione dell’indice e recupero dello spazio…</string>
     <string name="content_search_index_cleanup_failed">Pulizia non completata. Libera spazio o attendi il termine delle altre attività, poi riprova. La ricerca accelerata resta disattivata.</string>

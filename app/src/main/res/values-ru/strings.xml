@@ -1322,6 +1322,8 @@
     <string name="content_search_index_disable">Выключить и очистить</string>
     <string name="content_search_index_confirm_title">Включить ускорение поиска?</string>
     <string name="content_search_index_confirm_message">Будет создан индекс всех сохранённых бесед и историй. Это требует времени и дополнительного места. Создание можно отменить. При отключении индекс удаляется, а место освобождается.</string>
+    <string name="content_search_index_disable_confirm_title">Отключить ускорение поиска?</string>
+    <string name="content_search_index_disable_confirm_message">Поисковый индекс будет удалён, чтобы освободить место. Сохранённые беседы и истории останутся, а обычный поиск будет доступен. При повторном включении ускорения индекс будет создан заново.</string>
     <string name="content_search_index_building">Создание индекса… обработано: %1$d</string>
     <string name="content_search_index_cleaning">Удаление индекса и освобождение места…</string>
     <string name="content_search_index_cleanup_failed">Не удалось завершить очистку. Освободите место или дождитесь завершения других задач и повторите попытку. Ускорение поиска остаётся выключенным.</string>

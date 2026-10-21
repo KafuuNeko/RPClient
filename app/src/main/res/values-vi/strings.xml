@@ -1318,6 +1318,8 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="content_search_index_disable">Tắt và dọn dẹp</string>
     <string name="content_search_index_confirm_title">Bật tăng tốc tìm kiếm?</string>
     <string name="content_search_index_confirm_message">Tạo chỉ mục cho tất cả cuộc trò chuyện và câu chuyện đã lưu. Quá trình này cần thời gian và dung lượng bổ sung. Bạn có thể hủy khi đang tạo; khi tắt, chỉ mục sẽ bị xóa để giải phóng dung lượng.</string>
+    <string name="content_search_index_disable_confirm_title">Tắt tăng tốc tìm kiếm?</string>
+    <string name="content_search_index_disable_confirm_message">Chỉ mục tìm kiếm sẽ bị xóa để giải phóng dung lượng. Các cuộc trò chuyện và câu chuyện đã lưu được giữ nguyên, và bạn vẫn có thể dùng tìm kiếm thông thường. Bật lại tăng tốc sẽ tạo lại chỉ mục.</string>
     <string name="content_search_index_building">Đang tạo chỉ mục… đã xử lý %1$d mục</string>
     <string name="content_search_index_cleaning">Đang xóa chỉ mục và giải phóng dung lượng…</string>
     <string name="content_search_index_cleanup_failed">Chưa thể hoàn tất dọn dẹp. Hãy giải phóng dung lượng hoặc chờ các tác vụ khác kết thúc rồi thử lại. Tăng tốc tìm kiếm vẫn tắt.</string>

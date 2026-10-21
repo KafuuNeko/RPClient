@@ -1312,6 +1312,8 @@
     <string name="content_search_index_disable">끄고 정리</string>
     <string name="content_search_index_confirm_title">검색 가속을 켤까요?</string>
     <string name="content_search_index_confirm_message">저장된 모든 대화와 이야기의 색인을 만듭니다. 시간과 추가 저장 공간이 필요합니다. 생성 중 취소할 수 있으며, 끄면 색인을 삭제하고 공간을 확보합니다.</string>
+    <string name="content_search_index_disable_confirm_title">검색 가속을 끌까요?</string>
+    <string name="content_search_index_disable_confirm_message">검색 색인을 삭제하고 저장 공간을 확보합니다. 저장된 대화와 이야기는 유지되며 일반 검색은 계속 사용할 수 있습니다. 가속을 다시 켜면 색인을 새로 만듭니다.</string>
     <string name="content_search_index_building">색인 생성 중… %1$d개 처리됨</string>
     <string name="content_search_index_cleaning">색인을 삭제하고 공간을 확보하는 중…</string>
     <string name="content_search_index_cleanup_failed">정리를 완료하지 못했습니다. 저장 공간을 확보하거나 다른 작업이 끝난 후 다시 시도하세요. 검색 가속은 꺼진 상태로 유지됩니다.</string>

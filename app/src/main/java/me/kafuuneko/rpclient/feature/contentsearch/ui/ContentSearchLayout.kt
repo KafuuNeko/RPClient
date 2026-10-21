@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -68,7 +67,9 @@ import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchScope
-import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
@@ -88,7 +89,7 @@ fun ContentSearchLayout(state: ContentSearchUiState, emit: ContentSearchUiIntent
         ContentSearchUiState.None -> Unit
         is ContentSearchUiState.Normal -> {
             SearchPage(state, emit)
-            IndexDialogs(state, emit)
+            DialogSwitch(state, emit)
         }
 
         is ContentSearchUiState.Finished -> ContentSearchLayout(state.previous) {}
@@ -192,58 +193,61 @@ private fun IndexControls(index: SearchIndexState, emit: ContentSearchUiIntent.(
 
 }
 
-/** 确认、构建、清理均由状态树驱动，旋转后恢复同一任务与取消入口。 */
+/** 根据页面状态分发公共弹窗组件，确认和进度只显示一个窗口。 */
 @Composable
-private fun IndexDialogs(
+private fun DialogSwitch(
     state: ContentSearchUiState.Normal,
     emit: ContentSearchUiIntent.() -> Unit
 ) {
-    if (state.dialogState == ContentSearchDialogState.EnableIndex) {
-        AppDialogScaffold(
-            onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
-            title = stringResource(R.string.content_search_index_confirm_title),
-            onConfirm = { ContentSearchUiIntent.ConfirmEnableIndex.emit() },
-            scrollableContent = true
-        ) {
-            Text(
-                stringResource(R.string.content_search_index_confirm_message),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-    val index = state.indexState
-    if (!index.busy) return
-    val building = index is SearchIndexState.Building
-    val failed = index == SearchIndexState.CleanupFailed
-    // 外侧点击不取消；返回键只有构建阶段可以取消，清理必须完成或明确重试。
-    AppDialogScaffold(
-        onDismissRequest = { ContentSearchUiIntent.Back.emit() },
-        title = stringResource(R.string.content_search_index_title),
-        subtitle = when (index) {
-            is SearchIndexState.Building -> stringResource(
+    // 进程任务状态优先于确认，避免恢复或清理时叠加两个弹窗。
+    when (val index = state.indexState) {
+        is SearchIndexState.Building -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(
                 R.string.content_search_index_building,
                 index.processed
+            ),
+            onCancel = { ContentSearchUiIntent.CancelIndexBuild.emit() },
+            cancelOnBackPress = true
+        )
+
+        SearchIndexState.Preparing -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(R.string.loading)
+        )
+
+        SearchIndexState.Cleaning -> LoadingDialog(
+            title = stringResource(R.string.content_search_index_title),
+            description = stringResource(R.string.content_search_index_cleaning)
+        )
+
+        SearchIndexState.CleanupFailed -> AppConfirmDialog(
+            onDismissRequest = { ContentSearchUiIntent.Back.emit() },
+            title = stringResource(R.string.content_search_index_title),
+            message = stringResource(R.string.content_search_index_cleanup_failed),
+            confirmText = stringResource(R.string.retry),
+            dismissText = stringResource(R.string.cancel),
+            onConfirm = { ContentSearchUiIntent.RetryCleanup.emit() },
+            properties = DialogProperties(dismissOnClickOutside = false)
+        )
+
+        else -> when (state.dialogState) {
+            ContentSearchDialogState.None -> Unit
+            ContentSearchDialogState.EnableIndex -> AppConfirmDialog(
+                onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
+                title = stringResource(R.string.content_search_index_confirm_title),
+                message = stringResource(R.string.content_search_index_confirm_message),
+                onConfirm = { ContentSearchUiIntent.ConfirmEnableIndex.emit() }
             )
 
-            SearchIndexState.CleanupFailed -> null
-            SearchIndexState.Preparing -> stringResource(R.string.loading)
-            else -> stringResource(R.string.content_search_index_cleaning)
-        },
-        confirmText = stringResource(R.string.retry),
-        onConfirm = if (failed) ({ ContentSearchUiIntent.RetryCleanup.emit() }) else null,
-        dismissText = if (building || failed) stringResource(R.string.cancel) else null,
-        onDismiss = if (building || failed) ({ ContentSearchUiIntent.Back.emit() }) else null,
-        properties = DialogProperties(
-            dismissOnBackPress = building || failed,
-            dismissOnClickOutside = false
-        ),
-        scrollableContent = true
-    ) {
-        if (failed) Text(
-            stringResource(R.string.content_search_index_cleanup_failed),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        else CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+            ContentSearchDialogState.DisableIndex -> AppDangerDialog(
+                onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
+                title = stringResource(R.string.content_search_index_disable_confirm_title),
+                message = stringResource(R.string.content_search_index_disable_confirm_message),
+                confirmText = stringResource(R.string.confirm),
+                onConfirm = { ContentSearchUiIntent.ConfirmDisableIndex.emit() }
+            )
+        }
     }
 }
 

@@ -1318,6 +1318,8 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="content_search_index_disable">Nonaktifkan dan bersihkan</string>
     <string name="content_search_index_confirm_title">Aktifkan percepatan pencarian?</string>
     <string name="content_search_index_confirm_message">Buat indeks semua percakapan dan cerita tersimpan. Ini memerlukan waktu dan ruang penyimpanan tambahan. Anda dapat membatalkan pembuatannya; menonaktifkannya akan menghapus indeks dan mengosongkan ruang.</string>
+    <string name="content_search_index_disable_confirm_title">Nonaktifkan percepatan pencarian?</string>
+    <string name="content_search_index_disable_confirm_message">Indeks pencarian akan dihapus untuk mengosongkan ruang. Percakapan dan cerita tersimpan tetap ada, dan pencarian standar tetap tersedia. Mengaktifkan kembali percepatan akan membuat ulang indeks.</string>
     <string name="content_search_index_building">Membuat indeks… %1$d item diproses</string>
     <string name="content_search_index_cleaning">Menghapus indeks dan mengosongkan ruang…</string>
     <string name="content_search_index_cleanup_failed">Pembersihan belum selesai. Kosongkan ruang atau tunggu tugas lain selesai, lalu coba lagi. Percepatan pencarian tetap nonaktif.</string>
