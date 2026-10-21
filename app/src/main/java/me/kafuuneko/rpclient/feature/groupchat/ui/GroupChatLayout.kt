@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,7 +58,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -93,7 +93,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -135,7 +137,6 @@ import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
-import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -180,7 +181,10 @@ fun GroupChatLayout(
             // 页面切换只卸载视图，保留会话和设置各自的列表位置。
             val pageStateHolder = rememberSaveableStateHolder()
             // 群聊设置与会话使用相同背景，不能落回 Activity 的通用背景。
-            PageBackdrop(background, useContainerAppearance = uiState.page == GroupChatPage.Settings) {
+            PageBackdrop(
+                background,
+                useContainerAppearance = uiState.page == GroupChatPage.Settings
+            ) {
                 pageStateHolder.SaveableStateProvider("${uiState.sessionId}:${uiState.page.name}") {
                     if (uiState.page == GroupChatPage.Settings) {
                         GroupChatSettingsView(uiState.settingsState, uiState.members, emitIntent)
@@ -205,48 +209,16 @@ private fun GroupChatNormalView(
     AppPageScaffold(
         containerColor = Color.Transparent,
         topBar = {
-            AppTopBar(
+            CustomGroupChatTopBar(
                 title = state.title,
-                containerColor = MaterialTheme.colorScheme.background.copy(alpha = LocalPageTopBarOpacity.current),
-                modifier = Modifier.pageSurfaceBlur(PageSurfaceKind.TopBar),
+                strategy = state.activeActivationStrategy,
+                generationState = state.conversationState.generationState,
+                hasAvailableProvider = state.hasAvailableProvider,
+                hasPromptInspection = state.hasPromptInspection,
+                sessionLoreDialogVisible = state.dialogState is GroupChatDialogState.SessionLorebook,
+                generating = generating,
                 onBack = { emitIntent(GroupChatUiIntent.Back) },
-                actions = {
-                    IconButton(
-                        onClick = { emitIntent(GroupChatUiIntent.OpenPromptInspector) },
-                        enabled = state.hasPromptInspection
-                    ) {
-                        Icon(
-                            Icons.Rounded.Info,
-                            contentDescription = stringResource(R.string.prompt_inspector_title)
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            emitIntent(GroupChatUiIntent.ShowSessionLoreDialog)
-                        }
-                    ) {
-                        Icon(
-                            Icons.Rounded.Book,
-                            contentDescription = stringResource(R.string.session_world_books),
-                            tint = if (
-                                state.dialogState is GroupChatDialogState.SessionLorebook
-                            ) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                    }
-                    IconButton(
-                        onClick = { emitIntent(GroupChatUiIntent.OpenSettings) },
-                        enabled = !generating
-                    ) {
-                        Icon(
-                            Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.settings)
-                        )
-                    }
-                }
+                emitIntent = emitIntent
             )
         },
         bottomBar = {
@@ -259,7 +231,13 @@ private fun GroupChatNormalView(
                         Text(stringResource(R.string.image_retry))
                     }
                 }
-                MessageImageViewerDialog(state.imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
+                MessageImageViewerDialog(state.imageState) {
+                    emitIntent(
+                        GroupChatUiIntent.ImageAction(
+                            it
+                        )
+                    )
+                }
                 Composer(
                     draft = state.conversationState.inputDraft,
                     generating = generating,
@@ -287,13 +265,6 @@ private fun GroupChatNormalView(
                     onClick = { emitIntent(GroupChatUiIntent.OpenProviderSettings) }
                 )
             }
-            GroupHeader(
-                strategy = state.activeActivationStrategy,
-                generationState = state.conversationState.generationState,
-                canContinue = canContinue,
-                hasAvailableProvider = state.hasAvailableProvider,
-                onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) }
-            )
             MemberRail(
                 members = state.members,
                 selectedSpeakerId = state.conversationState.selectedSpeakerId,
@@ -961,78 +932,149 @@ private fun SettingsSwitch(
     }
 }
 
+/**
+ * 群聊专用顶部栏。
+ * - 整合返回导航、群聊标题、发言顺序策略与生成状态描述。
+ * - 生成过程中在副标题旁展示微型进度指示。
+ * - 右侧保留 Prompt 检查、会话世界书与设置入口。
+ */
 @Composable
-private fun GroupHeader(
+private fun CustomGroupChatTopBar(
+    title: String,
     strategy: GroupChatActivationStrategy,
     generationState: GroupChatGenerationState,
-    canContinue: Boolean,
-    hasAvailableProvider: Boolean = true,
-    onContinue: () -> Unit
+    hasAvailableProvider: Boolean,
+    hasPromptInspection: Boolean,
+    sessionLoreDialogVisible: Boolean,
+    generating: Boolean,
+    onBack: () -> Unit,
+    emitIntent: (GroupChatUiIntent) -> Unit
 ) {
-    PageSurface(kind = PageSurfaceKind.TopBar,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageTopBarOpacity.current)
+    val strategyText = stringResource(
+        R.string.group_chat_turn_order,
+        stringResource(strategy.titleRes())
+    )
+    val statusText = when (generationState) {
+        GroupChatGenerationState.Idle ->
+            if (!hasAvailableProvider) stringResource(R.string.no_model_configured)
+            else stringResource(R.string.group_chat_cast_ready)
+
+        is GroupChatGenerationState.Generating ->
+            stringResource(
+                R.string.group_chat_speaker_replying,
+                generationState.speakerName,
+                generationState.current,
+                generationState.total
+            )
+
+        is GroupChatGenerationState.Failed -> generationState.message
+    }
+
+    // 采用与单聊一致的顶部底板与毛玻璃样式。
+    PageSurface(
+        kind = PageSurfaceKind.TopBar,
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageTopBarOpacity.current),
+        tonalElevation = 1.dp * LocalPageTopBarOpacity.current
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
+                .statusBarsPadding()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+                )
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Rounded.Groups,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
+            // 返回上一页入口。
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(38.dp)
             ) {
-                Text(
-                    text = stringResource(
-                        R.string.group_chat_turn_order,
-                        stringResource(strategy.titleRes())
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = when (generationState) {
-                        GroupChatGenerationState.Idle ->
-                            if (!hasAvailableProvider) stringResource(R.string.no_model_configured) else stringResource(
-                                R.string.group_chat_cast_ready
-                            )
-
-                        is GroupChatGenerationState.Generating ->
-                            stringResource(
-                                R.string.group_chat_speaker_replying,
-                                generationState.speakerName,
-                                generationState.current,
-                                generationState.total
-                            )
-
-                        is GroupChatGenerationState.Failed -> generationState.message
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                Icon(
+                    painter = painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.back),
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
-            if (generationState is GroupChatGenerationState.Generating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // 群聊标题与副状态（发言策略与当前状态合一）。
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-            } else if (canContinue) {
-                TextButton(onClick = onContinue) {
-                    Text(stringResource(R.string.continue_latest_reply))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "$strategyText • $statusText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (generationState is GroupChatGenerationState.Generating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.5.dp
+                        )
+                    }
                 }
+            }
+
+            // 顶部操作区：Prompt 检查、会话世界书与群设置。
+            IconButton(
+                onClick = { emitIntent(GroupChatUiIntent.OpenPromptInspector) },
+                enabled = hasPromptInspection,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Info,
+                    contentDescription = stringResource(R.string.prompt_inspector_title),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(
+                onClick = { emitIntent(GroupChatUiIntent.ShowSessionLoreDialog) },
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Book,
+                    contentDescription = stringResource(R.string.session_world_books),
+                    modifier = Modifier.size(20.dp),
+                    tint = if (sessionLoreDialogVisible) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
+            IconButton(
+                onClick = { emitIntent(GroupChatUiIntent.OpenSettings) },
+                enabled = !generating,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Settings,
+                    contentDescription = stringResource(R.string.settings),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
 }
 
+/** 单行横向滚动的轻量成员轨，横屏下自然平铺展开。 */
 @Composable
 private fun MemberRail(
     members: List<GroupChatMemberItem>,
@@ -1045,8 +1087,9 @@ private fun MemberRail(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         members.forEach { member ->
             MemberChip(
@@ -1060,6 +1103,7 @@ private fun MemberRail(
     }
 }
 
+/** 紧凑型成员芯片，支持指定发言人高亮与快速静音切换。 */
 @Composable
 private fun MemberChip(
     member: GroupChatMemberItem,
@@ -1070,10 +1114,12 @@ private fun MemberChip(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val accent = getMacaronColor(member.name)
-    AppCard(
+    val shape = RoundedCornerShape(14.dp)
+
+    // 底板随选定与静音状态切换对比度；采用修饰符点击避免 Material Surface 强制扩展 48dp 最小交互区域引起上下多余模糊。
+    AppSurface(
         modifier = Modifier
-            .width(138.dp)
-            .pageSurfaceBlur(PageSurfaceKind.Bubble, RoundedCornerShape(16.dp))
+            .pageSurfaceBlur(PageSurfaceKind.Bubble, shape)
             .alpha(if (member.muted) 0.55f else 1f)
             .clickable(
                 enabled = enabled,
@@ -1082,44 +1128,54 @@ private fun MemberChip(
                     onSelect()
                 }
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = shape,
         border = if (selected) BorderStroke(
-            1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
-        ) else null,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f * LocalPageBubbleOpacity.current)
-            } else {
-                MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
-            }
-        )
+            1.5.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
+        ) else BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.25f * LocalPageBubbleOpacity.current)
+        ),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f * LocalPageBubbleOpacity.current)
+        } else {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f * LocalPageBubbleOpacity.current)
+        }
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(start = 6.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // 成员头像
             RpAvatar(
                 text = member.name.firstOrNull()?.uppercase() ?: "?",
                 color = accent,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(22.dp),
                 image = member.avatarImage
             )
+            // 成员名称
             Text(
                 text = member.name,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            IconButton(
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onToggleMuted()
-                },
-                enabled = enabled,
-                modifier = Modifier.size(28.dp)
+            // 静音状态轻量切换按钮，避免使用默认 48dp 交互区域的 IconButton 撑大芯片上下边距产生空余模糊底板
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onToggleMuted()
+                        }
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (member.muted) {
@@ -1130,7 +1186,12 @@ private fun MemberChip(
                     contentDescription = stringResource(
                         if (member.muted) R.string.unmute else R.string.mute
                     ),
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(13.dp),
+                    tint = if (member.muted) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    }
                 )
             }
         }
@@ -1194,13 +1255,14 @@ private fun MessageList(
     LaunchedEffect(listState) {
         // 页头加载项也计入布局数量，防止分页后旧测量结果提前结束历史定位。
         snapshotFlow {
-            val headerCount = if (latestCanLoadOlderMessages || latestIsLoadingOlderMessages) 1 else 0
+            val headerCount =
+                if (latestCanLoadOlderMessages || latestIsLoadingOlderMessages) 1 else 0
             val layout = listState.layoutInfo
             currentMessages.lastOrNull()?.id?.takeIf {
                 !isFirstLoad && activeSearchAnchor != null &&
-                    !latestCanLoadNewerMessages && !latestIsLoadingNewerMessages &&
-                    layout.totalItemsCount == currentMessages.size + headerCount + 1 &&
-                    layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
+                        !latestCanLoadNewerMessages && !latestIsLoadingNewerMessages &&
+                        layout.totalItemsCount == currentMessages.size + headerCount + 1 &&
+                        layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
             }
         }.filterNotNull().distinctUntilChanged().collect { messageId ->
             emitIntent(GroupChatUiIntent.ReachLatestMessage(messageId))
@@ -1471,7 +1533,8 @@ private fun MessageBubble(
                     MessageImageEditButton(imageState) { emitIntent(GroupChatUiIntent.ImageAction(it)) }
                 }
             }
-            PageSurface(kind = PageSurfaceKind.Bubble,
+            PageSurface(
+                kind = PageSurfaceKind.Bubble,
                 modifier = Modifier
                     .padding(top = 5.dp)
                     .clickable(enabled = !editing) {
@@ -1869,9 +1932,9 @@ private fun QuickActionPill(
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
                 imageVector = icon,
@@ -1879,7 +1942,7 @@ private fun QuickActionPill(
                 tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
                     alpha = 0.38f
                 ),
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(13.dp)
             )
             Text(
                 text = label,
@@ -1911,7 +1974,8 @@ private fun Composer(
         label = "sendButtonColor"
     )
 
-    PageSurface(kind = PageSurfaceKind.BottomBar,
+    PageSurface(
+        kind = PageSurfaceKind.BottomBar,
         tonalElevation = 5.dp * LocalPageBottomBarOpacity.current,
         shadowElevation = 8.dp * LocalPageBottomBarOpacity.current,
         color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current)
@@ -1935,7 +1999,7 @@ private fun Composer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1956,7 +2020,7 @@ private fun Composer(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 10.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 RpScrollableOutlinedTextField(
