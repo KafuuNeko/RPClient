@@ -17,6 +17,7 @@ sealed class ContentSearchUiState {
         val dialogState: ContentSearchDialogState = ContentSearchDialogState.None,
         val resultState: ContentSearchResultState = ContentSearchResultState.Idle
     ) : ContentSearchUiState()
+
     data class Finished(val previous: ContentSearchUiState) : ContentSearchUiState()
 }
 
@@ -33,8 +34,16 @@ data class ContentSearchScopeState(
 sealed class ContentSearchResultState {
     data object Idle : ContentSearchResultState()
     data class Searching(val items: List<SearchHit> = emptyList()) : ContentSearchResultState()
-    data class Content(val items: List<SearchHit>, val next: SearchCursor?, val complete: Boolean, val stopped: Boolean = false) : ContentSearchResultState()
-    data class Error(val items: List<SearchHit>, @param:StringRes val message: Int) : ContentSearchResultState()
+
+    data class Content(
+        val items: List<SearchHit>,
+        val next: SearchCursor?,
+        val complete: Boolean,
+        val stopped: Boolean = false
+    ) : ContentSearchResultState()
+
+    data class Error(val items: List<SearchHit>, @param:StringRes val message: Int) :
+        ContentSearchResultState()
 }
 
 /** 只提取当前可渲染项，取消和错误保留已得到的真实结果。 */

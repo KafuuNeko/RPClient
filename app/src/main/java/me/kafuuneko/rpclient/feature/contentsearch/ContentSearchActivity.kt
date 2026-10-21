@@ -28,7 +28,8 @@ class ContentSearchActivity : CoreActivityWithEvent() {
     /** 读取稳定类型参数；旧或非法值退回全部。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val kind = SearchKind.entries.firstOrNull { it.code == intent.getIntExtra(EXTRA_KIND, 0) } ?: SearchKind.All
+        val kind = SearchKind.entries.firstOrNull { it.code == intent.getIntExtra(EXTRA_KIND, 0) }
+            ?: SearchKind.All
         mViewModel.emit(ContentSearchUiIntent.Init(kind))
     }
 
@@ -40,5 +41,7 @@ class ContentSearchActivity : CoreActivityWithEvent() {
         ContentSearchLayout(state) { mViewModel.emit(this) }
     }
 
-    companion object { const val EXTRA_KIND = "search_kind" }
+    companion object {
+        const val EXTRA_KIND = "search_kind"
+    }
 }

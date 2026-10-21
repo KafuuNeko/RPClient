@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -68,6 +70,7 @@ import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchScope
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -87,6 +90,7 @@ fun ContentSearchLayout(state: ContentSearchUiState, emit: ContentSearchUiIntent
             SearchPage(state, emit)
             IndexDialogs(state, emit)
         }
+
         is ContentSearchUiState.Finished -> ContentSearchLayout(state.previous) {}
     }
 }
@@ -97,29 +101,56 @@ private fun SearchPage(state: ContentSearchUiState.Normal, emit: ContentSearchUi
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = remember { FocusRequester() }
     var focused by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) { if (!focused) { focus.requestFocus(); focused = true } }
+    LaunchedEffect(Unit) {
+        if (!focused) {
+            focus.requestFocus(); focused = true
+        }
+    }
     val busy = state.resultState is ContentSearchResultState.Searching
     val submit = { keyboard?.hide(); ContentSearchUiIntent.Submit.emit() }
     // 输入与操作区不随长结果列表离开屏幕。
-    AppPageScaffold(topBar = { AppTopBar(title = stringResource(R.string.content_search_title), onBack = { ContentSearchUiIntent.Back.emit() }) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
+    AppPageScaffold(topBar = {
+        AppTopBar(
+            title = stringResource(R.string.content_search_title),
+            onBack = { ContentSearchUiIntent.Back.emit() })
+    }) { padding ->
+        Column(Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .imePadding()) {
+            Spacer(modifier = Modifier.height(10.dp))
             OutlinedTextField(
                 value = state.inputState.draft,
                 onValueChange = { ContentSearchUiIntent.ChangeQuery(it).emit() },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).focusRequester(focus)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp)
+                    .focusRequester(focus)
                     .generalContentBackground(RoundedCornerShape(16.dp)),
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (state.inputState.draft.isNotEmpty()) IconButton(onClick = { ContentSearchUiIntent.ChangeQuery("").emit() }) {
+                    if (state.inputState.draft.isNotEmpty()) IconButton(onClick = {
+                        ContentSearchUiIntent.ChangeQuery(
+                            ""
+                        ).emit()
+                    }) {
                         Icon(Icons.Rounded.Close, stringResource(R.string.clear_search))
                     }
                 },
-                placeholder = { Text(stringResource(R.string.content_search_placeholder), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.content_search_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 singleLine = true, shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { submit() })
             )
+            Spacer(modifier = Modifier.height(10.dp))
             IndexControls(state.indexState, emit)
+            Spacer(modifier = Modifier.height(10.dp))
             ScopeControls(state.scopeState, busy, state.inputState.draft.isNotBlank(), submit, emit)
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             SearchResults(state, Modifier.weight(1f), emit)
@@ -130,21 +161,43 @@ private fun SearchPage(state: ContentSearchUiState.Normal, emit: ContentSearchUi
 /** 模式入口位于搜索页，关闭状态也可立即提交普通搜索。 */
 @Composable
 private fun IndexControls(index: SearchIndexState, emit: ContentSearchUiIntent.() -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(when {
-            index.enabled -> R.string.content_search_index_enabled
-            index == SearchIndexState.Unavailable -> R.string.content_search_index_failed
-            else -> R.string.content_search_index_disabled
-        }), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = { ContentSearchUiIntent.ChangeIndexMode.emit() }, enabled = !index.busy) {
-            Text(stringResource(if (index.enabled) R.string.content_search_index_disable else R.string.content_search_index_enable))
+    AppCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(
+                    when {
+                        index.enabled -> R.string.content_search_index_enabled
+                        index == SearchIndexState.Unavailable -> R.string.content_search_index_failed
+                        else -> R.string.content_search_index_disabled
+                    }
+                ), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(
+                onClick = { ContentSearchUiIntent.ChangeIndexMode.emit() },
+                enabled = !index.busy
+            ) {
+                Text(stringResource(if (index.enabled) R.string.content_search_index_disable else R.string.content_search_index_enable))
+            }
         }
     }
+
 }
 
 /** 确认、构建、清理均由状态树驱动，旋转后恢复同一任务与取消入口。 */
 @Composable
-private fun IndexDialogs(state: ContentSearchUiState.Normal, emit: ContentSearchUiIntent.() -> Unit) {
+private fun IndexDialogs(
+    state: ContentSearchUiState.Normal,
+    emit: ContentSearchUiIntent.() -> Unit
+) {
     if (state.dialogState == ContentSearchDialogState.EnableIndex) {
         AppDialogScaffold(
             onDismissRequest = { ContentSearchUiIntent.DismissIndexDialog.emit() },
@@ -152,7 +205,10 @@ private fun IndexDialogs(state: ContentSearchUiState.Normal, emit: ContentSearch
             onConfirm = { ContentSearchUiIntent.ConfirmEnableIndex.emit() },
             scrollableContent = true
         ) {
-            Text(stringResource(R.string.content_search_index_confirm_message), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.content_search_index_confirm_message),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
     val index = state.indexState
@@ -164,7 +220,11 @@ private fun IndexDialogs(state: ContentSearchUiState.Normal, emit: ContentSearch
         onDismissRequest = { ContentSearchUiIntent.Back.emit() },
         title = stringResource(R.string.content_search_index_title),
         subtitle = when (index) {
-            is SearchIndexState.Building -> stringResource(R.string.content_search_index_building, index.processed)
+            is SearchIndexState.Building -> stringResource(
+                R.string.content_search_index_building,
+                index.processed
+            )
+
             SearchIndexState.CleanupFailed -> null
             SearchIndexState.Preparing -> stringResource(R.string.loading)
             else -> stringResource(R.string.content_search_index_cleaning)
@@ -173,28 +233,58 @@ private fun IndexDialogs(state: ContentSearchUiState.Normal, emit: ContentSearch
         onConfirm = if (failed) ({ ContentSearchUiIntent.RetryCleanup.emit() }) else null,
         dismissText = if (building || failed) stringResource(R.string.cancel) else null,
         onDismiss = if (building || failed) ({ ContentSearchUiIntent.Back.emit() }) else null,
-        properties = DialogProperties(dismissOnBackPress = building || failed, dismissOnClickOutside = false),
+        properties = DialogProperties(
+            dismissOnBackPress = building || failed,
+            dismissOnClickOutside = false
+        ),
         scrollableContent = true
     ) {
-        if (failed) Text(stringResource(R.string.content_search_index_cleanup_failed), style = MaterialTheme.typography.bodyMedium)
+        if (failed) Text(
+            stringResource(R.string.content_search_index_cleanup_failed),
+            style = MaterialTheme.typography.bodyMedium
+        )
         else CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
 @Composable
-private fun ScopeControls(scope: ContentSearchScopeState, busy: Boolean, canSubmit: Boolean, submit: () -> Unit, emit: ContentSearchUiIntent.() -> Unit) {
+private fun ScopeControls(
+    scope: ContentSearchScopeState,
+    busy: Boolean,
+    canSubmit: Boolean,
+    submit: () -> Unit,
+    emit: ContentSearchUiIntent.() -> Unit
+) {
     var menuExpanded by remember { mutableStateOf(false) }
     // 分类横向滚动；范围菜单与搜索按钮固定可达，不放进同一滚动条。
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         SearchKind.entries.forEach { kind ->
-            FilterChip(selected = scope.kind == kind, onClick = { ContentSearchUiIntent.SelectKind(kind).emit() },
+            FilterChip(
+                selected = scope.kind == kind,
+                onClick = { ContentSearchUiIntent.SelectKind(kind).emit() },
                 label = { Text(stringResource(kindLabel(kind.code))) })
         }
     }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(Modifier.weight(1f)) {
             TextButton(onClick = { menuExpanded = true }) {
-                Text(stringResource(scopeLabel(scope.scope)), modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    stringResource(scopeLabel(scope.scope)),
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Icon(Icons.Rounded.KeyboardArrowDown, null)
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -207,22 +297,44 @@ private fun ScopeControls(scope: ContentSearchScopeState, busy: Boolean, canSubm
             }
         }
         if (busy) Button(onClick = { ContentSearchUiIntent.Stop.emit() }) { Text(stringResource(R.string.stop)) }
-        else Button(onClick = submit, enabled = canSubmit) { Text(stringResource(R.string.content_search_submit)) }
+        else Button(
+            onClick = submit,
+            enabled = canSubmit
+        ) { Text(stringResource(R.string.content_search_submit)) }
     }
-    if (scope.parentId != null) TextButton(onClick = { ContentSearchUiIntent.ClearObjectScope.emit() }, modifier = Modifier.padding(horizontal = 18.dp)) {
-        Text(scope.parentTitle, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    if (scope.parentId != null) TextButton(
+        onClick = { ContentSearchUiIntent.ClearObjectScope.emit() },
+        modifier = Modifier.padding(horizontal = 18.dp)
+    ) {
+        Text(
+            scope.parentTitle,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
         Icon(Icons.Rounded.Close, stringResource(R.string.content_search_clear_scope))
     }
 }
 
 @Composable
-private fun SearchResults(state: ContentSearchUiState.Normal, modifier: Modifier, emit: ContentSearchUiIntent.() -> Unit) {
+private fun SearchResults(
+    state: ContentSearchUiState.Normal,
+    modifier: Modifier,
+    emit: ContentSearchUiIntent.() -> Unit
+) {
     val result = state.resultState
     // 空态、准备状态、错误及部分结果各自有明确含义，不把未完成显示为无匹配。
-    RpLazyColumn(modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp, 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    RpLazyColumn(
+        modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(18.dp, 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         if (state.indexState == SearchIndexState.Updating && state.scopeState.scope != SearchScope.Metadata) {
             item(key = "index-state") {
-                Text(stringResource(R.string.content_search_preparing), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    stringResource(R.string.content_search_preparing),
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
         item(key = "query-status") {
@@ -238,48 +350,117 @@ private fun SearchResults(state: ContentSearchUiState.Normal, modifier: Modifier
                 }
             }
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
-                if (message != null) Text(stringResource(message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (message != null) Text(
+                    stringResource(message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 if (result is ContentSearchResultState.Error && result.message == R.string.content_search_error &&
-                    state.indexState.enabled && state.scopeState.scope != SearchScope.Metadata) {
-                    TextButton(onClick = { ContentSearchUiIntent.SearchDirectly.emit() }) { Text(stringResource(R.string.content_search_slow)) }
-                    TextButton(onClick = { ContentSearchUiIntent.RetryIndex.emit() }) { Text(stringResource(R.string.retry)) }
+                    state.indexState.enabled && state.scopeState.scope != SearchScope.Metadata
+                ) {
+                    TextButton(onClick = { ContentSearchUiIntent.SearchDirectly.emit() }) {
+                        Text(
+                            stringResource(R.string.content_search_slow)
+                        )
+                    }
+                    TextButton(onClick = { ContentSearchUiIntent.RetryIndex.emit() }) {
+                        Text(
+                            stringResource(R.string.retry)
+                        )
+                    }
                 }
                 if (result is ContentSearchResultState.Error || result is ContentSearchResultState.Content && !result.complete) {
-                    TextButton(onClick = { ContentSearchUiIntent.Submit.emit() }) { Text(stringResource(R.string.content_search_refresh)) }
+                    TextButton(onClick = { ContentSearchUiIntent.Submit.emit() }) {
+                        Text(
+                            stringResource(R.string.content_search_refresh)
+                        )
+                    }
                 }
             }
         }
-        items(result.items(), key = { if (state.scopeState.parentId == null) it.key else "${it.key}:${it.sourceId}" }, contentType = { "search-hit" }) {
+        items(
+            result.items(),
+            key = { if (state.scopeState.parentId == null) it.key else "${it.key}:${it.sourceId}" },
+            contentType = { "search-hit" }) {
             ResultCard(it, state.scopeState.parentId == null, emit)
         }
         if (result is ContentSearchResultState.Content && result.next != null) item(key = "more") {
-            TextButton(onClick = { ContentSearchUiIntent.More.emit() }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.content_search_more)) }
+            TextButton(
+                onClick = { ContentSearchUiIntent.More.emit() },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(stringResource(R.string.content_search_more)) }
         }
     }
 }
 
 @Composable
-private fun ResultCard(hit: SearchHit, showWithin: Boolean, emit: ContentSearchUiIntent.() -> Unit) {
+private fun ResultCard(
+    hit: SearchHit,
+    showWithin: Boolean,
+    emit: ContentSearchUiIntent.() -> Unit
+) {
     val highlight = MaterialTheme.colorScheme.primaryContainer
     val foreground = MaterialTheme.colorScheme.onPrimaryContainer
     val snippet = remember(hit.snippet, hit.matchStart, hit.matchEnd, highlight, foreground) {
         buildAnnotatedString {
             append(hit.snippet)
-            if (hit.matchStart >= 0 && hit.matchEnd <= length) addStyle(SpanStyle(background = highlight, color = foreground, fontWeight = FontWeight.Bold), hit.matchStart, hit.matchEnd)
+            if (hit.matchStart >= 0 && hit.matchEnd <= length) addStyle(
+                SpanStyle(
+                    background = highlight,
+                    color = foreground,
+                    fontWeight = FontWeight.Bold
+                ), hit.matchStart, hit.matchEnd
+            )
         }
     }
     // 标题与片段是两个清晰入口，片段才执行历史定位。
-    AppSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+    AppSurface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(kindLabel(hit.kind)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            Text(hit.title, Modifier.fillMaxWidth().clickable { ContentSearchUiIntent.Open(hit, false).emit() }.heightIn(min = 48.dp).padding(vertical = 12.dp),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = stringResource(kindLabel(hit.kind)),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                hit.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { ContentSearchUiIntent.Open(hit, false).emit() }
+                    .heightIn(min = 48.dp)
+                    .padding(vertical = 12.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
             val detail = hit.sourceLabel.ifBlank { hit.names.replace('\n', ' ') }
-            if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.labelMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (hit.snippet.isNotEmpty()) Text(snippet, Modifier.fillMaxWidth().clickable { ContentSearchUiIntent.Open(hit, true).emit() }.heightIn(min = 48.dp).padding(vertical = 12.dp),
-                style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
-            else if (hit.sourceId > 0) TextButton(onClick = { ContentSearchUiIntent.Open(hit, true).emit() }) { Text(stringResource(R.string.content_search_open_match)) }
-            if (showWithin) TextButton(onClick = { ContentSearchUiIntent.SearchWithin(hit).emit() }) { Text(stringResource(R.string.content_search_within)) }
+            if (detail.isNotBlank()) Text(
+                detail,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (hit.snippet.isNotEmpty()) Text(
+                snippet,
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { ContentSearchUiIntent.Open(hit, true).emit() }
+                    .heightIn(min = 48.dp)
+                    .padding(vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            else if (hit.sourceId > 0) TextButton(onClick = {
+                ContentSearchUiIntent.Open(hit, true).emit()
+            }) { Text(stringResource(R.string.content_search_open_match)) }
+            if (showWithin) TextButton(onClick = {
+                ContentSearchUiIntent.SearchWithin(hit).emit()
+            }) { Text(stringResource(R.string.content_search_within)) }
         }
     }
 }
