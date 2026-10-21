@@ -7,6 +7,8 @@ import com.google.gson.Gson
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.backup.BackupArchiveRepository
+import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
@@ -149,6 +151,8 @@ internal val appModules = module {
     singleOf(::StoryOutputSanitizer)
     singleOf(::StoryArchiveCodec)
     singleOf(::StoryArchiveRepository)
+    singleOf(::BackupArchiveRepository)
+    singleOf(::PortableBackupRepository)
     singleOf(::RegexScriptCodec)
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)

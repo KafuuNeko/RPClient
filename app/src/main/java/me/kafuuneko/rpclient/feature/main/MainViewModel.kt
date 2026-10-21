@@ -50,6 +50,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
+import me.kafuuneko.rpclient.feature.backuprestore.BackupRestoreActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -919,6 +920,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    /** Open the standalone manual backup and restore screen. */
+    @UiIntentObserver(MainUiIntent.OpenBackupRestore::class)
+    private fun onOpenBackupRestore() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(BackupRestoreActivity::class.java).tryEmit()
     }
 
     /** 打开成功 LLM 请求的 Token 消耗统计页。 */

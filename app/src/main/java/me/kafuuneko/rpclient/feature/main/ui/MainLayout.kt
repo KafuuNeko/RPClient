@@ -1490,9 +1490,24 @@ private fun SettingsPage(
         }
         item { AppearancePanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { BackupRestoreEntryCard { emit(MainUiIntent.OpenBackupRestore) } }
         item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun BackupRestoreEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Storage,
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.backup_restore_title),
+            subtitle = stringResource(R.string.backup_restore_entry_desc),
+            onClick = onClick
+        )
     }
 }
 
