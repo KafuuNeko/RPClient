@@ -15,6 +15,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
@@ -213,6 +215,11 @@ class GroupChatViewModel :
     }
 
     private val mGroupChatRepository by inject<GroupChatRepository>()
+
+    /** 头像缓存：同一角色在一轮渲染里只解码一次。 */
+    private val mAvatarImageCache = HashMap<String, androidx.compose.ui.graphics.ImageBitmap?>()
+
+    /** 头像缓存：同一角色在一轮渲染里只解码一次。 */
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
@@ -2314,6 +2321,10 @@ class GroupChatViewModel :
         val imageMap = messageImages.associate { snapshot ->
             snapshot.key.messageId to snapshot.images.map { it.image.imageUuid }
         }
+        // 成员头像按 UUID 解码一次，后续消息直接用
+        val avatarByName = members.associate { member ->
+            member.character.name to loadAvatarImage(member.character.avatar)
+        }
         // 遍历消息并执行针对该消息发言角色的 Display 阶段正则
         return messages.mapIndexed { index, message ->
             val characterName = if (message.source == GroupChatMessage.Source.Character) {
@@ -2348,7 +2359,8 @@ class GroupChatViewModel :
                 parts = displayContent.toMessageContentParts(message.id.toString()),
                 time = message.createTime.formatTimestamp("HH:mm"),
                 imageUuids = imageMap[message.id].orEmpty(),
-                isStreaming = message.id == mStreamingMessageId
+                isStreaming = message.id == mStreamingMessageId,
+                avatarImage = avatarByName[message.speakerNameSnapshot]
             )
         }
     }
@@ -2526,10 +2538,34 @@ class GroupChatViewModel :
         val inputSnapshot: SummaryInputSnapshot
     )
 
+    /**
+     * 按文件 UUID 解码头像，带缓存。
+     *
+     * 群聊一屏可能有十几条消息，每条都去解码会明显卡顿，
+     * 所以按 UUID 缓存，同一个角色只算一次。
+     */
+    private suspend fun loadAvatarImage(avatarUuid: String): ImageBitmap? {
+        if (avatarUuid.isBlank()) return null
+        synchronized(mAvatarImageCache) {
+            if (mAvatarImageCache.containsKey(avatarUuid)) {
+                return mAvatarImageCache[avatarUuid]
+            }
+        }
+        val image = runCatching {
+            withContext(Dispatchers.IO) {
+                mFileRepository.loadSampledBitmap(avatarUuid, 128, 128)?.asImageBitmap()
+            }
+        }.getOrNull()
+        synchronized(mAvatarImageCache) { mAvatarImageCache[avatarUuid] = image }
+        return image
+    }
+
     private companion object {
         /** 自动群聊模式下，两轮生成之间的短暂缓冲延时（毫秒）。 */
         const val AUTO_MODE_DELAY_MS = 500L
-        /** 群聊页面首次和后续向前加载的单页消息数量。 */
+    
+
+    /** 群聊页面首次和后续向前加载的单页消息数量。 */
         const val MESSAGE_PAGE_SIZE = 50
     }
 }

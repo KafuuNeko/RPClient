@@ -1357,7 +1357,8 @@ private fun MessageBubble(
             RpAvatar(
                 text = message.speakerName.firstOrNull()?.uppercase() ?: "?",
                 color = accent,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(38.dp),
+                image = message.avatarImage
             )
             Spacer(modifier = Modifier.width(9.dp))
         }

@@ -1,5 +1,9 @@
 package me.kafuuneko.rpclient.ui.widgets
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -109,7 +113,8 @@ fun RpAvatar(
     text: String,
     color: Color,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp)
+    shape: Shape = RoundedCornerShape(16.dp),
+    image: ImageBitmap? = null
 ) {
     Surface(
         modifier = modifier.size(46.dp),
@@ -117,16 +122,27 @@ fun RpAvatar(
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(0.5.dp, color.copy(alpha = 0.28f))
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = color,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+        // 有头像图就显示图，取不到再退回首字占位，
+        // 避免角色换了头像之后群聊里还是那个字母
+        if (image != null) {
+            Image(
+                bitmap = image,
+                contentDescription = text,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = text,
+                    color = color,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
