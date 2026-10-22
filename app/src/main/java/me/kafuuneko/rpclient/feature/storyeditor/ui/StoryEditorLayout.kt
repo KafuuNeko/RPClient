@@ -1492,7 +1492,6 @@ private fun EditorCompactBottomBar(
                     referenceState = referenceState
                 )
             }
-            MarkdownModeToolbarAction()
             IconButton(
                 onClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1788,7 +1787,6 @@ private fun EditorBottomBar(
                     else -> {
                         val historyEnabled = contentState.editable &&
                                 generationState is StoryGenerationState.Idle
-                        MarkdownModeToolbarAction()
                         IconButton(
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)

@@ -32,6 +32,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -82,6 +84,7 @@ import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.utils.MarkdownHighlightMapper
+import kotlin.time.Duration.Companion.milliseconds
 
 /** 编辑器与工具栏共享的 Markdown 模式和编辑确认操作。 */
 internal class StoryMarkdownEditorController(val enabled: Boolean, initialPreview: Boolean = true) {
@@ -380,6 +383,7 @@ internal fun StoryTextEditor(
                             sourceText = sourceText,
                             editedRange = displayedEditedRange,
                             scrollState = markdownPreviewScrollState,
+                            onEditClick = { markdownController.preview = false },
                             onHighlightedPosition = { position ->
                                 // 只接受当前修订的布局，避免生成结果跳到旧坐标。
                                 if (sourceText == document.content) {
@@ -390,19 +394,30 @@ internal fun StoryTextEditor(
                             }
                         )
                     } else if (markdownEnabled) {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                if (editorState.text.isEmpty()) {
-                                    Text(
-                                        text = stringResource(R.string.story_editor_placeholder),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
-                                    )
+                        // Markdown 模式下的原文编辑状态，提供右上方切回预览图标并避让留白
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(end = 40.dp)
+                            ) {
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                    if (editorState.text.isEmpty()) {
+                                        Text(
+                                            text = stringResource(R.string.story_editor_placeholder),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                                        )
+                                    }
+                                    innerTextField()
                                 }
-                                innerTextField()
                             }
+                            StoryPreviewScrollButton(
+                                icon = Icons.Rounded.Visibility,
+                                description = R.string.confirm,
+                                modifier = Modifier.align(Alignment.TopEnd),
+                                onClick = returnToMarkdownPreview
+                            )
                         }
                     } else {
                         if (editorState.text.isEmpty()) {
@@ -449,7 +464,7 @@ private fun SynchronizeMarkdownViewport(
         if (imeVisibleState.value) {
             keyboardController?.hide()
             // 输入法会改变编辑区域尺寸，通过 Compose 状态等待视口稳定。
-            withTimeoutOrNull(IME_VISIBILITY_SETTLE_TIMEOUT_MILLIS) {
+            withTimeoutOrNull(IME_VISIBILITY_SETTLE_TIMEOUT_MILLIS.milliseconds) {
                 snapshotFlow { imeVisibleState.value }.first { isVisible -> !isVisible }
             }
         } else if (!markdownPreview) {
@@ -473,12 +488,25 @@ private fun SynchronizeMarkdownViewport(
     }
 }
 
-/** 渲染预览、生成片段高亮及滚动入口，不持有业务偏好或访问数据仓库。 */
+/**
+ * 渲染预览、生成片段高亮及滚动入口，不持有业务偏好或访问数据仓库。
+ *
+ * 布局与控制：
+ * - MarkdownMessageText 渲染富文本内容与生成片段高亮。
+ * - 右侧悬浮工具列提供快捷编辑与长文首尾跳转操作。
+ *
+ * @param sourceText 章节原始正文。
+ * @param editedRange 本次待高亮的生成范围。
+ * @param scrollState 预览视口滚动状态。
+ * @param onEditClick 切换至原文编辑模式的回调。
+ * @param onHighlightedPosition 高亮文字的绝对坐标回调。
+ */
 @Composable
 private fun StoryMarkdownPreview(
     sourceText: String,
     editedRange: StoryEditedTextRange?,
     scrollState: ScrollState,
+    onEditClick: () -> Unit,
     onHighlightedPosition: (Float?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -489,9 +517,14 @@ private fun StoryMarkdownPreview(
         MarkdownHighlightMapper.countOccurrencesBefore(sourceText.substring(0, validRange.start), highlightedText)
     } else 0
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth()
-            .draggableScrollIndicator(scrollState, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), thumbThickness = 6.dp)
-            .verticalScroll(scrollState).padding(end = 36.dp)) {
+        // 正文滚动区域预留右侧留白，避免文字遮挡悬浮操作图标
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .draggableScrollIndicator(scrollState, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), thumbThickness = 6.dp)
+                .verticalScroll(scrollState)
+                .padding(end = 40.dp)
+        ) {
             MarkdownMessageText(
                 content = sourceText,
                 isUser = false,
@@ -502,23 +535,59 @@ private fun StoryMarkdownPreview(
                 onHighlightedPosition = onHighlightedPosition
             )
         }
-        Column(Modifier.align(Alignment.TopEnd).fillMaxHeight(),
+        // 右侧浮动操作组，整合进入编辑与首尾跳转图标
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd).fillMaxHeight(),
             verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally) {
-            StoryPreviewScrollButton(Icons.Rounded.ArrowUpward, R.string.scroll_to_top) {
-                scope.launch { scrollState.animateScrollTo(0) }
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // 顶部操作组：进入编辑模式与回到顶部
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                StoryPreviewScrollButton(
+                    icon = Icons.Rounded.Edit,
+                    description = R.string.story_markdown_edit,
+                    onClick = onEditClick
+                )
+                StoryPreviewScrollButton(
+                    icon = Icons.Rounded.ArrowUpward,
+                    description = R.string.scroll_to_top,
+                    onClick = { scope.launch { scrollState.animateScrollTo(0) } }
+                )
             }
-            StoryPreviewScrollButton(Icons.Rounded.ArrowDownward, R.string.scroll_to_bottom) {
-                scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
-            }
+            // 底部操作：直达文末
+            StoryPreviewScrollButton(
+                icon = Icons.Rounded.ArrowDownward,
+                description = R.string.scroll_to_bottom,
+                onClick = { scope.launch { scrollState.animateScrollTo(scrollState.maxValue) } }
+            )
         }
     }
 }
 
-/** 顶部和底部定位共用形状、大小与可访问描述。 */
+/**
+ * 内容区悬浮操作按钮，统一样式、尺寸与可访问性描述。
+ *
+ * @param icon 按钮图标。
+ * @param description 无障碍文本资源 ID。
+ * @param modifier 外部布局修饰符。
+ * @param onClick 点击事件回调。
+ */
 @Composable
-private fun StoryPreviewScrollButton(icon: ImageVector, @StringRes description: Int, onClick: () -> Unit) {
-    AppSurface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, shadowElevation = 3.dp) {
+private fun StoryPreviewScrollButton(
+    icon: ImageVector,
+    @StringRes description: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    AppSurface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shadowElevation = 3.dp
+    ) {
         IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
             Icon(icon, stringResource(description), tint = MaterialTheme.colorScheme.primary)
         }
