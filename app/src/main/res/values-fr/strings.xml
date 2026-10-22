@@ -1352,4 +1352,6 @@
     <string name="backup_restore_section_desc">Restaurez toutes les données de l\'application à partir d\'une sauvegarde ZIP précédemment exportée. La restauration remplacera toutes les données actuelles et redémarrera RPClient.</string>
     <string name="backup_security_title">Avis de sécurité et de confidentialité</string>
     <string name="backup_status_title">État actuel</string>
+    <string name="message_edit_separate_think">Séparer le raisonnement</string>
+    <string name="message_edit_separate_think_desc">Modifiez seulement la réponse, en gardant le raisonnement initial.</string>
 </resources>

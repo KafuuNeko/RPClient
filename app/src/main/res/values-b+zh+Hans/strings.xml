@@ -1348,4 +1348,6 @@
     <string name="backup_restore_section_desc">从此前导出的 ZIP 备份文件中恢复数据。恢复将完全覆盖现有数据并自动重启 RPClient。</string>
     <string name="backup_security_title">安全与隐私说明</string>
     <string name="backup_status_title">当前状态</string>
+    <string name="message_edit_separate_think">分离思考链</string>
+    <string name="message_edit_separate_think_desc">编辑时仅修改正文，保留原有思考链。</string>
 </resources>

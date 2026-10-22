@@ -106,8 +106,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.formatTimestamp
-import me.kafuuneko.rpclient.utils.replaceContentKeepingThink
-import me.kafuuneko.rpclient.utils.stripThinkBlock
+import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -236,6 +235,7 @@ class GroupChatViewModel :
     private var mUnloadedNewerMessageCount = 0
     private var mSearchAnchorId: Long? = null
     private var mSessionId: Long? = null
+    private var mMessageEditPolicy = MessageEditPolicy()
     /** 当前正在运行的模型生成任务协程 Job，用于停止生成并防止并发请求。 */
     private var mGenerationJob: Job? = null
     /** 当前流式生成在数据库中创建的占位消息 ID。 */
@@ -1286,13 +1286,13 @@ class GroupChatViewModel :
                 ?.content
         } ?: return
         mImageCoordinator.startEditing(message.imageUuids)
+        mMessageEditPolicy = MessageEditPolicy(AppModel.separateThinkWhenEditing)
         // 将 UI 切换为编辑模式并填入草稿
         uiState.copy(
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                // 编辑框只放正文，思维链不进来
-                editingMessageDraft = stripThinkBlock(rawContent)
+                editingMessageDraft = mMessageEditPolicy.createDraft(rawContent)
             )
         ).setup()
     }
@@ -1383,8 +1383,7 @@ class GroupChatViewModel :
                         )
                         GroupChatMessage.Source.System -> uiState.conversationState.editingMessageDraft.trim()
                     }
-                    // 正则只处理正文，保存时保留原消息中的思维链。
-                    .let { edited -> replaceContentKeepingThink(message.content, edited) }
+                    .let { edited -> mMessageEditPolicy.applyEditedContent(message.content, edited) }
                 }
                 mGroupChatRepository.editMessageWithImages(uiState.sessionId, messageId, content, finalInputs)
             }

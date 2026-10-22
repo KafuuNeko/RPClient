@@ -1347,4 +1347,6 @@
     <string name="backup_restore_section_desc">以前エクスポートした ZIP バックアップからすべてのアプリデータを復元します。復元を行うと現在のデータがすべて置き換えられ、RPClient が自動的に再起動します。</string>
     <string name="backup_security_title">セキュリティとプライバシーについて</string>
     <string name="backup_status_title">現在の状態</string>
+    <string name="message_edit_separate_think">思考過程を分離</string>
+    <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
 </resources>

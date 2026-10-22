@@ -1352,4 +1352,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_restore_section_desc">Pulihkan semua data aplikasi dari cadangan ZIP yang diekspor sebelumnya. Pemulihan akan menggantikan semua data saat ini dan memulai ulang RPClient.</string>
     <string name="backup_security_title">Pemberitahuan Keamanan dan Privasi</string>
     <string name="backup_status_title">Status Saat Ini</string>
+    <string name="message_edit_separate_think">Pisahkan penalaran</string>
+    <string name="message_edit_separate_think_desc">Edit hanya jawaban dan pertahankan penalaran asli.</string>
 </resources>

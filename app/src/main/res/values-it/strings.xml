@@ -1330,4 +1330,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="backup_restore_section_desc">Ripristina tutti i dati dell\'applicazione da un backup ZIP esportato in precedenza. Il ripristino sostituirà tutti i dati correnti e riavvierà RPClient.</string>
     <string name="backup_security_title">Avviso di sicurezza e privacy</string>
     <string name="backup_status_title">Stato attuale</string>
+    <string name="message_edit_separate_think">Separa il ragionamento</string>
+    <string name="message_edit_separate_think_desc">Modifica solo la risposta, mantenendo il ragionamento originale.</string>
 </resources>

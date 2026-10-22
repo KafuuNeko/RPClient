@@ -1352,4 +1352,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_restore_section_desc">Khôi phục toàn bộ dữ liệu ứng dụng từ tệp sao lưu ZIP đã xuất trước đó. Thao tác khôi phục sẽ thay thế toàn bộ dữ liệu hiện tại và tự động khởi động lại RPClient.</string>
     <string name="backup_security_title">Thông báo bảo mật và quyền riêng tư</string>
     <string name="backup_status_title">Trạng thái hiện tại</string>
+    <string name="message_edit_separate_think">Tách suy luận</string>
+    <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
 </resources>

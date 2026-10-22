@@ -216,6 +216,7 @@ internal fun MainSettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
+        item { MessageEditingPanel(state.separateThinkWhenEditing, emit) }
         item { StoryMarkdownRenderingPanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { BackupRestoreEntryCard { MainUiIntent.OpenBackupRestore.emit() } }
@@ -266,6 +267,24 @@ private fun AppearancePanel(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MessageEditingPanel(
+    separateThinkWhenEditing: Boolean,
+    emit: MainUiIntent.() -> Unit
+) {
+    RpSettingsGroup {
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Psychology,
+            iconColor = AccentVioletColor,
+            iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.message_edit_separate_think),
+            subtitle = stringResource(R.string.message_edit_separate_think_desc),
+            checked = separateThinkWhenEditing,
+            onCheckedChange = { MainUiIntent.ToggleSeparateThinkWhenEditing(it).emit() }
+        )
     }
 }
 

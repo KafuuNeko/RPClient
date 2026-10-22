@@ -1346,4 +1346,6 @@
     <string name="backup_restore_section_desc">이전에 내보낸 ZIP 백업 파일에서 모든 앱 데이터를 복원합니다. 복원하면 현재 데이터가 모두 대체되며 RPClient가 자동으로 다시 시작됩니다.</string>
     <string name="backup_security_title">보안 및 개인정보 안내</string>
     <string name="backup_status_title">현재 상태</string>
+    <string name="message_edit_separate_think">사고 과정 분리</string>
+    <string name="message_edit_separate_think_desc">본문만 편집하고 기존 사고 과정은 유지합니다.</string>
 </resources>

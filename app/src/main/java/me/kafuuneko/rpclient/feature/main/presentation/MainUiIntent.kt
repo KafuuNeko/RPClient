@@ -173,6 +173,8 @@ sealed class MainUiIntent {
 
     data class ToggleStoryMarkdownRendering(val enabled: Boolean) : MainUiIntent()
 
+    data class ToggleSeparateThinkWhenEditing(val enabled: Boolean) : MainUiIntent()
+
     data object OpenAbout : MainUiIntent()
 
     data class EnterMultiSelect(val item: MainHomeItemSelection) : MainUiIntent()

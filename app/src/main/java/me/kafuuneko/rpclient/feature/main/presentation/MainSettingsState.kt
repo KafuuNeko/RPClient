@@ -35,7 +35,9 @@ data class MainSettingsState(
     /** 设置页中图片发送方式和自定义参数草稿。 */
     val imageSendState: MainImageSendState = MainImageSendState(),
     /** 搜索加速开关与应用级索引维护进度。 */
-    val searchIndexState: SearchIndexState = SearchIndexState.Disabled
+    val searchIndexState: SearchIndexState = SearchIndexState.Disabled,
+    /** 单聊与群聊的消息编辑是否分离思考链。 */
+    val separateThinkWhenEditing: Boolean = true
 )
 
 /** 应用外观设置面板状态。 */

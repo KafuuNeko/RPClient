@@ -1351,4 +1351,6 @@
     <string name="backup_restore_section_desc">Stellen Sie alle App-Daten aus einem zuvor exportierten ZIP-Backup wieder her. Das Wiederherstellen überschreibt alle vorhandenen Daten und startet RPClient neu.</string>
     <string name="backup_security_title">Sicherheits- und Datenschutzhinweis</string>
     <string name="backup_status_title">Aktueller Status</string>
+    <string name="message_edit_separate_think">Denkprozess trennen</string>
+    <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
 </resources>

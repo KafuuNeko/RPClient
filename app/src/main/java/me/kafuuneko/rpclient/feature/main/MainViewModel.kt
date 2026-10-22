@@ -740,6 +740,16 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 保存消息编辑偏好，并同步设置页状态。 */
+    @UiIntentObserver(MainUiIntent.ToggleSeparateThinkWhenEditing::class)
+    private fun onToggleSeparateThinkWhenEditing(intent: MainUiIntent.ToggleSeparateThinkWhenEditing) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.separateThinkWhenEditing = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(separateThinkWhenEditing = intent.enabled)
+        ).setup()
+    }
+
     /** 保存故事 Markdown 预览偏好，并同步设置页状态。 */
     @UiIntentObserver(MainUiIntent.ToggleStoryMarkdownRendering::class)
     private fun onToggleStoryMarkdownRendering(intent: MainUiIntent.ToggleStoryMarkdownRendering) {
@@ -1588,6 +1598,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     ): MainSettingsState {
         // 全量装配读取共享仓库的当前值，持续变化由状态订阅更新。
         return MainSettingsState(
+            separateThinkWhenEditing = AppModel.separateThinkWhenEditing,
             searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(

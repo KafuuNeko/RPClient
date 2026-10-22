@@ -1353,4 +1353,6 @@
     <string name="backup_restore_section_desc">Restaura todos los datos de la aplicación a partir de un archivo ZIP exportado previamente. La restauración reemplazará todos los datos actuales y reiniciará RPClient.</string>
     <string name="backup_security_title">Aviso de seguridad y privacidad</string>
     <string name="backup_status_title">Estado actual</string>
+    <string name="message_edit_separate_think">Separar razonamiento</string>
+    <string name="message_edit_separate_think_desc">Edita solo la respuesta y conserva el razonamiento original.</string>
 </resources>

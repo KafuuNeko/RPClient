@@ -97,8 +97,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.formatTimestamp
-import me.kafuuneko.rpclient.utils.replaceContentKeepingThink
-import me.kafuuneko.rpclient.utils.stripThinkBlock
+import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
@@ -225,6 +224,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mUnloadedNewerMessageCount = 0
     private var mSearchAnchorId: Long? = null
     private var mSessionId: Long? = null
+    private var mMessageEditPolicy = MessageEditPolicy()
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
@@ -1302,14 +1302,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 ?.content
         } ?: return
         mImageCoordinator.startEditing(message.imageUuids)
+        mMessageEditPolicy = MessageEditPolicy(AppModel.separateThinkWhenEditing)
         // 将 UI 切换至消息编辑状态并填入原始草稿
         uiState.copy(
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                // 编辑框里只放正文：思维链是这条回复怎么想出来的记录，
-                // 不是给用户改的东西。整段塞进去既没法改，还容易被误删。
-                editingMessageDraft = stripThinkBlock(rawContent)
+                editingMessageDraft = mMessageEditPolicy.createDraft(rawContent)
             )
         ).setup()
     }
@@ -1359,9 +1358,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         ChatMessage.Source.System,
                         ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
                     }
-                    // 正则动的是正文，思维链按原文接回去：
-                    // 编辑框里本来就没放它，不接回来等于顺手删了
-                    .let { edited -> replaceContentKeepingThink(message.content, edited) }
+                    .let { edited -> mMessageEditPolicy.applyEditedContent(message.content, edited) }
                 }
                 if (message.source != ChatMessage.Source.Summary) {
                     mChatRepository.editMessageWithImages(sessionId, messageId, content, finalInputs)

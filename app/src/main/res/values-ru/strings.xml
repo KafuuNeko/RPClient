@@ -1356,4 +1356,6 @@
     <string name="backup_restore_section_desc">Восстановление всех данных приложения из ранее экспортированной резервной копии ZIP. Восстановление заменит все текущие данные и перезапустит RPClient.</string>
     <string name="backup_security_title">Безопасность и конфиденциальность</string>
     <string name="backup_status_title">Текущий статус</string>
+    <string name="message_edit_separate_think">Отделять рассуждения</string>
+    <string name="message_edit_separate_think_desc">Редактировать только ответ, сохраняя исходные рассуждения.</string>
 </resources>

@@ -1346,4 +1346,6 @@
     <string name="backup_restore_section_desc">從先前匯出的 ZIP 備份檔案中還原資料。還原將完全覆蓋現有資料並自動重啟 RPClient。</string>
     <string name="backup_security_title">安全與隱私說明</string>
     <string name="backup_status_title">目前狀態</string>
+    <string name="message_edit_separate_think">分離思考鏈</string>
+    <string name="message_edit_separate_think_desc">編輯時僅修改正文，保留原有思考鏈。</string>
 </resources>
