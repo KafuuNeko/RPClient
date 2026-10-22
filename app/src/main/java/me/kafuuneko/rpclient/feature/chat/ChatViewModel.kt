@@ -91,6 +91,8 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.replaceContentKeepingThink
+import me.kafuuneko.rpclient.utils.stripThinkBlock
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
@@ -1240,7 +1242,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                editingMessageDraft = rawContent
+                // 编辑框里只放正文：思维链是这条回复怎么想出来的记录，
+                // 不是给用户改的东西。整段塞进去既没法改，还容易被误删。
+                editingMessageDraft = stripThinkBlock(rawContent)
             )
         ).setup()
     }
@@ -1290,6 +1294,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         ChatMessage.Source.System,
                         ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
                     }
+                    // 正则动的是正文，思维链按原文接回去：
+                    // 编辑框里本来就没放它，不接回来等于顺手删了
+                    .let { edited -> replaceContentKeepingThink(message.content, edited) }
                 }
                 if (message.source != ChatMessage.Source.Summary) {
                     mChatRepository.editMessageWithImages(sessionId, messageId, content, finalInputs)

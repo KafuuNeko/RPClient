@@ -102,6 +102,8 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.replaceContentKeepingThink
+import me.kafuuneko.rpclient.utils.stripThinkBlock
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -1230,7 +1232,8 @@ class GroupChatViewModel :
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                editingMessageDraft = rawContent
+                // 编辑框只放正文，思维链不进来
+                editingMessageDraft = stripThinkBlock(rawContent)
             )
         ).setup()
     }
@@ -1321,6 +1324,8 @@ class GroupChatViewModel :
                         )
                         GroupChatMessage.Source.System -> uiState.conversationState.editingMessageDraft.trim()
                     }
+                    // 正则只处理正文，保存时保留原消息中的思维链。
+                    .let { edited -> replaceContentKeepingThink(message.content, edited) }
                 }
                 mGroupChatRepository.editMessageWithImages(uiState.sessionId, messageId, content, finalInputs)
             }
