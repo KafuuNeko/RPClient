@@ -385,15 +385,15 @@ private fun NumericEditDialogInputPreview() {
             NumericEditDialog(
                 title = "Max Tokens",
                 subtitle = "单次回复最大生成的 Token 上限",
-                value = "4096",
+                value = "4000",
                 decimalInput = false,
                 onValueChange = {},
                 onConfirm = {},
                 onDismiss = {},
                 quickOptions = listOf(
-                    NumericEditQuickOption("2K", "2048"),
-                    NumericEditQuickOption("4K", "4096"),
-                    NumericEditQuickOption("8K", "8192")
+                    NumericEditQuickOption("2K", "2000"),
+                    NumericEditQuickOption("4K", "4000"),
+                    NumericEditQuickOption("8K", "8000")
                 )
             )
         }
