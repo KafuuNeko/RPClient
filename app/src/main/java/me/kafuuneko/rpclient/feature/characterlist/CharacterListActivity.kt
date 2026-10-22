@@ -20,6 +20,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     /** 记录系统导出选择器对应的角色；结果交付或取消后立即清空，避免串到下一次导出。 */
     private var mPendingExportCharacterId: Long? = null
+    private var mPendingArchiveCharacterIds: List<Long>? = null
 
     /** 把一次性选择的一组角色卡 URI 交给 ViewModel 执行解析和独立事务导入。 */
     private val mImportCharacterCardLauncher = registerForActivityResult(
@@ -37,6 +38,15 @@ class CharacterListActivity : CoreActivityWithEvent() {
         mPendingExportCharacterId = null
         uri ?: return@registerForActivityResult
         mViewModel.emit(CharacterListUiIntent.ExportCharacterJson(characterId, uri))
+    }
+
+    private val mExportCharacterArchiveLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        val characterIds = mPendingArchiveCharacterIds ?: return@registerForActivityResult
+        mPendingArchiveCharacterIds = null
+        uri ?: return@registerForActivityResult
+        mViewModel.emit(CharacterListUiIntent.ExportSelectedCharacters(characterIds, uri))
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -76,6 +86,11 @@ class CharacterListActivity : CoreActivityWithEvent() {
             is CharacterListViewEvent.OpenCharacterCardJsonExporter -> {
                 mPendingExportCharacterId = viewEvent.characterId
                 mExportCharacterJsonLauncher.launch(viewEvent.fileName)
+            }
+
+            is CharacterListViewEvent.OpenCharacterArchiveExporter -> {
+                mPendingArchiveCharacterIds = viewEvent.characterIds
+                mExportCharacterArchiveLauncher.launch(viewEvent.fileName)
             }
 
             else -> super.onReceivedViewEvent(viewEvent)

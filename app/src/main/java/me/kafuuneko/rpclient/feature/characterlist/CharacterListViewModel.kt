@@ -11,6 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.characterlist.model.CharacterListItem
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDialogState
@@ -149,6 +152,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.SelectCharacter::class)
     private fun onSelectCharacter(intent: CharacterListUiIntent.SelectCharacter) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.selectedCharacterIds.isNotEmpty()) {
+            onToggleCharacterSelection(CharacterListUiIntent.ToggleCharacterSelection(intent.characterId))
+            return
+        }
         if (uiState.characters.none { it.id == intent.characterId }) return
         uiState.copy(selectedCharacterId = intent.characterId).setup()
         AppViewEvent.StartActivity(
@@ -157,6 +164,91 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, intent.characterId)
             }
         ).tryEmit()
+    }
+
+    /** Start bulk-selection mode from a long press. */
+    @UiIntentObserver(CharacterListUiIntent.BeginCharacterSelection::class)
+    private fun onBeginCharacterSelection(intent: CharacterListUiIntent.BeginCharacterSelection) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (mAllCharacterItems.none { it.id == intent.characterId }) return
+        uiState.copy(selectedCharacterIds = setOf(intent.characterId)).setup()
+    }
+
+    /** Toggle one selected ID without coupling the selection to the active search results. */
+    @UiIntentObserver(CharacterListUiIntent.ToggleCharacterSelection::class)
+    private fun onToggleCharacterSelection(intent: CharacterListUiIntent.ToggleCharacterSelection) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (mAllCharacterItems.none { it.id == intent.characterId }) return
+        val updated = uiState.selectedCharacterIds.toMutableSet().apply {
+            if (!add(intent.characterId)) remove(intent.characterId)
+        }
+        uiState.copy(selectedCharacterIds = updated).setup()
+    }
+
+    /** Select or deselect all characters currently matching the search filter. */
+    @UiIntentObserver(CharacterListUiIntent.ToggleVisibleCharacterSelection::class)
+    private fun onToggleVisibleCharacterSelection() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val visibleIds = uiState.characters.mapTo(mutableSetOf()) { it.id }
+        if (visibleIds.isEmpty()) return
+        val updated = uiState.selectedCharacterIds.toMutableSet()
+        if (visibleIds.all { it in updated }) updated.removeAll(visibleIds) else updated.addAll(visibleIds)
+        uiState.copy(selectedCharacterIds = updated).setup()
+    }
+
+    /** Leave selection mode and discard its current IDs. */
+    @UiIntentObserver(CharacterListUiIntent.ClearCharacterSelection::class)
+    private fun onClearCharacterSelection() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.selectedCharacterIds.isNotEmpty()) {
+            uiState.copy(selectedCharacterIds = emptySet()).setup()
+        }
+    }
+
+    /** Ask Android where to save the selected cards as a ZIP archive. */
+    @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharactersClick::class)
+    private fun onExportSelectedCharactersClick() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val ids = uiState.selectedCharacterIds.toList()
+        if (ids.isEmpty()) return
+        val timestamp = OffsetDateTime.now().format(
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-'UTC'XX", Locale.ROOT)
+        )
+        CharacterListViewEvent.OpenCharacterArchiveExporter(
+            characterIds = ids,
+            fileName = "RPClient-Characters-$timestamp.zip"
+        ).tryEmit()
+    }
+
+    /** Write all selected Character Card V2 files sequentially to the chosen ZIP destination. */
+    @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharacters::class)
+    private fun onExportSelectedCharacters(intent: CharacterListUiIntent.ExportSelectedCharacters) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val ids = intent.characterIds.distinct()
+        if (ids.isEmpty() || uiState.loadState != CharacterListLoadState.None ||
+            mTransferJob?.isActive == true
+        ) return
+        val token = Any()
+        mTransferToken = token
+        uiState.copy(loadState = CharacterListLoadState.Loading).setup()
+        mTransferJob = viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    mCharacterCardRepository.exportJsonArchiveToUri(ids, intent.uri)
+                }
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_success).tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_failed).tryEmit()
+            } finally {
+                finishTransfer(token)
+            }
+        }
     }
 
     /** 打开新建角色编辑页面。 */
@@ -521,6 +613,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         current.copy(
             loadState = CharacterListLoadState.None,
             selectedCharacterId = characters.firstOrNull { it.id == selectedCharacterId }?.id,
+            selectedCharacterIds = current.selectedCharacterIds.intersect(avatarUuids.keys),
             characters = renderCharacters(current.searchText)
         ).setup()
         scheduleVisibleAvatarLoads()

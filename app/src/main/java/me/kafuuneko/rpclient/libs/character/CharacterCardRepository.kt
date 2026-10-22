@@ -16,6 +16,11 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import java.io.ByteArrayOutputStream
+import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * 角色卡文件导入导出的应用层协调器。
@@ -119,12 +124,52 @@ class CharacterCardRepository(
         )
     }
 
-    /** 将角色卡 JSON 直接写入用户选择的文档 URI。 */
-    suspend fun exportJsonToUri(characterId: Long, uri: Uri) = withContext(Dispatchers.IO) {
-        val json = exportJson(characterId)
-        mContext.contentResolver.openOutputStream(uri)?.use { output ->
-            output.write(json.toByteArray(Charsets.UTF_8))
-        } ?: error("Cannot open character export destination")
+    /** 将所选角色卡作为独立 Character Card V2 JSON 条目写入 ZIP。 */
+    suspend fun exportJsonArchiveToUri(characterIds: List<Long>, uri: Uri) = withContext(Dispatchers.IO) {
+        val ids = characterIds.distinct()
+        require(ids.isNotEmpty()) { "No characters selected" }
+        val output = mContext.contentResolver.openOutputStream(uri)
+            ?: error("Cannot open character archive destination")
+        output.buffered().use { buffered ->
+            ZipOutputStream(buffered).use { zip ->
+                val usedNames = mutableSetOf<String>()
+                ids.forEach { characterId ->
+                    currentCoroutineContext().ensureActive()
+                    val character = mCharacterRepository.getCharacterById(characterId)
+                        ?: error("Character not found: $characterId")
+                    val json = exportJson(characterId)
+                    val baseName = safeArchiveEntryName(character.name, characterId)
+                    var entryName = "$baseName.json"
+                    var suffix = 2
+                    while (!usedNames.add(entryName.lowercase(Locale.ROOT))) {
+                        entryName = "$baseName-$characterId-$suffix.json"
+                        suffix++
+                    }
+                    zip.putNextEntry(ZipEntry(entryName))
+                    zip.write(json.toByteArray(Charsets.UTF_8))
+                    zip.closeEntry()
+                }
+                zip.finish()
+            }
+        }
+    }
+
+    /** Remove path separators and filesystem-reserved characters from ZIP entry names. */
+    private fun safeArchiveEntryName(name: String, characterId: Long): String {
+        val sanitized = name
+            .trim()
+            .map { character ->
+                if (
+                    character == '/' || character == '\\' || character == ':' ||
+                    character == '*' || character == '?' || character == '"' ||
+                    character == '<' || character == '>' || character == '|' ||
+                    character.code < 0x20
+                ) '_' else character
+            }
+            .joinToString("")
+            .trim('.', ' ')
+            .take(100)
+        return sanitized.ifBlank { "character-$characterId" }
     }
 
     /**

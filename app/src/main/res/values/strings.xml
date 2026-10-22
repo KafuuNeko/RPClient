@@ -235,6 +235,14 @@
     <string name="batch_import_character_result_message">Imported: %1$d\nFailed: %2$d</string>
     <string name="batch_import_character_reading_progress">Reading %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Importing %1$d/%2$d</string>
+    <string name="character_selection_count">%1$d selected</string>
+    <string name="select_all_characters">Select all</string>
+    <string name="deselect_all_characters">Deselect all</string>
+    <string name="character_selected">Selected</string>
+    <string name="character_not_selected">Not selected</string>
+    <string name="export_selected_characters_zip">Export selected characters as ZIP</string>
+    <string name="export_character_archive_success">Character ZIP exported successfully.</string>
+    <string name="export_character_archive_failed">Could not export the character ZIP. The saved file may be incomplete.</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
     <string name="import_world_book">Import world book</string>
