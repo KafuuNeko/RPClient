@@ -1338,4 +1338,12 @@
     <string name="scroll_to_top">捲動至頂部</string>
     <string name="scroll_to_bottom">捲動至底部</string>
     <string name="backup_failure_detail">請檢查備份檔案與可用儲存空間，然後重試。</string>
+    <string name="backup_experimental_title">實驗性功能提示</string>
+    <string name="backup_experimental_desc">備份與還原目前為實驗性功能，跨裝置與跨版本備份還原的完整可靠性尚未得到充分驗證。請妥善保存重要資料；還原操作將覆蓋現有全部資料，請謹慎操作。</string>
+    <string name="backup_export_title">匯出完整備份</string>
+    <string name="backup_export_desc">將角色卡、故事、對話、世界書、模型設定、API 金鑰、偏好設定與附件等所有應用程式資料打包匯出為 ZIP 封存檔。</string>
+    <string name="backup_restore_section_title">從備份檔案還原</string>
+    <string name="backup_restore_section_desc">從先前匯出的 ZIP 備份檔案中還原資料。還原將完全覆蓋現有資料並自動重啟 RPClient。</string>
+    <string name="backup_security_title">安全與隱私說明</string>
+    <string name="backup_status_title">目前狀態</string>
 </resources>

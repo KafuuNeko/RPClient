@@ -1345,4 +1345,12 @@
     <string name="scroll_to_top">Ir al principio</string>
     <string name="scroll_to_bottom">Ir al final</string>
     <string name="backup_failure_detail">Comprueba el archivo de copia y el espacio disponible e inténtalo de nuevo.</string>
+    <string name="backup_experimental_title">Función experimental</string>
+    <string name="backup_experimental_desc">La copia de seguridad y restauración es una función experimental. La fiabilidad y compatibilidad entre diferentes dispositivos y versiones aún no se ha verificado por completo. Guarda tus datos importantes de forma segura. La restauración sobrescribirá todos los datos actuales; procede con precaución.</string>
+    <string name="backup_export_title">Exportar copia de seguridad completa</string>
+    <string name="backup_export_desc">Exporta todos los datos de la app, incluidos personajes, historias, chats, libros del mundo, proveedores, claves API, ajustes y archivos adjuntos en un archivo ZIP.</string>
+    <string name="backup_restore_section_title">Restaurar desde copia de seguridad</string>
+    <string name="backup_restore_section_desc">Restaura todos los datos de la aplicación a partir de un archivo ZIP exportado previamente. La restauración reemplazará todos los datos actuales y reiniciará RPClient.</string>
+    <string name="backup_security_title">Aviso de seguridad y privacidad</string>
+    <string name="backup_status_title">Estado actual</string>
 </resources>

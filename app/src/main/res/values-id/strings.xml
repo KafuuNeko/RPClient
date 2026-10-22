@@ -1344,4 +1344,12 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="scroll_to_top">Gulir ke atas</string>
     <string name="scroll_to_bottom">Gulir ke bawah</string>
     <string name="backup_failure_detail">Periksa file cadangan dan ruang penyimpanan yang tersedia, lalu coba lagi.</string>
+    <string name="backup_experimental_title">Fitur Eksperimental</string>
+    <string name="backup_experimental_desc">Pencadangan dan pemulihan adalah fitur eksperimental. Keandalan dan kompatibilitas lintas perangkat serta versi belum diverifikasi sepenuhnya. Harap simpan data penting Anda dengan aman. Pemulihan akan menimpa seluruh data saat ini, harap lakukan dengan hati-hati.</string>
+    <string name="backup_export_title">Ekspor Cadangan Lengkap</string>
+    <string name="backup_export_desc">Ekspor semua data aplikasi termasuk karakter, cerita, obrolan, buku dunia, konfigurasi model, kunci API, preferensi, dan lampiran ke dalam arsip ZIP.</string>
+    <string name="backup_restore_section_title">Pulihkan dari Cadangan</string>
+    <string name="backup_restore_section_desc">Pulihkan semua data aplikasi dari cadangan ZIP yang diekspor sebelumnya. Pemulihan akan menggantikan semua data saat ini dan memulai ulang RPClient.</string>
+    <string name="backup_security_title">Pemberitahuan Keamanan dan Privasi</string>
+    <string name="backup_status_title">Status Saat Ini</string>
 </resources>

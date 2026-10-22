@@ -1347,4 +1347,12 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="scroll_to_top">Ir ao início</string>
     <string name="scroll_to_bottom">Ir ao final</string>
     <string name="backup_failure_detail">Verifique o arquivo de backup e o espaço disponível e tente novamente.</string>
+    <string name="backup_experimental_title">Recurso experimental</string>
+    <string name="backup_experimental_desc">O backup e a restauração são recursos experimentais. A confiabilidade e a compatibilidade entre dispositivos e versões ainda não foram totalmente verificadas. Guarde seus dados importantes com segurança. A restauração substituirá todos os dados atuais; proceda com cuidado.</string>
+    <string name="backup_export_title">Exportar backup completo</string>
+    <string name="backup_export_desc">Exporte todos os dados do aplicativo, incluindo personagens, histórias, conversas, livros de mundo, configurações de provedores, chaves de API, preferências e anexos em um arquivo ZIP.</string>
+    <string name="backup_restore_section_title">Restaurar de backup</string>
+    <string name="backup_restore_section_desc">Restaure todos os dados do aplicativo a partir de um backup ZIP exportado anteriormente. A restauração substituirá todos os dados atuais e reiniciará o RPClient.</string>
+    <string name="backup_security_title">Aviso de segurança e privacidade</string>
+    <string name="backup_status_title">Status atual</string>
 </resources>

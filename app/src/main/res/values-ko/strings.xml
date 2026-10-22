@@ -1338,4 +1338,12 @@
     <string name="scroll_to_top">맨 위로 이동</string>
     <string name="scroll_to_bottom">맨 아래로 이동</string>
     <string name="backup_failure_detail">백업 파일과 사용 가능한 저장 공간을 확인한 후 다시 시도하세요.</string>
+    <string name="backup_experimental_title">실험적 기능 안내</string>
+    <string name="backup_experimental_desc">백업 및 복원은 현재 실험적 기능이며, 기기 및 버전 간 백업 및 복원의 완전한 신뢰성은 아직 충분히 검증되지 않았습니다. 중요한 데이터는 안전하게 보관해 주십시오. 복원 시 현재의 모든 데이터가 덮어쓰기되므로 주의하시기 바랍니다.</string>
+    <string name="backup_export_title">전체 백업 내보내기</string>
+    <string name="backup_export_desc">캐릭터, 스토리, 대화, 월드북, 모델 설정, API 키, 환경설정 및 첨부파일을 포함한 모든 앱 데이터를 ZIP 아카이브로 내보냅니다.</string>
+    <string name="backup_restore_section_title">백업에서 복원</string>
+    <string name="backup_restore_section_desc">이전에 내보낸 ZIP 백업 파일에서 모든 앱 데이터를 복원합니다. 복원하면 현재 데이터가 모두 대체되며 RPClient가 자동으로 다시 시작됩니다.</string>
+    <string name="backup_security_title">보안 및 개인정보 안내</string>
+    <string name="backup_status_title">현재 상태</string>
 </resources>

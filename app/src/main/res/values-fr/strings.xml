@@ -1344,4 +1344,12 @@
     <string name="scroll_to_top">Aller au début</string>
     <string name="scroll_to_bottom">Aller à la fin</string>
     <string name="backup_failure_detail">Vérifiez le fichier de sauvegarde et l’espace disponible, puis réessayez.</string>
+    <string name="backup_experimental_title">Fonctionnalité expérimentale</string>
+    <string name="backup_experimental_desc">La sauvegarde et la restauration sont des fonctionnalités expérimentales. La fiabilité et la compatibilité entre différents appareils et versions n\'ont pas encore été pleinement vérifiées. Veuillez conserver vos données importantes en lieu sûr. La restauration écrasera toutes les données actuelles, procédez avec prudence.</string>
+    <string name="backup_export_title">Exporter une sauvegarde complète</string>
+    <string name="backup_export_desc">Exportez toutes les données de l\'application, y compris les personnages, histoires, discussions, livres d\'univers, configurations de modèles, clés API, préférences et pièces jointes dans une archive ZIP.</string>
+    <string name="backup_restore_section_title">Restaurer depuis une sauvegarde</string>
+    <string name="backup_restore_section_desc">Restaurez toutes les données de l\'application à partir d\'une sauvegarde ZIP précédemment exportée. La restauration remplacera toutes les données actuelles et redémarrera RPClient.</string>
+    <string name="backup_security_title">Avis de sécurité et de confidentialité</string>
+    <string name="backup_status_title">État actuel</string>
 </resources>

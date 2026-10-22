@@ -1348,4 +1348,12 @@
     <string name="scroll_to_top">Прокрутить вверх</string>
     <string name="scroll_to_bottom">Прокрутить вниз</string>
     <string name="backup_failure_detail">Проверьте файл резервной копии и свободное место, затем повторите попытку.</string>
+    <string name="backup_experimental_title">Экспериментальная функция</string>
+    <string name="backup_experimental_desc">Резервное копирование и восстановление — экспериментальная функция. Надежность и совместимость между различными устройствами и версиями еще не проверены в полной мере. Пожалуйста, надежно сохраняйте важные данные. Восстановление полностью заменит все текущие данные, действуйте с осторожностью.</string>
+    <string name="backup_export_title">Экспорт полной резервной копии</string>
+    <string name="backup_export_desc">Экспортируйте все данные приложения, включая персонажей, истории, чаты, книги мира, настройки провайдеров, ключи API, параметры и вложения в ZIP-архив.</string>
+    <string name="backup_restore_section_title">Восстановление из резервной копии</string>
+    <string name="backup_restore_section_desc">Восстановление всех данных приложения из ранее экспортированной резервной копии ZIP. Восстановление заменит все текущие данные и перезапустит RPClient.</string>
+    <string name="backup_security_title">Безопасность и конфиденциальность</string>
+    <string name="backup_status_title">Текущий статус</string>
 </resources>

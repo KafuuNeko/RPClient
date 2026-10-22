@@ -1348,4 +1348,12 @@
     <string name="scroll_to_top">Scroll to top</string>
     <string name="scroll_to_bottom">Scroll to bottom</string>
     <string name="backup_failure_detail">Check the backup file and available storage, then try again.</string>
+    <string name="backup_experimental_title">Experimental Feature</string>
+    <string name="backup_experimental_desc">Backup and restore is an experimental feature. Cross-device and cross-version reliability and data integrity have not been fully verified. Please safeguard your important data. Restoring will completely overwrite existing data, so proceed with caution.</string>
+    <string name="backup_export_title">Export Complete Backup</string>
+    <string name="backup_export_desc">Package and export all app data including characters, stories, chats, World Books, provider configs, API keys, preferences, and attachments into a ZIP archive.</string>
+    <string name="backup_restore_section_title">Restore from Backup</string>
+    <string name="backup_restore_section_desc">Restore all application data from a previously exported ZIP backup. Restoring will replace all current data and automatically restart RPClient.</string>
+    <string name="backup_security_title">Security and Privacy Notice</string>
+    <string name="backup_status_title">Current Status</string>
 </resources>

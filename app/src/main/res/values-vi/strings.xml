@@ -1344,4 +1344,12 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="scroll_to_top">Cuộn lên đầu</string>
     <string name="scroll_to_bottom">Cuộn xuống cuối</string>
     <string name="backup_failure_detail">Kiểm tra tệp sao lưu và dung lượng trống, rồi thử lại.</string>
+    <string name="backup_experimental_title">Tính năng thử nghiệm</string>
+    <string name="backup_experimental_desc">Sao lưu và khôi phục hiện là tính năng thử nghiệm. Độ tin cậy và khả năng tương thích giữa các thiết bị và phiên bản chưa được xác minh đầy đủ. Vui lòng bảo lưu an toàn dữ liệu quan trọng của bạn. Thao tác khôi phục sẽ ghi đè toàn bộ dữ liệu hiện tại, vui lòng thận trọng.</string>
+    <string name="backup_export_title">Xuất bản sao lưu đầy đủ</string>
+    <string name="backup_export_desc">Đóng gói và xuất toàn bộ dữ liệu ứng dụng bao gồm nhân vật, truyện, trò chuyện, sách thế giới, cấu hình nhà cung cấp, khóa API, tùy chọn và tệp đính kèm vào tệp ZIP.</string>
+    <string name="backup_restore_section_title">Khôi phục từ bản sao lưu</string>
+    <string name="backup_restore_section_desc">Khôi phục toàn bộ dữ liệu ứng dụng từ tệp sao lưu ZIP đã xuất trước đó. Thao tác khôi phục sẽ thay thế toàn bộ dữ liệu hiện tại và tự động khởi động lại RPClient.</string>
+    <string name="backup_security_title">Thông báo bảo mật và quyền riêng tư</string>
+    <string name="backup_status_title">Trạng thái hiện tại</string>
 </resources>

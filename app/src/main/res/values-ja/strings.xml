@@ -1339,4 +1339,12 @@
     <string name="scroll_to_top">先頭へ移動</string>
     <string name="scroll_to_bottom">末尾へ移動</string>
     <string name="backup_failure_detail">バックアップファイルと空き容量を確認して、再試行してください。</string>
+    <string name="backup_experimental_title">試験的機能に関する注意</string>
+    <string name="backup_experimental_desc">バックアップと復元は現在試験的な機能であり、端末間やバージョン間での完全な信頼性はまだ十分に検証されていません。重要なデータは安全に保管してください。復元を実行すると現在のすべてのデータが上書きされますので、ご注意ください。</string>
+    <string name="backup_export_title">完全バックアップのエクスポート</string>
+    <string name="backup_export_desc">キャラクター、ストーリー、チャット、ワールドブック、モデル設定、API キー、環境設定、添付ファイルなどの全アプリデータを ZIP アーカイブにまとめてエクスポートします。</string>
+    <string name="backup_restore_section_title">バックアップから復元</string>
+    <string name="backup_restore_section_desc">以前エクスポートした ZIP バックアップからすべてのアプリデータを復元します。復元を行うと現在のデータがすべて置き換えられ、RPClient が自動的に再起動します。</string>
+    <string name="backup_security_title">セキュリティとプライバシーについて</string>
+    <string name="backup_status_title">現在の状態</string>
 </resources>

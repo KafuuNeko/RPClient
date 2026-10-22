@@ -1322,4 +1322,12 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="scroll_to_top">Vai in cima</string>
     <string name="scroll_to_bottom">Vai in fondo</string>
     <string name="backup_failure_detail">Controlla il file di backup e lo spazio disponibile, quindi riprova.</string>
+    <string name="backup_experimental_title">Funzionalità sperimentale</string>
+    <string name="backup_experimental_desc">Il backup e il ripristino sono funzionalità sperimentali. L\'affidabilità e la compatibilità tra dispositivi e versioni diverse non sono state ancora completamente verificate. Conserva i tuoi dati importanti in modo sicuro. Il ripristino sovrascriverà tutti i dati attuali; procedi con cautela.</string>
+    <string name="backup_export_title">Esporta backup completo</string>
+    <string name="backup_export_desc">Esporta tutti i dati dell\'applicazione, inclusi personaggi, storie, chat, libri del mondo, configurazioni dei provider, chiavi API, preferenze e allegati in un archivio ZIP.</string>
+    <string name="backup_restore_section_title">Ripristina da backup</string>
+    <string name="backup_restore_section_desc">Ripristina tutti i dati dell\'applicazione da un backup ZIP esportato in precedenza. Il ripristino sostituirà tutti i dati correnti e riavvierà RPClient.</string>
+    <string name="backup_security_title">Avviso di sicurezza e privacy</string>
+    <string name="backup_status_title">Stato attuale</string>
 </resources>

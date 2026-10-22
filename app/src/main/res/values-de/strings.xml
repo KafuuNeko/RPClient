@@ -1343,4 +1343,12 @@
     <string name="scroll_to_top">Nach oben scrollen</string>
     <string name="scroll_to_bottom">Nach unten scrollen</string>
     <string name="backup_failure_detail">Prüfen Sie die Sicherungsdatei und den freien Speicherplatz und versuchen Sie es erneut.</string>
+    <string name="backup_experimental_title">Experimentelle Funktion</string>
+    <string name="backup_experimental_desc">Sichern und Wiederherstellen ist eine experimentelle Funktion. Die Zuverlässigkeit und Kompatibilität über verschiedene Geräte und Versionen hinweg ist noch nicht vollständig überprüft. Bitte sichern Sie wichtige Daten sorgfältig. Beim Wiederherstellen werden alle aktuellen Daten überschrieben; bitte mit Vorsicht vorgehen.</string>
+    <string name="backup_export_title">Vollständiges Backup exportieren</string>
+    <string name="backup_export_desc">Exportieren Sie alle App-Daten einschließlich Charaktere, Geschichten, Chats, Weltenbücher, Modellanbieter, API-Schlüssel, Einstellungen und Anhänge in ein ZIP-Archiv.</string>
+    <string name="backup_restore_section_title">Aus Backup wiederherstellen</string>
+    <string name="backup_restore_section_desc">Stellen Sie alle App-Daten aus einem zuvor exportierten ZIP-Backup wieder her. Das Wiederherstellen überschreibt alle vorhandenen Daten und startet RPClient neu.</string>
+    <string name="backup_security_title">Sicherheits- und Datenschutzhinweis</string>
+    <string name="backup_status_title">Aktueller Status</string>
 </resources>
