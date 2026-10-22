@@ -1144,6 +1144,11 @@ class ChatRepository(
         }
     }
 
+    /** 删掉某条消息之后的全部消息；编辑用户发言后让旧回复作废。 */
+    suspend fun deleteMessagesAfter(sessionId: Long, messageId: Long) {
+        mAppDatabase.getChatMessageDao().deleteAfter(sessionId, messageId)
+    }
+
     /** 读取摘要边界之后的普通生成历史，并恢复为正序后排除待替换消息。 */
     private suspend fun loadPromptMessagesAfterId(
         sessionId: Long,

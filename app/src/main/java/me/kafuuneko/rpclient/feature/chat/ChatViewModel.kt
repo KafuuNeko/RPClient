@@ -51,6 +51,8 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
+import me.kafuuneko.rpclient.libs.llm.replaceContentKeepingThink
+import me.kafuuneko.rpclient.libs.llm.stripThinkBlock
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
@@ -1240,7 +1242,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                editingMessageDraft = rawContent
+                // 编辑框里只放正文：思维链是这条回复怎么想出来的记录，
+                // 不是给用户改的东西。整段塞进去既没法改，还容易被误删。
+                editingMessageDraft = stripThinkBlock(rawContent)
             )
         ).setup()
     }
@@ -1290,12 +1294,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         ChatMessage.Source.System,
                         ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
                     }
+                    // 正则动的是正文，思维链按原文接回去：
+                    // 编辑框里本来就没放它，不接回来等于顺手删了
+                    .let { edited -> replaceContentKeepingThink(message.content, edited) }
                 }
                 if (message.source != ChatMessage.Source.Summary) {
                     mChatRepository.editMessageWithImages(sessionId, messageId, content, finalInputs)
                 } else mChatRepository.updateMessageContent(messageId, content)
             }
             // 刷新 UI 状态并重置编辑态草稿
+            // 用户发言改了，后面那些回复是针对旧内容生成的，必须作废
+            val editedUserMessage = message.source == ChatMessage.Source.User
+            if (editedUserMessage) {
+                withContext(Dispatchers.IO) {
+                    mChatRepository.deleteMessagesAfter(sessionId, messageId)
+                }
+            }
             refreshUiState(
                 sessionId = sessionId,
                 inputDraft = uiState.conversationState.inputDraft,
@@ -1304,6 +1318,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 editingMessageId = null,
                 editingMessageDraft = ""
             )
+            // 改完直接接着生成回复：改一句话还要再点一次生成，太别扭
+            if (editedUserMessage) {
+                continueLastAssistantMessage(sessionId)
+            }
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
             val failure = error.toGenerationFailurePresentation(mContext, R.string.image_error_invalid)

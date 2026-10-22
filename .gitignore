@@ -14,3 +14,6 @@
 .cxx
 local.properties
 gradle/gradle-daemon-jvm.properties
+
+# 放官方 APK 的临时目录，不进仓库
+/上游/

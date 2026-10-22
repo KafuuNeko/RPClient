@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.llm.stripThinkBlock
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
@@ -1230,7 +1231,8 @@ class GroupChatViewModel :
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                editingMessageDraft = rawContent
+                // 编辑框只放正文，思维链不进来
+                editingMessageDraft = stripThinkBlock(rawContent)
             )
         ).setup()
     }

@@ -487,4 +487,13 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      */
     @Query("DELETE FROM chat_messages WHERE sessionId = :sessionId")
     suspend fun deleteMessagesBySessionId(sessionId: Long)
+
+    /**
+     * 删掉某条消息之后的所有消息。
+     *
+     * 编辑了用户发言就得把它后面那些回复作废——那些是针对旧内容生成的，
+     * 留着会和改后的发言对不上。
+     */
+    @Query("DELETE FROM chat_messages WHERE sessionId = :sessionId AND id > :messageId")
+    suspend fun deleteAfter(sessionId: Long, messageId: Long)
 }
