@@ -1340,7 +1340,7 @@
     <string name="backup_restore_confirm_title">¿Sustituir los datos actuales de la app?</string>
     <string name="backup_restore_confirm_message">La restauración completa sustituye proveedores y claves de API, personajes, historias, chats individuales y grupales, libros de mundo, scripts regex, registros de uso y solicitudes, preferencias y adjuntos. No se fusiona nada. Exporta antes una copia si vas a necesitar los datos actuales.</string>
     <string name="story_markdown_rendering">Mostrar Markdown en historias</string>
-    <string name="story_markdown_rendering_desc">Muestra capítulos con formato Markdown y el tema actual; cambia al modo de texto original para editar.</string>
+    <string name="story_markdown_rendering_desc">Mostrar capítulos con formato Markdown.</string>
     <string name="story_markdown_edit">Editar texto original</string>
     <string name="scroll_to_top">Ir al principio</string>
     <string name="scroll_to_bottom">Ir al final</string>

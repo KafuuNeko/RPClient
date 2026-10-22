@@ -1343,7 +1343,7 @@
     <string name="content_search_index_cleanup_failed">Cleanup could not finish. Free some storage or wait for other tasks to finish, then retry. Search acceleration remains off.</string>
     <string name="content_search_index_failed">Search acceleration is unavailable. Standard search is available.</string>
     <string name="story_markdown_rendering">Render Story Markdown</string>
-    <string name="story_markdown_rendering_desc">Show chapter text with Markdown formatting and the active app theme; switch to raw text mode to edit.</string>
+    <string name="story_markdown_rendering_desc">Display story chapters with Markdown formatting.</string>
     <string name="story_markdown_edit">Edit raw text</string>
     <string name="scroll_to_top">Scroll to top</string>
     <string name="scroll_to_bottom">Scroll to bottom</string>

@@ -1338,7 +1338,7 @@
     <string name="backup_restore_confirm_title">Aktuelle App-Daten ersetzen?</string>
     <string name="backup_restore_confirm_message">Die vollständige Wiederherstellung ersetzt Anbieter und API-Schlüssel, Charaktere, Geschichten, Einzel- und Gruppenchats, Weltbücher, Regex-Skripte, Nutzungs- und Anfrageprotokolle, Einstellungen und Anhänge. Es wird nichts zusammengeführt. Sichern Sie zuerst Ihre aktuellen Daten, falls Sie sie später benötigen.</string>
     <string name="story_markdown_rendering">Markdown in Geschichten anzeigen</string>
-    <string name="story_markdown_rendering_desc">Zeigt Kapitel mit Markdown-Formatierung im aktuellen Design. Zum Bearbeiten in den Quelltextmodus wechseln.</string>
+    <string name="story_markdown_rendering_desc">Kapitel mit Markdown-Formatierung anzeigen.</string>
     <string name="story_markdown_edit">Quelltext bearbeiten</string>
     <string name="scroll_to_top">Nach oben scrollen</string>
     <string name="scroll_to_bottom">Nach unten scrollen</string>

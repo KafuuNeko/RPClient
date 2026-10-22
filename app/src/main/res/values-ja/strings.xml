@@ -1334,7 +1334,7 @@
     <string name="backup_restore_confirm_title">現在のアプリデータを置き換えますか？</string>
     <string name="backup_restore_confirm_message">完全復元ではモデル設定と API キー、キャラクター、物語、個別・グループチャット、ワールドブック、正規表現スクリプト、使用量、リクエストログ、設定、添付ファイルをすべて置き換えます。統合は行いません。現在のデータが必要な場合は、先にバックアップしてください。</string>
     <string name="story_markdown_rendering">物語の Markdown 表示</string>
-    <string name="story_markdown_rendering_desc">現在のテーマで章の Markdown を表示します。編集するには原文モードに切り替えてください。</string>
+    <string name="story_markdown_rendering_desc">物語の章を Markdown 形式で表示します。</string>
     <string name="story_markdown_edit">原文を編集</string>
     <string name="scroll_to_top">先頭へ移動</string>
     <string name="scroll_to_bottom">末尾へ移動</string>

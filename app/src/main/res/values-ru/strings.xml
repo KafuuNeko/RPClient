@@ -1343,7 +1343,7 @@
     <string name="backup_restore_confirm_title">Заменить текущие данные приложения?</string>
     <string name="backup_restore_confirm_message">Полное восстановление заменяет провайдеров и ключи API, персонажей, истории, личные и групповые чаты, книги мира, скрипты regex, записи об использовании, журналы запросов, настройки и вложения. Данные не объединяются. Сначала экспортируйте копию, если текущие данные могут понадобиться.</string>
     <string name="story_markdown_rendering">Отображать Markdown в историях</string>
-    <string name="story_markdown_rendering_desc">Показывать главы с форматированием Markdown и текущей темой; для редактирования переключитесь на исходный текст.</string>
+    <string name="story_markdown_rendering_desc">Показывать главы с форматированием Markdown.</string>
     <string name="story_markdown_edit">Редактировать исходный текст</string>
     <string name="scroll_to_top">Прокрутить вверх</string>
     <string name="scroll_to_bottom">Прокрутить вниз</string>

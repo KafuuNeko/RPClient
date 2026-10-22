@@ -144,7 +144,7 @@ import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 /** 设置输入区与全屏人设编辑弹窗共用的宏入口。 */
 internal val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
 
-/** 设置主体，按身份、模型、上下文及系统配置分组展示。 */
+/** 设置主体，按身份、外观、模型、上下文及系统配置分组展示。 */
 @Composable
 internal fun MainSettingsPage(
     state: MainSettingsState,
@@ -171,6 +171,12 @@ internal fun MainSettingsPage(
             RpSectionHeader(title = stringResource(R.string.user_identity))
         }
         item { UserIdentityPanel(state.identityState, emit) }
+
+        // 外观
+        item {
+            RpSectionHeader(title = stringResource(R.string.appearance_title))
+        }
+        item { AppearancePanel(state.appearanceState, emit) }
 
         // 模型与推理服务
         item {
@@ -210,7 +216,7 @@ internal fun MainSettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.system_and_data_section))
         }
-        item { AppearancePanel(state.appearanceState, emit) }
+        item { StoryMarkdownRenderingPanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
         item { BackupRestoreEntryCard { MainUiIntent.OpenBackupRestore.emit() } }
         item { SearchAccelerationPanel(state.searchIndexState, emit) }
@@ -232,7 +238,15 @@ private fun AppearancePanel(
             iconContainerColor = AccentIndigoColor.copy(alpha = 0.14f),
             title = stringResource(R.string.appearance_theme),
             subtitle = stringResource(R.string.appearance_entry_desc),
-            onClick = { MainUiIntent.OpenAppearance.emit() }
+            onClick = { MainUiIntent.OpenAppearance.emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         )
         RpSettingsDivider(startIndent = false)
         // 使用可换行选项，避免较长译文在小屏设备上被截断。
@@ -252,7 +266,15 @@ private fun AppearancePanel(
                 )
             }
         }
-        RpSettingsDivider(startIndent = false)
+    }
+}
+
+@Composable
+private fun StoryMarkdownRenderingPanel(
+    state: MainAppearanceSettingsState,
+    emit: MainUiIntent.() -> Unit
+) {
+    RpSettingsGroup {
         RpSettingsSwitchTile(
             icon = Icons.Rounded.Edit,
             iconColor = AccentEmeraldColor,

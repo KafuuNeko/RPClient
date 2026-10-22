@@ -1317,7 +1317,7 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="backup_restore_confirm_title">Sostituire i dati attuali?</string>
     <string name="backup_restore_confirm_message">Il ripristino completo sostituisce fornitori e chiavi API, personaggi, storie, chat singole e di gruppo, libri del mondo, script regex, registri di utilizzo e richieste, preferenze e allegati. Nessun dato viene unito. Esporta prima un backup se vuoi conservare i dati attuali.</string>
     <string name="story_markdown_rendering">Visualizza Markdown nelle storie</string>
-    <string name="story_markdown_rendering_desc">Mostra i capitoli in Markdown con il tema attuale; passa al testo originale per modificarli.</string>
+    <string name="story_markdown_rendering_desc">Mostra i capitoli in formato Markdown.</string>
     <string name="story_markdown_edit">Modifica testo originale</string>
     <string name="scroll_to_top">Vai in cima</string>
     <string name="scroll_to_bottom">Vai in fondo</string>

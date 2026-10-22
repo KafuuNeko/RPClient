@@ -1342,7 +1342,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="backup_restore_confirm_title">Substituir os dados atuais do app?</string>
     <string name="backup_restore_confirm_message">A restauração completa substitui provedores e chaves de API, personagens, histórias, conversas individuais e em grupo, livros de mundo, scripts regex, registros de uso e solicitações, preferências e anexos. Nada será mesclado. Exporte um backup primeiro se precisar dos dados atuais.</string>
     <string name="story_markdown_rendering">Renderizar Markdown das histórias</string>
-    <string name="story_markdown_rendering_desc">Exiba os capítulos em Markdown com o tema atual; alterne para o modo de texto original para editar.</string>
+    <string name="story_markdown_rendering_desc">Exibir capítulos com formatação Markdown.</string>
     <string name="story_markdown_edit">Editar texto original</string>
     <string name="scroll_to_top">Ir ao início</string>
     <string name="scroll_to_bottom">Ir ao final</string>

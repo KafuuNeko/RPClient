@@ -1339,7 +1339,7 @@
     <string name="backup_restore_confirm_title">Remplacer les données actuelles ?</string>
     <string name="backup_restore_confirm_message">La restauration complète remplace fournisseurs et clés API, personnages, histoires, discussions individuelles et de groupe, livres de monde, scripts regex, journaux d’utilisation et de requêtes, préférences et pièces jointes. Aucune fusion ne sera effectuée. Exportez une sauvegarde si vous souhaitez conserver les données actuelles.</string>
     <string name="story_markdown_rendering">Afficher le Markdown des histoires</string>
-    <string name="story_markdown_rendering_desc">Affiche les chapitres en Markdown avec le thème actuel ; passez au texte source pour les modifier.</string>
+    <string name="story_markdown_rendering_desc">Afficher les chapitres au format Markdown.</string>
     <string name="story_markdown_edit">Modifier le texte source</string>
     <string name="scroll_to_top">Aller au début</string>
     <string name="scroll_to_bottom">Aller à la fin</string>

@@ -1335,7 +1335,7 @@
     <string name="backup_restore_confirm_title">替换当前应用数据？</string>
     <string name="backup_restore_confirm_message">完整恢复将替换当前所有应用数据，包括模型配置与 API 密钥、角色、故事、单聊、群聊、世界书、正则脚本、用量记录、请求日志、偏好设置和附件，不会合并数据。如需保留当前数据，请先导出备份。</string>
     <string name="story_markdown_rendering">渲染故事 Markdown</string>
-    <string name="story_markdown_rendering_desc">按当前主题显示章节的 Markdown 格式；切换到原文模式进行编辑。</string>
+    <string name="story_markdown_rendering_desc">以 Markdown 格式显示故事章节。</string>
     <string name="story_markdown_edit">编辑原文</string>
     <string name="scroll_to_top">滚动到顶部</string>
     <string name="scroll_to_bottom">滚动到底部</string>

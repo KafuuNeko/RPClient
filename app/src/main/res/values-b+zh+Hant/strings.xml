@@ -1333,7 +1333,7 @@
     <string name="backup_restore_confirm_title">取代目前應用程式資料？</string>
     <string name="backup_restore_confirm_message">完整還原將取代目前所有應用程式資料，包括模型設定與 API 金鑰、角色、故事、單聊、群聊、世界書、正則腳本、用量記錄、請求日誌、偏好設定與附件，不會合併資料。如需保留目前資料，請先匯出備份。</string>
     <string name="story_markdown_rendering">渲染故事 Markdown</string>
-    <string name="story_markdown_rendering_desc">依目前主題顯示章節的 Markdown 格式；切換至原文模式進行編輯。</string>
+    <string name="story_markdown_rendering_desc">以 Markdown 格式顯示故事章節。</string>
     <string name="story_markdown_edit">編輯原文</string>
     <string name="scroll_to_top">捲動至頂部</string>
     <string name="scroll_to_bottom">捲動至底部</string>

@@ -1339,7 +1339,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_restore_confirm_title">Ganti data aplikasi saat ini?</string>
     <string name="backup_restore_confirm_message">Pemulihan penuh mengganti penyedia dan kunci API, karakter, cerita, obrolan pribadi dan grup, buku dunia, skrip regex, catatan penggunaan, log permintaan, preferensi, dan lampiran. Data tidak digabungkan. Ekspor cadangan terlebih dahulu jika data saat ini masih diperlukan.</string>
     <string name="story_markdown_rendering">Tampilkan Markdown cerita</string>
-    <string name="story_markdown_rendering_desc">Tampilkan bab dengan format Markdown dan tema aktif; beralih ke mode teks asli untuk mengedit.</string>
+    <string name="story_markdown_rendering_desc">Tampilkan bab dengan format Markdown.</string>
     <string name="story_markdown_edit">Edit teks asli</string>
     <string name="scroll_to_top">Gulir ke atas</string>
     <string name="scroll_to_bottom">Gulir ke bawah</string>

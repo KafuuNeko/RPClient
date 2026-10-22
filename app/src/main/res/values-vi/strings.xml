@@ -1339,7 +1339,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_restore_confirm_title">Thay thế dữ liệu ứng dụng hiện tại?</string>
     <string name="backup_restore_confirm_message">Khôi phục toàn bộ sẽ thay thế nhà cung cấp và khóa API, nhân vật, truyện, trò chuyện cá nhân và nhóm, sách thế giới, tập lệnh regex, dữ liệu sử dụng, nhật ký yêu cầu, tùy chọn và tệp đính kèm. Không hợp nhất dữ liệu. Hãy xuất bản sao lưu trước nếu cần giữ dữ liệu hiện tại.</string>
     <string name="story_markdown_rendering">Hiển thị Markdown cho truyện</string>
-    <string name="story_markdown_rendering_desc">Hiển thị chương với định dạng Markdown và giao diện hiện tại; chuyển sang văn bản gốc để chỉnh sửa.</string>
+    <string name="story_markdown_rendering_desc">Hiển thị các chương ở định dạng Markdown.</string>
     <string name="story_markdown_edit">Chỉnh sửa văn bản gốc</string>
     <string name="scroll_to_top">Cuộn lên đầu</string>
     <string name="scroll_to_bottom">Cuộn xuống cuối</string>
