@@ -42,6 +42,13 @@ android {
     }
 
     signingConfigs {
+        // 公开的固定开发签名，随项目提交，供 debug 与 demo 共用。
+        create("development") {
+            storeFile = rootProject.file("config/signing/development.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             if (hasReleaseSigning) {
                 storeFile = file(releaseStoreFile!!)
@@ -56,6 +63,7 @@ android {
         debug {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
+            signingConfig = signingConfigs.getByName("development")
         }
         release {
             isMinifyEnabled = true
@@ -67,6 +75,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        create("demo") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            signingConfig = signingConfigs.getByName("development")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {
