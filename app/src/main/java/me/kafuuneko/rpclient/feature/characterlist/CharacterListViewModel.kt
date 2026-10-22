@@ -400,13 +400,18 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val drafts = mutableListOf<CharacterCardImportDraft>()
         var failureCount = 0
         // 每个 URI 独立捕获格式或读取错误，确保后续有效卡片仍能进入保存阶段
+        var totalCount = 0
         uris.forEachIndexed { index, uri ->
             try {
-                drafts += mCharacterCardRepository.readImportFromUri(uri)
+                val result = mCharacterCardRepository.readImportItemsFromUri(uri)
+                drafts += result.drafts
+                failureCount += result.failureCount
+                totalCount += result.totalCount
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
                 failureCount++
+                totalCount++
             }
             updateImportProgress(
                 stage = CharacterImportStage.Reading,
@@ -417,7 +422,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         return CharacterCardImportBatch(
             drafts = drafts,
             parseFailureCount = failureCount,
-            totalCount = uris.size
+            totalCount = maxOf(totalCount, 1)
         )
     }
 

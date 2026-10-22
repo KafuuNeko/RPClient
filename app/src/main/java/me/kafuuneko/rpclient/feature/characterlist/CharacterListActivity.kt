@@ -79,7 +79,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             CharacterListViewEvent.OpenCharacterCardImporter -> {
                 mImportCharacterCardLauncher.launch(
-                    arrayOf("application/json", "text/*", "image/png", "image/*")
+                    arrayOf("application/json", "text/*", "image/png", "image/*", "application/zip", "application/x-zip-compressed")
                 )
             }
 

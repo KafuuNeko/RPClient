@@ -16,8 +16,12 @@ import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import java.io.ByteArrayOutputStream
+import java.io.BufferedInputStream
+import java.io.PushbackInputStream
+import java.io.InputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -56,6 +60,113 @@ class CharacterCardRepository(
             avatarMimeType = mime.ifBlank { "image/png" }
         )
     }
+
+    /**
+     * Read a single card or a ZIP archive produced by bulk export without extracting entries.
+     * Invalid JSON entries are skipped independently; archive resource limits fail closed.
+     */
+    suspend fun readImportItemsFromUri(uri: Uri): CharacterCardArchiveReadResult =
+        withContext(Dispatchers.IO) {
+            val source = mContext.contentResolver.openInputStream(uri)
+                ?: error("Cannot read character card")
+            val pushback = PushbackInputStream(BufferedInputStream(source), ZIP_SIGNATURE.size)
+            val signature = ByteArray(ZIP_SIGNATURE.size)
+            val signatureSize = pushback.read(signature)
+            if (signatureSize > 0) pushback.unread(signature, 0, signatureSize)
+            if (signatureSize != ZIP_SIGNATURE.size || !signature.contentEquals(ZIP_SIGNATURE)) {
+                pushback.close()
+                return@withContext try {
+                    CharacterCardArchiveReadResult(
+                        drafts = listOf(readImportFromUri(uri)),
+                        failureCount = 0,
+                        totalCount = 1
+                    )
+                } catch (error: Exception) {
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    CharacterCardArchiveReadResult(emptyList(), failureCount = 1, totalCount = 1)
+                }
+            }
+
+            val drafts = mutableListOf<CharacterCardImportDraft>()
+            var failureCount = 0
+            var candidateCount = 0
+            var entryCount = 0
+            var totalUncompressedBytes = 0L
+            ZipInputStream(pushback).use { zip ->
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val entry = zip.nextEntry ?: break
+                    entryCount++
+                    if (entryCount > MAX_ARCHIVE_ENTRIES) {
+                        throw ArchiveLimitException("Character archive contains too many entries")
+                    }
+                    val name = entry.name
+                    val unsafePath = name.startsWith("/") ||
+                        name.startsWith("\\\\") ||
+                        name.split('/', '\\\\').any { it == ".." } ||
+                        name.contains('\u0000')
+                    if (entry.isDirectory || !name.endsWith(".json", ignoreCase = true) || unsafePath) {
+                        zip.closeEntry()
+                        continue
+                    }
+
+                    candidateCount++
+                    var abortArchive = false
+                    try {
+                        val remainingBytes = MAX_ARCHIVE_TOTAL_BYTES - totalUncompressedBytes
+                        if (remainingBytes <= 0L) {
+                            throw ArchiveLimitException("Character archive exceeds the uncompressed size limit")
+                        }
+                        val maxEntryBytes = minOf(
+                            MAX_ARCHIVE_ENTRY_BYTES.toLong(),
+                            remainingBytes
+                        ).toInt()
+                        val bytes = zip.readBounded(maxEntryBytes)
+                        totalUncompressedBytes += bytes.size
+                        val json = bytes.toString(Charsets.UTF_8)
+                        drafts += CharacterCardImportDraft(
+                            card = mMapper.parseCharacter(json),
+                            avatarSourceUri = null,
+                            avatarMimeType = "application/json"
+                        )
+                    } catch (error: Exception) {
+                        if (error is kotlinx.coroutines.CancellationException) throw error
+                        if (error is ArchiveLimitException) {
+                            abortArchive = true
+                            throw error
+                        }
+                        failureCount++
+                    } finally {
+                        // Do not drain an oversized entry: closeEntry() would decompress its remainder.
+                        if (!abortArchive) zip.closeEntry()
+                    }
+                }
+            }
+            if (candidateCount == 0) failureCount++
+            CharacterCardArchiveReadResult(
+                drafts = drafts,
+                failureCount = failureCount,
+                totalCount = maxOf(candidateCount, 1)
+            )
+        }
+
+    private fun InputStream.readBounded(maxBytes: Int): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var count = 0
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) break
+            count += read
+            if (count > maxBytes) {
+                throw ArchiveLimitException("Character archive entry exceeds the size limit")
+            }
+            output.write(buffer, 0, read)
+        }
+        return output.toByteArray()
+    }
+
+    private class ArchiveLimitException(message: String) : Exception(message)
 
     /**
      * 保存已解析的角色卡，并返回新角色 ID。
@@ -122,6 +233,14 @@ class CharacterCardRepository(
             entries = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getEntriesByLorebookId(it) }.orEmpty(),
             regexScripts = regexScripts
         )
+    }
+
+    /** 将角色卡 JSON 直接写入用户选择的文档 URI。 */
+    suspend fun exportJsonToUri(characterId: Long, uri: Uri) = withContext(Dispatchers.IO) {
+        val json = exportJson(characterId)
+        mContext.contentResolver.openOutputStream(uri)?.use { output ->
+            output.write(json.toByteArray(Charsets.UTF_8))
+        } ?: error("Cannot open character export destination")
     }
 
     /** 将所选角色卡作为独立 Character Card V2 JSON 条目写入 ZIP。 */
@@ -203,6 +322,11 @@ class CharacterCardRepository(
     }
 
     private companion object {
+        val ZIP_SIGNATURE = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+        const val MAX_ARCHIVE_ENTRIES = 1_000
+        const val MAX_ARCHIVE_ENTRY_BYTES = 8 * 1024 * 1024
+        const val MAX_ARCHIVE_TOTAL_BYTES = 64L * 1024L * 1024L
+
         val OnePixelPng = byteArrayOf(
             0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
             0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -221,4 +345,11 @@ data class CharacterCardImportDraft(
     val card: CharacterCardImport,
     val avatarSourceUri: Uri?,
     val avatarMimeType: String
+)
+
+/** Per-source import result, including entries skipped during archive parsing. */
+data class CharacterCardArchiveReadResult(
+    val drafts: List<CharacterCardImportDraft>,
+    val failureCount: Int,
+    val totalCount: Int
 )
