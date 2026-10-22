@@ -102,8 +102,8 @@ class CharacterCardRepository(
                     }
                     val name = entry.name
                     val unsafePath = name.startsWith("/") ||
-                        name.startsWith("\\\\") ||
-                        name.split('/', '\\\\').any { it == ".." } ||
+                        name.startsWith("\\") ||
+                        name.split('/', '\\').any { it == ".." } ||
                         name.contains('\u0000')
                     if (entry.isDirectory || !name.endsWith(".json", ignoreCase = true) || unsafePath) {
                         zip.closeEntry()
