@@ -34,7 +34,7 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     private val mLowMemory = (mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let {
         it.isLowRamDevice || it.memoryClass < 192
     }
-    private val mCache = object : LruCache<String, Bitmap>(if (mLowMemory) 8 * 1024 * 1024 else 20 * 1024 * 1024) {
+    private val mCache = object : LruCache<String, Bitmap>(if (mLowMemory) 8 * 1024 * 1024 else 32 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
     private val mDirectory by lazy { File(mContext.cacheDir, "backgrounds").apply { mkdirs() } }
@@ -69,7 +69,7 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         require(info.outWidth > 0 && info.outHeight > 0 &&
             info.outWidth.toLong() * info.outHeight <= 48_000_000) { "Invalid background dimensions" }
         // 始终从标准源图生成模糊结果，不叠加处理上一张预览。
-        val bitmap = decode(file, if (mLowMemory) 1280 else 2048, orient = true)
+        val bitmap = decode(file, if (mLowMemory) 2048 else 3072, orient = true)
         try {
             target.outputStream().use {
                 check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "Background encoding failed" }
@@ -92,9 +92,9 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         return withContext(Dispatchers.IO) {
             val entity = prepared?.file ?: mFiles.getFileEntity(requireNotNull(settings.fileUuid))
                 ?: error("Missing background")
-            val edge = if (preview) 400 else if (mLowMemory) 768 else 1280
+            val edge = if (preview) 400 else if (mLowMemory) 1280 else 2560
             val extraBlur = surfaceBlur.coerceIn(0, 100)
-            val key = "v3_${entity.hash}_${settings.blur}_${extraBlur}_$edge"
+            val key = "v4_${entity.hash}_${settings.blur}_${extraBlur}_$edge"
             mCache.get(key)?.let { return@withContext it }
             // 同时只允许一项图像处理，避免三页恢复或快速预览造成内存峰值。
             mMutex.withLock {
@@ -156,9 +156,11 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     private fun decode(file: File, edge: Int, orient: Boolean = false): Bitmap {
         val info = bounds(file)
         require(info.outWidth > 0 && info.outHeight > 0) { "Invalid background image" }
+        // 普通模式允许解码 2K 长屏图片，避免先被像素预算采样到目标分辨率以下。
+        val maxPixels = if (mLowMemory) 4_194_304L else 8_388_608L
         var sample = 1
         while (maxOf(info.outWidth, info.outHeight) / sample > edge * 2 ||
-            info.outWidth.toLong() * info.outHeight / sample / sample > 4_194_304L) sample *= 2
+            info.outWidth.toLong() * info.outHeight / sample / sample > maxPixels) sample *= 2
         var bitmap = requireNotNull(BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888
