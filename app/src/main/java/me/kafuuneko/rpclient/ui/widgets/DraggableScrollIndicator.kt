@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.channels.Channel
@@ -41,7 +42,8 @@ fun Modifier.draggableScrollIndicator(
     state: ScrollState,
     color: Color = MaterialTheme.colorScheme.outline.copy(
         alpha = SCROLL_INDICATOR_THUMB_OPACITY
-    )
+    ),
+    thumbThickness: Dp = 6.dp
 ): Modifier {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -59,7 +61,7 @@ fun Modifier.draggableScrollIndicator(
             ?: return@drawWithContent
 
         // 使用逻辑末端定位，保持 LTR 与 RTL 布局行为一致。
-        val thickness = ScrollIndicatorThickness.toPx()
+        val thickness = thumbThickness.toPx()
         val crossAxisInset = ScrollIndicatorCrossAxisInset.toPx()
         val left = if (layoutDirection == LayoutDirection.Ltr) {
             size.width - crossAxisInset - thickness

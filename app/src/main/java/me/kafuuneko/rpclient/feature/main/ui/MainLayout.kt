@@ -140,6 +140,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -1490,9 +1491,24 @@ private fun SettingsPage(
         }
         item { AppearancePanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { BackupRestoreEntryCard { emit(MainUiIntent.OpenBackupRestore) } }
         item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
         item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+    }
+}
+
+@Composable
+private fun BackupRestoreEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Storage,
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.backup_restore_title),
+            subtitle = stringResource(R.string.backup_restore_entry_desc),
+            onClick = onClick
+        )
     }
 }
 
@@ -1527,6 +1543,22 @@ private fun AppearancePanel(
                 )
             }
         }
+        RpSettingsDivider(startIndent = false)
+        var storyMarkdownEnabled by remember {
+            mutableStateOf(AppModel.storyMarkdownRenderingEnabled)
+        }
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Edit,
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.story_markdown_rendering),
+            subtitle = stringResource(R.string.story_markdown_rendering_desc),
+            checked = storyMarkdownEnabled,
+            onCheckedChange = { enabled ->
+                AppModel.storyMarkdownRenderingEnabled = enabled
+                storyMarkdownEnabled = enabled
+            }
+        )
     }
 }
 

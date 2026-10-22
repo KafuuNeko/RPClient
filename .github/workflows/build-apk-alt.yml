@@ -1,0 +1,114 @@
+
+name: Build Signed RPClient Third Release APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-fork-release-signed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build signed RPClient Third APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate fork signing secrets
+        env:
+          FORK_RELEASE_KEYSTORE_BASE64: ${{ secrets.FORK_RELEASE_KEYSTORE_BASE64 }}
+          FORK_RELEASE_STORE_PASSWORD: ${{ secrets.FORK_RELEASE_STORE_PASSWORD }}
+          FORK_RELEASE_KEY_ALIAS: ${{ secrets.FORK_RELEASE_KEY_ALIAS }}
+          FORK_RELEASE_KEY_PASSWORD: ${{ secrets.FORK_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in FORK_RELEASE_KEYSTORE_BASE64 FORK_RELEASE_STORE_PASSWORD FORK_RELEASE_KEY_ALIAS FORK_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Decode fork signing keystore
+        env:
+          FORK_RELEASE_KEYSTORE_BASE64: ${{ secrets.FORK_RELEASE_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$FORK_RELEASE_KEYSTORE_BASE64" \
+            | base64 --decode > "$RUNNER_TEMP/fork-release-keystore.jks"
+          chmod 600 "$RUNNER_TEMP/fork-release-keystore.jks"
+
+      - name: Build signed fork release APK
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/fork-release-keystore.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.FORK_RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.FORK_RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.FORK_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon -PrpclientFork=true assembleRelease
+
+      - name: Verify package ID and stage signed third APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-artifacts
+
+          apk="$(find app/build/outputs/apk/release \
+            -maxdepth 1 -type f -name '*.apk' -print -quit)"
+
+          if [[ -z "$apk" ]]; then
+            echo "::error::No third release APK was produced"
+            exit 1
+          fi
+
+          apksigner="$(find "$ANDROID_HOME/build-tools" \
+            -type f -name apksigner -print -quit)"
+
+          if [[ -z "$apksigner" ]]; then
+            echo "::error::Android apksigner was not found"
+            exit 1
+          fi
+
+          "$apksigner" verify --verbose "$apk"
+          apkanalyzer="$(find "$ANDROID_HOME" -type f -name apkanalyzer -print -quit)"
+          if [[ -z "$apkanalyzer" ]]; then
+            echo "::error::Android apkanalyzer was not found"
+            exit 1
+          fi
+          package_id="$("$apkanalyzer" manifest application-id "$apk")"
+          if [[ "$package_id" != "me.kafuuneko.rpclient.third" ]]; then
+            echo "::error::Unexpected application ID: $package_id"
+            exit 1
+          fi
+          cp "$apk" build-artifacts/RPClient-Third-release-signed.apk
+
+      - name: Upload signed fork release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPClient-Third-release-signed-${{ github.run_number }}
+          path: build-artifacts/RPClient-Third-release-signed.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove temporary keystore
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/fork-release-keystore.jks"

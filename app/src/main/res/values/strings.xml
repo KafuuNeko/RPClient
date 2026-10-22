@@ -61,6 +61,20 @@
     <string name="theme_dark">Dark</string>
     <string name="prompt_and_memory_section">Prompt &amp; Context Memory</string>
     <string name="system_and_data_section">Data &amp; System</string>
+    <string name="backup_restore_title">Backup &amp; Restore</string>
+    <string name="backup_restore_entry_desc">Export or restore a portable ZIP of app data and settings</string>
+    <string name="backup_restore_description">Export all app data as readable JSONL and JSON, including characters, stories, chats, Group Chats, World Books, provider settings, API keys, token usage, request logs, preferences, and attached files. Restore fully replaces current data and restarts RPClient.</string>
+    <string name="backup_restore_security_warning">Security: RPClient-Portable-Data.zip is not encrypted. It includes API keys, custom headers, request logs, private conversations, and attached files. Anyone with the ZIP can read this data; store it securely.</string>
+    <string name="backup_export_action">Export ZIP backup</string>
+    <string name="backup_restore_action">Restore from ZIP</string>
+    <string name="backup_done">Done</string>
+    <string name="backup_working">Working…</string>
+    <string name="backup_export_success">Backup exported successfully.</string>
+    <string name="backup_restore_success">Backup restored. Restarting RPClient…</string>
+    <string name="backup_restarting">Restarting RPClient to reopen restored data…</string>
+    <string name="backup_operation_failed">Operation failed: %1$s</string>
+    <string name="backup_restore_confirm_title">Replace current app data?</string>
+    <string name="backup_restore_confirm_message">FULL RESTORE: this replaces all current app data, including providers and API keys, characters, stories, regular chats, Group Chats, World Books, regex scripts, usage records, request logs, preferences, and attachments. Nothing is merged. Export a backup of your current data first if you may need it later.</string>
     <string name="model_provider">Model Configuration</string>
     <string name="manage">Manage</string>
     <string name="no_enabled_model">No enabled model</string>
@@ -1224,4 +1238,7 @@
     <string name="chat_import_reading_images">Reading images…</string>
     <string name="chat_import_image_directory_failed">Could not read the image folder</string>
     <string name="chat_archive_images_skipped">Completed. Skipped %1$d unavailable images.</string>
+    <string name="story_markdown_rendering">Render Story Markdown</string>
+    <string name="story_markdown_rendering_desc">Show chapter text with Markdown formatting and the active app theme; tap the preview to edit raw text.</string>
+    <string name="story_markdown_edit">Edit raw text</string>
 </resources>
