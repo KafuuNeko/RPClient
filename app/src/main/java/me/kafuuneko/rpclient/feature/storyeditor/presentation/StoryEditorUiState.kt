@@ -64,7 +64,9 @@ data class StoryEditorContentState(
     /** 当前分组或统计包含的角色数量。 */
     val characterCount: Int,
     /** 当前内容是否允许用户编辑。 */
-    val editable: Boolean = true
+    val editable: Boolean = true,
+    /** 故事 Markdown 展示偏好，由 ViewModel 在初始化和恢复页面时读取。 */
+    val markdownRenderingEnabled: Boolean = false
 )
 
 /** 当前 Story 的轻量分卷/章节结构与编辑定位，不包含任何章节正文。 */

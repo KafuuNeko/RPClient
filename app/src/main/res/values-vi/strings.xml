@@ -1324,4 +1324,24 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="content_search_index_cleaning">Đang xóa chỉ mục và giải phóng dung lượng…</string>
     <string name="content_search_index_cleanup_failed">Chưa thể hoàn tất dọn dẹp. Hãy giải phóng dung lượng hoặc chờ các tác vụ khác kết thúc rồi thử lại. Tăng tốc tìm kiếm vẫn tắt.</string>
     <string name="content_search_index_failed">Không thể dùng tăng tốc tìm kiếm. Bạn vẫn có thể tìm kiếm thông thường.</string>
+    <string name="backup_restore_title">Sao lưu và khôi phục</string>
+    <string name="backup_restore_entry_desc">Xuất hoặc khôi phục ZIP chứa dữ liệu và cài đặt ứng dụng</string>
+    <string name="backup_restore_description">Xuất toàn bộ dữ liệu dưới dạng JSONL và JSON có thể đọc: nhân vật, truyện, trò chuyện cá nhân và nhóm, sách thế giới, cấu hình nhà cung cấp, khóa API, lượng token sử dụng, nhật ký yêu cầu, tùy chọn và tệp đính kèm. Khôi phục sẽ thay thế toàn bộ dữ liệu hiện tại và khởi động lại RPClient.</string>
+    <string name="backup_restore_security_warning">Bảo mật: RPClient-Portable-Data.zip không được mã hóa. Tệp chứa khóa API, tiêu đề tùy chỉnh, nhật ký yêu cầu, hội thoại riêng tư và tệp đính kèm. Bất kỳ ai có ZIP đều có thể đọc dữ liệu; hãy lưu giữ an toàn.</string>
+    <string name="backup_export_action">Xuất bản sao lưu ZIP</string>
+    <string name="backup_restore_action">Khôi phục từ ZIP</string>
+    <string name="backup_done">Xong</string>
+    <string name="backup_working">Đang xử lý…</string>
+    <string name="backup_export_success">Đã xuất bản sao lưu.</string>
+    <string name="backup_restore_success">Đã khôi phục. Đang khởi động lại RPClient…</string>
+    <string name="backup_restarting">Đang khởi động lại RPClient để mở dữ liệu đã khôi phục…</string>
+    <string name="backup_operation_failed">Thao tác thất bại: %1$s</string>
+    <string name="backup_restore_confirm_title">Thay thế dữ liệu ứng dụng hiện tại?</string>
+    <string name="backup_restore_confirm_message">Khôi phục toàn bộ sẽ thay thế nhà cung cấp và khóa API, nhân vật, truyện, trò chuyện cá nhân và nhóm, sách thế giới, tập lệnh regex, dữ liệu sử dụng, nhật ký yêu cầu, tùy chọn và tệp đính kèm. Không hợp nhất dữ liệu. Hãy xuất bản sao lưu trước nếu cần giữ dữ liệu hiện tại.</string>
+    <string name="story_markdown_rendering">Hiển thị Markdown cho truyện</string>
+    <string name="story_markdown_rendering_desc">Hiển thị chương với định dạng Markdown và giao diện hiện tại; chuyển sang văn bản gốc để chỉnh sửa.</string>
+    <string name="story_markdown_edit">Chỉnh sửa văn bản gốc</string>
+    <string name="scroll_to_top">Cuộn lên đầu</string>
+    <string name="scroll_to_bottom">Cuộn xuống cuối</string>
+    <string name="backup_failure_detail">Kiểm tra tệp sao lưu và dung lượng trống, rồi thử lại.</string>
 </resources>

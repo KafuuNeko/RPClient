@@ -1324,4 +1324,24 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="content_search_index_cleaning">Menghapus indeks dan mengosongkan ruang…</string>
     <string name="content_search_index_cleanup_failed">Pembersihan belum selesai. Kosongkan ruang atau tunggu tugas lain selesai, lalu coba lagi. Percepatan pencarian tetap nonaktif.</string>
     <string name="content_search_index_failed">Percepatan pencarian tidak tersedia. Pencarian standar tersedia.</string>
+    <string name="backup_restore_title">Pencadangan dan pemulihan</string>
+    <string name="backup_restore_entry_desc">Ekspor atau pulihkan ZIP berisi data dan pengaturan aplikasi</string>
+    <string name="backup_restore_description">Ekspor semua data sebagai JSONL dan JSON yang dapat dibaca: karakter, cerita, obrolan pribadi dan grup, buku dunia, konfigurasi penyedia, kunci API, penggunaan token, log permintaan, preferensi, dan lampiran. Pemulihan mengganti semua data saat ini dan memulai ulang RPClient.</string>
+    <string name="backup_restore_security_warning">Keamanan: RPClient-Portable-Data.zip tidak dienkripsi. Isinya mencakup kunci API, header khusus, log permintaan, percakapan pribadi, dan lampiran. Siapa pun yang memiliki ZIP dapat membaca datanya; simpan dengan aman.</string>
+    <string name="backup_export_action">Ekspor cadangan ZIP</string>
+    <string name="backup_restore_action">Pulihkan dari ZIP</string>
+    <string name="backup_done">Selesai</string>
+    <string name="backup_working">Memproses…</string>
+    <string name="backup_export_success">Cadangan berhasil diekspor.</string>
+    <string name="backup_restore_success">Cadangan dipulihkan. Memulai ulang RPClient…</string>
+    <string name="backup_restarting">Memulai ulang RPClient untuk membuka data yang dipulihkan…</string>
+    <string name="backup_operation_failed">Operasi gagal: %1$s</string>
+    <string name="backup_restore_confirm_title">Ganti data aplikasi saat ini?</string>
+    <string name="backup_restore_confirm_message">Pemulihan penuh mengganti penyedia dan kunci API, karakter, cerita, obrolan pribadi dan grup, buku dunia, skrip regex, catatan penggunaan, log permintaan, preferensi, dan lampiran. Data tidak digabungkan. Ekspor cadangan terlebih dahulu jika data saat ini masih diperlukan.</string>
+    <string name="story_markdown_rendering">Tampilkan Markdown cerita</string>
+    <string name="story_markdown_rendering_desc">Tampilkan bab dengan format Markdown dan tema aktif; beralih ke mode teks asli untuk mengedit.</string>
+    <string name="story_markdown_edit">Edit teks asli</string>
+    <string name="scroll_to_top">Gulir ke atas</string>
+    <string name="scroll_to_bottom">Gulir ke bawah</string>
+    <string name="backup_failure_detail">Periksa file cadangan dan ruang penyimpanan yang tersedia, lalu coba lagi.</string>
 </resources>

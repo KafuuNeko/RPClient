@@ -23,7 +23,9 @@ internal sealed class MarkdownInline {
 /** 行内列表项的标记与正文。 */
 internal data class MarkdownListItem(
     val marker: String,
-    val content: String
+    val content: String,
+    /** 每两个前导空格或等效制表符宽度表示一级嵌套。 */
+    val indentLevel: Int = 0
 )
 
 /**
@@ -34,6 +36,9 @@ internal data class MarkdownListItem(
  * - 未识别或未闭合的语法保留为普通文本，兼容流式输出中间态。
  */
 internal object MarkdownParser {
+    private val mEscapableMarkdownCharacters = setOf(
+        '\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '>', '|', '~'
+    )
     private val mHeadingRegex = Regex("""^(#{1,6})\s+(.+)$""")
     private val mUnorderedListRegex = Regex("""^\s*[-*+]\s+(.+)$""")
     private val mOrderedListRegex = Regex("""^\s*(\d+)[.)]\s+(.+)$""")
@@ -106,10 +111,48 @@ internal object MarkdownParser {
         }
 
         while (index < source.length) {
-            // 未闭合的定界符返回 null，扫描器会保留其原文。
+            // 转义标记保留目标字符，不展示前导反斜杠。
+            if (source[index] == '\\' && index + 1 < source.length &&
+                source[index + 1] in mEscapableMarkdownCharacters
+            ) {
+                flushPlain(index)
+                parts += MarkdownInline.Text(source.substring(index + 1, index + 2))
+                index += 2
+                plainStart = index
+                continue
+            }
+
+            // 单词内部的下划线按原文展示，例如 file_name 和 user_id。
+            if ((source.startsWith("**", index) || source.startsWith("__", index)) &&
+                !canOpenDelimiter(source, index, source.substring(index, index + 2))
+            ) {
+                index += 2
+                continue
+            }
+            if ((source[index] == '*' || source[index] == '_') &&
+                !source.startsWith("**", index) && !source.startsWith("__", index) &&
+                !canOpenDelimiter(source, index, source[index].toString())
+            ) {
+                index += 1
+                continue
+            }
+
+            // 未闭合定界符保留为普通文本，兼容流式输出的中间状态。
             val parsed = when {
-                source.startsWith("`", index) -> parseDelimited(source, index, "`") {
-                    MarkdownInline.Code(it)
+                source.startsWith("***", index) -> parseDelimited(source, index, "***") {
+                    MarkdownInline.Strong(
+                        listOf(MarkdownInline.Emphasis(parseInline(it)))
+                    )
+                }
+                source.startsWith("___", index) -> parseDelimited(source, index, "___") {
+                    MarkdownInline.Strong(
+                        listOf(MarkdownInline.Emphasis(parseInline(it)))
+                    )
+                }
+                source[index] == '`' -> {
+                    val runLength = source.substring(index).takeWhile { it == '`' }.length
+                    val delimiter = "`".repeat(runLength)
+                    parseDelimited(source, index, delimiter) { MarkdownInline.Code(it) }
                 }
                 source.startsWith("**", index) -> parseDelimited(source, index, "**") {
                     MarkdownInline.Strong(parseInline(it))
@@ -144,11 +187,12 @@ internal object MarkdownParser {
 
     private fun parseCodeBlock(lines: List<String>, startIndex: Int): ParsedBlock {
         val fence = lines[startIndex].trimStart()
-        val language = fence.removePrefix("```").trim().takeIf { it.isNotBlank() }
+        val fenceLength = fence.takeWhile { it == '`' }.length.coerceAtLeast(3)
+        val language = fence.drop(fenceLength).trim().takeIf { it.isNotBlank() }
         val codeLines = mutableListOf<String>()
         var index = startIndex + 1
-        // 代码块内部不再解析 Markdown，避免改变代码原文。
-        while (index < lines.size && !lines[index].trimStart().startsWith("```")) {
+        // 结束围栏长度不得短于开始围栏，且不能附带语言等信息。
+        while (index < lines.size && !isClosingCodeFence(lines[index], fenceLength)) {
             codeLines += lines[index]
             index += 1
         }
@@ -157,6 +201,12 @@ internal object MarkdownParser {
             block = MarkdownBlock.Code(language = language, content = codeLines.joinToString("\n")),
             nextIndex = index
         )
+    }
+
+    private fun isClosingCodeFence(line: String, minimumFenceLength: Int): Boolean {
+        val trimmed = line.trimStart(' ', '\t')
+        val closingLength = trimmed.takeWhile { it == '`' }.length
+        return closingLength >= minimumFenceLength && trimmed.drop(closingLength).isBlank()
     }
 
     private fun parseQuoteBlock(lines: List<String>, startIndex: Int): ParsedBlock {
@@ -179,12 +229,29 @@ internal object MarkdownParser {
         // 保持原有列表顺序，并统一无序列表的展示标记。
         while (index < lines.size && lines[index].isListLine()) {
             val line = lines[index]
+            var indentWidth = 0
+            for (character in line) {
+                when (character) {
+                    ' ' -> indentWidth += 1
+                    '\t' -> indentWidth += 4
+                    else -> break
+                }
+            }
+            val indentLevel = indentWidth / 2
             val ordered = mOrderedListRegex.matchEntire(line)
             val unordered = mUnorderedListRegex.matchEntire(line)
             if (ordered != null) {
-                items += MarkdownListItem("${ordered.groupValues[1]}.", ordered.groupValues[2])
+                items += MarkdownListItem(
+                    marker = "${ordered.groupValues[1]}.",
+                    content = ordered.groupValues[2],
+                    indentLevel = indentLevel
+                )
             } else if (unordered != null) {
-                items += MarkdownListItem("-", unordered.groupValues[1])
+                items += MarkdownListItem(
+                    marker = "-",
+                    content = unordered.groupValues[1],
+                    indentLevel = indentLevel
+                )
             }
             index += 1
         }
@@ -214,20 +281,96 @@ internal object MarkdownParser {
         wrap: (String) -> MarkdownInline
     ): ParsedInline? {
         val contentStart = startIndex + delimiter.length
-        val end = source.indexOf(delimiter, contentStart)
-        if (end == -1) return null
-        return ParsedInline(
-            part = wrap(source.substring(contentStart, end)),
-            nextIndex = end + delimiter.length
-        )
+        // 跳过转义符，未闭合的标记继续保留原文。
+        var end = contentStart
+        while (end <= source.length - delimiter.length) {
+            if (source[end] == '\\') {
+                end += 2
+                continue
+            }
+            if (source.startsWith(delimiter, end) &&
+                (delimiter.startsWith("`") || canCloseDelimiter(source, end, delimiter))
+            ) {
+                return ParsedInline(
+                    part = wrap(source.substring(contentStart, end)),
+                    nextIndex = end + delimiter.length
+                )
+            }
+            end += 1
+        }
+        return null
     }
 
+    private fun canOpenDelimiter(source: String, index: Int, delimiter: String): Boolean {
+        val next = source.getOrNull(index + delimiter.length) ?: return false
+        if (next.isWhitespace()) return false
+        if (delimiter.contains('_')) {
+            val previous = source.getOrNull(index - 1)
+            if (previous?.isLetterOrDigit() == true && next.isLetterOrDigit()) return false
+        }
+        return true
+    }
+
+    private fun canCloseDelimiter(source: String, index: Int, delimiter: String): Boolean {
+        val previous = source.getOrNull(index - 1) ?: return false
+        if (previous.isWhitespace()) return false
+        if (delimiter.contains('_')) {
+            val next = source.getOrNull(index + delimiter.length)
+            if (previous.isLetterOrDigit() && next?.isLetterOrDigit() == true) return false
+        }
+        return true
+    }
+
+    /** 平衡标签与 URL 内的括号，允许地址包含合法的括号片段。 */
     private fun parseLink(source: String, startIndex: Int): ParsedInline? {
-        val labelEnd = source.indexOf(']', startIndex + 1)
+        // 标签与 URL 分别计数，转义的括号不参与嵌套深度。
+        var labelDepth = 0
+        var labelEnd = -1
+        var cursor = startIndex + 1
+        while (cursor < source.length) {
+            when {
+                source[cursor] == '\\' -> cursor += 2
+                source[cursor] == '[' -> {
+                    labelDepth += 1
+                    cursor += 1
+                }
+                source[cursor] == ']' && labelDepth == 0 -> {
+                    labelEnd = cursor
+                    break
+                }
+                source[cursor] == ']' -> {
+                    labelDepth -= 1
+                    cursor += 1
+                }
+                else -> cursor += 1
+            }
+        }
         val urlStart = labelEnd + 1
-        if (labelEnd == -1 || urlStart >= source.length || source[urlStart] != '(') return null
-        val urlEnd = source.indexOf(')', urlStart + 1)
-        if (urlEnd == -1) return null
+        if (labelEnd < 0 || urlStart >= source.length || source[urlStart] != '(') return null
+
+        var nesting = 1
+        var urlEnd = -1
+        cursor = urlStart + 1
+        while (cursor < source.length) {
+            when {
+                source[cursor] == '\\' -> cursor += 2
+                source[cursor] == '(' -> {
+                    nesting += 1
+                    cursor += 1
+                }
+                source[cursor] == ')' -> {
+                    nesting -= 1
+                    if (nesting == 0) {
+                        urlEnd = cursor
+                        break
+                    }
+                    cursor += 1
+                }
+                source[cursor] == '\n' || source[cursor] == '\r' -> return null
+                else -> cursor += 1
+            }
+        }
+        if (urlEnd < 0) return null
         return ParsedInline(
             part = MarkdownInline.Link(
                 parseInline(source.substring(startIndex + 1, labelEnd))

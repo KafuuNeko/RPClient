@@ -26,6 +26,9 @@ object AppModel : KotprefModel(), PromptPreferences {
     // 最后一个成功完成的业务升级步骤 versionCode；保留属性名以兼容既有偏好键。
     var lastMigratedVersionCode by intPref(default = 0, commitByDefault = true)
 
+    /** 开启后以主题化 Markdown 预览故事章节；默认保留原文编辑方式。 */
+    var storyMarkdownRenderingEnabled by booleanPref(default = false, commitByDefault = true)
+
     // 最后一个成功清理旧存储的业务升级步骤 versionCode。
     var lastCleanedUpgradeVersionCode by intPref(default = 0, commitByDefault = true)
 

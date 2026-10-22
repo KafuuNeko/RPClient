@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
@@ -211,6 +212,7 @@ internal fun MainSettingsPage(
         }
         item { AppearancePanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
+        item { BackupRestoreEntryCard { MainUiIntent.OpenBackupRestore.emit() } }
         item { SearchAccelerationPanel(state.searchIndexState, emit) }
         item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
         item { DebugPanel(state.debugState, emit) }
@@ -250,6 +252,31 @@ private fun AppearancePanel(
                 )
             }
         }
+        RpSettingsDivider(startIndent = false)
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.Edit,
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.story_markdown_rendering),
+            subtitle = stringResource(R.string.story_markdown_rendering_desc),
+            checked = state.storyMarkdownRenderingEnabled,
+            onCheckedChange = { MainUiIntent.ToggleStoryMarkdownRendering(it).emit() }
+        )
+    }
+}
+
+/** 从数据设置进入完整备份与恢复页面。 */
+@Composable
+private fun BackupRestoreEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Storage,
+            iconColor = AccentSkyColor,
+            iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.backup_restore_title),
+            subtitle = stringResource(R.string.backup_restore_entry_desc),
+            onClick = onClick
+        )
     }
 }
 

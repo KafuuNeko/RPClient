@@ -41,7 +41,9 @@ data class MainSettingsState(
 /** 应用外观设置面板状态。 */
 data class MainAppearanceSettingsState(
     /** 用户当前选择的配色主题模式。 */
-    val themeMode: AppThemeMode
+    val themeMode: AppThemeMode,
+    /** 故事章节默认使用 Markdown 预览，关闭时保留原文编辑方式。 */
+    val storyMarkdownRenderingEnabled: Boolean = false
 )
 
 /** 用户名称、描述和头像面板状态。 */

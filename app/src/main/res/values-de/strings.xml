@@ -1323,4 +1323,24 @@
     <string name="content_search_index_cleaning">Index wird gelöscht und Speicherplatz freigegeben…</string>
     <string name="content_search_index_cleanup_failed">Die Bereinigung konnte nicht abgeschlossen werden. Gib Speicherplatz frei oder warte auf andere Aufgaben und versuche es erneut. Die Suchbeschleunigung bleibt deaktiviert.</string>
     <string name="content_search_index_failed">Die Suchbeschleunigung ist nicht verfügbar. Die Standardsuche ist verfügbar.</string>
+    <string name="backup_restore_title">Sicherung und Wiederherstellung</string>
+    <string name="backup_restore_entry_desc">App-Daten und Einstellungen als ZIP exportieren oder wiederherstellen</string>
+    <string name="backup_restore_description">Exportiert alle Daten als lesbares JSONL und JSON: Charaktere, Geschichten, Einzel- und Gruppenchats, Weltbücher, Anbieter-Einstellungen, API-Schlüssel, Token-Verbrauch, Anfrageprotokolle, Einstellungen und Anhänge. Die Wiederherstellung ersetzt alle aktuellen Daten und startet RPClient neu.</string>
+    <string name="backup_restore_security_warning">Sicherheit: RPClient-Portable-Data.zip ist unverschlüsselt. Die Datei enthält API-Schlüssel, eigene Header, Anfrageprotokolle, private Gespräche und Anhänge. Jeder mit dieser ZIP kann die Daten lesen. Bewahren Sie sie sicher auf.</string>
+    <string name="backup_export_action">ZIP-Sicherung exportieren</string>
+    <string name="backup_restore_action">Aus ZIP wiederherstellen</string>
+    <string name="backup_done">Fertig</string>
+    <string name="backup_working">Wird verarbeitet…</string>
+    <string name="backup_export_success">Sicherung erfolgreich exportiert.</string>
+    <string name="backup_restore_success">Sicherung wiederhergestellt. RPClient wird neu gestartet…</string>
+    <string name="backup_restarting">RPClient wird zum Laden der wiederhergestellten Daten neu gestartet…</string>
+    <string name="backup_operation_failed">Vorgang fehlgeschlagen: %1$s</string>
+    <string name="backup_restore_confirm_title">Aktuelle App-Daten ersetzen?</string>
+    <string name="backup_restore_confirm_message">Die vollständige Wiederherstellung ersetzt Anbieter und API-Schlüssel, Charaktere, Geschichten, Einzel- und Gruppenchats, Weltbücher, Regex-Skripte, Nutzungs- und Anfrageprotokolle, Einstellungen und Anhänge. Es wird nichts zusammengeführt. Sichern Sie zuerst Ihre aktuellen Daten, falls Sie sie später benötigen.</string>
+    <string name="story_markdown_rendering">Markdown in Geschichten anzeigen</string>
+    <string name="story_markdown_rendering_desc">Zeigt Kapitel mit Markdown-Formatierung im aktuellen Design. Zum Bearbeiten in den Quelltextmodus wechseln.</string>
+    <string name="story_markdown_edit">Quelltext bearbeiten</string>
+    <string name="scroll_to_top">Nach oben scrollen</string>
+    <string name="scroll_to_bottom">Nach unten scrollen</string>
+    <string name="backup_failure_detail">Prüfen Sie die Sicherungsdatei und den freien Speicherplatz und versuchen Sie es erneut.</string>
 </resources>

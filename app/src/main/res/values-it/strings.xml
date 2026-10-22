@@ -1302,4 +1302,24 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="content_search_index_cleaning">Eliminazione dell’indice e recupero dello spazio…</string>
     <string name="content_search_index_cleanup_failed">Pulizia non completata. Libera spazio o attendi il termine delle altre attività, poi riprova. La ricerca accelerata resta disattivata.</string>
     <string name="content_search_index_failed">La ricerca accelerata non è disponibile. Puoi usare la ricerca standard.</string>
+    <string name="backup_restore_title">Backup e ripristino</string>
+    <string name="backup_restore_entry_desc">Esporta o ripristina uno ZIP con dati e impostazioni</string>
+    <string name="backup_restore_description">Esporta tutti i dati in JSONL e JSON leggibili: personaggi, storie, chat singole e di gruppo, libri del mondo, impostazioni dei fornitori, chiavi API, utilizzo dei token, registri delle richieste, preferenze e allegati. Il ripristino sostituisce tutti i dati attuali e riavvia RPClient.</string>
+    <string name="backup_restore_security_warning">Sicurezza: RPClient-Portable-Data.zip non è crittografato. Contiene chiavi API, intestazioni personalizzate, registri delle richieste, conversazioni private e allegati. Chiunque abbia lo ZIP può leggere i dati; conservalo al sicuro.</string>
+    <string name="backup_export_action">Esporta backup ZIP</string>
+    <string name="backup_restore_action">Ripristina da ZIP</string>
+    <string name="backup_done">Fine</string>
+    <string name="backup_working">Elaborazione…</string>
+    <string name="backup_export_success">Backup esportato correttamente.</string>
+    <string name="backup_restore_success">Backup ripristinato. Riavvio di RPClient…</string>
+    <string name="backup_restarting">Riavvio di RPClient per aprire i dati ripristinati…</string>
+    <string name="backup_operation_failed">Operazione non riuscita: %1$s</string>
+    <string name="backup_restore_confirm_title">Sostituire i dati attuali?</string>
+    <string name="backup_restore_confirm_message">Il ripristino completo sostituisce fornitori e chiavi API, personaggi, storie, chat singole e di gruppo, libri del mondo, script regex, registri di utilizzo e richieste, preferenze e allegati. Nessun dato viene unito. Esporta prima un backup se vuoi conservare i dati attuali.</string>
+    <string name="story_markdown_rendering">Visualizza Markdown nelle storie</string>
+    <string name="story_markdown_rendering_desc">Mostra i capitoli in Markdown con il tema attuale; passa al testo originale per modificarli.</string>
+    <string name="story_markdown_edit">Modifica testo originale</string>
+    <string name="scroll_to_top">Vai in cima</string>
+    <string name="scroll_to_bottom">Vai in fondo</string>
+    <string name="backup_failure_detail">Controlla il file di backup e lo spazio disponibile, quindi riprova.</string>
 </resources>

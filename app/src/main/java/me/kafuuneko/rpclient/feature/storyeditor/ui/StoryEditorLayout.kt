@@ -3,12 +3,6 @@ package me.kafuuneko.rpclient.feature.storyeditor.ui
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -45,8 +39,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -95,28 +87,24 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -126,7 +114,6 @@ import androidx.window.core.layout.WindowSizeClass
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
@@ -267,17 +254,21 @@ private fun StoryEditorPage(
         }
     }
 
+    // 在自适应布局分支上方共享预览状态，确保各工具栏控制同一编辑器。
+    val markdownController = rememberStoryMarkdownController(document, state.contentState.markdownRenderingEnabled)
     // 窗口等级不随 IME 开合变化，避免输入时切换布局并打断焦点。
     val layoutMode = storyEditorLayoutMode(currentWindowAdaptiveInfo().windowSizeClass)
-    StoryEditorScaffold(
-        state = state,
-        document = document,
-        editorState = editorState,
-        documentMatchesChapter = documentMatchesChapter,
-        layoutMode = layoutMode,
-        onContinue = onContinue,
-        emit = emit
-    )
+    CompositionLocalProvider(LocalStoryMarkdownEditorController provides markdownController) {
+        StoryEditorScaffold(
+            state = state,
+            document = document,
+            editorState = editorState,
+            documentMatchesChapter = documentMatchesChapter,
+            layoutMode = layoutMode,
+            onContinue = onContinue,
+            emit = emit
+        )
+    }
 }
 
 /** 按窗口约束组织故事编辑器的常规、横屏沉浸或紧凑布局。 */
@@ -1250,148 +1241,6 @@ private fun CurrentChapterBar(
 }
 
 @Composable
-private fun StoryTextEditor(
-    modifier: Modifier,
-    document: StoryEditorDocument,
-    editorState: TextFieldState,
-    editable: Boolean,
-    generationState: StoryGenerationState,
-    emit: StoryEditorUiIntent.() -> Unit
-) {
-    // 正文不使用 rememberSaveable，避免长文进入 Activity Bundle；Room 承担进程恢复。
-    val editorScrollState = rememberScrollState()
-    val searchScope = rememberCoroutineScope()
-    var pendingSearchScroll by remember(document.chapterId, document.searchRange) { mutableStateOf(document.searchRange != null) }
-    val followStreamingOutput = generationState is StoryGenerationState.Streaming
-    val generatedTextColor = MaterialTheme.colorScheme.primary
-    val isStreaming = generationState is StoryGenerationState.Streaming ||
-            generationState is StoryGenerationState.Preparing ||
-            generationState is StoryGenerationState.Applying
-
-    // 流式生成中的呼吸光晕动效
-    val infiniteTransition = rememberInfiniteTransition(label = "StoryStreamingGlow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "GlowAlpha"
-    )
-
-    val displayedEditedRange = document.searchRange ?: document.latestEditedRange.takeUnless {
-        generationState is StoryGenerationState.Streaming ||
-                generationState is StoryGenerationState.Applying
-    }
-    val currentEditedRange by rememberUpdatedState(displayedEditedRange)
-    val currentEditedStyle by rememberUpdatedState(
-        SpanStyle(
-            color = generatedTextColor,
-            background = generatedTextColor.copy(alpha = 0.12f),
-            fontWeight = FontWeight.Medium
-        )
-    )
-    // 转换实例必须跨流式分片保持稳定，否则 BasicTextField 会反复重建布局状态并闪烁。
-    val latestEditedOutputTransformation = remember {
-        OutputTransformation {
-            val editedRange = currentEditedRange
-            if (
-                editedRange != null &&
-                editedRange.start < editedRange.end &&
-                editedRange.end <= length
-            ) {
-                addStyle(
-                    spanStyle = currentEditedStyle,
-                    start = editedRange.start,
-                    end = editedRange.end
-                )
-            }
-        }
-    }
-    LaunchedEffect(document.syncVersion) {
-        if (editorState.text.toString() != document.content) {
-            editorState.syncTextPreservingSelection(document.content)
-        }
-    }
-    LaunchedEffect(document.searchRange) {
-        document.searchRange?.let { range ->
-            if (range.end <= editorState.text.length) editorState.edit { selection = TextRange(range.start, range.end) }
-        }
-    }
-    LaunchedEffect(followStreamingOutput, editorScrollState) {
-        if (!followStreamingOutput) return@LaunchedEffect
-        // 流式文本布局完成后 maxValue 会持续增长，跟随它才能稳定滚到最新输出。
-        snapshotFlow { editorScrollState.maxValue }.collect { bottom ->
-            editorScrollState.scrollTo(bottom)
-        }
-    }
-    LaunchedEffect(editorState) {
-        snapshotFlow {
-            StoryEditorSnapshot(
-                chapterId = document.chapterId,
-                content = editorState.text.toString(),
-                isComposing = editorState.composition != null
-            )
-        }.distinctUntilChanged().collect { snapshot ->
-            StoryEditorUiIntent.EditorSnapshotChanged(snapshot).emit()
-        }
-    }
-
-    PageSurface(kind = PageSurfaceKind.Content,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = if (isStreaming) 2.dp * LocalPageContentOpacity.current else 0.dp,
-        border = if (isStreaming) BorderStroke(
-            1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha * LocalPageContentOpacity.current)
-        ) else null,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageContentOpacity.current)
-    ) {
-        BasicTextField(
-            state = editorState,
-            onTextLayout = { result ->
-                val range = document.searchRange
-                val layout = result()
-                if (pendingSearchScroll && range != null && layout != null && range.start < layout.layoutInput.text.length) {
-                    pendingSearchScroll = false
-                    val top = layout.getBoundingBox(range.start).top.toInt()
-                    searchScope.launch { editorScrollState.scrollTo(top) }
-                }
-            },
-            modifier = Modifier
-                .fillMaxSize()
-                .draggableScrollIndicator(editorScrollState),
-            enabled = editable,
-            textStyle = MaterialTheme.typography.bodyLarge.merge(
-                TextStyle(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 28.sp
-                )
-            ),
-            scrollState = editorScrollState,
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            outputTransformation = latestEditedOutputTransformation,
-            decorator = { innerTextField ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                ) {
-                    if (editorState.text.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.story_editor_placeholder),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
-                        )
-                    }
-                    innerTextField()
-                }
-            }
-        )
-    }
-}
-
-@Composable
 private fun SaveStatus(
     saveState: StorySaveState,
     emit: StoryEditorUiIntent.() -> Unit
@@ -1643,6 +1492,7 @@ private fun EditorCompactBottomBar(
                     referenceState = referenceState
                 )
             }
+            MarkdownModeToolbarAction()
             IconButton(
                 onClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1938,6 +1788,7 @@ private fun EditorBottomBar(
                     else -> {
                         val historyEnabled = contentState.editable &&
                                 generationState is StoryGenerationState.Idle
+                        MarkdownModeToolbarAction()
                         IconButton(
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)

@@ -1325,4 +1325,24 @@
     <string name="content_search_index_cleaning">Borrando el índice y liberando espacio…</string>
     <string name="content_search_index_cleanup_failed">No se pudo completar la limpieza. Libera espacio o espera a que terminen otras tareas y vuelve a intentarlo. La aceleración sigue desactivada.</string>
     <string name="content_search_index_failed">La aceleración no está disponible. Puedes usar la búsqueda estándar.</string>
+    <string name="backup_restore_title">Copia de seguridad y restauración</string>
+    <string name="backup_restore_entry_desc">Exporta o restaura un ZIP con los datos y ajustes de la app</string>
+    <string name="backup_restore_description">Exporta todos los datos como JSONL y JSON legibles: personajes, historias, chats individuales y grupales, libros de mundo, configuración de proveedores, claves de API, uso de tokens, registros de solicitudes, preferencias y adjuntos. La restauración sustituye todos los datos actuales y reinicia RPClient.</string>
+    <string name="backup_restore_security_warning">Seguridad: RPClient-Portable-Data.zip no está cifrado. Incluye claves de API, cabeceras personalizadas, registros de solicitudes, conversaciones privadas y adjuntos. Cualquiera que tenga el ZIP puede leer los datos; guárdalo de forma segura.</string>
+    <string name="backup_export_action">Exportar copia ZIP</string>
+    <string name="backup_restore_action">Restaurar desde ZIP</string>
+    <string name="backup_done">Listo</string>
+    <string name="backup_working">Procesando…</string>
+    <string name="backup_export_success">Copia exportada correctamente.</string>
+    <string name="backup_restore_success">Copia restaurada. Reiniciando RPClient…</string>
+    <string name="backup_restarting">Reiniciando RPClient para abrir los datos restaurados…</string>
+    <string name="backup_operation_failed">Error en la operación: %1$s</string>
+    <string name="backup_restore_confirm_title">¿Sustituir los datos actuales de la app?</string>
+    <string name="backup_restore_confirm_message">La restauración completa sustituye proveedores y claves de API, personajes, historias, chats individuales y grupales, libros de mundo, scripts regex, registros de uso y solicitudes, preferencias y adjuntos. No se fusiona nada. Exporta antes una copia si vas a necesitar los datos actuales.</string>
+    <string name="story_markdown_rendering">Mostrar Markdown en historias</string>
+    <string name="story_markdown_rendering_desc">Muestra capítulos con formato Markdown y el tema actual; cambia al modo de texto original para editar.</string>
+    <string name="story_markdown_edit">Editar texto original</string>
+    <string name="scroll_to_top">Ir al principio</string>
+    <string name="scroll_to_bottom">Ir al final</string>
+    <string name="backup_failure_detail">Comprueba el archivo de copia y el espacio disponible e inténtalo de nuevo.</string>
 </resources>

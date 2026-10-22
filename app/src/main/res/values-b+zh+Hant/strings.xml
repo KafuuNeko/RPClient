@@ -1318,4 +1318,24 @@
     <string name="content_search_index_cleaning">正在清除索引並回收空間…</string>
     <string name="content_search_index_cleanup_failed">清理未完成。請釋放部分儲存空間或等待其他工作結束後重試。搜尋加速保持關閉。</string>
     <string name="content_search_index_failed">搜尋加速無法使用，可以使用一般搜尋。</string>
+    <string name="backup_restore_title">備份與還原</string>
+    <string name="backup_restore_entry_desc">匯出或還原包含應用程式資料與設定的 ZIP 備份</string>
+    <string name="backup_restore_description">將全部應用程式資料匯出為可讀的 JSONL 和 JSON，包括角色、故事、單聊、群聊、世界書、模型設定、API 金鑰、Token 用量、請求日誌、偏好設定與附件。還原會完全取代目前資料並重新啟動 RPClient。</string>
+    <string name="backup_restore_security_warning">安全提醒：RPClient-Portable-Data.zip 未加密，包含 API 金鑰、自訂請求標頭、請求日誌、私密對話與附件。任何取得此檔案的人都能讀取其中資料，請妥善保管。</string>
+    <string name="backup_export_action">匯出 ZIP 備份</string>
+    <string name="backup_restore_action">從 ZIP 還原</string>
+    <string name="backup_done">完成</string>
+    <string name="backup_working">處理中…</string>
+    <string name="backup_export_success">備份匯出成功。</string>
+    <string name="backup_restore_success">備份已還原，正在重新啟動 RPClient…</string>
+    <string name="backup_restarting">正在重新啟動 RPClient 以載入還原的資料…</string>
+    <string name="backup_operation_failed">操作失敗：%1$s</string>
+    <string name="backup_restore_confirm_title">取代目前應用程式資料？</string>
+    <string name="backup_restore_confirm_message">完整還原將取代目前所有應用程式資料，包括模型設定與 API 金鑰、角色、故事、單聊、群聊、世界書、正則腳本、用量記錄、請求日誌、偏好設定與附件，不會合併資料。如需保留目前資料，請先匯出備份。</string>
+    <string name="story_markdown_rendering">渲染故事 Markdown</string>
+    <string name="story_markdown_rendering_desc">依目前主題顯示章節的 Markdown 格式；切換至原文模式進行編輯。</string>
+    <string name="story_markdown_edit">編輯原文</string>
+    <string name="scroll_to_top">捲動至頂部</string>
+    <string name="scroll_to_bottom">捲動至底部</string>
+    <string name="backup_failure_detail">請檢查備份檔案與可用儲存空間，然後重試。</string>
 </resources>

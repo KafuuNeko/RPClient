@@ -40,6 +40,11 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".feature.backuprestore.BackupRestoreActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.about.AboutActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

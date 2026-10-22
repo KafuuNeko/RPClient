@@ -1328,4 +1328,24 @@
     <string name="content_search_index_cleaning">Удаление индекса и освобождение места…</string>
     <string name="content_search_index_cleanup_failed">Не удалось завершить очистку. Освободите место или дождитесь завершения других задач и повторите попытку. Ускорение поиска остаётся выключенным.</string>
     <string name="content_search_index_failed">Ускорение поиска недоступно. Можно использовать обычный поиск.</string>
+    <string name="backup_restore_title">Резервное копирование и восстановление</string>
+    <string name="backup_restore_entry_desc">Экспорт или восстановление ZIP с данными и настройками</string>
+    <string name="backup_restore_description">Экспорт всех данных в читаемые JSONL и JSON: персонажи, истории, личные и групповые чаты, книги мира, настройки провайдеров, ключи API, расход токенов, журналы запросов, настройки и вложения. Восстановление полностью заменяет текущие данные и перезапускает RPClient.</string>
+    <string name="backup_restore_security_warning">Безопасность: RPClient-Portable-Data.zip не зашифрован. Архив содержит ключи API, пользовательские заголовки, журналы запросов, личные беседы и вложения. Любой владелец ZIP может прочитать эти данные; храните его в безопасном месте.</string>
+    <string name="backup_export_action">Экспортировать ZIP-копию</string>
+    <string name="backup_restore_action">Восстановить из ZIP</string>
+    <string name="backup_done">Готово</string>
+    <string name="backup_working">Обработка…</string>
+    <string name="backup_export_success">Резервная копия экспортирована.</string>
+    <string name="backup_restore_success">Копия восстановлена. Перезапуск RPClient…</string>
+    <string name="backup_restarting">Перезапуск RPClient для открытия восстановленных данных…</string>
+    <string name="backup_operation_failed">Ошибка операции: %1$s</string>
+    <string name="backup_restore_confirm_title">Заменить текущие данные приложения?</string>
+    <string name="backup_restore_confirm_message">Полное восстановление заменяет провайдеров и ключи API, персонажей, истории, личные и групповые чаты, книги мира, скрипты regex, записи об использовании, журналы запросов, настройки и вложения. Данные не объединяются. Сначала экспортируйте копию, если текущие данные могут понадобиться.</string>
+    <string name="story_markdown_rendering">Отображать Markdown в историях</string>
+    <string name="story_markdown_rendering_desc">Показывать главы с форматированием Markdown и текущей темой; для редактирования переключитесь на исходный текст.</string>
+    <string name="story_markdown_edit">Редактировать исходный текст</string>
+    <string name="scroll_to_top">Прокрутить вверх</string>
+    <string name="scroll_to_bottom">Прокрутить вниз</string>
+    <string name="backup_failure_detail">Проверьте файл резервной копии и свободное место, затем повторите попытку.</string>
 </resources>

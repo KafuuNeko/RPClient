@@ -48,6 +48,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
+import me.kafuuneko.rpclient.feature.backuprestore.BackupRestoreActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -739,6 +740,18 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 保存故事 Markdown 预览偏好，并同步设置页状态。 */
+    @UiIntentObserver(MainUiIntent.ToggleStoryMarkdownRendering::class)
+    private fun onToggleStoryMarkdownRendering(intent: MainUiIntent.ToggleStoryMarkdownRendering) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.storyMarkdownRenderingEnabled = intent.enabled
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            appearanceState = uiState.settingsState.appearanceState.copy(
+                storyMarkdownRenderingEnabled = intent.enabled
+            )
+        )).setup()
+    }
+
     /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
     @UiIntentObserver(MainUiIntent.SelectHomeContentTab::class)
     private fun onSelectHomeContentTab(intent: MainUiIntent.SelectHomeContentTab) {
@@ -1021,6 +1034,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenRequestLogs() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
+    }
+
+    /** 打开独立的完整备份与恢复页面。 */
+    @UiIntentObserver(MainUiIntent.OpenBackupRestore::class)
+    private fun onOpenBackupRestore() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(BackupRestoreActivity::class.java).tryEmit()
     }
 
     /** 打开成功 LLM 请求的 Token 消耗统计页。 */
@@ -1571,7 +1591,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
-                themeMode = mAppThemeManager.themeModeFlow.value
+                themeMode = mAppThemeManager.themeModeFlow.value,
+                storyMarkdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled
             ),
             identityState = MainUserIdentityState(
                 userName = AppModel.resolvedUserName,

@@ -7,6 +7,10 @@ plugins {
 fun propertyOrEnv(name: String): String? =
     providers.gradleProperty(name).orElse(providers.environmentVariable(name)).orNull
 
+val isForkRelease = providers.gradleProperty("rpclientFork")
+    .map { it.toBoolean() }
+    .getOrElse(false)
+
 val releaseStoreFile = propertyOrEnv("RELEASE_STORE_FILE")
 val releaseStorePassword = propertyOrEnv("RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = propertyOrEnv("RELEASE_KEY_ALIAS")
@@ -27,7 +31,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "me.kafuuneko.rpclient"
+        applicationId = if (isForkRelease) "me.kafuuneko.rpclient.third" else "me.kafuuneko.rpclient"
+
         minSdk = 26
         targetSdk = 36
         versionCode = 20260301

@@ -253,7 +253,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             storyId = story.id,
             topBarState = StoryEditorTopBarState(title = story.title),
             contentState = StoryEditorContentState(
-                characterCount = chapter.content.length
+                characterCount = chapter.content.length,
+                markdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled
             ),
             structureState = buildStructureState(loaded.editorData),
             referenceState = StoryEditorReferenceState(
@@ -378,8 +379,13 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val hasAvailableProvider = withContext(Dispatchers.IO) {
             mLLMRepository.getSelectedProvider() != null
         }
-        if (uiState.hasAvailableProvider != hasAvailableProvider) {
-            uiState.copy(hasAvailableProvider = hasAvailableProvider).setup()
+        val markdownEnabled = AppModel.storyMarkdownRenderingEnabled
+        if (uiState.hasAvailableProvider != hasAvailableProvider ||
+            uiState.contentState.markdownRenderingEnabled != markdownEnabled
+        ) {
+            uiState.copy(hasAvailableProvider = hasAvailableProvider,
+                contentState = uiState.contentState.copy(markdownRenderingEnabled = markdownEnabled)
+            ).setup()
         }
     }
 
