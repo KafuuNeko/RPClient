@@ -568,6 +568,9 @@ Falhas: %2$d</string>
     <string name="quick_presets">Predefinições Rápidas</string>
     <string name="preset_custom">Personalizado</string>
     <string name="advanced_settings">Avançado e Extensões</string>
+    <string name="provider_system_prompt">Prompt de sistema do modelo</string>
+    <string name="provider_system_prompt_description">Sempre aparece primeiro em cada solicitação com este modelo, incluindo resumos e testes de conexão. Não entra no orçamento de contexto; reserve espaço por conta própria. Deixe em branco para desativar.</string>
+    <string name="provider_system_prompt_placeholder">Instruções opcionais para este modelo</string>
     <string name="advanced_settings_desc">Cabeçalhos personalizados, patch do corpo da requisição e roteamento</string>
     <string name="custom_headers_preview">Prévia dos Cabeçalhos Personalizados</string>
     <string name="request_body_patch_preview">Prévia do Patch do Corpo da Requisição</string>

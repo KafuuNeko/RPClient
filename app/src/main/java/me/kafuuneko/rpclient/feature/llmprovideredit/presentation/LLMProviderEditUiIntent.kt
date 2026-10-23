@@ -37,6 +37,8 @@ sealed class LLMProviderEditUiIntent {
 
     data class ChangeModel(val value: String) : LLMProviderEditUiIntent()
 
+    data class ChangeSystemPrompt(val value: String) : LLMProviderEditUiIntent()
+
     data object QueryModels : LLMProviderEditUiIntent()
 
     data object CancelModelQuery : LLMProviderEditUiIntent()

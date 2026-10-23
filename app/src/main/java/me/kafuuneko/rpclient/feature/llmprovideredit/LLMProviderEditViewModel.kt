@@ -510,6 +510,11 @@ class LLMProviderEditViewModel :
     private fun onToggleEnabled(intent: LLMProviderEditUiIntent.ToggleEnabled) =
         updateForm { copy(isEnabled = intent.value) }
 
+    /** 更新模型级系统指令，沿用表单的未保存变更保护。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeSystemPrompt::class)
+    private fun onChangeSystemPrompt(intent: LLMProviderEditUiIntent.ChangeSystemPrompt) =
+        updateForm { copy(systemPrompt = intent.value) }
+
     /** 校验完整表单并保存配置至数据库。 */
     @UiIntentObserver(LLMProviderEditUiIntent.SaveClick::class)
     private suspend fun onSaveClick() {

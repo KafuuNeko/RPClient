@@ -488,6 +488,9 @@
     <string name="quick_presets">クイックプリセット</string>
     <string name="preset_custom">カスタム</string>
     <string name="advanced_settings">詳細設定と拡張</string>
+    <string name="provider_system_prompt">モデルのシステムプロンプト</string>
+    <string name="provider_system_prompt_description">要約や接続テストを含む、このモデルのすべてのリクエストの先頭に追加されます。コンテキスト予算には含まれないため、ご自身で余裕を確保してください。空欄の場合は追加されません。</string>
+    <string name="provider_system_prompt_placeholder">このモデル専用の指示（任意）</string>
     <string name="advanced_settings_desc">カスタムヘッダー、リクエスト本文パッチ、ルーティング</string>
     <string name="custom_headers_preview">カスタムヘッダーのプレビュー</string>
     <string name="request_body_patch_preview">リクエスト本文パッチのプレビュー</string>

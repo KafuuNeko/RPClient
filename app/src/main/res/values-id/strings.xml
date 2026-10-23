@@ -568,6 +568,9 @@ Gagal: %2$d</string>
     <string name="quick_presets">Preset Cepat</string>
     <string name="preset_custom">Kustom</string>
     <string name="advanced_settings">Lanjutan &amp; Ekstensi</string>
+    <string name="provider_system_prompt">Prompt Sistem Model</string>
+    <string name="provider_system_prompt_description">Selalu ditempatkan paling awal dalam setiap permintaan dengan model ini, termasuk ringkasan dan uji koneksi. Tidak dihitung dalam anggaran konteks; sisihkan ruang sendiri. Kosongkan untuk menonaktifkan.</string>
+    <string name="provider_system_prompt_placeholder">Instruksi opsional untuk model ini</string>
     <string name="advanced_settings_desc">Header kustom, patch badan permintaan, dan perutean</string>
     <string name="custom_headers_preview">Pratinjau Header Kustom</string>
     <string name="request_body_patch_preview">Pratinjau Patch Badan Permintaan</string>

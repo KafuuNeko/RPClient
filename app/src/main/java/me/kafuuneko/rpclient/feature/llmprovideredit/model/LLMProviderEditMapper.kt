@@ -17,6 +17,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     baseUrl = baseUrl,
     hasExistingApiKey = apiKey.isNotBlank(),
     model = model,
+    systemPrompt = systemPrompt,
     hasExistingCustomHeaders = customHeadersJson.isNotBlank(),
     customHeadersJson = formatJsonPretty(customHeadersJson),
     requestBodyPatchJson = formatJsonPretty(requestBodyPatchJson).ifBlank { "{}" },

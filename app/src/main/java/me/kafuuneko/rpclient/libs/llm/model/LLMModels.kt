@@ -97,6 +97,8 @@ data class LLMProviderConfig(
     val apiKey: String = "",
     /** 当前配置或请求使用的模型名称。 */
     val model: String,
+    /** 每次生成时置于上下文最前方的模型级系统指令。 */
+    val systemPrompt: String = "",
     /** 用户配置的自定义请求头 JSON，仅在受控业务层解析。 */
     val customHeadersJson: String = "",
     /** 合并到协议请求体的 JSON Merge Patch；结构字段由各协议适配器保护。 */

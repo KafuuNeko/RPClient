@@ -568,6 +568,9 @@ Thất bại: %2$d</string>
     <string name="quick_presets">Mẫu cấu hình nhanh</string>
     <string name="preset_custom">Tùy chỉnh</string>
     <string name="advanced_settings">Nâng cao &amp; Mở rộng</string>
+    <string name="provider_system_prompt">Prompt hệ thống của mô hình</string>
+    <string name="provider_system_prompt_description">Luôn được thêm vào đầu mọi yêu cầu dùng mô hình này, kể cả tóm tắt và kiểm tra kết nối. Không tính vào ngân sách ngữ cảnh; hãy tự dành dung lượng dự phòng. Để trống để tắt.</string>
+    <string name="provider_system_prompt_placeholder">Chỉ dẫn tùy chọn cho mô hình này</string>
     <string name="advanced_settings_desc">Tiêu đề tùy chỉnh, JSON Patch yêu cầu và định tuyến</string>
     <string name="custom_headers_preview">Xem trước tiêu đề tùy chỉnh</string>
     <string name="request_body_patch_preview">Xem trước Patch thân yêu cầu</string>

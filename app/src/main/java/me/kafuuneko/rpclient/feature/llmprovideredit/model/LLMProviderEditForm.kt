@@ -41,6 +41,8 @@ data class LLMProviderEditForm(
     val apiKeyEditMode: CredentialEditMode = CredentialEditMode.KeepExisting,
     /** 当前配置或请求使用的模型名称。 */
     val model: String = "",
+    /** 每次请求时置于上下文最前方的模型级系统指令。 */
+    val systemPrompt: String = "",
     /** 已保存配置中是否存在可继续保留的自定义请求头。 */
     val hasExistingCustomHeaders: Boolean = false,
     /** 自定义请求头保留、替换或清除的编辑状态。 */
@@ -79,6 +81,7 @@ data class LLMProviderEditForm(
     fun toProviderOrNull(
         apiKey: String = ""
     ): LLMProvider? {
+        // 先校验生成参数与扩展配置，避免保存不可发送的模型配置。
         val parsedTemperature = temperature.toFloatOrNull() ?: return null
         val parsedTopP = topP.toFloatOrNull() ?: return null
         val parsedMaxTokens = maxTokens.toIntOrNull() ?: return null
@@ -99,6 +102,7 @@ data class LLMProviderEditForm(
         if (providerType == LLMProviderType.OpenRouter &&
             !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
         ) return null
+        // 提示词保留原始排版；空白值是否注入由 LLM 模块统一判断。
         return LLMProvider(
             id = id,
             name = name.trim(),
@@ -107,6 +111,7 @@ data class LLMProviderEditForm(
             baseUrl = baseUrl.trim(),
             apiKey = apiKey.trim(),
             model = model.trim(),
+            systemPrompt = systemPrompt,
             customHeadersJson = customHeadersJson.trim(),
             requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
             temperature = parsedTemperature,

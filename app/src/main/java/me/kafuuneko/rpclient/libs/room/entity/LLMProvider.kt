@@ -29,6 +29,9 @@ data class LLMProvider(
     val apiKey: String = "",
     // 默认模型名
     val model: String,
+    // 模型级系统指令始终置于上下文最前方；空白值不注入。
+    @ColumnInfo(defaultValue = "''")
+    val systemPrompt: String = "",
     // 额外请求头 JSON
     val customHeadersJson: String = "",
     // 合并到协议请求体的 JSON Merge Patch；默认不改变基础请求。
@@ -83,6 +86,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     baseUrl = baseUrl,
     apiKey = apiKey,
     model = model,
+    systemPrompt = systemPrompt,
     customHeadersJson = customHeadersJson,
     requestBodyPatchJson = requestBodyPatchJson,
     temperature = temperature,

@@ -567,6 +567,9 @@
     <string name="quick_presets">Ajustes preestablecidos</string>
     <string name="preset_custom">Personalizado</string>
     <string name="advanced_settings">Avanzado y extensiones</string>
+    <string name="provider_system_prompt">Prompt de sistema del modelo</string>
+    <string name="provider_system_prompt_description">Siempre aparece al principio de cada solicitud con este modelo, incluidos resúmenes y pruebas de conexión. No se incluye en el presupuesto de contexto; reserva espacio por tu cuenta. Déjalo vacío para desactivarlo.</string>
+    <string name="provider_system_prompt_placeholder">Instrucciones opcionales para este modelo</string>
     <string name="advanced_settings_desc">Encabezados personalizados, patch del cuerpo de solicitud y enrutamiento</string>
     <string name="custom_headers_preview">Vista previa de encabezados personalizados</string>
     <string name="request_body_patch_preview">Vista previa del patch del cuerpo de solicitud</string>

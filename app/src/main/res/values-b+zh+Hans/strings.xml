@@ -567,6 +567,9 @@
     <string name="quick_presets">快捷预设模板</string>
     <string name="preset_custom">自定义</string>
     <string name="advanced_settings">高级与扩展配置</string>
+    <string name="provider_system_prompt">模型 System Prompt</string>
+    <string name="provider_system_prompt_description">使用此模型的每次请求都会置顶添加，包括摘要与连接测试。不计入上下文预算，请自行预留额度；留空则不添加。</string>
+    <string name="provider_system_prompt_placeholder">输入此模型专用的系统指令（可选）</string>
     <string name="advanced_settings_desc">自定义请求头、JSON Patch 与路由偏好</string>
     <string name="custom_headers_preview">自定义请求头预览</string>
     <string name="request_body_patch_preview">请求体 Patch 预览</string>

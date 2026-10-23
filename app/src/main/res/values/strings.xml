@@ -582,6 +582,9 @@
     <string name="quick_presets">Quick Presets</string>
     <string name="preset_custom">Custom</string>
     <string name="advanced_settings">Advanced &amp; Extensions</string>
+    <string name="provider_system_prompt">Model System Prompt</string>
+    <string name="provider_system_prompt_description">Always placed first in every request using this model, including summaries and connection tests. Not counted toward the context budget; reserve space yourself. Leave blank to disable.</string>
+    <string name="provider_system_prompt_placeholder">Optional instructions for this model</string>
     <string name="advanced_settings_desc">Custom headers, request body patch, and routing</string>
     <string name="custom_headers_preview">Custom Headers Preview</string>
     <string name="request_body_patch_preview">Request Body Patch Preview</string>

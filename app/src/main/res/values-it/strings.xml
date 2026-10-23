@@ -552,6 +552,9 @@ Non riusciti: %2$d</string>
     <string name="quick_presets">Preimpostazioni rapide</string>
     <string name="preset_custom">Personalizzato</string>
     <string name="advanced_settings">Avanzate ed estensioni</string>
+    <string name="provider_system_prompt">Prompt di sistema del modello</string>
+    <string name="provider_system_prompt_description">Appare sempre per primo in ogni richiesta con questo modello, inclusi riepiloghi e test di connessione. Non rientra nel budget di contesto; riserva spazio autonomamente. Lascia vuoto per disattivare.</string>
+    <string name="provider_system_prompt_placeholder">Istruzioni facoltative per questo modello</string>
     <string name="advanced_settings_desc">Intestazioni personalizzate, patch del corpo della richiesta e routing</string>
     <string name="custom_headers_preview">Anteprima intestazioni personalizzate</string>
     <string name="request_body_patch_preview">Anteprima patch corpo richiesta</string>

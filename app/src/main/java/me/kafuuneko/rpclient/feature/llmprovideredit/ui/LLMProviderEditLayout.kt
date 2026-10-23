@@ -764,6 +764,11 @@ private fun CollapsibleAdvancedPanel(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
                     )
 
+                    ProviderSystemPromptField(
+                        value = form.systemPrompt,
+                        onChange = { LLMProviderEditUiIntent.ChangeSystemPrompt(it).emit() }
+                    )
+
                     Text(
                         stringResource(R.string.provider_type),
                         style = MaterialTheme.typography.titleSmall
@@ -1416,6 +1421,54 @@ private fun FormTextField(
         visualTransformation = visualTransformation,
         shape = RoundedCornerShape(12.dp)
     )
+}
+
+/** 在高级配置中提供有界高度的多行指令编辑区，长文本在输入框内部滚动。 */
+@Composable
+private fun ProviderSystemPromptField(value: String, onChange: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 标题与说明沿用页面的主题色和信息层级，强调该指令始终置顶。
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RpIconBubble(icon = Icons.Rounded.Psychology)
+            Text(
+                text = stringResource(R.string.provider_system_prompt),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Text(
+            text = stringResource(R.string.provider_system_prompt_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.provider_system_prompt)) },
+            placeholder = { Text(stringResource(R.string.provider_system_prompt_placeholder)) },
+            minLines = 4,
+            maxLines = 8,
+            shape = RoundedCornerShape(12.dp),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+@Preview(name = "Model system prompt", showBackground = true, widthDp = 360)
+@Composable
+private fun ProviderSystemPromptFieldPreview() {
+    AppTheme(dynamicColor = false) {
+        AppSurface {
+            Column(modifier = Modifier.padding(18.dp)) {
+                ProviderSystemPromptField(value = "Keep replies concise.\nUse plain language.", onChange = {})
+            }
+        }
+    }
 }
 
 @Composable
