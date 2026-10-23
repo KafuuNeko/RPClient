@@ -16,11 +16,12 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,9 +36,11 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.utils.toggle
 
 /** 群聊创建页和设置页共用的世界书分组选择器。 */
@@ -53,7 +56,7 @@ fun GroupChatLorebookSelector(
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
     val isSearching = query.isNotBlank()
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (groups.isNotEmpty()) {
             LorebookSearchField(
                 query = query,
@@ -101,17 +104,13 @@ private fun LorebookGroup(
     onToggleLorebook: (Long) -> Unit,
     onToggleEntry: (Long) -> Unit
 ) {
-    Surface(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-        ),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -127,11 +126,16 @@ private fun LorebookGroup(
                         Icons.AutoMirrored.Rounded.KeyboardArrowRight
                     },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                 )
                 Spacer(Modifier.width(4.dp))
+                Checkbox(
+                    checked = group.isAllEnabled,
+                    onCheckedChange = { onToggleLorebook(group.lorebookId) }
+                )
+                Spacer(Modifier.width(8.dp))
                 RpIconBubble(Icons.Rounded.Book)
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = group.lorebookName,
@@ -145,14 +149,10 @@ private fun LorebookGroup(
                             group.enabledCount,
                             group.totalCount
                         ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                     )
                 }
-                Switch(
-                    checked = group.isAllEnabled,
-                    onCheckedChange = { onToggleLorebook(group.lorebookId) }
-                )
             }
             if (expanded) {
                 group.entries.forEach { entry ->
@@ -166,50 +166,64 @@ private fun LorebookGroup(
     }
 }
 
-/** 展示世界书条目摘要与当前会话启用开关。 */
+/** 使用与创建对话页一致的卡片和复选框展示世界书条目。 */
 @Composable
 private fun LorebookEntryRow(
     entry: GroupChatLorebookEntryItem,
     onToggle: () -> Unit
 ) {
-    Row(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onToggle),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            width = if (entry.enabled) 2.dp else 1.dp,
+            color = if (entry.enabled) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            }
+        ),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
     ) {
-        RpIconBubble(Icons.Rounded.Book)
-        Spacer(Modifier.width(10.dp))
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            Checkbox(
+                checked = entry.enabled,
+                onCheckedChange = { onToggle() }
             )
-            Text(
-                text = entry.content,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            RpTagRow(
-                tags = buildList {
-                    if (entry.constant) add(stringResource(R.string.entry_constant))
-                    addAll(entry.keywords)
-                },
-                maxCount = 3
-            )
+            Spacer(Modifier.width(8.dp))
+            RpIconBubble(Icons.Rounded.Book)
+            Spacer(Modifier.width(12.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = entry.content,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                RpTagRow(
+                    tags = buildList {
+                        if (entry.constant) add(stringResource(R.string.entry_constant))
+                        addAll(entry.keywords)
+                    },
+                    maxCount = 3
+                )
+            }
         }
-        Switch(
-            checked = entry.enabled,
-            onCheckedChange = { onToggle() }
-        )
     }
 }
 
@@ -220,7 +234,9 @@ private fun LorebookSearchField(
     onQueryChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
