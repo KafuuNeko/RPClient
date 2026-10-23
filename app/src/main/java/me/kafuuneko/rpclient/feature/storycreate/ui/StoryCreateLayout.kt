@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -102,6 +103,8 @@ private fun StoryCreateNormal(
     val controlsEnabled = state.loadState == StoryCreateLoadState.Ready
 
     AppPageScaffold(
+        // 缩小整个表单视口，底栏与搜索框共同避让键盘；短列表也能滚动到焦点。
+        modifier = Modifier.imePadding(),
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.story_create_story),
