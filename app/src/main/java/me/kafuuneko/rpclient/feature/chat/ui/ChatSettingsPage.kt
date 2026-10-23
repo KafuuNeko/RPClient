@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
@@ -206,7 +208,7 @@ internal fun ChatSettingsPage(
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
                     MenuAction(
-                        icon = Icons.Rounded.Book,
+                        icon = Icons.AutoMirrored.Rounded.MenuBook,
                         title = stringResource(R.string.world_book_manager),
                         subtitle = stringResource(R.string.world_book_subtitle)
                     ) { ChatUiIntent.OpenWorldBookManager.emit() }
@@ -234,16 +236,16 @@ private fun SessionLoreGroup(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .defaultMinSize(minHeight = 44.dp)
                 .clickable { onExpandedChange() },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+            RpIconBubble(
+                icon = Icons.AutoMirrored.Rounded.MenuBook,
+                size = 32.dp,
+                iconSize = 17.dp,
+                shape = RoundedCornerShape(10.dp)
             )
-            Spacer(modifier = Modifier.width(4.dp))
-            RpIconBubble(Icons.Rounded.Book)
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -262,9 +264,16 @@ private fun SessionLoreGroup(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
             Switch(
                 checked = group.isAllEnabled,
                 onCheckedChange = { ChatUiIntent.ToggleSessionLorebook(group.lorebookId).emit() }
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
             )
         }
         if (expanded) {
@@ -282,8 +291,7 @@ private fun SessionLoreEntryRow(
 ) {
     // 条目启用状态来自会话配置，开关继续发送条目切换意图。
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RpIconBubble(Icons.Rounded.Book)
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 entry.name.ifBlank { stringResource(R.string.unnamed_entry) },

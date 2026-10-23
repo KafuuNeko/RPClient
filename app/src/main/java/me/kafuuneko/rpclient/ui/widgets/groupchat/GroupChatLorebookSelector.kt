@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -38,6 +40,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
@@ -105,37 +108,30 @@ private fun LorebookGroup(
     onToggleEntry: (Long) -> Unit
 ) {
     AppCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (!expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = if (expanded) 14.dp else 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onExpandedChange),
+                    .defaultMinSize(minHeight = 44.dp)
+                    .then(if (expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (expanded) {
-                        Icons.Rounded.KeyboardArrowDown
-                    } else {
-                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                RpIconBubble(
+                    icon = Icons.AutoMirrored.Rounded.MenuBook,
+                    size = 32.dp,
+                    iconSize = 17.dp,
+                    shape = RoundedCornerShape(10.dp)
                 )
-                Spacer(Modifier.width(4.dp))
-                Checkbox(
-                    checked = group.isAllEnabled,
-                    onCheckedChange = { onToggleLorebook(group.lorebookId) }
-                )
-                Spacer(Modifier.width(8.dp))
-                RpIconBubble(Icons.Rounded.Book)
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = group.lorebookName,
@@ -153,6 +149,24 @@ private fun LorebookGroup(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
                     )
                 }
+                Spacer(Modifier.width(8.dp))
+                val allSelected = group.isAllEnabled
+                val indeterminate = group.enabledCount > 0 && !group.isAllEnabled
+                RpCheckBadge(
+                    selected = allSelected,
+                    indeterminate = indeterminate,
+                    onClick = { onToggleLorebook(group.lorebookId) }
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Rounded.KeyboardArrowDown
+                    } else {
+                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                )
             }
             if (expanded) {
                 group.entries.forEach { entry ->
@@ -178,29 +192,26 @@ private fun LorebookEntryRow(
             .clickable(onClick = onToggle),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
-            width = if (entry.enabled) 2.dp else 1.dp,
+            width = if (entry.enabled) 1.5.dp else 1.dp,
             color = if (entry.enabled) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             }
         ),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        color = if (entry.enabled) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        }
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = entry.enabled,
-                onCheckedChange = { onToggle() }
-            )
-            Spacer(Modifier.width(8.dp))
-            RpIconBubble(Icons.Rounded.Book)
-            Spacer(Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
@@ -223,6 +234,8 @@ private fun LorebookEntryRow(
                     maxCount = 3
                 )
             }
+            Spacer(Modifier.width(12.dp))
+            RpCheckBadge(selected = entry.enabled)
         }
     }
 }

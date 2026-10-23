@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -43,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
@@ -113,7 +115,7 @@ fun SessionLorebookDialog(
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.session_world_books),
         subtitle = stringResource(R.string.session_lore_note),
-        badgeIcon = Icons.Rounded.Book,
+        badgeIcon = Icons.AutoMirrored.Rounded.MenuBook,
         compactHeader = true,
         confirmText = stringResource(R.string.confirm),
         dismissText = stringResource(R.string.cancel),
@@ -242,7 +244,9 @@ private fun SessionLorebookGroupCard(
     onToggleEntry: (Long) -> Unit
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (!expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
             1.dp,
@@ -251,27 +255,23 @@ private fun SessionLorebookGroupCard(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = if (expanded) 12.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // 分组标题负责折叠，末端开关独立控制当前会话中的整组条目。
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onExpandedChange),
+                    .defaultMinSize(minHeight = 44.dp)
+                    .then(if (expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (expanded) {
-                        Icons.Rounded.KeyboardArrowDown
-                    } else {
-                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                RpIconBubble(
+                    icon = Icons.AutoMirrored.Rounded.MenuBook,
+                    size = 32.dp,
+                    iconSize = 17.dp,
+                    shape = RoundedCornerShape(10.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                RpIconBubble(Icons.Rounded.Book)
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -290,9 +290,22 @@ private fun SessionLorebookGroupCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
-                    checked = allEnabled,
-                    onCheckedChange = { onToggleGroup() }
+                Spacer(modifier = Modifier.width(8.dp))
+                val indeterminate = enabledCount > 0 && !allEnabled
+                RpCheckBadge(
+                    selected = allEnabled,
+                    indeterminate = indeterminate,
+                    onClick = onToggleGroup
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Rounded.KeyboardArrowDown
+                    } else {
+                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (expanded) {
@@ -321,11 +334,9 @@ private fun SessionLorebookEntryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggle)
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RpIconBubble(Icons.Rounded.Book)
-        Spacer(modifier = Modifier.width(10.dp))
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -353,10 +364,8 @@ private fun SessionLorebookEntryRow(
                 maxCount = 3
             )
         }
-        Switch(
-            checked = enabled,
-            onCheckedChange = { onToggle() }
-        )
+        Spacer(modifier = Modifier.width(10.dp))
+        RpCheckBadge(selected = enabled)
     }
 }
 

@@ -3,7 +3,9 @@ package me.kafuuneko.rpclient.ui.widgets
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +49,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
@@ -158,13 +164,16 @@ fun RpAvatar(
 fun RpIconBubble(
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    size: Dp = 38.dp,
+    iconSize: Dp = (size.value * 20f / 38f).dp,
+    shape: Shape = RoundedCornerShape((size.value * 13f / 38f).dp),
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     contentColor: Color = MaterialTheme.colorScheme.primary
 ) {
     // 图标底板继承所在内容区，图标本身保持原有强调色。
     AppSurface(
-        modifier = modifier.size(38.dp),
-        shape = RoundedCornerShape(13.dp),
+        modifier = modifier.size(size),
+        shape = shape,
         color = containerColor,
         border = BorderStroke(0.5.dp, contentColor.copy(alpha = 0.15f))
     ) {
@@ -173,8 +182,71 @@ fun RpIconBubble(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(iconSize)
             )
+        }
+    }
+}
+
+/** 现代圆形勾选状态徽章，未选中时为空心环，选中时为实心强调色底板，保证高对比度与易辨识度。 */
+@Composable
+fun RpCheckBadge(
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    indeterminate: Boolean = false,
+    size: Dp = 22.dp,
+    onClick: (() -> Unit)? = null,
+    selectedColor: Color = MaterialTheme.colorScheme.primary,
+    onSelectedColor: Color = MaterialTheme.colorScheme.onPrimary
+) {
+    val active = selected || indeterminate
+    val badgeSurface = @Composable {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .then(
+                    if (active) {
+                        Modifier.background(selectedColor, CircleShape)
+                    } else {
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = CircleShape
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (active) {
+                Icon(
+                    imageVector = if (selected) Icons.Rounded.Check else Icons.Rounded.Remove,
+                    contentDescription = null,
+                    tint = onSelectedColor,
+                    modifier = Modifier.size((size.value * 14f / 22f).dp)
+                )
+            }
+        }
+    }
+
+    if (onClick != null) {
+        Box(
+            modifier = modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                )
+                .padding(6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            badgeSurface()
+        }
+    } else {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center
+        ) {
+            badgeSurface()
         }
     }
 }

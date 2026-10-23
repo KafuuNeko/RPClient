@@ -581,17 +581,12 @@ private fun LorebookGroupCard(
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (expanded) {
-                        Icons.Rounded.KeyboardArrowDown
-                    } else {
-                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                RpIconBubble(
+                    icon = Icons.AutoMirrored.Rounded.MenuBook,
+                    size = 32.dp,
+                    iconSize = 17.dp,
+                    shape = RoundedCornerShape(10.dp)
                 )
-                Spacer(Modifier.width(4.dp))
-                RpIconBubble(Icons.Rounded.Book)
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(group.name, style = MaterialTheme.typography.titleSmall)
@@ -605,12 +600,23 @@ private fun LorebookGroupCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Spacer(Modifier.width(8.dp))
                 Switch(
                     checked = group.isAllSelected,
                     enabled = group.entries.isNotEmpty(),
                     onCheckedChange = {
                         StoryEditorUiIntent.ToggleLorebook(group.id).emit()
                     }
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Rounded.KeyboardArrowDown
+                    } else {
+                        Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (expanded) {
@@ -656,8 +662,6 @@ private fun LorebookEntryRow(
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RpIconBubble(Icons.Rounded.Book)
-                Spacer(Modifier.width(10.dp))
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)

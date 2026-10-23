@@ -53,6 +53,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
+import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -547,26 +548,7 @@ private fun CharacterChoiceCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            AppSurface(
-                modifier = Modifier.size(30.dp),
-                shape = CircleShape,
-                color = if (character.selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-            ) {
-                if (character.selected) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
+            RpCheckBadge(selected = character.selected, size = 24.dp)
         }
     }
 }
