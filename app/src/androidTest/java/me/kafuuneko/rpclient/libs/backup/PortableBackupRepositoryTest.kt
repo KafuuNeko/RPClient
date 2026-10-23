@@ -135,6 +135,37 @@ class PortableBackupRepositoryTest {
         }
     }
 
+    /** FTS4 的完整性检查在部分系统上需要可写连接，暂存库不能被只读校验误拒绝。 */
+    @Test
+    fun stagedFtsDatabasePassesValidation() {
+        val staged = File(root, "staged-fts.sqlite")
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val candidate = Room.databaseBuilder(base, AppDatabase::class.java, staged.path).build()
+        try {
+            candidate.openHelper.writableDatabase.execSQL(
+                "INSERT INTO search_chunks(rowid, kind, sourceId, parentId, revision, position, tokens) " +
+                    "VALUES(42, 1, 7, 3, 1, 0, 'hello world')"
+            )
+        } finally {
+            candidate.close()
+        }
+
+        BackupDatabaseValidator.validatePrimary(context, staged)
+
+        val reopened = Room.databaseBuilder(base, AppDatabase::class.java, staged.path).build()
+        try {
+            reopened.openHelper.readableDatabase.query(
+                "SELECT docid FROM search_chunks_fts WHERE search_chunks_fts MATCH 'hello'"
+            ).use {
+                assertTrue(it.moveToFirst())
+                assertEquals(42L, it.getLong(0))
+                assertFalse(it.moveToNext())
+            }
+        } finally {
+            reopened.close()
+        }
+    }
+
     /** 高版本备份不能触发应用的降级重建，也不能提前关闭当前连接。 */
     @Test
     fun futureDatabaseVersionLeavesLiveDataReadable() = runBlocking {

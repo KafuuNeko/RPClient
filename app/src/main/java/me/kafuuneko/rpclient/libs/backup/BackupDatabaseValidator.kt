@@ -37,11 +37,14 @@ internal object BackupDatabaseValidator {
 
     /** 同时检查物理页和外键关系，避免将损坏的 SQLite 快照交给 Room。 */
     private fun validateIntegrity(file: File) {
-        SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { database ->
+        // 部分系统 SQLite 的 FTS4 integrity_check 需要可写连接；只读打开会将有效
+        // 索引误报为损坏。这里只打开暂存副本，校验和后续迁移都不会触碰当前数据库。
+        SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { database ->
             require(database.version > 0) { "Backup database version is missing." }
             database.rawQuery("PRAGMA integrity_check", null).use { cursor ->
-                require(cursor.moveToFirst() && cursor.getString(0) == "ok") {
-                    "Backup database failed integrity validation."
+                val result = if (cursor.moveToFirst()) cursor.getString(0) else null
+                require(result == "ok") {
+                    "Backup database failed integrity validation: " + result
                 }
             }
             database.rawQuery("PRAGMA foreign_key_check", null).use { cursor ->
