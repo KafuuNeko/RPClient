@@ -1,11 +1,11 @@
 package me.kafuuneko.rpclient.libs.search
 
-import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 /** 覆盖分块、Unicode 映射和查询编码的边界，防止全文搜索静默漏项。 */
 class SearchTextCodecTest {
@@ -15,7 +15,7 @@ class SearchTextCodecTest {
         val random = Random(21)
         val text = buildString {
             append("雪乃 x20 100%_ café 👩🏽‍💻 \u0000\uD800")
-            repeat(20_000) { appendCodePoint(random.nextInt(0x110000)) }
+            repeat(times = 20_000) { appendCodePoint(random.nextInt(until = 0x110000)) }
         }
         for ((_, chunk) in SearchTextCodec.chunks(text)) {
             assertEquals(chunk, SearchTextCodec.decodeTokens(SearchTextCodec.tokens(chunk)))
@@ -55,14 +55,17 @@ class SearchTextCodecTest {
                 assertTrue("Boundary query must be contained", chunks.any { it.second.contains(query) })
             }
         }
-        assertEquals(text, chunks.first().second + chunks.drop(1).joinToString("") {
-            it.second.substring(it.second.offsetByCodePoints(0, 127))
-        })
+        assertEquals(
+            text,
+            chunks.first().second + chunks.drop(1).joinToString("") { pair ->
+            pair.second.substring(pair.second.offsetByCodePoints(index = 0, codePointOffset = 127))
+        },
+        )
     }
 
     @Test
     fun projectionSearchesVisibleMarkdownAndExcludesInternalThought() {
-        val projected = SearchTextCodec.normalize(SearchTextCodec.project("<think>private</think>\n# Hello **world**\n\n[雪乃](https://example.invalid)\n\n```kt\nx_1 = 10%\n```"))
+        val projected = SearchTextCodec.normalize(text = SearchTextCodec.project("<think>private</think>\n# Hello **world**\n\n[雪乃](https://example.invalid)\n\n```kt\nx_1 = 10%\n```"))
         assertTrue(projected.contains("hello world"))
         assertTrue(projected.contains("雪乃"))
         assertTrue(projected.contains("x_1 = 10%"))
@@ -74,7 +77,13 @@ class SearchTextCodecTest {
     fun originalRangeNeverSelectsHiddenThoughtOrMarkdownUrl() {
         val text = "<think>needle</think> aaaaab needle"
         assertEquals(text.lastIndexOf("needle") until text.length, SearchTextCodec.literalRange(text, "needle"))
-        assertEquals(text.indexOf("aaaaab") until text.indexOf("aaaaab") + 6, SearchTextCodec.literalRange(text, "aaaaab"))
+        assertEquals(
+            text.indexOf("aaaaab") until text.indexOf("aaaaab") + 6,
+            SearchTextCodec.literalRange(
+                text = text,
+                query = "aaaaab",
+            ),
+        )
         assertNull(SearchTextCodec.literalRange("[link](https://needle.invalid) needle", "needle"))
     }
 

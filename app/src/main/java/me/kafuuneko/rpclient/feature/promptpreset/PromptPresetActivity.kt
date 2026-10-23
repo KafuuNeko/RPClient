@@ -34,7 +34,7 @@ class PromptPresetActivity : CoreActivityWithEvent() {
 
         PromptPresetLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
@@ -47,9 +47,7 @@ class PromptPresetActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             is PromptPresetViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(getString(R.string.prompt_preset_title), viewEvent.text)
-                )
+                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.prompt_preset_title), viewEvent.text))
                 Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
             }
             else -> super.onReceivedViewEvent(viewEvent)

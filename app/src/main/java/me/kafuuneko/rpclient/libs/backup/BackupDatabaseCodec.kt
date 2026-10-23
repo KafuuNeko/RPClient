@@ -5,11 +5,11 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteStatement
 import android.util.Base64
 import androidx.sqlite.db.SupportSQLiteDatabase
-import java.io.File
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BLOB_KEY
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.TABLE_ROWS_KEY
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 /** 编解码 SQLite 结构与无损数据行，重建派生 FTS 后校验完整性。 */
 internal object BackupDatabaseCodec {
@@ -18,21 +18,24 @@ internal object BackupDatabaseCodec {
         val objects = JSONArray()
         // 不序列化 SQLite 自建表，避免恢复时与引擎创建的结构冲突。
         db.query(
-            "SELECT type, name, tbl_name, sql FROM sqlite_master " +
+            query = "SELECT type, name, tbl_name, sql FROM sqlite_master " +
                 "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' " +
-                "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name", emptyArray()
+                "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name",
+            bindArgs = emptyArray(),
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(1)
                 val tableName = cursor.getString(2)
-                if (name != "android_metadata" && tableName != "android_metadata" &&
-                    !name.startsWith("search_chunks_fts_")
+                if (name != "android_metadata" && tableName != "android_metadata"
+                    && !name.startsWith("search_chunks_fts_")
                 ) {
-                    objects.put(JSONObject()
+                    objects.put(
+                        JSONObject()
                         .put("type", cursor.getString(0))
                         .put("name", name)
                         .put("table", tableName)
-                        .put("sql", cursor.getString(3)))
+                        .put("sql", cursor.getString(3)),
+                    )
                 }
             }
         }
@@ -43,8 +46,9 @@ internal object BackupDatabaseCodec {
     fun tableNames(db: SupportSQLiteDatabase): List<String> {
         val result = mutableListOf<String>()
         db.query(
-            "SELECT name FROM sqlite_master WHERE type='table' " +
-                "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' ORDER BY name", emptyArray()
+            query = "SELECT name FROM sqlite_master WHERE type='table' " +
+                "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' ORDER BY name",
+            bindArgs = emptyArray(),
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(0)
@@ -62,7 +66,7 @@ internal object BackupDatabaseCodec {
         db: SupportSQLiteDatabase,
         table: String,
         whereColumn: String? = null,
-        value: Any? = null
+        value: Any? = null,
     ): JSONArray {
         val suffix = if (whereColumn == null) "" else " WHERE " + quote(whereColumn) + " = ?"
         val sql = "SELECT * FROM " + quote(table) + suffix
@@ -92,7 +96,7 @@ internal object BackupDatabaseCodec {
     fun collectTableRows(
         root: File,
         includePath: String? = null,
-        excludePath: String? = null
+        excludePath: String? = null,
     ): Map<String, List<JSONObject>> {
         val result = linkedMapOf<String, MutableList<JSONObject>>()
         fun collect(document: JSONObject) {
@@ -142,7 +146,7 @@ internal object BackupDatabaseCodec {
     fun reconstructDatabase(
         schema: JSONObject,
         tableRows: Map<String, List<JSONObject>>,
-        destination: File
+        destination: File,
     ) {
         val objects = schema.optJSONArray("objects") ?: error("Database schema is invalid.")
         objects.objects().forEach { item ->
@@ -175,8 +179,8 @@ internal object BackupDatabaseCodec {
                 if (item.optString("type") != "table") continue
                 val name = item.optString("name")
                 // android_metadata 由 Android 打开数据库时创建，不从归档重复创建。
-                if (name != "android_metadata" && !name.startsWith("search_chunks_fts_") &&
-                    !sqliteTableExists(db, name)
+                if (name != "android_metadata" && !name.startsWith("search_chunks_fts_")
+                    && !sqliteTableExists(db, name)
                 ) {
                     db.execSQL(item.getString("sql"))
                 }
@@ -233,7 +237,7 @@ internal object BackupDatabaseCodec {
             }
             if (columns.isNotEmpty()) {
                 val sql = "INSERT INTO " + quote(table) + " (" +
-                    columns.joinToString(",") { quote(it) } + ") VALUES (" +
+                    columns.joinToString(",") { text -> quote(text) } + ") VALUES (" +
                     columns.joinToString(",") { "?" } + ")"
                 val statement = db.compileStatement(sql)
                 try {
@@ -257,8 +261,8 @@ internal object BackupDatabaseCodec {
     }
 
     private fun sqliteTableExists(db: SQLiteDatabase, table: String): Boolean {
-        db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", arrayOf(table)).use {
-            return it.moveToFirst()
+        db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", arrayOf(table)).use { cursor ->
+            return cursor.moveToFirst()
         }
     }
 
@@ -267,7 +271,13 @@ internal object BackupDatabaseCodec {
         Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(index)
         Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
         Cursor.FIELD_TYPE_STRING -> cursor.getString(index)
-        Cursor.FIELD_TYPE_BLOB -> JSONObject().put(BLOB_KEY, Base64.encodeToString(cursor.getBlob(index), Base64.NO_WRAP))
+        Cursor.FIELD_TYPE_BLOB -> JSONObject().put(
+            BLOB_KEY,
+            Base64.encodeToString(
+                cursor.getBlob(index),
+                Base64.NO_WRAP,
+            ),
+        )
         else -> JSONObject.NULL
     }
 

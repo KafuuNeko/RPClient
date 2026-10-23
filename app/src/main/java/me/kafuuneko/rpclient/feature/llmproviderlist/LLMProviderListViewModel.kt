@@ -37,7 +37,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
         if (!isStateOf<LLMProviderListUiState.None>()) return
         LLMProviderListUiState.Normal(
             providers = emptyList(),
-            loadState = LLMProviderListLoadState.Loading
+            loadState = LLMProviderListLoadState.Loading,
         ).setup()
         refreshProviders()
     }
@@ -74,7 +74,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
         val providerId = intent.providerId.toLongOrNull() ?: return
         AppViewEvent.StartActivity(
             activity = LLMProviderEditActivity::class.java,
-            extras = Bundle().apply { putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerId) }
+            extras = Bundle().apply { putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerId) },
         ).tryEmit()
     }
 
@@ -112,7 +112,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
      */
     @UiIntentObserver(LLMProviderListUiIntent.ShowDeleteProviderDialog::class)
     private suspend fun onShowDeleteProviderDialog(
-        intent: LLMProviderListUiIntent.ShowDeleteProviderDialog
+        intent: LLMProviderListUiIntent.ShowDeleteProviderDialog,
     ) {
         val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
         val providerId = intent.providerId.toLongOrNull() ?: return
@@ -122,8 +122,8 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
             dialogState = LLMProviderListDialogState.DeleteProvider(
                 providerId = providerId,
                 providerName = provider.name,
-                associatedCharacterCount = associationCount
-            )
+                associatedCharacterCount = associationCount,
+            ),
         ).setup()
     }
 
@@ -175,7 +175,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
         // 更新列表展示并解除加载中状态
         uiState.copy(
             providers = providers,
-            loadState = LLMProviderListLoadState.None
+            loadState = LLMProviderListLoadState.None,
         ).setup()
     }
 }

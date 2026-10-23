@@ -29,7 +29,7 @@ internal object OpenAIResponsesResponseCodec {
         raw: String,
         fallbackModel: String,
         provider: LLMProviderType,
-        includeReasoningInContent: Boolean
+        includeReasoningInContent: Boolean,
     ): LLMGenerationResponse {
         val response = parseStreamJsonObject(raw) ?: throw LLMResponseException("invalid_response")
         val finishReason = finishReason(response)
@@ -47,7 +47,7 @@ internal object OpenAIResponsesResponseCodec {
             usage = usage(response),
             reasoningContent = reasoning,
             finishReason = finishReason,
-            rawResponse = raw
+            rawResponse = raw,
         )
     }
 
@@ -96,7 +96,7 @@ internal object OpenAIResponsesResponseCodec {
             completionTokens = usage.intOrNull("output_tokens"),
             totalTokens = usage.intOrNull("total_tokens"),
             cachedPromptTokens = usage.objectOrNull("input_tokens_details")?.intOrNull("cached_tokens"),
-            reasoningTokens = usage.objectOrNull("output_tokens_details")?.intOrNull("reasoning_tokens")
+            reasoningTokens = usage.objectOrNull("output_tokens_details")?.intOrNull("reasoning_tokens"),
         )
     }
 
@@ -111,19 +111,24 @@ internal object OpenAIResponsesResponseCodec {
         item: JsonObject,
         field: String,
         outputIndex: Int,
-        types: Set<String>
+        types: Set<String>,
     ): List<ResponsesContent> = item.arrayOrNull(field)?.mapIndexedNotNull { index, value ->
-        val part = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
-        val type = part.cleanString("type").takeIf { it in types } ?: return@mapIndexedNotNull null
+        val part = value.takeIf { element -> element.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
+        val type = part.cleanString("type").takeIf { text -> text in types } ?: return@mapIndexedNotNull null
         ResponsesContent(
-            ResponsesContentKey(outputIndex, index, type),
-            part.responsesText(if (type == "refusal") "refusal" else "text")
+            key = ResponsesContentKey(outputIndex = outputIndex, contentIndex = index, type = type),
+            text = part.responsesText(if (type == "refusal") "refusal" else "text"),
         )
     }.orEmpty()
 
     private val CLIENT_TOOL_ITEMS = setOf(
-        "function_call", "custom_tool_call", "computer_call", "local_shell_call", "shell_call",
-        "apply_patch_call", "mcp_approval_request"
+        "function_call",
+        "custom_tool_call",
+        "computer_call",
+        "local_shell_call",
+        "shell_call",
+        "apply_patch_call",
+        "mcp_approval_request",
     )
 }
 

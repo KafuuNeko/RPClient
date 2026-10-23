@@ -40,7 +40,7 @@ internal fun String.readOpenRouterRoutingPreferences(): OpenRouterRoutingPrefere
     return OpenRouterRoutingPreferences(
         preferredProvider = preferred,
         allowFallbacks = allowFallbacks,
-        mHasProviderOrder = order?.isJsonArray == true
+        mHasProviderOrder = order?.isJsonArray == true,
     )
 }
 
@@ -48,7 +48,7 @@ internal fun String.readOpenRouterRoutingPreferences(): OpenRouterRoutingPrefere
 internal fun String.withOpenRouterPreferredProviderEnabled(enabled: Boolean): String =
     updateOpenRouterPatch { provider ->
         if (enabled) {
-            if (provider.get("order")?.takeIf { it.isJsonArray }?.asJsonArray.isNullOrEmpty()) {
+            if (provider.get("order")?.takeIf { element -> element.isJsonArray }?.asJsonArray.isNullOrEmpty()) {
                 provider.add("order", JsonArray().apply { add("deepinfra") })
             }
             if (!provider.has("allow_fallbacks")) provider.addProperty("allow_fallbacks", true)
@@ -70,8 +70,7 @@ internal fun String.withOpenRouterFallbacks(allowed: Boolean): String =
 
 /** 校验 OpenRouter 已知路由字段的类型和值，未知字段继续交给网关处理。 */
 internal fun String.hasValidOpenRouterRoutingPreferences(): Boolean {
-    val root = runCatching { JsonParser.parseString(this).asJsonObject }.getOrNull()
-        ?: return false
+    val root = runCatching { JsonParser.parseString(this).asJsonObject }.getOrNull() ?: return false
     val providerElement = root.get("provider") ?: return true
     if (providerElement.isJsonNull) return true
     if (!providerElement.isJsonObject) return false
@@ -79,14 +78,14 @@ internal fun String.hasValidOpenRouterRoutingPreferences(): Boolean {
     val order = provider.get("order")
     if (order != null && !order.isJsonNull) {
         if (!order.isJsonArray || order.asJsonArray.size() == 0) return false
-        if (order.asJsonArray.any {
-                !it.isJsonPrimitive || !it.asJsonPrimitive.isString || it.asString.isBlank()
+        if (order.asJsonArray.any { element ->
+                !element.isJsonPrimitive || !element.asJsonPrimitive.isString || element.asString.isBlank()
             }
         ) return false
     }
     val allowFallbacks = provider.get("allow_fallbacks")
-    return allowFallbacks == null || allowFallbacks.isJsonNull ||
-        allowFallbacks.isJsonPrimitive && allowFallbacks.asJsonPrimitive.isBoolean
+    return allowFallbacks == null || allowFallbacks.isJsonNull
+        || allowFallbacks.isJsonPrimitive && allowFallbacks.asJsonPrimitive.isBoolean
 }
 
 private fun String.updateOpenRouterPatch(block: (JsonObject) -> Unit): String {

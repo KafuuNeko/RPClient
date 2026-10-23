@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
-import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 class GroupChatGreetingPlannerTest {
     private val planner = GroupChatGreetingPlanner()
@@ -11,13 +11,13 @@ class GroupChatGreetingPlannerTest {
         GroupChatGreetingCandidate(
             characterId = 1,
             characterName = "Lyra",
-            greetings = listOf("Hello from {{char}}.", "Welcome, {{user}}.")
+            greetings = listOf("Hello from {{char}}.", "Welcome, {{user}}."),
         ),
         GroupChatGreetingCandidate(
             characterId = 2,
             characterName = "Mina",
-            greetings = listOf("{{char}} opens the archive.")
-        )
+            greetings = listOf("{{char}} opens the archive."),
+        ),
     )
 
     @Test
@@ -26,7 +26,7 @@ class GroupChatGreetingPlannerTest {
             candidates = candidates,
             selection = GroupChatGreetingSelection.RandomPerCharacter,
             userName = "Alex",
-            random = Random(1)
+            random = Random(1),
         )
 
         assertEquals(listOf(1L, 2L), messages.map { it.characterId })
@@ -40,9 +40,9 @@ class GroupChatGreetingPlannerTest {
             candidates = candidates,
             selection = GroupChatGreetingSelection.Manual(
                 characterId = 1,
-                greetingIndex = 1
+                greetingIndex = 1,
             ),
-            userName = "Alex"
+            userName = "Alex",
         )
 
         assertEquals(1, messages.size)
@@ -56,9 +56,9 @@ class GroupChatGreetingPlannerTest {
             candidates = candidates,
             selection = GroupChatGreetingSelection.Custom(
                 characterId = 2,
-                content = "  {{char}} asks {{user}} to sit down.  "
+                content = "  {{char}} asks {{user}} to sit down.  ",
             ),
-            userName = "Alex"
+            userName = "Alex",
         )
 
         assertEquals(2L, messages.single().characterId)

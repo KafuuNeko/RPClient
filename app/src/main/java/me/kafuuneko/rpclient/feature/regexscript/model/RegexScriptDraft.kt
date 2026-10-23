@@ -24,7 +24,7 @@ data class RegexScriptDraft(
     /** 测试结果中按插入位置分组的世界书内容。 */
     val placements: Set<Int> = setOf(
         RegexPlacement.UserInput.value,
-        RegexPlacement.AiResponse.value
+        RegexPlacement.AiResponse.value,
     ),
     /** 当前对象或功能是否禁用。 */
     val disabled: Boolean = false,
@@ -58,7 +58,7 @@ data class RegexScriptDraft(
         substituteRegex = substituteRegex,
         minDepth = minDepth.trim().toIntOrNull(),
         maxDepth = maxDepth.trim().toIntOrNull(),
-        rawJson = rawJson
+        rawJson = rawJson,
     )
 
     companion object {
@@ -77,7 +77,7 @@ data class RegexScriptDraft(
             substituteRegex = script.substituteRegex,
             minDepth = script.minDepth?.toString().orEmpty(),
             maxDepth = script.maxDepth?.toString().orEmpty(),
-            rawJson = script.rawJson
+            rawJson = script.rawJson,
         )
     }
 }

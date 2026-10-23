@@ -47,7 +47,7 @@ class ImageCropViewModel : CoreViewModelWithEvent<ImageCropUiIntent, ImageCropUi
         // 构建初始变换状态并切入正常编辑界面
         ImageCropUiState.Normal(
             image = bitmap.asImageBitmap(),
-            transform = ImageCropTransform(bitmap.width.toFloat() / bitmap.height.toFloat())
+            transform = ImageCropTransform(bitmap.width.toFloat() / bitmap.height.toFloat()),
         ).setup()
     }
 
@@ -55,27 +55,21 @@ class ImageCropViewModel : CoreViewModelWithEvent<ImageCropUiIntent, ImageCropUi
     private fun onTransform(intent: ImageCropUiIntent.Transform) {
         val uiState = getOrNull<ImageCropUiState.Normal>() ?: return
         if (uiState.saving) return
-        uiState.copy(
-            transform = uiState.transform.update(intent.panX, intent.panY, intent.zoomChange)
-        ).setup()
+        uiState.copy(transform = uiState.transform.update(intent.panX, intent.panY, intent.zoomChange)).setup()
     }
 
     @UiIntentObserver(ImageCropUiIntent.RotateRight::class)
     private fun onRotateRight() {
         val uiState = getOrNull<ImageCropUiState.Normal>() ?: return
         if (uiState.saving) return
-        uiState.copy(
-            transform = uiState.transform.rotateRight()
-        ).setup()
+        uiState.copy(transform = uiState.transform.rotateRight()).setup()
     }
 
     @UiIntentObserver(ImageCropUiIntent.FlipHorizontal::class)
     private fun onFlipHorizontal() {
         val uiState = getOrNull<ImageCropUiState.Normal>() ?: return
         if (uiState.saving) return
-        uiState.copy(
-            transform = uiState.transform.flipHorizontal()
-        ).setup()
+        uiState.copy(transform = uiState.transform.flipHorizontal()).setup()
     }
 
     @UiIntentObserver(ImageCropUiIntent.ToggleMaskShape::class)
@@ -94,9 +88,7 @@ class ImageCropViewModel : CoreViewModelWithEvent<ImageCropUiIntent, ImageCropUi
     private fun onReset() {
         val uiState = getOrNull<ImageCropUiState.Normal>() ?: return
         if (uiState.saving) return
-        uiState.copy(
-            transform = uiState.transform.reset()
-        ).setup()
+        uiState.copy(transform = uiState.transform.reset()).setup()
     }
 
     /**

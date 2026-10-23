@@ -28,8 +28,10 @@ internal fun DialogPanelSurface(modifier: Modifier = Modifier, content: @Composa
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = if (opacity == 1f) 6.dp else 0.dp,
         shadowElevation = if (opacity == 1f) 12.dp else 0.dp,
-        border = if (opacity == 1f) BorderStroke(1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)) else null
+        border = if (opacity == 1f) BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        ) else null,
     ) {
         DialogControlAppearance(1f - settings.controlTransparency / 100f, content)
     }
@@ -42,7 +44,7 @@ internal fun DialogControlAppearance(opacity: Float, content: @Composable () -> 
         LocalGeneralPageSurfaces provides false,
         LocalPageSurfaceCovered provides true,
         LocalDialogControlOpacity provides opacity,
-        content = content
+        content = content,
     )
 }
 
@@ -55,9 +57,9 @@ internal fun dialogControlColor(color: Color): Color =
 @Composable
 internal fun dialogButtonColors(
     colors: ButtonColors,
-    fadedContentColor: Color = MaterialTheme.colorScheme.onSurface
+    fadedContentColor: Color = MaterialTheme.colorScheme.onSurface,
 ): ButtonColors = colors.copy(
     containerColor = dialogControlColor(colors.containerColor),
     disabledContainerColor = dialogControlColor(colors.disabledContainerColor),
-    contentColor = if ((LocalDialogControlOpacity.current ?: 1f) < 0.5f) fadedContentColor else colors.contentColor
+    contentColor = if ((LocalDialogControlOpacity.current ?: 1f) < 0.5f) fadedContentColor else colors.contentColor,
 )

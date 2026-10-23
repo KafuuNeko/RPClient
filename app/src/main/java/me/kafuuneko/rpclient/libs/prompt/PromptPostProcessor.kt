@@ -21,25 +21,26 @@ fun LLMGenerationRequest.withPostProcessedMessages(
     mode: PromptPostProcessingMode,
     strictPromptPlaceholder: String,
     names: PromptPostProcessingNames = PromptPostProcessingNames(),
-    protocol: LLMProviderProtocol? = null
+    protocol: LLMProviderProtocol? = null,
 ): LLMGenerationRequest {
     return copy(
         messages = normalizeProtocolMessages(
-            postProcessTrackedMessages(
-                messages.map {
+            messages = postProcessTrackedMessages(
+                messages = messages.map { message ->
                     TrackedPromptMessage(
-                        role = it.role,
-                        content = it.content,
+                        role = message.role,
+                        content = message.content,
                         sources = listOf(PromptSource(PromptSourceKind.Other)),
-                        blocks = it.contentBlocks
+                        blocks = message.contentBlocks,
                     )
                 },
-                mode,
-                strictPromptPlaceholder,
-                names
-            ), protocol
+                mode = mode,
+                strictPromptPlaceholder = strictPromptPlaceholder,
+                names = names,
+            ),
+            protocol = protocol,
         ).map { messageWithBlocks(it.role, it.blocks) },
-        isPromptFinalized = true
+        isPromptFinalized = true,
     )
 }
 
@@ -85,7 +86,7 @@ internal fun postProcessTrackedMessages(
     messages: List<TrackedPromptMessage>,
     mode: PromptPostProcessingMode,
     strictPromptPlaceholder: String,
-    names: PromptPostProcessingNames = PromptPostProcessingNames()
+    names: PromptPostProcessingNames = PromptPostProcessingNames(),
 ): List<TrackedPromptMessage> {
     return when (mode) {
         PromptPostProcessingMode.None -> messages
@@ -103,11 +104,11 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
         if (previous?.role == message.role) {
             merged[merged.lastIndex] = previous.copy(
                 content = listOf(previous.content, message.content)
-                    .filter { it.isNotBlank() }
+                    .filter { text -> text.isNotBlank() }
                     .joinToString("\n\n"),
                 sources = (previous.sources + message.sources).distinct(),
                 blocks = mergeContentBlocks(previous.blocks + message.blocks),
-                unavailableImages = previous.unavailableImages + message.unavailableImages
+                unavailableImages = previous.unavailableImages + message.unavailableImages,
             )
         } else {
             merged += message
@@ -139,25 +140,25 @@ private fun List<TrackedPromptMessage>.toSemiStrictMessages(): List<TrackedPromp
  * 在首条 System 之后或以 Assistant 开头时补入占位 User 消息。
  */
 private fun List<TrackedPromptMessage>.toStrictMessages(
-    strictPromptPlaceholder: String
+    strictPromptPlaceholder: String,
 ): List<TrackedPromptMessage> {
     val semiStrict = toSemiStrictMessages()
     val placeholder = TrackedPromptMessage(
         role = LLMMessageRole.User,
         content = strictPromptPlaceholder,
-        sources = listOf(PromptSource(PromptSourceKind.PostProcessing))
+        sources = listOf(PromptSource(PromptSourceKind.PostProcessing)),
     )
     val strict = semiStrict.toMutableList()
 
     // 为起始无 User 消息的序列补入占位符
     when {
         strict.isEmpty() -> strict += placeholder
-        strict.first().role == LLMMessageRole.System &&
-                (strict.size == 1 || strict[1].role != LLMMessageRole.User) -> {
-            strict.add(1, placeholder)
+        strict.first().role == LLMMessageRole.System
+                && (strict.size == 1 || strict[1].role != LLMMessageRole.User) -> {
+            strict.add(index = 1, element = placeholder)
         }
 
-        strict.first().role == LLMMessageRole.Assistant -> strict.add(0, placeholder)
+        strict.first().role == LLMMessageRole.Assistant -> strict.add(index = 0, element = placeholder)
     }
     return strict.mergeConsecutiveRoles()
 }
@@ -168,15 +169,15 @@ private fun List<TrackedPromptMessage>.toStrictMessages(
  * 自动为不同角色的文本附加发言者前缀以保持对话结构。
  */
 private fun List<TrackedPromptMessage>.toSingleUserMessage(
-    names: PromptPostProcessingNames
+    names: PromptPostProcessingNames,
 ): List<TrackedPromptMessage> {
     val flattened = ifEmpty {
         listOf(
-            TrackedPromptMessage(
+            element = TrackedPromptMessage(
                 role = LLMMessageRole.User,
                 content = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
-                sources = listOf(PromptSource(PromptSourceKind.PostProcessing))
-            )
+                sources = listOf(PromptSource(PromptSourceKind.PostProcessing)),
+            ),
         )
     }.map { message ->
         val content = when (message.role) {
@@ -185,15 +186,17 @@ private fun List<TrackedPromptMessage>.toSingleUserMessage(
             LLMMessageRole.System -> message.content
         }
         message.copy(
-            role = LLMMessageRole.User, content = content,
-            blocks = if (message.unavailableImages.isNotEmpty() || message.blocks.any { it is LLMContentBlock.Image }) {
+            role = LLMMessageRole.User,
+            content = content,
+            blocks = if (message.unavailableImages.isNotEmpty() || message.blocks.any { block -> block is LLMContentBlock.Image }) {
                 val speaker = when (message.role) {
                     LLMMessageRole.User -> names.userName.ifBlank { "User" }
                     LLMMessageRole.Assistant -> names.characterName.ifBlank { "Assistant" }
                     LLMMessageRole.System -> "System"
                 }
                 listOf(LLMContentBlock.Text("$speaker:")) + message.blocks
-            } else listOf(LLMContentBlock.Text(content)))
+            } else listOf(LLMContentBlock.Text(content)),
+        )
     }
     return flattened.mergeConsecutiveRoles()
 }
@@ -217,12 +220,12 @@ const val DEFAULT_STRICT_PROMPT_PLACEHOLDER = "Let's get started."
 /** 在最终预算之前完成协议角色正规化，检查器与实际发送共享此结果。 */
 internal fun normalizeProtocolMessages(
     messages: List<TrackedPromptMessage>,
-    protocol: LLMProviderProtocol?
+    protocol: LLMProviderProtocol?,
 ): List<TrackedPromptMessage> {
-    require(messages.none { it.role == LLMMessageRole.System && it.blocks.any { block -> block is LLMContentBlock.Image } }) {
+    require(value = messages.none { it.role == LLMMessageRole.System && it.blocks.any { block -> block is LLMContentBlock.Image } }) {
         "System instructions cannot contain user images"
     }
-    if (protocol == null || protocol == LLMProviderProtocol.OpenAICompatible ||
-        protocol == LLMProviderProtocol.OpenAIResponses) return messages
+    if (protocol == null || protocol == LLMProviderProtocol.OpenAICompatible
+        || protocol == LLMProviderProtocol.OpenAIResponses) return messages
     return messages.toStrictMessages(DEFAULT_STRICT_PROMPT_PLACEHOLDER)
 }

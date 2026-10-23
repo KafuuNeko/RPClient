@@ -92,7 +92,7 @@ class LLMProviderEditViewModel :
             mode = if (provider == null) LLMProviderEditMode.Create else LLMProviderEditMode.Edit,
             form = form,
             showImageTokenEstimator = form.canEstimateImages(),
-            requestExtensionsState = form.toRequestExtensionsState()
+            requestExtensionsState = form.toRequestExtensionsState(),
         ).setup()
     }
 
@@ -114,7 +114,7 @@ class LLMProviderEditViewModel :
                 } else {
                     uiState.modelCatalogState
                 },
-                dialogState = LLMProviderEditDialogState.UnsavedChangesConfirm
+                dialogState = LLMProviderEditDialogState.UnsavedChangesConfirm,
             ).setup()
             return
         }
@@ -131,7 +131,7 @@ class LLMProviderEditViewModel :
         // 更新表单字段并重置模型目录状态
         updateForm(invalidateModelCatalog = true) {
             copy(
-                name = if (name.isBlank() || ProviderPreset.entries.any { it.displayName == name }) preset.displayName else name,
+                name = if (name.isBlank() || ProviderPreset.entries.any { providerPreset -> providerPreset.displayName == name }) preset.displayName else name,
                 providerType = preset.providerType,
                 protocol = preset.protocol,
                 baseUrl = preset.baseUrl,
@@ -141,7 +141,7 @@ class LLMProviderEditViewModel :
                 sendTopP = capabilities.defaultSendTopP,
                 localTokenEstimatorType = preset.defaultLocalTokenEstimatorType,
                 imageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
-                useServerReportedUsage = preset.defaultUseServerReportedUsage
+                useServerReportedUsage = preset.defaultUseServerReportedUsage,
             )
         }
     }
@@ -176,7 +176,7 @@ class LLMProviderEditViewModel :
             copy(
                 protocol = intent.value,
                 sendTemperature = capabilities.defaultSendTemperature,
-                sendTopP = capabilities.defaultSendTopP
+                sendTopP = capabilities.defaultSendTopP,
             )
         }
 
@@ -194,7 +194,7 @@ class LLMProviderEditViewModel :
     /** 确认替换为新的 API Key。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ConfirmApiKeyReplacement::class)
     private fun onConfirmApiKeyReplacement(
-        intent: LLMProviderEditUiIntent.ConfirmApiKeyReplacement
+        intent: LLMProviderEditUiIntent.ConfirmApiKeyReplacement,
     ) {
         if (intent.value.isBlank()) {
             AppViewEvent.PopupToastMessageByResId(R.string.api_key_required).tryEmit()
@@ -238,9 +238,7 @@ class LLMProviderEditViewModel :
         // 校验 Base URL 与认证参数
         val provider = uiState.form.toCatalogConfigOrNullWithToast() ?: return
         // 进入模型目录拉取中状态
-        uiState.copy(
-            modelCatalogState = LLMProviderEditModelCatalogState.Loading
-        ).setup()
+        uiState.copy(modelCatalogState = LLMProviderEditModelCatalogState.Loading).setup()
         mModelCatalogJob = viewModelScope.launch {
             val runningJob = currentCoroutineContext()[Job]
             try {
@@ -248,28 +246,19 @@ class LLMProviderEditViewModel :
                 val models = withContext(Dispatchers.IO) {
                     mModelCatalogRepository.listModels(provider)
                 }
-                val latestState =
-                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 // 更新加载成功的模型列表
                 latestState.copy(
                     showImageTokenEstimator = latestState.form.canEstimateImages(),
-                    modelCatalogState = LLMProviderEditModelCatalogState.Loaded(
-                        models = models
-                    )
+                    modelCatalogState = LLMProviderEditModelCatalogState.Loaded(models = models),
                 ).setup()
             } catch (_: CancellationException) {
                 // 用户主动取消或修改连接配置时，不应显示查询失败
             } catch (throwable: Throwable) {
                 // 分类错误类型并展示对应的失败状态
-                val failure = classifyModelCatalogFailure(throwable)
-                    ?: return@launch
-                val latestState =
-                    getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
-                latestState.copy(
-                    modelCatalogState = LLMProviderEditModelCatalogState.Failed(
-                        failure = failure
-                    )
-                ).setup()
+                val failure = classifyModelCatalogFailure(throwable) ?: return@launch
+                val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
+                latestState.copy(modelCatalogState = LLMProviderEditModelCatalogState.Failed(failure = failure)).setup()
             } finally {
                 if (mModelCatalogJob === runningJob) mModelCatalogJob = null
             }
@@ -282,9 +271,7 @@ class LLMProviderEditViewModel :
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         cancelModelCatalogQuery()
         if (uiState.modelCatalogState is LLMProviderEditModelCatalogState.Loading) {
-            uiState.copy(
-                modelCatalogState = LLMProviderEditModelCatalogState.Idle
-            ).setup()
+            uiState.copy(modelCatalogState = LLMProviderEditModelCatalogState.Idle).setup()
         }
     }
 
@@ -299,8 +286,8 @@ class LLMProviderEditViewModel :
         uiState.copy(
             dialogState = LLMProviderEditDialogState.ModelPicker(
                 searchQuery = "",
-                items = catalogState.models
-            )
+                items = catalogState.models,
+            ),
         ).setup()
     }
 
@@ -317,8 +304,8 @@ class LLMProviderEditViewModel :
         uiState.copy(
             dialogState = dialogState.copy(
                 searchQuery = intent.value,
-                items = models.filterForSearch(intent.value)
-            )
+                items = models.filterForSearch(intent.value),
+            ),
         ).setup()
     }
 
@@ -341,11 +328,11 @@ class LLMProviderEditViewModel :
     /** 确认替换自定义 Header JSON 内容。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement::class)
     private fun onConfirmCustomHeadersReplacement(
-        intent: LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement
+        intent: LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement,
     ) {
         val isObject = runCatching {
             JsonParser.parseString(intent.value).isJsonObject
-        }.getOrDefault(false)
+        }.getOrDefault(defaultValue = false)
         if (!isObject) {
             AppViewEvent.PopupToastMessageByResId(R.string.custom_headers_json_invalid).tryEmit()
             return
@@ -354,7 +341,7 @@ class LLMProviderEditViewModel :
         updateForm(invalidateModelCatalog = true) {
             copy(
                 customHeadersEditMode = CredentialEditMode.Replace,
-                customHeadersJson = formatted
+                customHeadersJson = formatted,
             )
         }
         closeDialog()
@@ -366,7 +353,7 @@ class LLMProviderEditViewModel :
         updateForm(invalidateModelCatalog = true) {
             copy(
                 customHeadersEditMode = CredentialEditMode.Clear,
-                customHeadersJson = ""
+                customHeadersJson = "",
             )
         }
     }
@@ -378,7 +365,7 @@ class LLMProviderEditViewModel :
         updateForm(invalidateModelCatalog = true) {
             copy(
                 customHeadersEditMode = CredentialEditMode.KeepExisting,
-                customHeadersJson = formatted
+                customHeadersJson = formatted,
             )
         }
     }
@@ -397,16 +384,16 @@ class LLMProviderEditViewModel :
         val value = intent.value.trim().ifBlank { "{}" }
         // 校验补丁是否覆盖受保护的协议保留字段
         if (validateRequestBodyPatch(
-                value,
-                protectedRequestBodyPaths(form.protocol)
-            ).isFailure
+            patchJson = value,
+            protectedPaths = protectedRequestBodyPaths(form.protocol),
+        ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return
         }
         // 校验 OpenRouter 专属路由配置合法性
-        if (form.providerType == LLMProviderType.OpenRouter &&
-            !value.hasValidOpenRouterRoutingPreferences()
+        if (form.providerType == LLMProviderType.OpenRouter
+            && !value.hasValidOpenRouterRoutingPreferences()
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return
@@ -421,10 +408,10 @@ class LLMProviderEditViewModel :
     /** 切换 OpenRouter 优先提供商（Preferred Provider）开关。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider::class)
     private fun onToggleOpenRouterPreferredProvider(
-        intent: LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider
+        intent: LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider,
     ) = updateForm {
         val updated = formatJsonPretty(
-            requestBodyPatchJson.withOpenRouterPreferredProviderEnabled(intent.value)
+            raw = requestBodyPatchJson.withOpenRouterPreferredProviderEnabled(intent.value),
         ).ifBlank { "{}" }
         copy(requestBodyPatchJson = updated)
     }
@@ -432,10 +419,10 @@ class LLMProviderEditViewModel :
     /** 修改 OpenRouter 优先提供商名称。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider::class)
     private fun onChangeOpenRouterPreferredProvider(
-        intent: LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider
+        intent: LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider,
     ) = updateForm {
         val updated = formatJsonPretty(
-            requestBodyPatchJson.withOpenRouterPreferredProvider(intent.value)
+            raw = requestBodyPatchJson.withOpenRouterPreferredProvider(intent.value),
         ).ifBlank { "{}" }
         copy(requestBodyPatchJson = updated)
     }
@@ -443,11 +430,9 @@ class LLMProviderEditViewModel :
     /** 切换 OpenRouter 允许回退（Allow Fallbacks）开关。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleOpenRouterFallbacks::class)
     private fun onToggleOpenRouterFallbacks(
-        intent: LLMProviderEditUiIntent.ToggleOpenRouterFallbacks
+        intent: LLMProviderEditUiIntent.ToggleOpenRouterFallbacks,
     ) = updateForm {
-        val updated = formatJsonPretty(
-            requestBodyPatchJson.withOpenRouterFallbacks(intent.value)
-        ).ifBlank { "{}" }
+        val updated = formatJsonPretty(requestBodyPatchJson.withOpenRouterFallbacks(intent.value)).ifBlank { "{}" }
         copy(requestBodyPatchJson = updated)
     }
 
@@ -474,13 +459,13 @@ class LLMProviderEditViewModel :
     /** 修改 Token 估算预留比例（Token Estimate Reserve Percent）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent::class)
     private fun onChangeTokenEstimateReservePercent(
-        intent: LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent
+        intent: LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent,
     ) = updateForm { copy(tokenEstimateReservePercent = intent.value) }
 
     /** 固定本地 Token 预估器，手动选择会优先于模型与协议自动识别。 */
     @UiIntentObserver(LLMProviderEditUiIntent.SelectLocalTokenEstimator::class)
     private fun onSelectLocalTokenEstimator(
-        intent: LLMProviderEditUiIntent.SelectLocalTokenEstimator
+        intent: LLMProviderEditUiIntent.SelectLocalTokenEstimator,
     ) = updateForm { copy(localTokenEstimatorType = intent.value) }
 
     /** 切换是否在请求中显式携带 Temperature 参数。 */
@@ -496,13 +481,13 @@ class LLMProviderEditViewModel :
     /** 切换是否优先采用服务端上报的 Token 用量。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ToggleUseServerReportedUsage::class)
     private fun onToggleUseServerReportedUsage(
-        intent: LLMProviderEditUiIntent.ToggleUseServerReportedUsage
+        intent: LLMProviderEditUiIntent.ToggleUseServerReportedUsage,
     ) = updateForm { copy(useServerReportedUsage = intent.value) }
 
     /** 选择 Prompt 提示词后处理模式（如角色名转换、格式剥离等）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.SelectPostProcessingMode::class)
     private fun onSelectPostProcessingMode(
-        intent: LLMProviderEditUiIntent.SelectPostProcessingMode
+        intent: LLMProviderEditUiIntent.SelectPostProcessingMode,
     ) = updateForm { copy(promptPostProcessingMode = intent.value) }
 
     /** 切换全局启用/停用状态。 */
@@ -524,7 +509,7 @@ class LLMProviderEditViewModel :
         uiState.copy(loadState = LLMProviderEditLoadState.Saving).setup()
         withContext(Dispatchers.IO) { mLLMRepository.saveProvider(provider) }
         AppViewEvent.PopupToastMessageByResId(
-            if (uiState.mode == LLMProviderEditMode.Create) R.string.model_created else R.string.model_saved
+            message = if (uiState.mode == LLMProviderEditMode.Create) R.string.model_created else R.string.model_saved,
         ).tryEmit()
         finishPage()
     }
@@ -544,24 +529,22 @@ class LLMProviderEditViewModel :
                 // 在 IO 线程创建 Client 发送测试探针
                 val response = withContext(Dispatchers.IO) {
                     mLLMClientFactory.create(provider.toConfig()).generate(
-                        "Please reply with a short English sentence: Model test successful."
+                        message = "Please reply with a short English sentence: Model test successful.",
                     )
                 }
                 val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 // 测试成功，展示模型响应内容
                 latestState.copy(
                     testState = LLMProviderEditTestState.Success(
-                        response.content.takeIf { it.isNotBlank() }
-                    )
+                        message = response.content.takeIf { text -> text.isNotBlank() },
+                    ),
                 ).setup()
             } catch (_: CancellationException) {
                 // 用户主动取消测试属于正常操作，不展示失败
             } catch (_: Throwable) {
                 val latestState = getOrNull<LLMProviderEditUiState.Normal>() ?: return@launch
                 // 测试失败，展示错误状态
-                latestState.copy(
-                    testState = LLMProviderEditTestState.Failed
-                ).setup()
+                latestState.copy(testState = LLMProviderEditTestState.Failed).setup()
             } finally {
                 if (mTestJob === runningJob) mTestJob = null
             }
@@ -613,7 +596,7 @@ class LLMProviderEditViewModel :
      */
     private fun updateForm(
         invalidateModelCatalog: Boolean = false,
-        block: LLMProviderEditForm.() -> LLMProviderEditForm
+        block: LLMProviderEditForm.() -> LLMProviderEditForm,
     ) {
         val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
         cancelTest()
@@ -628,7 +611,7 @@ class LLMProviderEditViewModel :
                 LLMProviderEditModelCatalogState.Idle
             } else {
                 uiState.modelCatalogState
-            }
+            },
         ).setup()
     }
 
@@ -644,7 +627,7 @@ class LLMProviderEditViewModel :
             model = model.trim(),
             customHeadersJson = customHeadersJson.trim(),
             requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
-            imageInputSetting = imageInputSetting
+            imageInputSetting = imageInputSetting,
         )
         return mImageCapabilities.resolve(provider) != ImageInputSetting.Unsupported
     }
@@ -665,7 +648,7 @@ class LLMProviderEditViewModel :
             apiKey = apiKey.trim(),
             model = model.trim(),
             customHeadersJson = customHeadersJson.trim(),
-            requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
+            requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
         )
     }
 
@@ -696,36 +679,32 @@ class LLMProviderEditViewModel :
         // 校验 Token 预算合理性
         val parsedMaxTokens = maxTokens.toIntOrNull()
         val parsedContextTokens = contextTokens.toIntOrNull()
-        if (parsedMaxTokens != null &&
-            parsedContextTokens != null &&
-            parsedMaxTokens >= parsedContextTokens
+        if (parsedMaxTokens != null
+            && parsedContextTokens != null
+            && parsedMaxTokens >= parsedContextTokens
         ) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.max_tokens_must_be_less_than_context
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.max_tokens_must_be_less_than_context).tryEmit()
             return null
         }
         // 校验预留百分比
         if (tokenEstimateReservePercent !in
             MIN_TOKEN_ESTIMATE_RESERVE_PERCENT..MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
         ) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.token_estimate_reserve_invalid
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.token_estimate_reserve_invalid).tryEmit()
             return null
         }
         // 校验请求体补丁 JSON 格式与协议保护字段
         if (validateRequestBodyPatch(
-                requestBodyPatchJson,
-                protectedRequestBodyPaths(protocol)
-            ).isFailure
+            patchJson = requestBodyPatchJson,
+            protectedPaths = protectedRequestBodyPaths(protocol),
+        ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return null
         }
         // 校验 OpenRouter 专用路由偏好配置
-        if (providerType == LLMProviderType.OpenRouter &&
-            !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
+        if (providerType == LLMProviderType.OpenRouter
+            && !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
             return null
@@ -743,7 +722,7 @@ class LLMProviderEditViewModel :
     private fun LLMProviderEditForm.resolveApiKey() = LLMProviderCredentialResolver.resolveApiKey(
         form = this,
         initialApiKey = mInitialApiKey,
-        apiKeyReplacement = mApiKeyReplacement
+        apiKeyReplacement = mApiKeyReplacement,
     )
 
     /** 取消模型目录查询协程任务。 */

@@ -12,12 +12,12 @@ class ChatCharacterMatcherTest {
         val sameName = character(id = 2L, name = "Seraphina", description = "Different card")
         val archive = archive(
             name = "Seraphina",
-            fingerprint = ChatCharacterMatcher.fingerprintOf(expected)
+            fingerprint = ChatCharacterMatcher.fingerprintOf(expected),
         )
 
         assertEquals(
             expected.id,
-            ChatCharacterMatcher.suggestCharacterId(archive, listOf(expected, sameName))
+            ChatCharacterMatcher.suggestCharacterId(archive, listOf(expected, sameName)),
         )
     }
 
@@ -29,13 +29,13 @@ class ChatCharacterMatcherTest {
 
         assertEquals(
             first.id,
-            ChatCharacterMatcher.suggestCharacterId(archive, listOf(first, second))
+            ChatCharacterMatcher.suggestCharacterId(archive, listOf(first, second)),
         )
         assertNull(
             ChatCharacterMatcher.suggestCharacterId(
-                archive,
-                listOf(first, second.copy(id = 3L, name = "SERAPHINA"))
-            )
+                archive = archive,
+                characters = listOf(first, second.copy(id = 3L, name = "SERAPHINA")),
+            ),
         )
     }
 
@@ -54,7 +54,7 @@ class ChatCharacterMatcherTest {
             characterNameHint = name,
             characterFingerprint = fingerprint,
             messages = emptyList(),
-            summary = null
+            summary = null,
         )
     }
 
@@ -69,7 +69,7 @@ class ChatCharacterMatcherTest {
             scenario = "",
             firstMessages = "",
             examplesOfDialogue = "",
-            postHistoryInstructions = ""
+            postHistoryInstructions = "",
         )
     }
 }

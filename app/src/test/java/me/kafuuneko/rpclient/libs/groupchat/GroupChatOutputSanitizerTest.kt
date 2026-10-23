@@ -12,7 +12,7 @@ class GroupChatOutputSanitizerTest {
             content = "Mina: I found the archive.\nLyra: Let me see.",
             currentSpeakerName = "Mina",
             otherSpeakerNames = listOf("Lyra"),
-            trimOtherSpeakers = true
+            trimOtherSpeakers = true,
         )
 
         assertEquals("I found the archive.", result)
@@ -24,7 +24,7 @@ class GroupChatOutputSanitizerTest {
             content = "Mina: First line.\nLyra: Second line.",
             currentSpeakerName = "Mina",
             otherSpeakerNames = listOf("Lyra"),
-            trimOtherSpeakers = false
+            trimOtherSpeakers = false,
         )
 
         assertEquals("First line.\nLyra: Second line.", result)

@@ -28,7 +28,7 @@ interface LLMRequestLogDao : MutableDao<LLMRequestLog> {
     suspend fun getLogOverviews(
         previewLength: Int,
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<LLMRequestLogOverview>
 
     /** 按 ID 读取复制或查看所需的完整请求 JSON。 */

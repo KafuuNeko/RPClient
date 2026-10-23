@@ -14,6 +14,7 @@ sealed interface AppearanceUiState {
         val mode: AppThemeMode = AppThemeMode.FollowSystem,
         val editor: BackgroundEditorState? = null
     ) : AppearanceUiState
+
     data class Finished(val previous: Normal) : AppearanceUiState
 }
 
@@ -31,7 +32,9 @@ data class BackgroundEditorState(
 )
 
 /** 背景编辑器的返回确认状态，由 ViewModel 统一控制。 */
-enum class BackgroundEditorDialogState { None, UnsavedChanges }
+enum class BackgroundEditorDialogState { None,
+
+UnsavedChanges }
 
 /** 内容页可观察的背景子状态，图片不可用时使用原有主题表面。 */
 data class PageBackgroundUiState(

@@ -2,13 +2,13 @@ package me.kafuuneko.rpclient.libs.chat
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser
-import java.io.Reader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.Reader
 
 class ChatArchiveCodecTest {
     private val codec = ChatArchiveCodec(Gson())
@@ -16,17 +16,31 @@ class ChatArchiveCodecTest {
     /** 图片扩展只属于 RPClient，正文及酒馆字段不能混入图片载荷。 */
     @Test
     fun embeddedImagesUsePrivateNamespaceAndSurviveRoundTrip() {
-        val source = codec.decode("""
+        val source = codec.decode(
+            jsonl = """
             {"chat_metadata":{}}
             {"name":"Alice","is_user":true,"mes":"","extra":{"rpclient":{"schema_version":1,"images":[{"mime_type":"image/png","data":"AQID"},{"mime_type":"image/jpeg","data":"BAU="}]}}}
-        """.trimIndent(), "Images")
+        """.trimIndent(),
+            fallbackTitle = "Images",
+        )
         val encoded = codec.encode(source)
-        val message = JsonParser.parseString(encoded.lineSequence().drop(1).first()).asJsonObject
+        val message = JsonParser.parseString(
+            encoded
+            .lineSequence()
+            .drop(1)
+            .first(),
+        ).asJsonObject
         val extra = message.getAsJsonObject("extra")
         assertEquals("", message["mes"].asString)
         assertFalse(extra.has("image"))
         assertFalse(extra.has("media"))
-        assertEquals(2, extra.getAsJsonObject("rpclient").getAsJsonArray("images").size())
+        assertEquals(
+            2,
+            extra
+            .getAsJsonObject("rpclient")
+            .getAsJsonArray("images")
+            .size(),
+        )
         val restored = codec.decode(encoded, "Images")
         assertEquals(source.messages.single().images.map { it.data }, restored.messages.single().images.map { it.data })
         assertTrue(restored.messages.single().images.all { it.hash?.length == 64 })
@@ -36,15 +50,21 @@ class ChatArchiveCodecTest {
     /** 新版数组、旧版单图及滑动列表分别解析，非图片附件不混入。 */
     @Test
     fun nativeSillyTavernImagesKeepOrderAndCustomImagesTakePrecedence() {
-        val archive = codec.decode("""
+        val archive = codec.decode(
+            jsonl = """
             {"chat_metadata":{}}
             {"mes":"new","extra":{"media":[{"type":"image","url":"user/images/A/a.png"},{"type":"audio","url":"a.wav"},{"type":"image","url":"user/images/A/b.png"}],"image":"ignored.png"}}
             {"mes":"old","extra":{"image":"a.png","image_swipes":["a.png","b.png"]}}
             {"mes":"single","extra":{"image":"one.png"}}
             {"mes":"inline","extra":{"media":[{"type":"image","url":"data:image/png;base64,AQID"}]}}
             {"mes":"custom","extra":{"image":"ignored.png","rpclient":{"schema_version":1,"images":[]}}}
-        """.trimIndent(), "Images")
-        assertEquals(listOf("user/images/A/a.png", "user/images/A/b.png"), archive.messages[0].images.map { it.sourceUrl })
+        """.trimIndent(),
+            fallbackTitle = "Images",
+        )
+        assertEquals(
+            listOf("user/images/A/a.png", "user/images/A/b.png"),
+            archive.messages[0].images.map { it.sourceUrl },
+        )
         assertEquals(listOf("a.png", "b.png"), archive.messages[1].images.map { it.sourceUrl })
         assertEquals("one.png", archive.messages[2].images.single().sourceUrl)
         assertEquals(ChatArchiveImage("image/png", "AQID"), archive.messages[3].images.single())
@@ -56,7 +76,7 @@ class ChatArchiveCodecTest {
     fun malformedAndFutureImageExtensionsFailExplicitly() {
         for (extension in listOf(
             """{"schema_version":2,"images":[]}""",
-            """{"schema_version":1,"images":[{"mime_type":"image/png"}]}"""
+            """{"schema_version":1,"images":[{"mime_type":"image/png"}]}""",
         )) {
             assertThrows(IllegalArgumentException::class.java) {
                 codec.decode("{\"chat_metadata\":{}}\n{\"mes\":\"\",\"extra\":{\"rpclient\":$extension}}", "Images")
@@ -77,17 +97,21 @@ class ChatArchiveCodecTest {
             override fun read(buffer: CharArray, offset: Int, length: Int): Int {
                 if (position >= json.length) return -1
                 if (position > 12_000) assertTrue("First image must already be staged", transformed > 0)
-                val count = minOf(length, 128, json.length - position)
+                val count = minOf(a = length, b = 128, c = json.length - position)
                 json.toCharArray(buffer, offset, position, position + count)
                 position += count
                 return count
             }
             override fun close() = Unit
         }
-        val archive = codec.decode(reader, "Images", transformImage = { image ->
+        val archive = codec.decode(
+            reader = reader,
+            fallbackTitle = "Images",
+            transformImage = { image ->
             transformed++
             image.copy(data = null, resourceKey = "staged-$transformed")
-        })
+        },
+        )
         assertEquals(2, transformed)
         assertEquals(listOf("staged-1", "staged-2"), archive.messages.single().images.map { it.resourceKey })
         assertTrue(archive.messages.single().images.all { it.data == null })
@@ -98,7 +122,13 @@ class ChatArchiveCodecTest {
     fun externalImagePathsMatchSelectedRootsWithoutGuessingAcrossCharacters() {
         val paths = setOf("images/A/a b.png", "A/a b.png", "a b.png")
         assertEquals("images/A/a b.png", ChatArchiveImageStore.matchingPath("/user/images/A/a%20b.png?x=1", paths))
-        assertEquals("A/a b.png", ChatArchiveImageStore.matchingPath("https://example.invalid/user/images/A/a b.png", paths - "images/A/a b.png"))
+        assertEquals(
+            "A/a b.png",
+            ChatArchiveImageStore.matchingPath(
+                source = "https://example.invalid/user/images/A/a b.png",
+                paths = paths - "images/A/a b.png",
+            ),
+        )
         assertNull(ChatArchiveImageStore.matchingPath("/user/images/B/a b.png", setOf("A/a b.png")))
         assertNull(ChatArchiveImageStore.matchingPath("/user/%2e%2e/a.png", setOf("a.png")))
         assertNull(ChatArchiveImageStore.matchingPath("/user/A%5ca.png", setOf("a.png")))
@@ -123,24 +153,24 @@ class ChatArchiveCodecTest {
                 ChatArchiveMessage(
                     createTime = 1_000L,
                     role = ChatArchiveMessageRole.User,
-                    content = "Hello\n\"there\""
+                    content = "Hello\n\"there\"",
                 ),
                 ChatArchiveMessage(
                     createTime = 2_000L,
                     role = ChatArchiveMessageRole.Character,
-                    content = "Welcome."
+                    content = "Welcome.",
                 ),
                 ChatArchiveMessage(
                     createTime = 3_000L,
                     role = ChatArchiveMessageRole.Narrator,
-                    content = "The lights dim."
-                )
+                    content = "The lights dim.",
+                ),
             ),
             summary = ChatArchiveSummary(
                 content = "Alice arrived.",
                 createTime = 4_000L,
-                coveredMessageIndex = 1
-            )
+                coveredMessageIndex = 1,
+            ),
         )
 
         val encoded = codec.encode(archive)
@@ -153,7 +183,7 @@ class ChatArchiveCodecTest {
         assertFalse(narrator["is_system"].asBoolean)
         assertEquals("narrator", narrator["extra"].asJsonObject["type"].asString)
 
-        val decoded = codec.decode(encoded, fallbackTitle = "Fallback", fallbackTime = 9_000L)
+        val decoded = codec.decode(jsonl = encoded, fallbackTitle = "Fallback", fallbackTime = 9_000L)
 
         assertEquals(archive, decoded)
     }
@@ -171,7 +201,7 @@ class ChatArchiveCodecTest {
         val decoded = codec.decode(
             jsonl = jsonl,
             fallbackTitle = "Imported file",
-            fallbackTime = 10_000L
+            fallbackTime = 10_000L,
         )
 
         assertEquals("Imported file", decoded.title)
@@ -181,14 +211,16 @@ class ChatArchiveCodecTest {
             listOf(
                 ChatArchiveMessageRole.User,
                 ChatArchiveMessageRole.Character,
-                ChatArchiveMessageRole.Narrator
+                ChatArchiveMessageRole.Narrator,
             ),
-            decoded.messages.map { it.role }
+            decoded.messages.map { it.role },
         )
         assertEquals(listOf("Hello", "Welcome", "Rain falls"), decoded.messages.map { it.content })
-        assertTrue(decoded.messages.zipWithNext().all { (first, second) ->
+        assertTrue(
+            decoded.messages.zipWithNext().all { (first, second) ->
             first.createTime < second.createTime
-        })
+        },
+        )
     }
 
     @Test
@@ -196,7 +228,7 @@ class ChatArchiveCodecTest {
         val decoded = codec.decode(
             jsonl = """{"chat_metadata":{}}""",
             fallbackTitle = "Fallback",
-            fallbackUserName = " Local user "
+            fallbackUserName = " Local user ",
         )
 
         assertEquals("Local user", decoded.userName)
@@ -216,7 +248,7 @@ class ChatArchiveCodecTest {
     fun messageLimitIsEnforcedWhileReadingLines() {
         val jsonl = buildString {
             appendLine("""{"chat_metadata":{}}""")
-            repeat(100_000) {
+            repeat(times = 100_000) {
                 appendLine("{}")
             }
             appendLine("not-json")

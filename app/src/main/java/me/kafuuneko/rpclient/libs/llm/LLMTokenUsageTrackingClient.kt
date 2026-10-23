@@ -44,7 +44,7 @@ internal class LLMTokenUsageTrackingClient(
             isStreaming = false,
             outputText = outputText,
             usage = response.usage,
-            startNanos = startNanos
+            startNanos = startNanos,
         )
         return response
     }
@@ -63,7 +63,7 @@ internal class LLMTokenUsageTrackingClient(
                 is LLMStreamEvent.ReasoningDelta -> reasoning.append(event.content)
                 is LLMStreamEvent.Finished -> {
                     usage = usage.mergeWith(event.usage)
-                    effectiveModel = event.model?.takeIf { it.isNotBlank() } ?: effectiveModel
+                    effectiveModel = event.model?.takeIf { text -> text.isNotBlank() } ?: effectiveModel
                 }
                 LLMStreamEvent.Connected -> Unit
             }
@@ -81,7 +81,7 @@ internal class LLMTokenUsageTrackingClient(
             isStreaming = true,
             outputText = outputText,
             usage = usage,
-            startNanos = startNanos
+            startNanos = startNanos,
         )
     }
 
@@ -92,7 +92,7 @@ internal class LLMTokenUsageTrackingClient(
         isStreaming: Boolean,
         outputText: String,
         usage: LLMUsage?,
-        startNanos: Long
+        startNanos: Long,
     ) {
         val tokenizer = mTokenizerRegistry.resolveForUsage(mProvider.copy(model = request.model?.takeIf { it.isNotBlank() } ?: mProvider.model))
         // 关闭服务端用量后不混用响应中的任何计数，确保两侧来源均为本地估算
@@ -124,7 +124,7 @@ internal class LLMTokenUsageTrackingClient(
             reasoningTokens = acceptedUsage?.reasoningTokens?.coerceAtLeast(0)?.toLong(),
             tokenizerName = tokenizer.name.takeIf { hasEstimate },
             durationMs = ((System.nanoTime() - startNanos) / NANOS_PER_MILLISECOND)
-                .coerceAtLeast(0L)
+                .coerceAtLeast(0L),
         )
         runCatching { mRepository.saveRecord(record) }
     }
@@ -162,7 +162,7 @@ internal class LLMTokenUsageTrackingClient(
             completionTokens = newer.completionTokens ?: completionTokens,
             totalTokens = newer.totalTokens ?: totalTokens,
             cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
-            reasoningTokens = newer.reasoningTokens ?: reasoningTokens
+            reasoningTokens = newer.reasoningTokens ?: reasoningTokens,
         )
     }
 

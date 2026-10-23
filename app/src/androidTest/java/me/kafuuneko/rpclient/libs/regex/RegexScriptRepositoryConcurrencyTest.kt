@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.regex
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -14,6 +12,8 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -37,12 +37,23 @@ class RegexScriptRepositoryConcurrencyTest {
             .build()
         val gson = Gson()
         val codec = RegexScriptCodec(gson)
-        characterRepository = CharacterRepository(database, gson, codec, MessageImageRepository(database, FileRepository(context, database)))
+        characterRepository = CharacterRepository(
+            mAppDatabase = database,
+            mGson = gson,
+            mRegexCodec = codec,
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
         repository = RegexScriptRepository(
-            context,
-            gson,
-            database,
-            codec
+            mContext = context,
+            mGson = gson,
+            mAppDatabase = database,
+            mCodec = codec,
         )
     }
 
@@ -67,7 +78,10 @@ class RegexScriptRepositoryConcurrencyTest {
 
         val scripts = repository.getScripts(target)
         assertEquals(40, scripts.size)
-        assertEquals((0 until 40).map { "script-$it" }.toSet(), scripts.map { it.id }.toSet())
+        assertEquals(
+            (0 until 40).map { value -> "script-$value" }.toSet(),
+            scripts.map { regexScript -> regexScript.id }.toSet(),
+        )
     }
 
     @Test
@@ -77,7 +91,7 @@ class RegexScriptRepositoryConcurrencyTest {
         val imported = script("shared-id")
 
         val committed = repository.updateScripts(target) { current ->
-            val existingIds = current.map { it.id }.toMutableSet()
+            val existingIds = current.map { regexScript -> regexScript.id }.toMutableSet()
             val normalized = if (!existingIds.add(imported.id)) {
                 imported.copy(id = UUID.randomUUID().toString())
             } else {
@@ -93,7 +107,7 @@ class RegexScriptRepositoryConcurrencyTest {
     @Test
     fun characterMutation_preservesUnrelatedExtensions() = runBlocking {
         val characterId = database.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -103,8 +117,8 @@ class RegexScriptRepositoryConcurrencyTest {
                 firstMessages = "",
                 examplesOfDialogue = "",
                 postHistoryInstructions = "",
-                extensionsJson = "{\"vendor_extension\":{\"enabled\":true}}"
-            )
+                extensionsJson = "{\"vendor_extension\":{\"enabled\":true}}",
+            ),
         )
         val target = RegexScriptTarget(RegexScriptScope.Character, characterId)
 
@@ -112,13 +126,13 @@ class RegexScriptRepositoryConcurrencyTest {
 
         val character = database.getCharacterDao().getCharacterById(characterId)
         assertTrue(character?.extensionsJson.orEmpty().contains("vendor_extension"))
-        assertEquals(listOf("embedded"), repository.getScripts(target).map { it.id })
+        assertEquals(listOf("embedded"), repository.getScripts(target).map { regexScript -> regexScript.id })
     }
 
     @Test
     fun characterSave_extractsRegexAndDeleteCascadesOwnedState() = runBlocking {
         val characterId = characterRepository.saveCharacter(
-            Character(
+            character = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -139,28 +153,25 @@ class RegexScriptRepositoryConcurrencyTest {
                         "placement":[2]
                       }]
                     }
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
-        repository.setCharacterAuthorized(characterId, true)
+        repository.setCharacterAuthorized(characterId = characterId, authorized = true)
 
         val stored = requireNotNull(characterRepository.getCharacterById(characterId))
         assertTrue(stored.extensionsJson.contains("vendor"))
         assertTrue(!stored.extensionsJson.contains("regex_scripts"))
         assertEquals(
             listOf("embedded"),
-            repository.getScripts(
-                RegexScriptTarget(RegexScriptScope.Character, characterId)
-            ).map { it.id }
+            repository.getScripts(target = RegexScriptTarget(RegexScriptScope.Character, characterId))
+                .map { regexScript -> regexScript.id },
         )
 
         characterRepository.deleteCharacter(characterId)
 
         assertEquals(
             emptyList<RegexScript>(),
-            repository.getScripts(
-                RegexScriptTarget(RegexScriptScope.Character, characterId)
-            )
+            repository.getScripts(target = RegexScriptTarget(RegexScriptScope.Character, characterId)),
         )
         assertTrue(!repository.isCharacterAuthorized(characterId))
     }
@@ -170,7 +181,7 @@ class RegexScriptRepositoryConcurrencyTest {
         scriptName = id,
         findRegex = "x",
         replaceString = "y",
-        placement = listOf(RegexPlacement.AiResponse.value)
+        placement = listOf(RegexPlacement.AiResponse.value),
     )
 
 }

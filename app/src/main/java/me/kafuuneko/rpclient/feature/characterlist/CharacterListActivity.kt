@@ -23,7 +23,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     /** 把一次性选择的一组角色卡 URI 交给 ViewModel 执行解析和独立事务导入。 */
     private val mImportCharacterCardLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments()
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris ->
         if (uris.isEmpty()) return@registerForActivityResult
         mViewModel.emit(CharacterListUiIntent.ImportCharacterCards(uris))
@@ -31,7 +31,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     /** 将 JSON 导出目的 URI 与发起选择时的角色 ID 配对。 */
     private val mExportCharacterJsonLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         val characterId = mPendingExportCharacterId ?: return@registerForActivityResult
         mPendingExportCharacterId = null
@@ -51,7 +51,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
         CharacterListLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
@@ -69,7 +69,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             CharacterListViewEvent.OpenCharacterCardImporter -> {
                 mImportCharacterCardLauncher.launch(
-                    arrayOf("application/json", "text/*", "image/png", "image/*")
+                    input = arrayOf("application/json", "text/*", "image/png", "image/*"),
                 )
             }
 

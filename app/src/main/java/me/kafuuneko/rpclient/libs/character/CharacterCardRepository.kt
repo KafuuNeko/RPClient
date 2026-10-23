@@ -11,7 +11,6 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
-import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -37,7 +36,7 @@ class CharacterCardRepository(
 
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft = withContext(Dispatchers.IO) {
-        val bytes = mContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        val bytes = mContext.contentResolver.openInputStream(uri)?.use { input -> input.readBytes() }
             ?: error("Cannot read character card")
         val mime = mContext.contentResolver.getType(uri).orEmpty()
         val isPng = CharacterCardPngCodec.isPng(bytes)
@@ -48,7 +47,7 @@ class CharacterCardRepository(
         CharacterCardImportDraft(
             card = mMapper.parseCharacter(json),
             avatarSourceUri = uri.takeIf { isPng || mime.startsWith("image/") },
-            avatarMimeType = mime.ifBlank { "image/png" }
+            avatarMimeType = mime.ifBlank { "image/png" },
         )
     }
 
@@ -67,24 +66,24 @@ class CharacterCardRepository(
             val parsed = draft.card
             lorebookId = parsed.embeddedLorebook?.let { book ->
                 mLorebookRepository.saveImport(
-                    book.copy(
+                    parsed = book.copy(
                         lorebook = book.lorebook.copy(
                             name = book.lorebook.name.ifBlank {
                                 "${parsed.character.name}'s Lorebook"
-                            }
-                        )
-                    )
+                            },
+                        ),
+                    ),
                 )
             } ?: 0L
             mCharacterRepository.saveCharacter(
-                parsed.character.copy(
+                character = parsed.character.copy(
                     avatar = avatar,
                     characterLorebookId = lorebookId,
                     extensionsJson = mRegexCodec.injectIntoCharacterExtensions(
-                        parsed.character.extensionsJson,
-                        parsed.regexScripts
-                    )
-                )
+                        json = parsed.character.extensionsJson,
+                        scripts = parsed.regexScripts,
+                    ),
+                ),
             )
         } catch (error: Exception) {
             // 导入任务可能已被取消；补偿清理必须脱离已取消的 Job 才能执行挂起操作。
@@ -109,13 +108,13 @@ class CharacterCardRepository(
     suspend fun exportJson(characterId: Long): String = withContext(Dispatchers.IO) {
         val character = mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
         val regexScripts = mRegexRepository.getScripts(
-            RegexScriptTarget(RegexScriptScope.Character, characterId)
+            target = RegexScriptTarget(RegexScriptScope.Character, characterId),
         )
         mMapper.toV2Json(
             character = character,
-            lorebook = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getLorebookById(it) },
-            entries = character.characterLorebookId.takeIf { it != 0L }?.let { mLorebookRepository.getEntriesByLorebookId(it) }.orEmpty(),
-            regexScripts = regexScripts
+            lorebook = character.characterLorebookId.takeIf { id -> id != 0L }?.let { id -> mLorebookRepository.getLorebookById(id) },
+            entries = character.characterLorebookId.takeIf { id -> id != 0L }?.let { id -> mLorebookRepository.getEntriesByLorebookId(id) }.orEmpty(),
+            regexScripts = regexScripts,
         )
     }
 
@@ -136,9 +135,9 @@ class CharacterCardRepository(
         val character = mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
         val json = exportJson(characterId)
         val avatarBytes = character.avatar
-            .takeIf { it.isNotBlank() }
-            ?.let { mFileRepository.getFile(it) }
-            ?.takeIf { it.exists() }
+            .takeIf { text -> text.isNotBlank() }
+            ?.let { text -> mFileRepository.getFile(text) }
+            ?.takeIf { file -> file.exists() }
             ?.readBytes()
             ?: ByteArray(0)
         val pngBytes = avatarBytes.toPngOrFallback()
@@ -159,14 +158,73 @@ class CharacterCardRepository(
 
     private companion object {
         val OnePixelPng = byteArrayOf(
-            0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-            0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4.toByte(), 0x89.toByte(),
-            0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54,
-            0x78, 0x9C.toByte(), 0x63, 0x00, 0x01, 0x00, 0x00, 0x05,
-            0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4.toByte(), 0x00, 0x00,
-            0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE.toByte(), 0x42, 0x60, 0x82.toByte()
+            0x89.toByte(),
+            0x50,
+            0x4E,
+            0x47,
+            0x0D,
+            0x0A,
+            0x1A,
+            0x0A,
+            0x00,
+            0x00,
+            0x00,
+            0x0D,
+            0x49,
+            0x48,
+            0x44,
+            0x52,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x08,
+            0x06,
+            0x00,
+            0x00,
+            0x00,
+            0x1F,
+            0x15,
+            0xC4.toByte(),
+            0x89.toByte(),
+            0x00,
+            0x00,
+            0x00,
+            0x0A,
+            0x49,
+            0x44,
+            0x41,
+            0x54,
+            0x78,
+            0x9C.toByte(),
+            0x63,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x05,
+            0x00,
+            0x01,
+            0x0D,
+            0x0A,
+            0x2D,
+            0xB4.toByte(),
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x49,
+            0x45,
+            0x4E,
+            0x44,
+            0xAE.toByte(),
+            0x42,
+            0x60,
+            0x82.toByte(),
         )
     }
 }

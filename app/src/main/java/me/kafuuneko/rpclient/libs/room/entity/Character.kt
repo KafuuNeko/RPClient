@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import androidx.room.ColumnInfo
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.utils.toStringList
 

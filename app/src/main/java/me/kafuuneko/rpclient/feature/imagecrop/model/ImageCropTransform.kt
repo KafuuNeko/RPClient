@@ -31,11 +31,11 @@ data class ImageCropTransform(
 
     /** 是否处于未进行任何平移、缩放、旋转或翻转的初始默认状态。 */
     val isDefault: Boolean
-        get() = zoom == MIN_ZOOM &&
-            offsetX == 0f &&
-            offsetY == 0f &&
-            rotationDegrees == 0 &&
-            !isFlippedHorizontal
+        get() = zoom == MIN_ZOOM
+            && offsetX == 0f
+            && offsetY == 0f
+            && rotationDegrees == 0
+            && !isFlippedHorizontal
 
     /**
      * 根据平移量与缩放比例增量计算新的裁剪变换状态。
@@ -47,14 +47,14 @@ data class ImageCropTransform(
     fun update(panX: Float, panY: Float, zoomChange: Float): ImageCropTransform {
         val newZoom = (zoom * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
         val appliedZoomChange = newZoom / zoom
-        val baseWidth = maxOf(effectiveAspectRatio, 1f)
-        val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
+        val baseWidth = maxOf(a = effectiveAspectRatio, b = 1f)
+        val baseHeight = maxOf(a = 1f / effectiveAspectRatio, b = 1f)
         val maxOffsetX = (baseWidth * newZoom - 1f) / 2f
         val maxOffsetY = (baseHeight * newZoom - 1f) / 2f
         return copy(
             zoom = newZoom,
             offsetX = (offsetX * appliedZoomChange + panX).coerceIn(-maxOffsetX, maxOffsetX),
-            offsetY = (offsetY * appliedZoomChange + panY).coerceIn(-maxOffsetY, maxOffsetY)
+            offsetY = (offsetY * appliedZoomChange + panY).coerceIn(-maxOffsetY, maxOffsetY),
         )
     }
 
@@ -63,14 +63,14 @@ data class ImageCropTransform(
         val nextRotation = (rotationDegrees + 90) % 360
         val isNextRotated90 = nextRotation % 180 != 0
         val nextEffectiveAspect = if (isNextRotated90) 1f / sourceAspectRatio else sourceAspectRatio
-        val nextBaseW = maxOf(nextEffectiveAspect, 1f)
-        val nextBaseH = maxOf(1f / nextEffectiveAspect, 1f)
+        val nextBaseW = maxOf(a = nextEffectiveAspect, b = 1f)
+        val nextBaseH = maxOf(a = 1f / nextEffectiveAspect, b = 1f)
         val maxOffsetX = (nextBaseW * zoom - 1f) / 2f
         val maxOffsetY = (nextBaseH * zoom - 1f) / 2f
         return copy(
             rotationDegrees = nextRotation,
             offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX),
-            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY)
+            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY),
         )
     }
 
@@ -78,7 +78,7 @@ data class ImageCropTransform(
     fun flipHorizontal(): ImageCropTransform {
         return copy(
             isFlippedHorizontal = !isFlippedHorizontal,
-            offsetX = -offsetX
+            offsetX = -offsetX,
         )
     }
 
@@ -88,13 +88,13 @@ data class ImageCropTransform(
         offsetX = 0f,
         offsetY = 0f,
         rotationDegrees = 0,
-        isFlippedHorizontal = false
+        isFlippedHorizontal = false,
     )
 
     /** 将当前变换状态转换为与分辨率无关的 [SquareCropSelection] 归一化选区。 */
     fun toSelection(): SquareCropSelection {
-        val baseWidth = maxOf(effectiveAspectRatio, 1f)
-        val baseHeight = maxOf(1f / effectiveAspectRatio, 1f)
+        val baseWidth = maxOf(a = effectiveAspectRatio, b = 1f)
+        val baseHeight = maxOf(a = 1f / effectiveAspectRatio, b = 1f)
         val displayedWidth = baseWidth * zoom
         val displayedHeight = baseHeight * zoom
         return SquareCropSelection(
@@ -102,7 +102,7 @@ data class ImageCropTransform(
             centerY = 0.5f - offsetY / displayedHeight,
             sizeFractionOfShortEdge = 1f / zoom,
             rotationDegrees = rotationDegrees,
-            isFlippedHorizontal = isFlippedHorizontal
+            isFlippedHorizontal = isFlippedHorizontal,
         )
     }
 

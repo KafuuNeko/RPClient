@@ -71,6 +71,7 @@ data class StoryVolumeOutlineItem(
 /** 移动章节时可选择的目标分组。 */
 sealed class StoryChapterDestination {
     data object Ungrouped : StoryChapterDestination()
+
     data class Volume(val volumeId: Long) : StoryChapterDestination()
 }
 
@@ -91,14 +92,18 @@ sealed class StoryChapterDropTarget {
 /** 章节拖到分组边界时表达的相对位置。 */
 enum class StoryChapterDropPosition {
     Start,
+
     End
 }
 
 /** 创建或重命名结构节点时由对话框携带的目标。 */
 sealed class StoryStructureTitleTarget {
     data object NewVolume : StoryStructureTitleTarget()
+
     data class NewChapter(val volumeId: Long?) : StoryStructureTitleTarget()
+
     data class Volume(val volumeId: Long) : StoryStructureTitleTarget()
+
     data class Chapter(val chapterId: Long) : StoryStructureTitleTarget()
 }
 
@@ -126,8 +131,10 @@ data class StoryCharacterOptionItem(
 enum class StoryCharacterActivationMode {
     /** 主角：常驻置顶注入，单篇故事仅允许一个主角。 */
     Primary,
+
     /** 常驻配角：常驻注入。 */
     Always,
+
     /** 自动匹配：根据正文提及关键词动态激活。 */
     Auto
 }
@@ -166,14 +173,14 @@ data class StoryLorebookGroupItem(
 
 /** 启用指定世界书的全部条目，用于角色关联世界书的自动联动。 */
 fun List<StoryLorebookGroupItem>.enableLorebook(
-    lorebookId: Long
+    lorebookId: Long,
 ): List<StoryLorebookGroupItem> {
     return map { group ->
         if (group.id == lorebookId) {
             group.copy(
                 entries = group.entries.map { entry ->
                     if (entry.selected) entry else entry.copy(selected = true)
-                }
+                },
             )
         } else {
             group
@@ -187,20 +194,20 @@ fun List<StoryLorebookGroupItem>.enableLorebook(
  * 角色关联只负责在用户选择角色时提供默认勾选，不能在重新打开设置时覆盖用户显式关闭的结果。
  */
 fun List<StoryLorebookGroupItem>.restoreLorebookSelection(
-    selectedEntryIds: Set<Long>
+    selectedEntryIds: Set<Long>,
 ): List<StoryLorebookGroupItem> {
     return map { group ->
         group.copy(
             entries = group.entries.map { entry ->
                 entry.copy(selected = entry.id in selectedEntryIds)
-            }
+            },
         )
     }
 }
 
 /** 按整本世界书切换条目；部分启用时会补全，全部启用时会关闭。 */
 fun List<StoryLorebookGroupItem>.toggleLorebook(
-    lorebookId: Long
+    lorebookId: Long,
 ): List<StoryLorebookGroupItem> {
     val target = firstOrNull { it.id == lorebookId } ?: return this
     if (target.entries.isEmpty()) return this
@@ -208,9 +215,9 @@ fun List<StoryLorebookGroupItem>.toggleLorebook(
     return map { group ->
         if (group.id == lorebookId) {
             group.copy(
-                entries = group.entries.map {
-                    it.copy(selected = selectAll)
-                }
+                entries = group.entries.map { storyLorebookEntryItem ->
+                    storyLorebookEntryItem.copy(selected = selectAll)
+                },
             )
         } else {
             group
@@ -221,6 +228,7 @@ fun List<StoryLorebookGroupItem>.toggleLorebook(
 /** 用户选择的故事纯文本导出格式。 */
 enum class StoryTextExportFormat {
     Text,
+
     Markdown
 }
 
@@ -247,6 +255,7 @@ data class StoryUndoEntry(
 /** 正文修改的来源，用于区分手工合并和 AI 原子操作。 */
 enum class StoryEditSource {
     Ai,
+
     User
 }
 
@@ -265,6 +274,6 @@ internal fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {
     if (insertedText.isEmpty()) return null
     return StoryEditedTextRange(
         start = start,
-        end = start + insertedText.length
+        end = start + insertedText.length,
     )
 }

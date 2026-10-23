@@ -24,7 +24,7 @@ internal fun ConversationMetadata(messageCount: Int, enabledLorebookCount: Int, 
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         MetadataLabel(stringResource(R.string.messages_count, messageCount))
         MetadataLabel(stringResource(R.string.world_books_enabled, enabledLorebookCount))
@@ -38,13 +38,13 @@ private fun MetadataLabel(text: String) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = LocalPageBubbleOpacity.current),
-        contentColor = MaterialTheme.colorScheme.onSurface
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
     }
 }

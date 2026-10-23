@@ -49,5 +49,6 @@ sealed class JsonViewerUiState {
 
 enum class JsonViewerErrorReason {
     PayloadUnavailable,
+
     InvalidJson
 }

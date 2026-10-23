@@ -14,15 +14,15 @@ object ChatCharacterMatcher {
     fun suggestCharacterId(archive: ChatArchive, characters: List<Character>): Long? {
         val fingerprint = archive.characterFingerprint
         if (!fingerprint.isNullOrBlank()) {
-            characters.singleOrNull {
-                fingerprint.equals(fingerprintOf(it), ignoreCase = true)
+            characters.singleOrNull { character ->
+                fingerprint.equals(other = fingerprintOf(character), ignoreCase = true)
             }?.let { return it.id }
         }
 
         val name = archive.characterNameHint.trim()
         if (name.isBlank()) return null
-        return characters.singleOrNull {
-            it.name.trim().equals(name, ignoreCase = true)
+        return characters.singleOrNull { character ->
+            character.name.trim().equals(other = name, ignoreCase = true)
         }?.id
     }
 
@@ -50,10 +50,14 @@ object ChatCharacterMatcher {
             character.extensionsJson,
             character.depthPromptPrompt,
             character.depthPromptDepth.toString(),
-            character.depthPromptRole.toString()
+            character.depthPromptRole.toString(),
         ).forEach { value ->
             val bytes = value.toByteArray(Charsets.UTF_8)
-            digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())
+            digest.update(
+                ByteBuffer.allocate(Int.SIZE_BYTES)
+                .putInt(bytes.size)
+                .array(),
+            )
             digest.update(bytes)
         }
         return digest.digest().joinToString("") { byte -> "%02x".format(byte) }

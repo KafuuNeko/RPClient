@@ -6,7 +6,9 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterCandidate
 /** Story 候选角色在本轮被激活的原因。 */
 enum class StoryCharacterActivationReason {
     Primary,
+
     Always,
+
     Name
 }
 
@@ -24,7 +26,7 @@ data class ActiveStoryCharacter(
 class StoryCharacterActivator {
     fun activate(
         candidates: List<StoryCharacterCandidate>,
-        scanText: String
+        scanText: String,
     ): List<ActiveStoryCharacter> {
         return candidates
             .sortedWith(compareBy({ it.relation.sortOrder }, { it.character.id }))
@@ -33,7 +35,7 @@ class StoryCharacterActivator {
 
     private fun activate(
         candidate: StoryCharacterCandidate,
-        scanText: String
+        scanText: String,
     ): ActiveStoryCharacter? {
         if (candidate.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY) {
             return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Primary)
@@ -43,7 +45,11 @@ class StoryCharacterActivator {
         }
         val name = candidate.character.name.trim()
         if (name.isNotEmpty() && scanText.matchesStoryKey(name)) {
-            return ActiveStoryCharacter(candidate, StoryCharacterActivationReason.Name, name)
+            return ActiveStoryCharacter(
+                candidate = candidate,
+                reason = StoryCharacterActivationReason.Name,
+                matchedKey = name,
+            )
         }
         return null
     }
@@ -52,18 +58,18 @@ class StoryCharacterActivator {
         val normalizedKey = key.trim()
         if (normalizedKey.isEmpty()) return false
         if (!normalizedKey.requiresWordBoundary()) {
-            return contains(normalizedKey, ignoreCase = true)
+            return contains(other = normalizedKey, ignoreCase = true)
         }
         return Regex(
             pattern = "(?<![\\p{L}\\p{N}_])${Regex.escape(normalizedKey)}(?![\\p{L}\\p{N}_])",
-            options = setOf(RegexOption.IGNORE_CASE)
+            options = setOf(RegexOption.IGNORE_CASE),
         ).containsMatchIn(this)
     }
 
     private fun String.requiresWordBoundary(): Boolean {
         return all { character ->
-            character.isWhitespace() || character == '-' || character == '_' ||
-                (character.code < 128 && character.isLetterOrDigit())
+            character.isWhitespace() || character == '-' || character == '_'
+                || (character.code < 128 && character.isLetterOrDigit())
         } && any { it.isLetterOrDigit() }
     }
 }

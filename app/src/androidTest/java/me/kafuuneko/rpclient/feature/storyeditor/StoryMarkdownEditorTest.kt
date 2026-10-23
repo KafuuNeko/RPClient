@@ -37,25 +37,41 @@ class StoryMarkdownEditorTest {
     @Test
     fun searchEditKeepsSourceModeUntilConfirmation() {
         val initial = "Before **found** after"
-        val document = mutableStateOf(StoryEditorDocument(1, 2, initial, 0,
-            searchRange = StoryEditedTextRange(9, 14)))
+        val document = mutableStateOf(
+            value = StoryEditorDocument(
+                storyId = 1,
+                chapterId = 2,
+                content = initial,
+                syncVersion = 0,
+                searchRange = StoryEditedTextRange(start = 9, end = 14),
+            ),
+        )
         val editor = TextFieldState(initial)
         var publishedText = initial
         compose.setContent {
             AppTheme(dynamicColor = false) {
-                val controller = rememberStoryMarkdownController(document.value, enabled = true)
+                val controller = rememberStoryMarkdownController(document = document.value, enabled = true)
                 CompositionLocalProvider(LocalStoryMarkdownEditorController provides controller) {
                     Column(Modifier.fillMaxSize()) {
                         MarkdownModeToolbarAction()
-                        StoryTextEditor(Modifier.weight(1f), document.value, editor, true,
-                            StoryGenerationState.Idle) {
-                            if (this is StoryEditorUiIntent.EditorSnapshotChanged) {
-                                publishedText = snapshot.content
-                                if (snapshot.content != document.value.content) {
-                                    document.value = document.value.copy(content = snapshot.content, searchRange = null)
+                        StoryTextEditor(
+                            modifier = Modifier.weight(1f),
+                            document = document.value,
+                            editorState = editor,
+                            editable = true,
+                            generationState = StoryGenerationState.Idle,
+                            emit = {
+                                if (this is StoryEditorUiIntent.EditorSnapshotChanged) {
+                                    publishedText = snapshot.content
+                                    if (snapshot.content != document.value.content) {
+                                        document.value = document.value.copy(
+                                            content = snapshot.content,
+                                            searchRange = null,
+                                        )
+                                    }
                                 }
-                            }
-                        }
+                            },
+                        )
                     }
                 }
             }

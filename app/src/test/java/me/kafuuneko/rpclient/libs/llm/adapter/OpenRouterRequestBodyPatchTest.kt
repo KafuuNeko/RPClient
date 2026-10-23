@@ -13,20 +13,20 @@ class OpenRouterRequestBodyPatchTest {
             """{"session_id":"${'$'}rpclient.routing_session_id","provider":{"sort":"throughput","quantizations":["fp8"]},"preset":"roleplay"}"""
 
         val updated = original
-            .withOpenRouterPreferredProviderEnabled(true)
+            .withOpenRouterPreferredProviderEnabled(enabled = true)
             .withOpenRouterPreferredProvider("deepinfra")
-            .withOpenRouterFallbacks(false)
+            .withOpenRouterFallbacks(allowed = false)
         val root = JsonParser.parseString(updated).asJsonObject
 
         assertEquals("roleplay", root.get("preset").asString)
         assertEquals(
             "${'$'}rpclient.routing_session_id",
-            root.get("session_id").asString
+            root.get("session_id").asString,
         )
         assertEquals("throughput", root.getAsJsonObject("provider").get("sort").asString)
         assertEquals(
             "fp8",
-            root.getAsJsonObject("provider").getAsJsonArray("quantizations")[0].asString
+            root.getAsJsonObject("provider").getAsJsonArray("quantizations")[0].asString,
         )
         assertFalse(updated.readOpenRouterRoutingPreferences().allowFallbacks)
         assertEquals("deepinfra", updated.readOpenRouterRoutingPreferences().preferredProvider)
@@ -35,7 +35,7 @@ class OpenRouterRequestBodyPatchTest {
     @Test
     fun automaticModeRemovesOnlyShortcutFields() {
         val updated = """{"provider":{"order":["deepinfra"],"allow_fallbacks":false,"sort":"price"}}"""
-            .withOpenRouterPreferredProviderEnabled(false)
+            .withOpenRouterPreferredProviderEnabled(enabled = false)
         val provider = JsonParser.parseString(updated).asJsonObject.getAsJsonObject("provider")
 
         assertFalse(provider.has("order"))
@@ -54,13 +54,21 @@ class OpenRouterRequestBodyPatchTest {
 
     @Test
     fun validatesKnownFieldsWhileAllowingMergePatchNulls() {
-        assertTrue("""{"provider":{"order":["deepinfra","together"]}}"""
-            .hasValidOpenRouterRoutingPreferences())
-        assertTrue("""{"provider":{"order":null,"allow_fallbacks":null}}"""
-            .hasValidOpenRouterRoutingPreferences())
-        assertFalse("""{"provider":{"order":[]}}"""
-            .hasValidOpenRouterRoutingPreferences())
-        assertFalse("""{"provider":{"order":[""]}}"""
-            .hasValidOpenRouterRoutingPreferences())
+        assertTrue(
+            """{"provider":{"order":["deepinfra","together"]}}"""
+            .hasValidOpenRouterRoutingPreferences(),
+        )
+        assertTrue(
+            """{"provider":{"order":null,"allow_fallbacks":null}}"""
+            .hasValidOpenRouterRoutingPreferences(),
+        )
+        assertFalse(
+            """{"provider":{"order":[]}}"""
+            .hasValidOpenRouterRoutingPreferences(),
+        )
+        assertFalse(
+            """{"provider":{"order":[""]}}"""
+            .hasValidOpenRouterRoutingPreferences(),
+        )
     }
 }

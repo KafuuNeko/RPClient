@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.worldbooklist
 
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -8,12 +9,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
-import me.kafuuneko.rpclient.feature.worldbooklist.ui.WorldBookListLayout
-import androidx.activity.result.contract.ActivityResultContracts
-import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListViewEvent
+import me.kafuuneko.rpclient.feature.worldbooklist.ui.WorldBookListLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
+import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** 世界书列表页面宿主，桥接 JSON 导入导出文件选择器。 */
 class WorldBookListActivity : CoreActivityWithEvent() {
@@ -21,14 +21,14 @@ class WorldBookListActivity : CoreActivityWithEvent() {
     private var mPendingExportLorebookId: Long? = null
 
     private val mImportWorldBookLauncher = registerForActivityResult(
-        GetContentWithMimeTypes()
+        contract = GetContentWithMimeTypes(),
     ) { uri ->
         uri ?: return@registerForActivityResult
         mViewModel.emit(WorldBookListUiIntent.ImportWorldBook(uri))
     }
 
     private val mExportWorldBookLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         val lorebookId = mPendingExportLorebookId ?: return@registerForActivityResult
         mPendingExportLorebookId = null
@@ -48,7 +48,7 @@ class WorldBookListActivity : CoreActivityWithEvent() {
 
         WorldBookListLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
@@ -65,9 +65,7 @@ class WorldBookListActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
             WorldBookListViewEvent.OpenWorldBookImporter -> {
-                mImportWorldBookLauncher.launch(
-                    arrayOf("application/json", "text/*")
-                )
+                mImportWorldBookLauncher.launch(input = arrayOf("application/json", "text/*"))
             }
 
             is WorldBookListViewEvent.OpenWorldBookExporter -> {

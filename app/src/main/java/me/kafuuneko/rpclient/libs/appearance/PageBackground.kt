@@ -2,7 +2,13 @@ package me.kafuuneko.rpclient.libs.appearance
 
 /** 通用外观与三类内容页独立保存背景，标识不依赖枚举顺序。 */
 enum class BackgroundPage(val key: String) {
-    General("general"), Chat("chat"), Group("group"), Story("story")
+    General("general"),
+
+    Chat("chat"),
+
+    Group("group"),
+
+    Story("story")
 }
 
 /** 背景原始参数；实际显示前解析通用继承，图片永不参与模型请求。 */
@@ -26,23 +32,29 @@ data class PageBackground(
 ) {
     /** 在持久化与渲染边界统一限制数值，拒绝非有限浮点数。 */
     fun normalized(): PageBackground = copy(
-        blur = blur.coerceIn(0, 100),
-        topBarBlur = topBarBlur.coerceIn(0, 100),
-        bottomBarBlur = bottomBarBlur.coerceIn(0, 100),
-        bubbleBlur = bubbleBlur.coerceIn(0, 100),
-        contentBlur = contentBlur.coerceIn(0, 100),
-        scrim = scrim.finite(0.25f).coerceIn(0f, 0.9f),
-        opacity = opacity.finite(1f).coerceIn(0f, 1f),
-        topBarOpacity = topBarOpacity.finite(1f).coerceIn(0f, 1f),
-        bottomBarOpacity = bottomBarOpacity.finite(1f).coerceIn(0f, 1f),
-        bubbleOpacity = bubbleOpacity.finite(1f).coerceIn(0f, 1f),
-        focalX = focalX.finite(0.5f).coerceIn(0f, 1f),
-        focalY = focalY.finite(0.5f).coerceIn(0f, 1f)
+        blur = blur.coerceIn(minimumValue = 0, maximumValue = 100),
+        topBarBlur = topBarBlur.coerceIn(minimumValue = 0, maximumValue = 100),
+        bottomBarBlur = bottomBarBlur.coerceIn(minimumValue = 0, maximumValue = 100),
+        bubbleBlur = bubbleBlur.coerceIn(minimumValue = 0, maximumValue = 100),
+        contentBlur = contentBlur.coerceIn(minimumValue = 0, maximumValue = 100),
+        scrim = scrim.finite(fallback = 0.25f).coerceIn(minimumValue = 0f, maximumValue = 0.9f),
+        opacity = opacity.finite(fallback = 1f).coerceIn(minimumValue = 0f, maximumValue = 1f),
+        topBarOpacity = topBarOpacity.finite(fallback = 1f).coerceIn(minimumValue = 0f, maximumValue = 1f),
+        bottomBarOpacity = bottomBarOpacity.finite(fallback = 1f).coerceIn(minimumValue = 0f, maximumValue = 1f),
+        bubbleOpacity = bubbleOpacity.finite(fallback = 1f).coerceIn(minimumValue = 0f, maximumValue = 1f),
+        focalX = focalX.finite(fallback = 0.5f).coerceIn(minimumValue = 0f, maximumValue = 1f),
+        focalY = focalY.finite(fallback = 0.5f).coerceIn(minimumValue = 0f, maximumValue = 1f),
     )
 }
 
 /** 各栏位独立渲染；Bubble 沿用旧标识，覆盖聊天消息、介绍卡和群聊成员卡组成的内容区。 */
-enum class PageSurfaceKind { TopBar, BottomBar, Bubble, Content }
+enum class PageSurfaceKind { TopBar,
+
+BottomBar,
+
+Bubble,
+
+Content }
 
 /** 取得栏位背景不透明度；完全不透明时不应生成模糊派生图。 */
 fun PageBackground.surfaceOpacity(kind: PageSurfaceKind): Float = when (kind) {
@@ -72,7 +84,11 @@ fun PageBackground.resolveWith(general: PageBackground): PageBackground {
     val image = fileUuid ?: general.fileUuid
     if (!followGeneral) return copy(fileUuid = image)
     return general.copy(
-        page = page, fileUuid = image, bubbleOpacity = general.opacity, bubbleBlur = general.contentBlur,
-        followGeneral = true, useCharacterBackground = useCharacterBackground
+        page = page,
+        fileUuid = image,
+        bubbleOpacity = general.opacity,
+        bubbleBlur = general.contentBlur,
+        followGeneral = true,
+        useCharacterBackground = useCharacterBackground,
     )
 }

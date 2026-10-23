@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
+import androidx.compose.ui.graphics.ImageBitmap
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
-import androidx.compose.ui.graphics.ImageBitmap
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 
 /** 角色创建/编辑页面状态树。 */
 sealed class CharacterEditUiState {
@@ -50,14 +50,18 @@ sealed class CharacterEditUiState {
 /** 角色页面当前是新增还是编辑已有角色。 */
 enum class CharacterEditMode {
     Create,
+
     Edit
 }
 
 /** 角色加载、保存与删除操作状态。 */
 sealed class CharacterEditLoadState {
     data object None : CharacterEditLoadState()
+
     data object Loading : CharacterEditLoadState()
+
     data object Saving : CharacterEditLoadState()
+
     data object Deleting : CharacterEditLoadState()
 }
 
@@ -92,12 +96,20 @@ sealed class CharacterEditDialogState {
 /** 可通过全屏 Prompt 编辑器修改的角色字段。 */
 sealed class CharacterPromptField {
     data object Description : CharacterPromptField()
+
     data object Personality : CharacterPromptField()
+
     data object Scenario : CharacterPromptField()
+
     data class FirstMessage(val index: Int) : CharacterPromptField()
+
     data object DialogueExamples : CharacterPromptField()
+
     data object SystemPrompt : CharacterPromptField()
+
     data object PostHistoryInstructions : CharacterPromptField()
+
     data object DepthPrompt : CharacterPromptField()
+
     data class AlternateGreeting(val index: Int) : CharacterPromptField()
 }

@@ -14,7 +14,10 @@ class SseEventDecoderTest {
         assertNull(decoder.accept("retry: 1000"))
         assertNull(decoder.accept("data: {\"type\":\"response.completed\","))
         assertNull(decoder.accept("data:  \"response\":{}}"))
-        assertEquals(SseEvent("response.completed", "{\"type\":\"response.completed\",\n \"response\":{}}"), decoder.accept(""))
+        assertEquals(
+            SseEvent("response.completed", "{\"type\":\"response.completed\",\n \"response\":{}}"),
+            decoder.accept(""),
+        )
         assertNull(decoder.accept(""))
         decoder.accept("data: {}")
         assertEquals(SseEvent("", "{}"), decoder.finish())

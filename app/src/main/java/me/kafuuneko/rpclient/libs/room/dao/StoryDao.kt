@@ -58,7 +58,7 @@ interface StoryDao : MutableDao<Story> {
         id: Long,
         expectedRevision: Long,
         title: String,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -81,7 +81,7 @@ interface StoryDao : MutableDao<Story> {
         summary: String,
         authorNote: String,
         includeUserPersona: Boolean,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -98,7 +98,7 @@ interface StoryDao : MutableDao<Story> {
         storyId: Long,
         expectedStoryRevision: Long,
         summary: String,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -113,7 +113,7 @@ interface StoryDao : MutableDao<Story> {
     suspend fun advanceRevision(
         storyId: Long,
         expectedRevision: Long,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -130,7 +130,7 @@ interface StoryDao : MutableDao<Story> {
         storyId: Long,
         expectedRevision: Long,
         worldInfoGenerationStep: Int,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query("DELETE FROM stories WHERE id = :id")

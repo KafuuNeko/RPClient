@@ -33,15 +33,15 @@ internal fun BackgroundEditorDialog(state: BackgroundEditorState, emit: (Appeara
                 icon = Icons.Rounded.Save,
                 title = stringResource(R.string.save),
                 enabled = !state.working,
-                onClick = { emit(AppearanceUiIntent.ApplyBackground) }
+                onClick = { emit(AppearanceUiIntent.ApplyBackground) },
             ),
             AppActionItem(
                 icon = Icons.Rounded.DeleteOutline,
                 title = stringResource(R.string.discard_changes),
                 isDestructive = true,
-                onClick = { emit(AppearanceUiIntent.DiscardBackgroundChanges) }
-            )
-        )
+                onClick = { emit(AppearanceUiIntent.DiscardBackgroundChanges) },
+            ),
+        ),
     )
 }
 
@@ -51,10 +51,11 @@ internal fun BackgroundEditorDialog(state: BackgroundEditorState, emit: (Appeara
 private fun BackgroundEditorDialogPreview() {
     AppTheme(dynamicColor = false) {
         BackgroundEditorDialog(
-            BackgroundEditorState(
+            state = BackgroundEditorState(
                 settings = PageBackground(BackgroundPage.Chat),
-                dialogState = BackgroundEditorDialogState.UnsavedChanges
-            )
-        ) {}
+                dialogState = BackgroundEditorDialogState.UnsavedChanges,
+            ),
+            emit = {},
+        )
     }
 }

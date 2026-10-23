@@ -5,7 +5,7 @@ internal object LLMProviderCredentialResolver {
     fun resolveApiKey(
         form: LLMProviderEditForm,
         initialApiKey: String,
-        apiKeyReplacement: String?
+        apiKeyReplacement: String?,
     ): String? {
         return when (form.apiKeyEditMode) {
             CredentialEditMode.KeepExisting -> initialApiKey

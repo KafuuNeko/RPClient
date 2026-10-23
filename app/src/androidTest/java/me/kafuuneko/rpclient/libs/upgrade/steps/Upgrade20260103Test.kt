@@ -65,7 +65,7 @@ class Upgrade20260103Test {
     @Test
     fun upgrade_migratesEveryLegacySourceOnceAndSupportsCrashSafeRetry() = runBlocking {
         val characterId = database.getCharacterDao().insertOrReplace(
-            character(
+            data = character(
                 extensionsJson = """
                     {
                       "vendor":{"kept":true},
@@ -77,8 +77,8 @@ class Upgrade20260103Test {
                         "placement":[2]
                       }]
                     }
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
         writeLegacyPreferences(characterId)
         val upgradeManager = manager()
@@ -86,17 +86,17 @@ class Upgrade20260103Test {
         upgradeManager.upgrade(CurrentVersionCode)
 
         val regexDao = database.getRegexScriptDao()
-        val global = regexDao.getGlobalScripts().map { it.toDomain() }
-        assertEquals(listOf("global-script", "preset-script"), global.map { it.id })
+        val global = regexDao.getGlobalScripts().map { regexScriptEntity -> regexScriptEntity.toDomain() }
+        assertEquals(listOf("global-script", "preset-script"), global.map { regexScript -> regexScript.id })
         assertFalse(global[0].disabled)
         assertTrue(global[1].disabled)
         assertEquals(
             listOf("character-script"),
-            regexDao.getCharacterScripts(characterId).map { it.scriptId }
+            regexDao.getCharacterScripts(characterId).map { regexScriptEntity -> regexScriptEntity.scriptId },
         )
         assertTrue(regexDao.isCharacterAuthorized(characterId))
         val extensions = JsonParser.parseString(
-            requireNotNull(database.getCharacterDao().getCharacterById(characterId)).extensionsJson
+            requireNotNull(database.getCharacterDao().getCharacterById(characterId)).extensionsJson,
         ).asJsonObject
         assertTrue(extensions.has("vendor"))
         assertFalse(extensions.has("regex_scripts"))
@@ -133,14 +133,15 @@ class Upgrade20260103Test {
     }
 
     private fun writeLegacyPreferences(characterId: Long) {
-        AppModel.preferences.edit()
+        AppModel
+            .preferences.edit()
             .putString(
                 "globalRegexScriptsJson",
-                codec.toJson(listOf(script("global-script")))
+                codec.toJson(listOf(script("global-script"))),
             )
             .putString(
                 "presetRegexScriptsJson",
-                codec.toJson(listOf(script("preset-script")))
+                codec.toJson(listOf(script("preset-script"))),
             )
             .putBoolean("presetRegexScriptsAuthorized", false)
             .putString("authorizedCharacterRegexIdsJson", "[$characterId,999999]")
@@ -158,7 +159,7 @@ class Upgrade20260103Test {
         return AppUpgradeManager(
             versionCodeProvider = AppVersionCodeProvider { CurrentVersionCode },
             versionStore = AppModelUpgradeVersionStore(),
-            upgrades = listOf(Upgrade20260103(database, Gson(), codec))
+            upgrades = listOf(Upgrade20260103(mAppDatabase = database, mGson = Gson(), mRegexCodec = codec)),
         )
     }
 
@@ -167,7 +168,7 @@ class Upgrade20260103Test {
         scriptName = id,
         findRegex = "x",
         replaceString = "y",
-        placement = listOf(RegexPlacement.AiResponse.value)
+        placement = listOf(RegexPlacement.AiResponse.value),
     )
 
     private fun character(extensionsJson: String) = Character(
@@ -180,7 +181,7 @@ class Upgrade20260103Test {
         firstMessages = "",
         examplesOfDialogue = "",
         postHistoryInstructions = "",
-        extensionsJson = extensionsJson
+        extensionsJson = extensionsJson,
     )
 
     private companion object {
@@ -190,11 +191,11 @@ class Upgrade20260103Test {
             "presetRegexScriptsJson",
             "presetRegexScriptsAuthorized",
             "authorizedCharacterRegexIdsJson",
-            "regexScopeMigrationVersion"
+            "regexScopeMigrationVersion",
         )
         val ManagedPreferenceKeys = LegacyPreferenceKeys + setOf(
             "lastMigratedVersionCode",
-            "lastCleanedUpgradeVersionCode"
+            "lastCleanedUpgradeVersionCode",
         )
     }
 }

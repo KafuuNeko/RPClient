@@ -25,13 +25,13 @@ interface LLMClient {
     suspend fun generate(
         message: String,
         model: String? = null,
-        options: LLMGenerationOptions = LLMGenerationOptions()
+        options: LLMGenerationOptions = LLMGenerationOptions(),
     ): LLMGenerationResponse = generate(
-        LLMGenerationRequest(
+        request = LLMGenerationRequest(
             messages = listOf(LLMMessage(role = LLMMessageRole.User, content = message)),
             model = model,
-            options = options
-        )
+            options = options,
+        ),
     )
 
     /**

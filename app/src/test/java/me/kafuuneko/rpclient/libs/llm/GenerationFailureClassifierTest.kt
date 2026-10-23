@@ -13,63 +13,63 @@ class GenerationFailureClassifierTest {
     fun classifiesKnownFailuresUsingOnlySafeFields() {
         assertEquals(
             GenerationFailure.NoProvider,
-            classifyGenerationFailure(NoEnabledLLMProviderException())
+            classifyGenerationFailure(NoEnabledLLMProviderException()),
         )
         assertEquals(
             GenerationFailure.CharacterProviderUnavailable,
             classifyGenerationFailure(
-                UnavailableLLMProviderSelectionException(
-                    LLMProviderSelectionScope.Character,
-                    providerId = 7L
-                )
-            )
+                throwable = UnavailableLLMProviderSelectionException(
+                    scope = LLMProviderSelectionScope.Character,
+                    providerId = 7L,
+                ),
+            ),
         )
         assertEquals(
             GenerationFailure.SummaryProviderUnavailable,
             classifyGenerationFailure(
-                UnavailableLLMProviderSelectionException(
-                    LLMProviderSelectionScope.Summary,
-                    providerId = 8L
-                )
-            )
+                throwable = UnavailableLLMProviderSelectionException(
+                    scope = LLMProviderSelectionScope.Summary,
+                    providerId = 8L,
+                ),
+            ),
         )
         assertEquals(
             GenerationFailure.PromptBudget(requiredTokens = 12, promptBudget = 8),
-            classifyGenerationFailure(PromptBudgetExceededException(12, 8))
+            classifyGenerationFailure(PromptBudgetExceededException(requiredTokens = 12, promptBudget = 8)),
         )
         assertEquals(
             GenerationFailure.Unauthorized,
-            classifyGenerationFailure(LLMHttpStatusException(401))
+            classifyGenerationFailure(LLMHttpStatusException(401)),
         )
         assertEquals(
             GenerationFailure.Forbidden,
-            classifyGenerationFailure(LLMHttpStatusException(403))
+            classifyGenerationFailure(LLMHttpStatusException(403)),
         )
         assertEquals(
             GenerationFailure.RateLimited,
-            classifyGenerationFailure(LLMHttpStatusException(429))
+            classifyGenerationFailure(LLMHttpStatusException(429)),
         )
         assertEquals(
             GenerationFailure.HttpFailure(500),
-            classifyGenerationFailure(LLMHttpStatusException(500))
+            classifyGenerationFailure(LLMHttpStatusException(500)),
         )
         assertEquals(
             GenerationFailure.RequestFailure,
-            classifyGenerationFailure(LLMRequestException(IllegalStateException("secret")))
+            classifyGenerationFailure(LLMRequestException(IllegalStateException("secret"))),
         )
         assertEquals(
             GenerationFailure.Unauthorized,
             classifyGenerationFailure(
-                LLMProviderRequestException(
+                throwable = LLMProviderRequestException(
                     providerName = "Role model",
-                    requestCause = LLMHttpStatusException(401)
-                )
-            )
+                    requestCause = LLMHttpStatusException(401),
+                ),
+            ),
         )
         assertEquals(GenerationFailure.Network, classifyGenerationFailure(IOException("secret")))
         assertEquals(
             GenerationFailure.EmptyResponse(),
-            classifyGenerationFailure(LLMEmptyResponseException())
+            classifyGenerationFailure(LLMEmptyResponseException()),
         )
     }
 
@@ -83,7 +83,7 @@ class GenerationFailureClassifierTest {
     @Test
     fun httpFailureKeepsResponseDetailForDebugLogsButClassifiesByStatus() {
         val responseDetail = """{"error":{"message":"provider detail"}}"""
-        val error = LLMHttpStatusException(500, responseDetail)
+        val error = LLMHttpStatusException(statusCode = 500, responseDetail = responseDetail)
 
         assertTrue(error.message.orEmpty().contains(responseDetail))
         assertEquals(GenerationFailure.HttpFailure(500), classifyGenerationFailure(error))

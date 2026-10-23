@@ -20,7 +20,7 @@ internal object ChatArchiveImageCodec {
     /** 每次只解析一张自有图片；大消息不先构造包含全部 Base64 的 JSON 树。 */
     fun readExtension(
         reader: JsonReader,
-        transform: (ChatArchiveImage) -> ChatArchiveImage
+        transform: (ChatArchiveImage) -> ChatArchiveImage,
     ): Pair<JsonObject, List<ChatArchiveImage>?> {
         val metadata = JsonObject()
         var images: List<ChatArchiveImage>? = null
@@ -60,18 +60,18 @@ internal object ChatArchiveImageCodec {
         }
         // 新版数组是权威输入；旧版滑动图片列表保持顺序并去除同一引用的重复项。
         val media = extra.get("media")?.takeIf { it.isJsonArray }?.asJsonArray
-        val urls = if (media != null) media.mapNotNull {
-            val item = it.takeIf { value -> value.isJsonObject }?.asJsonObject
+        val urls = if (media != null) media.mapNotNull { element ->
+            val item = element.takeIf { value -> value.isJsonObject }?.asJsonObject
             if (item != null && string(item, "type") == "image") string(item, "url") else null
         } else buildList {
-            extra.get("image_swipes")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
-                if (it.isJsonPrimitive && it.asJsonPrimitive.isString) add(it.asString)
+            extra.get("image_swipes")?.takeIf { element -> element.isJsonArray }?.asJsonArray?.forEach { element ->
+                if (element.isJsonPrimitive && element.asJsonPrimitive.isString) add(element.asString)
             }
             string(extra, "image")?.let(::add)
         }.distinct()
         require(urls.size <= MAX_IMAGES) { "Too many archive images" }
         return urls.filter { it.isNotBlank() }.map { url ->
-            if (url.startsWith("data:", ignoreCase = true)) {
+            if (url.startsWith(prefix = "data:", ignoreCase = true)) {
                 val match = Regex("""^data:(image/[a-zA-Z0-9.+-]+);base64,([\s\S]*)$""", RegexOption.IGNORE_CASE)
                     .matchEntire(url) ?: error("Invalid embedded image")
                 ChatArchiveImage(mimeType = match.groupValues[1], data = match.groupValues[2])
@@ -80,7 +80,8 @@ internal object ChatArchiveImageCodec {
     }
 
     /** 按需提供 ASCII 字节，避免为整段 Base64 再分配一个同尺寸的字节数组。 */
-    fun openData(data: String): InputStream = Base64.getDecoder().wrap(object : InputStream() {
+    fun openData(data: String): InputStream = Base64.getDecoder().wrap(
+        object : InputStream() {
         private var mPosition = 0
         override fun read(): Int {
             if (mPosition == data.length) return -1
@@ -88,12 +89,15 @@ internal object ChatArchiveImageCodec {
             require(value <= 127) { "Invalid Base64 character" }
             return value
         }
-    })
+    },
+    )
 
     /** 为小型协议调用编码图片；真实文件导出使用流式入口避免整份 Base64 常驻内存。 */
     fun encode(images: List<ChatArchiveImage>, writtenHashes: MutableSet<String>): JsonObject = JsonObject().apply {
         addProperty("schema_version", 1)
-        add("images", JsonArray().apply {
+        add(
+            "images",
+            JsonArray().apply {
             // 顺序在单条消息内部也有效，已写出的图片只保留 hash。
             images.forEach { image ->
                 if (image.data == null) {
@@ -105,7 +109,8 @@ internal object ChatArchiveImageCodec {
                     add(metadata(encoded).apply { addProperty("data", encoded.data) })
                 } else add(metadata(ChatArchiveImage(hash = encoded.hash)))
             }
-        })
+        },
+        )
     }
 
     /** 一次归档共享的向前引用表；同消息内前一个数组元素也能成为引用来源。 */
@@ -127,7 +132,7 @@ internal object ChatArchiveImageCodec {
             mimeType = string(json, "mime_type"),
             data = string(json, "data"),
             hash = string(json, "hash"),
-            compression = string(json, "compression") ?: "none"
+            compression = string(json, "compression") ?: "none",
         )
         require(!json.has("hash") || image.hash?.matches(Regex("[0-9a-f]{64}")) == true) {
             "Invalid archive image hash"
@@ -158,16 +163,18 @@ internal object ChatArchiveImageCodec {
         val output = object : OutputStream() {
             override fun write(value: Int) { writer.write(value) }
             override fun write(bytes: ByteArray, offset: Int, length: Int) {
-                writer.write(String(bytes, offset, length, Charsets.US_ASCII))
+                writer.write(String(bytes = bytes, offset = offset, length = length, charset = Charsets.US_ASCII))
             }
         }
-        Base64.getEncoder().wrap(output).use(writeBytes)
+        Base64.getEncoder()
+            .wrap(output)
+            .use(writeBytes)
         writer.write("\"}")
     }
 
     private fun metadata(image: ChatArchiveImage): JsonObject = JsonObject().apply {
-        image.hash?.let { addProperty("hash", it) }
-        image.mimeType?.let { addProperty("mime_type", it) }
+        image.hash?.let { text -> addProperty("hash", text) }
+        image.mimeType?.let { text -> addProperty("mime_type", text) }
         if (image.mimeType != null) addProperty("compression", image.compression)
     }
 

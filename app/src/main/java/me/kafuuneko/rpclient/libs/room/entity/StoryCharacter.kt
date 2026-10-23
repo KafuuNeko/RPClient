@@ -17,13 +17,13 @@ import androidx.room.Index
             entity = Story::class,
             parentColumns = ["id"],
             childColumns = ["storyId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [
@@ -48,9 +48,9 @@ data class StoryCharacter(
 
 
         fun isValidActivationMode(value: Int): Boolean {
-            return value == ACTIVATION_ALWAYS ||
-                value == ACTIVATION_AUTO ||
-                value == ACTIVATION_PRIMARY
+            return value == ACTIVATION_ALWAYS
+                || value == ACTIVATION_AUTO
+                || value == ACTIVATION_PRIMARY
         }
     }
 }

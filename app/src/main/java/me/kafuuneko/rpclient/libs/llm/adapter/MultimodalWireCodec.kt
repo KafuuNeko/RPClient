@@ -3,11 +3,6 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
-import java.io.File
-import java.io.FilterOutputStream
-import java.io.OutputStream
-import java.util.Base64
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -30,12 +25,17 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FilterOutputStream
+import java.io.OutputStream
+import java.util.Base64
+import java.util.UUID
 
 /** 已冻结的 HTTP JSON；日志仅含元数据，临时请求文件由请求结束统一释放。 */
 internal data class PreparedWireBody(val body: RequestBody, val logJson: String, val file: File? = null) {
     /** 地址或自定义请求头校验失败时也释放已编码文件，成功后移交给网络调用。 */
     fun toHttpRequest(build: () -> Request): LLMHttpRequest = try {
-        LLMHttpRequest(build(), logJson, file)
+        LLMHttpRequest(request = build(), payloadJson = logJson, temporaryFile = file)
     } catch (error: Throwable) {
         file?.delete()
         throw error
@@ -57,11 +57,16 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
             message.contentBlocks.forEach { block ->
                 when (block) {
                     is LLMContentBlock.Text -> if (block.text.isNotBlank()) {
-                        array.put(JSONObject().put("text", block.text).apply {
+                        array.put(
+                            JSONObject().put("text", block.text).apply {
                             if (mProvider.protocol != LLMProviderProtocol.Gemini) {
-                                put("type", if (mProvider.protocol == LLMProviderProtocol.OpenAIResponses) "input_text" else "text")
+                                put(
+                                    "type",
+                                    if (mProvider.protocol == LLMProviderProtocol.OpenAIResponses) "input_text" else "text",
+                                )
                             }
-                        })
+                        },
+                        )
                     }
                     is LLMContentBlock.Image -> array.put(image(block.reference))
                 }
@@ -74,14 +79,22 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
         val marker = registerImage(reference)
         return when (mProvider.protocol) {
             LLMProviderProtocol.OpenAIResponses -> JSONObject().put("type", "input_image")
-                .put("image_url", marker).put("detail", "auto")
+                .put("image_url", marker)
+                .put("detail", "auto")
             LLMProviderProtocol.OpenAICompatible -> JSONObject().put("type", "image_url")
                 .put("image_url", JSONObject().put("url", marker))
-            LLMProviderProtocol.Gemini -> JSONObject().put("inlineData", JSONObject()
-                .put("mimeType", reference.mimeType).put("data", marker))
+            LLMProviderProtocol.Gemini -> JSONObject().put(
+                "inlineData",
+                JSONObject()
+                .put("mimeType", reference.mimeType).put("data", marker),
+            )
             LLMProviderProtocol.AnthropicMessages -> JSONObject().put("type", "image")
-                .put("source", JSONObject().put("type", "base64")
-                    .put("media_type", reference.mimeType).put("data", marker))
+                .put(
+                    "source",
+                    JSONObject().put("type", "base64")
+                    .put("media_type", reference.mimeType)
+                    .put("data", marker),
+                )
         }
     }
 
@@ -116,10 +129,13 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
                 }
             }
             val log = mImages.entries.fold(json) { value, (marker, ref) ->
-                value.replace(marker, "[image data omitted, cannot be replayed directly: " +
-                    "${ref.mimeType} ${ref.width}x${ref.height} ${ref.byteCount} bytes]")
+                value.replace(
+                    oldValue = marker,
+                    newValue = "[image data omitted, cannot be replayed directly: " +
+                    "${ref.mimeType} ${ref.width}x${ref.height} ${ref.byteCount} bytes]",
+                )
             }
-            return PreparedWireBody(file.asRequestBody(JsonMediaType), log, file)
+            return PreparedWireBody(body = file.asRequestBody(JsonMediaType), logJson = log, file = file)
         } catch (error: Throwable) {
             file.delete()
             throw error
@@ -159,8 +175,8 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
     /** 持资源租约流式编码单张图片；关闭 Base64 包装流只刷新，不关闭外层 JSON。 */
     private suspend fun writeImage(reference: LLMImageReference, output: OutputStream, runtime: MessageImageRuntime) {
         output.write('"'.code)
-        if (mProvider.protocol == LLMProviderProtocol.OpenAICompatible ||
-            mProvider.protocol == LLMProviderProtocol.OpenAIResponses) {
+        if (mProvider.protocol == LLMProviderProtocol.OpenAICompatible
+            || mProvider.protocol == LLMProviderProtocol.OpenAIResponses) {
             output.write("data:${reference.mimeType};base64,".toByteArray(Charsets.UTF_8))
         }
         val context = currentCoroutineContext()

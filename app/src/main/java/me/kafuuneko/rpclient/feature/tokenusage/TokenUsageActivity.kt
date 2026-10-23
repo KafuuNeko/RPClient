@@ -26,7 +26,7 @@ class TokenUsageActivity : CoreActivity() {
 
         TokenUsageLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

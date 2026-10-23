@@ -13,7 +13,7 @@ val Typography = Typography(
         fontSize = 32.sp,
         lineHeight = 40.sp,
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.5).sp
+        letterSpacing = (-0.5).sp,
     ),
     // 中号展示文本
     displayMedium = TextStyle(
@@ -21,7 +21,7 @@ val Typography = Typography(
         fontSize = 26.sp,
         lineHeight = 34.sp,
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.25).sp,
     ),
     // 小号展示文本
     displaySmall = TextStyle(
@@ -29,7 +29,7 @@ val Typography = Typography(
         fontSize = 22.sp,
         lineHeight = 28.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
     ),
 
     // 大号副标题/板块大标题
@@ -38,7 +38,7 @@ val Typography = Typography(
         fontSize = 24.sp,
         lineHeight = 32.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
     ),
     // 中号副标题/板块中标题
     headlineMedium = TextStyle(
@@ -46,7 +46,7 @@ val Typography = Typography(
         fontSize = 20.sp,
         lineHeight = 26.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
     ),
     // 小号副标题/板块小标题
     headlineSmall = TextStyle(
@@ -54,7 +54,7 @@ val Typography = Typography(
         fontSize = 18.sp,
         lineHeight = 24.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
     ),
 
     // 大号标题（弹窗、重要容器）
@@ -63,7 +63,7 @@ val Typography = Typography(
         fontSize = 20.sp,
         lineHeight = 26.sp,
         fontWeight = FontWeight.Bold,
-        letterSpacing = 0.sp
+        letterSpacing = 0.sp,
     ),
     // 中号标题（卡片标题、顶部栏标题）
     titleMedium = TextStyle(
@@ -71,7 +71,7 @@ val Typography = Typography(
         fontSize = 16.sp,
         lineHeight = 22.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.1.sp,
     ),
     // 小号标题（列表项标题、分区小标题）
     titleSmall = TextStyle(
@@ -79,7 +79,7 @@ val Typography = Typography(
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.1.sp,
     ),
 
     // 大号正文（创作大段正文）
@@ -88,7 +88,7 @@ val Typography = Typography(
         fontSize = 16.sp,
         lineHeight = 26.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = 0.15.sp
+        letterSpacing = 0.15.sp,
     ),
     // 中号正文（对话气泡正文、常规描述）
     bodyMedium = TextStyle(
@@ -96,7 +96,7 @@ val Typography = Typography(
         fontSize = 14.sp,
         lineHeight = 24.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = 0.15.sp
+        letterSpacing = 0.15.sp,
     ),
     // 小号正文（辅助说明、次级描述）
     bodySmall = TextStyle(
@@ -104,7 +104,7 @@ val Typography = Typography(
         fontSize = 12.sp,
         lineHeight = 18.sp,
         fontWeight = FontWeight.Normal,
-        letterSpacing = 0.2.sp
+        letterSpacing = 0.2.sp,
     ),
 
     // 大号标签（主按钮、突出药丸）
@@ -113,7 +113,7 @@ val Typography = Typography(
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.1.sp,
     ),
     // 中号标签（小按钮、选择芯片）
     labelMedium = TextStyle(
@@ -121,7 +121,7 @@ val Typography = Typography(
         fontSize = 12.sp,
         lineHeight = 16.sp,
         fontWeight = FontWeight.Medium,
-        letterSpacing = 0.2.sp
+        letterSpacing = 0.2.sp,
     ),
     // 小号标签（状态徽章、时间戳、元数据胶囊）
     labelSmall = TextStyle(
@@ -129,6 +129,6 @@ val Typography = Typography(
         fontSize = 11.sp,
         lineHeight = 15.sp,
         fontWeight = FontWeight.Medium,
-        letterSpacing = 0.25.sp
-    )
+        letterSpacing = 0.25.sp,
+    ),
 )

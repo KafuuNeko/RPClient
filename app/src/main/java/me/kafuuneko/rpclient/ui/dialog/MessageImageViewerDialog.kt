@@ -78,7 +78,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 @Composable
 fun MessageImageViewerDialog(
     state: MessageImageState,
-    emit: (MessageImageAction) -> Unit
+    emit: (MessageImageAction) -> Unit,
 ) {
     // 守卫校验当前预览状态，无预览数据时不展开对话框
     val preview = state.preview ?: return
@@ -90,52 +90,52 @@ fun MessageImageViewerDialog(
         onDismissRequest = { emit(MessageImageAction.ClosePreview) },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+            decorFitsSystemWindows = false,
+        ),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.95f))
+                .background(Color.Black.copy(alpha = 0.95f)),
         ) {
             // 承载图片主画布与手势响应，点击空白或图片切换浮层显隐
             ImageViewerCanvas(
                 preview = preview,
-                onToggleControls = { controlsVisible = !controlsVisible }
+                onToggleControls = { controlsVisible = !controlsVisible },
             )
 
             // 渲染左右两侧悬浮快速切换箭头（仅在多图场景呈现）
             AnimatedVisibility(
                 visible = controlsVisible && preview.ids.size > 1,
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
             ) {
                 ImageViewerSideNavigation(
                     preview = preview,
-                    emit = emit
+                    emit = emit,
                 )
             }
 
             // 渲染顶部关闭按钮、页码指示胶囊与快捷保存动作
             AnimatedVisibility(
                 visible = controlsVisible,
-                enter = fadeIn() + slideInVertically { -it },
-                exit = fadeOut() + slideOutVertically { -it },
-                modifier = Modifier.align(Alignment.TopCenter)
+                enter = fadeIn() + slideInVertically { value -> -value },
+                exit = fadeOut() + slideOutVertically { value -> -value },
+                modifier = Modifier.align(Alignment.TopCenter),
             ) {
                 ImageViewerTopBar(
                     preview = preview,
                     onClose = { emit(MessageImageAction.ClosePreview) },
-                    onSave = { emit(MessageImageAction.Save) }
+                    onSave = { emit(MessageImageAction.Save) },
                 )
             }
 
             // 渲染底部缩略图导航行
             AnimatedVisibility(
                 visible = controlsVisible,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                enter = fadeIn() + slideInVertically { value -> value },
+                exit = fadeOut() + slideOutVertically { value -> value },
+                modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 Column(
                     modifier = Modifier
@@ -143,7 +143,7 @@ fun MessageImageViewerDialog(
                         .navigationBarsPadding()
                         .padding(bottom = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (preview.ids.size > 1) {
                         ImageViewerThumbnailStrip(
@@ -152,11 +152,11 @@ fun MessageImageViewerDialog(
                             onSelect = { selectedIndex ->
                                 emit(
                                     MessageImageAction.Preview(
-                                        preview.ids,
-                                        selectedIndex
-                                    )
+                                        ids = preview.ids,
+                                        index = selectedIndex,
+                                    ),
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -176,7 +176,7 @@ fun MessageImageViewerDialog(
 private fun ImageViewerTopBar(
     preview: ImagePreviewState,
     onClose: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
 ) {
     // 适配状态栏安全边距并水平铺满
     Row(
@@ -185,7 +185,7 @@ private fun ImageViewerTopBar(
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 布局左侧圆形半透明退出按钮
         IconButton(
@@ -193,12 +193,12 @@ private fun ImageViewerTopBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = 0.45f)),
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(R.string.image_close),
-                tint = Color.White
+                tint = Color.White,
             )
         }
 
@@ -206,14 +206,15 @@ private fun ImageViewerTopBar(
         Surface(
             shape = CircleShape,
             color = Color.Black.copy(alpha = 0.45f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            border = BorderStroke(width = 1.dp, color = Color.White.copy(alpha = 0.12f)),
         ) {
+            val imageNumber = preview.index + 1
             Text(
-                text = "${preview.index + 1} / ${preview.ids.size}",
+                text = "$imageNumber / ${preview.ids.size}",
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = Color.White,
             )
         }
 
@@ -223,12 +224,12 @@ private fun ImageViewerTopBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = 0.45f)),
         ) {
             Icon(
                 imageVector = Icons.Rounded.FileDownload,
                 contentDescription = stringResource(R.string.image_save),
-                tint = Color.White
+                tint = Color.White,
             )
         }
     }
@@ -243,7 +244,7 @@ private fun ImageViewerTopBar(
 @Composable
 private fun ImageViewerCanvas(
     preview: ImagePreviewState,
-    onToggleControls: () -> Unit
+    onToggleControls: () -> Unit,
 ) {
     // 切换图片序列、索引时重设缩放与位移，异步加载位图完成时不重置手势
     var scale by remember(preview.ids, preview.index) { mutableFloatStateOf(1f) }
@@ -266,13 +267,13 @@ private fun ImageViewerCanvas(
                     },
                     onTap = {
                         onToggleControls()
-                    }
+                    },
                 )
             }
             // 绑定双指缩放与拖拽平移手势
             .pointerInput(preview.ids, preview.index) {
                 detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 8f)
+                    val newScale = (scale * zoom).coerceIn(minimumValue = 1f, maximumValue = 8f)
                     scale = newScale
                     if (newScale > 1f) {
                         offset += pan
@@ -281,7 +282,7 @@ private fun ImageViewerCanvas(
                     }
                 }
             },
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         // 根据当前位图状态呈现大图、加载进度或缺失占位
         val bitmap = preview.bitmap
@@ -298,41 +299,41 @@ private fun ImageViewerCanvas(
                             translationX = offset.x
                             translationY = offset.y
                         },
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
                 )
             }
             preview.loading -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(36.dp),
                         color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp
+                        strokeWidth = 3.dp,
                     )
                     Text(
                         text = stringResource(R.string.image_loading),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = Color.White.copy(alpha = 0.8f),
                     )
                 }
             }
             else -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Info,
                         contentDescription = null,
                         modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.error,
                     )
                     Text(
                         text = stringResource(R.string.image_missing),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = Color.White.copy(alpha = 0.8f),
                     )
                 }
             }
@@ -349,7 +350,7 @@ private fun ImageViewerCanvas(
 @Composable
 private fun ImageViewerSideNavigation(
     preview: ImagePreviewState,
-    emit: (MessageImageAction) -> Unit
+    emit: (MessageImageAction) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // 布局左侧上一张悬浮箭头按钮
@@ -363,12 +364,12 @@ private fun ImageViewerSideNavigation(
                     .padding(start = 12.dp)
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f))
+                    .background(Color.Black.copy(alpha = 0.45f)),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
         }
@@ -384,12 +385,12 @@ private fun ImageViewerSideNavigation(
                     .padding(end = 12.dp)
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f))
+                    .background(Color.Black.copy(alpha = 0.45f)),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
         }
@@ -407,7 +408,7 @@ private fun ImageViewerSideNavigation(
 private fun ImageViewerThumbnailStrip(
     preview: ImagePreviewState,
     thumbnails: Map<String, ImageBitmap?>,
-    onSelect: (Int) -> Unit
+    onSelect: (Int) -> Unit,
 ) {
     // 渲染水平滚动的缩略图列表
     Row(
@@ -416,16 +417,16 @@ private fun ImageViewerThumbnailStrip(
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 遍历消息中的所有图片项
         preview.ids.forEachIndexed { index, uuid ->
             val isCurrent = index == preview.index
             // 为当前展示图片施加主色外框
             val borderStroke = if (isCurrent) {
-                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                BorderStroke(width = 2.dp, color = MaterialTheme.colorScheme.primary)
             } else {
-                BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                BorderStroke(width = 1.dp, color = Color.White.copy(alpha = 0.2f))
             }
             Box(
                 modifier = Modifier
@@ -434,8 +435,8 @@ private fun ImageViewerThumbnailStrip(
                     .clip(RoundedCornerShape(8.dp))
                     .border(borderStroke, RoundedCornerShape(8.dp))
                     .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { onSelect(index) },
-                contentAlignment = Alignment.Center
+                    .clickable(onClick = { onSelect(index) }),
+                contentAlignment = Alignment.Center,
             ) {
                 val thumbnail = thumbnails[uuid]
                 if (thumbnail != null) {
@@ -445,13 +446,14 @@ private fun ImageViewerThumbnailStrip(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer { alpha = if (isCurrent) 1f else 0.6f },
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
                     )
                 } else {
+                    val imageNumber = index + 1
                     Text(
-                        text = "${index + 1}",
+                        text = "$imageNumber",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f),
                     )
                 }
             }

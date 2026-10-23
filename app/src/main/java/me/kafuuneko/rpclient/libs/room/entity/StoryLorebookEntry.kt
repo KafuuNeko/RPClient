@@ -19,13 +19,13 @@ import androidx.room.Index
             entity = Story::class,
             parentColumns = ["id"],
             childColumns = ["storyId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = LorebookEntry::class,
             parentColumns = ["id"],
             childColumns = ["lorebookEntryId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [
@@ -56,7 +56,7 @@ data class StoryLorebookEntry(
             activatedAtStep = null,
             stickyUntilStep = null,
             cooldownUntilStep = null,
-            stateSignature = null
+            stateSignature = null,
         )
     }
 }

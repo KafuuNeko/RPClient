@@ -25,16 +25,16 @@ class RegexScriptActivity : CoreActivityWithEvent() {
 
     /** 打开系统文档选择器，并将选中的 JSON URI 交回 ViewModel。 */
     private val mImporter = registerForActivityResult(
-        GetContentWithMimeTypes()
+        contract = GetContentWithMimeTypes(),
     ) { uri ->
-        uri?.let { mViewModel.emit(RegexScriptUiIntent.ImportJson(it)) }
+        uri?.let { uri -> mViewModel.emit(RegexScriptUiIntent.ImportJson(uri)) }
     }
 
     /** 创建 JSON 文档，并将可写 URI 交回 ViewModel。 */
     private val mExporter = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
-        uri?.let { mViewModel.emit(RegexScriptUiIntent.ExportJson(it)) }
+        uri?.let { uri -> mViewModel.emit(RegexScriptUiIntent.ExportJson(uri)) }
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow

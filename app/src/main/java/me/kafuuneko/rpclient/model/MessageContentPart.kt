@@ -33,11 +33,11 @@ fun String.toMessageContentParts(messageId: String): List<MessageContentPart> {
             parts += MessageContentPart.Text(substring(cursor, match.range.first))
         }
         val thinkContent = match.groupValues[1].trim()
-        if (thinkContent.isNotBlank() && !thinkContent.equals("null", ignoreCase = true)) {
+        if (thinkContent.isNotBlank() && !thinkContent.equals(other = "null", ignoreCase = true)) {
             parts += MessageContentPart.Think(
                 id = "$messageId:$index",
                 content = thinkContent,
-                isComplete = match.value.trimEnd().endsWith("</think>", ignoreCase = true)
+                isComplete = match.value.trimEnd().endsWith(suffix = "</think>", ignoreCase = true),
             )
         }
         cursor = match.range.last + 1

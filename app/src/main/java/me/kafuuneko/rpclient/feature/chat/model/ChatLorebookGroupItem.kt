@@ -29,7 +29,7 @@ data class ChatLorebookGroupItem(
  * @return 过滤后的世界书分组列表
  */
 internal fun List<ChatLorebookGroupItem>.filterForQuery(
-    query: String
+    query: String,
 ): List<ChatLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -39,5 +39,5 @@ internal fun List<ChatLorebookGroupItem>.filterForQuery(
             entry.keywords.asSequence() +
             entry.secondaryKeywords.asSequence()
     },
-    copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    copyWithEntries = { group, entries -> group.copy(entries = entries) },
 )

@@ -35,7 +35,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         val page = loadLogPage(offset = 0)
         RequestLogUiState.Normal(
             logs = page.items,
-            canLoadMore = page.canLoadMore
+            canLoadMore = page.canLoadMore,
         ).setup()
     }
 
@@ -50,7 +50,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         uiState.copy(
             logs = uiState.logs + page.items,
             canLoadMore = page.canLoadMore,
-            isLoadingMore = false
+            isLoadingMore = false,
         ).setup()
     }
 
@@ -125,11 +125,11 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
             val overviews = mLLMRequestLogRepository.getLogOverviews(
                 previewLength = JSON_PREVIEW_LENGTH,
                 limit = PAGE_SIZE + 1,
-                offset = offset
+                offset = offset,
             )
             RequestLogPage(
-                items = overviews.take(PAGE_SIZE).map { it.toUiModel() },
-                canLoadMore = overviews.size > PAGE_SIZE
+                items = overviews.take(PAGE_SIZE).map { llmRequestLogOverview -> llmRequestLogOverview.toUiModel() },
+                canLoadMore = overviews.size > PAGE_SIZE,
             )
         }
     }

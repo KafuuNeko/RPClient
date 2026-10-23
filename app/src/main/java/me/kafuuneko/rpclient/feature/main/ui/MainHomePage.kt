@@ -10,6 +10,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -64,7 +65,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -114,7 +114,7 @@ private fun HeroEntryCard(
     modifier: Modifier = Modifier,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     // 点击由卡片接管，使焦点反馈与模糊底板共用完整圆角边界。
     AppCard(
@@ -123,63 +123,63 @@ private fun HeroEntryCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             AppSurface(
                 modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(15.dp),
                 color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 2.dp
+                shadowElevation = 2.dp,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Rounded.AddComment,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             AppSurface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -193,26 +193,24 @@ private fun HomeQuickActionCard(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     title: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     // 快捷入口共用卡片点击语义，避免额外的矩形焦点层。
     AppCard(
         modifier = modifier,
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpIconBubble(icon = icon, modifier = Modifier.size(36.dp))
             Spacer(modifier = Modifier.width(10.dp))
@@ -222,7 +220,7 @@ private fun HomeQuickActionCard(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -232,32 +230,32 @@ private fun HomeQuickActionCard(
 @Composable
 private fun HomeAssetDock(
     resourceState: MainHomeResourceState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         HomeAssetCapsule(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.Person,
             title = stringResource(R.string.character),
             count = resourceState.totalCharacters,
-            onClick = { MainUiIntent.OpenCharacterManager.emit() }
+            onClick = { MainUiIntent.OpenCharacterManager.emit() },
         )
         HomeAssetCapsule(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.Book,
             title = stringResource(R.string.world_book),
             count = resourceState.totalWorldBooks,
-            onClick = { MainUiIntent.OpenWorldBookManager.emit() }
+            onClick = { MainUiIntent.OpenWorldBookManager.emit() },
         )
         HomeAssetCapsule(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.DataObject,
             title = stringResource(R.string.regex_script_title),
             count = null,
-            onClick = { MainUiIntent.OpenRegexScripts.emit() }
+            onClick = { MainUiIntent.OpenRegexScripts.emit() },
         )
     }
 }
@@ -269,40 +267,38 @@ private fun HomeAssetCapsule(
     icon: ImageVector,
     title: String,
     count: Int? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     // 资产入口与数量徽标分别布局，点击反馈由外层卡片统一裁切。
     AppCard(
         modifier = modifier,
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 11.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(contentAlignment = Alignment.TopEnd) {
                 AppSurface(
                     modifier = Modifier.size(36.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
@@ -311,14 +307,14 @@ private fun HomeAssetCapsule(
                         modifier = Modifier.offset(x = 6.dp, y = (-4).dp),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary,
-                        shadowElevation = 1.dp
+                        shadowElevation = 1.dp,
                     ) {
                         Text(
                             text = if (count > 99) "99+" else count.toString(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                         )
                     }
                 }
@@ -329,7 +325,7 @@ private fun HomeAssetCapsule(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -339,7 +335,7 @@ private fun HomeAssetCapsule(
 @Composable
 internal fun MainHomePage(
     state: MainHomeState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     // 多选时收起创建入口，列表位置仍由主页面的独立保存域管理。
     val selectionState = state.selectionState as? MainHomeSelectionState.Selecting
@@ -354,9 +350,9 @@ internal fun MainHomePage(
             start = 18.dp,
             top = 8.dp,
             end = 18.dp,
-            bottom = 110.dp
+            bottom = 110.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
             Spacer(modifier = Modifier.statusBarsPadding())
@@ -368,7 +364,7 @@ internal fun MainHomePage(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
             }
         } else {
@@ -378,38 +374,38 @@ internal fun MainHomePage(
             state = state,
             multiSelectMode = multiSelectMode,
             selectedItems = selectedItems,
-            emit = emit
+            emit = emit,
         )
     }
 }
 
 private fun LazyListScope.homeEntryItems(
     resourceState: MainHomeResourceState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     item {
         HeroEntryCard(
             title = stringResource(R.string.new_session),
             subtitle = stringResource(R.string.new_session_desc),
-            onClick = { MainUiIntent.OpenCreateChat.emit() }
+            onClick = { MainUiIntent.OpenCreateChat.emit() },
         )
     }
     item {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HomeQuickActionCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.Groups,
                 title = stringResource(R.string.group_chat),
-                onClick = { MainUiIntent.OpenCreateGroupChat.emit() }
+                onClick = { MainUiIntent.OpenCreateGroupChat.emit() },
             )
             HomeQuickActionCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Rounded.AutoStories,
                 title = stringResource(R.string.story_create_story),
-                onClick = { MainUiIntent.OpenCreateStory.emit() }
+                onClick = { MainUiIntent.OpenCreateStory.emit() },
             )
         }
     }
@@ -422,24 +418,27 @@ private fun LazyListScope.homeContentSection(
     state: MainHomeState,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     item {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     modifier = Modifier.weight(1f),
                     text = stringResource(R.string.recent_content),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
-                if (!multiSelectMode) IconButton(onClick = { MainUiIntent.OpenContentSearch.emit() }, modifier = Modifier.size(48.dp)) {
+                if (!multiSelectMode) IconButton(
+                    onClick = { MainUiIntent.OpenContentSearch.emit() },
+                    modifier = Modifier.size(48.dp),
+                ) {
                     Icon(Icons.Rounded.Search, stringResource(R.string.content_search_title))
                 }
             }
@@ -448,35 +447,35 @@ private fun LazyListScope.homeContentSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     FilterChip(
                         selected = state.selectedContentTab == MainHomeContentTab.All,
                         onClick = {
                             MainUiIntent.SelectHomeContentTab(MainHomeContentTab.All).emit()
                         },
-                        label = { Text(stringResource(R.string.home_session_filter_all)) }
+                        label = { Text(stringResource(R.string.home_session_filter_all)) },
                     )
                     FilterChip(
                         selected = state.selectedContentTab == MainHomeContentTab.Single,
                         onClick = {
                             MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Single).emit()
                         },
-                        label = { Text(stringResource(R.string.home_session_filter_single)) }
+                        label = { Text(stringResource(R.string.home_session_filter_single)) },
                     )
                     FilterChip(
                         selected = state.selectedContentTab == MainHomeContentTab.Group,
                         onClick = {
                             MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Group).emit()
                         },
-                        label = { Text(stringResource(R.string.home_session_filter_group)) }
+                        label = { Text(stringResource(R.string.home_session_filter_group)) },
                     )
                     FilterChip(
                         selected = state.selectedContentTab == MainHomeContentTab.Story,
                         onClick = {
                             MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Story).emit()
                         },
-                        label = { Text(stringResource(R.string.home_content_filter_story)) }
+                        label = { Text(stringResource(R.string.home_content_filter_story)) },
                     )
                 }
             }
@@ -491,7 +490,7 @@ private fun LazyListScope.homeContentSection(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Rounded.ChatBubble,
                         title = stringResource(R.string.no_recent_content),
-                        subtitle = stringResource(R.string.no_recent_content_desc)
+                        subtitle = stringResource(R.string.no_recent_content_desc),
                     )
                 }
             } else {
@@ -499,7 +498,7 @@ private fun LazyListScope.homeContentSection(
                     items = state.allRecentItems,
                     multiSelectMode = multiSelectMode,
                     selectedItems = selectedItems,
-                    emit = emit
+                    emit = emit,
                 )
             }
         }
@@ -511,7 +510,7 @@ private fun LazyListScope.homeContentSection(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Rounded.ChatBubble,
                         title = stringResource(R.string.no_recent_chats),
-                        subtitle = stringResource(R.string.no_recent_chats_desc)
+                        subtitle = stringResource(R.string.no_recent_chats_desc),
                     )
                 }
 
@@ -519,7 +518,7 @@ private fun LazyListScope.homeContentSection(
                     state = state.recentChatsState,
                     multiSelectMode = multiSelectMode,
                     selectedItems = selectedItems,
-                    emit = emit
+                    emit = emit,
                 )
             }
         }
@@ -531,7 +530,7 @@ private fun LazyListScope.homeContentSection(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Rounded.Groups,
                         title = stringResource(R.string.no_group_chats),
-                        subtitle = stringResource(R.string.no_group_chats_desc)
+                        subtitle = stringResource(R.string.no_group_chats_desc),
                     )
                 }
 
@@ -539,7 +538,7 @@ private fun LazyListScope.homeContentSection(
                     state = state.recentGroupChatsState,
                     multiSelectMode = multiSelectMode,
                     selectedItems = selectedItems,
-                    emit = emit
+                    emit = emit,
                 )
             }
         }
@@ -551,7 +550,7 @@ private fun LazyListScope.homeContentSection(
                         modifier = Modifier.fillMaxWidth(),
                         icon = Icons.Rounded.AutoStories,
                         title = stringResource(R.string.story_empty_title),
-                        subtitle = stringResource(R.string.story_empty_subtitle)
+                        subtitle = stringResource(R.string.story_empty_subtitle),
                     )
                 }
 
@@ -559,7 +558,7 @@ private fun LazyListScope.homeContentSection(
                     state = state.recentStoriesState,
                     multiSelectMode = multiSelectMode,
                     selectedItems = selectedItems,
-                    emit = emit
+                    emit = emit,
                 )
             }
         }
@@ -570,7 +569,7 @@ private fun LazyListScope.recentAllItems(
     items: List<MainHomeContentItem>,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     items(
         items = items,
@@ -580,28 +579,28 @@ private fun LazyListScope.recentAllItems(
                 is MainGroupChatSessionItem -> "group-session-${item.id}"
                 is MainStoryItem -> "story-${item.id}"
             }
-        }
+        },
     ) { item ->
         when (item) {
             is MainChatSessionItem -> RecentChatSessionCard(
                 session = item,
                 multiSelectMode = multiSelectMode,
                 selectedItems = selectedItems,
-                emit = emit
+                emit = emit,
             )
 
             is MainGroupChatSessionItem -> RecentGroupChatSessionCard(
                 session = item,
                 multiSelectMode = multiSelectMode,
                 selectedItems = selectedItems,
-                emit = emit
+                emit = emit,
             )
 
             is MainStoryItem -> RecentStoryCard(
                 story = item,
                 multiSelectMode = multiSelectMode,
                 selectedItems = selectedItems,
-                emit = emit
+                emit = emit,
             )
         }
     }
@@ -611,7 +610,7 @@ private fun LazyListScope.recentChatSessionItems(
     state: MainRecentChatsState.Content,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     state.sessionGroups.forEach { group ->
         val characterId = group.characterId
@@ -622,19 +621,19 @@ private fun LazyListScope.recentChatSessionItems(
                 characterName = group.characterName,
                 sessionCount = group.sessions.size,
                 expanded = expanded,
-                onClick = { MainUiIntent.ToggleSessionGroup(characterId).emit() }
+                onClick = { MainUiIntent.ToggleSessionGroup(characterId).emit() },
             )
         }
         if (!expanded) return@forEach
         items(
             items = group.sessions,
-            key = { session -> "session-${session.id}" }
+            key = { session -> "session-${session.id}" },
         ) { session ->
             RecentChatSessionCard(
                 session = session,
                 multiSelectMode = multiSelectMode,
                 selectedItems = selectedItems,
-                emit = emit
+                emit = emit,
             )
         }
     }
@@ -644,17 +643,17 @@ private fun LazyListScope.recentGroupChatSessionItems(
     state: MainRecentGroupChatsState.Content,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     items(
         items = state.sessions,
-        key = { "group-session-${it.id}" }
+        key = { "group-session-${it.id}" },
     ) { session ->
         RecentGroupChatSessionCard(
             session = session,
             multiSelectMode = multiSelectMode,
             selectedItems = selectedItems,
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -663,17 +662,17 @@ private fun LazyListScope.recentStoryItems(
     state: MainRecentStoriesState.Content,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     items(
         items = state.stories,
-        key = { "story-${it.id}" }
+        key = { "story-${it.id}" },
     ) { story ->
         RecentStoryCard(
             story = story,
             multiSelectMode = multiSelectMode,
             selectedItems = selectedItems,
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -683,7 +682,7 @@ private fun LazyItemScope.RecentChatSessionCard(
     session: MainChatSessionItem,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val selection = MainHomeItemSelection(MainHomeItemType.Chat, session.id)
     HomeContentCard(
@@ -695,7 +694,7 @@ private fun LazyItemScope.RecentChatSessionCard(
         metadata = listOf(
             session.characterName,
             stringResource(R.string.message_count, session.messageCount),
-            session.updatedAt
+            session.updatedAt,
         ),
         multiSelectMode = multiSelectMode,
         selected = selection in selectedItems,
@@ -717,9 +716,9 @@ private fun LazyItemScope.RecentChatSessionCard(
                 onDelete = {
                     MainUiIntent.EnterMultiSelect(selection).emit()
                     MainUiIntent.ShowDeleteSelectedDialog.emit()
-                }
+                },
             )
-        }
+        },
     )
 }
 
@@ -728,7 +727,7 @@ private fun LazyItemScope.RecentGroupChatSessionCard(
     session: MainGroupChatSessionItem,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val selection = MainHomeItemSelection(MainHomeItemType.GroupChat, session.id)
     HomeContentCard(
@@ -740,7 +739,7 @@ private fun LazyItemScope.RecentGroupChatSessionCard(
         metadata = listOf(
             session.memberNames,
             stringResource(R.string.message_count, session.messageCount),
-            session.updatedAt
+            session.updatedAt,
         ),
         multiSelectMode = multiSelectMode,
         selected = selection in selectedItems,
@@ -762,9 +761,9 @@ private fun LazyItemScope.RecentGroupChatSessionCard(
                 onDelete = {
                     MainUiIntent.EnterMultiSelect(selection).emit()
                     MainUiIntent.ShowDeleteSelectedDialog.emit()
-                }
+                },
             )
-        }
+        },
     )
 }
 
@@ -773,11 +772,11 @@ private fun LazyItemScope.RecentStoryCard(
     story: MainStoryItem,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val selection = MainHomeItemSelection(
         type = MainHomeItemType.Story,
-        itemId = story.id.toString()
+        itemId = story.id.toString(),
     )
     HomeContentCard(
         modifier = Modifier.animateItem(),
@@ -790,9 +789,9 @@ private fun LazyItemScope.RecentStoryCard(
         metadata = listOf(
             stringResource(
                 R.string.story_character_count,
-                story.contentCharacterCount
+                story.contentCharacterCount,
             ),
-            story.updatedAt
+            story.updatedAt,
         ),
         multiSelectMode = multiSelectMode,
         selected = selection in selectedItems,
@@ -814,9 +813,9 @@ private fun LazyItemScope.RecentStoryCard(
                 onDelete = {
                     MainUiIntent.EnterMultiSelect(selection).emit()
                     MainUiIntent.ShowDeleteSelectedDialog.emit()
-                }
+                },
             )
-        }
+        },
     )
 }
 
@@ -833,7 +832,7 @@ private fun HomeContentCard(
     selected: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
-    trailingContent: (@Composable () -> Unit)? = null
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val borderColor by animateColorAsState(
@@ -842,7 +841,7 @@ private fun HomeContentCard(
         } else {
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
         },
-        label = "homeContentCardBorder"
+        label = "homeContentCardBorder",
     )
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
@@ -850,7 +849,7 @@ private fun HomeContentCard(
         } else {
             MaterialTheme.colorScheme.surface
         },
-        label = "homeContentCardContainer"
+        label = "homeContentCardContainer",
     )
 
     AppCard(
@@ -864,68 +863,68 @@ private fun HomeContentCard(
                 onLongClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick()
-                }
+                },
             ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(
-            if (selected) 1.dp else 0.5.dp,
-            borderColor
-        )
+            width = if (selected) 1.dp else 0.5.dp,
+            color = borderColor,
+        ),
     ) {
         val accentColor = remember(accentKey) { getMacaronColor(accentKey) }
         val ambientBrush = remember(accentColor) {
             Brush.horizontalGradient(
-                listOf(
+                colors = listOf(
                     accentColor.copy(alpha = 0.08f),
                     accentColor.copy(alpha = 0.02f),
-                    Color.Transparent
-                )
+                    Color.Transparent,
+                ),
             )
         }
         Row(
             modifier = Modifier
-                .height(androidx.compose.foundation.layout.IntrinsicSize.Min)
+                .height(IntrinsicSize.Min)
                 .background(ambientBrush),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
                     .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
                     .width(4.dp)
                     .fillMaxHeight()
-                    .background(accentColor, RoundedCornerShape(2.dp))
+                    .background(accentColor, RoundedCornerShape(2.dp)),
             )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RpIconBubble(
                         icon = icon,
                         containerColor = accentColor.copy(alpha = 0.14f),
                         contentColor = accentColor,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(38.dp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = preview,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -935,7 +934,7 @@ private fun HomeContentCard(
                 Checkbox(
                     checked = selected,
                     onCheckedChange = { onClick() },
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = 8.dp),
                 )
             } else {
                 trailingContent?.invoke()
@@ -947,35 +946,35 @@ private fun HomeContentCard(
 @Composable
 private fun HomeItemMenu(
     onRename: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(
                 imageVector = Icons.Rounded.MoreVert,
-                contentDescription = stringResource(R.string.more)
+                contentDescription = stringResource(R.string.more),
             )
         }
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.rename)) },
-                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                leadingIcon = { Icon(imageVector = Icons.Rounded.Edit, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onRename()
-                }
+                },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete)) },
-                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                leadingIcon = { Icon(imageVector = Icons.Rounded.Delete, contentDescription = null) },
                 onClick = {
                     expanded = false
                     onDelete()
-                }
+                },
             )
         }
     }
@@ -987,14 +986,14 @@ private fun SessionCharacterHeader(
     characterName: String,
     sessionCount: Int,
     expanded: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable(onClick = { onClick() })
             .padding(horizontal = 4.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = characterName,
@@ -1002,21 +1001,21 @@ private fun SessionCharacterHeader(
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = stringResource(R.string.session_group_count, sessionCount),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.58f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.58f),
         )
         Spacer(modifier = Modifier.width(6.dp))
         Icon(
             imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = stringResource(
-                if (expanded) R.string.collapse_session_group else R.string.expand_session_group
+                id = if (expanded) R.string.collapse_session_group else R.string.expand_session_group,
             ),
             modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
+            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
         )
     }
 }
@@ -1030,15 +1029,15 @@ private fun MainHomePagePreview() {
                 homeState = MainHomeState(
                     resourceState = MainHomeResourceState(
                         totalCharacters = 24,
-                        totalWorldBooks = 7
+                        totalWorldBooks = 7,
                     ),
                     recentChatsState = MainRecentChatsState.Content(
                         sessionGroups = listOf(
-                            MainChatSessionGroup(
+                            element = MainChatSessionGroup(
                                 characterId = "1",
                                 characterName = "Luna",
                                 sessions = listOf(
-                                    MainChatSessionItem(
+                                    element = MainChatSessionItem(
                                         id = "1",
                                         characterId = "1",
                                         characterName = "Luna",
@@ -1046,36 +1045,36 @@ private fun MainHomePagePreview() {
                                         preview = "The city lights recede beyond the window.",
                                         messageCount = 18,
                                         updatedAt = "06-15 21:30",
-                                        latestTime = 1L
-                                    )
-                                )
-                            )
-                        )
+                                        latestTime = 1L,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
                     recentGroupChatsState = MainRecentGroupChatsState.Content(
                         sessions = listOf(
-                            MainGroupChatSessionItem(
+                            element = MainGroupChatSessionItem(
                                 id = "1",
                                 title = "Expedition team",
                                 memberNames = "Luna, Aster, Rowan",
                                 preview = "We should reach the ruins before sunrise.",
                                 messageCount = 42,
                                 updatedAt = "06-15 22:10",
-                                latestTime = 2L
-                            )
-                        )
+                                latestTime = 2L,
+                            ),
+                        ),
                     ),
                     recentStoriesState = MainRecentStoriesState.Content(
                         stories = listOf(
-                            MainStoryItem(
+                            element = MainStoryItem(
                                 id = 1L,
                                 title = "Rain over the old city",
                                 preview = "The station clock stopped at midnight.",
                                 contentCharacterCount = 12840,
                                 updatedAt = "06-15 22:30",
-                                latestTime = 3L
-                            )
-                        )
+                                latestTime = 3L,
+                            ),
+                        ),
                     ),
                     allRecentItems = listOf(
                         MainStoryItem(
@@ -1084,7 +1083,7 @@ private fun MainHomePagePreview() {
                             preview = "The station clock stopped at midnight.",
                             contentCharacterCount = 12840,
                             updatedAt = "06-15 22:30",
-                            latestTime = 3L
+                            latestTime = 3L,
                         ),
                         MainGroupChatSessionItem(
                             id = "1",
@@ -1093,7 +1092,7 @@ private fun MainHomePagePreview() {
                             preview = "We should reach the ruins before sunrise.",
                             messageCount = 42,
                             updatedAt = "06-15 22:10",
-                            latestTime = 2L
+                            latestTime = 2L,
                         ),
                         MainChatSessionItem(
                             id = "1",
@@ -1103,19 +1102,17 @@ private fun MainHomePagePreview() {
                             preview = "The city lights recede beyond the window.",
                             messageCount = 18,
                             updatedAt = "06-15 21:30",
-                            latestTime = 1L
-                        )
-                    )
+                            latestTime = 1L,
+                        ),
+                    ),
                 ),
                 settingsState = MainSettingsState(
-                    appearanceState = MainAppearanceSettingsState(
-                        themeMode = AppThemeMode.FollowSystem
-                    ),
+                    appearanceState = MainAppearanceSettingsState(themeMode = AppThemeMode.FollowSystem),
                     identityState = MainUserIdentityState(
                         userName = "You",
                         userDescription = "",
                         userDescriptionPreview = "",
-                        avatarState = MainUserAvatarState.None
+                        avatarState = MainUserAvatarState.None,
                     ),
                     providerState = MainProviderSettingsState.Empty,
                     promptBehaviorState = MainPromptBehaviorState(
@@ -1124,12 +1121,12 @@ private fun MainHomePagePreview() {
                         includeThinkInContext = false,
                         maxHistoryMessages = 500,
                         contextTrimmingAlert = true,
-                        streamEnabled = true
+                        streamEnabled = true,
                     ),
                     worldInfoBudgetState = MainWorldInfoBudgetState(
                         budgetPercent = 25,
                         budgetCap = 0,
-                        overflowAlert = true
+                        overflowAlert = true,
                     ),
                     summaryState = MainSummarySettingsState(
                         autoSummaryEnabled = false,
@@ -1137,12 +1134,12 @@ private fun MainHomePagePreview() {
                         wordsLimit = 500,
                         maxMessagesPerRequest = 0,
                         responseTokens = 800,
-                        injectionState = MainSummaryInjectionState.AfterMain
+                        injectionState = MainSummaryInjectionState.AfterMain,
                     ),
-                    debugState = MainDebugSettingsState(enabled = false)
-                )
+                    debugState = MainDebugSettingsState(enabled = false),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

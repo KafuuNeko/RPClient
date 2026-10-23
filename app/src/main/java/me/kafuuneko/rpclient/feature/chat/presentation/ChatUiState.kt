@@ -88,14 +88,18 @@ data class ChatLorebookState(
 /** 单聊页面当前展示的一级页面。 */
 enum class ChatPage {
     Conversation,
+
     Settings
 }
 
 /** 会话级数据库操作的加载状态，不包含模型生成状态。 */
 sealed class ChatLoadState {
     data object None : ChatLoadState()
+
     data object Loading : ChatLoadState()
+
     data object Saving : ChatLoadState()
+
     data object Deleting : ChatLoadState()
 }
 
@@ -147,7 +151,7 @@ sealed class ChatDialogState {
  * 导出任务结束后不再接受该快照，避免 loading 对话框被重新打开。
  */
 internal fun ChatDialogState.resolveExportDialogState(
-    isExportActive: Boolean
+    isExportActive: Boolean,
 ): ChatDialogState {
     return if (this == ChatDialogState.Exporting && !isExportActive) {
         ChatDialogState.None

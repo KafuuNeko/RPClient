@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +50,6 @@ import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
@@ -61,12 +58,12 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 @Composable
 fun WorldBookListLayout(
     uiState: WorldBookListUiState,
-    emit: WorldBookListUiIntent.() -> Unit
+    emit: WorldBookListUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is WorldBookListUiState.Normal) { WorldBookListUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is WorldBookListUiState.Normal, onBack = { WorldBookListUiIntent.Back.emit() })
     when (uiState) {
         WorldBookListUiState.None -> Unit
-        is WorldBookListUiState.Finished -> WorldBookListLayout(uiState.previous) {}
+        is WorldBookListUiState.Finished -> WorldBookListLayout(uiState = uiState.previous, emit = {})
         is WorldBookListUiState.Normal -> WorldBookListNormal(uiState, emit)
     }
 }
@@ -74,12 +71,12 @@ fun WorldBookListLayout(
 @Composable
 private fun WorldBookListNormal(
     state: WorldBookListUiState.Normal,
-    emit: WorldBookListUiIntent.() -> Unit
+    emit: WorldBookListUiIntent.() -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
             title = stringResource(R.string.world_book_manager),
@@ -87,17 +84,17 @@ private fun WorldBookListNormal(
             actions = {
                 IconButton(onClick = { WorldBookListUiIntent.ImportWorldBookClick.emit() }) {
                     Icon(
-                        Icons.Rounded.FileDownload,
-                        contentDescription = stringResource(R.string.import_world_book)
+                        imageVector = Icons.Rounded.FileDownload,
+                        contentDescription = stringResource(R.string.import_world_book),
                     )
                 }
                 IconButton(onClick = { WorldBookListUiIntent.CreateWorldBook.emit() }) {
                     Icon(
-                        Icons.Rounded.Add,
-                        contentDescription = stringResource(R.string.create_world_book)
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = stringResource(R.string.create_world_book),
                     )
                 }
-            }
+            },
         )
         RpLazyColumn(
             modifier = Modifier
@@ -107,15 +104,15 @@ private fun WorldBookListNormal(
                 start = 18.dp,
                 top = 8.dp,
                 end = 18.dp,
-                bottom = 24.dp
+                bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 RpSectionHeader(
                     title = stringResource(R.string.world_book_library),
                     action = stringResource(R.string.create),
-                    onAction = { WorldBookListUiIntent.CreateWorldBook.emit() }
+                    onAction = { WorldBookListUiIntent.CreateWorldBook.emit() },
                 )
             }
             if (state.loadState is WorldBookListLoadState.Loading) {
@@ -127,7 +124,7 @@ private fun WorldBookListNormal(
                 WorldBookCard(
                     lorebook = lorebook,
                     onClick = { WorldBookListUiIntent.EditWorldBook(lorebook.id).emit() },
-                    onExport = { WorldBookListUiIntent.ExportWorldBookClick(lorebook.id).emit() }
+                    onExport = { WorldBookListUiIntent.ExportWorldBookClick(lorebook.id).emit() },
                 )
             }
         }
@@ -138,7 +135,7 @@ private fun WorldBookListNormal(
 @Composable
 private fun DialogSwitch(
     dialogState: WorldBookListDialogState,
-    emit: WorldBookListUiIntent.() -> Unit
+    emit: WorldBookListUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         WorldBookListDialogState.None -> Unit
@@ -147,11 +144,11 @@ private fun DialogSwitch(
             title = stringResource(R.string.low_world_book_budget_title),
             message = stringResource(
                 R.string.low_world_book_budget_message,
-                dialogState.importedTokenBudget
+                dialogState.importedTokenBudget,
             ),
             confirmText = stringResource(R.string.follow_global_budget),
             dismissText = stringResource(R.string.keep_imported_budget),
-            onConfirm = { WorldBookListUiIntent.ImportWithGlobalBudget.emit() }
+            onConfirm = { WorldBookListUiIntent.ImportWithGlobalBudget.emit() },
         )
     }
 }
@@ -160,7 +157,7 @@ private fun DialogSwitch(
 private fun LoadingRow() {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator()
     }
@@ -170,14 +167,14 @@ private fun LoadingRow() {
 private fun EmptyPanel() {
     AppCard(
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpIconBubble(Icons.AutoMirrored.Rounded.MenuBook)
             Spacer(modifier = Modifier.width(12.dp))
@@ -185,12 +182,12 @@ private fun EmptyPanel() {
                 Text(
                     text = stringResource(R.string.no_world_books),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = stringResource(R.string.no_world_books_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
             }
         }
@@ -201,57 +198,57 @@ private fun EmptyPanel() {
 private fun WorldBookCard(
     lorebook: WorldBookListItem,
     onClick: () -> Unit,
-    onExport: () -> Unit
+    onExport: () -> Unit,
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            RpIconBubble(Icons.Rounded.Book, modifier = Modifier.size(42.dp))
+            RpIconBubble(icon = Icons.Rounded.Book, modifier = Modifier.size(42.dp))
             Spacer(modifier = Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = lorebook.name,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = stringResource(R.string.edit),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         IconButton(
                             onClick = onExport,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(28.dp),
                         ) {
                             Icon(
-                                Icons.Rounded.FileUpload,
+                                imageVector = Icons.Rounded.FileUpload,
                                 contentDescription = stringResource(R.string.export_world_book),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                         }
                     }
@@ -269,11 +266,11 @@ private fun WorldBookListLayoutPreview() {
         WorldBookListLayout(
             uiState = WorldBookListUiState.Normal(
                 lorebooks = listOf(
-                    WorldBookListItem(1L, "World Setting", 8),
-                    WorldBookListItem(2L, "Case Notes", 3)
-                )
+                    WorldBookListItem(id = 1L, name = "World Setting", entryCount = 8),
+                    WorldBookListItem(id = 2L, name = "Case Notes", entryCount = 3),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

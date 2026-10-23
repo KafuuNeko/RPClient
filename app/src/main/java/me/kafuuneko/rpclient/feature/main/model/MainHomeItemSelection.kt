@@ -9,6 +9,8 @@ data class MainHomeItemSelection(
 /** 主页可选择的内容类型。 */
 enum class MainHomeItemType {
     Chat,
+
     GroupChat,
+
     Story
 }

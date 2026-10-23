@@ -95,8 +95,14 @@ interface ContentSearchDao {
     /** 全文聚合、排序及分页在 SQL 内完成；parentId 非空时按源分页，否则按对象分页。 */
     @Query(SearchFtsSql.MATCH_PAGE)
     suspend fun matchPage(
-        phrase: String, filterKind: Int, parentId: Long?,
-        afterTime: Long, afterKind: Int, afterParentId: Long, afterSourceId: Long, limit: Int
+        phrase: String,
+        filterKind: Int,
+        parentId: Long?,
+        afterTime: Long,
+        afterKind: Int,
+        afterParentId: Long,
+        afterSourceId: Long,
+        limit: Int,
     ): List<SearchChunkMatch>
 
     /** 仅重建可派生的全文结构，用于错误后的显式恢复。 */

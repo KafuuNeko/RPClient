@@ -24,32 +24,37 @@ internal object OpenAIResponsesRequestCodec {
         request: LLMGenerationRequest,
         model: String,
         stream: Boolean,
-        imageUrl: (LLMImageReference) -> String
+        imageUrl: (LLMImageReference) -> String,
     ): String {
         val options = request.options.resolveFor(provider)
         require(options.stop.isEmpty()) { "Responses does not support stop sequences." }
         // 使用手动上下文模式，禁止服务端自行裁剪而使检查器与真实输入不同。
         val payload = JsonObject().apply {
             addProperty("model", model)
-            add("input", JsonArray().also { input ->
-                request.messages.forEach { input.add(message(it, imageUrl)) }
-            })
+            add(
+                "input",
+                JsonArray().also { input ->
+                request.messages.forEach { messageValue -> input.add(message(messageValue, imageUrl)) }
+            },
+            )
             addProperty("max_output_tokens", options.maxTokens)
             addProperty("stream", stream)
             addProperty("store", false)
             addProperty("truncation", "disabled")
-            options.temperature?.let { addProperty("temperature", it) }
-            options.topP?.let { addProperty("top_p", it) }
+            options.temperature?.let { float -> addProperty("temperature", float) }
+            options.topP?.let { float -> addProperty("top_p", float) }
             if (request.captureReasoning && supportsSummary(model)) {
                 add("reasoning", JsonObject().apply { addProperty("summary", "auto") })
             }
         }
-        val merged = JsonParser.parseString(mergeRequestBodyExtensionsJson(
-            baseJson = payload.toString(),
-            patchJson = provider.requestBodyPatchJson,
-            protectedPaths = protectedRequestBodyPaths(provider.protocol),
-            routingSessionId = request.routingSessionId
-        )).asJsonObject
+        val merged = JsonParser.parseString(
+            mergeRequestBodyExtensionsJson(
+                baseJson = payload.toString(),
+                patchJson = provider.requestBodyPatchJson,
+                protectedPaths = protectedRequestBodyPaths(provider.protocol),
+                routingSessionId = request.routingSessionId,
+            ),
+        ).asJsonObject
         // 已知推理模型仅在显式关闭推理时发送采样参数；未知模型遵从用户设置。
         val effort = merged.objectOrNull("reasoning")?.cleanString("effort").orEmpty()
         if (effort != "none" && (effort.isNotEmpty() || isReasoningModel(model))) {
@@ -57,10 +62,13 @@ internal object OpenAIResponsesRequestCodec {
             merged.remove("top_p")
             merged.remove("top_logprobs")
             merged.arrayOrNull("include")?.let { include ->
-                merged.add("include", JsonArray().apply {
-                    include.filterNot { it.isJsonPrimitive && it.asString == "message.output_text.logprobs" }
-                        .forEach { add(it) }
-                })
+                merged.add(
+                    "include",
+                    JsonArray().apply {
+                    include.filterNot { element -> element.isJsonPrimitive && element.asString == "message.output_text.logprobs" }
+                        .forEach { element -> add(element) }
+                },
+                )
             }
         }
         return merged.toString()
@@ -74,7 +82,8 @@ internal object OpenAIResponsesRequestCodec {
         // 保留内容块中的空白和图文交错，不能对正文使用 trim 或合并角色。
         val content = JsonArray()
         message.contentBlocks.forEach { block ->
-            content.add(JsonObject().apply {
+            content.add(
+                JsonObject().apply {
                 when (block) {
                     is LLMContentBlock.Text -> {
                         addProperty("type", "input_text")
@@ -86,15 +95,19 @@ internal object OpenAIResponsesRequestCodec {
                         addProperty("detail", "auto")
                     }
                 }
-            })
+            },
+            )
         }
         return JsonObject().apply {
             addProperty("type", "message")
-            addProperty("role", when (message.role) {
+            addProperty(
+                "role",
+                when (message.role) {
                 LLMMessageRole.System -> "system"
                 LLMMessageRole.User -> "user"
                 LLMMessageRole.Assistant -> "assistant"
-            })
+            },
+            )
             add("content", content)
             // 本地聊天记录保存最终回复；中间工具进度不作为独立历史消息回放。
             if (message.role == LLMMessageRole.Assistant) addProperty("phase", "final_answer")

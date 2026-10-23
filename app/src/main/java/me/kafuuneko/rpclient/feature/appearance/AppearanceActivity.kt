@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.appearance
 
 import android.content.Intent
-import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -13,6 +12,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
+import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -23,7 +23,7 @@ class AppearanceActivity : CoreActivityWithEvent() {
 
     private val mViewModel by viewModels<AppearanceViewModel>()
     private val mPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { mViewModel.emit(AppearanceUiIntent.ImageSelected(it)) }
+        uri?.let { uri -> mViewModel.emit(AppearanceUiIntent.ImageSelected(uri)) }
     }
 
     /** 提供外观页面的一次性宿主事件。 */

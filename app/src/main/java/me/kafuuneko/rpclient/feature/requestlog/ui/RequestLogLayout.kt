@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,12 +67,12 @@ import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 @Composable
 fun RequestLogLayout(
     uiState: RequestLogUiState,
-    emit: RequestLogUiIntent.() -> Unit = {}
+    emit: RequestLogUiIntent.() -> Unit = {},
 ) {
-    BackHandler(enabled = uiState is RequestLogUiState.Normal) { RequestLogUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is RequestLogUiState.Normal, onBack = { RequestLogUiIntent.Back.emit() })
     when (uiState) {
         RequestLogUiState.None -> Unit
-        is RequestLogUiState.Finished -> RequestLogLayout(uiState.previous) {}
+        is RequestLogUiState.Finished -> RequestLogLayout(uiState = uiState.previous, emit = {})
         is RequestLogUiState.Normal -> {
             NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -84,13 +83,13 @@ fun RequestLogLayout(
 @Composable
 private fun NormalView(
     uiState: RequestLogUiState.Normal,
-    emit: RequestLogUiIntent.() -> Unit
+    emit: RequestLogUiIntent.() -> Unit,
 ) {
     val logs = uiState.logs
     AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.request_logs),
@@ -101,106 +100,107 @@ private fun NormalView(
                             Icon(
                                 imageVector = Icons.Rounded.Delete,
                                 contentDescription = stringResource(R.string.clear_logs),
-                                tint = MaterialTheme.colorScheme.onBackground
+                                tint = MaterialTheme.colorScheme.onBackground,
                             )
                         }
                     }
-                }
+                },
             )
-        }
-    ) { paddingValues ->
-        RpLazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .background(pageCanvasColor()),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 18.dp,
-                end = 18.dp,
-                bottom = 32.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            if (logs.isEmpty()) {
-                item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.DataObject,
-                        title = stringResource(R.string.no_request_logs),
-                        subtitle = stringResource(R.string.no_request_logs_desc)
-                    )
+        },
+        content = { paddingValues ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .background(pageCanvasColor()),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 18.dp,
+                    end = 18.dp,
+                    bottom = 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (logs.isEmpty()) {
+                    item {
+                        RpInfoCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            icon = Icons.Rounded.DataObject,
+                            title = stringResource(R.string.no_request_logs),
+                            subtitle = stringResource(R.string.no_request_logs_desc),
+                        )
+                    }
                 }
-            }
-            items(logs, key = { it.id }) { log ->
-                RequestLogCard(log = log, emit = emit)
-            }
-            if (uiState.canLoadMore || uiState.isLoadingMore) {
-                item(key = "load_more") {
-                    if (uiState.canLoadMore) {
-                        LaunchedEffect(logs.size) {
-                            emit(RequestLogUiIntent.LoadMore)
+                items(items = logs, key = { requestLogItem -> requestLogItem.id }) { log ->
+                    RequestLogCard(log = log, emit = emit)
+                }
+                if (uiState.canLoadMore || uiState.isLoadingMore) {
+                    item(key = "load_more") {
+                        if (uiState.canLoadMore) {
+                            LaunchedEffect(logs.size) {
+                                emit(RequestLogUiIntent.LoadMore)
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(28.dp))
                         }
                     }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                    }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun RequestLogCard(
     log: RequestLogItem,
-    emit: RequestLogUiIntent.() -> Unit
+    emit: RequestLogUiIntent.() -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded },
+            .clickable(onClick = { expanded = !expanded }),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier
                 .animateContentSize()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = log.title,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = log.subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
                     )
                 }
 
                 val rotationAngle by animateFloatAsState(
                     targetValue = if (expanded) 180f else 0f,
-                    label = "chevron_rotation"
+                    label = "chevron_rotation",
                 )
 
                 Icon(
@@ -209,7 +209,7 @@ private fun RequestLogCard(
                     modifier = Modifier
                         .padding(start = 8.dp)
                         .rotate(rotationAngle),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f),
                 )
             }
 
@@ -220,13 +220,13 @@ private fun RequestLogCard(
                     title = requestJsonTitle,
                     json = log.requestPreview,
                     onCopy = { RequestLogUiIntent.CopyRequestJson(log.id).emit() },
-                    onOpen = { RequestLogUiIntent.OpenRequestJson(log.id, requestJsonTitle).emit() }
+                    onOpen = { RequestLogUiIntent.OpenRequestJson(log.id, requestJsonTitle).emit() },
                 )
                 JsonBlock(
                     title = responseJsonTitle,
                     json = log.responsePreview,
                     onCopy = { RequestLogUiIntent.CopyResponseJson(log.id).emit() },
-                    onOpen = { RequestLogUiIntent.OpenResponseJson(log.id, responseJsonTitle).emit() }
+                    onOpen = { RequestLogUiIntent.OpenResponseJson(log.id, responseJsonTitle).emit() },
                 )
             }
         }
@@ -236,7 +236,7 @@ private fun RequestLogCard(
 @Composable
 private fun DialogSwitch(
     dialogState: RequestLogDialogState,
-    emit: RequestLogUiIntent.() -> Unit
+    emit: RequestLogUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         RequestLogDialogState.None -> Unit
@@ -246,7 +246,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.clear_logs_confirm),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { emit(RequestLogUiIntent.ConfirmClearLogs) }
+            onConfirm = { emit(RequestLogUiIntent.ConfirmClearLogs) },
         )
     }
 }
@@ -256,7 +256,7 @@ private fun JsonBlock(
     title: String,
     json: String,
     onCopy: () -> Unit,
-    onOpen: () -> Unit
+    onOpen: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -264,10 +264,10 @@ private fun JsonBlock(
                 text = title,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
             )
             TextButton(onClick = onOpen) {
-                Icon(Icons.Rounded.DataObject, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.DataObject, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.view_json))
             }
@@ -275,9 +275,9 @@ private fun JsonBlock(
                 onClick = onCopy,
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(Icons.Rounded.ContentCopy, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.ContentCopy, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.copy))
             }
@@ -293,7 +293,7 @@ private fun JsonBlock(
             style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
             maxLines = 8,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -305,15 +305,15 @@ private fun RequestLogLayoutPreview() {
         RequestLogLayout(
             uiState = RequestLogUiState.Normal(
                 logs = listOf(
-                    RequestLogItem(
+                    element = RequestLogItem(
                         id = 1L,
                         title = "ChatGPT / gpt-4o-mini",
                         subtitle = "05-12 01:20:00 · OpenAICompatible · once",
                         requestPreview = """{"model":"gpt-4o-mini","messages":[]}""",
-                        responsePreview = """{"choices":[{"message":{"content":"Hello"}}]}"""
-                    )
-                )
-            )
+                        responsePreview = """{"choices":[{"message":{"content":"Hello"}}]}""",
+                    ),
+                ),
+            ),
         )
     }
 }

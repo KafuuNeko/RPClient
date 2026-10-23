@@ -20,7 +20,7 @@ data class GroupChatAvailableCharacterItem(
  * @return 过滤后的世界书分组列表
  */
 internal fun List<GroupChatLorebookGroupItem>.filterForQuery(
-    query: String
+    query: String,
 ): List<GroupChatLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -30,12 +30,12 @@ internal fun List<GroupChatLorebookGroupItem>.filterForQuery(
             entry.keywords.asSequence() +
             entry.secondaryKeywords.asSequence()
     },
-    copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    copyWithEntries = { group, entries -> group.copy(entries = entries) },
 )
 
 /** 更新世界书分组列表中所有条目的勾选激活状态。 */
 internal fun List<GroupChatLorebookGroupItem>.withEnabledIds(
-    selectedIds: Set<Long>
+    selectedIds: Set<Long>,
 ): List<GroupChatLorebookGroupItem> = map { group ->
-    group.copy(entries = group.entries.map { it.copy(enabled = it.id in selectedIds) })
+    group.copy(entries = group.entries.map { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.copy(enabled = groupChatLorebookEntryItem.id in selectedIds) })
 }

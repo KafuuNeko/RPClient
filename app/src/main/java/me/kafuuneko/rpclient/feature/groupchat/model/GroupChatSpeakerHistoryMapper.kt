@@ -7,6 +7,6 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatSpeakerSelectionData
 internal fun GroupChatSpeakerSelectionData.toSpeakerHistory(): GroupChatSpeakerHistory {
     return GroupChatSpeakerHistory(
         spokenCharacterIdsSinceLastUserMessage = spokenCharacterIdsSinceLastUserMessage,
-        lastCharacterSpeakerId = lastCharacterSpeakerId
+        lastCharacterSpeakerId = lastCharacterSpeakerId,
     )
 }

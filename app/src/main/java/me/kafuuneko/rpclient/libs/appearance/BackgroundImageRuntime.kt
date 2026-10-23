@@ -8,9 +8,6 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.util.LruCache
 import androidx.exifinterface.media.ExifInterface
-import java.io.File
-import java.util.UUID
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +19,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import java.io.File
+import java.util.UUID
+import kotlin.math.roundToInt
 
 /**
  * 背景专用图像管线，不依赖发送图片设置或模型附件。
@@ -31,8 +31,8 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 class BackgroundImageRuntime(private val mContext: Context, private val mFiles: FileRepository) {
     private val mMutex = Mutex()
     private val mCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val mLowMemory = (mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let {
-        it.isLowRamDevice || it.memoryClass < 192
+    private val mLowMemory = (mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { activityManager ->
+        activityManager.isLowRamDevice || activityManager.memoryClass < 192
     }
     private val mCache = object : LruCache<String, Bitmap>(if (mLowMemory) 8 * 1024 * 1024 else 32 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
@@ -66,13 +66,15 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         require(byteCount <= 32L * 1024 * 1024) { "Background is too large" }
         val info = bounds(file)
         require(info.outMimeType in setOf("image/jpeg", "image/png", "image/webp")) { "Unsupported background" }
-        require(info.outWidth > 0 && info.outHeight > 0 &&
-            info.outWidth.toLong() * info.outHeight <= 48_000_000) { "Invalid background dimensions" }
+        require(
+            value = info.outWidth > 0 && info.outHeight > 0
+            && info.outWidth.toLong() * info.outHeight <= 48_000_000,
+        ) { "Invalid background dimensions" }
         // 始终从标准源图生成模糊结果，不叠加处理上一张预览。
-        val bitmap = decode(file, if (mLowMemory) 2048 else 3072, orient = true)
+        val bitmap = decode(file = file, edge = if (mLowMemory) 2048 else 3072, orient = true)
         try {
-            target.outputStream().use {
-                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "Background encoding failed" }
+            target.outputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Background encoding failed" }
             }
         } finally { bitmap.recycle() }
     }
@@ -87,28 +89,33 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
      * @param preview 拖动时使用较小处理分辨率且不写磁盘。
      * @param surfaceBlur 在页面背景模糊之上叠加的栏位强度，默认不做附加处理。
      */
-    suspend fun render(settings: PageBackground, prepared: PreparedFile? = null, preview: Boolean = false, surfaceBlur: Int = 0): Bitmap? {
+    suspend fun render(
+        settings: PageBackground,
+        prepared: PreparedFile? = null,
+        preview: Boolean = false,
+        surfaceBlur: Int = 0,
+    ): Bitmap? {
         if (settings.fileUuid == null && prepared == null) return null
         return withContext(Dispatchers.IO) {
             val entity = prepared?.file ?: mFiles.getFileEntity(requireNotNull(settings.fileUuid))
                 ?: error("Missing background")
             val edge = if (preview) 400 else if (mLowMemory) 1280 else 2560
-            val extraBlur = surfaceBlur.coerceIn(0, 100)
+            val extraBlur = surfaceBlur.coerceIn(minimumValue = 0, maximumValue = 100)
             val key = "v4_${entity.hash}_${settings.blur}_${extraBlur}_$edge"
-            mCache.get(key)?.let { return@withContext it }
+            mCache.get(key)?.let { bitmap -> return@withContext bitmap }
             // 同时只允许一项图像处理，避免三页恢复或快速预览造成内存峰值。
             mMutex.withLock {
-                mCache.get(key)?.let { return@withLock it }
+                mCache.get(key)?.let { bitmap -> return@withLock bitmap }
                 val cached = File(mDirectory, "$key.png")
                 if (!preview && cached.isFile) {
-                    BitmapFactory.decodeFile(cached.path)?.let {
+                    BitmapFactory.decodeFile(cached.path)?.let { bitmap ->
                         cached.setLastModified(System.currentTimeMillis())
-                        mCache.put(key, it)
-                        return@withLock it
+                        mCache.put(key, bitmap)
+                        return@withLock bitmap
                     }
                 }
-                val source = if (prepared != null) mFiles.withPreparedFile(prepared) { decode(it, edge) }
-                    else mFiles.withFileLease(entity.uuid) { decode(it, edge) }
+                val source = if (prepared != null) mFiles.withPreparedFile(prepared) { file -> decode(file, edge) }
+                    else mFiles.withFileLease(entity.uuid) { file -> decode(file, edge) }
                 // 附加模糊只改变背景像素，不对任何文字或操作控件截图。
                 val result = blur(blur(source, settings.blur), extraBlur)
                 currentCoroutineContext().ensureActive()
@@ -125,7 +132,9 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
      * @return 仅包含实际启用模糊的栏位。
      */
     suspend fun renderSurfaces(
-        settings: PageBackground, prepared: PreparedFile? = null, preview: Boolean = false
+        settings: PageBackground,
+        prepared: PreparedFile? = null,
+        preview: Boolean = false,
     ): Map<PageSurfaceKind, Bitmap> {
         if (settings.fileUuid == null && prepared == null) return emptyMap()
         val result = mutableMapOf<PageSurfaceKind, Bitmap>()
@@ -159,12 +168,17 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         // 普通模式允许解码 2K 长屏图片，避免先被像素预算采样到目标分辨率以下。
         val maxPixels = if (mLowMemory) 4_194_304L else 8_388_608L
         var sample = 1
-        while (maxOf(info.outWidth, info.outHeight) / sample > edge * 2 ||
-            info.outWidth.toLong() * info.outHeight / sample / sample > maxPixels) sample *= 2
-        var bitmap = requireNotNull(BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply {
+        while (maxOf(info.outWidth, info.outHeight) / sample > edge * 2
+            || info.outWidth.toLong() * info.outHeight / sample / sample > maxPixels) sample *= 2
+        var bitmap = requireNotNull(
+            value = BitmapFactory.decodeFile(
+                file.path,
+                BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888
-        })) { "Background decode failed" }
+        },
+            ),
+        ) { "Background decode failed" }
         // 只在导入时应用 EXIF，后续缓存已经使用修正后的像素。
         if (orient) {
             val exif = ExifInterface(file)
@@ -178,9 +192,12 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         }
         val scale = edge.toFloat() / maxOf(bitmap.width, bitmap.height)
         if (scale < 1f) {
-            val resized = Bitmap.createScaledBitmap(bitmap,
+            val resized = Bitmap.createScaledBitmap(
+                bitmap,
                 (bitmap.width * scale).roundToInt().coerceAtLeast(1),
-                (bitmap.height * scale).roundToInt().coerceAtLeast(1), true)
+                (bitmap.height * scale).roundToInt().coerceAtLeast(1),
+                true,
+            )
             if (resized !== bitmap) bitmap.recycle()
             bitmap = resized
         }
@@ -197,8 +214,8 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     private fun store(target: File, bitmap: Bitmap) {
         val temporary = File(mDirectory, "${UUID.randomUUID()}.tmp")
         try {
-            temporary.outputStream().use {
-                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "Background cache encoding failed" }
+            temporary.outputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Background cache encoding failed" }
             }
             check(temporary.renameTo(target)) { "Background cache publish failed" }
             // 缓存可随时重建，清理绝不触及 FileRepository 的源图。

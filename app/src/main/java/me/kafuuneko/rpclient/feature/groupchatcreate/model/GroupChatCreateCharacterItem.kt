@@ -24,11 +24,16 @@ data class GroupChatCreateCharacterItem(
 
 /** 根据检索关键词过滤可见角色。 */
 internal fun List<GroupChatCreateCharacterItem>.visibleFor(
-    query: String
+    query: String,
 ): List<GroupChatCreateCharacterItem> {
     val normalized = query.trim()
-    return filter {
-        matchesCharacterQuery(it.name, it.description, it.tags, normalized)
+    return filter { groupChatCreateCharacterItem ->
+        matchesCharacterQuery(
+            name = groupChatCreateCharacterItem.name,
+            description = groupChatCreateCharacterItem.description,
+            tags = groupChatCreateCharacterItem.tags,
+            query = normalized,
+        )
     }
 }
 
@@ -40,11 +45,11 @@ internal fun Character.toGroupChatCreateCharacterItem(userName: String): GroupCh
         description = resolveCharacterUserMacros(
             template = description,
             characterName = name,
-            userName = userName
+            userName = userName,
         ),
         selected = false,
         characterLorebookId = characterLorebookId,
         greetings = getChatFirstMessageList(),
-        tags = getCharacterTagList()
+        tags = getCharacterTagList(),
     )
 }

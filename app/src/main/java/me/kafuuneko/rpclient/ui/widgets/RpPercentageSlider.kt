@@ -22,42 +22,42 @@ fun RpPercentageSlider(
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    valueRange: IntRange = MIN_PERCENT..MAX_PERCENT
+    valueRange: IntRange = MIN_PERCENT..MAX_PERCENT,
 ) {
     val minimum = valueRange.first.coerceIn(MIN_PERCENT, MAX_PERCENT)
     val maximum = valueRange.last.coerceIn(minimum, MAX_PERCENT)
     val percent = value.coerceIn(minimum, maximum)
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = title,
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
             )
             Text(
                 text = "$percent%",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
         }
         // 轨道跟随内容区底板，手柄保持清晰可拖动。
         Slider(
             colors = pageSliderColors(),
             value = percent.toFloat(),
-            onValueChange = { onValueChange(it.roundToInt()) },
+            onValueChange = { float -> onValueChange(float.roundToInt()) },
             enabled = enabled,
-            valueRange = minimum.toFloat()..maximum.toFloat()
+            valueRange = minimum.toFloat()..maximum.toFloat(),
         )
         Text(
             text = helper,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

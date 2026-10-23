@@ -11,15 +11,15 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
-import me.kafuuneko.rpclient.libs.regex.RegexScript
-import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
-import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -32,7 +32,7 @@ class ChatPromptBuilderTest {
         mPreferences = TestPromptPreferences(),
         mMacroResolver = PromptMacroResolver(historyBuilder),
         mHistoryBuilder = historyBuilder,
-        mWorldBookActivator = WorldBookActivator()
+        mWorldBookActivator = WorldBookActivator(),
     )
 
     @Test
@@ -44,23 +44,15 @@ class ChatPromptBuilderTest {
             mPreferences = preferences,
             mMacroResolver = PromptMacroResolver(historyBuilder),
             mHistoryBuilder = historyBuilder,
-            mWorldBookActivator = WorldBookActivator()
+            mWorldBookActivator = WorldBookActivator(),
         )
         val context = context(userDescription = "{{user}} trusts {{char}}.")
 
         // 使用自定义模板确认构建器没有静默回退到默认配置。
-        assertTrue(
-            configuredBuilder.build(context).messages.any {
-                it.content == "Profile of User: User trusts Char."
-            }
-        )
+        assertTrue(configuredBuilder.build(context).messages.any { it.content == "Profile of User: User trusts Char." })
         // 构建器是应用级单例，设置修改后下一轮必须读取新值。
         preferences.userPersonaFormat = "Updated {{user}}: {{persona}}"
-        assertTrue(
-            configuredBuilder.build(context).messages.any {
-                it.content == "Updated User: User trusts Char."
-            }
-        )
+        assertTrue(configuredBuilder.build(context).messages.any { it.content == "Updated User: User trusts Char." })
     }
 
     @Test
@@ -72,18 +64,16 @@ class ChatPromptBuilderTest {
                 findRegex = "/secret/g",
                 replaceString = "visible",
                 placement = listOf(RegexPlacement.UserInput.value),
-                promptOnly = true
+                promptOnly = true,
             ),
-            scope = RegexScriptScope.Global
+            scope = RegexScriptScope.Global,
         )
 
         val result = builder.buildWithMetadata(
-            context(
-                messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "secret")
-                ),
-                regexScripts = listOf(script)
-            )
+            context = context(
+                messages = listOf(element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "secret")),
+                regexScripts = listOf(script),
+            ),
         )
 
         assertTrue(result.request.messages.any { it.content == "visible" })
@@ -98,36 +88,36 @@ class ChatPromptBuilderTest {
             depth = 0,
             content = "raw lore",
             keywords = """["harbor"]""",
-            constant = false
+            constant = false,
         ).copy(sticky = 2, position = LorebookEntry.POSITION_BEFORE)
         val script = ScopedRegexScript(
-            RegexScript(
+            script = RegexScript(
                 id = "world",
                 scriptName = "World rewrite",
                 findRegex = "/raw/g",
                 replaceString = "regexed",
                 placement = listOf(RegexPlacement.WorldInfo.value),
-                promptOnly = true
+                promptOnly = true,
             ),
-            RegexScriptScope.Global
+            scope = RegexScriptScope.Global,
         )
         val first = builder.buildWithMetadata(
-            context(
-                messages = listOf(chatMessage(1L, ChatMessage.Source.User, "harbor")),
+            context = context(
+                messages = listOf(chatMessage(id = 1L, source = ChatMessage.Source.User, content = "harbor")),
                 entries = listOf(entry),
-                regexScripts = listOf(script)
-            )
+                regexScripts = listOf(script),
+            ),
         )
         val second = builder.buildWithMetadata(
-            context(
+            context = context(
                 session = session().copy(worldInfoStateJson = first.worldInfoStateJson),
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "harbor"),
-                    chatMessage(2L, ChatMessage.Source.Char, "No key")
+                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "harbor"),
+                    chatMessage(id = 2L, source = ChatMessage.Source.Char, content = "No key"),
                 ),
                 entries = listOf(entry),
-                regexScripts = listOf(script)
-            )
+                regexScripts = listOf(script),
+            ),
         )
 
         assertTrue(second.request.messages.any { it.content.contains("regexed lore") })
@@ -140,14 +130,14 @@ class ChatPromptBuilderTest {
             order = 100,
             depth = 0,
             content = "EXAMPLE_" + "e".repeat(72),
-            position = LorebookEntry.POSITION_EXAMPLE_TOP
+            position = LorebookEntry.POSITION_EXAMPLE_TOP,
         ).copy(sticky = 2)
         val normal = lorebookEntry(
             id = 92L,
             order = 10,
             depth = 0,
             content = "NORMAL_" + "n".repeat(43),
-            position = LorebookEntry.POSITION_BEFORE
+            position = LorebookEntry.POSITION_BEFORE,
         )
         var providerReads = 0
         val tokenizer = object : PromptTokenizer {
@@ -164,15 +154,15 @@ class ChatPromptBuilderTest {
             mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
                 providerReads += 1
                 ExampleDialogueBehavior.Disabled
-            }
+            },
         )
 
         val result = disabledBuilder.buildWithMetadata(
-            context(
+            context = context(
                 entries = listOf(example, normal),
                 maxContextTokens = 500,
-                maxResponseTokens = 100
-            )
+                maxResponseTokens = 100,
+            ),
         )
 
         assertEquals(1, providerReads)
@@ -185,7 +175,7 @@ class ChatPromptBuilderTest {
     @Test
     fun fixedPromptSectionsFollowMainAndCharacterWorldInfoOrder() {
         val result = builder.buildWithMetadata(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -198,7 +188,7 @@ class ChatPromptBuilderTest {
                     firstMessages = "",
                     examplesOfDialogue = "",
                     postHistoryInstructions = "",
-                    systemPrompt = "Main prompt"
+                    systemPrompt = "Main prompt",
                 ),
                 userDescription = "User persona",
                 entries = listOf(
@@ -207,17 +197,17 @@ class ChatPromptBuilderTest {
                         order = 100,
                         depth = 0,
                         content = "Before character",
-                        position = LorebookEntry.POSITION_BEFORE
+                        position = LorebookEntry.POSITION_BEFORE,
                     ),
                     lorebookEntry(
                         id = 20L,
                         order = 100,
                         depth = 0,
                         content = "After character",
-                        position = LorebookEntry.POSITION_AFTER
-                    )
-                )
-            )
+                        position = LorebookEntry.POSITION_AFTER,
+                    ),
+                ),
+            ),
         )
 
         val relevantKinds = setOf(
@@ -226,7 +216,7 @@ class ChatPromptBuilderTest {
             PromptSourceKind.UserPersona,
             PromptSourceKind.CharacterDescription,
             PromptSourceKind.CharacterPersonality,
-            PromptSourceKind.Scenario
+            PromptSourceKind.Scenario,
         )
         val sourceOrder = result.inspection.items
             .flatMap { it.sources }
@@ -239,33 +229,33 @@ class ChatPromptBuilderTest {
                 PromptSourceKind.CharacterDescription,
                 PromptSourceKind.CharacterPersonality,
                 PromptSourceKind.Scenario,
-                PromptSourceKind.WorldInfo
+                PromptSourceKind.WorldInfo,
             ),
-            sourceOrder.map { it.kind }
+            sourceOrder.map { it.kind },
         )
         assertEquals(
             listOf(10L, 20L),
-            sourceOrder.filter { it.kind == PromptSourceKind.WorldInfo }.map { it.referenceId }
+            sourceOrder.filter { it.kind == PromptSourceKind.WorldInfo }.map { it.referenceId },
         )
     }
 
     @Test
     fun userNoteUsesDefaultDepthFour() {
         val request = builder.build(
-            context(
+            context = context(
                 session = session(userNote = "User note"),
                 messages = listOf(
                     chatMessage(id = 1L, source = ChatMessage.Source.Char, content = "Older reply"),
-                    chatMessage(id = 2L, source = ChatMessage.Source.User, content = "Current user")
-                )
-            )
+                    chatMessage(id = 2L, source = ChatMessage.Source.User, content = "Current user"),
+                ),
+            ),
         )
 
         assertEquals(
             listOf("User note", "Older reply", "Current user"),
             request.messages
                 .filter { it.content in setOf("Older reply", "User note", "Current user") }
-                .map { it.content }
+                .map { it.content },
         )
         assertEquals(LLMMessageRole.System, request.messages.first { it.content == "User note" }.role)
     }
@@ -273,32 +263,32 @@ class ChatPromptBuilderTest {
     @Test
     fun worldInfoDepthControlsInChatInsertionPoint() {
         val request = builder.build(
-            context(
+            context = context(
                 messages = listOf(
                     chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Message 1"),
                     chatMessage(id = 2L, source = ChatMessage.Source.Char, content = "Message 2"),
-                    chatMessage(id = 3L, source = ChatMessage.Source.User, content = "Message 3")
+                    chatMessage(id = 3L, source = ChatMessage.Source.User, content = "Message 3"),
                 ),
                 entries = listOf(
                     lorebookEntry(id = 1L, order = 100, depth = 0, content = "Depth 0"),
                     lorebookEntry(id = 2L, order = 100, depth = 1, content = "Depth 1"),
-                    lorebookEntry(id = 3L, order = 100, depth = 2, content = "Depth 2")
-                )
-            )
+                    lorebookEntry(id = 3L, order = 100, depth = 2, content = "Depth 2"),
+                ),
+            ),
         )
 
         assertEquals(
             listOf("Message 1", "Depth 2", "Message 2", "Depth 1", "Message 3", "Depth 0"),
             request.messages
                 .filter { it.content in setOf("Message 1", "Message 2", "Message 3", "Depth 0", "Depth 1", "Depth 2") }
-                .map { it.content }
+                .map { it.content },
         )
     }
 
     @Test
     fun creatorNotesStayMetadataButDepthPromptIsInjected() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -312,12 +302,10 @@ class ChatPromptBuilderTest {
                     examplesOfDialogue = "",
                     postHistoryInstructions = "",
                     depthPromptPrompt = "Character note",
-                    depthPromptDepth = 1
+                    depthPromptDepth = 1,
                 ),
-                messages = listOf(
-                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Hello")
-                )
-            )
+                messages = listOf(chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Hello")),
+            ),
         )
 
         assertEquals(false, request.messages.any { it.content.contains("Creator metadata") })
@@ -327,7 +315,7 @@ class ChatPromptBuilderTest {
     @Test
     fun outletEntriesResolveIntoPromptMacros() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -340,19 +328,19 @@ class ChatPromptBuilderTest {
                     firstMessages = "",
                     examplesOfDialogue = "",
                     postHistoryInstructions = "",
-                    systemPrompt = "{{outlet::rules}}\n{{original}}"
+                    systemPrompt = "{{outlet::rules}}\n{{original}}",
                 ),
                 entries = listOf(
-                    lorebookEntry(
+                    element = lorebookEntry(
                         id = 10L,
                         order = 100,
                         depth = 4,
                         content = "Outlet lore",
                         position = LorebookEntry.POSITION_OUTLET,
-                        outletName = "rules"
-                    )
-                )
-            )
+                        outletName = "rules",
+                    ),
+                ),
+            ),
         )
 
         assertEquals(true, request.messages.first().content.contains("Outlet lore"))
@@ -361,7 +349,7 @@ class ChatPromptBuilderTest {
     @Test
     fun outletEntriesKeepHigherOrderContentFirst() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -373,7 +361,7 @@ class ChatPromptBuilderTest {
                     firstMessages = "",
                     examplesOfDialogue = "",
                     postHistoryInstructions = "",
-                    systemPrompt = "{{outlet::rules}}"
+                    systemPrompt = "{{outlet::rules}}",
                 ),
                 entries = listOf(
                     lorebookEntry(
@@ -382,7 +370,7 @@ class ChatPromptBuilderTest {
                         depth = 0,
                         content = "Low order",
                         position = LorebookEntry.POSITION_OUTLET,
-                        outletName = "rules"
+                        outletName = "rules",
                     ),
                     lorebookEntry(
                         id = 20L,
@@ -390,15 +378,15 @@ class ChatPromptBuilderTest {
                         depth = 0,
                         content = "High order",
                         position = LorebookEntry.POSITION_OUTLET,
-                        outletName = "rules"
-                    )
-                )
-            )
+                        outletName = "rules",
+                    ),
+                ),
+            ),
         )
 
         assertTrue(
             request.messages.first().content.indexOf("High order") <
-                request.messages.first().content.indexOf("Low order")
+                request.messages.first().content.indexOf("Low order"),
         )
     }
 
@@ -419,9 +407,9 @@ class ChatPromptBuilderTest {
                     firstMessages = "Primary greeting",
                     examplesOfDialogue = "",
                     postHistoryInstructions = "",
-                    alternateGreetings = """["Alt one"," Alt two "]"""
-                )
-            )
+                    alternateGreetings = """["Alt one"," Alt two "]""",
+                ),
+            ),
         )
 
         assertEquals("Primary greeting|Primary greeting|Alt one|Alt two", resolved)
@@ -430,21 +418,21 @@ class ChatPromptBuilderTest {
     @Test
     fun nonConstantWorldInfoWithoutKeywordMatchIsNotInjected() {
         val request = builder.build(
-            context(
+            context = context(
                 messages = listOf(
-                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Nothing relevant here")
+                    element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Nothing relevant here"),
                 ),
                 entries = listOf(
-                    lorebookEntry(
+                    element = lorebookEntry(
                         id = 20L,
                         order = 100,
                         depth = 4,
                         content = "Should stay out",
                         keywords = """["harbor"]""",
-                        constant = false
-                    )
-                )
-            )
+                        constant = false,
+                    ),
+                ),
+            ),
         )
 
         assertEquals(false, request.messages.any { it.content == "Should stay out" })
@@ -453,7 +441,7 @@ class ChatPromptBuilderTest {
     @Test
     fun impersonateModeRemovesCharacterReplyTasksAndEndsWithUserControl() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Fuka",
@@ -468,10 +456,10 @@ class ChatPromptBuilderTest {
                     postHistoryInstructions = "Only write Fuka.",
                     systemPrompt = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
                     depthPromptPrompt = "Always write as Fuka.",
-                    depthPromptDepth = 0
+                    depthPromptDepth = 0,
                 ),
-                generationMode = PromptGenerationMode.Impersonate
-            )
+                generationMode = PromptGenerationMode.Impersonate,
+            ),
         )
 
         assertFalse(request.messages.any { it.content.contains("Write Fuka's next reply") })
@@ -485,7 +473,7 @@ class ChatPromptBuilderTest {
     @Test
     fun continueFallbackRemovesCharacterReplyTasksAndEndsWithUserNudge() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -497,23 +485,23 @@ class ChatPromptBuilderTest {
                     firstMessages = "",
                     examplesOfDialogue = "",
                     postHistoryInstructions = "Post history",
-                    systemPrompt = "Write Char's next reply."
+                    systemPrompt = "Write Char's next reply.",
                 ),
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "Question"),
-                    chatMessage(2L, ChatMessage.Source.Char, "Partial answer")
+                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Question"),
+                    chatMessage(id = 2L, source = ChatMessage.Source.Char, content = "Partial answer"),
                 ),
-                generationMode = PromptGenerationMode.Continue
-            )
+                generationMode = PromptGenerationMode.Continue,
+            ),
         )
 
         val nudgeMessage = request.messages.first { it.content.contains("Continue your last message") }
-        val relevant = request.messages.filter {
-            it.content in setOf("Question", "Post history", "Partial answer", nudgeMessage.content)
+        val relevant = request.messages.filter { message ->
+            message.content in setOf("Question", "Post history", "Partial answer", nudgeMessage.content)
         }
         assertEquals(
             listOf("Question", "Partial answer", nudgeMessage.content),
-            relevant.map { it.content }
+            relevant.map { it.content },
         )
         assertFalse(request.messages.any { it.content == "Write Char's next reply." })
         assertEquals(LLMMessageRole.User, nudgeMessage.role)
@@ -523,40 +511,36 @@ class ChatPromptBuilderTest {
     @Test
     fun continueAlwaysEndsWithUserNudge() {
         val result = builder.buildWithMetadata(
-            context(
+            context = context(
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "Question"),
-                    chatMessage(2L, ChatMessage.Source.Char, "Partial answer")
+                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Question"),
+                    chatMessage(id = 2L, source = ChatMessage.Source.Char, content = "Partial answer"),
                 ),
-                generationMode = PromptGenerationMode.Continue
-            )
+                generationMode = PromptGenerationMode.Continue,
+            ),
         )
         val request = result.request
 
         assertEquals(LLMMessageRole.User, request.messages.last().role)
         assertTrue(request.messages.last().content.contains("Continue your last message"))
-        assertTrue(
-            result.inspection.items.last().sources.any {
-                it.kind == PromptSourceKind.ContinueNudge
-            }
-        )
+        assertTrue(result.inspection.items.last().sources.any { it.kind == PromptSourceKind.ContinueNudge })
         assertEquals(
             "Partial answer",
-            request.messages[request.messages.lastIndex - 1].content
+            request.messages[request.messages.lastIndex - 1].content,
         )
     }
 
     @Test
     fun singleUserModeKeepsContinueNudgeInFlattenedUserMessage() {
         val request = builder.build(
-            context(
+            context = context(
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "Question"),
-                    chatMessage(2L, ChatMessage.Source.Char, "Partial answer")
+                    chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Question"),
+                    chatMessage(id = 2L, source = ChatMessage.Source.Char, content = "Partial answer"),
                 ),
                 provider = provider(PromptPostProcessingMode.SingleUserMessage),
-                generationMode = PromptGenerationMode.Continue
-            )
+                generationMode = PromptGenerationMode.Continue,
+            ),
         )
 
         assertEquals(1, request.messages.size)
@@ -567,7 +551,7 @@ class ChatPromptBuilderTest {
     @Test
     fun normalPostHistoryInstructionsUseTerminalUserRole() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -578,12 +562,12 @@ class ChatPromptBuilderTest {
                     scenario = "",
                     firstMessages = "",
                     examplesOfDialogue = "",
-                    postHistoryInstructions = "Keep the reply concise."
+                    postHistoryInstructions = "Keep the reply concise.",
                 ),
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "Question")
-                )
-            )
+                    element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Question"),
+                ),
+            ),
         )
 
         assertEquals("Keep the reply concise.", request.messages.last().content)
@@ -593,14 +577,12 @@ class ChatPromptBuilderTest {
     @Test
     fun normalGenerationAddsUserNudgeAfterDepthZeroSystemInjection() {
         val request = builder.build(
-            context(
+            context = context(
                 messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "Question")
+                    element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Question"),
                 ),
-                entries = listOf(
-                    lorebookEntry(1L, 100, 0, "Depth zero rule")
-                )
-            )
+                entries = listOf(element = lorebookEntry(id = 1L, order = 100, depth = 0, content = "Depth zero rule")),
+            ),
         )
 
         assertEquals(LLMMessageRole.User, request.messages.last().role)
@@ -617,35 +599,35 @@ class ChatPromptBuilderTest {
 
         assertEquals(
             listOf(PromptSourceKind.MainPrompt, PromptSourceKind.Summary),
-            kinds
+            kinds,
         )
     }
 
     @Test
     fun sameDepthAndRoleWorldInfoEntriesAreJoined() {
         val result = builder.buildWithMetadata(
-            context(
-                messages = listOf(chatMessage(1L, ChatMessage.Source.User, "Hello")),
+            context = context(
+                messages = listOf(chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Hello")),
                 entries = listOf(
-                    lorebookEntry(1L, 100, 0, "First depth lore"),
-                    lorebookEntry(2L, 90, 0, "Second depth lore")
-                )
-            )
+                    lorebookEntry(id = 1L, order = 100, depth = 0, content = "First depth lore"),
+                    lorebookEntry(id = 2L, order = 90, depth = 0, content = "Second depth lore"),
+                ),
+            ),
         )
 
-        val item = result.inspection.items.first {
-            it.content.contains("First depth lore") && it.content.contains("Second depth lore")
+        val item = result.inspection.items.first { promptInspectionItem ->
+            promptInspectionItem.content.contains("First depth lore") && promptInspectionItem.content.contains("Second depth lore")
         }
         assertEquals(
             setOf(1L, 2L),
-            item.sources.mapNotNull { it.referenceId }.toSet()
+            item.sources.mapNotNull { it.referenceId }.toSet(),
         )
     }
 
     @Test
     fun exampleDialogueUsesUserAndAssistantRoles() {
         val request = builder.build(
-            context(
+            context = context(
                 character = Character(
                     id = 1L,
                     name = "Char",
@@ -656,30 +638,30 @@ class ChatPromptBuilderTest {
                     scenario = "",
                     firstMessages = "",
                     examplesOfDialogue = "<START>\nUser: Hello\nChar: Welcome",
-                    postHistoryInstructions = ""
-                )
-            )
+                    postHistoryInstructions = "",
+                ),
+            ),
         )
 
         assertEquals(
             LLMMessageRole.User,
-            request.messages.first { it.content == "Hello" }.role
+            request.messages.first { it.content == "Hello" }.role,
         )
         assertEquals(
             LLMMessageRole.Assistant,
-            request.messages.first { it.content == "Welcome" }.role
+            request.messages.first { it.content == "Welcome" }.role,
         )
     }
 
     @Test
     fun disabledExampleBehaviorOmitsCharacterCardExamples() {
         val request = builder(ExampleDialogueBehavior.Disabled).build(
-            context(
+            context = context(
                 character = context().character.copy(
-                    examplesOfDialogue = "<START>\nUser: Example question\nChar: Example answer"
+                    examplesOfDialogue = "<START>\nUser: Example question\nChar: Example answer",
                 ),
-                messages = listOf(chatMessage(1L, ChatMessage.Source.User, "Actual question"))
-            )
+                messages = listOf(chatMessage(id = 1L, source = ChatMessage.Source.User, content = "Actual question")),
+            ),
         )
 
         assertFalse(request.messages.any { it.content.contains("Example question") })
@@ -689,12 +671,8 @@ class ChatPromptBuilderTest {
 
     @Test
     fun pinnedExamplesTakeBudgetBeforeDroppableHistory() {
-        val normal = builder(ExampleDialogueBehavior.Normal).buildWithMetadata(
-            examplePriorityContext()
-        )
-        val pinned = builder(ExampleDialogueBehavior.Pinned).buildWithMetadata(
-            examplePriorityContext()
-        )
+        val normal = builder(ExampleDialogueBehavior.Normal).buildWithMetadata(context = examplePriorityContext())
+        val pinned = builder(ExampleDialogueBehavior.Pinned).buildWithMetadata(context = examplePriorityContext())
 
         assertTrue(normal.request.messages.any { it.content.contains("OLD_HISTORY") })
         assertFalse(pinned.request.messages.any { it.content.contains("OLD_HISTORY") })
@@ -704,77 +682,73 @@ class ChatPromptBuilderTest {
     @Test
     fun chineseHistoryIsTrimmedByFinalTokenizerBudget() {
         val result = builder.buildWithMetadata(
-            context(
+            context = context(
                 messages = listOf(
                     chatMessage(
                         id = 1L,
                         source = ChatMessage.Source.User,
-                        content = "旧".repeat(300)
+                        content = "旧".repeat(300),
                     ),
                     chatMessage(
                         id = 2L,
                         source = ChatMessage.Source.Char,
-                        content = "更早".repeat(200)
+                        content = "更早".repeat(200),
                     ),
                     chatMessage(
                         id = 3L,
                         source = ChatMessage.Source.User,
-                        content = "最新消息"
-                    )
+                        content = "最新消息",
+                    ),
                 ),
                 maxContextTokens = 500,
-                maxResponseTokens = 100
-            )
+                maxResponseTokens = 100,
+            ),
         )
 
         assertTrue(result.inspection.finalTokenCount <= 400)
         assertTrue(result.request.messages.any { it.content == "最新消息" })
-        assertTrue(
-            result.inspection.omittedItems.any {
-                it.reason == PromptOmissionReason.ContextBudget
-            }
-        )
+        assertTrue(result.inspection.omittedItems.any { it.reason == PromptOmissionReason.ContextBudget })
     }
 
     @Test
     fun selectedWorldInfoIsReservedBeforeOlderHistory() {
         val worldContent = "WORLD_" + "w".repeat(44)
         val result = builder(ExampleDialogueBehavior.Normal).buildWithMetadata(
-            context(
+            context = context(
                 messages = listOf(
                     chatMessage(
                         id = 1L,
                         source = ChatMessage.Source.Char,
-                        content = "OLD_HISTORY_" + "o".repeat(188)
+                        content = "OLD_HISTORY_" + "o".repeat(188),
                     ),
                     chatMessage(
                         id = 2L,
                         source = ChatMessage.Source.User,
-                        content = "LATEST"
-                    )
+                        content = "LATEST",
+                    ),
                 ),
                 entries = listOf(
-                    lorebookEntry(
+                    element = lorebookEntry(
                         id = 30L,
                         order = 100,
                         depth = 0,
                         content = worldContent,
-                        position = LorebookEntry.POSITION_BEFORE
-                    )
+                        position = LorebookEntry.POSITION_BEFORE,
+                    ),
                 ),
                 maxContextTokens = 320,
-                maxResponseTokens = 40
-            )
+                maxResponseTokens = 40,
+            ),
         )
 
         assertTrue(result.request.messages.any { it.content.contains(worldContent) })
         assertTrue(result.request.messages.any { it.content == "LATEST" })
         assertFalse(result.request.messages.any { it.content.contains("OLD_HISTORY_") })
         assertTrue(
-            result.inspection.omittedItems.any {
-                it.source.kind == PromptSourceKind.ChatHistory &&
-                    it.reason == PromptOmissionReason.ContextBudget
-            }
+            result.inspection.omittedItems.any { omittedItem ->
+                omittedItem.source.kind == PromptSourceKind.ChatHistory
+                    && omittedItem.reason == PromptOmissionReason.ContextBudget
+            },
         )
     }
 
@@ -782,35 +756,33 @@ class ChatPromptBuilderTest {
     fun regularWorldInfoCanBeDroppedAfterHistoryWhenRequiredPromptStillOverflows() {
         val worldContent = "WORLD_" + "w".repeat(19)
         val result = builder(ExampleDialogueBehavior.Normal).buildWithMetadata(
-            context(
+            context = context(
                 character = context().character.copy(
                     description = "d".repeat(80),
-                    systemPrompt = "R"
+                    systemPrompt = "R",
                 ),
-                messages = listOf(
-                    chatMessage(1L, ChatMessage.Source.User, "L")
-                ),
+                messages = listOf(element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "L")),
                 entries = listOf(
-                    lorebookEntry(
+                    element = lorebookEntry(
                         id = 32L,
                         order = 100,
                         depth = 0,
                         content = worldContent,
-                        position = LorebookEntry.POSITION_BEFORE
-                    )
+                        position = LorebookEntry.POSITION_BEFORE,
+                    ),
                 ),
                 maxContextTokens = 170,
-                maxResponseTokens = 50
-            )
+                maxResponseTokens = 50,
+            ),
         )
 
         assertTrue(result.request.messages.any { it.content == "L" })
         assertFalse(result.request.messages.any { it.content.contains(worldContent) })
         assertTrue(
-            result.inspection.omittedItems.any {
-                it.source.referenceId == 32L &&
-                    it.reason == PromptOmissionReason.ContextBudget
-            }
+            result.inspection.omittedItems.any { omittedItem ->
+                omittedItem.source.referenceId == 32L
+                    && omittedItem.reason == PromptOmissionReason.ContextBudget
+            },
         )
     }
 
@@ -819,22 +791,22 @@ class ChatPromptBuilderTest {
         val worldContent = "OVERSIZED_WORLD_" + "w".repeat(400)
         assertThrows(PromptBudgetExceededException::class.java) {
             builder(ExampleDialogueBehavior.Normal).buildWithMetadata(
-                context(
+                context = context(
                     messages = listOf(
-                        chatMessage(1L, ChatMessage.Source.User, "LATEST")
+                        element = chatMessage(id = 1L, source = ChatMessage.Source.User, content = "LATEST"),
                     ),
                     entries = listOf(
-                        lorebookEntry(
+                        element = lorebookEntry(
                             id = 31L,
                             order = 100,
                             depth = 0,
                             content = worldContent,
-                            position = LorebookEntry.POSITION_BEFORE
-                        ).copy(ignoreBudget = true)
+                            position = LorebookEntry.POSITION_BEFORE,
+                        ).copy(ignoreBudget = true),
                     ),
                     maxContextTokens = 500,
-                    maxResponseTokens = 100
-                )
+                    maxResponseTokens = 100,
+                ),
             )
         }
     }
@@ -853,28 +825,28 @@ class ChatPromptBuilderTest {
             firstMessages = "",
             examplesOfDialogue = "",
             postHistoryInstructions = "",
-            systemPrompt = "{{history}}"
+            systemPrompt = "{{history}}",
         )
 
         assertThrows(PromptBudgetExceededException::class.java) {
             builder.buildWithMetadata(
-                context(
+                context = context(
                     character = character,
                     messages = listOf(
                         chatMessage(
                             id = 1L,
                             source = ChatMessage.Source.User,
-                            content = "历史".repeat(300)
+                            content = "历史".repeat(300),
                         ),
                         chatMessage(
                             id = 2L,
                             source = ChatMessage.Source.User,
-                            content = "最新消息"
-                        )
+                            content = "最新消息",
+                        ),
                     ),
                     maxContextTokens = 500,
-                    maxResponseTokens = 100
-                )
+                    maxResponseTokens = 100,
+                ),
             )
         }
     }
@@ -891,7 +863,7 @@ class ChatPromptBuilderTest {
             scenario = "",
             firstMessages = "",
             examplesOfDialogue = "",
-            postHistoryInstructions = ""
+            postHistoryInstructions = "",
         ),
         session: ChatSession = session(),
         messages: List<ChatMessage> = emptyList(),
@@ -902,7 +874,7 @@ class ChatPromptBuilderTest {
         maxContextTokens: Int = 4096,
         maxResponseTokens: Int = 512,
         regexScripts: List<ScopedRegexScript> = emptyList(),
-        provider: LLMProvider? = null
+        provider: LLMProvider? = null,
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -917,7 +889,7 @@ class ChatPromptBuilderTest {
             maxContextTokens = maxContextTokens,
             maxResponseTokens = maxResponseTokens,
             generationMode = generationMode,
-            regexScripts = regexScripts
+            regexScripts = regexScripts,
         )
     }
 
@@ -933,22 +905,20 @@ class ChatPromptBuilderTest {
             mHistoryBuilder = historyBuilder,
             mWorldBookActivator = WorldBookActivator(),
             mRequestFinalizer = PromptRequestFinalizer { tokenizer },
-            mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider { behavior }
+            mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider { behavior },
         )
     }
 
     private fun examplePriorityContext(): PromptBuildContext {
         val example = "EXAMPLE_STYLE_" + "e".repeat(55)
         return context(
-            character = context().character.copy(
-                examplesOfDialogue = "<START>\nChar: $example"
-            ),
+            character = context().character.copy(examplesOfDialogue = "<START>\nChar: $example"),
             messages = listOf(
-                chatMessage(1L, ChatMessage.Source.Char, "OLD_HISTORY_" + "o".repeat(55)),
-                chatMessage(2L, ChatMessage.Source.User, "LATEST")
+                chatMessage(id = 1L, source = ChatMessage.Source.Char, content = "OLD_HISTORY_" + "o".repeat(55)),
+                chatMessage(id = 2L, source = ChatMessage.Source.User, content = "LATEST"),
             ),
             maxContextTokens = 290,
-            maxResponseTokens = 40
+            maxResponseTokens = 40,
         )
     }
 
@@ -959,7 +929,7 @@ class ChatPromptBuilderTest {
             protocol = LLMProviderProtocol.OpenAICompatible,
             baseUrl = "https://example.com",
             model = "test",
-            promptPostProcessingMode = postProcessingMode.ordinal
+            promptPostProcessingMode = postProcessingMode.ordinal,
         )
     }
 
@@ -972,7 +942,7 @@ class ChatPromptBuilderTest {
             lorebookEntrySet = "[]",
             title = "",
             userNote = userNote,
-            creatorNotes = null
+            creatorNotes = null,
         )
     }
 
@@ -982,7 +952,7 @@ class ChatPromptBuilderTest {
             sessionId = 1L,
             createTime = id,
             source = source,
-            content = content
+            content = content,
         )
     }
 
@@ -994,7 +964,7 @@ class ChatPromptBuilderTest {
         position: Int = LorebookEntry.POSITION_AT_DEPTH,
         outletName: String = "",
         keywords: String = "[]",
-        constant: Boolean = true
+        constant: Boolean = true,
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -1008,7 +978,7 @@ class ChatPromptBuilderTest {
             category = "[]",
             content = content,
             position = position,
-            outletName = outletName
+            outletName = outletName,
         )
     }
 }

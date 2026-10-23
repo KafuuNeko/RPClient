@@ -1,11 +1,11 @@
 package me.kafuuneko.rpclient.libs.backup
 
-import java.io.File
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.copyDirectory
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.copyFile
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.deleteSidecars
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.replaceDirectory
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.replaceFile
+import java.io.File
 
 /** 一次替换所需的暂存文件和目标；数据库条目额外清理旧日志。 */
 internal data class BackupReplacement(
@@ -50,16 +50,20 @@ internal object BackupDataReplacer {
                     error.addSuppressed(rollbackError)
                 }
                 throw BackupRestoreException(
-                    if (preserveRollback) "Restore rollback was incomplete; rollback files were retained."
+                    message = if (preserveRollback) "Restore rollback was incomplete; rollback files were retained."
                     else "Restore failed; previous data was recovered.",
                     restartRequired = true,
-                    cause = error
+                    cause = error,
                 )
             }
         } catch (error: BackupRestoreException) {
             throw error
         } catch (error: Throwable) {
-            throw BackupRestoreException("Could not prepare restore rollback.", true, error)
+            throw BackupRestoreException(
+                message = "Could not prepare restore rollback.",
+                restartRequired = true,
+                cause = error,
+            )
         } finally {
             if (!preserveRollback) rollback.deleteRecursively()
         }
@@ -69,7 +73,7 @@ internal object BackupDataReplacer {
     private fun recover(
         rollback: File,
         replacements: List<BackupReplacement>,
-        existed: List<Boolean>
+        existed: List<Boolean>,
     ): Throwable? {
         var failure: Throwable? = null
         replacements.forEachIndexed { index, item ->

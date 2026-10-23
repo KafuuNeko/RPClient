@@ -22,5 +22,5 @@ internal fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { ge
 
 /** 保持既有行顺序写入 JSON 数组。 */
 internal fun List<JSONObject>.toJsonArray(): JSONArray = JSONArray().apply {
-    this@toJsonArray.forEach { put(it) }
+    this@toJsonArray.forEach { jSONObject -> put(jSONObject) }
 }

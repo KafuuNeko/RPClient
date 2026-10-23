@@ -29,7 +29,7 @@ class ImageCropActivity : CoreActivityWithEvent() {
         LaunchedEffect(uiState) {
             if (uiState is ImageCropUiState.Finished) finish()
         }
-        ImageCropLayout(uiState) { mViewModel.emit(this) }
+        ImageCropLayout(uiState = uiState, emit = { mViewModel.emit(this) })
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +42,7 @@ class ImageCropActivity : CoreActivityWithEvent() {
         if (viewEvent is ImageCropViewEvent.FinishWithResult) {
             setResult(
                 Activity.RESULT_OK,
-                Intent().putExtra(EXTRA_FILE_UUID, viewEvent.fileUuid)
+                Intent().putExtra(EXTRA_FILE_UUID, viewEvent.fileUuid),
             )
             finish()
         }

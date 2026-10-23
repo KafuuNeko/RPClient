@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -55,19 +54,20 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 @Composable
 fun JsonViewerLayout(
     uiState: JsonViewerUiState,
-    emit: JsonViewerUiIntent.() -> Unit = {}
+    emit: JsonViewerUiIntent.() -> Unit = {},
 ) {
     BackHandler(
-        enabled = uiState is JsonViewerUiState.Loading ||
-            uiState is JsonViewerUiState.Normal ||
-            uiState is JsonViewerUiState.Error
-    ) {
-        JsonViewerUiIntent.Back.emit()
-    }
+        enabled = uiState is JsonViewerUiState.Loading
+            || uiState is JsonViewerUiState.Normal
+            || uiState is JsonViewerUiState.Error,
+        onBack = {
+            JsonViewerUiIntent.Back.emit()
+        },
+    )
     when (uiState) {
         JsonViewerUiState.None -> Unit
         is JsonViewerUiState.Loading -> LoadingView(uiState = uiState, emit = emit)
-        is JsonViewerUiState.Finished -> JsonViewerLayout(uiState.previous) {}
+        is JsonViewerUiState.Finished -> JsonViewerLayout(uiState = uiState.previous, emit = {})
         is JsonViewerUiState.Normal -> NormalView(uiState = uiState, emit = emit)
         is JsonViewerUiState.Error -> ErrorView(uiState = uiState, emit = emit)
     }
@@ -76,24 +76,24 @@ fun JsonViewerLayout(
 @Composable
 private fun LoadingView(
     uiState: JsonViewerUiState.Loading,
-    emit: JsonViewerUiIntent.() -> Unit
+    emit: JsonViewerUiIntent.() -> Unit,
 ) {
     AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = uiState.title.ifBlank { stringResource(R.string.json_viewer) },
-                onBack = { JsonViewerUiIntent.Back.emit() }
+                onBack = { JsonViewerUiIntent.Back.emit() },
             )
-        }
+        },
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
                 .background(pageCanvasColor()),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             CircularProgressIndicator()
         }
@@ -103,111 +103,112 @@ private fun LoadingView(
 @Composable
 private fun NormalView(
     uiState: JsonViewerUiState.Normal,
-    emit: JsonViewerUiIntent.() -> Unit
+    emit: JsonViewerUiIntent.() -> Unit,
 ) {
     AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = uiState.title.ifBlank { stringResource(R.string.json_viewer) },
-                onBack = { JsonViewerUiIntent.Back.emit() }
+                onBack = { JsonViewerUiIntent.Back.emit() },
             )
-        }
-    ) { paddingValues ->
-        RpLazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .background(pageCanvasColor()),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 18.dp,
-                end = 18.dp,
-                bottom = 32.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                JsonPathBar(path = uiState.path)
-            }
-            item {
-                JsonSummaryCard(
-                    currentType = uiState.currentType,
-                    childCount = uiState.childCount
-                )
-            }
-            if (uiState.entries.isEmpty()) {
+        },
+        content = { paddingValues ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .background(pageCanvasColor()),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 18.dp,
+                    end = 18.dp,
+                    bottom = 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.DataObject,
-                        title = stringResource(R.string.json_empty_node),
-                        subtitle = stringResource(R.string.json_empty_node_desc)
+                    JsonPathBar(path = uiState.path)
+                }
+                item {
+                    JsonSummaryCard(
+                        currentType = uiState.currentType,
+                        childCount = uiState.childCount,
+                    )
+                }
+                if (uiState.entries.isEmpty()) {
+                    item {
+                        RpInfoCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            icon = Icons.Rounded.DataObject,
+                            title = stringResource(R.string.json_empty_node),
+                            subtitle = stringResource(R.string.json_empty_node_desc),
+                        )
+                    }
+                }
+                items(items = uiState.entries, key = { jsonViewerEntry -> jsonViewerEntry.id }) { entry ->
+                    JsonEntryRow(
+                        entry = entry,
+                        onClick = { JsonViewerUiIntent.EntrySelected(entry.id).emit() },
                     )
                 }
             }
-            items(uiState.entries, key = { it.id }) { entry ->
-                JsonEntryRow(
-                    entry = entry,
-                    onClick = { JsonViewerUiIntent.EntrySelected(entry.id).emit() }
-                )
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun ErrorView(
     uiState: JsonViewerUiState.Error,
-    emit: JsonViewerUiIntent.() -> Unit
+    emit: JsonViewerUiIntent.() -> Unit,
 ) {
     AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = uiState.title.ifBlank { stringResource(R.string.json_viewer) },
-                onBack = { JsonViewerUiIntent.Back.emit() }
+                onBack = { JsonViewerUiIntent.Back.emit() },
             )
-        }
-    ) { paddingValues ->
-        RpLazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .background(pageCanvasColor()),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 18.dp,
-                end = 18.dp,
-                bottom = 32.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                RpInfoCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Rounded.DataObject,
-                    title = stringResource(R.string.json_invalid_title),
-                    subtitle = stringResource(
-                        when (uiState.reason) {
-                            JsonViewerErrorReason.PayloadUnavailable -> R.string.json_payload_unavailable
-                            JsonViewerErrorReason.InvalidJson -> R.string.json_invalid_desc
-                        }
-                    )
-                )
-            }
-            if (uiState.rawPreview.isNotBlank()) {
+        },
+        content = { paddingValues ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .background(pageCanvasColor()),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 18.dp,
+                    end = 18.dp,
+                    bottom = 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 item {
-                    JsonRawPreview(rawPreview = uiState.rawPreview)
+                    val errorMessageResId = when (uiState.reason) {
+                        JsonViewerErrorReason.PayloadUnavailable -> R.string.json_payload_unavailable
+                        JsonViewerErrorReason.InvalidJson -> R.string.json_invalid_desc
+                    }
+                    RpInfoCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        icon = Icons.Rounded.DataObject,
+                        title = stringResource(R.string.json_invalid_title),
+                        subtitle = stringResource(id = errorMessageResId),
+                    )
+                }
+                if (uiState.rawPreview.isNotBlank()) {
+                    item {
+                        JsonRawPreview(rawPreview = uiState.rawPreview)
+                    }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -216,25 +217,25 @@ private fun JsonPathBar(path: List<String>) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
         LazyRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             itemsIndexed(path) { index, item ->
                 Text(
                     text = item,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (index == path.lastIndex) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 if (index < path.lastIndex) {
                     Text(
                         text = "/",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     )
                 }
             }
@@ -245,23 +246,23 @@ private fun JsonPathBar(path: List<String>) {
 @Composable
 private fun JsonSummaryCard(
     currentType: JsonViewerNodeType,
-    childCount: Int
+    childCount: Int,
 ) {
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             JsonTypeChip(type = currentType)
             Text(
                 text = currentType.childCountText(childCount),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
         }
     }
@@ -270,7 +271,7 @@ private fun JsonSummaryCard(
 @Composable
 private fun JsonEntryRow(
     entry: JsonViewerEntry,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
@@ -279,40 +280,40 @@ private fun JsonEntryRow(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 1.dp
+        tonalElevation = 1.dp,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             JsonTypeChip(type = entry.type)
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (entry.hasChildren) entry.type.childCountText(entry.childCount) else entry.preview,
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = if (entry.hasChildren) null else FontFamily.Monospace
+                        fontFamily = if (entry.hasChildren) null else FontFamily.Monospace,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
                 if (entry.hasChildren) {
                     Text(
                         text = entry.preview,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = if (entry.hasChildren) null else FontFamily.Monospace
+                            fontFamily = if (entry.hasChildren) null else FontFamily.Monospace,
                         ),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -320,7 +321,7 @@ private fun JsonEntryRow(
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                 )
             }
         }
@@ -334,12 +335,12 @@ private fun JsonRawPreview(rawPreview: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-                RoundedCornerShape(12.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
+                shape = RoundedCornerShape(12.dp),
             )
             .padding(12.dp),
         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
     )
 }
 
@@ -366,14 +367,14 @@ private fun JsonTypeChip(type: JsonViewerNodeType) {
     AppSurface(
         shape = CircleShape,
         color = containerColor,
-        contentColor = contentColor
+        contentColor = contentColor,
     ) {
         Text(
             text = type.labelText(),
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }
@@ -415,7 +416,7 @@ private fun JsonViewerLayoutPreview() {
                         name = "role",
                         type = JsonViewerNodeType.String,
                         preview = "\"user\"",
-                        childCount = 0
+                        childCount = 0,
                     ),
                     JsonViewerEntry(
                         id = 1,
@@ -423,11 +424,11 @@ private fun JsonViewerLayoutPreview() {
                         type = JsonViewerNodeType.Array,
                         preview = "[]",
                         childCount = 2,
-                        sourceKey = "content"
-                    )
+                        sourceKey = "content",
+                    ),
                 ),
-                canNavigateUp = true
-            )
+                canNavigateUp = true,
+            ),
         )
     }
 }

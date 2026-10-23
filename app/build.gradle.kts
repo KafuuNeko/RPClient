@@ -19,7 +19,7 @@ val hasReleaseSigning = listOf(
     releaseStoreFile,
     releaseStorePassword,
     releaseKeyAlias,
-    releaseKeyPassword
+    releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
 android {
@@ -73,7 +73,7 @@ android {
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
         create("demo") {

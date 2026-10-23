@@ -9,16 +9,6 @@ import android.os.CancellationSignal
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import androidx.room.withTransaction
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.security.MessageDigest
-import java.util.Properties
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -34,6 +24,16 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.utils.withBlockingIoCancellation
 import me.kafuuneko.rpclient.model.SquareCropSelection
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.MessageDigest
+import java.util.Properties
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 文件存储库，提供文件的保存、获取和删除功能。
@@ -56,7 +56,7 @@ class FileRepository(
 
     /**
      * 从给定的 [Uri] 保存文件。
-     * 
+     *
      * 会自动计算流的 SHA-256 哈希值，生成对应的 UUID，并在数据库中建立映射。
      * 如果相同哈希值的文件已存在，则不会重复保存物理文件。
      *
@@ -74,7 +74,7 @@ class FileRepository(
 
     /**
      * 从给定的物理 [File] 保存文件。
-     * 
+     *
      * 会自动计算流的 SHA-256 哈希值，生成对应的 UUID，并在数据库中建立映射。
      * 如果相同哈希值的文件已存在，则不会重复保存物理文件。
      *
@@ -101,8 +101,7 @@ class FileRepository(
      * @return 保存成功后生成的 UUID。
      */
     private suspend fun saveStream(inputStream: InputStream, mimeType: String?): String {
-        val prepared =
-            prepareStream(UUID.randomUUID().toString(), inputStream, mimeType, Long.MAX_VALUE)
+        val prepared = prepareStream(UUID.randomUUID().toString(), inputStream, mimeType, Long.MAX_VALUE)
         try {
             return mutate(listOf(prepared)) { prepared.file.uuid }
         } finally {
@@ -126,12 +125,14 @@ class FileRepository(
                 withBlockingIoCancellation({ signal.cancel() }) {
                     val descriptor = mContext.contentResolver.openAssetFileDescriptor(uri, "r", signal)
                         ?: throw IllegalArgumentException("Could not read the selected image")
-                    descriptor.use {
-                        val input = it.createInputStream()
+                    descriptor.use { assetFileDescriptor ->
+                        val input = assetFileDescriptor.createInputStream()
                         input.use {
                             withBlockingIoCancellation({ input.close() }) {
                                 prepareStreamInContext(
-                                    ownerId, input, mimeType ?: mContext.contentResolver.getType(uri)
+                                    ownerId = ownerId,
+                                    input = input,
+                                    mimeType = mimeType ?: mContext.contentResolver.getType(uri),
                                 ).also { prepared -> completed = prepared }
                             }
                         }
@@ -149,14 +150,14 @@ class FileRepository(
         ownerId: String,
         input: InputStream,
         mimeType: String?,
-        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES
+        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES,
     ): PreparedFile {
         // 持有已完成结果，覆盖切回调用方调度器时被取消的窗口。
         var completed: PreparedFile? = null
         try {
             return withContext(Dispatchers.IO) {
                 withBlockingIoCancellation({ input.close() }) {
-                    prepareStreamInContext(ownerId, input, mimeType, maxBytes).also { completed = it }
+                    prepareStreamInContext(ownerId, input, mimeType, maxBytes).also { preparedFile -> completed = preparedFile }
                 }
             }
         } catch (error: Throwable) {
@@ -170,7 +171,7 @@ class FileRepository(
         ownerId: String,
         input: InputStream,
         mimeType: String?,
-        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES
+        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES,
     ): PreparedFile {
         require(ownerId.isNotBlank() && maxBytes > 0)
         val handle = UUID.randomUUID().toString()
@@ -197,7 +198,16 @@ class FileRepository(
             }
             require(size > 0) { "The image file is empty" }
             val hash = digest.digest().joinToString("") { "%02x".format(it) }
-            val prepared = PreparedFile(ownerId, handle, FileEntity(handle, hash, mimeType), size)
+            val prepared = PreparedFile(
+                ownerId = ownerId,
+                handle = handle,
+                file = FileEntity(
+                    uuid = handle,
+                    hash = hash,
+                    mimeType = mimeType,
+                ),
+                byteCount = size,
+            )
             // 元数据最后落盘；没有完整元数据的文件不会被恢复为可提交草稿。
             withContext(Dispatchers.IO) { writePreparedMetadata(prepared) }
             return prepared
@@ -239,9 +249,18 @@ class FileRepository(
                         digest.update(buffer, 0, count)
                     }
                 }
-                FileOutputStream(target, true).use { it.fd.sync() }
-                val hash = digest.digest().joinToString("") { "%02x".format(it) }
-                val prepared = PreparedFile(ownerId, handle, FileEntity(handle, hash, mime), target.length())
+                FileOutputStream(target, true).use { output -> output.fd.sync() }
+                val hash = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+                val prepared = PreparedFile(
+                    ownerId = ownerId,
+                    handle = handle,
+                    file = FileEntity(
+                        uuid = handle,
+                        hash = hash,
+                        mimeType = mime,
+                    ),
+                    byteCount = target.length(),
+                )
                 writePreparedMetadata(prepared)
                 prepared
             }
@@ -259,11 +278,11 @@ class FileRepository(
             setProperty("owner", prepared.ownerId)
             setProperty("hash", prepared.file.hash)
             setProperty("size", prepared.byteCount.toString())
-            prepared.file.mimeType?.let { setProperty("mime", it) }
+            prepared.file.mimeType?.let { text -> setProperty("mime", text) }
         }
-        FileOutputStream(File(mStagingDir, "${prepared.handle}.meta")).use {
-            metadata.store(it, null)
-            it.fd.sync()
+        FileOutputStream(File(mStagingDir, "${prepared.handle}.meta")).use { output ->
+            metadata.store(output, null)
+            output.fd.sync()
         }
     }
 
@@ -272,7 +291,7 @@ class FileRepository(
         withContext(Dispatchers.IO) {
             mStorageMutex.withLock {
                 val prepared =
-                    readPrepared(handle)?.takeIf { it.ownerId == ownerId } ?: return@withLock null
+                    readPrepared(handle)?.takeIf { preparedFile -> preparedFile.ownerId == ownerId } ?: return@withLock null
                 val file = File(mStagingDir, handle)
                 if (!file.isFile || file.length() != prepared.byteCount || mFileDao.getByUuid(handle) != null) {
                     return@withLock null
@@ -298,33 +317,35 @@ class FileRepository(
      */
     internal suspend fun <T> mutate(
         prepared: List<PreparedFile> = emptyList(),
-        block: suspend Mutation.() -> T
+        block: suspend Mutation.() -> T,
     ): T = withContext(Dispatchers.IO) {
         mStorageMutex.withLock {
-            require(prepared.map { it.handle }
-                .distinct().size == prepared.size) { "The same draft cannot be committed twice" }
+            require(
+                value = prepared.map { preparedFile -> preparedFile.handle }
+                .distinct().size == prepared.size,
+            ) { "The same draft cannot be committed twice" }
             val mutation = Mutation()
             try {
                 // 发布时仍保留 staging 副本，事务失败后可以直接重试。
-                prepared.forEach {
-                    require(readPrepared(it.handle) == it) { "The image draft is stale or already committed" }
-                    publish(it)
-                    mutation.garbage.add(it.file.hash)
+                prepared.forEach { preparedFile ->
+                    require(readPrepared(preparedFile.handle) == preparedFile) { "The image draft is stale or already committed" }
+                    publish(preparedFile)
+                    mutation.garbage.add(preparedFile.file.hash)
                 }
                 currentCoroutineContext().ensureActive()
                 withContext(NonCancellable) {
                     val result = mAppDatabase.withTransaction {
-                        prepared.forEach {
-                            require(mFileDao.getByUuid(it.file.uuid) == null) { "The image draft was already committed" }
-                            mFileDao.insert(it.file)
+                        prepared.forEach { preparedFile ->
+                            require(mFileDao.getByUuid(preparedFile.file.uuid) == null) { "The image draft was already committed" }
+                            mFileDao.insert(preparedFile.file)
                         }
                         mutation.block()
                     }
-                    prepared.forEach { discardStaging(it.handle) }
+                    prepared.forEach { preparedFile -> discardStaging(preparedFile.handle) }
                     result
                 }
             } finally {
-                withContext(NonCancellable) { mutation.garbage.forEach { collectHash(it) } }
+                withContext(NonCancellable) { mutation.garbage.forEach { text -> collectHash(text) } }
             }
         }
     }
@@ -358,7 +379,7 @@ class FileRepository(
         suspend fun removeFiles(uuids: List<String>) {
             uuids.distinct().chunked(900).forEach { batch ->
                 val files = mFileDao.getByUuids(batch)
-                garbage.addAll(files.map { it.hash })
+                garbage.addAll(files.map { fileEntity -> fileEntity.hash })
                 mFileDao.deleteByUuids(batch)
             }
         }
@@ -392,13 +413,13 @@ class FileRepository(
     private suspend fun <T> readWithLease(
         uuid: String,
         onMissing: () -> T,
-        block: suspend (File) -> T
+        block: suspend (File) -> T,
     ): T = withContext(Dispatchers.IO) {
         // 读取索引和登记租约必须与删除共用文件锁。
         val entity = mStorageMutex.withLock {
             val entity = mFileDao.getByUuid(uuid) ?: return@withLock null
             if (!File(mRepositoryDir, entity.hash).isFile) return@withLock null
-            mLeases[entity.hash] = mLeases.getOrDefault(entity.hash, 0) + 1
+            mLeases[entity.hash] = mLeases.getOrDefault(key = entity.hash, defaultValue = 0) + 1
             entity
         } ?: return@withContext onMissing()
         try {
@@ -420,18 +441,18 @@ class FileRepository(
         withContext(Dispatchers.IO) {
             mStorageMutex.withLock {
                 // 已有文件索引全部视为有效所有权，不能按“没有附件关系”删除头像。
-                mRepositoryDir.listFiles()?.filter { it.name.matches(Regex("[0-9a-f]{64}")) }
-                    ?.forEach { collectHash(it.name) }
-                mStagingDir.listFiles()?.forEach {
-                    val handle = it.name.removeSuffix(".meta")
-                    if (handle !in mActiveDrafts && now - it.lastModified() > STAGING_RETENTION_MILLIS) {
+                mRepositoryDir.listFiles()?.filter { file -> file.name.matches(Regex("[0-9a-f]{64}")) }
+                    ?.forEach { file -> collectHash(file.name) }
+                mStagingDir.listFiles()?.forEach { file ->
+                    val handle = file.name.removeSuffix(".meta")
+                    if (handle !in mActiveDrafts && now - file.lastModified() > STAGING_RETENTION_MILLIS) {
                         discardStaging(handle)
                     }
                 }
                 // 旧版中断保存留下的临时文件没有索引，也没有可恢复草稿凭据。
                 mRepositoryDir.listFiles()
-                    ?.filter { it.name.startsWith("temp_") || it.name.endsWith(".publishing") }
-                    ?.forEach { it.delete() }
+                    ?.filter { file -> file.name.startsWith("temp_") || file.name.endsWith(".publishing") }
+                    ?.forEach { file -> file.delete() }
             }
         }
 
@@ -441,15 +462,18 @@ class FileRepository(
         val metadata = File(mStagingDir, "$handle.meta")
         if (!metadata.isFile) return null
         return runCatching {
-            val values = Properties().apply { metadata.inputStream().use { load(it) } }
+            val values = Properties().apply { metadata.inputStream().use { fileInputStream -> load(fileInputStream) } }
             require(values.getProperty("hash").matches(Regex("[0-9a-f]{64}")))
-            require(
-                values.getProperty("owner").isNotBlank() && values.getProperty("size").toLong() > 0
-            )
+            require(value = values.getProperty("owner").isNotBlank() && values.getProperty("size").toLong() > 0)
             PreparedFile(
-                values.getProperty("owner"), handle,
-                FileEntity(handle, values.getProperty("hash"), values.getProperty("mime")),
-                values.getProperty("size").toLong()
+                ownerId = values.getProperty("owner"),
+                handle = handle,
+                file = FileEntity(
+                    uuid = handle,
+                    hash = values.getProperty("hash"),
+                    mimeType = values.getProperty("mime"),
+                ),
+                byteCount = values.getProperty("size").toLong(),
             )
         }.getOrNull()
     }
@@ -488,7 +512,7 @@ class FileRepository(
 
     /** 只回收数据库和所有读取者都已释放的物理资源。 */
     private suspend fun collectHash(hash: String) {
-        if (mLeases.getOrDefault(hash, 0) == 0 && mFileDao.countByHash(hash) == 0) {
+        if (mLeases.getOrDefault(key = hash, defaultValue = 0) == 0 && mFileDao.countByHash(hash) == 0) {
             File(mRepositoryDir, hash).delete()
         }
     }
@@ -528,7 +552,7 @@ class FileRepository(
     suspend fun loadAvatarBitmap(uuid: String): Bitmap? = loadSampledBitmap(
         uuid = uuid,
         requestedWidthPx = AVATAR_DECODE_DIMENSION,
-        requestedHeightPx = AVATAR_DECODE_DIMENSION
+        requestedHeightPx = AVATAR_DECODE_DIMENSION,
     )
 
     /**
@@ -538,28 +562,28 @@ class FileRepository(
      */
     suspend fun loadBitmapForCrop(
         uri: Uri,
-        maxDimensionPx: Int = MAX_CROP_SOURCE_DIMENSION
+        maxDimensionPx: Int = MAX_CROP_SOURCE_DIMENSION,
     ): Bitmap? = withContext(Dispatchers.IO) {
         if (maxDimensionPx !in 1..MAX_THUMBNAIL_DIMENSION) return@withContext null
         // 预先读取原始图片宽高边界
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         val boundsInput = mContext.contentResolver.openInputStream(uri) ?: return@withContext null
-        boundsInput.use {
-            BitmapFactory.decodeStream(it, null, bounds)
+        boundsInput.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
         }
-        val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return@withContext null
-        val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return@withContext null
+        val sourceWidth = bounds.outWidth.takeIf { value -> value > 0 } ?: return@withContext null
+        val sourceHeight = bounds.outHeight.takeIf { value -> value > 0 } ?: return@withContext null
         // 计算长边下采样采样率
         val sampleSize = calculateLongEdgeSampleSize(sourceWidth, sourceHeight, maxDimensionPx)
         // 采样解码为 ARGB_8888 格式
-        val decoded = mContext.contentResolver.openInputStream(uri)?.use {
+        val decoded = mContext.contentResolver.openInputStream(uri)?.use { input ->
             BitmapFactory.decodeStream(
-                it,
+                input,
                 null,
                 BitmapFactory.Options().apply {
                     inSampleSize = sampleSize
                     inPreferredConfig = Bitmap.Config.ARGB_8888
-                }
+                },
             )
         } ?: return@withContext null
         // 读取并应用 EXIF 旋转与翻转
@@ -574,7 +598,7 @@ class FileRepository(
     suspend fun saveSquareCrop(
         bitmap: Bitmap,
         selection: SquareCropSelection,
-        outputSizePx: Int = AVATAR_OUTPUT_DIMENSION
+        outputSizePx: Int = AVATAR_OUTPUT_DIMENSION,
     ): String = withContext(Dispatchers.IO) {
         require(outputSizePx in 1..MAX_THUMBNAIL_DIMENSION)
         // 构建旋转与镜像矩阵
@@ -591,22 +615,22 @@ class FileRepository(
         val shortEdge = minOf(transformed.width, transformed.height)
         val cropSize = (shortEdge * selection.sizeFractionOfShortEdge)
             .toInt()
-            .coerceIn(1, shortEdge)
-        val centerX = selection.centerX.coerceIn(0f, 1f) * transformed.width
-        val centerY = selection.centerY.coerceIn(0f, 1f) * transformed.height
+            .coerceIn(minimumValue = 1, maximumValue = shortEdge)
+        val centerX = selection.centerX.coerceIn(minimumValue = 0f, maximumValue = 1f) * transformed.width
+        val centerY = selection.centerY.coerceIn(minimumValue = 0f, maximumValue = 1f) * transformed.height
         val cropLeft = (centerX - cropSize / 2f)
             .toInt()
-            .coerceIn(0, transformed.width - cropSize)
+            .coerceIn(minimumValue = 0, maximumValue = transformed.width - cropSize)
         val cropTop = (centerY - cropSize / 2f)
             .toInt()
-            .coerceIn(0, transformed.height - cropSize)
+            .coerceIn(minimumValue = 0, maximumValue = transformed.height - cropSize)
         // 截取正方形区域
         val cropped = Bitmap.createBitmap(transformed, cropLeft, cropTop, cropSize, cropSize)
         // 等比缩放至目标输出分辨率
         val output = if (cropped.width == outputSizePx) {
             cropped
         } else {
-            cropped.scale(outputSizePx, outputSizePx, filter = true)
+            cropped.scale(width = outputSizePx, height = outputSizePx, filter = true)
         }
         // 根据透明度选择 PNG 或高质量 JPEG 压缩
         val hasAlpha = transformed.hasAlpha()
@@ -615,7 +639,10 @@ class FileRepository(
         try {
             ByteArrayOutputStream().use { bytes ->
                 check(output.compress(format, AVATAR_JPEG_QUALITY, bytes))
-                ByteArrayInputStream(bytes.toByteArray()).use { saveStream(it, mimeType) }
+                ByteArrayInputStream(bytes.toByteArray()).use { byteArrayInputStream -> saveStream(
+                    inputStream = byteArrayInputStream,
+                    mimeType = mimeType,
+                ) }
             }
         } finally {
             if (output !== cropped) output.recycle()
@@ -632,10 +659,10 @@ class FileRepository(
     suspend fun loadSampledBitmap(
         uuid: String,
         requestedWidthPx: Int,
-        requestedHeightPx: Int
+        requestedHeightPx: Int,
     ): Bitmap? = withContext(Dispatchers.IO) {
-        if (requestedWidthPx !in 1..MAX_THUMBNAIL_DIMENSION ||
-            requestedHeightPx !in 1..MAX_THUMBNAIL_DIMENSION
+        if (requestedWidthPx !in 1..MAX_THUMBNAIL_DIMENSION
+            || requestedHeightPx !in 1..MAX_THUMBNAIL_DIMENSION
         ) {
             return@withContext null
         }
@@ -648,7 +675,7 @@ class FileRepository(
     private fun decodeSampledBitmap(
         file: File,
         requestedWidthPx: Int,
-        requestedHeightPx: Int
+        requestedHeightPx: Int,
     ): Bitmap? {
         // 先读取尺寸，采样解码仍处于文件租约保护内。
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -656,28 +683,28 @@ class FileRepository(
         val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return null
         val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return null
         val sampleSize = calculateInSampleSize(
-            sourceWidth,
-            sourceHeight,
-            requestedWidthPx,
-            requestedHeightPx
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+            requestedWidth = requestedWidthPx,
+            requestedHeight = requestedHeightPx,
         )
         val decoded = BitmapFactory.decodeFile(
             file.absolutePath,
             BitmapFactory.Options().apply {
                 inSampleSize = sampleSize
                 inPreferredConfig = Bitmap.Config.ARGB_8888
-            }
+            },
         ) ?: return null
         if (decoded.width <= requestedWidthPx && decoded.height <= requestedHeightPx) {
             return decoded
         }
         val scale = minOf(
-            requestedWidthPx.toDouble() / decoded.width.toDouble(),
-            requestedHeightPx.toDouble() / decoded.height.toDouble()
+            a = requestedWidthPx.toDouble() / decoded.width.toDouble(),
+            b = requestedHeightPx.toDouble() / decoded.height.toDouble(),
         )
         val targetWidth = (decoded.width * scale).toInt().coerceAtLeast(1)
         val targetHeight = (decoded.height * scale).toInt().coerceAtLeast(1)
-        val scaled = decoded.scale(targetWidth, targetHeight, filter = true)
+        val scaled = decoded.scale(width = targetWidth, height = targetHeight, filter = true)
         if (scaled !== decoded) decoded.recycle()
         return scaled
     }
@@ -698,15 +725,15 @@ class FileRepository(
         sourceWidth: Int,
         sourceHeight: Int,
         requestedWidth: Int,
-        requestedHeight: Int
+        requestedHeight: Int,
     ): Int {
         val width = sourceWidth.toLong()
         val height = sourceHeight.toLong()
         var sampleSize = 1L
         while (
-            sampleSize <= Int.MAX_VALUE / 2L &&
-            width / (sampleSize * 2L) >= requestedWidth.toLong() &&
-            height / (sampleSize * 2L) >= requestedHeight.toLong()
+            sampleSize <= Int.MAX_VALUE / 2L
+            && width / (sampleSize * 2L) >= requestedWidth.toLong()
+            && height / (sampleSize * 2L) >= requestedHeight.toLong()
         ) {
             sampleSize *= 2L
         }
@@ -724,7 +751,7 @@ class FileRepository(
         mContext.contentResolver.openInputStream(uri)?.use { input ->
             ExifInterface(input).getAttributeInt(
                 ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_NORMAL
+                ExifInterface.ORIENTATION_NORMAL,
             )
         }
     }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL

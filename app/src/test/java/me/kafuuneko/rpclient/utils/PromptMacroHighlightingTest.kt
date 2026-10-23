@@ -13,7 +13,7 @@ class PromptMacroHighlightingTest {
         macroBackground = Color.Yellow,
         tagForeground = Color.Blue,
         tagBackground = Color.Cyan,
-        sectionForeground = Color.Green
+        sectionForeground = Color.Green,
     )
 
     @Test
@@ -25,18 +25,18 @@ class PromptMacroHighlightingTest {
             .text
 
         assertEquals(input, output.text)
-        assertTrue(output.hasStyle(0, 6, foreground = Color.Blue))
-        assertTrue(output.hasStyle(7, 22, foreground = Color.Green))
-        assertTrue(output.hasStyle(23, 31, foreground = Color.Red))
-        assertTrue(output.hasStyle(38, 41, foreground = Color.Red))
-        assertTrue(output.hasStyle(45, 52, foreground = Color.Red))
+        assertTrue(output.hasStyle(start = 0, end = 6, foreground = Color.Blue))
+        assertTrue(output.hasStyle(start = 7, end = 22, foreground = Color.Green))
+        assertTrue(output.hasStyle(start = 23, end = 31, foreground = Color.Red))
+        assertTrue(output.hasStyle(start = 38, end = 41, foreground = Color.Red))
+        assertTrue(output.hasStyle(start = 45, end = 52, foreground = Color.Red))
     }
 
     private fun AnnotatedString.hasStyle(
         start: Int,
         end: Int,
-        foreground: Color
-    ): Boolean = spanStyles.any {
-        it.start == start && it.end == end && it.item.color == foreground
+        foreground: Color,
+    ): Boolean = spanStyles.any { range ->
+        range.start == start && range.end == end && range.item.color == foreground
     }
 }

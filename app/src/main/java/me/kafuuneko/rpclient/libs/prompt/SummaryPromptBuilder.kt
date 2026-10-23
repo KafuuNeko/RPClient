@@ -55,7 +55,7 @@ class SummaryPromptBuilder(
         messages: List<ChatMessage>,
         provider: LLMProvider?,
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
-        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
@@ -71,61 +71,66 @@ class SummaryPromptBuilder(
         // 使用有界 Token 统计定位符合预算的最长连续前缀
         val selected = selectSummaryPrefix(
             items = limited,
-            promptBudget = promptBudget
+            promptBudget = promptBudget,
         ) { prefix ->
-            countSummaryTokens(tokenizer,
-                renderRequestMessages(
+            countSummaryTokens(
+                tokenizer = tokenizer,
+                messages = renderRequestMessages(
                     userName = userName,
                     userDescription = userDescription,
                     character = character,
                     session = session,
                     existingSummary = safeExistingSummary,
-                    messages = sanitized.subList(0, prefix.size),
+                    messages = sanitized.subList(fromIndex = 0, toIndex = prefix.size),
                     provider = provider,
                     messageImages = messageImages,
-                    unavailableImages = unavailableImages
+                    unavailableImages = unavailableImages,
                 ),
-                promptBudget,
-                prefix.sumOf { unavailableImages[it.id].orEmpty().size }
+                budget = promptBudget,
+                unavailableCount = prefix.sumOf { message -> unavailableImages[message.id].orEmpty().size },
             )
         }
         // 若存在候选消息但连单条都超出预算则抛出异常
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
-                renderRequestMessages(
-                    userName,
-                    userDescription,
-                    character,
-                    session,
-                    safeExistingSummary,
-                    listOf(sanitized.first()),
-                    provider, messageImages, unavailableImages
-                )
+                messages = renderRequestMessages(
+                    userName = userName,
+                    userDescription = userDescription,
+                    character = character,
+                    session = session,
+                    existingSummary = safeExistingSummary,
+                    messages = listOf(sanitized.first()),
+                    provider = provider,
+                    messageImages = messageImages,
+                    unavailableImages = unavailableImages,
+                ),
             )
             throw PromptBudgetExceededException(
-                (required.toLong() + tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
-                promptBudget
+                requiredTokens = (required.toLong() + tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
+                promptBudget = promptBudget,
             )
         }
         val sanitizedSelected = sanitized.take(selected.size)
         // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
-                userName,
-                userDescription,
-                character,
-                session,
-                safeExistingSummary,
-                sanitizedSelected,
-                provider, messageImages, unavailableImages
+                userName = userName,
+                userDescription = userDescription,
+                character = character,
+                session = session,
+                existingSummary = safeExistingSummary,
+                messages = sanitizedSelected,
+                provider = provider,
+                messageImages = messageImages,
+                unavailableImages = unavailableImages,
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
                 temperature = provider?.temperature,
                 maxTokens = responseTokens,
-                topP = provider?.topP
+                topP = provider?.topP,
             ),
-            isPromptFinalized = true
+            isPromptFinalized = true,
         )
         selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return SummaryPromptBuildResult(request, selected)
@@ -141,7 +146,7 @@ class SummaryPromptBuilder(
         messages: List<ChatMessage>,
         provider: LLMProvider?,
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
-        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
     ): List<LLMMessage> {
         val history = mHistoryBuilder.build(messages, userName, character.name)
         val context = PromptBuildContext(
@@ -155,34 +160,43 @@ class SummaryPromptBuilder(
             candidateLorebookEntries = emptyList(),
             provider = provider,
             maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS,
-            maxResponseTokens = AppModel.summaryResponseTokens
+            maxResponseTokens = AppModel.summaryResponseTokens,
         )
-        val instruction = mMacroResolver.resolve(
-            template = AppModel.summarizePrompt,
-            context = context,
-            history = ""
-        ).replace(
-            "{{words}}",
-            AppModel.summaryWordsLimit.toString(),
-            ignoreCase = true
-        ).replace(
-            "{{summary}}",
-            "",
-            ignoreCase = true
-        ).replace(
-            "{{history}}",
-            "",
-            ignoreCase = true
-        )
+        val instruction = mMacroResolver
+            .resolve(
+                template = AppModel.summarizePrompt,
+                context = context,
+                history = "",
+            )
+            .replace(
+                oldValue = "{{words}}",
+                newValue = AppModel.summaryWordsLimit.toString(),
+                ignoreCase = true,
+            )
+            .replace(
+                oldValue = "{{summary}}",
+                newValue = "",
+                ignoreCase = true,
+            )
+            .replace(
+                oldValue = "{{history}}",
+                newValue = "",
+                ignoreCase = true,
+            )
         val historyBlocks = messages.flatMap { message ->
-            listOf(LLMContentBlock.Text("${if (message.source == ChatMessage.Source.User) userName else character.name}:")) +
-                messageImages[message.id].orEmpty().map { LLMContentBlock.Image(it) } +
+            val speakerName = if (message.source == ChatMessage.Source.User) userName else character.name
+            listOf(element = LLMContentBlock.Text("$speakerName:")) +
+                messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
                 LLMContentBlock.Text(message.content)
         }
-        return buildRawSummaryMessages(instruction, existingSummary, history,
-            historyBlocks.takeIf { messages.any { message ->
+        return buildRawSummaryMessages(
+            instruction = instruction,
+            existingSummary = existingSummary,
+            history = history,
+            historyBlocks = historyBlocks.takeIf { messages.any { message ->
                 !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
-            } })
+            } },
+        )
     }
 
 }
@@ -199,7 +213,7 @@ internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
     } else {
         size - 1
     }
-    return subList(0, candidateCount).toList()
+    return subList(fromIndex = 0, toIndex = candidateCount).toList()
 }
 
 /** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */
@@ -207,20 +221,26 @@ internal fun buildRawSummaryMessages(
     instruction: String,
     existingSummary: String,
     history: String,
-    historyBlocks: List<LLMContentBlock>? = null
+    historyBlocks: List<LLMContentBlock>? = null,
 ): List<LLMMessage> {
     val rawPrompt = buildList {
-        existingSummary.takeIf { it.isNotBlank() }?.let {
-            add("Existing summary:\n$it")
+        existingSummary.takeIf { text -> text.isNotBlank() }?.let { text ->
+            add("Existing summary:\n$text")
         }
-        history.takeIf { it.isNotBlank() }?.let {
-            add("Chat history:\n$it")
+        history.takeIf { text -> text.isNotBlank() }?.let { text ->
+            add("Chat history:\n$text")
         }
     }.joinToString("\n\n")
     return listOf(
-        LLMMessage(LLMMessageRole.System, instruction.trim() + if (historyBlocks != null) "\nRecord relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details." else ""),
+        LLMMessage(
+            role = LLMMessageRole.System,
+            content = instruction.trim() + if (historyBlocks != null) "\nRecord relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details." else "",
+        ),
         if (historyBlocks == null) LLMMessage(LLMMessageRole.User, rawPrompt)
-        else messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Text("Existing summary:\n$existingSummary\nChat history:")) + historyBlocks)
+        else messageWithBlocks(
+            role = LLMMessageRole.User,
+            blocks = listOf(LLMContentBlock.Text("Existing summary:\n$existingSummary\nChat history:")) + historyBlocks,
+        ),
     ).filter { it.content.isNotBlank() || it.images.isNotEmpty() }
 }
 
@@ -233,14 +253,14 @@ internal fun buildRawSummaryMessages(
 internal fun <T> selectSummaryPrefix(
     items: List<T>,
     promptBudget: Int,
-    countPrefixTokens: (List<T>) -> Int
+    countPrefixTokens: (List<T>) -> Int,
 ): List<T> {
     if (items.isEmpty()) return emptyList()
     var acceptedSize = 0
     var probeSize = 1
     // 指数扩展只探测少量前缀，避免直接格式化远超预算的大窗口
     while (true) {
-        if (countPrefixTokens(items.subList(0, probeSize)) > promptBudget) break
+        if (countPrefixTokens(items.subList(fromIndex = 0, toIndex = probeSize)) > promptBudget) break
         acceptedSize = probeSize
         if (acceptedSize == items.size) return items.toList()
         probeSize = minOf(items.size, probeSize.saturatedDouble())
@@ -249,7 +269,7 @@ internal fun <T> selectSummaryPrefix(
     var rejectedSize = probeSize
     while (acceptedSize + 1 < rejectedSize) {
         val middleSize = acceptedSize + (rejectedSize - acceptedSize) / 2
-        if (countPrefixTokens(items.subList(0, middleSize)) <= promptBudget) {
+        if (countPrefixTokens(items.subList(fromIndex = 0, toIndex = middleSize)) <= promptBudget) {
             acceptedSize = middleSize
         } else {
             rejectedSize = middleSize
@@ -276,7 +296,7 @@ internal fun summaryPromptBudget(maxContextTokens: Int, responseTokens: Int): In
 internal fun summaryCandidateMessageLimit(
     maxContextTokens: Int,
     responseTokens: Int,
-    configuredMaxMessages: Int
+    configuredMaxMessages: Int,
 ): Int {
     val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
     return if (configuredMaxMessages > 0) {
@@ -308,13 +328,13 @@ internal fun countSummaryTokens(
     tokenizer: PromptTokenizer,
     messages: List<LLMMessage>,
     budget: Int,
-    unavailableCount: Int = 0
+    unavailableCount: Int = 0,
 ): Int {
     val images = messages.flatMap { it.images }
     val imageCount = images.size + unavailableCount
     val bytes = estimateImageRequestBytes(messages, unavailableCount)
-    if (imageCount > MessageImagePolicy.MAX_IMAGES_PER_REQUEST ||
-        (imageCount > 0 && bytes > MessageImagePolicy.MAX_REQUEST_BYTES)) return (budget.toLong() + 1).toTokenInt()
+    if (imageCount > MessageImagePolicy.MAX_IMAGES_PER_REQUEST
+        || (imageCount > 0 && bytes > MessageImagePolicy.MAX_REQUEST_BYTES)) return (budget.toLong() + 1).toTokenInt()
     val unavailableTokens = tokenizer.countUnavailableImages(unavailableCount)
     if (unavailableTokens > budget) return (budget.toLong() + 1).toTokenInt()
     return (tokenizer.countMessagesUpTo(messages, budget - unavailableTokens.toInt()).toLong() +

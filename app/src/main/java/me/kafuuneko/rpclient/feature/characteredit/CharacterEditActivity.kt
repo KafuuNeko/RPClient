@@ -5,8 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,19 +27,19 @@ class CharacterEditActivity : CoreActivityWithEvent() {
 
     /** 系统选择结果只用于打开裁剪页，不直接进入角色表单。 */
     private val mAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { mImageCropLauncher.launch(ImageCropActivity.createIntent(this, it)) }
+        uri?.let { uri -> mImageCropLauncher.launch(ImageCropActivity.createIntent(this, uri)) }
     }
 
     /** 裁剪页返回已持久化的方形头像 UUID，再交由角色表单管理其临时生命周期。 */
     private val mImageCropLauncher = registerForActivityResult(StartActivityForResult()) { result ->
-        ImageCropActivity.getResultFileUuid(result.data)?.let {
-            mViewModel.emit(CharacterEditUiIntent.AvatarCropped(it))
+        ImageCropActivity.getResultFileUuid(result.data)?.let { text ->
+            mViewModel.emit(CharacterEditUiIntent.AvatarCropped(text))
         }
     }
 
     /** 背景保留原始比例，由背景管线校验及暂存，不经过头像裁剪。 */
     private val mBackgroundPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { mViewModel.emit(CharacterEditUiIntent.BackgroundSelected(it)) }
+        uri?.let { uri -> mViewModel.emit(CharacterEditUiIntent.BackgroundSelected(uri)) }
     }
 
     /** 编辑页以角色背景草稿为画布，通用参数由 ViewModel 统一合成。 */
@@ -57,7 +57,7 @@ class CharacterEditActivity : CoreActivityWithEvent() {
 
         CharacterEditLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
@@ -79,9 +79,7 @@ class CharacterEditActivity : CoreActivityWithEvent() {
             CharacterEditViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
             is CharacterEditViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(
-                    ClipData.newPlainText(getString(R.string.character), viewEvent.text)
-                )
+                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.character), viewEvent.text))
                 Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
             }
         }

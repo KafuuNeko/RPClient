@@ -18,7 +18,7 @@ data class ChatCreateLorebookGroupItem(
 
 /** 获取角色绑定的世界书条目 ID 集合。 */
 internal fun Character.defaultLorebookEntryIds(
-    lorebookGroups: List<ChatCreateLorebookGroupItem>
+    lorebookGroups: List<ChatCreateLorebookGroupItem>,
 ): Set<Long> {
     if (characterLorebookId == 0L) return emptySet()
     return lorebookGroups
@@ -30,7 +30,7 @@ internal fun Character.defaultLorebookEntryIds(
 
 /** 根据关键词多字段过滤世界书分组与条目。 */
 internal fun List<ChatCreateLorebookGroupItem>.filterForQuery(
-    query: String
+    query: String,
 ): List<ChatCreateLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -41,7 +41,7 @@ internal fun List<ChatCreateLorebookGroupItem>.filterForQuery(
             entry.secondaryKeywords.asSequence() +
             entry.category.asSequence()
     },
-    copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    copyWithEntries = { group, entries -> group.copy(entries = entries) },
 )
 
 /** 按条目的 order 构建创建页世界书分组，并排除空分组。 */
@@ -50,7 +50,7 @@ internal fun List<LorebookWithEntries>.toChatCreateLorebookGroups(): List<ChatCr
     return map { lorebookWithEntries ->
         val lorebook = lorebookWithEntries.lorebook
         val entries = lorebookWithEntries.entries
-            .sortedBy { it.order }
+            .sortedBy { entry -> entry.order }
             .map { entry ->
                 ChatCreateLorebookEntryItem(
                     id = entry.id,
@@ -62,14 +62,14 @@ internal fun List<LorebookWithEntries>.toChatCreateLorebookGroups(): List<ChatCr
                     category = entry.getCategoryList(),
                     constant = entry.constant,
                     order = entry.order,
-                    depth = entry.depth
+                    depth = entry.depth,
                 )
             }
         ChatCreateLorebookGroupItem(
             lorebookId = lorebook.id,
             lorebookName = lorebook.name,
             entryCount = entries.size,
-            entries = entries
+            entries = entries,
         )
     }.filter { it.entries.isNotEmpty() }
 }

@@ -14,7 +14,7 @@ class PromptPostProcessorTest {
             LLMMessage(LLMMessageRole.System, "Main"),
             LLMMessage(LLMMessageRole.User, "Hi"),
             LLMMessage(LLMMessageRole.Assistant, "Hello"),
-            LLMMessage(LLMMessageRole.System, "Post")
+            LLMMessage(LLMMessageRole.System, "Post"),
         ).withPostProcessedMessages(PromptPostProcessingMode.SemiStrict, "[Start]")
 
         assertEquals(
@@ -22,9 +22,9 @@ class PromptPostProcessorTest {
                 LLMMessage(LLMMessageRole.System, "Main"),
                 LLMMessage(LLMMessageRole.User, "Hi"),
                 LLMMessage(LLMMessageRole.Assistant, "Hello"),
-                LLMMessage(LLMMessageRole.User, "Post")
+                LLMMessage(LLMMessageRole.User, "Post"),
             ),
-            request.messages
+            request.messages,
         )
     }
 
@@ -32,16 +32,16 @@ class PromptPostProcessorTest {
     fun strictInsertsPlaceholderBeforeLeadingAssistantBody() {
         val request = request(
             LLMMessage(LLMMessageRole.System, "Main"),
-            LLMMessage(LLMMessageRole.Assistant, "Greeting")
+            LLMMessage(LLMMessageRole.Assistant, "Greeting"),
         ).withPostProcessedMessages(PromptPostProcessingMode.Strict, "[Start]")
 
         assertEquals(
             listOf(
                 LLMMessage(LLMMessageRole.System, "Main"),
                 LLMMessage(LLMMessageRole.User, "[Start]"),
-                LLMMessage(LLMMessageRole.Assistant, "Greeting")
+                LLMMessage(LLMMessageRole.Assistant, "Greeting"),
             ),
-            request.messages
+            request.messages,
         )
     }
 
@@ -49,11 +49,11 @@ class PromptPostProcessorTest {
     fun singleUserMessageFlattensAllRoles() {
         val request = request(
             LLMMessage(LLMMessageRole.System, "Main"),
-            LLMMessage(LLMMessageRole.Assistant, "Greeting")
+            LLMMessage(LLMMessageRole.Assistant, "Greeting"),
         ).withPostProcessedMessages(
-            PromptPostProcessingMode.SingleUserMessage,
-            "[Start]",
-            PromptPostProcessingNames(userName = "Alex", characterName = "Mina")
+            mode = PromptPostProcessingMode.SingleUserMessage,
+            strictPromptPlaceholder = "[Start]",
+            names = PromptPostProcessingNames(userName = "Alex", characterName = "Mina"),
         )
 
         assertEquals(1, request.messages.size)
@@ -63,16 +63,16 @@ class PromptPostProcessorTest {
 
     @Test
     fun strictAddsPlaceholderWhenOnlySystemMessageExists() {
-        val request = request(
-            LLMMessage(LLMMessageRole.System, "Main")
-        ).withPostProcessedMessages(PromptPostProcessingMode.Strict, "[Start]")
+        val request = request(LLMMessage(LLMMessageRole.System, "Main")).withPostProcessedMessages(
+            mode = PromptPostProcessingMode.Strict, strictPromptPlaceholder = "[Start]",
+        )
 
         assertEquals(
             listOf(
                 LLMMessage(LLMMessageRole.System, "Main"),
-                LLMMessage(LLMMessageRole.User, "[Start]")
+                LLMMessage(LLMMessageRole.User, "[Start]"),
             ),
-            request.messages
+            request.messages,
         )
     }
 

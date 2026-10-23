@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,7 +66,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.imagecrop.presentation.CropMaskShape
 import me.kafuuneko.rpclient.feature.imagecrop.presentation.ImageCropUiIntent
@@ -78,6 +76,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.LocalPageContentOpacity
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
+import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 private val DarkroomBackgroundColor = Color(0xFF090C10)
@@ -88,14 +87,14 @@ private val DarkroomOverlayColor = Color(0xB8000000)
 @Composable
 fun ImageCropLayout(
     uiState: ImageCropUiState,
-    emit: ImageCropUiIntent.() -> Unit
+    emit: ImageCropUiIntent.() -> Unit,
 ) {
-    BackHandler(uiState !is ImageCropUiState.Finished) { ImageCropUiIntent.Back.emit() }
+    BackHandler(enabled = uiState !is ImageCropUiState.Finished, onBack = { ImageCropUiIntent.Back.emit() })
     when (uiState) {
         ImageCropUiState.None, ImageCropUiState.Loading -> ImageCropLoading(emit)
         is ImageCropUiState.Normal -> ImageCropNormal(uiState, emit)
         is ImageCropUiState.Failed -> ImageCropFailed(emit)
-        is ImageCropUiState.Finished -> ImageCropLayout(uiState.previous) { }
+        is ImageCropUiState.Finished -> ImageCropLayout(uiState = uiState.previous, emit = { })
     }
 }
 
@@ -103,10 +102,14 @@ fun ImageCropLayout(
 @Composable
 private fun DarkroomContainer(
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalContentColor provides Color.White) {
-        Box(modifier.fillMaxSize().background(pageCanvasColor(DarkroomBackgroundColor))) { content() }
+        Box(
+            modifier = modifier
+            .fillMaxSize()
+            .background(pageCanvasColor(DarkroomBackgroundColor)),
+        ) { content() }
     }
 }
 
@@ -115,12 +118,12 @@ private fun DarkroomContainer(
 private fun ImageCropTopBar(
     isDefaultTransform: Boolean,
     isSaving: Boolean,
-    emit: ImageCropUiIntent.() -> Unit
+    emit: ImageCropUiIntent.() -> Unit,
 ) {
     AppSurface(
         kind = PageSurfaceKind.TopBar,
         color = DarkroomBackgroundColor,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -128,16 +131,16 @@ private fun ImageCropTopBar(
                 .statusBarsPadding()
                 .height(56.dp)
                 .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
                 onClick = { ImageCropUiIntent.Back.emit() },
-                enabled = !isSaving
+                enabled = !isSaving,
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(R.string.back),
-                    tint = Color.White
+                    tint = Color.White,
                 )
             }
 
@@ -147,15 +150,15 @@ private fun ImageCropTopBar(
                 text = stringResource(R.string.image_crop_title),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
                 ),
                 color = Color.White,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
 
             TextButton(
                 onClick = { ImageCropUiIntent.Reset.emit() },
-                enabled = !isDefaultTransform && !isSaving
+                enabled = !isDefaultTransform && !isSaving,
             ) {
                 Text(
                     text = stringResource(R.string.reset),
@@ -164,7 +167,7 @@ private fun ImageCropTopBar(
                         MaterialTheme.colorScheme.primary
                     } else {
                         Color(0x55FFFFFF)
-                    }
+                    },
                 )
             }
         }
@@ -174,14 +177,14 @@ private fun ImageCropTopBar(
 @Composable
 private fun ImageCropNormal(
     state: ImageCropUiState.Normal,
-    emit: ImageCropUiIntent.() -> Unit
+    emit: ImageCropUiIntent.() -> Unit,
 ) {
     DarkroomContainer {
         Column(modifier = Modifier.fillMaxSize()) {
             ImageCropTopBar(
                 isDefaultTransform = state.transform.isDefault,
                 isSaving = state.saving,
-                emit = emit
+                emit = emit,
             )
 
             // 中央全视口画布区域
@@ -192,7 +195,7 @@ private fun ImageCropNormal(
                     .clipToBounds()
                     .pageSurfaceBlur(PageSurfaceKind.Content)
                     .background(DarkroomBackgroundColor.copy(alpha = LocalPageContentOpacity.current)),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 val density = LocalDensity.current
                 val canvasWidthPx = constraints.maxWidth.toFloat()
@@ -200,15 +203,20 @@ private fun ImageCropNormal(
 
                 // 计算裁剪框尺寸：居中正方形
                 val cropSideDp = minOf(
-                    maxWidth - 32.dp,
-                    maxHeight - 24.dp,
-                    420.dp
+                    a = maxWidth - 32.dp,
+                    b = maxHeight - 24.dp,
+                    c = 420.dp,
                 ).coerceAtLeast(160.dp)
                 val cropSidePx = with(density) { cropSideDp.toPx() }
 
                 val cropLeft = (canvasWidthPx - cropSidePx) / 2f
                 val cropTop = (canvasHeightPx - cropSidePx) / 2f
-                val cropRect = Rect(cropLeft, cropTop, cropLeft + cropSidePx, cropTop + cropSidePx)
+                val cropRect = Rect(
+                    left = cropLeft,
+                    top = cropTop,
+                    right = cropLeft + cropSidePx,
+                    bottom = cropTop + cropSidePx,
+                )
 
                 Canvas(
                     modifier = Modifier
@@ -220,7 +228,7 @@ private fun ImageCropNormal(
                                     ImageCropUiIntent.Transform(
                                         panX = pan.x / cropSidePx,
                                         panY = pan.y / cropSidePx,
-                                        zoomChange = zoom
+                                        zoomChange = zoom,
                                     ).emit()
                                 }
                             }
@@ -233,131 +241,198 @@ private fun ImageCropNormal(
                                         ImageCropUiIntent.Transform(
                                             panX = -state.transform.offsetX,
                                             panY = -state.transform.offsetY,
-                                            zoomChange = 1f / state.transform.zoom
+                                            zoomChange = 1f / state.transform.zoom,
                                         ).emit()
                                     } else {
                                         ImageCropUiIntent.Transform(
                                             panX = 0f,
                                             panY = 0f,
-                                            zoomChange = 2f
+                                            zoomChange = 2f,
                                         ).emit()
                                     }
-                                }
+                                },
+                            )
+                        },
+                    onDraw = {
+                        val transform = state.transform
+                        val effectiveAspect = transform.effectiveAspectRatio
+                        val baseW = maxOf(a = effectiveAspect, b = 1f) * cropSidePx
+                        val baseH = maxOf(a = 1f / effectiveAspect, b = 1f) * cropSidePx
+                        val drawW = baseW * transform.zoom
+                        val drawH = baseH * transform.zoom
+
+                        val imgCenterX = cropRect.center.x + transform.offsetX * cropSidePx
+                        val imgCenterY = cropRect.center.y + transform.offsetY * cropSidePx
+
+                        // 全局绘制原图（以图片中心为 pivot 进行平移、旋转与水平镜像）
+                        withTransform(
+                            transformBlock = {
+                            translate(left = imgCenterX, top = imgCenterY)
+                            rotate(degrees = transform.rotationDegrees.toFloat(), pivot = Offset.Zero)
+                            scale(
+                                scaleX = if (transform.isFlippedHorizontal) -1f else 1f,
+                                scaleY = 1f,
+                                pivot = Offset.Zero,
+                            )
+                        },
+                        ) {
+                            val imgW = if (transform.isRotated90) drawH else drawW
+                            val imgH = if (transform.isRotated90) drawW else drawH
+                            drawImage(
+                                image = state.image,
+                                dstOffset = IntOffset((-imgW / 2f).roundToInt(), (-imgH / 2f).roundToInt()),
+                                dstSize = IntSize(imgW.roundToInt(), imgH.roundToInt()),
+                                filterQuality = FilterQuality.High,
                             )
                         }
-                ) {
-                    val transform = state.transform
-                    val effectiveAspect = transform.effectiveAspectRatio
-                    val baseW = maxOf(effectiveAspect, 1f) * cropSidePx
-                    val baseH = maxOf(1f / effectiveAspect, 1f) * cropSidePx
-                    val drawW = baseW * transform.zoom
-                    val drawH = baseH * transform.zoom
 
-                    val imgCenterX = cropRect.center.x + transform.offsetX * cropSidePx
-                    val imgCenterY = cropRect.center.y + transform.offsetY * cropSidePx
-
-                    // 1. 全局绘制原图（以图片中心为 pivot 进行平移、旋转与水平镜像）
-                    withTransform({
-                        translate(left = imgCenterX, top = imgCenterY)
-                        rotate(degrees = transform.rotationDegrees.toFloat(), pivot = Offset.Zero)
-                        scale(
-                            scaleX = if (transform.isFlippedHorizontal) -1f else 1f,
-                            scaleY = 1f,
-                            pivot = Offset.Zero
-                        )
-                    }) {
-                        val imgW = if (transform.isRotated90) drawH else drawW
-                        val imgH = if (transform.isRotated90) drawW else drawH
-                        drawImage(
-                            image = state.image,
-                            dstOffset = IntOffset((-imgW / 2f).roundToInt(), (-imgH / 2f).roundToInt()),
-                            dstSize = IntSize(imgW.roundToInt(), imgH.roundToInt()),
-                            filterQuality = FilterQuality.High
-                        )
-                    }
-
-                    // 2. 绘制 EvenOdd 镂空暗区遮罩
-                    val cornerRadiusPx = 24.dp.toPx()
-                    val maskPath = Path().apply {
-                        addRect(Rect(0f, 0f, size.width, size.height))
-                        if (state.maskShape == CropMaskShape.Circle) {
-                            addOval(cropRect)
-                        } else {
-                            addRoundRect(RoundRect(cropRect, CornerRadius(cornerRadiusPx)))
+                        // 绘制 EvenOdd 镂空暗区遮罩
+                        val cornerRadiusPx = 24.dp.toPx()
+                        val maskPath = Path().apply {
+                            addRect(Rect(left = 0f, top = 0f, right = size.width, bottom = size.height))
+                            if (state.maskShape == CropMaskShape.Circle) {
+                                addOval(cropRect)
+                            } else {
+                                addRoundRect(RoundRect(cropRect, CornerRadius(cornerRadiusPx)))
+                            }
+                            fillType = PathFillType.EvenOdd
                         }
-                        fillType = PathFillType.EvenOdd
-                    }
-                    drawPath(maskPath, color = DarkroomOverlayColor)
+                        drawPath(path = maskPath, color = DarkroomOverlayColor)
 
-                    // 3. 绘制九宫格构图辅助线（三分法）
-                    val oneThird = cropSidePx / 3f
-                    val twoThirds = cropSidePx * 2f / 3f
-                    val gridColor = Color(0x30FFFFFF)
-                    val gridStrokePx = 1.dp.toPx()
+                        // 绘制九宫格构图辅助线（三分法）
+                        val oneThird = cropSidePx / 3f
+                        val twoThirds = cropSidePx * 2f / 3f
+                        val gridColor = Color(0x30FFFFFF)
+                        val gridStrokePx = 1.dp.toPx()
 
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(cropRect.left + oneThird, cropRect.top),
-                        end = Offset(cropRect.left + oneThird, cropRect.bottom),
-                        strokeWidth = gridStrokePx
-                    )
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(cropRect.left + twoThirds, cropRect.top),
-                        end = Offset(cropRect.left + twoThirds, cropRect.bottom),
-                        strokeWidth = gridStrokePx
-                    )
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(cropRect.left, cropRect.top + oneThird),
-                        end = Offset(cropRect.right, cropRect.top + oneThird),
-                        strokeWidth = gridStrokePx
-                    )
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(cropRect.left, cropRect.top + twoThirds),
-                        end = Offset(cropRect.right, cropRect.top + twoThirds),
-                        strokeWidth = gridStrokePx
-                    )
-
-                    // 4. 绘制裁剪框轮廓与 4 角专业 L 形高光角标
-                    if (state.maskShape == CropMaskShape.Circle) {
-                        drawOval(
-                            color = Color(0x80FFFFFF),
-                            topLeft = cropRect.topLeft,
-                            size = cropRect.size,
-                            style = Stroke(width = 1.5.dp.toPx())
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(cropRect.left + oneThird, cropRect.top),
+                            end = Offset(cropRect.left + oneThird, cropRect.bottom),
+                            strokeWidth = gridStrokePx,
                         )
-                    } else {
-                        drawRoundRect(
-                            color = Color(0x60FFFFFF),
-                            topLeft = cropRect.topLeft,
-                            size = cropRect.size,
-                            cornerRadius = CornerRadius(cornerRadiusPx),
-                            style = Stroke(width = 1.5.dp.toPx())
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(cropRect.left + twoThirds, cropRect.top),
+                            end = Offset(cropRect.left + twoThirds, cropRect.bottom),
+                            strokeWidth = gridStrokePx,
+                        )
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(cropRect.left, cropRect.top + oneThird),
+                            end = Offset(cropRect.right, cropRect.top + oneThird),
+                            strokeWidth = gridStrokePx,
+                        )
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(cropRect.left, cropRect.top + twoThirds),
+                            end = Offset(cropRect.right, cropRect.top + twoThirds),
+                            strokeWidth = gridStrokePx,
                         )
 
-                        val bracketLength = 18.dp.toPx()
-                        val bracketStroke = 3.dp.toPx()
-                        val bracketColor = Color.White
+                        // 绘制裁剪框轮廓与 4 角专业 L 形高光角标
+                        if (state.maskShape == CropMaskShape.Circle) {
+                            drawOval(
+                                color = Color(0x80FFFFFF),
+                                topLeft = cropRect.topLeft,
+                                size = cropRect.size,
+                                style = Stroke(width = 1.5.dp.toPx()),
+                            )
+                        } else {
+                            drawRoundRect(
+                                color = Color(0x60FFFFFF),
+                                topLeft = cropRect.topLeft,
+                                size = cropRect.size,
+                                cornerRadius = CornerRadius(cornerRadiusPx),
+                                style = Stroke(width = 1.5.dp.toPx()),
+                            )
 
-                        // 左上角
-                        drawLine(bracketColor, Offset(cropRect.left, cropRect.top), Offset(cropRect.left + bracketLength, cropRect.top), bracketStroke)
-                        drawLine(bracketColor, Offset(cropRect.left, cropRect.top), Offset(cropRect.left, cropRect.top + bracketLength), bracketStroke)
+                            val bracketLength = 18.dp.toPx()
+                            val bracketStroke = 3.dp.toPx()
+                            val bracketColor = Color.White
 
-                        // 右上角
-                        drawLine(bracketColor, Offset(cropRect.right, cropRect.top), Offset(cropRect.right - bracketLength, cropRect.top), bracketStroke)
-                        drawLine(bracketColor, Offset(cropRect.right, cropRect.top), Offset(cropRect.right, cropRect.top + bracketLength), bracketStroke)
+                            // 左上角
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.left, cropRect.top),
+                                end = Offset(
+                                    x = cropRect.left + bracketLength,
+                                    y = cropRect.top,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.left, cropRect.top),
+                                end = Offset(
+                                    x = cropRect.left,
+                                    y = cropRect.top + bracketLength,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
 
-                        // 左下角
-                        drawLine(bracketColor, Offset(cropRect.left, cropRect.bottom), Offset(cropRect.left + bracketLength, cropRect.bottom), bracketStroke)
-                        drawLine(bracketColor, Offset(cropRect.left, cropRect.bottom), Offset(cropRect.left, cropRect.bottom - bracketLength), bracketStroke)
+                            // 右上角
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.right, cropRect.top),
+                                end = Offset(
+                                    x = cropRect.right - bracketLength,
+                                    y = cropRect.top,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.right, cropRect.top),
+                                end = Offset(
+                                    x = cropRect.right,
+                                    y = cropRect.top + bracketLength,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
 
-                        // 右下角
-                        drawLine(bracketColor, Offset(cropRect.right, cropRect.bottom), Offset(cropRect.right - bracketLength, cropRect.bottom), bracketStroke)
-                        drawLine(bracketColor, Offset(cropRect.right, cropRect.bottom), Offset(cropRect.right, cropRect.bottom - bracketLength), bracketStroke)
-                    }
-                }
+                            // 左下角
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.left, cropRect.bottom),
+                                end = Offset(
+                                    x = cropRect.left + bracketLength,
+                                    y = cropRect.bottom,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.left, cropRect.bottom),
+                                end = Offset(
+                                    x = cropRect.left,
+                                    y = cropRect.bottom - bracketLength,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+
+                            // 右下角
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.right, cropRect.bottom),
+                                end = Offset(
+                                    x = cropRect.right - bracketLength,
+                                    y = cropRect.bottom,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+                            drawLine(
+                                color = bracketColor,
+                                start = Offset(cropRect.right, cropRect.bottom),
+                                end = Offset(
+                                    x = cropRect.right,
+                                    y = cropRect.bottom - bracketLength,
+                                ),
+                                strokeWidth = bracketStroke,
+                            )
+                        }
+                    },
+                )
             }
 
             // 底部控制与操作区
@@ -370,7 +445,7 @@ private fun ImageCropNormal(
 @Composable
 private fun ImageCropBottomControls(
     state: ImageCropUiState.Normal,
-    emit: ImageCropUiIntent.() -> Unit
+    emit: ImageCropUiIntent.() -> Unit,
 ) {
     AppSurface(kind = PageSurfaceKind.BottomBar, color = DarkroomSurfaceColor) {
         Column(
@@ -378,13 +453,13 @@ private fun ImageCropBottomControls(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // 提示文案
             Text(
                 text = stringResource(R.string.image_crop_helper),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0x99FFFFFF)
+                color = Color(0x99FFFFFF),
             )
 
             Spacer(Modifier.height(14.dp))
@@ -393,13 +468,13 @@ private fun ImageCropBottomControls(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 CropToolButton(
                     icon = Icons.AutoMirrored.Rounded.RotateRight,
                     label = stringResource(R.string.image_crop_rotate),
                     enabled = !state.saving,
-                    onClick = { ImageCropUiIntent.RotateRight.emit() }
+                    onClick = { ImageCropUiIntent.RotateRight.emit() },
                 )
 
                 CropToolButton(
@@ -407,7 +482,7 @@ private fun ImageCropBottomControls(
                     label = stringResource(R.string.image_crop_flip),
                     enabled = !state.saving,
                     isActive = state.transform.isFlippedHorizontal,
-                    onClick = { ImageCropUiIntent.FlipHorizontal.emit() }
+                    onClick = { ImageCropUiIntent.FlipHorizontal.emit() },
                 )
 
                 CropToolButton(
@@ -422,7 +497,7 @@ private fun ImageCropBottomControls(
                         stringResource(R.string.image_crop_shape_circle)
                     },
                     enabled = !state.saving,
-                    onClick = { ImageCropUiIntent.ToggleMaskShape.emit() }
+                    onClick = { ImageCropUiIntent.ToggleMaskShape.emit() },
                 )
             }
 
@@ -434,7 +509,7 @@ private fun ImageCropBottomControls(
                     .fillMaxWidth()
                     .padding(bottom = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
                     onClick = { ImageCropUiIntent.Back.emit() },
@@ -443,15 +518,15 @@ private fun ImageCropBottomControls(
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                    border = BorderStroke(width = 1.dp, color = Color(0x33FFFFFF)),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.White,
-                        disabledContentColor = Color(0x44FFFFFF)
-                    )
+                        disabledContentColor = Color(0x44FFFFFF),
+                    ),
                 ) {
                     Text(
                         text = stringResource(R.string.cancel),
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
 
@@ -464,25 +539,25 @@ private fun ImageCropBottomControls(
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    )
+                        contentColor = Color.White,
+                    ),
                 ) {
                     if (state.saving) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             color = Color.White,
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = stringResource(R.string.confirm),
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -498,7 +573,7 @@ private fun CropToolButton(
     label: String,
     enabled: Boolean,
     isActive: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val tint = when {
@@ -514,31 +589,31 @@ private fun CropToolButton(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = onClick,
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .background(
                     color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0x1AFFFFFF),
-                    shape = CircleShape
+                    shape = CircleShape,
                 ),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = tint,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
             )
         }
         Spacer(Modifier.height(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-            color = tint
+            color = tint,
         )
     }
 }
@@ -552,7 +627,7 @@ private fun ImageCropLoading(emit: ImageCropUiIntent.() -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
@@ -569,12 +644,12 @@ private fun ImageCropFailed(emit: ImageCropUiIntent.() -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(R.string.image_crop_load_failed),
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
@@ -585,6 +660,6 @@ private fun ImageCropFailed(emit: ImageCropUiIntent.() -> Unit) {
 @Composable
 private fun ImageCropPreview() {
     ActivityPreview(darkTheme = true) {
-        ImageCropLayout(ImageCropUiState.Failed(ImageCropUiState.Loading)) { }
+        ImageCropLayout(uiState = ImageCropUiState.Failed(ImageCropUiState.Loading), emit = { })
     }
 }

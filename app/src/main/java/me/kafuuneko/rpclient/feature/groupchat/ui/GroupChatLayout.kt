@@ -18,7 +18,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,11 +51,14 @@ import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 fun GroupChatLayout(
     uiState: GroupChatUiState,
     background: PageBackgroundUiState = PageBackgroundUiState(),
-    emitIntent: (GroupChatUiIntent) -> Unit = {}
+    emitIntent: (GroupChatUiIntent) -> Unit = {},
 ) {
-    BackHandler(enabled = uiState is GroupChatUiState.Normal) {
-        emitIntent(GroupChatUiIntent.Back)
-    }
+    BackHandler(
+        enabled = uiState is GroupChatUiState.Normal,
+        onBack = {
+            emitIntent(GroupChatUiIntent.Back)
+        },
+    )
     when (uiState) {
         GroupChatUiState.None -> Unit
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
@@ -65,12 +67,16 @@ fun GroupChatLayout(
             val pageStateHolder = rememberSaveableStateHolder()
             // 群聊设置与会话使用相同背景，不能落回 Activity 的通用背景。
             PageBackdrop(
-                background,
-                useContainerAppearance = uiState.page == GroupChatPage.Settings
+                state = background,
+                useContainerAppearance = uiState.page == GroupChatPage.Settings,
             ) {
                 pageStateHolder.SaveableStateProvider("${uiState.sessionId}:${uiState.page.name}") {
                     if (uiState.page == GroupChatPage.Settings) {
-                        GroupChatSettingsPage(uiState.settingsState, uiState.members, emitIntent)
+                        GroupChatSettingsPage(
+                            state = uiState.settingsState,
+                            members = uiState.members,
+                            emitIntent = emitIntent,
+                        )
                     } else {
                         GroupChatNormalPage(uiState, emitIntent)
                     }
@@ -85,14 +91,14 @@ fun GroupChatLayout(
 @Composable
 private fun DialogSwitch(
     state: GroupChatUiState.Normal,
-    emitIntent: (GroupChatUiIntent) -> Unit
+    emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     when (val dialogState = state.dialogState) {
         GroupChatDialogState.None -> Unit
         is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
             groups = state.settingsState.lorebookGroups,
             dialogState = dialogState,
-            emitIntent = emitIntent
+            emitIntent = emitIntent,
         )
 
         GroupChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
@@ -102,11 +108,11 @@ private fun DialogSwitch(
                 R.string.summary_token_limit_message,
                 stringResource(R.string.summary_memory),
                 stringResource(R.string.general_summary_memory),
-                stringResource(R.string.summary_response_tokens)
+                stringResource(R.string.summary_response_tokens),
             ),
             confirmText = stringResource(R.string.summary_go_to_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { emitIntent(GroupChatUiIntent.OpenSummarySettings) }
+            onConfirm = { emitIntent(GroupChatUiIntent.OpenSummarySettings) },
         )
 
         is GroupChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
@@ -115,7 +121,7 @@ private fun DialogSwitch(
             message = dialogState.message,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { emitIntent(GroupChatUiIntent.OpenProviderSettings) }
+            onConfirm = { emitIntent(GroupChatUiIntent.OpenProviderSettings) },
         )
 
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(
@@ -124,7 +130,7 @@ private fun DialogSwitch(
             onCopyRequest = { emitIntent(GroupChatUiIntent.CopyPromptItem(it)) },
             onPreviewImages = { ids, index ->
                 emitIntent(GroupChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index)))
-            }
+            },
         )
 
         is GroupChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
@@ -133,7 +139,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.delete_message_confirm),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) }
+            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteMessage) },
         )
 
         is GroupChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
@@ -141,11 +147,11 @@ private fun DialogSwitch(
             title = stringResource(R.string.group_chat_delete_title),
             message = stringResource(
                 R.string.group_chat_delete_message,
-                dialogState.title
+                dialogState.title,
             ),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteSession) }
+            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmDeleteSession) },
         )
     }
 }
@@ -155,7 +161,7 @@ private fun DialogSwitch(
 private fun GroupSessionLorebookDialog(
     groups: List<GroupChatLorebookGroupItem>,
     dialogState: GroupChatDialogState.SessionLorebook,
-    emitIntent: (GroupChatUiIntent) -> Unit
+    emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     // 通用 Dialog 只接收展示字段，确认后的会话级持久化仍由群聊状态层负责。
     val dialogGroups = remember(groups) {
@@ -169,20 +175,14 @@ private fun GroupSessionLorebookDialog(
         visibleGroups = visibleDialogGroups,
         query = dialogState.query,
         enabledEntryIds = dialogState.enabledEntryIds,
-        onQueryChange = {
-            emitIntent(GroupChatUiIntent.ChangeSessionLorebookDialogQuery(it))
-        },
-        onToggleGroup = {
-            emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogGroup(it))
-        },
-        onToggleEntry = {
-            emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogEntry(it))
-        },
+        onQueryChange = { emitIntent(GroupChatUiIntent.ChangeSessionLorebookDialogQuery(it)) },
+        onToggleGroup = { emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogGroup(it)) },
+        onToggleEntry = { emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogEntry(it)) },
         onConfirmSelection = {
             emitIntent(GroupChatUiIntent.ConfirmSessionLorebookSelection)
         },
         onManageWorldBooks = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
-        onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) }
+        onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
     )
 }
 
@@ -197,9 +197,9 @@ private fun GroupChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLo
                 name = entry.name,
                 content = entry.content,
                 keywords = entry.keywords,
-                constant = entry.constant
+                constant = entry.constant,
             )
-        }
+        },
     )
 }
 
@@ -210,28 +210,27 @@ private fun LoadStateOverlay(loadState: GroupChatLoadState) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f)),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         AppSurface(
             shape = RoundedCornerShape(18.dp),
-            shadowElevation = 10.dp
+            shadowElevation = 10.dp,
         ) {
             Row(
                 modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    when (loadState) {
-                        GroupChatLoadState.Deleting -> stringResource(R.string.deleting)
-                        GroupChatLoadState.Saving -> stringResource(R.string.saving)
-                        GroupChatLoadState.Summarizing ->
-                            stringResource(R.string.updating_summary)
+                val loadingText = when (loadState) {
+                    GroupChatLoadState.Deleting -> stringResource(R.string.deleting)
+                    GroupChatLoadState.Saving -> stringResource(R.string.saving)
+                    GroupChatLoadState.Summarizing ->
+                        stringResource(R.string.updating_summary)
 
-                        else -> stringResource(R.string.loading)
-                    }
-                )
+                    else -> stringResource(R.string.loading)
+                }
+                Text(text = loadingText)
             }
         }
     }
@@ -264,20 +263,18 @@ private fun GroupChatPreview() {
                 conversationState = GroupChatConversationState(
                     messages = previewMessages,
                     hasCharacterMessage = true,
-                    selectedSpeakerId = 1
+                    selectedSpeakerId = 1,
                 ),
-                settingsState = GroupChatSettingsState(
-                    activationStrategy = GroupChatActivationStrategy.Natural
-                )
-            )
+                settingsState = GroupChatSettingsState(activationStrategy = GroupChatActivationStrategy.Natural),
+            ),
         )
     }
 }
 
 private val previewMembers = listOf(
-    GroupChatMemberItem(1, "Lyra", "", false),
-    GroupChatMemberItem(2, "Mina", "", false),
-    GroupChatMemberItem(3, "Rowan", "", true)
+    GroupChatMemberItem(id = 1, name = "Lyra", description = "", muted = false),
+    GroupChatMemberItem(id = 2, name = "Mina", description = "", muted = false),
+    GroupChatMemberItem(id = 3, name = "Rowan", description = "", muted = true),
 )
 
 private val previewMessages = listOf(
@@ -286,20 +283,20 @@ private val previewMessages = listOf(
         source = GroupChatMessageSource.User,
         speakerName = "You",
         content = "The signal is coming from the abandoned station.",
-        time = "21:04"
+        time = "21:04",
     ),
     GroupChatMessageItem(
         id = 2,
         source = GroupChatMessageSource.Character,
         speakerName = "Lyra",
         content = "Then we should approach quietly. Its navigation lights are still active.",
-        time = "21:04"
+        time = "21:04",
     ),
     GroupChatMessageItem(
         id = 3,
         source = GroupChatMessageSource.Character,
         speakerName = "Mina",
         content = "I will check the archive for its last registered crew.",
-        time = "21:05"
-    )
+        time = "21:05",
+    ),
 )

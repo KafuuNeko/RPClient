@@ -48,7 +48,8 @@ class Upgrade20260103(
      * SharedPreferences 删除天然幂等；同步提交确保方法返回时清理结果已经落盘。
      */
     override suspend fun cleanup() {
-        val committed = AppModel.preferences.edit()
+        val committed = AppModel
+            .preferences.edit()
             .remove(PREF_GLOBAL_SCRIPTS)
             .remove(PREF_PRESET_SCRIPTS)
             .remove(PREF_PRESET_AUTHORIZED)
@@ -65,13 +66,13 @@ class Upgrade20260103(
         val merged = mergeLegacyGlobalAndPreset(
             globalScripts = mRegexCodec.parseList(legacy.globalScriptsJson),
             presetScripts = mRegexCodec.parseList(legacy.presetScriptsJson),
-            presetAuthorized = legacy.presetAuthorized
+            presetAuthorized = legacy.presetAuthorized,
         )
         if (merged.isNotEmpty()) {
             mRegexDao.insertScripts(
-                merged.mapIndexed { index, script ->
+                scripts = merged.mapIndexed { index, script ->
                     script.toEntity(characterId = null, sortOrder = index, gson = mGson)
-                }
+                },
             )
         }
     }
@@ -83,26 +84,24 @@ class Upgrade20260103(
             if (mRegexDao.getCharacterScripts(character.id).isEmpty()) {
                 insertCharacterScripts(character.id, extraction.scripts)
             }
-            mCharacterDao.update(
-                character.copy(extensionsJson = extraction.extensionsJson)
-            )
+            mCharacterDao.update(data = character.copy(extensionsJson = extraction.extensionsJson))
         }
     }
 
     private suspend fun insertCharacterScripts(
         characterId: Long,
-        scripts: List<RegexScript>
+        scripts: List<RegexScript>,
     ) {
         val normalized = scripts.normalizeRegexScriptIds()
         if (normalized.isNotEmpty()) {
             mRegexDao.insertScripts(
-                normalized.mapIndexed { index, script ->
+                scripts = normalized.mapIndexed { index, script ->
                     script.toEntity(
                         characterId = characterId,
                         sortOrder = index,
-                        gson = mGson
+                        gson = mGson,
                     )
-                }
+                },
             )
         }
     }
@@ -122,17 +121,18 @@ class Upgrade20260103(
     private fun readLegacyRegexSnapshot(): LegacyRegexSnapshot {
         val preferences = AppModel.preferences
         val authorizedIds = runCatching {
-            JsonParser.parseString(
-                preferences.getString(PREF_AUTHORIZED_CHARACTER_IDS, "[]").orEmpty()
-            ).asJsonArray.mapNotNull { element ->
-                runCatching { element.asLong }.getOrNull()
-            }.toSet()
+            JsonParser.parseString(preferences.getString(PREF_AUTHORIZED_CHARACTER_IDS, "[]").orEmpty())
+                .asJsonArray
+                .mapNotNull { element ->
+                    runCatching { element.asLong }.getOrNull()
+                }
+                .toSet()
         }.getOrDefault(emptySet())
         return LegacyRegexSnapshot(
             globalScriptsJson = preferences.getString(PREF_GLOBAL_SCRIPTS, "[]").orEmpty(),
             presetScriptsJson = preferences.getString(PREF_PRESET_SCRIPTS, "[]").orEmpty(),
             presetAuthorized = preferences.getBoolean(PREF_PRESET_AUTHORIZED, false),
-            authorizedCharacterIds = authorizedIds
+            authorizedCharacterIds = authorizedIds,
         )
     }
 

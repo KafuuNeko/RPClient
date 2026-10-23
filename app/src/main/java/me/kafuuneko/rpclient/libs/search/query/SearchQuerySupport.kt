@@ -27,7 +27,15 @@ internal class SearchQuerySupport(database: AppDatabase) {
         if (!present || query.isBlank()) return@withContext present
         // 结果显示后正文可能被编辑；打开前按当前内容复核，防止定位到已经失效的片段。
         val current = if (hit.kind == 3 && hit.snippet.isEmpty()) sourceLabel(hit.kind, hit.sourceId, "")
-        else SearchTextCodec.project(mDao.readSearchText(SearchSource(kind = hit.kind, sourceId = hit.sourceId, parentId = hit.parentId)))
+        else SearchTextCodec.project(
+            text = mDao.readSearchText(
+                source = SearchSource(
+                    kind = hit.kind,
+                sourceId = hit.sourceId,
+                parentId = hit.parentId,
+                ),
+            ),
+        )
         SearchTextCodec.normalize(current).contains(SearchTextCodec.normalize(query))
     }
 
@@ -45,19 +53,25 @@ internal class SearchQuerySupport(database: AppDatabase) {
         while (true) {
             currentCoroutineContext().ensureActive()
             val rows = mDao.metadataBatch(
-                filterKind = request.kind.code, afterKind = kind, afterParentId = parent, afterSourceId = source, limit = 200
+                filterKind = request.kind.code,
+                afterKind = kind,
+                afterParentId = parent,
+                afterSourceId = source,
+                limit = 200,
             )
             for (row in rows) {
                 currentCoroutineContext().ensureActive()
-                val matched = (row.sourceId == 0L && SearchTextCodec.normalize(row.title).contains(query)) ||
-                    row.names.lineSequence().any { SearchTextCodec.normalize(it).contains(query) }
+                val matched = (row.sourceId == 0L && SearchTextCodec.normalize(row.title).contains(query))
+                    || row.names.lineSequence().any { SearchTextCodec.normalize(it).contains(query) }
                 if (matched) {
                     val hit = row.hit()
                     hits.putIfAbsent(hit.key, hit)
                 }
             }
             if (rows.size < 200) break
-            rows.last().let { kind = it.kind; parent = it.parentId; source = it.sourceId }
+            rows.last().let { searchObject -> kind = searchObject.kind
+            parent = searchObject.parentId
+            source = searchObject.sourceId }
         }
         return hits.values.sortedWith(mOrder)
     }
@@ -67,21 +81,45 @@ internal class SearchQuerySupport(database: AppDatabase) {
         val at = text.indexOf(query)
         if (at < 0) return null
         // 显示窗口按码点取边界，高亮使用 Compose 所需的 UTF-16 坐标。
-        val start = text.offsetByCodePoints(at, -minOf(40, text.codePointCount(0, at)))
+        val start = text.offsetByCodePoints(at, -minOf(a = 40, b = text.codePointCount(beginIndex = 0, endIndex = at)))
         val matchEnd = at + query.length
-        val end = text.offsetByCodePoints(matchEnd, minOf(80, text.codePointCount(matchEnd, text.length)))
-        return SearchHit(match.kind, match.parentId, match.title, match.names, match.latestTime,
-            match.sourceId, text.substring(start, end), at - start, matchEnd - start, match.sourceLabel)
+        val end = text.offsetByCodePoints(matchEnd, minOf(a = 80, b = text.codePointCount(matchEnd, text.length)))
+        return SearchHit(
+            kind = match.kind,
+            parentId = match.parentId,
+            title = match.title,
+            names = match.names,
+            latestTime = match.latestTime,
+            sourceId = match.sourceId,
+            snippet = text.substring(start, end),
+            matchStart = at - start,
+            matchEnd = matchEnd - start,
+            sourceLabel = match.sourceLabel,
+        )
     }
 
-    private fun SearchObject.hit(): SearchHit = SearchHit(kind, parentId, title, names, latestTime, sourceId)
+    private fun SearchObject.hit(): SearchHit = SearchHit(
+        kind = kind,
+        parentId = parentId,
+        title = title,
+        names = names,
+        latestTime = latestTime,
+        sourceId = sourceId,
+    )
 
     /** 从当前页尾生成阶段锚点，策略与管理会话由统一入口补齐。 */
     fun SearchHit.cursor(revision: Long, phase: Int): SearchCursor =
-        SearchCursor(revision, phase, latestTime, kind, parentId, sourceId)
+        SearchCursor(
+            revision = revision,
+            phase = phase,
+            time = latestTime,
+            kind = kind,
+            id = parentId,
+            sourceId = sourceId,
+        )
 
     /** 对象级稳定排序边界；对象内的源 ID 边界由正文策略补充。 */
-    fun after(hit: SearchHit, cursor: SearchCursor?): Boolean = cursor == null ||
-        hit.latestTime < cursor.time || (hit.latestTime == cursor.time && hit.kind > cursor.kind) ||
-        (hit.latestTime == cursor.time && hit.kind == cursor.kind && hit.parentId < cursor.id)
+    fun after(hit: SearchHit, cursor: SearchCursor?): Boolean = cursor == null
+        || hit.latestTime < cursor.time || (hit.latestTime == cursor.time && hit.kind > cursor.kind)
+        || (hit.latestTime == cursor.time && hit.kind == cursor.kind && hit.parentId < cursor.id)
 }

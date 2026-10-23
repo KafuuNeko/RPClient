@@ -2,17 +2,17 @@ package me.kafuuneko.rpclient.libs.media
 
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.asImageBitmap
-import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
-import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import java.util.UUID
 
 /**
  * 每个聊天 ViewModel 独占的图片交互协调器。
@@ -89,8 +89,8 @@ class MessageImageCoordinator(
      *
      * @return 按编辑顺序排列的已有附件和新增暂存附件。
      */
-    fun editingInputs(): List<MessageImageInput> = state.editing.map {
-        mPrepared[it]?.let(MessageImageInput::Prepared) ?: MessageImageInput.Existing(it)
+    fun editingInputs(): List<MessageImageInput> = state.editing.map { text ->
+        mPrepared[text]?.let(MessageImageInput::Prepared) ?: MessageImageInput.Existing(text)
     }
 
     /**
@@ -110,17 +110,19 @@ class MessageImageCoordinator(
             return mRuntime.submit(inputs) { finalInputs ->
                 val result = commit(finalInputs)
                 // 回调处于不可取消的提交收尾中；清除原草稿缩略图，历史改用最终文件 UUID。
-                ids.forEach { mPrepared.remove(it) }
+                ids.forEach { text -> mPrepared.remove(text) }
                 if (editing) {
                     mEditingActive = false
                     mEditingVersion++
                 }
-                publish(state.copy(
-                    draft = if (editing) state.draft else emptyList(),
-                    editing = if (editing) emptyList() else state.editing,
-                    thumbnails = state.thumbnails - ids.toSet(),
-                    preview = state.preview?.takeUnless { preview -> preview.ids.any { it in ids } }
-                ))
+                publish(
+                    value = state.copy(
+                        draft = if (editing) state.draft else emptyList(),
+                        editing = if (editing) emptyList() else state.editing,
+                        thumbnails = state.thumbnails - ids.toSet(),
+                        preview = state.preview?.takeUnless { preview -> preview.ids.any { text -> text in ids } },
+                    ),
+                )
                 result
             }
         } finally {
@@ -147,7 +149,7 @@ class MessageImageCoordinator(
         mEditingVersion++
         if (mProcessingEditing) cancelProcessing()
         state.editing.filter { it !in state.draft }.forEach { uuid ->
-            mPrepared.remove(uuid)?.let { mFiles.releasePrepared(it) }
+            mPrepared.remove(uuid)?.let { preparedFile -> mFiles.releasePrepared(preparedFile) }
         }
         publish(state.copy(editing = emptyList()))
     }
@@ -179,8 +181,11 @@ class MessageImageCoordinator(
      * @param action 页面发出的图片操作。
      */
     suspend fun handle(action: MessageImageAction) {
-        if (state.submitting && (action is MessageImageAction.Picked ||
-                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
+        val shouldBlockDraftMutation = state.submitting
+            && (action is MessageImageAction.Picked
+            || action is MessageImageAction.Remove
+            || action is MessageImageAction.Move)
+        if (shouldBlockDraftMutation) return
         try {
             // 暂存、历史加载与图片保存走同一个受控资源入口，页面不直接读取文件。
             when (action) {
@@ -200,8 +205,8 @@ class MessageImageCoordinator(
                 is MessageImageAction.Move -> move(action)
                 is MessageImageAction.Preview -> preview(action)
                 MessageImageAction.ClosePreview -> publish(state.copy(preview = null))
-                is MessageImageAction.SaveResult -> mSaveUuid?.let {
-                    mRuntime.save(it, action.uri, mPrepared[it])
+                is MessageImageAction.SaveResult -> mSaveUuid?.let { text ->
+                    mRuntime.save(text, action.uri, mPrepared[text])
                     mSaveUuid = null
                 }
                 else -> Unit
@@ -252,8 +257,11 @@ class MessageImageCoordinator(
             for (uri in action.uris) {
                 val prepared = mRuntime.prepare(mOwner, uri)
                 // 旧任务即使迟到返回，也只能释放资源，不能把 A 的图片交给 B 或新草稿。
-                if (processingVersion != mProcessingVersion ||
-                    (editing && (!mEditingActive || editingVersion != mEditingVersion))) {
+                val isPreparedImageOutdated = processingVersion != mProcessingVersion
+                    || (editing
+                    && (!mEditingActive
+                    || editingVersion != mEditingVersion))
+                if (isPreparedImageOutdated) {
                     mFiles.releasePrepared(prepared)
                     return
                 }
@@ -311,7 +319,7 @@ class MessageImageCoordinator(
         publish(state.copy(preview = preview))
         try {
             // 解码期间允许其他图片操作，返回时只更新本次仍可见的预览。
-            val bitmap = mRuntime.load(uuid, mPrepared[uuid], 3072)
+            val bitmap = mRuntime.load(uuid = uuid, prepared = mPrepared[uuid], longEdge = 3072)
             if (state.preview === preview) {
                 publish(state.copy(preview = preview.copy(bitmap = bitmap?.asImageBitmap(), loading = false)))
             }
@@ -330,8 +338,10 @@ class MessageImageCoordinator(
      */
     private suspend fun remove(action: MessageImageAction.Remove) {
         mPrepared.remove(action.uuid)?.let { mFiles.releasePrepared(it) }
-        publish(if (action.editing) state.copy(editing = state.editing - action.uuid)
-            else state.copy(draft = state.draft - action.uuid))
+        publish(
+            value = if (action.editing) state.copy(editing = state.editing - action.uuid)
+            else state.copy(draft = state.draft - action.uuid),
+        )
     }
 
     /**
@@ -345,7 +355,7 @@ class MessageImageCoordinator(
         state = value.copy(
             thumbnails = value.thumbnails - removable.take(excess).toSet(),
             canAddDraft = value.draft.size < MessageImagePolicy.MAX_IMAGES_PER_MESSAGE,
-            canAddEditing = value.editing.size < MessageImagePolicy.MAX_IMAGES_PER_MESSAGE
+            canAddEditing = value.editing.size < MessageImagePolicy.MAX_IMAGES_PER_MESSAGE,
         )
         mChanged(state)
     }

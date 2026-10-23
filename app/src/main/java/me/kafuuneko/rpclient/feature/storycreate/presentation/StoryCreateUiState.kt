@@ -42,6 +42,8 @@ sealed class StoryCreateUiState {
 /** 新建 Story 页面的加载和提交状态。 */
 sealed class StoryCreateLoadState {
     data object Loading : StoryCreateLoadState()
+
     data object Ready : StoryCreateLoadState()
+
     data object Creating : StoryCreateLoadState()
 }

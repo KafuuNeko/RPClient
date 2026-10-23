@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.worldbookedit.WorldBookEditActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.model.WorldBookListItem
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListDialogState
@@ -15,13 +15,12 @@ import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListLoa
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListViewEvent
+import me.kafuuneko.rpclient.libs.character.CharacterBookImport
+import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.character.CharacterBookImport
-import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.R
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -90,7 +89,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
             activity = WorldBookEditActivity::class.java,
             extras = Bundle().apply {
                 putLong(WorldBookEditActivity.EXTRA_LOREBOOK_ID, intent.lorebookId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -105,7 +104,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
             lorebooks.map { lorebook ->
                 WorldBookListItem.from(
                     lorebook = lorebook,
-                    entryCount = entryCounts[lorebook.id] ?: 0
+                    entryCount = entryCounts[lorebook.id] ?: 0,
                 )
             }
         }
@@ -115,7 +114,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         // 更新世界书列表并解除加载状态
         current.copy(
             loadState = WorldBookListLoadState.None,
-            lorebooks = items
+            lorebooks = items,
         ).setup()
     }
 
@@ -156,8 +155,8 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
                     getOrNull<WorldBookListUiState.Normal>()?.copy(
                         loadState = WorldBookListLoadState.None,
                         dialogState = WorldBookListDialogState.LowTokenBudgetConfirm(
-                            importedTokenBudget = parsed.lorebook.tokenBudget
-                        )
+                            importedTokenBudget = parsed.lorebook.tokenBudget,
+                        ),
                     )?.setup()
                 } else {
                     // 直接执行数据库入库
@@ -203,7 +202,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         // 关闭弹窗并重置为加载中状态
         uiState.copy(
             loadState = WorldBookListLoadState.Loading,
-            dialogState = WorldBookListDialogState.None
+            dialogState = WorldBookListDialogState.None,
         ).setup()
         mTransferJob = viewModelScope.launch {
             try {
@@ -235,7 +234,7 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         val lorebook = uiState.lorebooks.firstOrNull { it.id == intent.lorebookId } ?: return
         WorldBookListViewEvent.OpenWorldBookExporter(
             lorebookId = intent.lorebookId,
-            fileName = "${lorebook.name.ifBlank { "worldbook" }}.json"
+            fileName = "${lorebook.name.ifBlank { "worldbook" }}.json",
         ).tryEmit()
     }
 

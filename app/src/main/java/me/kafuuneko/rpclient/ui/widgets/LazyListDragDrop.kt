@@ -43,12 +43,12 @@ class LazyListDragDropState internal constructor(
     private val mOnMove: (fromKey: Any, toKey: Any) -> Unit,
     private val mOnDragEnd: () -> Unit = {},
 ) {
-    var draggingItemKey by mutableStateOf<Any?>(null)
+    var draggingItemKey by mutableStateOf<Any?>(value = null)
         private set
 
     internal val draggingItemIndex: Int?
         get() = draggingItemKey?.let { key ->
-            mState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index
+            mState.layoutInfo.visibleItemsInfo.firstOrNull { lazyListItemInfo -> lazyListItemInfo.key == key }?.index
         }
 
     internal val scrollChannel = Channel<Float>()
@@ -63,10 +63,10 @@ class LazyListDragDropState internal constructor(
 
     private val mDraggingItemLayoutInfo: LazyListItemInfo?
         get() = draggingItemKey?.let { key ->
-            mState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
+            mState.layoutInfo.visibleItemsInfo.firstOrNull { lazyListItemInfo -> lazyListItemInfo.key == key }
         }
 
-    internal var previousKeyOfDraggedItem by mutableStateOf<Any?>(null)
+    internal var previousKeyOfDraggedItem by mutableStateOf<Any?>(value = null)
         private set
 
     internal var previousItemOffset = Animatable(Offset.Zero, Offset.VectorConverter)
@@ -75,9 +75,9 @@ class LazyListDragDropState internal constructor(
     internal fun onDragStart(offset: Offset) {
         mState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
             offset.y.toInt() in item.offset..(item.offset + item.size)
-        }?.takeIf { mIsItemDraggable(it.key) }?.also {
-            draggingItemKey = it.key
-            mDraggingItemInitialOffset = it.offset.toFloat()
+        }?.takeIf { mIsItemDraggable(it.key) }?.also { lazyListItemInfo ->
+            draggingItemKey = lazyListItemInfo.key
+            mDraggingItemInitialOffset = lazyListItemInfo.offset.toFloat()
             mDraggingItemDraggedDelta = 0f
         }
     }
@@ -88,10 +88,10 @@ class LazyListDragDropState internal constructor(
             previousKeyOfDraggedItem = draggingItemKey
             val startOffset = draggingItemOffset
             mScope.launch {
-                previousItemOffset.snapTo(Offset(0f, startOffset))
+                previousItemOffset.snapTo(Offset(x = 0f, y = startOffset))
                 previousItemOffset.animateTo(
-                    Offset.Zero,
-                    spring(
+                    targetValue = Offset.Zero,
+                    animationSpec = spring(
                         stiffness = Spring.StiffnessMediumLow,
                         visibilityThreshold = Offset.VisibilityThreshold,
                     ),
@@ -133,12 +133,12 @@ class LazyListDragDropState internal constructor(
 
         if (targetItem != null) {
             if (
-                draggingItem.index == mState.firstVisibleItemIndex ||
-                targetItem.index == mState.firstVisibleItemIndex
+                draggingItem.index == mState.firstVisibleItemIndex
+                || targetItem.index == mState.firstVisibleItemIndex
             ) {
                 mState.requestScrollToItem(
-                    mState.firstVisibleItemIndex,
-                    mState.firstVisibleItemScrollOffset,
+                    index = mState.firstVisibleItemIndex,
+                    scrollOffset = mState.firstVisibleItemScrollOffset,
                 )
             }
             mOnMove(draggingItem.key, targetItem.key)
@@ -190,7 +190,7 @@ fun rememberLazyListDragDropState(
             mIsItemDraggable = { key -> currentIsItemDraggable.value(key) },
             mIsItemDropTarget = { key -> currentIsItemDropTarget.value(key) },
             mOnMove = { fromKey, toKey -> currentOnMove.value(fromKey, toKey) },
-            mOnDragEnd = { currentOnDragEnd.value() }
+            mOnDragEnd = { currentOnDragEnd.value() },
         )
     }
     // 拖到视口边缘时串行消费滚动距离，避免为每次指针事件创建独立协程。
@@ -233,13 +233,13 @@ fun LazyItemScope.DraggableItem(
     val dragging = key == dragDropState.draggingItemKey
     val draggingModifier = if (dragging) {
         Modifier
-            .zIndex(1f)
+            .zIndex(zIndex = 1f)
             .graphicsLayer {
                 translationY = dragDropState.draggingItemOffset
             }
     } else if (key == dragDropState.previousKeyOfDraggedItem) {
         Modifier
-            .zIndex(1f)
+            .zIndex(zIndex = 1f)
             .graphicsLayer {
                 translationY = dragDropState.previousItemOffset.value.y
             }

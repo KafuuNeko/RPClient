@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.feature.promptpreset.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,23 +12,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,14 +30,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptType
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
@@ -61,18 +50,17 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 /** Prompt 预设列表与编辑对话框的 Compose 入口。 */
 @Composable
 fun PromptPresetLayout(
     uiState: PromptPresetUiState,
-    emit: PromptPresetUiIntent.() -> Unit = {}
+    emit: PromptPresetUiIntent.() -> Unit = {},
 ) {
-    BackHandler(enabled = uiState is PromptPresetUiState.Normal) { PromptPresetUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is PromptPresetUiState.Normal, onBack = { PromptPresetUiIntent.Back.emit() })
     when (uiState) {
         PromptPresetUiState.None -> Unit
-        is PromptPresetUiState.Finished -> PromptPresetLayout(uiState.previous) {}
+        is PromptPresetUiState.Finished -> PromptPresetLayout(uiState = uiState.previous, emit = {})
         is PromptPresetUiState.Normal -> {
             NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -83,51 +71,52 @@ fun PromptPresetLayout(
 @Composable
 private fun NormalView(
     uiState: PromptPresetUiState.Normal,
-    emit: PromptPresetUiIntent.() -> Unit
+    emit: PromptPresetUiIntent.() -> Unit,
 ) {
     AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.prompt_preset_title),
-                onBack = { PromptPresetUiIntent.Back.emit() }
+                onBack = { PromptPresetUiIntent.Back.emit() },
             )
-        }
-    ) { paddingValues ->
-        RpLazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .background(pageCanvasColor()),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 18.dp,
-                end = 18.dp,
-                bottom = 32.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            promptGroups.forEach { group ->
-                item {
-                    RpSectionHeader(title = stringResource(group.titleRes))
-                }
-                group.types.forEach { type ->
+        },
+        content = { paddingValues ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .background(pageCanvasColor()),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 18.dp,
+                    end = 18.dp,
+                    bottom = 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                promptGroups.forEach { group ->
                     item {
-                        PromptCard(
-                            icon = type.icon(),
-                            title = stringResource(type.titleRes()),
-                            description = stringResource(type.descriptionRes()),
-                            promptPreview = uiState.promptValues[type].orEmpty(),
-                            onClick = { PromptPresetUiIntent.EditPromptClick(type).emit() }
-                        )
+                        RpSectionHeader(title = stringResource(group.titleRes))
+                    }
+                    group.types.forEach { type ->
+                        item {
+                            PromptCard(
+                                icon = type.icon(),
+                                title = stringResource(type.titleRes()),
+                                description = stringResource(type.descriptionRes()),
+                                promptPreview = uiState.promptValues[type].orEmpty(),
+                                onClick = { PromptPresetUiIntent.EditPromptClick(type).emit() },
+                            )
+                        }
                     }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -136,31 +125,31 @@ private fun PromptCard(
     title: String,
     description: String,
     promptPreview: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // 标题行
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppSurface(
                     modifier = Modifier.size(38.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -170,19 +159,19 @@ private fun PromptCard(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
                     )
                 }
                 Icon(
                     imageVector = Icons.Rounded.ChevronRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
@@ -193,23 +182,23 @@ private fun PromptCard(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        if (hasContent)
+                        color = if (hasContent)
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
                         else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     )
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 Text(
                     text = if (hasContent)
-                        promptPreview.take(120).let { if (promptPreview.length > 120) "$it..." else it }
+                        promptPreview.take(120).let { text -> if (promptPreview.length > 120) "$text..." else text }
                     else
                         stringResource(R.string.prompt_empty_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (hasContent)
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
                     else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
             }
 
@@ -217,18 +206,18 @@ private fun PromptCard(
             Row(
                 modifier = Modifier.align(Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
                 Text(
                     text = stringResource(R.string.prompt_edit_hint),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -246,8 +235,8 @@ private val promptGroups = listOf(
         types = listOf(
             PromptType.Main,
             PromptType.Auxiliary,
-            PromptType.PostHistory
-        )
+            PromptType.PostHistory,
+        ),
     ),
     PromptGroup(
         titleRes = R.string.prompt_utility_section,
@@ -258,8 +247,8 @@ private val promptGroups = listOf(
             PromptType.ContinueNudge,
             PromptType.ReplaceEmptyMessage,
             PromptType.GroupNudge,
-            PromptType.NewGroupChat
-        )
+            PromptType.NewGroupChat,
+        ),
     ),
     PromptGroup(
         titleRes = R.string.prompt_story_section,
@@ -269,8 +258,8 @@ private val promptGroups = listOf(
             PromptType.StorySummary,
             PromptType.StorySummarize,
             PromptType.StoryContinuationGuidance,
-            PromptType.StoryContinue
-        )
+            PromptType.StoryContinue,
+        ),
     ),
     PromptGroup(
         titleRes = R.string.prompt_format_section,
@@ -278,17 +267,17 @@ private val promptGroups = listOf(
             PromptType.WorldInfoFormat,
             PromptType.ScenarioFormat,
             PromptType.PersonalityFormat,
-            PromptType.UserPersonaFormat
-        )
+            PromptType.UserPersonaFormat,
+        ),
     ),
     PromptGroup(
         titleRes = R.string.prompt_summary_section,
         types = listOf(
             PromptType.Summarize,
             PromptType.GroupSummarize,
-            PromptType.SummaryInjection
-        )
-    )
+            PromptType.SummaryInjection,
+        ),
+    ),
 )
 
 private fun PromptType.icon(): ImageVector {
@@ -362,7 +351,7 @@ private fun PromptType.descriptionRes(): Int {
 @Composable
 private fun DialogSwitch(
     dialogState: PromptPresetDialogState,
-    emit: PromptPresetUiIntent.() -> Unit
+    emit: PromptPresetUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         is PromptPresetDialogState.None -> Unit
@@ -371,7 +360,7 @@ private fun DialogSwitch(
             onDismiss = { PromptPresetUiIntent.DismissPromptDialog.emit() },
             onChange = { PromptPresetUiIntent.ChangePromptDraft(it).emit() },
             onCopy = { PromptPresetUiIntent.CopyPromptDraft.emit() },
-            onSave = { PromptPresetUiIntent.SavePrompt.emit() }
+            onSave = { PromptPresetUiIntent.SavePrompt.emit() },
         )
     }
 }
@@ -382,7 +371,7 @@ private fun EditPromptDialog(
     onDismiss: () -> Unit,
     onChange: (String) -> Unit,
     onCopy: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
 ) {
     AppPromptEditorDialog(
         onDismissRequest = onDismiss,
@@ -395,7 +384,7 @@ private fun EditPromptDialog(
         defaultValue = dialogState.defaultText,
         availableMacros = dialogState.availableMacros,
         onCopyRequest = { onCopy() },
-        onConfirm = onSave
+        onConfirm = onSave,
     )
 }
 
@@ -408,9 +397,9 @@ private fun PromptPresetLayoutPreview() {
                 promptValues = mapOf(
                     PromptType.Main to "You are a creative roleplay assistant. Stay in character and respond naturally...",
                     PromptType.Summarize to "",
-                    PromptType.SummaryInjection to "Story memory:\n{{summary}}"
-                )
-            )
+                    PromptType.SummaryInjection to "Story memory:\n{{summary}}",
+                ),
+            ),
         )
     }
 }

@@ -32,7 +32,7 @@ sealed class MainUiState {
 
 internal fun MainUiState.Normal.mergeResumeRefresh(
     homeState: MainHomeState,
-    settingsState: MainSettingsState
+    settingsState: MainSettingsState,
 ): MainUiState.Normal {
     return copy(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
@@ -40,16 +40,14 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
             chatDataManagementState = this.settingsState.chatDataManagementState,
             // 恢复页面的读取可能挂起，索引进度以订阅期间收到的最新状态为准。
             searchIndexState = this.settingsState.searchIndexState,
-            summaryState = settingsState.summaryState.copy(
-                selectedTab = this.settingsState.summaryState.selectedTab
-            )
-        )
+            summaryState = settingsState.summaryState.copy(selectedTab = this.settingsState.summaryState.selectedTab),
+        ),
     )
 }
 
 internal fun MainUiState.Normal.canOpenDialog(): Boolean {
-    return dialogState == MainDialogState.None &&
-        settingsState.chatDataManagementState == MainChatDataManagementState.Idle
+    return dialogState == MainDialogState.None
+        && settingsState.chatDataManagementState == MainChatDataManagementState.Idle
 }
 
 /** 首页互斥显示的确认对话框。 */
@@ -115,12 +113,13 @@ sealed class MainDialogState {
 /** 首页底部导航对应的一级页面。 */
 enum class MainPage {
     Home,
+
     Settings
 }
 
 /** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
 internal fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
-    provider: LLMProvider
+    provider: LLMProvider,
 ): Boolean {
     val value = draftValue.toIntOrNull() ?: return false
     return when (parameter) {

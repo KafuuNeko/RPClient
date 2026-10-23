@@ -81,8 +81,11 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         val uri = mRestoreUri ?: return
         if (state.busy || state.dialog != BackupDialogState.ConfirmRestore) return
         mRestoreUri = null
-        state.copy(operation = BackupOperation.Restoring, status = R.string.backup_working,
-            dialog = BackupDialogState.None).setup()
+        state.copy(
+            operation = BackupOperation.Restoring,
+            status = R.string.backup_working,
+            dialog = BackupDialogState.None,
+        ).setup()
         viewModelScope.launch {
             // 数据库替换完成后必须发出重启事件，不能恢复成可继续操作的空闲页。
             withContext(NonCancellable) {
@@ -125,8 +128,10 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
 
     /** 关闭数据库后的终态只等待宿主重启，不再接受业务输入。 */
     private fun requireRestart() {
-        BackupRestoreUiState.Normal(operation = BackupOperation.Restarting,
-            status = R.string.backup_restarting).setup()
+        BackupRestoreUiState.Normal(
+            operation = BackupOperation.Restarting,
+            status = R.string.backup_restarting,
+        ).setup()
         BackupRestoreViewEvent.RestartApp.tryEmit()
     }
 }

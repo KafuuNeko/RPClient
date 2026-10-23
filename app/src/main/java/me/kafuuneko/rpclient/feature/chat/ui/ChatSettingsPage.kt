@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
@@ -84,76 +83,83 @@ internal fun ChatSettingsPage(
     session: ChatSessionItem,
     lorebookState: ChatLorebookState,
     loadState: ChatLoadState,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     // 沿用会话和世界书状态节点，各设置项继续发送原有意图。
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
             title = stringResource(R.string.chat_settings),
-            onBack = { ChatUiIntent.CloseChatSettings.emit() }
+            onBack = { ChatUiIntent.CloseChatSettings.emit() },
         )
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                    insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                 ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
                     MenuAction(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.regenerate_latest_reply),
-                        subtitle = stringResource(R.string.regenerate_latest_reply_desc)
-                    ) { ChatUiIntent.RegenerateLast.emit() }
+                        subtitle = stringResource(R.string.regenerate_latest_reply_desc),
+                        onClick = { ChatUiIntent.RegenerateLast.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.continue_latest_reply),
-                        subtitle = stringResource(R.string.continue_latest_reply_desc)
-                    ) { ChatUiIntent.ContinueLast.emit() }
+                        subtitle = stringResource(R.string.continue_latest_reply_desc),
+                        onClick = { ChatUiIntent.ContinueLast.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.Edit,
                         title = stringResource(R.string.impersonate_user),
-                        subtitle = stringResource(R.string.impersonate_user_desc)
-                    ) { ChatUiIntent.ImpersonateUser.emit() }
+                        subtitle = stringResource(R.string.impersonate_user_desc),
+                        onClick = { ChatUiIntent.ImpersonateUser.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.summarize_now),
-                        subtitle = stringResource(R.string.summarize_now_desc)
-                    ) { ChatUiIntent.SummarizeNow.emit() }
+                        subtitle = stringResource(R.string.summarize_now_desc),
+                        onClick = { ChatUiIntent.SummarizeNow.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.restore_previous_summary),
-                        subtitle = stringResource(R.string.restore_previous_summary_desc)
-                    ) { ChatUiIntent.RestorePreviousSummary.emit() }
+                        subtitle = stringResource(R.string.restore_previous_summary_desc),
+                        onClick = { ChatUiIntent.RestorePreviousSummary.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.FileUpload,
                         title = stringResource(R.string.export_chat),
                         subtitle = stringResource(R.string.export_chat_desc),
-                        enabled = loadState == ChatLoadState.None
-                    ) { ChatUiIntent.ExportChatClick.emit() }
+                        enabled = loadState == ChatLoadState.None,
+                        onClick = { ChatUiIntent.ExportChatClick.emit() },
+                    )
                     MenuAction(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.delete_chat_title),
                         subtitle = stringResource(R.string.delete_chat_desc),
                         iconTint = MaterialTheme.colorScheme.error,
-                        enabled = loadState == ChatLoadState.None
-                    ) { ChatUiIntent.DeleteSessionClick.emit() }
+                        enabled = loadState == ChatLoadState.None,
+                        onClick = { ChatUiIntent.DeleteSessionClick.emit() },
+                    )
                 }
             }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
                     SummaryPauseRow(
                         paused = session.autoSummaryPaused,
-                        onPausedChange = {
-                            ChatUiIntent.ToggleAutoSummaryPaused(it).emit()
-                        }
+                        onPausedChange = { enabled ->
+                            ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
+                        },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.title),
@@ -161,7 +167,7 @@ internal fun ChatSettingsPage(
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { ChatUiIntent.SaveTitle(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveTitle(text).emit() },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.current_summary),
@@ -169,7 +175,7 @@ internal fun ChatSettingsPage(
                         placeholder = stringResource(R.string.no_summary_yet),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { ChatUiIntent.SaveSummary(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveSummary(text).emit() },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.user_note),
@@ -177,7 +183,7 @@ internal fun ChatSettingsPage(
                         placeholder = stringResource(R.string.empty),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { ChatUiIntent.SaveUserNote(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveUserNote(text).emit() },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.user_display_name),
@@ -185,7 +191,7 @@ internal fun ChatSettingsPage(
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { ChatUiIntent.SaveUserName(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveUserName(text).emit() },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.user_persona_description),
@@ -193,7 +199,7 @@ internal fun ChatSettingsPage(
                         placeholder = stringResource(R.string.empty),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { ChatUiIntent.SaveUserDescription(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveUserDescription(text).emit() },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.creator_notes),
@@ -201,7 +207,7 @@ internal fun ChatSettingsPage(
                         placeholder = stringResource(R.string.using_character_default_or_empty),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { ChatUiIntent.SaveCreatorNotes(it).emit() }
+                        onSave = { text -> ChatUiIntent.SaveCreatorNotes(text).emit() },
                     )
                 }
             }
@@ -210,13 +216,14 @@ internal fun ChatSettingsPage(
                     MenuAction(
                         icon = Icons.AutoMirrored.Rounded.MenuBook,
                         title = stringResource(R.string.world_book_manager),
-                        subtitle = stringResource(R.string.world_book_subtitle)
-                    ) { ChatUiIntent.OpenWorldBookManager.emit() }
+                        subtitle = stringResource(R.string.world_book_subtitle),
+                        onClick = { ChatUiIntent.OpenWorldBookManager.emit() },
+                    )
                     SessionLoreSettings(
                         groups = lorebookState.groups,
                         visibleGroups = lorebookState.visibleGroups,
                         query = lorebookState.query,
-                        emit = emit
+                        emit = emit,
                     )
                 }
             }
@@ -229,7 +236,7 @@ private fun SessionLoreGroup(
     group: ChatLorebookGroupItem,
     expanded: Boolean,
     onExpandedChange: () -> Unit,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     // 分组标题独立控制展开，条目操作继续通过原有意图回传。
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -237,14 +244,14 @@ private fun SessionLoreGroup(
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 44.dp)
-                .clickable { onExpandedChange() },
-            verticalAlignment = Alignment.CenterVertically
+                .clickable(onClick = { onExpandedChange() }),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpIconBubble(
                 icon = Icons.AutoMirrored.Rounded.MenuBook,
                 size = 32.dp,
                 iconSize = 17.dp,
-                shape = RoundedCornerShape(10.dp)
+                shape = RoundedCornerShape(10.dp),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -252,28 +259,28 @@ private fun SessionLoreGroup(
                     text = group.lorebookName,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    stringResource(
+                    text = stringResource(
                         R.string.enabled_entries_count,
                         group.enabledCount,
-                        group.totalCount
+                        group.totalCount,
                     ),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f),
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Switch(
                 checked = group.isAllEnabled,
-                onCheckedChange = { ChatUiIntent.ToggleSessionLorebook(group.lorebookId).emit() }
+                onCheckedChange = { ChatUiIntent.ToggleSessionLorebook(group.lorebookId).emit() },
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
             )
         }
         if (expanded) {
@@ -287,29 +294,29 @@ private fun SessionLoreGroup(
 @Composable
 private fun SessionLoreEntryRow(
     entry: ChatLorebookEntryItem,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     // 条目启用状态来自会话配置，开关继续发送条目切换意图。
     Row(verticalAlignment = Alignment.CenterVertically) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
-                style = MaterialTheme.typography.titleSmall
+                text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                style = MaterialTheme.typography.titleSmall,
             )
             Text(
-                entry.lorebookName,
+                text = entry.lorebookName,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.54f),
             )
             RpTagRow(
                 tags = entry.displayTags(stringResource(R.string.entry_constant)),
-                maxCount = 2
+                maxCount = 2,
             )
         }
         Switch(
             checked = entry.enabled,
-            onCheckedChange = { ChatUiIntent.ToggleSessionLoreEntry(entry.id).emit() }
+            onCheckedChange = { ChatUiIntent.ToggleSessionLoreEntry(entry.id).emit() },
         )
     }
 }
@@ -324,11 +331,13 @@ private fun ChatLorebookEntryItem.displayTags(constantLabel: String): List<Strin
 @Composable
 private fun LorebookSearchField(
     query: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
 ) {
     // 查询内容由页面状态持有，清空按钮沿用同一修改回调。
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
@@ -336,41 +345,41 @@ private fun LorebookSearchField(
                 text = stringResource(R.string.search_world_books),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         },
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.clear_search)
+                        contentDescription = stringResource(R.string.clear_search),
                     )
                 }
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
 @Composable
 private fun SummaryPauseRow(
     paused: Boolean,
-    onPausedChange: (Boolean) -> Unit
+    onPausedChange: (Boolean) -> Unit,
 ) {
     // 暂停状态由会话配置提供，开关只回传用户操作。
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.pause_auto_summary),
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
             )
             Text(
                 text = stringResource(R.string.pause_auto_summary_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
             )
         }
         Switch(checked = paused, onCheckedChange = onPausedChange)
@@ -382,7 +391,7 @@ private fun SessionLoreSettings(
     groups: List<ChatLorebookGroupItem>,
     visibleGroups: List<ChatLorebookGroupItem>,
     query: String,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     // 搜索期间自动展开匹配分组，手动展开集合仍保留在当前组合中。
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
@@ -391,19 +400,19 @@ private fun SessionLoreSettings(
     if (groups.isEmpty()) {
         Text(
             text = stringResource(R.string.no_world_book_entries),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         return
     }
 
     LorebookSearchField(
         query = query,
-        onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() }
+        onQueryChange = { ChatUiIntent.ChangeLorebookQuery(it).emit() },
     )
     if (visibleGroups.isEmpty()) {
         Text(
             text = stringResource(R.string.no_world_book_search_results),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
     visibleGroups.forEach { group ->
@@ -414,7 +423,7 @@ private fun SessionLoreSettings(
             onExpandedChange = {
                 expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
             },
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -422,21 +431,21 @@ private fun SessionLoreSettings(
 @Composable
 private fun SettingsSection(
     title: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     // 分区沿用统一表面和内容间距，避免拆分文件改变设置页外观。
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         ),
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             RpSectionHeader(title = title)
             content()
@@ -452,7 +461,7 @@ private fun AutoSaveTextField(
     minLines: Int,
     maxLines: Int,
     singleLine: Boolean = false,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
 ) {
     // 编辑草稿和焦点保留在字段内部，外部值同步与防抖保存沿用原有时序。
     var text by remember(label) { mutableStateOf(value) }
@@ -466,7 +475,7 @@ private fun AutoSaveTextField(
 
     LaunchedEffect(text, value) {
         if (text != value) {
-            delay(450)
+            delay(timeMillis = 450)
             onSave(text)
         }
     }
@@ -477,7 +486,7 @@ private fun AutoSaveTextField(
     RpScrollableOutlinedTextField(
         modifier = Modifier
             .fillMaxWidth()
-            .onFocusChanged { isFocused = it.isFocused },
+            .onFocusChanged(onFocusChanged = { isFocused = it.isFocused }),
         value = text,
         onValueChange = { text = it },
         label = { Text(label) },
@@ -485,7 +494,7 @@ private fun AutoSaveTextField(
         minLines = minLines,
         maxLines = maxLines,
         singleLine = singleLine,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
@@ -496,39 +505,39 @@ private fun MenuAction(
     subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     // 整行点击遵循同一可用状态，并同步呈现禁用颜色。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onClick() },
+            .clickable(enabled = enabled, onClick = { onClick() }),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                icon,
+                imageVector = icon,
                 contentDescription = null,
-                tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    title,
+                    text = title,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.38f
-                    )
+                        alpha = 0.38f,
+                    ),
                 )
                 if (!subtitle.isNullOrBlank()) {
                     Text(
-                        subtitle,
+                        text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.58f else 0.38f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.58f else 0.38f),
                     )
                 }
             }

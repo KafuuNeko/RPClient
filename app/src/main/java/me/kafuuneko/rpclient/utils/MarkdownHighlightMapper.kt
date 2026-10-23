@@ -26,7 +26,7 @@ internal object MarkdownHighlightMapper {
     fun findRanges(
         blocks: List<MarkdownBlock>,
         highlightedText: String?,
-        occurrenceIndex: Int = 0
+        occurrenceIndex: Int = 0,
     ): List<MarkdownHighlightRange> {
         if (highlightedText.isNullOrBlank()) return emptyList()
 
@@ -60,7 +60,7 @@ internal object MarkdownHighlightMapper {
                 blockIndex = start.blockIndex,
                 listItemIndex = start.listItemIndex,
                 start = start.start,
-                endExclusive = activeEnd
+                endExclusive = activeEnd,
             )
             active = null
             activeEnd = -1
@@ -73,12 +73,11 @@ internal object MarkdownHighlightMapper {
                 continue
             }
             val current = active
-            if (
-                current != null &&
-                current.blockIndex == location.blockIndex &&
-                current.listItemIndex == location.listItemIndex &&
-                location.start == activeEnd
-            ) {
+            val continuesActiveRange = current != null
+                && current.blockIndex == location.blockIndex
+                && current.listItemIndex == location.listItemIndex
+                && location.start == activeEnd
+            if (continuesActiveRange) {
                 activeEnd = location.endExclusive
             } else {
                 flush()
@@ -135,19 +134,37 @@ internal object MarkdownHighlightMapper {
             blocks.forEachIndexed { blockIndex, block ->
                 when (block) {
                     is MarkdownBlock.Paragraph -> add(
-                        VisibleChunk(blockIndex, null, visibleInlineText(block.content))
+                        element = VisibleChunk(
+                            blockIndex = blockIndex,
+                            listItemIndex = null,
+                            text = visibleInlineText(block.content),
+                        ),
                     )
                     is MarkdownBlock.Heading -> add(
-                        VisibleChunk(blockIndex, null, visibleInlineText(block.content))
+                        element = VisibleChunk(
+                            blockIndex = blockIndex,
+                            listItemIndex = null,
+                            text = visibleInlineText(block.content),
+                        ),
                     )
                     is MarkdownBlock.Code -> add(
-                        VisibleChunk(blockIndex, null, block.content)
+                        element = VisibleChunk(blockIndex = blockIndex, listItemIndex = null, text = block.content),
                     )
                     is MarkdownBlock.Quote -> add(
-                        VisibleChunk(blockIndex, null, visibleInlineText(block.content))
+                        element = VisibleChunk(
+                            blockIndex = blockIndex,
+                            listItemIndex = null,
+                            text = visibleInlineText(block.content),
+                        ),
                     )
                     is MarkdownBlock.ListBlock -> block.items.forEachIndexed { itemIndex, item ->
-                        add(VisibleChunk(blockIndex, itemIndex, visibleInlineText(item.content)))
+                        add(
+                            element = VisibleChunk(
+                                blockIndex = blockIndex,
+                                listItemIndex = itemIndex,
+                                text = visibleInlineText(item.content),
+                            ),
+                        )
                     }
                     MarkdownBlock.Divider -> Unit
                 }
@@ -168,7 +185,7 @@ internal object MarkdownHighlightMapper {
         chunks.forEach { chunk ->
             if (chunk.text.isBlank()) return@forEach
             if (visible.isNotEmpty() && visible.last() != ' ') {
-                appendNormalizedSpace(null)
+                appendNormalizedSpace(location = null)
             }
 
             var index = 0
@@ -180,12 +197,12 @@ internal object MarkdownHighlightMapper {
                         end += 1
                     }
                     appendNormalizedSpace(
-                        SourceLocation(
+                        location = SourceLocation(
                             blockIndex = chunk.blockIndex,
                             listItemIndex = chunk.listItemIndex,
                             start = index,
-                            endExclusive = end
-                        )
+                            endExclusive = end,
+                        ),
                     )
                     index = end
                 } else {
@@ -194,7 +211,7 @@ internal object MarkdownHighlightMapper {
                         blockIndex = chunk.blockIndex,
                         listItemIndex = chunk.listItemIndex,
                         start = index,
-                        endExclusive = index + 1
+                        endExclusive = index + 1,
                     )
                     index += 1
                 }

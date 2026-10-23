@@ -16,7 +16,7 @@ internal suspend fun SearchSourceDao.readSearchText(source: SearchSource): Strin
             currentCoroutineContext().ensureActive()
             val part = contentPart(source.kind, source.sourceId, source.parentId, offset, CONTENT_PART_POINTS) ?: break
             append(part)
-            val points = part.codePointCount(0, part.length)
+            val points = part.codePointCount(beginIndex = 0, endIndex = part.length)
             if (points < CONTENT_PART_POINTS) break
             offset += points
         }

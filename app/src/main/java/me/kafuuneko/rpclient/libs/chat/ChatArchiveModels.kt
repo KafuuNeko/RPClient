@@ -70,7 +70,9 @@ data class ChatArchiveImportResult(val sessionId: Long, val skippedImages: Int)
 /** RPClient 单聊消息与 SillyTavern 消息标记之间的稳定角色集合。 */
 enum class ChatArchiveMessageRole {
     User,
+
     Character,
+
     Narrator
 }
 

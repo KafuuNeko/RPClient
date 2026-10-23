@@ -57,31 +57,39 @@ data class LLMProviderEditRequestExtensionsState(
 /** 模型配置页面当前是新增还是编辑。 */
 enum class LLMProviderEditMode {
     Create,
+
     Edit
 }
 
 /** 模型配置保存操作状态。 */
 sealed class LLMProviderEditLoadState {
     data object None : LLMProviderEditLoadState()
+
     data object Saving : LLMProviderEditLoadState()
 }
 
 /** 最小生成请求连接测试的生命周期与结果。 */
 sealed class LLMProviderEditTestState {
     data object None : LLMProviderEditTestState()
+
     data object Testing : LLMProviderEditTestState()
+
     data class Success(val message: String?) : LLMProviderEditTestState()
+
     data object Failed : LLMProviderEditTestState()
 }
 
 /** 模型目录查询的生命周期与可渲染结果。 */
 sealed class LLMProviderEditModelCatalogState {
     data object Idle : LLMProviderEditModelCatalogState()
+
     data object Loading : LLMProviderEditModelCatalogState()
+
     data class Loaded(
         /** 当前页或模型目录已经加载的模型列表。 */
         val models: List<LLMAvailableModel>
     ) : LLMProviderEditModelCatalogState()
+
     data class Failed(
         /** 导致当前失败状态的已分类异常。 */
         val failure: LLMModelCatalogFailure
@@ -91,10 +99,15 @@ sealed class LLMProviderEditModelCatalogState {
 /** 模型配置编辑页互斥显示的确认对话框。 */
 sealed class LLMProviderEditDialogState {
     data object None : LLMProviderEditDialogState()
+
     data object UnsavedChangesConfirm : LLMProviderEditDialogState()
+
     data object ApiKeyEditor : LLMProviderEditDialogState()
+
     data class CustomHeadersEditor(val initialValue: String = "") : LLMProviderEditDialogState()
+
     data class RequestBodyPatchEditor(val initialValue: String) : LLMProviderEditDialogState()
+
     data class ModelPicker(
         /** 当前列表使用的搜索关键词。 */
         val searchQuery: String,

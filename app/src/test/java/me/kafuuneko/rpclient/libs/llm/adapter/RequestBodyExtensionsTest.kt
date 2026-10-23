@@ -16,14 +16,14 @@ class RequestBodyExtensionsTest {
                 patchJson =
                     """{"session_id":"${'$'}rpclient.routing_session_id","metadata":{"conversation":"${'$'}rpclient.routing_session_id"}}""",
                 protectedPaths = protectedPaths,
-                routingSessionId = "routing-42"
-            )
+                routingSessionId = "routing-42",
+            ),
         ).asJsonObject
 
         assertEquals("routing-42", result.get("session_id").asString)
         assertEquals(
             "routing-42",
-            result.getAsJsonObject("metadata").get("conversation").asString
+            result.getAsJsonObject("metadata").get("conversation").asString,
         )
     }
 
@@ -34,8 +34,8 @@ class RequestBodyExtensionsTest {
                 baseJson = """{"model":"test","messages":[]}""",
                 patchJson = "{}",
                 protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.OpenAICompatible),
-                routingSessionId = "routing-42"
-            )
+                routingSessionId = "routing-42",
+            ),
         ).asJsonObject
 
         assertFalse(result.has("session_id"))

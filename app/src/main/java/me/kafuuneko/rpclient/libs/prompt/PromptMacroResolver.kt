@@ -28,29 +28,29 @@ class PromptMacroResolver(
         context: PromptBuildContext,
         history: String = mHistoryBuilder.build(context.messages, context.userName, context.character.name),
         original: String = template,
-        outlets: Map<String, String>? = null
+        outlets: Map<String, String>? = null,
     ): String {
         val firstMessages = context.character.getChatFirstMessageList()
         // 先展开跨聊天与故事共用的名称宏，避免不同 Prompt 构建器产生兼容差异。
         var result = resolveCharacterUserMacros(
             template = template,
             characterName = context.character.name,
-            userName = context.userName
+            userName = context.userName,
         )
 
         // 解析带参数的格式化宏与动态开场白宏
-        result = result.replace(Regex("""\{\{\s*newline::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            "\n".repeat(it.groupValues[1].toIntOrNull() ?: 1)
+        result = result.replace(Regex("""\{\{\s*newline::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) { match ->
+            "\n".repeat(match.groupValues[1].toIntOrNull() ?: 1)
         }
-        result = result.replace(Regex("""\{\{\s*space::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            " ".repeat(it.groupValues[1].toIntOrNull() ?: 1)
+        result = result.replace(Regex("""\{\{\s*space::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) { match ->
+            " ".repeat(match.groupValues[1].toIntOrNull() ?: 1)
         }
-        result = result.replace(Regex("""\{\{\s*charFirstMessage::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            firstMessages.getOrNull(it.groupValues[1].toIntOrNull() ?: -1).orEmpty()
+        result = result.replace(Regex("""\{\{\s*charFirstMessage::(\d+)\s*\}\}""", RegexOption.IGNORE_CASE)) { match ->
+            firstMessages.getOrNull(match.groupValues[1].toIntOrNull() ?: -1).orEmpty()
         }
         // 解析自定义插槽宏
-        result = result.replace(Regex("""\{\{\s*outlet::([^}]+)\s*\}\}""", RegexOption.IGNORE_CASE)) {
-            outlets?.get(it.groupValues[1].trim()) ?: if (outlets == null) it.value else ""
+        result = result.replace(Regex("""\{\{\s*outlet::([^}]+)\s*\}\}""", RegexOption.IGNORE_CASE)) { match ->
+            outlets?.get(match.groupValues[1].trim()) ?: if (outlets == null) match.value else ""
         }
 
         // 装配基础环境与上下文变量字典
@@ -79,8 +79,8 @@ class PromptMacroResolver(
             "summary" to context.summary,
             "lastmessage" to context.messages.lastOrNull()?.content.orEmpty(),
             "lastmessageid" to context.messages.lastOrNull()?.id?.toString().orEmpty(),
-            "lastusermessage" to context.messages.lastOrNull { it.source.name.equals("User", ignoreCase = true) }?.content.orEmpty(),
-            "lastcharmessage" to context.messages.lastOrNull { it.source.name.equals("Char", ignoreCase = true) }?.content.orEmpty(),
+            "lastusermessage" to context.messages.lastOrNull { it.source.name.equals(other = "User", ignoreCase = true) }?.content.orEmpty(),
+            "lastcharmessage" to context.messages.lastOrNull { it.source.name.equals(other = "Char", ignoreCase = true) }?.content.orEmpty(),
             "firstincludedmessageid" to context.messages.firstOrNull()?.id?.toString().orEmpty(),
             "time" to LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
             "date" to LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
@@ -93,12 +93,12 @@ class PromptMacroResolver(
             "maxprompt" to (context.maxContextTokens - context.maxResponseTokens).coerceAtLeast(0).toString(),
             "newline" to "\n",
             "space" to " ",
-            "noop" to ""
+            "noop" to "",
         )
 
         // 正则替换所有已匹配宏，未识别宏保留原文
-        return result.replace(Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")) {
-            values[it.groupValues[1].lowercase()] ?: it.value
+        return result.replace(Regex("""\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}""")) { match ->
+            values[match.groupValues[1].lowercase()] ?: match.value
         }
     }
 }
@@ -112,14 +112,14 @@ class PromptMacroResolver(
 fun resolveCharacterUserMacros(
     template: String,
     characterName: String?,
-    userName: String?
+    userName: String?,
 ): String {
     val normalized = template
-        .replace("<USER>", "{{user}}", ignoreCase = true)
-        .replace("<BOT>", "{{char}}", ignoreCase = true)
-        .replace("<CHAR>", "{{char}}", ignoreCase = true)
+        .replace(oldValue = "<USER>", newValue = "{{user}}", ignoreCase = true)
+        .replace(oldValue = "<BOT>", newValue = "{{char}}", ignoreCase = true)
+        .replace(oldValue = "<CHAR>", newValue = "{{char}}", ignoreCase = true)
     return normalized.replace(
-        Regex("""\{\{\s*(char|user)\s*\}\}""", RegexOption.IGNORE_CASE)
+        regex = Regex("""\{\{\s*(char|user)\s*\}\}""", RegexOption.IGNORE_CASE),
     ) { match ->
         when (match.groupValues[1].lowercase()) {
             "char" -> characterName ?: match.value

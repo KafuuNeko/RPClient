@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.appearance.presentation
 
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import kotlin.math.roundToInt
 
 /** 将滑块输入转换为背景草稿参数；调用方负责状态守卫和预览调度。 */
 internal fun PageBackground.withAdjustment(field: BackgroundAdjustment, value: Float): PageBackground {

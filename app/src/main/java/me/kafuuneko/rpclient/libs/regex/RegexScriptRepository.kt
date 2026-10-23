@@ -38,13 +38,13 @@ class RegexScriptRepository(
      */
     suspend fun updateScripts(
         target: RegexScriptTarget,
-        transform: (List<RegexScript>) -> List<RegexScript>
+        transform: (List<RegexScript>) -> List<RegexScript>,
     ): List<RegexScript> {
         return mMutationMutex.withLock {
             mAppDatabase.withTransaction {
                 val characterId = target.characterId
-                if (characterId != null &&
-                    mAppDatabase.getCharacterDao().getCharacterById(characterId) == null
+                if (characterId != null
+                    && mAppDatabase.getCharacterDao().getCharacterById(characterId) == null
                 ) {
                     return@withTransaction emptyList()
                 }
@@ -82,9 +82,9 @@ class RegexScriptRepository(
      */
     suspend fun activeScripts(characters: List<Character>): List<ScopedRegexScript> {
         return mAppDatabase.withTransaction {
-            val distinctCharacters = characters.distinctBy { it.id }
-            val characterIds = distinctCharacters.map { it.id }
-            val globalScripts = mRegexDao.getGlobalScripts().map { it.toDomain() }
+            val distinctCharacters = characters.distinctBy { character -> character.id }
+            val characterIds = distinctCharacters.map { character -> character.id }
+            val globalScripts = mRegexDao.getGlobalScripts().map { regexScriptEntity -> regexScriptEntity.toDomain() }
             val authorizedIds = if (characterIds.isEmpty()) {
                 emptySet()
             } else {
@@ -94,18 +94,18 @@ class RegexScriptRepository(
                 emptyMap()
             } else {
                 mRegexDao.getCharacterScripts(characterIds)
-                    .groupBy { requireNotNull(it.characterId) }
+                    .groupBy { regexScriptEntity -> requireNotNull(regexScriptEntity.characterId) }
             }
 
             buildList {
                 globalScripts.forEachIndexed { index, script ->
                     add(
-                        ScopedRegexScript(
+                        element = ScopedRegexScript(
                             script = script,
                             scope = RegexScriptScope.Global,
                             ownerName = "Global",
-                            order = index
-                        )
+                            order = index,
+                        ),
                     )
                 }
                 var characterOrder = 0
@@ -113,13 +113,13 @@ class RegexScriptRepository(
                     if (character.id !in authorizedIds) return@forEach
                     characterScripts[character.id].orEmpty().forEach { entity ->
                         add(
-                            ScopedRegexScript(
+                            element = ScopedRegexScript(
                                 script = entity.toDomain(),
                                 scope = RegexScriptScope.Character,
                                 ownerId = character.id.toString(),
                                 ownerName = character.name,
-                                order = characterOrder++
-                            )
+                                order = characterOrder++,
+                            ),
                         )
                     }
                 }
@@ -132,7 +132,7 @@ class RegexScriptRepository(
 
     /** 导出带缩进的 SillyTavern 兼容脚本 JSON。 */
     fun exportScripts(scripts: List<RegexScript>): String =
-        mCodec.toJson(scripts, pretty = true)
+        mCodec.toJson(scripts = scripts, pretty = true)
 
     /** 从文档 URI 读取并解析脚本。 */
     fun importFromUri(uri: Uri): List<RegexScript> {
@@ -154,7 +154,7 @@ class RegexScriptRepository(
         val entities = when (target.scope) {
             RegexScriptScope.Global -> mRegexDao.getGlobalScripts()
             RegexScriptScope.Character -> mRegexDao.getCharacterScripts(
-                requireNotNull(target.characterId)
+                characterId = requireNotNull(target.characterId),
             )
         }
         return entities.map { it.toDomain() }
@@ -162,22 +162,22 @@ class RegexScriptRepository(
 
     private suspend fun replaceScripts(
         target: RegexScriptTarget,
-        scripts: List<RegexScript>
+        scripts: List<RegexScript>,
     ) {
         val characterId = when (target.scope) {
             RegexScriptScope.Global -> {
                 mRegexDao.deleteGlobalScripts()
                 null
             }
-            RegexScriptScope.Character -> requireNotNull(target.characterId).also {
-                mRegexDao.deleteCharacterScripts(it)
+            RegexScriptScope.Character -> requireNotNull(target.characterId).also { id ->
+                mRegexDao.deleteCharacterScripts(id)
             }
         }
         if (scripts.isNotEmpty()) {
             mRegexDao.insertScripts(
-                scripts.mapIndexed { index, script ->
+                scripts = scripts.mapIndexed { index, script ->
                     script.toEntity(characterId, index, mGson)
-                }
+                },
             )
         }
     }

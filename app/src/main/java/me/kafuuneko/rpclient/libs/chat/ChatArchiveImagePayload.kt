@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.chat
 
+import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
@@ -8,7 +9,6 @@ import java.security.MessageDigest
 import java.util.Base64
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
-import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 
 /**
  * 归档图片字节的无损传输封装。
@@ -33,7 +33,7 @@ internal object ChatArchiveImagePayload {
         input: InputStream,
         output: OutputStream,
         expectedHash: String? = null,
-        checkActive: () -> Unit = {}
+        checkActive: () -> Unit = {},
     ): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val buffer = ByteArray(8192)
@@ -55,7 +55,12 @@ internal object ChatArchiveImagePayload {
     }
 
     /** 为文件导出试压缩；临时文件由调用方拥有并在成功、异常或取消后释放。 */
-    fun compress(file: File, temporary: File, hash: String, checkActive: () -> Unit): Boolean {
+    fun compress(
+        file: File,
+        temporary: File,
+        hash: String,
+        checkActive: () -> Unit,
+    ): Boolean {
         file.inputStream().use { input ->
             GZIPOutputStream(temporary.outputStream()).use { output ->
                 copyOriginal(input, output, hash, checkActive)
@@ -77,7 +82,7 @@ internal object ChatArchiveImagePayload {
             mimeType = requireNotNull(image.mimeType),
             data = Base64.getEncoder().encodeToString(if (useGzip) compressed.toByteArray() else bytes),
             hash = hash,
-            compression = if (useGzip) "gzip" else "none"
+            compression = if (useGzip) "gzip" else "none",
         )
     }
 

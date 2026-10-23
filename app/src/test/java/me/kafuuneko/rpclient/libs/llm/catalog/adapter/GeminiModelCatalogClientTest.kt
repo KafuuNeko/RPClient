@@ -7,7 +7,7 @@ class GeminiModelCatalogClientTest {
     @Test
     fun onlyGenerateContentModelsAreReturnedWithNormalizedIds() {
         val page = parseGeminiModelCatalogPage(
-            """
+            raw = """
                 {
                   "models": [
                     {
@@ -24,7 +24,7 @@ class GeminiModelCatalogClientTest {
                   ],
                   "nextPageToken": "next-page"
                 }
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         val model = page.models.single()
@@ -38,7 +38,7 @@ class GeminiModelCatalogClientTest {
     @Test
     fun supportedActionsAliasIsAccepted() {
         val page = parseGeminiModelCatalogPage(
-            """
+            raw = """
                 {
                   "models": [
                     {
@@ -47,7 +47,7 @@ class GeminiModelCatalogClientTest {
                     }
                   ]
                 }
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertEquals("gemini-alias", page.models.single().id)

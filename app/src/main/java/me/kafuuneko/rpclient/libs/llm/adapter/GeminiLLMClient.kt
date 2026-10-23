@@ -39,34 +39,34 @@ class GeminiLLMClient(
      */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
-        val httpRequest = buildRequest(request, model, stream = false)
+        val httpRequest = buildRequest(request = request, model = model, stream = false)
         try {
             val raw = runCatching {
                 mOkHttpClient.await(httpRequest.request)
-            }.onSuccess {
+            }.onSuccess { text ->
                 mLLMRequestLogRepository.trySaveLog(
-                    mProvider,
-                    model,
-                    false,
-                    httpRequest.payloadJson,
-                    it
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = false,
+                    requestJson = httpRequest.payloadJson,
+                    responseJson = text,
                 )
-            }.onFailure {
+            }.onFailure { error ->
                 mLLMRequestLogRepository.trySaveLog(
-                    mProvider,
-                    model,
-                    false,
-                    httpRequest.payloadJson,
-                    it.toErrorJson()
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = false,
+                    requestJson = httpRequest.payloadJson,
+                    responseJson = error.toErrorJson(),
                 )
             }.getOrElse { error ->
-                throw if (request.messages.any { it.images.isNotEmpty() }) {
+                throw if (request.messages.any { message -> message.images.isNotEmpty() }) {
                     mImageCapabilities.recordFailure(mProvider.copy(model = model), error)
                 } else error
             }
             return raw.toGeminiResponse(
                 fallbackModel = model,
-                includeReasoningInContent = request.includeReasoningInContent
+                includeReasoningInContent = request.includeReasoningInContent,
             )
         } finally {
             httpRequest.temporaryFile?.delete()
@@ -79,18 +79,18 @@ class GeminiLLMClient(
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> {
         val model = request.model ?: mProvider.model
         return flow {
-            val httpRequest = buildRequest(request, model, stream = true)
+            val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
                 val rawChunks = JSONArray()
                 var loggedChars = 0
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
-                    captureReasoning = request.captureReasoning
+                    captureReasoning = request.captureReasoning,
                 )
                 runCatching {
                     mOkHttpClient.streamLines(
                         request = httpRequest.request,
-                        onConnected = { emit(LLMStreamEvent.Connected) }
+                        onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
                         if (loggedChars < 65_536) {
                             val safeLine = ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
@@ -98,28 +98,31 @@ class GeminiLLMClient(
                             loggedChars += safeLine.length
                         }
                         parseGeminiStreamParts(line).forEach { part ->
-                            partMapper.map(part).forEach { emit(it) }
+                            partMapper.map(part).forEach { event -> emit(event) }
                         }
                     }
                     // 兼容未发送 finishReason 便关闭连接的代理服务
-                    partMapper.finish().forEach { emit(it) }
+                    partMapper.finish().forEach { event -> emit(event) }
                 }.onSuccess {
                     mLLMRequestLogRepository.trySaveLog(
-                        mProvider,
-                        model,
-                        true,
-                        httpRequest.payloadJson,
-                        rawChunks.toString()
+                        provider = mProvider,
+                        model = model,
+                        isStreaming = true,
+                        requestJson = httpRequest.payloadJson,
+                        responseJson = rawChunks.toString(),
                     )
-                }.onFailure {
+                }.onFailure { error ->
                     mLLMRequestLogRepository.trySaveLog(
-                        mProvider,
-                        model,
-                        true,
-                        httpRequest.payloadJson,
-                        it.toErrorJson()
+                        provider = mProvider,
+                        model = model,
+                        isStreaming = true,
+                        requestJson = httpRequest.payloadJson,
+                        responseJson = error.toErrorJson(),
                     )
-                    throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(mProvider.copy(model = model), it) else it
+                    throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
+                        provider = mProvider.copy(model = model),
+                        error = error,
+                    ) else error
                 }
             } finally {
                 httpRequest.temporaryFile?.delete()
@@ -133,10 +136,10 @@ class GeminiLLMClient(
     private suspend fun buildRequest(
         request: LLMGenerationRequest,
         model: String,
-        stream: Boolean
+        stream: Boolean,
     ): LLMHttpRequest {
         if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
-            mProvider.copy(model = model)
+            provider = mProvider.copy(model = model),
         )
         val codec = MultimodalWireCodec(mProvider)
         val options = request.options.resolveFor(mProvider)
@@ -145,7 +148,7 @@ class GeminiLLMClient(
         if (request.captureReasoning) {
             generationConfig.put(
                 "thinkingConfig",
-                JSONObject().put("includeThoughts", true)
+                JSONObject().put("includeThoughts", true),
             )
         }
         options.temperature?.let { generationConfig.put("temperature", it) }
@@ -162,8 +165,8 @@ class GeminiLLMClient(
                 "systemInstruction",
                 JSONObject().put(
                     "parts",
-                    JSONArray().put(JSONObject().put("text", systemInstruction))
-                )
+                    JSONArray().put(JSONObject().put("text", systemInstruction)),
+                ),
             )
         }
         val finalPayload = payload.withRequestBodyExtensions(mProvider, request)
@@ -191,14 +194,14 @@ class GeminiLLMClient(
      */
     private fun List<LLMMessage>.toGeminiContents(
         codec: MultimodalWireCodec,
-        finalized: Boolean
+        finalized: Boolean,
     ): JSONArray {
         return JSONArray().also { array ->
-            (if (finalized) dropWhile { it.role == LLMMessageRole.System } else toAlternatingConversationMessages()).forEach { message ->
+            (if (finalized) dropWhile { message -> message.role == LLMMessageRole.System } else toAlternatingConversationMessages()).forEach { message ->
                 array.put(
                     JSONObject()
                         .put("role", message.toGeminiRole())
-                        .put("parts", codec.content(message))
+                        .put("parts", codec.content(message)),
                 )
             }
         }
@@ -209,7 +212,7 @@ class GeminiLLMClient(
      */
     private fun String.toGeminiResponse(
         fallbackModel: String,
-        includeReasoningInContent: Boolean
+        includeReasoningInContent: Boolean,
     ): LLMGenerationResponse {
         val json = JSONObject(this)
         val candidates = json.optJSONArray("candidates")
@@ -233,7 +236,7 @@ class GeminiLLMClient(
                 ?.optJSONObject(0)
                 ?.optString("finishReason")
                 ?.takeIf { it.isNotBlank() },
-            rawResponse = this
+            rawResponse = this,
         )
     }
 
@@ -260,12 +263,12 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
     val parts = candidate?.objectOrNull("content")?.arrayOrNull("parts")
     val usage = json.geminiUsage()
     return buildList {
-        usage?.let { add(LLMProviderStreamPart.Usage(it)) }
+        usage?.let { llmUsage -> add(LLMProviderStreamPart.Usage(llmUsage)) }
         // Gemini 通过 thought 标记区分思考摘要与最终文本，顺序必须原样保留
         if (parts != null) {
             for (element in parts) {
-                val part = element.takeIf { it.isJsonObject }?.asJsonObject ?: continue
-                val text = part.cleanString("text").takeIf { it.isNotBlank() } ?: continue
+                val part = element.takeIf { element -> element.isJsonObject }?.asJsonObject ?: continue
+                val text = part.cleanString("text").takeIf { text -> text.isNotBlank() } ?: continue
                 if (part.booleanOrFalse("thought")) {
                     add(LLMProviderStreamPart.Reasoning(text, data))
                 } else {
@@ -273,13 +276,13 @@ internal fun parseGeminiStreamParts(line: String): List<LLMProviderStreamPart> {
                 }
             }
         }
-        candidate?.cleanString("finishReason")?.takeIf { it.isNotBlank() }?.let {
+        candidate?.cleanString("finishReason")?.takeIf { text -> text.isNotBlank() }?.let { text ->
             add(
-                LLMProviderStreamPart.Finished(
+                element = LLMProviderStreamPart.Finished(
                     rawChunk = data,
-                    finishReason = it,
-                    terminal = false
-                )
+                    finishReason = text,
+                    terminal = false,
+                ),
             )
         }
     }
@@ -309,6 +312,6 @@ private fun JsonObject.geminiUsage(): LLMUsage? {
         completionTokens = completionTokens,
         totalTokens = totalTokens,
         cachedPromptTokens = usage.intOrNull("cachedContentTokenCount"),
-        reasoningTokens = thoughtTokens
+        reasoningTokens = thoughtTokens,
     )
 }

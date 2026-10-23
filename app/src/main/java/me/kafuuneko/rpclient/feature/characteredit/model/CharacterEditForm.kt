@@ -70,7 +70,7 @@ data class CharacterEditForm(
         /** 从 Room 角色实体及独立的模型关联恢复可编辑表单。 */
         fun from(
             character: Character,
-            llmProviderId: Long = 0L
+            llmProviderId: Long = 0L,
         ) = CharacterEditForm(
             id = character.id,
             name = character.name,
@@ -94,7 +94,7 @@ data class CharacterEditForm(
             depthPromptRole = character.depthPromptRole.toString(),
             characterLorebookId = character.characterLorebookId,
             llmProviderId = llmProviderId,
-            backgroundFileUuid = character.backgroundFileUuid
+            backgroundFileUuid = character.backgroundFileUuid,
         )
     }
 
@@ -121,9 +121,9 @@ data class CharacterEditForm(
             extensionsJson = extensionsJson.trim().ifBlank { "{}" },
             depthPromptPrompt = depthPromptPrompt.trim(),
             depthPromptDepth = depthPromptDepth.trim().toIntOrNull()?.coerceAtLeast(0) ?: 4,
-            depthPromptRole = depthPromptRole.trim().toIntOrNull()?.coerceIn(0, 2) ?: 0,
+            depthPromptRole = depthPromptRole.trim().toIntOrNull()?.coerceIn(minimumValue = 0, maximumValue = 2) ?: 0,
             characterLorebookId = characterLorebookId,
-            backgroundFileUuid = backgroundFileUuid
+            backgroundFileUuid = backgroundFileUuid,
         )
     }
 }
@@ -154,7 +154,7 @@ fun CharacterEditForm.toComparableForm(): CharacterEditForm {
         extensionsJson = extensionsJson.trim().ifBlank { "{}" },
         depthPromptPrompt = depthPromptPrompt.trim(),
         depthPromptDepth = depthPromptDepth.trim(),
-        depthPromptRole = depthPromptRole.trim()
+        depthPromptRole = depthPromptRole.trim(),
     )
 }
 
@@ -163,13 +163,13 @@ internal fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
     return copy(
         tags = tags.orSingleBlank(),
         firstMessages = firstMessages.orSingleBlank(),
-        alternateGreetings = alternateGreetings.orSingleBlank()
+        alternateGreetings = alternateGreetings.orSingleBlank(),
     )
 }
 
 /** 校验绑定的世界书 ID 是否仍然存在，若已被删除则重置为 0。 */
 internal fun CharacterEditForm.withValidLorebookAssociation(
-    availableLorebookIds: Set<Long>
+    availableLorebookIds: Set<Long>,
 ): CharacterEditForm {
     if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
     return copy(characterLorebookId = 0L)
@@ -177,7 +177,7 @@ internal fun CharacterEditForm.withValidLorebookAssociation(
 
 /** 校验绑定的 LLM 提供商 ID 是否仍然存在，若已被删除则重置为 0。 */
 internal fun CharacterEditForm.withValidProviderAssociation(
-    availableProviderIds: Set<Long>
+    availableProviderIds: Set<Long>,
 ): CharacterEditForm {
     if (llmProviderId == 0L || llmProviderId in availableProviderIds) return this
     return copy(llmProviderId = 0L)
@@ -201,22 +201,20 @@ internal fun CharacterEditForm.promptText(field: CharacterPromptField): String? 
 /** 根据目标枚举字段将 Prompt 编辑器中的文本回写至表单对应字段。 */
 internal fun CharacterEditForm.withPromptText(
     field: CharacterPromptField,
-    text: String
+    text: String,
 ): CharacterEditForm {
     // 多条开场白按原索引回写，沿用 updateAt 对无效索引的处理。
     return when (field) {
         CharacterPromptField.Description -> copy(description = text)
         CharacterPromptField.Personality -> copy(personality = text)
         CharacterPromptField.Scenario -> copy(scenario = text)
-        is CharacterPromptField.FirstMessage -> copy(
-            firstMessages = firstMessages.updateAt(field.index, text)
-        )
+        is CharacterPromptField.FirstMessage -> copy(firstMessages = firstMessages.updateAt(field.index, text))
         CharacterPromptField.DialogueExamples -> copy(examplesOfDialogue = text)
         CharacterPromptField.SystemPrompt -> copy(systemPrompt = text)
         CharacterPromptField.PostHistoryInstructions -> copy(postHistoryInstructions = text)
         CharacterPromptField.DepthPrompt -> copy(depthPromptPrompt = text)
         is CharacterPromptField.AlternateGreeting -> copy(
-            alternateGreetings = alternateGreetings.updateAt(field.index, text)
+            alternateGreetings = alternateGreetings.updateAt(field.index, text),
         )
     }
 }

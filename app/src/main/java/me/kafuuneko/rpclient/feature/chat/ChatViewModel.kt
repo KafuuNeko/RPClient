@@ -96,8 +96,8 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
+import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
@@ -135,7 +135,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val message = mChatRepository.getMessageById(messageId)
         if (message?.sessionId != sessionId || message.source != ChatMessage.Source.User) {
             clearReplyRetry()
-            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
+            refreshUiState(
+                sessionId = sessionId,
+                generationState = ChatGenerationState.Failed(mContext.getString(R.string.message_deleted)),
+            )
             return
         }
         mGenerationJob = viewModelScope.launch {
@@ -144,7 +147,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generateCommittedReply(sessionId)
                 maybeAutoSummarize(sessionId)
             } catch (error: Exception) {
-                val failure = error.toGenerationFailurePresentation(mContext, R.string.generation_failed) ?: return@launch
+                val failure = error.toGenerationFailurePresentation(
+                    context = mContext, fallbackMessageResId = R.string.generation_failed,
+                ) ?: return@launch
                 refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Failed(failure.message))
             }
         }
@@ -155,9 +160,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mRetryUserMessageId = null
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val failed = uiState.conversationState.generationState as? ChatGenerationState.Failed ?: return
-        uiState.copy(conversationState = uiState.conversationState.copy(
-            generationState = failed.copy(canRetryReply = false)
-        )).setup()
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(generationState = failed.copy(canRetryReply = false)),
+        ).setup()
     }
 
     /** 结束页面时释放本 ViewModel 拥有的未提交图片。 */
@@ -182,12 +187,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val action = intent.action
-        if (mImageCoordinator.state.processing && (action is MessageImageAction.Choose ||
-                action is MessageImageAction.Remove || action is MessageImageAction.Move)) return
-        if (mGenerationJob?.isCompleted == false && action !is MessageImageAction.Load &&
-            action !is MessageImageAction.RegisterDisplay && action !is MessageImageAction.ReleaseDisplay &&
-            action !is MessageImageAction.Preview && action != MessageImageAction.ClosePreview &&
-            action != MessageImageAction.Save && action !is MessageImageAction.SaveResult) return
+        val shouldBlockImageMutation = mImageCoordinator.state.processing
+            && (action is MessageImageAction.Choose
+            || action is MessageImageAction.Remove
+            || action is MessageImageAction.Move)
+        if (shouldBlockImageMutation) return
+        val shouldBlockImageActionDuringGeneration = mGenerationJob?.isCompleted == false
+            && action !is MessageImageAction.Load
+            && action !is MessageImageAction.RegisterDisplay
+            && action !is MessageImageAction.ReleaseDisplay
+            && action !is MessageImageAction.Preview
+            && action != MessageImageAction.ClosePreview
+            && action != MessageImageAction.Save
+            && action !is MessageImageAction.SaveResult
+        if (shouldBlockImageActionDuringGeneration) return
         // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
         when (action) {
             is MessageImageAction.Picked -> {
@@ -262,7 +275,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         mSessionId = sessionId
         mSearchAnchorId = intent.searchMessageId
-        val loaded = withContext(Dispatchers.IO) { loadNormalState(sessionId, inputDraft = "") }
+        val loaded = withContext(Dispatchers.IO) { loadNormalState(sessionId = sessionId, inputDraft = "") }
         if (loaded == null) {
             finishWithToast(R.string.session_not_found)
             return
@@ -292,9 +305,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 editingMessageId = uiState.conversationState.editingMessageId,
                 editingMessageDraft = uiState.conversationState.editingMessageDraft,
                 dialogState = uiState.dialogState,
-                messageLimit = uiState.conversationState.messages.size.coerceAtLeast(
-                    MESSAGE_PAGE_SIZE
-                )
+                messageLimit = uiState.conversationState.messages.size.coerceAtLeast(MESSAGE_PAGE_SIZE),
             )
         }
         // 若会话已被删除，则取消任务并结束页面
@@ -306,8 +317,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
         refreshed.copy(
             dialogState = refreshed.dialogState.resolveExportDialogState(
-                isExportActive = mChatExportJob?.isActive == true
-            )
+                isExportActive = mChatExportJob?.isActive == true,
+            ),
         ).setup()
     }
 
@@ -324,15 +335,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         try {
             val loaded = withContext(Dispatchers.IO) {
                 val page = mChatRepository.getMessagePageAfter(sessionId, lastId, MESSAGE_PAGE_SIZE) ?: return@withContext null
-                page.messages.toDisplayMessageItems(context = displayContext, messageImages = page.messageImages, newerMessageCount = page.newerMessageCount) to page
+                page.messages.toDisplayMessageItems(
+                    context = displayContext,
+                    messageImages = page.messageImages,
+                    newerMessageCount = page.newerMessageCount,
+                ) to page
             }
             val current = getOrNull<ChatUiState.Normal>() ?: return
             mUnloadedNewerMessageCount = loaded?.second?.newerMessageCount ?: 0
             val ids = current.conversationState.messages.mapTo(HashSet()) { it.id }
-            current.copy(conversationState = current.conversationState.copy(
-                messages = current.conversationState.messages + loaded?.first.orEmpty().filterNot { it.id in ids },
-                canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false, isLoadingNewerMessages = false
-            )).setup()
+            current.copy(
+                conversationState = current.conversationState.copy(
+                    messages = current.conversationState.messages + loaded?.first.orEmpty().filterNot { it.id in ids },
+                    canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false,
+                    isLoadingNewerMessages = false,
+                ),
+            ).setup()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -352,9 +370,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onReachLatestMessage(intent: ChatUiIntent.ReachLatestMessage) {
         val state = getOrNull<ChatUiState.Normal>() ?: return
         val conversation = state.conversationState
-        if (conversation.searchAnchorMessageId == null || conversation.canLoadNewerMessages ||
-            conversation.isLoadingNewerMessages || conversation.messages.lastOrNull()?.id != intent.messageId
-        ) return
+        val shouldKeepSearchAnchor = conversation.searchAnchorMessageId == null
+            || conversation.canLoadNewerMessages
+            || conversation.isLoadingNewerMessages
+            || conversation.messages.lastOrNull()?.id != intent.messageId
+        if (shouldKeepSearchAnchor) return
         mSearchAnchorId = null
         state.copy(conversationState = conversation.copy(searchAnchorMessageId = null)).setup()
     }
@@ -380,42 +400,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val cursor = mOldestLoadedMessageCursor ?: return
         val displayContext = mMessageDisplayContext ?: return
-        if (!uiState.conversationState.canLoadOlderMessages ||
-            uiState.conversationState.isLoadingOlderMessages
+        if (!uiState.conversationState.canLoadOlderMessages
+            || uiState.conversationState.isLoadingOlderMessages
         ) return
 
         // 先发布加载标记，拦截顶部滚动在同一页内重复触发
-        uiState.copy(
-            conversationState = uiState.conversationState.copy(
-                isLoadingOlderMessages = true
-            )
-        ).setup()
+        uiState.copy(conversationState = uiState.conversationState.copy(isLoadingOlderMessages = true)).setup()
         val loadedPage = try {
             withContext(Dispatchers.IO) {
                 val page = mChatRepository.getMessagePageBefore(
                     sessionId = sessionId,
                     beforeCreateTime = cursor.createTime,
                     beforeMessageId = cursor.messageId,
-                    pageSize = MESSAGE_PAGE_SIZE
+                    pageSize = MESSAGE_PAGE_SIZE,
                 )
                 LoadedChatMessagePage(
                     items = page.messages.toDisplayMessageItems(
                         context = displayContext,
                         newerMessageCount = mUnloadedNewerMessageCount + uiState.conversationState.messages.size,
-                        messageImages = page.messageImages
+                        messageImages = page.messageImages,
                     ),
                     cursor = page.messages.firstOrNull()?.toChatMessageCursor(),
                     canLoadOlderMessages = page.canLoadOlderMessages,
-                    totalMessageCount = page.totalMessageCount
+                    totalMessageCount = page.totalMessageCount,
                 )
             }
         } catch (throwable: Throwable) {
             if (throwable is CancellationException) throw throwable
             val currentState = getOrNull<ChatUiState.Normal>() ?: return
             currentState.copy(
-                conversationState = currentState.conversationState.copy(
-                    isLoadingOlderMessages = false
-                )
+                conversationState = currentState.conversationState.copy(isLoadingOlderMessages = false),
             ).setup()
             return
         }
@@ -430,8 +444,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             conversationState = currentState.conversationState.copy(
                 messages = olderItems + currentState.conversationState.messages,
                 canLoadOlderMessages = loadedPage.canLoadOlderMessages,
-                isLoadingOlderMessages = false
-            )
+                isLoadingOlderMessages = false,
+            ),
         ).setup()
     }
 
@@ -466,9 +480,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ChangeInputDraft::class)
     private suspend fun onChangeInputDraft(intent: ChatUiIntent.ChangeInputDraft) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(
-            conversationState = uiState.conversationState.copy(inputDraft = intent.value)
-        ).setup()
+        uiState.copy(conversationState = uiState.conversationState.copy(inputDraft = intent.value)).setup()
     }
 
     /**
@@ -482,8 +494,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(
             lorebookState = uiState.lorebookState.copy(
                 query = intent.value,
-                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value)
-            )
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value),
+            ),
         ).setup()
     }
 
@@ -535,9 +547,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 将用户消息写入数据库
                 mImageCoordinator.submit { finalInputs ->
                     mChatRepository.createUserMessageWithImages(
-                        sessionId, input, finalInputs.filterIsInstance<MessageImageInput.Prepared>()
-                    ).also {
-                        mRetryUserMessageId = it.key.messageId
+                        sessionId = sessionId,
+                        content = input,
+                        images = finalInputs.filterIsInstance<MessageImageInput.Prepared>(),
+                    ).also { messageWithImages ->
+                        mRetryUserMessageId = messageWithImages.key.messageId
                         committed = true
                     }
                 }
@@ -545,7 +559,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = "",
-                    generationState = ChatGenerationState.Requesting
+                    generationState = ChatGenerationState.Requesting,
                 )
                 generateCommittedReply(sessionId)
                 // 检查并按需触发自动总结
@@ -553,15 +567,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 失败状态
                 val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.generation_failed
+                    context = mContext, fallbackMessageResId = R.string.generation_failed,
                 ) ?: return@onFailure
                 val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = if (committed) "" else uiState.conversationState.inputDraft,
                     generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None
+                    dialogState = guideDialog ?: ChatDialogState.None,
                 )
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
@@ -696,7 +709,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sourceSessionId = sessionId,
                     throughMessageId = messageId,
                     title = branchCreateTime.toDefaultChatTitle(),
-                    createTime = branchCreateTime
+                    createTime = branchCreateTime,
                 )
             }
         } catch (error: Exception) {
@@ -723,48 +736,46 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             dialogState = ChatDialogState.SessionLorebook(
                 query = "",
                 visibleGroups = groups,
-                enabledEntryIds = uiState.session.enabledLorebookEntryIds
-            )
+                enabledEntryIds = uiState.session.enabledLorebookEntryIds,
+            ),
         ).setup()
     }
 
     /** 更新单聊快捷管理对话框中的世界书搜索词与过滤结果。 */
     @UiIntentObserver(ChatUiIntent.ChangeSessionLorebookDialogQuery::class)
     private fun onChangeSessionLorebookDialogQuery(
-        intent: ChatUiIntent.ChangeSessionLorebookDialogQuery
+        intent: ChatUiIntent.ChangeSessionLorebookDialogQuery,
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
         uiState.copy(
             dialogState = dialogState.copy(
                 query = intent.value,
-                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value)
-            )
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value),
+            ),
         ).setup()
     }
 
     /** 切换单聊快捷管理对话框草稿中的单个条目。 */
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogEntry::class)
     private fun onToggleSessionLorebookDialogEntry(
-        intent: ChatUiIntent.ToggleSessionLorebookDialogEntry
+        intent: ChatUiIntent.ToggleSessionLorebookDialogEntry,
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
         val entryExists = uiState.lorebookState.groups.any { group ->
-            group.entries.any { it.id == intent.entryId }
+            group.entries.any { chatLorebookEntryItem -> chatLorebookEntryItem.id == intent.entryId }
         }
         if (!entryExists) return
         uiState.copy(
-            dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggle(intent.entryId)
-            )
+            dialogState = dialogState.copy(enabledEntryIds = dialogState.enabledEntryIds.toggle(intent.entryId)),
         ).setup()
     }
 
     /** 切换单聊快捷管理对话框草稿中的整个世界书分组。 */
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogGroup::class)
     private fun onToggleSessionLorebookDialogGroup(
-        intent: ChatUiIntent.ToggleSessionLorebookDialogGroup
+        intent: ChatUiIntent.ToggleSessionLorebookDialogGroup,
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
@@ -776,9 +787,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .orEmpty()
         if (entryIds.isEmpty()) return
         uiState.copy(
-            dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(entryIds)
-            )
+            dialogState = dialogState.copy(enabledEntryIds = dialogState.enabledEntryIds.toggleAll(entryIds)),
         ).setup()
     }
 
@@ -792,7 +801,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         if (uiState.lorebookState.groups.none { group ->
-                group.entries.any { it.id == intent.entryId }
+                group.entries.any { chatLorebookEntryItem -> chatLorebookEntryItem.id == intent.entryId }
             }
         ) return
         val enabledIds = uiState.session.enabledLorebookEntryIds.toggle(intent.entryId)
@@ -800,7 +809,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            generationState = uiState.conversationState.generationState
+            generationState = uiState.conversationState.generationState,
         )
     }
 
@@ -822,7 +831,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
-            generationState = uiState.conversationState.generationState
+            generationState = uiState.conversationState.generationState,
         )
     }
 
@@ -844,7 +853,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
             generationState = uiState.conversationState.generationState,
-            dialogState = ChatDialogState.None
+            dialogState = ChatDialogState.None,
         )
     }
 
@@ -891,15 +900,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 校验是否正处于忙碌或已在导出中
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
         if (mGenerationJob?.isCompleted == false) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.stop_generation_before_exporting
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_exporting).tryEmit()
             return
         }
         if (mSummaryJob?.isActive == true) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.wait_for_summary_before_exporting
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.wait_for_summary_before_exporting).tryEmit()
             return
         }
         // 格式化默认文件名并调起系统导出器
@@ -919,15 +924,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 校验前置互斥状态
         if (uiState.loadState != ChatLoadState.None || mChatExportJob?.isActive == true) return
         if (mGenerationJob?.isCompleted == false) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.stop_generation_before_exporting
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_exporting).tryEmit()
             return
         }
         if (mSummaryJob?.isActive == true) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.wait_for_summary_before_exporting
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.wait_for_summary_before_exporting).tryEmit()
             return
         }
         // 切换为导出中弹窗状态
@@ -937,7 +938,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 异步向目标 URI 写入导出的 JSONL 聊天归档
                 val skipped = mChatArchiveRepository.exportToUri(sessionId, intent.uri)
                 if (skipped > 0) AppViewEvent.PopupToastMessage(
-                    mContext.getString(R.string.chat_archive_images_skipped, skipped)
+                    message = mContext.getString(R.string.chat_archive_images_skipped, skipped),
                 ).tryEmit()
                 else AppViewEvent.PopupToastMessageByResId(R.string.export_chat_success).tryEmit()
             } catch (cancellation: CancellationException) {
@@ -949,9 +950,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 恢复弹窗状态
                 getOrNull<ChatUiState.Normal>()?.let { current ->
                     current.copy(
-                        dialogState = current.dialogState.resolveExportDialogState(
-                            isExportActive = false
-                        )
+                        dialogState = current.dialogState.resolveExportDialogState(isExportActive = false),
                     ).setup()
                 }
             }
@@ -969,7 +968,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing).tryEmit()
             return
         }
-        launchSummaryJob(sessionId, showToast = true)
+        launchSummaryJob(sessionId = sessionId, showToast = true)
     }
 
     /**
@@ -984,7 +983,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mChatRepository.restorePreviousSummary(sessionId)
         }
         AppViewEvent.PopupToastMessageByResId(
-            if (restored) R.string.summary_restored else R.string.no_previous_summary
+            message = if (restored) R.string.summary_restored else R.string.no_previous_summary,
         ).tryEmit()
         if (restored) refreshUiState(sessionId = sessionId)
     }
@@ -996,7 +995,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ToggleAutoSummaryPaused::class)
     private suspend fun onToggleAutoSummaryPaused(
-        intent: ChatUiIntent.ToggleAutoSummaryPaused
+        intent: ChatUiIntent.ToggleAutoSummaryPaused,
     ) {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
@@ -1027,9 +1026,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting).tryEmit()
             return
         }
-        uiState.copy(
-            dialogState = ChatDialogState.DeleteSessionConfirm(uiState.session.title)
-        ).setup()
+        uiState.copy(dialogState = ChatDialogState.DeleteSessionConfirm(uiState.session.title)).setup()
     }
 
     /**
@@ -1061,7 +1058,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 切换为删除中状态
         uiState.copy(
             loadState = ChatLoadState.Deleting,
-            dialogState = ChatDialogState.None
+            dialogState = ChatDialogState.None,
         ).setup()
         // 异步物理删除会话及关联数据
         withContext(Dispatchers.IO) {
@@ -1085,9 +1082,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting_message).tryEmit()
             return
         }
-        uiState.copy(
-            dialogState = ChatDialogState.DeleteMessageConfirm(intent.messageId)
-        ).setup()
+        uiState.copy(dialogState = ChatDialogState.DeleteMessageConfirm(intent.messageId)).setup()
     }
 
     /**
@@ -1133,7 +1128,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionTitle(sessionId, intent.value.trim().ifBlank { mContext.getString(R.string.untitled_chat) })
+            mChatRepository.updateSessionTitle(
+                id = sessionId,
+                title = intent.value.trim().ifBlank { mContext.getString(R.string.untitled_chat) },
+            )
         }
         refreshUiState(sessionId = sessionId)
     }
@@ -1188,7 +1186,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             activity = CharacterEditActivity::class.java,
             extras = Bundle().apply {
                 putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, uiState.character.id)
-            }
+            },
         ).tryEmit()
     }
 
@@ -1199,8 +1197,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (uiState.dialogState != ChatDialogState.SummaryTokenLimit) return
         uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(
-            MainActivity::class.java,
-            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+            activity = MainActivity::class.java,
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) },
         ).tryEmit()
     }
 
@@ -1271,9 +1269,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
-        val copyText = message.content.toMessageCopyText(
-            includeThinkBlocks = AppModel.includeThinkInContext
-        )
+        val copyText = message.content.toMessageCopyText(includeThinkBlocks = AppModel.includeThinkInContext)
         if (copyText.isBlank()) return
         ChatViewEvent.CopyText(copyText).emit()
     }
@@ -1298,7 +1294,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val rawContent = withContext(Dispatchers.IO) {
             val sessionId = mSessionId ?: return@withContext null
             mChatRepository.getMessageById(messageId)
-                ?.takeIf { it.sessionId == sessionId }
+                ?.takeIf { message -> message.sessionId == sessionId }
                 ?.content
         } ?: return
         mImageCoordinator.startEditing(message.imageUuids)
@@ -1308,8 +1304,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             imageState = mImageCoordinator.state,
             conversationState = uiState.conversationState.copy(
                 editingMessageId = message.id,
-                editingMessageDraft = mMessageEditPolicy.createDraft(rawContent)
-            )
+                editingMessageDraft = mMessageEditPolicy.createDraft(rawContent),
+            ),
         ).setup()
     }
 
@@ -1323,11 +1319,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (mImageCoordinator.state.submitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
-        uiState.copy(
-            conversationState = uiState.conversationState.copy(
-                editingMessageDraft = intent.value
-            )
-        ).setup()
+        uiState.copy(conversationState = uiState.conversationState.copy(editingMessageDraft = intent.value)).setup()
     }
 
     /**
@@ -1350,10 +1342,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 val content = withContext(Dispatchers.IO) {
                     when (message.source) {
                         ChatMessage.Source.User -> applyUserRegex(
-                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                            sessionId = sessionId,
+                            input = uiState.conversationState.editingMessageDraft,
+                            isEdit = true,
                         )
                         ChatMessage.Source.Char -> applyAiRegex(
-                            sessionId, uiState.conversationState.editingMessageDraft, isEdit = true
+                            sessionId = sessionId,
+                            input = uiState.conversationState.editingMessageDraft,
+                            isEdit = true,
                         )
                         ChatMessage.Source.System,
                         ChatMessage.Source.Summary -> uiState.conversationState.editingMessageDraft
@@ -1371,11 +1367,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 generationState = uiState.conversationState.generationState,
                 expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 editingMessageId = null,
-                editingMessageDraft = ""
+                editingMessageDraft = "",
             )
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
-            val failure = error.toGenerationFailurePresentation(mContext, R.string.image_error_invalid)
+            val failure = error.toGenerationFailurePresentation(
+                context = mContext, fallbackMessageResId = R.string.image_error_invalid,
+            )
             failure?.let { AppViewEvent.PopupToastMessage(it.message).tryEmit() }
         }
     }
@@ -1392,8 +1390,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(
             conversationState = uiState.conversationState.copy(
                 editingMessageId = null,
-                editingMessageDraft = ""
-            )
+                editingMessageDraft = "",
+            ),
         ).setup()
     }
 
@@ -1409,11 +1407,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (!ids.add(intent.blockId)) {
             ids.remove(intent.blockId)
         }
-        uiState.copy(
-            conversationState = uiState.conversationState.copy(
-                expandedThinkBlockIds = ids.toSet()
-            )
-        ).setup()
+        uiState.copy(conversationState = uiState.conversationState.copy(expandedThinkBlockIds = ids.toSet())).setup()
     }
 
     /**
@@ -1432,7 +1426,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val guide = noProviderModelSettingsGuide(mContext)
             refreshUiState(
                 sessionId = sessionId,
-                dialogState = guide.toChatDialogState()
+                dialogState = guide.toChatDialogState(),
             )
             return false
         }
@@ -1443,14 +1437,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
         }.exceptionOrNull() ?: return true
         val failure = providerError.toGenerationFailurePresentation(
-            mContext,
-            R.string.generation_failed
+            context = mContext, fallbackMessageResId = R.string.generation_failed,
         ) ?: throw providerError
         // 只拦截具有模型配置修复入口的已知选择错误
         val guide = failure.modelSettingsGuide ?: throw providerError
         refreshUiState(
             sessionId = sessionId,
-            dialogState = guide.toChatDialogState()
+            dialogState = guide.toChatDialogState(),
         )
         return false
     }
@@ -1497,33 +1490,33 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
                     generationState = ChatGenerationState.Requesting,
-                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
+                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 )
                 // 构建重生成请求，排除待被替换的消息本身
                 val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(
                         sessionId = sessionId,
                         generationMode = PromptGenerationMode.Regenerate,
-                        excludedMessageId = latestAssistantMessage.id
+                        excludedMessageId = latestAssistantMessage.id,
                     )
                 }
                 recordPromptInspection(built.inspection)
                 // 分发调用模型生成，目标形态为 Update 覆盖已有消息
                 if (AppModel.streamEnabled) {
                     generateStreaming(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Update(latestAssistantMessage.id),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Update(latestAssistantMessage.id),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Update(latestAssistantMessage.id),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Update(latestAssistantMessage.id),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
@@ -1531,14 +1524,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 状态
                 val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.regenerate_failed
+                    context = mContext, fallbackMessageResId = R.string.regenerate_failed,
                 ) ?: return@onFailure
                 val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
                     generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None
+                    dialogState = guideDialog ?: ChatDialogState.None,
                 )
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
@@ -1581,8 +1573,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 refreshUiState(
                     sessionId = sessionId,
                     inputDraft = uiState.conversationState.inputDraft,
-            generationState = ChatGenerationState.Requesting,
-                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
+                    generationState = ChatGenerationState.Requesting,
+                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 )
                 // 依据最后一条消息来源决定生成模式（Normal 或 Continue）
                 val generationMode = if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
@@ -1593,19 +1585,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 调用模型生成，续写结果作为新建角色消息保存
                 if (AppModel.streamEnabled) {
                     generateStreaming(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Create(ChatMessage.Source.Char),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.Char),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Create(ChatMessage.Source.Char),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
@@ -1613,14 +1605,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }.onFailure { throwable ->
                 val errorResId = if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
                 val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    errorResId
+                    context = mContext, fallbackMessageResId = errorResId,
                 ) ?: return@onFailure
                 val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
                     generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None
+                    dialogState = guideDialog ?: ChatDialogState.None,
                 )
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
@@ -1654,7 +1645,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     inputDraft = uiState.conversationState.inputDraft,
                     page = ChatPage.Conversation,
                     generationState = ChatGenerationState.Requesting,
-                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds
+                    expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 )
                 // 构建 Impersonate 模式 Prompt 请求
                 val built = withContext(Dispatchers.IO) {
@@ -1664,33 +1655,32 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 调用模型生成，结果作为新建用户消息保存
                 if (AppModel.streamEnabled) {
                     generateStreaming(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.User),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Create(ChatMessage.Source.User),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
-                        sessionId,
-                        built.provider,
-                        built.request,
-                        GenerationOutput.Create(ChatMessage.Source.User),
-                        built.worldInfoStateJson
+                        sessionId = sessionId,
+                        provider = built.provider,
+                        request = built.request,
+                        output = GenerationOutput.Create(ChatMessage.Source.User),
+                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
                 maybeAutoSummarize(sessionId)
             }.onFailure { throwable ->
                 val failure = throwable.toGenerationFailurePresentation(
-                    mContext,
-                    R.string.impersonation_failed
+                    context = mContext, fallbackMessageResId = R.string.impersonation_failed,
                 ) ?: return@onFailure
                 val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
                 refreshUiState(
                     sessionId = sessionId,
                     generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None
+                    dialogState = guideDialog ?: ChatDialogState.None,
                 )
                 if (guideDialog == null) {
                     AppViewEvent.PopupToastMessage(failure.message).tryEmit()
@@ -1718,14 +1708,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         provider: LLMProvider,
         request: LLMGenerationRequest,
         output: GenerationOutput,
-        worldInfoStateJson: String
+        worldInfoStateJson: String,
     ) {
         // 异步调用模型生成完整响应
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithProvider(
                 provider = provider,
                 request = request,
-                routingSessionKey = "chat:$sessionId"
+                routingSessionKey = "chat:$sessionId",
             )
         }
         // 执行持久化前的 Source 阶段正则替换
@@ -1745,7 +1735,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 source = output.source(),
                 content = processedContent,
                 deleteEmptyPlaceholder = false,
-                worldInfoStateJson = worldInfoStateJson
+                worldInfoStateJson = worldInfoStateJson,
             )
         }
         // 刷新 UI 回到空闲状态
@@ -1775,23 +1765,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         provider: LLMProvider,
         request: LLMGenerationRequest,
         output: GenerationOutput,
-        worldInfoStateJson: String
+        worldInfoStateJson: String,
     ) {
         // 异步加载本次生成绑定的正则脚本与宏快照
         val regexContext = withContext(Dispatchers.IO) {
             val session = mChatRepository.getSessionById(sessionId)
-            val character = session?.let {
-                mCharacterRepository.getCharacterById(it.characterId)
+            val character = session?.let { chatSession ->
+                mCharacterRepository.getCharacterById(chatSession.characterId)
             }
             if (session != null && character != null) {
                 StreamingRegexContext(
                     scripts = mRegexRepository.activeScripts(listOf(character)),
                     macros = RegexScriptRuntime.macros(
-                        session.userName,
-                        character.name,
-                        session.userDescription,
-                        character.scenario
-                    )
+                        userName = session.userName,
+                        characterName = character.name,
+                        userDescription = session.userDescription,
+                        scenario = character.scenario,
+                    ),
                 )
             } else {
                 StreamingRegexContext()
@@ -1808,7 +1798,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             content = "",
             regexScripts = regexContext.scripts,
             regexMacros = regexContext.macros,
-            worldInfoStateJson = worldInfoStateJson
+            worldInfoStateJson = worldInfoStateJson,
         )
         mActiveStreamingGeneration = active
         try {
@@ -1819,20 +1809,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
                 active = active.copy(
                     messageId = placeholderId,
-                    createdPlaceholder = true
+                    createdPlaceholder = true,
                 )
                 mActiveStreamingGeneration = active
             }
             // 刷新 UI 为流式接收中状态
             refreshUiState(
                 sessionId = sessionId,
-                generationState = ChatGenerationState.Streaming(active.messageId, active.content)
+                generationState = ChatGenerationState.Streaming(active.messageId, active.content),
             )
             // 收集大模型流式增量事件
             mLLMRepository.streamGenerateWithProvider(
                 provider = provider,
                 request = request,
-                routingSessionKey = "chat:$sessionId"
+                routingSessionKey = "chat:$sessionId",
             ).collect { event ->
                 currentCoroutineContext().ensureActive()
                 when (event) {
@@ -1846,14 +1836,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         uiState.copy(
                             conversationState = uiState.conversationState.copy(
                                 generationState = ChatGenerationState.Streaming(
-                                    active.messageId,
-                                    active.content
+                                    messageId = active.messageId,
+                                    content = active.content,
                                 ),
                                 messages = uiState.conversationState.messages.replaceStreamingMessage(
-                                    active.messageId,
-                                    displayContent
-                                )
-                            )
+                                    messageId = active.messageId,
+                                    content = displayContent,
+                                ),
+                            ),
                         ).setup()
                     }
                     LLMStreamEvent.Connected,
@@ -1866,7 +1856,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val snapshot = active
             try {
                 withContext(NonCancellable + Dispatchers.IO) {
-                    val finalContent = snapshot.content.takeIf { it.isNotBlank() }
+                    val finalContent = snapshot.content.takeIf { text -> text.isNotBlank() }
                         ?.let { applyStreamingGeneratedRegex(snapshot) }
                         .orEmpty()
                     mChatRepository.commitGenerationResult(
@@ -1875,7 +1865,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         source = snapshot.output.source(),
                         content = finalContent,
                         deleteEmptyPlaceholder = snapshot.createdPlaceholder,
-                        worldInfoStateJson = snapshot.worldInfoStateJson
+                        worldInfoStateJson = snapshot.worldInfoStateJson,
                     )
                 }
             } finally {
@@ -1916,12 +1906,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                                 sessionId = sessionId,
                                 inputDraft = currentState.conversationState.inputDraft,
                                 expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
-                                dialogState = ChatDialogState.None
+                                dialogState = ChatDialogState.None,
                             )
                         }
                     }
                 }
-            }.also { mSummaryJob = it }
+            }.also { job -> mSummaryJob = job }
         }
     }
 
@@ -1944,7 +1934,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messageCount > 0 && messageCount >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
-            val job = launchSummaryJob(sessionId, showToast = false)
+            val job = launchSummaryJob(sessionId = sessionId, showToast = false)
             job.join()
         }
     }
@@ -1971,7 +1961,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 AutoSummaryData(
                     session = session,
                     character = character,
-                    provider = provider
+                    provider = provider,
                 )
             } ?: return
             // 自动摘要使用计数查询复核触发条件，不再反序列化完整历史
@@ -1984,17 +1974,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val maximumCandidates = summaryCandidateMessageLimit(
                 maxContextTokens = data.provider.contextTokens,
                 responseTokens = AppModel.summaryResponseTokens,
-                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest
+                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest,
             )
             val initialWindowSize = minOf(
-                INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
-                maximumCandidates
+                a = INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                b = maximumCandidates,
             )
             val initialContext = withContext(Dispatchers.IO) {
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
                     allowRefreshLatest = showToast,
-                    maxCandidateMessages = initialWindowSize
+                    maxCandidateMessages = initialWindowSize,
                 )
             }
             if (initialContext.messages.isEmpty()) {
@@ -2013,7 +2003,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 data = data,
                 initialContext = initialContext,
                 initialWindowSize = initialWindowSize,
-                maximumCandidates = maximumCandidates
+                maximumCandidates = maximumCandidates,
             ) ?: return
 
             currentCoroutineContext().ensureActive()
@@ -2023,7 +2013,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mLLMRepository.generateWithProvider(
                     provider = data.provider,
                     request = prepared.request,
-                    routingSessionKey = "chat:$sessionId"
+                    routingSessionKey = "chat:$sessionId",
                 )
             }
             // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
@@ -2046,7 +2036,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     content = summaryContent,
                     coveredMessageId = prepared.coveredMessageId,
                     summaryIdToUpdate = prepared.summaryIdToUpdate,
-                    expectedSnapshot = prepared.inputSnapshot
+                    expectedSnapshot = prepared.inputSnapshot,
                 )
             }
             if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
@@ -2060,12 +2050,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             val imageFailure = cause is GenerationFailure.Image
             if (!showToast && imageFailure) {
-                mChatRepository.updateAutoSummaryPaused(sessionId, true)
+                mChatRepository.updateAutoSummaryPaused(id = sessionId, paused = true)
                 AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()
             }
             val failure = throwable.toGenerationFailurePresentation(
-                mContext,
-                R.string.summary_failed
+                context = mContext, fallbackMessageResId = R.string.summary_failed,
             ) ?: throw throwable
             val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
             if (guideDialog != null) {
@@ -2089,7 +2078,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         data: AutoSummaryData,
         initialContext: ChatSummaryGenerationContext,
         initialWindowSize: Int,
-        maximumCandidates: Int
+        maximumCandidates: Int,
     ): PreparedSummaryRequest? {
         var windowSize = initialWindowSize
         var context = initialContext
@@ -2111,20 +2100,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     messages = context.messages,
                     messageImages = summaryImages.references,
                     unavailableImages = summaryImages.unavailable,
-                    provider = data.provider
+                    provider = data.provider,
                 )
             }
             val candidateCount = (context.messages.size - 1).coerceAtLeast(0)
-            val shouldExpand = built.selectedMessages.size == candidateCount &&
-                context.hasMoreCandidateMessages &&
-                windowSize < maximumCandidates
+            val shouldExpand = built.selectedMessages.size == candidateCount
+                && context.hasMoreCandidateMessages
+                && windowSize < maximumCandidates
             if (!shouldExpand) {
                 val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
                 return PreparedSummaryRequest(
                     request = built.request,
                     coveredMessageId = coveredMessageId,
                     summaryIdToUpdate = context.summaryToUpdate?.id,
-                    inputSnapshot = inputSnapshot
+                    inputSnapshot = inputSnapshot,
                 )
             }
             // 下一窗口仍从同一摘要边界读取，最终结果不依赖中间探测请求
@@ -2133,7 +2122,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
                     allowRefreshLatest = allowRefreshLatest,
-                    maxCandidateMessages = windowSize
+                    maxCandidateMessages = windowSize,
                 )
             }
         }
@@ -2154,7 +2143,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun buildGenerationRequest(
         sessionId: Long,
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
-        excludedMessageId: Long? = null
+        excludedMessageId: Long? = null,
     ): BuiltGenerationRequest {
         // 加载会话实体与角色人设数据
         val session = mChatRepository.getSessionById(sessionId) ?: error(mContext.getString(R.string.session_not_found))
@@ -2162,7 +2151,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val generationHistory = mChatRepository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = excludedMessageId,
-            maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0)
+            maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
         )
         // 收集并过滤当前会话已启用的世界书条目与递归扫描设置
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
@@ -2184,7 +2173,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val imageReferences = mImageRuntime.prepareCandidates(generationHistory.messages)
         val buildResult = withContext(Dispatchers.Default) {
             mChatPromptBuilder.buildWithMetadata(
-                PromptBuildContext(
+                context = PromptBuildContext(
                     userName = session.userName,
                     userDescription = session.userDescription,
                     character = character,
@@ -2198,7 +2187,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                             createTime = message.createTime,
                             source = ChatMessage.Source.valueOf(message.source),
                             content = message.content,
-                            coveredMessageId = message.coveredMessageId
+                            coveredMessageId = message.coveredMessageId,
                         )
                     },
                     messageImages = imageReferences.references,
@@ -2212,15 +2201,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     maxContextTokens = provider.contextTokens,
                     maxResponseTokens = provider.maxTokens,
                     generationMode = generationMode,
-                    regexScripts = regexScripts
-                )
+                    regexScripts = regexScripts,
+                ),
             )
         }
         return BuiltGenerationRequest(
             provider = provider,
             request = buildResult.request,
             inspection = buildResult.inspection,
-            worldInfoStateJson = buildResult.worldInfoStateJson
+            worldInfoStateJson = buildResult.worldInfoStateJson,
         )
     }
 
@@ -2234,18 +2223,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(hasPromptInspection = true).setup()
         // 检查是否存在世界书超限或上下文被裁剪项
-        val hasWorldInfoOverflow = inspection.omittedItems.any {
-            it.reason == PromptOmissionReason.WorldInfoBudget
-        }
-        val hasContextTrimming = inspection.omittedItems.any {
-            it.reason == PromptOmissionReason.ContextBudget
-        }
+        val hasWorldInfoOverflow = inspection.omittedItems.any { it.reason == PromptOmissionReason.WorldInfoBudget }
+        val hasContextTrimming = inspection.omittedItems.any { it.reason == PromptOmissionReason.ContextBudget }
         // 根据全局配置按需弹出告警 Toast
         when {
             AppModel.worldInfoOverflowAlert && hasWorldInfoOverflow -> {
-                AppViewEvent.PopupToastMessageByResId(
-                    R.string.world_info_budget_overflow_warning
-                ).tryEmit()
+                AppViewEvent.PopupToastMessageByResId(R.string.world_info_budget_overflow_warning).tryEmit()
             }
             AppModel.contextTrimmingAlert && hasContextTrimming -> {
                 AppViewEvent.PopupToastMessageByResId(R.string.prompt_trimmed_warning).tryEmit()
@@ -2285,7 +2268,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         editingMessageId: String? = null,
         editingMessageDraft: String = "",
         dialogState: ChatDialogState = ChatDialogState.None,
-        messageLimit: Int = MESSAGE_PAGE_SIZE
+        messageLimit: Int = MESSAGE_PAGE_SIZE,
     ): ChatUiState.Normal? {
         // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
@@ -2293,7 +2276,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
         val olderWindowSize = mSearchAnchorId?.let { anchor ->
             getOrNull<ChatUiState.Normal>()?.conversationState?.messages
-                ?.indexOfFirst { it.id == anchor.toString() }?.takeIf { it >= 0 }
+                ?.indexOfFirst { chatMessageUiModel -> chatMessageUiModel.id == anchor.toString() }?.takeIf { value -> value >= 0 }
         }
         val pageData = mChatRepository.getChatPageData(sessionId, messageLimit, mSearchAnchorId, olderWindowSize)
         val messagePage = pageData.page
@@ -2303,7 +2286,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         mUnloadedNewerMessageCount = messagePage.newerMessageCount
         val displayContext = ChatMessageDisplayContext(session, character)
-        val displayMessages = messagePage.messages.toDisplayMessageItems(displayContext, messageImages = messagePage.messageImages, newerMessageCount = messagePage.newerMessageCount)
+        val displayMessages = messagePage.messages.toDisplayMessageItems(
+            context = displayContext,
+            messageImages = messagePage.messageImages,
+            newerMessageCount = messagePage.newerMessageCount,
+        )
         mMessageDisplayContext = displayContext
         mOldestLoadedMessageCursor = messagePage.messages.firstOrNull()?.toChatMessageCursor()
         // 获取摘要、世界书及角色头像资源
@@ -2311,8 +2298,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
-        val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let {
-            mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+        val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let { text ->
+            mFileRepository.loadAvatarBitmap(text)?.asImageBitmap()
         }
         val hasAvailableProvider = mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
         // 组装并返回 Normal UI 状态
@@ -2324,11 +2311,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 summary = summary,
                 creatorNotes = effectiveCreatorNotes,
                 messageCount = messagePage.totalMessageCount,
-                enabledIds = enabledIds
+                enabledIds = enabledIds,
             ),
             character = character.toChatCharacterItem(
                 userName = session.userName,
-                avatarImage = avatarImage
+                avatarImage = avatarImage,
             ),
             conversationState = ChatConversationState(
                 searchAnchorMessageId = mSearchAnchorId?.toString(),
@@ -2338,28 +2325,30 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 canLoadOlderMessages = messagePage.canLoadOlderMessages,
                 inputDraft = inputDraft,
                 generationState = if (generationState is ChatGenerationState.Failed) {
-                    generationState.copy(canRetryReply = mRetryUserMessageId?.let {
-                        mChatRepository.getMessageById(it)?.sessionId == sessionId
-                    } == true)
+                    generationState.copy(
+                        canRetryReply = mRetryUserMessageId?.let { id ->
+                        mChatRepository.getMessageById(id)?.sessionId == sessionId
+                    } == true,
+                    )
                 } else generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
-                editingMessageDraft = editingMessageDraft
+                editingMessageDraft = editingMessageDraft,
             ),
             lorebookState = lorebookData.toChatLorebookGroupItems(
-                    enabledIds = enabledIds,
-                    unknownLorebookName = mContext.getString(R.string.unknown_lorebook)
-                ).let { groups ->
+                enabledIds = enabledIds,
+                unknownLorebookName = mContext.getString(R.string.unknown_lorebook),
+            ).let { groups ->
                     ChatLorebookState(
                         groups = groups,
                         visibleGroups = groups.filterForQuery(lorebookQuery),
-                        query = lorebookQuery
+                        query = lorebookQuery,
                     )
                 },
             streamEnabled = AppModel.streamEnabled,
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,
-            dialogState = dialogState
+            dialogState = dialogState,
         )
     }
 
@@ -2377,14 +2366,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun List<ChatMessage>.toDisplayMessageItems(
         context: ChatMessageDisplayContext,
         messageImages: List<MessageWithImages>,
-        newerMessageCount: Int = 0
+        newerMessageCount: Int = 0,
     ): List<ChatMessageUiModel> {
         val regexScripts = mRegexRepository.activeScripts(listOf(context.character))
         val regexMacros = RegexScriptRuntime.macros(
             userName = context.session.userName,
             characterName = context.character.name,
             userDescription = context.session.userDescription,
-            scenario = context.character.scenario
+            scenario = context.character.scenario,
         )
         // 每一页只处理自身消息，深度偏移仍覆盖已经加载的较新窗口
         val displayMessages = mapIndexed { index, message ->
@@ -2395,14 +2384,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     source = RegexMessageSource.User,
                     scripts = regexScripts,
                     macros = regexMacros,
-                    depth = depth
+                    depth = depth,
                 )
                 ChatMessage.Source.Char -> mRegexProcessor.applyDisplay(
                     input = message.content,
                     source = RegexMessageSource.Character,
                     scripts = regexScripts,
                     macros = regexMacros,
-                    depth = depth
+                    depth = depth,
                 )
                 ChatMessage.Source.System,
                 ChatMessage.Source.Summary -> null
@@ -2410,13 +2399,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             if (result == null) message else message.copy(content = result)
         }
         val imageMap = messageImages.associate { snapshot ->
-            snapshot.key.messageId.toString() to snapshot.images.map { it.image.imageUuid }
+            snapshot.key.messageId.toString() to snapshot.images.map { messageImageWithFile -> messageImageWithFile.image.imageUuid }
         }
         return displayMessages.toChatMessageItems(
             characterName = context.character.name,
             userName = context.session.userName,
             systemSpeaker = mContext.getString(R.string.system_speaker),
-            streamingMessageId = mActiveStreamingGeneration?.messageId
+            streamingMessageId = mActiveStreamingGeneration?.messageId,
         ).map { it.copy(imageUuids = imageMap[it.id].orEmpty()) }
     }
 
@@ -2442,7 +2431,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         messageLimit: Int = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.messages?.size
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
-            ?: MESSAGE_PAGE_SIZE
+            ?: MESSAGE_PAGE_SIZE,
     ) {
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
         if (generationState is ChatGenerationState.Requesting || generationState is ChatGenerationState.Streaming) mSearchAnchorId = null
@@ -2458,7 +2447,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 editingMessageId = editingMessageId,
                 editingMessageDraft = editingMessageDraft,
                 dialogState = dialogState,
-                messageLimit = messageLimit
+                messageLimit = messageLimit,
             )
         } ?: return
         nextState.setup()
@@ -2472,7 +2461,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun saveSessionLorebookEntryIds(
         sessionId: Long,
-        enabledIds: Set<Long>
+        enabledIds: Set<Long>,
     ) {
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionLorebookEntryIds(sessionId, enabledIds.toList())
@@ -2486,7 +2475,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val lorebooksWithEntries = mLorebookRepository.getAllLorebooksWithEntries()
         return ChatLorebookEntryData(
             lorebooks = lorebooksWithEntries.associate { it.lorebook.id to it.lorebook },
-            entries = lorebooksWithEntries.flatMap { it.entries }
+            entries = lorebooksWithEntries.flatMap { it.entries },
         )
     }
 
@@ -2521,16 +2510,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun applyUserRegex(
         sessionId: Long,
         input: String,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): String {
         val session = mChatRepository.getSessionById(sessionId) ?: return input
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
         val scripts = mRegexRepository.activeScripts(listOf(character))
         val macros = RegexScriptRuntime.macros(
-            session.userName,
-            character.name,
-            session.userDescription,
-            character.scenario
+            userName = session.userName,
+            characterName = character.name,
+            userDescription = session.userDescription,
+            scenario = character.scenario,
         )
         return mRegexProcessor.applyUserInput(input, scripts, macros, isEdit)
     }
@@ -2546,7 +2535,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun applyAiRegex(
         sessionId: Long,
         input: String,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): String {
         val session = mChatRepository.getSessionById(sessionId) ?: return input
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
@@ -2554,12 +2543,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             input = input,
             scripts = mRegexRepository.activeScripts(listOf(character)),
             macros = RegexScriptRuntime.macros(
-                session.userName,
-                character.name,
-                session.userDescription,
-                character.scenario
+                userName = session.userName,
+                characterName = character.name,
+                userDescription = session.userDescription,
+                scenario = character.scenario,
             ),
-            isEdit = isEdit
+            isEdit = isEdit,
         )
     }
 
@@ -2574,7 +2563,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun applyGeneratedRegex(
         sessionId: Long,
         input: String,
-        output: GenerationOutput?
+        output: GenerationOutput?,
     ): String {
         return if (output is GenerationOutput.Create && output.source == ChatMessage.Source.User) {
             applyUserRegex(sessionId, input)
@@ -2598,7 +2587,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             input = snapshot.content,
             source = snapshot.output.source().toRegexMessageSource(),
             scripts = snapshot.regexScripts,
-            macros = snapshot.regexMacros
+            macros = snapshot.regexMacros,
         )
     }
 
@@ -2613,7 +2602,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             input = snapshot.content,
             source = snapshot.output.source().toRegexMessageSource(),
             scripts = snapshot.regexScripts,
-            macros = snapshot.regexMacros
+            macros = snapshot.regexMacros,
         )
     }
 

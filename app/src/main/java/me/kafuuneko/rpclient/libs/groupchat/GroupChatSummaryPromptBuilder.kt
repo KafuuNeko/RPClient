@@ -41,7 +41,7 @@ class GroupChatSummaryPromptBuilder(
         messages: List<GroupChatMessage>,
         provider: LLMProvider,
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
-        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap()
+        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
     ): GroupChatSummaryBuildResult {
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
@@ -53,32 +53,42 @@ class GroupChatSummaryPromptBuilder(
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
             val requestMessages = renderRequestMessages(
-                session,
-                memberNames,
-                safeExistingSummary,
-                sanitized.subList(0, prefix.size), messageImages, unavailableImages
+                session = session,
+                memberNames = memberNames,
+                existingSummary = safeExistingSummary,
+                messages = sanitized.subList(fromIndex = 0, toIndex = prefix.size),
+                messageImages = messageImages,
+                unavailableImages = unavailableImages,
             )
-            countSummaryTokens(tokenizer, requestMessages, promptBudget,
-                prefix.sumOf { unavailableImages[it.id].orEmpty().size })
+            countSummaryTokens(
+                tokenizer = tokenizer,
+                messages = requestMessages,
+                budget = promptBudget,
+                unavailableCount = prefix.sumOf { message -> unavailableImages[message.id].orEmpty().size },
+            )
         }
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
-                session,
-                memberNames,
-                safeExistingSummary,
-                listOf(sanitized.first()), messageImages, unavailableImages
+                session = session,
+                memberNames = memberNames,
+                existingSummary = safeExistingSummary,
+                messages = listOf(sanitized.first()),
+                messageImages = messageImages,
+                unavailableImages = unavailableImages,
             )
             throw PromptBudgetExceededException(
-                (tokenizer.countMessages(requestMessages).toLong() +
+                requiredTokens = (tokenizer.countMessages(requestMessages).toLong() +
                     tokenizer.countUnavailableImages(unavailableImages[limited.first().id].orEmpty().size)).toTokenInt(),
-                promptBudget
+                promptBudget = promptBudget,
             )
         }
         val requestMessages = renderRequestMessages(
-            session,
-            memberNames,
-            safeExistingSummary,
-            sanitized.take(selected.size), messageImages, unavailableImages
+            session = session,
+            memberNames = memberNames,
+            existingSummary = safeExistingSummary,
+            messages = sanitized.take(selected.size),
+            messageImages = messageImages,
+            unavailableImages = unavailableImages,
         )
         selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return GroupChatSummaryBuildResult(
@@ -88,11 +98,11 @@ class GroupChatSummaryPromptBuilder(
                 options = LLMGenerationOptions(
                     temperature = provider.temperature,
                     maxTokens = responseTokens,
-                    topP = provider.topP
+                    topP = provider.topP,
                 ),
-                isPromptFinalized = true
+                isPromptFinalized = true,
             ),
-            selectedMessages = selected
+            selectedMessages = selected,
         )
     }
 
@@ -103,25 +113,30 @@ class GroupChatSummaryPromptBuilder(
         existingSummary: String,
         messages: List<GroupChatMessage>,
         messageImages: Map<Long, List<LLMImageReference>>,
-        unavailableImages: Map<Long, List<UnavailablePromptImage>>
+        unavailableImages: Map<Long, List<UnavailablePromptImage>>,
     ): List<LLMMessage> {
-        val history = messages.joinToString("\n") {
-            "${it.speakerNameSnapshot}: ${it.content}"
+        val history = messages.joinToString("\n") { message ->
+            "${message.speakerNameSnapshot}: ${message.content}"
         }
-        val instruction = AppModel.groupSummarizePrompt
-            .replace("{{user}}", session.userName, ignoreCase = true)
-            .replace("{{group}}", memberNames.joinToString(", "), ignoreCase = true)
-            .replace("{{summary}}", "", ignoreCase = true)
-            .replace("{{history}}", "", ignoreCase = true)
-            .replace("{{words}}", AppModel.summaryWordsLimit.toString(), ignoreCase = true)
+        val instruction = AppModel
+            .groupSummarizePrompt
+            .replace(oldValue = "{{user}}", newValue = session.userName, ignoreCase = true)
+            .replace(oldValue = "{{group}}", newValue = memberNames.joinToString(", "), ignoreCase = true)
+            .replace(oldValue = "{{summary}}", newValue = "", ignoreCase = true)
+            .replace(oldValue = "{{history}}", newValue = "", ignoreCase = true)
+            .replace(oldValue = "{{words}}", newValue = AppModel.summaryWordsLimit.toString(), ignoreCase = true)
         val historyBlocks = messages.flatMap { message ->
             listOf(LLMContentBlock.Text("${message.speakerNameSnapshot}:")) +
-                messageImages[message.id].orEmpty().map { LLMContentBlock.Image(it) } +
+                messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
                 LLMContentBlock.Text(message.content)
         }
-        return buildRawSummaryMessages(instruction, existingSummary, history,
-            historyBlocks.takeIf { messages.any { message ->
+        return buildRawSummaryMessages(
+            instruction = instruction,
+            existingSummary = existingSummary,
+            history = history,
+            historyBlocks = historyBlocks.takeIf { messages.any { message ->
                 !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
-            } })
+            } },
+        )
     }
 }

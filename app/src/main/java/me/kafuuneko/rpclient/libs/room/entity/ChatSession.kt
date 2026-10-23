@@ -20,7 +20,7 @@ import me.kafuuneko.rpclient.utils.takeIfNotBlank
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [

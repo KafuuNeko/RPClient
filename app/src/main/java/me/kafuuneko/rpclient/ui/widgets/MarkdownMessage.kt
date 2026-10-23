@@ -2,8 +2,6 @@ package me.kafuuneko.rpclient.ui.widgets
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -67,7 +67,7 @@ fun MarkdownMessageText(
     blockSpacing: Dp = 10.dp,
     highlightedText: String? = null,
     highlightedOccurrenceIndex: Int = 0,
-    onHighlightedPosition: ((Float?) -> Unit)? = null
+    onHighlightedPosition: ((Float?) -> Unit)? = null,
 ) {
     val blocks = remember(content) { MarkdownParser.parseBlocks(content) }
     val textColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface
@@ -88,7 +88,7 @@ fun MarkdownMessageText(
     val selectionColors = remember(selectionColor) {
         TextSelectionColors(
             handleColor = selectionColor,
-            backgroundColor = selectionColor.copy(alpha = 0.35f)
+            backgroundColor = selectionColor.copy(alpha = 0.35f),
         )
     }
 
@@ -97,17 +97,17 @@ fun MarkdownMessageText(
         SelectionContainer(modifier = modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(blockSpacing)
+                verticalArrangement = Arrangement.spacedBy(blockSpacing),
             ) {
                 val highlightRanges = remember(blocks, highlightedText, highlightedOccurrenceIndex) {
                     MarkdownHighlightMapper.findRanges(
                         blocks = blocks,
                         highlightedText = highlightedText,
-                        occurrenceIndex = highlightedOccurrenceIndex
+                        occurrenceIndex = highlightedOccurrenceIndex,
                     )
                 }
                 val rangesByBlock = remember(highlightRanges) {
-                    highlightRanges.groupBy { it.blockIndex }
+                    highlightRanges.groupBy { markdownHighlightRange -> markdownHighlightRange.blockIndex }
                 }
                 val highlightedStartBlock = highlightRanges.firstOrNull()?.blockIndex
                 if (highlightedStartBlock == null && onHighlightedPosition != null) {
@@ -116,22 +116,24 @@ fun MarkdownMessageText(
                 }
                 blocks.forEachIndexed { blockIndex, block ->
                     val blockRanges = rangesByBlock[blockIndex].orEmpty()
-                        .filter { it.listItemIndex == null }
-                        .map { it.start until it.endExclusive }
+                        .filter { markdownHighlightRange -> markdownHighlightRange.listItemIndex == null }
+                        .map { markdownHighlightRange -> markdownHighlightRange.start until markdownHighlightRange.endExclusive }
                     // 高亮内容或范围变化时重建该块，使布局回调对应最新生成结果。
                     key(
                         blockIndex,
                         block.takeIf { blockIndex == highlightedStartBlock },
-                        blockRanges.takeIf { blockIndex == highlightedStartBlock }
+                        blockRanges.takeIf { blockIndex == highlightedStartBlock },
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned { coordinates ->
-                                    if (blockIndex == highlightedStartBlock) {
-                                        onHighlightedPosition?.invoke(coordinates.positionInParent().y)
-                                    }
-                                }
+                                .onGloballyPositioned(
+                                    onGloballyPositioned = { coordinates ->
+                                        if (blockIndex == highlightedStartBlock) {
+                                            onHighlightedPosition?.invoke(coordinates.positionInParent().y)
+                                        }
+                                    },
+                                ),
                         ) {
                             when (block) {
                                 is MarkdownBlock.Paragraph -> MarkdownInlineText(
@@ -141,7 +143,7 @@ fun MarkdownMessageText(
                                     linkColor = linkColor,
                                     strongColor = strongColor,
                                     highlightedRanges = blockRanges,
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
                                 )
 
                                 is MarkdownBlock.Heading -> MarkdownInlineText(
@@ -151,7 +153,7 @@ fun MarkdownMessageText(
                                     linkColor = linkColor,
                                     strongColor = strongColor,
                                     highlightedRanges = blockRanges,
-                                    style = block.headingStyle()
+                                    style = block.headingStyle(),
                                 )
 
                                 is MarkdownBlock.Code -> MarkdownCodeBlock(
@@ -159,7 +161,7 @@ fun MarkdownMessageText(
                                     language = block.language,
                                     color = textColor,
                                     backgroundColor = blockColor,
-                                    highlightedRanges = blockRanges
+                                    highlightedRanges = blockRanges,
                                 )
 
                                 is MarkdownBlock.Quote -> MarkdownQuoteBlock(
@@ -169,7 +171,7 @@ fun MarkdownMessageText(
                                     linkColor = linkColor,
                                     strongColor = strongColor,
                                     highlightedRanges = blockRanges,
-                                    backgroundColor = blockColor
+                                    backgroundColor = blockColor,
                                 )
 
                                 is MarkdownBlock.ListBlock -> MarkdownListBlock(
@@ -180,17 +182,17 @@ fun MarkdownMessageText(
                                     strongColor = strongColor,
                                     highlightedRangesByItem = List(block.items.size) { itemIndex ->
                                         rangesByBlock[blockIndex].orEmpty()
-                                            .filter { it.listItemIndex == itemIndex }
-                                            .map { it.start until it.endExclusive }
+                                            .filter { markdownHighlightRange -> markdownHighlightRange.listItemIndex == itemIndex }
+                                            .map { markdownHighlightRange -> markdownHighlightRange.start until markdownHighlightRange.endExclusive }
                                     },
-                                    markerColor = subtleColor
+                                    markerColor = subtleColor,
                                 )
 
                                 MarkdownBlock.Divider -> Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(1.dp)
-                                        .background(subtleColor.copy(alpha = 0.25f))
+                                        .background(subtleColor.copy(alpha = 0.25f)),
                                 )
                             }
                         }
@@ -219,13 +221,19 @@ private fun MarkdownInlineText(
     strongColor: Color,
     highlightedRanges: List<IntRange> = emptyList(),
     style: TextStyle,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val highlightBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     val highlightForeground = MaterialTheme.colorScheme.primary
     val text = remember(
-        content, color, narrationColor, linkColor, strongColor, highlightedRanges,
-        highlightBackground, highlightForeground
+        content,
+        color,
+        narrationColor,
+        linkColor,
+        strongColor,
+        highlightedRanges,
+        highlightBackground,
+        highlightForeground,
     ) {
         val rendered = buildAnnotatedString {
             appendMarkdownInline(
@@ -233,7 +241,7 @@ private fun MarkdownInlineText(
                 textColor = color,
                 narrationColor = narrationColor,
                 linkColor = linkColor,
-                strongColor = strongColor
+                strongColor = strongColor,
             )
         }
         // 高亮作用于渲染后的可见范围，不能直接套用 Markdown 原文下标。
@@ -243,7 +251,7 @@ private fun MarkdownInlineText(
         modifier = modifier,
         text = text,
         style = style,
-        color = color
+        color = color,
     )
 }
 
@@ -253,7 +261,7 @@ private fun MarkdownCodeBlock(
     language: String?,
     color: Color,
     backgroundColor: Color,
-    highlightedRanges: List<IntRange> = emptyList()
+    highlightedRanges: List<IntRange> = emptyList(),
 ) {
     val highlightBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     val highlightForeground = MaterialTheme.colorScheme.primary
@@ -266,18 +274,18 @@ private fun MarkdownCodeBlock(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
-        border = BorderStroke(0.5.dp, color.copy(alpha = 0.12f))
+        border = BorderStroke(width = 0.5.dp, color = color.copy(alpha = 0.12f)),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (!language.isNullOrBlank()) {
                 Text(
                     text = language,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = color.copy(alpha = 0.70f)
+                    color = color.copy(alpha = 0.70f),
                 )
             }
             Text(
@@ -285,9 +293,9 @@ private fun MarkdownCodeBlock(
                 text = highlightedCode,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    lineHeight = 18.sp
+                    lineHeight = 18.sp,
                 ),
-                color = color
+                color = color,
             )
         }
     }
@@ -297,17 +305,24 @@ private fun MarkdownCodeBlock(
 private fun AnnotatedString.withHighlightRanges(
     ranges: List<IntRange>,
     foreground: Color,
-    background: Color
+    background: Color,
 ): AnnotatedString {
     if (ranges.isEmpty()) return this
     return buildAnnotatedString {
         append(this@withHighlightRanges)
         // 生成内容可能与上一帧布局不同，越界片段只裁剪，不影响正文渲染。
         ranges.forEach { range ->
-            val start = range.first.coerceIn(0, length)
+            val start = range.first.coerceIn(minimumValue = 0, maximumValue = length)
             val end = (range.last + 1).coerceIn(start, length)
-            if (start < end) addStyle(SpanStyle(background = background, color = foreground,
-                fontWeight = FontWeight.Medium), start, end)
+            if (start < end) addStyle(
+                style = SpanStyle(
+                    background = background,
+                    color = foreground,
+                    fontWeight = FontWeight.Medium,
+                ),
+                start = start,
+                end = end,
+            )
         }
     }
 }
@@ -320,23 +335,23 @@ private fun MarkdownQuoteBlock(
     linkColor: Color,
     strongColor: Color,
     highlightedRanges: List<IntRange> = emptyList(),
-    backgroundColor: Color
+    backgroundColor: Color,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = backgroundColor,
-        border = BorderStroke(0.5.dp, color.copy(alpha = 0.08f))
+        border = BorderStroke(width = 0.5.dp, color = color.copy(alpha = 0.08f)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
         ) {
             Box(
                 modifier = Modifier
                     .width(3.5.dp)
                     .heightIn(min = 22.dp)
-                    .background(color.copy(alpha = 0.55f), CircleShape)
+                    .background(color.copy(alpha = 0.55f), CircleShape),
             )
             Spacer(modifier = Modifier.width(10.dp))
             MarkdownInlineText(
@@ -347,7 +362,7 @@ private fun MarkdownQuoteBlock(
                 linkColor = linkColor,
                 strongColor = strongColor,
                 highlightedRanges = highlightedRanges,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
     }
@@ -361,19 +376,19 @@ private fun MarkdownListBlock(
     linkColor: Color,
     strongColor: Color,
     highlightedRangesByItem: List<List<IntRange>> = emptyList(),
-    markerColor: Color
+    markerColor: Color,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         block.items.forEachIndexed { itemIndex, item ->
             Row(
                 modifier = Modifier.padding(start = (item.indentLevel * 14).dp),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Top,
             ) {
                 Text(
                     modifier = Modifier.width(24.dp),
                     text = item.marker,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = markerColor
+                    color = markerColor,
                 )
                 MarkdownInlineText(
                     modifier = Modifier.weight(1f),
@@ -383,7 +398,7 @@ private fun MarkdownListBlock(
                     linkColor = linkColor,
                     strongColor = strongColor,
                     highlightedRanges = highlightedRangesByItem.getOrNull(itemIndex).orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
@@ -396,47 +411,47 @@ private fun AnnotatedString.Builder.appendMarkdownInline(
     textColor: Color,
     narrationColor: Color,
     linkColor: Color,
-    strongColor: Color
+    strongColor: Color,
 ) {
     // 解析器已经完成语法判断，这里只把纯模型映射为 Compose 样式。
     parts.forEach { part ->
         when (part) {
             is MarkdownInline.Text -> append(part.content)
             is MarkdownInline.Code -> withStyle(
-                SpanStyle(
+                style = SpanStyle(
                     fontFamily = FontFamily.Monospace,
-                    background = textColor.copy(alpha = 0.10f)
-                )
+                    background = textColor.copy(alpha = 0.10f),
+                ),
             ) {
                 append(part.content)
             }
 
             is MarkdownInline.Strong -> withStyle(
-                SpanStyle(
+                style = SpanStyle(
                     color = strongColor,
-                    fontWeight = FontWeight.Bold
-                )
+                    fontWeight = FontWeight.Bold,
+                ),
             ) {
                 appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
             is MarkdownInline.Emphasis -> withStyle(
-                SpanStyle(
+                style = SpanStyle(
                     fontStyle = FontStyle.Italic,
-                    color = narrationColor
-                )
+                    color = narrationColor,
+                ),
             ) {
                 appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
             is MarkdownInline.Strikethrough -> withStyle(
-                SpanStyle(textDecoration = TextDecoration.LineThrough)
+                style = SpanStyle(textDecoration = TextDecoration.LineThrough),
             ) {
                 appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }
 
             is MarkdownInline.Link -> withStyle(
-                SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+                style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
             ) {
                 appendMarkdownInline(part.content, textColor, narrationColor, linkColor, strongColor)
             }

@@ -19,13 +19,13 @@ import androidx.room.PrimaryKey
             entity = Story::class,
             parentColumns = ["id"],
             childColumns = ["storyId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = StoryVolume::class,
             parentColumns = ["id"],
             childColumns = ["volumeId"],
-            onDelete = ForeignKey.SET_NULL
+            onDelete = ForeignKey.SET_NULL,
         )
     ],
     indices = [

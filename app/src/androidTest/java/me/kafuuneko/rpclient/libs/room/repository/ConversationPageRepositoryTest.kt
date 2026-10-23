@@ -11,8 +11,6 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,12 +34,32 @@ class ConversationPageRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        chatRepository = ChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
-        groupChatRepository = GroupChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
+        chatRepository = ChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
+        groupChatRepository = GroupChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
 
         // 创建单聊和群聊页面查询需要的最小会话数据
         val characterId = database.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -50,11 +68,11 @@ class ConversationPageRepositoryTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
-            )
+                postHistoryInstructions = "",
+            ),
         )
         chatSessionId = database.getChatSessionDao().insertOrReplace(
-            ChatSession(
+            data = ChatSession(
                 characterId = characterId,
                 createTime = 1L,
                 latestTime = 1L,
@@ -62,17 +80,17 @@ class ConversationPageRepositoryTest {
                 title = "Test chat",
                 userNote = "",
                 userName = "Alice",
-                userDescription = ""
-            )
+                userDescription = "",
+            ),
         )
         groupChatSessionId = database.getGroupChatSessionDao().insertOrReplace(
-            GroupChatSession(
+            data = GroupChatSession(
                 title = "Test group",
                 createTime = 1L,
                 latestTime = 1L,
                 userName = "Alice",
-                userDescription = ""
-            )
+                userDescription = "",
+            ),
         )
     }
 
@@ -84,41 +102,80 @@ class ConversationPageRepositoryTest {
     @Test
     fun searchAnchorLoadsBothDirectionsWithGlobalDepth() = runBlocking {
         val ids = (0..100).map { index -> chatRepository.createMessage(
-            sessionId = chatSessionId, source = ChatMessage.Source.User,
-            content = "message-$index", createTime = index.toLong()
+            sessionId = chatSessionId,
+            source = ChatMessage.Source.User,
+            content = "message-$index",
+            createTime = index.toLong(),
         ) }
-        val page = chatRepository.getChatPageData(chatSessionId, 10, ids[40]).page
-        assertEquals(ids.subList(35, 46), page.messages.map { it.id })
+        val page = chatRepository.getChatPageData(sessionId = chatSessionId, pageSize = 10, anchorMessageId = ids[40]).page
+        assertEquals(ids.subList(fromIndex = 35, toIndex = 46), page.messages.map { message -> message.id })
         assertTrue(page.canLoadOlderMessages)
         assertTrue(page.canLoadNewerMessages)
         assertEquals(55, page.newerMessageCount)
-        val newer = chatRepository.getMessagePageAfter(chatSessionId, page.messages.last().id, 10)!!
-        assertEquals(ids.subList(46, 56), newer.messages.map { it.id })
+        val newer = chatRepository.getMessagePageAfter(
+            sessionId = chatSessionId,
+            afterMessageId = page.messages.last().id,
+            pageSize = 10,
+        )!!
+        assertEquals(ids.subList(fromIndex = 46, toIndex = 56), newer.messages.map { message -> message.id })
         assertEquals(45, newer.newerMessageCount)
         // 页面恢复保持已加载窗口的非对称两侧，不能重新居中后丢失较新消息。
-        val restored = chatRepository.getChatPageData(chatSessionId, 21, ids[40], olderWindowSize = 5).page
-        assertEquals(ids.subList(35, 56), restored.messages.map { it.id })
-        val older = chatRepository.getMessagePageBefore(chatSessionId, 35, ids[35], 10)
-        assertEquals(ids.subList(25, 35), older.messages.map { it.id })
+        val restored = chatRepository.getChatPageData(
+            sessionId = chatSessionId,
+            pageSize = 21,
+            anchorMessageId = ids[40],
+            olderWindowSize = 5,
+        ).page
+        assertEquals(ids.subList(fromIndex = 35, toIndex = 56), restored.messages.map { message -> message.id })
+        val older = chatRepository.getMessagePageBefore(
+            sessionId = chatSessionId,
+            beforeCreateTime = 35,
+            beforeMessageId = ids[35],
+            pageSize = 10,
+        )
+        assertEquals(ids.subList(fromIndex = 25, toIndex = 35), older.messages.map { message -> message.id })
     }
 
     @Test
     fun groupSearchWindowRetainsBothSidesAndRejectsWrongSession() = runBlocking {
         val ids = (0..60).map { index -> groupChatRepository.createMessage(
-            sessionId = groupChatSessionId, source = GroupChatMessage.Source.User,
-            content = "group-$index", speakerCharacterId = null,
-            speakerNameSnapshot = "Alice", createTime = index.toLong()
+            sessionId = groupChatSessionId,
+            source = GroupChatMessage.Source.User,
+            content = "group-$index",
+            speakerCharacterId = null,
+            speakerNameSnapshot = "Alice",
+            createTime = index.toLong(),
         ) }
-        val page = groupChatRepository.getGroupChatPageData(groupChatSessionId, 10, ids[20])!!
-        assertEquals(ids.subList(15, 26), page.data.messages.map { it.id })
+        val page = groupChatRepository.getGroupChatPageData(
+            sessionId = groupChatSessionId,
+            pageSize = 10,
+            anchorMessageId = ids[20],
+        )!!
+        assertEquals(ids.subList(fromIndex = 15, toIndex = 26), page.data.messages.map { message -> message.id })
         assertEquals(35, page.newerMessageCount)
-        val newer = groupChatRepository.getMessagePageAfter(groupChatSessionId, ids[25], 10)!!
-        assertEquals(ids.subList(26, 36), newer.messages.map { it.id })
+        val newer = groupChatRepository.getMessagePageAfter(
+            sessionId = groupChatSessionId,
+            afterMessageId = ids[25],
+            pageSize = 10,
+        )!!
+        assertEquals(ids.subList(fromIndex = 26, toIndex = 36), newer.messages.map { message -> message.id })
         assertEquals(25, newer.newerMessageCount)
         // 同名或其它会话的锚点不能改变导航归属。
-        assertEquals(null, groupChatRepository.getMessagePageAfter(groupChatSessionId + 100, ids[25], 10))
-        val restored = groupChatRepository.getGroupChatPageData(groupChatSessionId, 21, ids[20], olderWindowSize = 5)!!
-        assertEquals(ids.subList(15, 36), restored.data.messages.map { it.id })
+        assertEquals(
+            null,
+            groupChatRepository.getMessagePageAfter(
+                sessionId = groupChatSessionId + 100,
+                afterMessageId = ids[25],
+                pageSize = 10,
+            ),
+        )
+        val restored = groupChatRepository.getGroupChatPageData(
+            sessionId = groupChatSessionId,
+            pageSize = 21,
+            anchorMessageId = ids[20],
+            olderWindowSize = 5,
+        )!!
+        assertEquals(ids.subList(fromIndex = 15, toIndex = 36), restored.data.messages.map { message -> message.id })
     }
 
     @Test
@@ -128,30 +185,30 @@ class ConversationPageRepositoryTest {
             sessionId = chatSessionId,
             source = ChatMessage.Source.Char,
             content = "character-message",
-            createTime = 1L
+            createTime = 1L,
         )
         (2L..4L).forEach { createTime ->
             chatRepository.createMessage(
                 sessionId = chatSessionId,
                 source = ChatMessage.Source.User,
                 content = "user-message-$createTime",
-                createTime = createTime
+                createTime = createTime,
             )
         }
 
-        val pageData = chatRepository.getChatPageData(chatSessionId, pageSize = 2)
+        val pageData = chatRepository.getChatPageData(sessionId = chatSessionId, pageSize = 2)
 
         // 页面能力来自完整会话，而不是当前返回的两条消息
         assertEquals(
             listOf("user-message-3", "user-message-4"),
-            pageData.page.messages.map { it.content }
+            pageData.page.messages.map { message -> message.content },
         )
-        assertFalse(pageData.page.messages.any { it.source == ChatMessage.Source.Char })
+        assertFalse(pageData.page.messages.any { message -> message.source == ChatMessage.Source.Char })
         assertTrue(pageData.hasCharacterMessage)
 
         // 删除唯一角色消息后，会话级能力随下一次页面快照失效
         chatRepository.deleteMessage(characterMessageId)
-        assertFalse(chatRepository.getChatPageData(chatSessionId, pageSize = 2).hasCharacterMessage)
+        assertFalse(chatRepository.getChatPageData(sessionId = chatSessionId, pageSize = 2).hasCharacterMessage)
     }
 
     @Test
@@ -163,7 +220,7 @@ class ConversationPageRepositoryTest {
             content = "character-message",
             speakerCharacterId = 1L,
             speakerNameSnapshot = "Character",
-            createTime = 1L
+            createTime = 1L,
         )
         (2L..4L).forEach { createTime ->
             groupChatRepository.createMessage(
@@ -172,28 +229,28 @@ class ConversationPageRepositoryTest {
                 content = "user-message-$createTime",
                 speakerCharacterId = null,
                 speakerNameSnapshot = "Alice",
-                createTime = createTime
+                createTime = createTime,
             )
         }
 
         val pageData = groupChatRepository.getGroupChatPageData(
             sessionId = groupChatSessionId,
-            pageSize = 2
+            pageSize = 2,
         ) ?: error("Group chat should exist")
 
         // 页面能力来自完整群聊，而不是当前返回的两条消息
         assertEquals(
             listOf("user-message-3", "user-message-4"),
-            pageData.data.messages.map { it.content }
+            pageData.data.messages.map { message -> message.content },
         )
-        assertFalse(pageData.data.messages.any { it.source == GroupChatMessage.Source.Character })
+        assertFalse(pageData.data.messages.any { message -> message.source == GroupChatMessage.Source.Character })
         assertTrue(pageData.hasCharacterMessage)
 
         // 删除唯一角色消息后，群聊会话级能力随下一次页面快照失效
         groupChatRepository.deleteMessage(characterMessageId)
         val refreshed = groupChatRepository.getGroupChatPageData(
             sessionId = groupChatSessionId,
-            pageSize = 2
+            pageSize = 2,
         ) ?: error("Group chat should exist")
         assertFalse(refreshed.hasCharacterMessage)
     }

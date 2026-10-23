@@ -9,8 +9,11 @@ class StoryOutputSanitizer {
         CODE_FENCE.matchEntire(result.trim())?.groupValues?.get(1)?.let { result = it }
         val firstLineEnd = result.indexOf('\n')
         if (
-            firstLineEnd >= 0 &&
-            result.substring(0, firstLineEnd).trimEnd('\r').trim() in KNOWN_PREAMBLES
+            firstLineEnd >= 0
+            && result
+                .substring(startIndex = 0, endIndex = firstLineEnd)
+                .trimEnd('\r')
+                .trim() in KNOWN_PREAMBLES
         ) {
             result = result.substring(firstLineEnd + 1)
         }
@@ -18,16 +21,14 @@ class StoryOutputSanitizer {
     }
 
     private companion object {
-        val CODE_FENCE = Regex(
-            "^```(?:[A-Za-z0-9_-]+)?[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n```$"
-        )
+        val CODE_FENCE = Regex("^```(?:[A-Za-z0-9_-]+)?[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n```$")
         val KNOWN_PREAMBLES = setOf(
             "改写结果：",
             "改写如下：",
             "续写如下：",
             "续写内容：",
             "Rewrite:",
-            "Continuation:"
+            "Continuation:",
         )
     }
 }
@@ -37,14 +38,13 @@ class StoryOutputSanitizer {
  */
 internal fun prepareStoryContinuationText(
     sourceContent: String,
-    continuation: String
+    continuation: String,
 ): String {
-    if (
-        sourceContent.isEmpty() ||
-        continuation.isEmpty() ||
-        sourceContent.last().isWhitespace() ||
-        continuation.first().isWhitespace()
-    ) {
+    val canAppendWithoutSeparator = sourceContent.isEmpty()
+        || continuation.isEmpty()
+        || sourceContent.last().isWhitespace()
+        || continuation.first().isWhitespace()
+    if (canAppendWithoutSeparator) {
         return continuation
     }
     return "\n\n$continuation"

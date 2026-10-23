@@ -67,6 +67,7 @@ data class MainUserIdentityState(
  */
 sealed class MainUserAvatarState {
     data object None : MainUserAvatarState()
+
     data class Configured(val image: ImageBitmap?) : MainUserAvatarState()
 }
 
@@ -115,6 +116,7 @@ data class MainPromptBehaviorState(
 /** 仅在存在当前模型配置时允许修改其 Prompt 后处理模式。 */
 sealed class MainProviderPostProcessingState {
     data object Unavailable : MainProviderPostProcessingState()
+
     data class Available(
         /** 当前流程采用的处理模式。 */
         val mode: PromptPostProcessingMode
@@ -133,6 +135,7 @@ data class MainWorldInfoBudgetState(
 
 enum class MainSummarySettingsTab {
     General,
+
     Conversation
 }
 
@@ -163,7 +166,9 @@ sealed class MainSummaryInjectionState(
     val position: SummaryInjectionPosition
 ) {
     data object None : MainSummaryInjectionState(SummaryInjectionPosition.None)
+
     data object BeforeMain : MainSummaryInjectionState(SummaryInjectionPosition.BeforeMain)
+
     data object AfterMain : MainSummaryInjectionState(SummaryInjectionPosition.AfterMain)
 
     data class InChat(
@@ -190,14 +195,17 @@ data class MainImageSendState(
          * @return 未修改的可编辑面板状态。
          */
         fun from(settings: ImageSendSettings): MainImageSendState = MainImageSendState(
-            settings.mode, settings.maxFileKiB.toString(), settings.maxWidth.toString(), settings.maxHeight.toString()
+            mode = settings.mode,
+            maxFileKiB = settings.maxFileKiB.toString(),
+            maxWidth = settings.maxWidth.toString(),
+            maxHeight = settings.maxHeight.toString(),
         )
     }
 }
 
 internal fun SummaryInjectionPosition.toMainSummaryInjectionState(
     depth: Int,
-    role: SummaryInjectionRole
+    role: SummaryInjectionRole,
 ): MainSummaryInjectionState {
     return when (this) {
         SummaryInjectionPosition.None -> MainSummaryInjectionState.None
@@ -205,7 +213,7 @@ internal fun SummaryInjectionPosition.toMainSummaryInjectionState(
         SummaryInjectionPosition.AfterMain -> MainSummaryInjectionState.AfterMain
         SummaryInjectionPosition.InChat -> MainSummaryInjectionState.InChat(
             depth = depth,
-            role = role
+            role = role,
         )
     }
 }
@@ -213,6 +221,7 @@ internal fun SummaryInjectionPosition.toMainSummaryInjectionState(
 /** 对话数据管理面板的文件读取状态。 */
 sealed class MainChatDataManagementState {
     data object Idle : MainChatDataManagementState()
+
     data object Reading : MainChatDataManagementState()
 }
 
@@ -228,20 +237,20 @@ internal fun LLMProvider.toGenerationParametersState(): MainGenerationParameters
         temperature = temperature,
         topP = topP,
         maxTokens = maxTokens,
-        contextTokens = contextTokens
+        contextTokens = contextTokens,
     )
 }
 
 /** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
 internal fun buildProviderSettingsState(
     providers: List<LLMProvider>,
-    selectedProvider: LLMProvider?
+    selectedProvider: LLMProvider?,
 ): MainProviderSettingsState {
     if (selectedProvider == null) return MainProviderSettingsState.Empty
     return MainProviderSettingsState.Available(
         selectedProviderId = selectedProvider.id,
         providers = providers.map { it.toMainProviderItem() },
-        generationParametersState = selectedProvider.toGenerationParametersState()
+        generationParametersState = selectedProvider.toGenerationParametersState(),
     )
 }
 

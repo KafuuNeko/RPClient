@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import java.io.IOException
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMResponseException
@@ -15,6 +14,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class OpenAIResponsesStreamDecoderTest {
     @Test
@@ -25,12 +25,15 @@ class OpenAIResponsesStreamDecoderTest {
             addAll(decoder.accept(delta("Hello")))
             addAll(decoder.accept(delta(" ")))
             addAll(decoder.accept(delta("world")))
-            addAll(decoder.accept(event("""{"type":"response.output_text.done","output_index":0,"content_index":0,"text":"Hello world"}""")))
+            addAll(elements = decoder.accept(event = event("""{"type":"response.output_text.done","output_index":0,"content_index":0,"text":"Hello world"}""")))
             assertFalse(decoder.isFinished)
-            addAll(decoder.accept(event("""{"type":"response.output_item.done","output_index":0,"item":{"type":"message","content":[{"type":"output_text","text":"Hello world"}]}}""")))
+            addAll(elements = decoder.accept(event = event(json = """{"type":"response.output_item.done","output_index":0,"item":{"type":"message","content":[{"type":"output_text","text":"Hello world"}]}}""")))
             addAll(decoder.accept(terminal(response("Hello world"))))
         }
-        assertEquals("Hello world", parts.filterIsInstance<LLMProviderStreamPart.Text>().joinToString("") { it.content })
+        assertEquals(
+            "Hello world",
+            parts.filterIsInstance<LLMProviderStreamPart.Text>().joinToString("") { it.content },
+        )
         assertEquals(1, parts.filterIsInstance<LLMProviderStreamPart.Finished>().size)
         assertTrue(decoder.isFinished)
         decoder.requireFinished()
@@ -53,11 +56,16 @@ class OpenAIResponsesStreamDecoderTest {
     @Test
     fun summaryRefusalAndLiteralNullRemainDistinct() {
         val decoder = OpenAIResponsesStreamDecoder()
-        val summary = decoder.accept(event("""{"type":"response.reasoning_summary_text.delta","output_index":0,"summary_index":0,"delta":"Plan"}""")).single()
+        val summary = decoder.accept(event = event(json = """{"type":"response.reasoning_summary_text.delta","output_index":0,"summary_index":0,"delta":"Plan"}""")).single()
         assertEquals(LLMReasoningKind.Summary, (summary as LLMProviderStreamPart.Reasoning).kind)
-        val refusal = decoder.accept(event("""{"type":"response.refusal.delta","output_index":1,"content_index":0,"delta":"Cannot do that"}""")).single()
+        val refusal = decoder.accept(event = event("""{"type":"response.refusal.delta","output_index":1,"content_index":0,"delta":"Cannot do that"}""")).single()
         assertEquals("Cannot do that", (refusal as LLMProviderStreamPart.Text).content)
-        val literal = OpenAIResponsesResponseCodec.decode(response("null").toString(), "fallback", LLMProviderType.ChatGPT, false)
+        val literal = OpenAIResponsesResponseCodec.decode(
+            raw = response("null").toString(),
+            fallbackModel = "fallback",
+            provider = LLMProviderType.ChatGPT,
+            includeReasoningInContent = false,
+        )
         assertEquals("null", literal.content)
     }
 
@@ -89,7 +97,12 @@ class OpenAIResponsesStreamDecoderTest {
             addProperty("status", "incomplete")
             add("incomplete_details", JsonObject().apply { addProperty("reason", "max_output_tokens") })
         }
-        val complete = OpenAIResponsesResponseCodec.decode(raw.toString(), "fallback", LLMProviderType.ChatGPT, false)
+        val complete = OpenAIResponsesResponseCodec.decode(
+            raw = raw.toString(),
+            fallbackModel = "fallback",
+            provider = LLMProviderType.ChatGPT,
+            includeReasoningInContent = false,
+        )
         assertEquals("max_output_tokens", complete.finishReason)
         val decoder = OpenAIResponsesStreamDecoder()
         val parts = decoder.accept(terminal(raw, "response.incomplete"))
@@ -109,20 +122,36 @@ class OpenAIResponsesStreamDecoderTest {
         }
         assertTrue(error.outputTokenLimitReached)
         val tool = response("").apply {
-            add("output", JsonParser.parseString("""[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{}"}]"""))
+            add(
+                "output",
+                JsonParser.parseString("""[{"type":"function_call","call_id":"call_1","name":"lookup","arguments":"{}"}]"""),
+            )
         }
-        assertEquals("tool_output_required", assertThrows(LLMResponseException::class.java) {
-            OpenAIResponsesResponseCodec.decode(tool.toString(), "fallback", LLMProviderType.ChatGPT, false)
-        }.code)
+        assertEquals(
+            "tool_output_required",
+            assertThrows(LLMResponseException::class.java) {
+            OpenAIResponsesResponseCodec.decode(
+                raw = tool.toString(),
+                fallbackModel = "fallback",
+                provider = LLMProviderType.ChatGPT,
+                includeReasoningInContent = false,
+            )
+        }.code,
+        )
     }
 
     @Test
     fun completedSnapshotAndStreamingMapperPreserveWhitespace() {
         val raw = response(" A\n B ")
         val decoder = OpenAIResponsesStreamDecoder()
-        val mapper = LLMStreamPartMapper(false, true)
+        val mapper = LLMStreamPartMapper(includeReasoningInContent = false, captureReasoning = true)
         val events = decoder.accept(terminal(raw)).flatMap(mapper::map)
-        val result = OpenAIResponsesResponseCodec.decode(raw.toString(), "fallback", LLMProviderType.ChatGPT, false)
+        val result = OpenAIResponsesResponseCodec.decode(
+            raw = raw.toString(),
+            fallbackModel = "fallback",
+            provider = LLMProviderType.ChatGPT,
+            includeReasoningInContent = false,
+        )
         assertEquals(result.content, events.filterIsInstance<LLMStreamEvent.Delta>().joinToString("") { it.content })
         assertEquals(" ", (mapper.map(LLMProviderStreamPart.Text(" ", "raw")).single() as LLMStreamEvent.Delta).content)
     }
@@ -148,7 +177,15 @@ class OpenAIResponsesStreamDecoderTest {
         decoder.accept(event("""{"type":"response.output_item.done","output_index":0,"item":$commentary}"""))
         val parts = decoder.accept(terminal(raw))
         assertEquals("Answer", parts.filterIsInstance<LLMProviderStreamPart.Text>().joinToString("") { it.content })
-        assertEquals("Answer", OpenAIResponsesResponseCodec.decode(raw.toString(), "fallback", LLMProviderType.ChatGPT, false).content)
+        assertEquals(
+            "Answer",
+            OpenAIResponsesResponseCodec.decode(
+                raw = raw.toString(),
+                fallbackModel = "fallback",
+                provider = LLMProviderType.ChatGPT,
+                includeReasoningInContent = false,
+            ).content,
+        )
     }
 
     @Test
@@ -161,24 +198,30 @@ class OpenAIResponsesStreamDecoderTest {
 
     private fun event(json: String) = SseEvent("", json)
 
-    private fun delta(text: String) = event(JsonObject().apply {
+    private fun delta(text: String) = event(
+        json = JsonObject().apply {
         addProperty("type", "response.output_text.delta")
         addProperty("output_index", 0)
         addProperty("content_index", 0)
         addProperty("delta", text)
-    }.toString())
+    }.toString(),
+    )
 
-    private fun terminal(response: JsonObject, type: String = "response.completed") = event(JsonObject().apply {
+    private fun terminal(response: JsonObject, type: String = "response.completed") = event(
+        json = JsonObject().apply {
         addProperty("type", type)
         add("response", response)
-    }.toString())
+    }.toString(),
+    )
 
-    private fun response(text: String): JsonObject = JsonParser.parseString("""{
+    private fun response(text: String): JsonObject = JsonParser.parseString(
+        """{
         "id":"resp_1","object":"response","status":"completed","model":"routed-model",
         "output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":""}]}],
         "usage":{"input_tokens":12,"output_tokens":9,"total_tokens":21,
           "input_tokens_details":{"cached_tokens":4},"output_tokens_details":{"reasoning_tokens":3}}
-    }""").asJsonObject.apply {
+    }""",
+    ).asJsonObject.apply {
         getAsJsonArray("output")[0].asJsonObject.getAsJsonArray("content")[0].asJsonObject.addProperty("text", text)
     }
 }

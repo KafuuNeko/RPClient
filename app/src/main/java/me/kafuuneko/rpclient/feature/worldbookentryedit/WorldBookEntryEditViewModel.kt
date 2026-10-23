@@ -42,18 +42,18 @@ class WorldBookEntryEditViewModel :
         WorldBookEntryEditUiState.Normal(
             mode = if (intent.entryId == null) WorldBookEntryEditMode.Create else WorldBookEntryEditMode.Edit,
             form = WorldBookEntryEditForm(lorebookId = intent.lorebookId),
-            loadState = WorldBookEntryEditLoadState.Loading
+            loadState = WorldBookEntryEditLoadState.Loading,
         ).setup()
         // 在 IO 线程拉取指定条目详情
         val form = intent.entryId?.let { entryId ->
             withContext(Dispatchers.IO) {
-                mLorebookRepository.getEntryById(entryId)?.let { WorldBookEntryEditForm.from(it) }
+                mLorebookRepository.getEntryById(entryId)?.let { entry -> WorldBookEntryEditForm.from(entry) }
             }
         } ?: WorldBookEntryEditForm(lorebookId = intent.lorebookId)
         // 建立编辑态 UI 并记录初始对比基准
         WorldBookEntryEditUiState.Normal(
             mode = if (form.isNew) WorldBookEntryEditMode.Create else WorldBookEntryEditMode.Edit,
-            form = form
+            form = form,
         ).setup()
     }
 
@@ -254,12 +254,11 @@ class WorldBookEntryEditViewModel :
             return
         }
         // 校验位置、角色、概率与选择逻辑整数合法性
-        if (
-            uiState.form.position.trim().toIntOrNull() == null ||
-            uiState.form.role.trim().toIntOrNull() == null ||
-            uiState.form.probability.trim().toIntOrNull() == null ||
-            uiState.form.selectiveLogic.trim().toIntOrNull() == null
-        ) {
+        val hasInvalidIntegerFields = uiState.form.position.trim().toIntOrNull() == null
+            || uiState.form.role.trim().toIntOrNull() == null
+            || uiState.form.probability.trim().toIntOrNull() == null
+            || uiState.form.selectiveLogic.trim().toIntOrNull() == null
+        if (hasInvalidIntegerFields) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_params_invalid).tryEmit()
             return
         }
@@ -272,7 +271,7 @@ class WorldBookEntryEditViewModel :
         }
         // 弹出成功提示并结束页面
         AppViewEvent.PopupToastMessageByResId(
-            if (uiState.mode == WorldBookEntryEditMode.Create) R.string.world_book_entry_created else R.string.world_book_entry_saved
+            message = if (uiState.mode == WorldBookEntryEditMode.Create) R.string.world_book_entry_created else R.string.world_book_entry_saved,
         ).tryEmit()
         WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
     }
@@ -285,11 +284,7 @@ class WorldBookEntryEditViewModel :
             WorldBookEntryEditUiState.finished(uiStateFlow.value).setup()
             return
         }
-        uiState.copy(
-            dialogState = WorldBookEntryEditDialogState.DeleteConfirm(
-                entryName = uiState.form.name
-            )
-        ).setup()
+        uiState.copy(dialogState = WorldBookEntryEditDialogState.DeleteConfirm(entryName = uiState.form.name)).setup()
     }
 
     /** 用户确认删除条目，从数据库中移除并结束页面。 */
@@ -299,7 +294,7 @@ class WorldBookEntryEditViewModel :
         if (uiState.form.isNew) return
         uiState.copy(
             loadState = WorldBookEntryEditLoadState.Deleting,
-            dialogState = WorldBookEntryEditDialogState.None
+            dialogState = WorldBookEntryEditDialogState.None,
         ).setup()
         withContext(Dispatchers.IO) {
             mLorebookRepository.deleteEntry(uiState.form.id)
@@ -343,7 +338,7 @@ class WorldBookEntryEditViewModel :
         val dialog = uiState.dialogState as? WorldBookEntryEditDialogState.PromptEditor ?: return
         uiState.copy(
             form = uiState.form.copy(content = dialog.draftText),
-            dialogState = WorldBookEntryEditDialogState.None
+            dialogState = WorldBookEntryEditDialogState.None,
         ).setup()
     }
 

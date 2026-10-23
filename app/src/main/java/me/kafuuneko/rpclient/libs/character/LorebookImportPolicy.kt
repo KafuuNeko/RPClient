@@ -21,7 +21,7 @@ object LorebookImportPolicy {
     /** 根据用户选择保留导入预算，或将其改为跟随全局。 */
     fun resolveBudget(
         import: CharacterBookImport,
-        followGlobal: Boolean
+        followGlobal: Boolean,
     ): CharacterBookImport {
         if (!followGlobal) return import
         return import.copy(lorebook = import.lorebook.copy(tokenBudget = 0))
@@ -30,12 +30,10 @@ object LorebookImportPolicy {
     /** 根据用户选择调整角色卡内嵌世界书的预算。 */
     fun resolveBudget(
         import: CharacterCardImport,
-        followGlobal: Boolean
+        followGlobal: Boolean,
     ): CharacterCardImport {
         val embeddedLorebook = import.embeddedLorebook ?: return import
         if (!followGlobal) return import
-        return import.copy(
-            embeddedLorebook = resolveBudget(embeddedLorebook, followGlobal = true)
-        )
+        return import.copy(embeddedLorebook = resolveBudget(import = embeddedLorebook, followGlobal = true))
     }
 }

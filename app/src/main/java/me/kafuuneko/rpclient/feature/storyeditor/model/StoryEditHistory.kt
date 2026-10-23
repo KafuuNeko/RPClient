@@ -66,7 +66,7 @@ internal class StoryEditHistory(
 
         fun StoryUndoEntry.rebased(): StoryUndoEntry = copy(
             previousWorldInfoStates = rebase(previousWorldInfoStates),
-            nextWorldInfoStates = rebase(nextWorldInfoStates)
+            nextWorldInfoStates = rebase(nextWorldInfoStates),
         )
 
         val rebasedUndo = mUndoEntries.map { it.rebased() }
@@ -87,7 +87,7 @@ internal class StoryEditHistory(
         currentContent: String,
         worldInfoStates: List<StoryLorebookRuntimeState>,
         worldInfoGenerationStep: Int,
-        eventTimeMillis: Long = System.currentTimeMillis()
+        eventTimeMillis: Long = System.currentTimeMillis(),
     ) {
         if (previousContent == currentContent) return
         // 计算文本前后差异范围
@@ -95,19 +95,19 @@ internal class StoryEditHistory(
         val latest = mUndoEntries.lastOrNull()
         val lastManualEditAtMillis = mLastManualEditAtMillis
         // 判断是否符合连续手写编辑合并条件（同为用户操作、在时间窗口内且编辑范围重叠）
-        val canMerge = latest?.source == StoryEditSource.User &&
-            lastManualEditAtMillis != null &&
-            eventTimeMillis - lastManualEditAtMillis in 0..MANUAL_EDIT_MERGE_MILLIS &&
-            latest.matches(previousContent) &&
-            change.touches(latest)
+        val canMerge = latest?.source == StoryEditSource.User
+            && lastManualEditAtMillis != null
+            && eventTimeMillis - lastManualEditAtMillis in 0..MANUAL_EDIT_MERGE_MILLIS
+            && latest.matches(previousContent)
+            && change.touches(latest)
         // 合并上一次历史或基于上一次文本生成新历史记录
         val baseContent = if (canMerge) {
             val mergedEntry = requireNotNull(latest)
             mUndoEntries.removeLast()
             previousContent.replaceRange(
-                mergedEntry.start,
-                mergedEntry.start + mergedEntry.insertedText.length,
-                mergedEntry.replacedText
+                startIndex = mergedEntry.start,
+                endIndex = mergedEntry.start + mergedEntry.insertedText.length,
+                replacement = mergedEntry.replacedText,
             )
         } else {
             previousContent
@@ -120,22 +120,22 @@ internal class StoryEditHistory(
         }
         val combinedChange = StoryTextChange.between(baseContent, currentContent)
         addUndoEntry(
-            StoryUndoEntry(
+            entry = StoryUndoEntry(
                 start = combinedChange.start,
                 insertedText = currentContent.substring(
-                    combinedChange.start,
-                    combinedChange.currentEnd
+                    startIndex = combinedChange.start,
+                    endIndex = combinedChange.currentEnd,
                 ),
                 replacedText = baseContent.substring(
-                    combinedChange.start,
-                    combinedChange.previousEnd
+                    startIndex = combinedChange.start,
+                    endIndex = combinedChange.previousEnd,
                 ),
                 previousWorldInfoStates = worldInfoStates.toList(),
                 previousWorldInfoGenerationStep = worldInfoGenerationStep,
                 nextWorldInfoStates = worldInfoStates.toList(),
                 nextWorldInfoGenerationStep = worldInfoGenerationStep,
-                source = StoryEditSource.User
-            )
+                source = StoryEditSource.User,
+            ),
         )
         mLastManualEditAtMillis = eventTimeMillis
     }
@@ -174,17 +174,17 @@ private data class StoryTextChange(
             val sharedLimit = minOf(previousContent.length, currentContent.length)
             var prefixLength = 0
             while (
-                prefixLength < sharedLimit &&
-                previousContent[prefixLength] == currentContent[prefixLength]
+                prefixLength < sharedLimit
+                && previousContent[prefixLength] == currentContent[prefixLength]
             ) {
                 prefixLength++
             }
 
             var suffixLength = 0
             while (
-                suffixLength < previousContent.length - prefixLength &&
-                suffixLength < currentContent.length - prefixLength &&
-                previousContent[previousContent.lastIndex - suffixLength] ==
+                suffixLength < previousContent.length - prefixLength
+                && suffixLength < currentContent.length - prefixLength
+                && previousContent[previousContent.lastIndex - suffixLength] ==
                 currentContent[currentContent.lastIndex - suffixLength]
             ) {
                 suffixLength++
@@ -193,7 +193,7 @@ private data class StoryTextChange(
             return StoryTextChange(
                 start = prefixLength,
                 previousEnd = previousContent.length - suffixLength,
-                currentEnd = currentContent.length - suffixLength
+                currentEnd = currentContent.length - suffixLength,
             )
         }
     }
@@ -201,7 +201,7 @@ private data class StoryTextChange(
 
 private fun StoryUndoEntry.matches(content: String): Boolean {
     val end = start + insertedText.length
-    return start in 0..end &&
-        end <= content.length &&
-        content.substring(start, end) == insertedText
+    return start in 0..end
+        && end <= content.length
+        && content.substring(start, end) == insertedText
 }

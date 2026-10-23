@@ -103,7 +103,7 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
         val groupItems = dashboard.groups.map { group ->
             val groupTotal = group.inputTokens + group.outputTokens
             val ratio = if (totalTokens > 0L) {
-                (groupTotal.toFloat() / totalTokens).coerceIn(0f, 1f)
+                (groupTotal.toFloat() / totalTokens).coerceIn(minimumValue = 0f, maximumValue = 1f)
             } else {
                 0f
             }
@@ -118,13 +118,13 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
                 inputTokens = dashboard.summary.inputTokens,
                 outputTokens = dashboard.summary.outputTokens,
                 cachedInputTokens = dashboard.summary.cachedInputTokens,
-                reasoningTokens = dashboard.summary.reasoningTokens
+                reasoningTokens = dashboard.summary.reasoningTokens,
             ),
             trendPoints = trendPoints,
             selectedPointKey = null,
             chartMode = previousChartMode,
             groups = groupItems,
-            recentRecords = dashboard.recentRecords.map { it.toUiModel() }
+            recentRecords = dashboard.recentRecords.map { it.toUiModel() },
         ).setup()
     }
 

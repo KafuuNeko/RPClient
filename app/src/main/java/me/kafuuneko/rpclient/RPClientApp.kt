@@ -4,14 +4,13 @@ import android.app.Application
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import me.kafuuneko.rpclient.libs.backup.BackupArchiveRepository
-import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
+import me.kafuuneko.rpclient.libs.backup.BackupArchiveRepository
+import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
@@ -76,6 +75,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
+import java.util.concurrent.TimeUnit
 
 /** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
 class RPClientApp : Application() {
@@ -103,9 +103,9 @@ class RPClientApp : Application() {
 internal val appModules = module {
     single {
         OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(timeout = 30, unit = TimeUnit.SECONDS)
+            .readTimeout(timeout = 120, unit = TimeUnit.SECONDS)
+            .writeTimeout(timeout = 60, unit = TimeUnit.SECONDS)
             .build()
     }
 
@@ -118,7 +118,7 @@ internal val appModules = module {
             mLLMTokenUsageRepository = get(),
             mPromptTokenizerRegistry = get(),
             mImageRuntime = get(),
-            mImageCapabilities = get()
+            mImageCapabilities = get(),
         )
     }
     singleOf(::LLMProviderSelectionResolver)
@@ -137,9 +137,7 @@ internal val appModules = module {
     single { PromptRequestFinalizer(get<PromptTokenizerRegistry>()) }
     single<ExampleDialogueBehaviorProvider> {
         ExampleDialogueBehaviorProvider {
-            ExampleDialogueBehavior.fromPersistedValue(
-                AppModel.exampleDialogueBehavior
-            )
+            ExampleDialogueBehavior.fromPersistedValue(AppModel.exampleDialogueBehavior)
         }
     }
     single<PromptPreferences> { AppModel }
@@ -175,14 +173,14 @@ internal val appModules = module {
         AppUpgradeManager(
             versionCodeProvider = get<AndroidAppVersionCodeProvider>(),
             versionStore = get<AppModelUpgradeVersionStore>(),
-            upgrades = listOf(get<Upgrade20260103>())
+            upgrades = listOf(get<Upgrade20260103>()),
         )
     }
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
             .addCallback(SearchDatabaseCallback)
-            .fallbackToDestructiveMigrationOnDowngrade(true)
+            .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()
     }
 

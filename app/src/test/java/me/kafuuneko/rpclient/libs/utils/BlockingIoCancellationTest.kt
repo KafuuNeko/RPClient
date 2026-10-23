@@ -1,9 +1,5 @@
 package me.kafuuneko.rpclient.libs.utils
 
-import java.io.IOException
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -13,6 +9,10 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class BlockingIoCancellationTest {
     @Test
@@ -30,7 +30,7 @@ class BlockingIoCancellationTest {
             }
         }
         try {
-            withTimeout(2_000) {
+            withTimeout(timeMillis = 2_000) {
                 entered.await()
                 worker.cancelAndJoin()
             }
@@ -44,7 +44,7 @@ class BlockingIoCancellationTest {
     @Test
     fun successfulReadDoesNotRunCancellationCleanup() = runBlocking {
         val closed = AtomicBoolean(false)
-        withTimeout(2_000) {
+        withTimeout(timeMillis = 2_000) {
             withBlockingIoCancellation({ closed.set(true) }) { Unit }
         }
         assertFalse(closed.get())

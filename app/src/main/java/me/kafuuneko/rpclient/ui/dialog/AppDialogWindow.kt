@@ -13,19 +13,19 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.dialog
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.SecureFlagPolicy
@@ -36,9 +36,9 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.findViewTreeSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import me.kafuuneko.rpclient.R
 import java.util.UUID
 import androidx.compose.ui.R as ComposeR
-import me.kafuuneko.rpclient.R
 
 /**
  * 使用独立透明窗口主题承载公共弹窗，避免 Activity 的不透明主题禁用系统背景模糊。
@@ -50,7 +50,7 @@ internal fun AppDialogWindow(
     onDismissRequest: () -> Unit,
     properties: DialogProperties = DialogProperties(),
     windowInset: Dp = 0.dp,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val parent = LocalView.current
     val composition = rememberCompositionContext()
@@ -89,16 +89,21 @@ internal fun AppDialogWindow(
         val window = requireNotNull(host.window)
         WindowCompat.setDecorFitsSystemWindows(window, properties.decorFitsSystemWindows)
         val parentSecure = (parent.rootView.layoutParams as? WindowManager.LayoutParams)
-            ?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE)?.let { it != 0 } ?: false
+            ?.flags?.and(WindowManager.LayoutParams.FLAG_SECURE)?.let { value -> value != 0 } ?: false
         val secure = when (properties.securePolicy) {
             SecureFlagPolicy.SecureOn -> true
             SecureFlagPolicy.SecureOff -> false
             SecureFlagPolicy.Inherit -> parentSecure
         }
-        window.setFlags(if (secure) WindowManager.LayoutParams.FLAG_SECURE else 0,
-            WindowManager.LayoutParams.FLAG_SECURE)
-        window.setLayout(if (properties.usePlatformDefaultWidth) ViewGroup.LayoutParams.WRAP_CONTENT
-            else (parent.rootView.width - 2 * inset).coerceAtLeast(1), ViewGroup.LayoutParams.WRAP_CONTENT)
+        window.setFlags(
+            if (secure) WindowManager.LayoutParams.FLAG_SECURE else 0,
+            WindowManager.LayoutParams.FLAG_SECURE,
+        )
+        window.setLayout(
+            if (properties.usePlatformDefaultWidth) ViewGroup.LayoutParams.WRAP_CONTENT
+            else (parent.rootView.width - 2 * inset).coerceAtLeast(1),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        )
     }
     DisposableEffect(host, view) {
         host.setContentView(view)
@@ -134,9 +139,12 @@ private fun DialogWindowContent(inset: Dp, content: @Composable () -> Unit) {
         val maximum = if (constraints.hasBoundedHeight) (constraints.maxHeight - pixels).coerceAtLeast(0)
             else constraints.maxHeight
         val childConstraints = constraints.copy(minHeight = 0, maxHeight = maximum)
-        val children = measurables.map { it.measure(childConstraints) }
-        layout(children.maxOfOrNull { it.width } ?: 0, children.maxOfOrNull { it.height } ?: 0) {
-            children.forEach { it.placeRelative(0, 0) }
+        val children = measurables.map { measurable -> measurable.measure(childConstraints) }
+        layout(
+            width = children.maxOfOrNull { placeable -> placeable.width } ?: 0,
+            height = children.maxOfOrNull { placeable -> placeable.height } ?: 0,
+        ) {
+            children.forEach { placeable -> placeable.placeRelative(x = 0, y = 0) }
         }
     }
 }

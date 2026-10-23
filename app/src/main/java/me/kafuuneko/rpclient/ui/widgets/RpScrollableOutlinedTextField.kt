@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 fun rememberBoundTextFieldState(
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ): TextFieldState {
     val textFieldState = remember { TextFieldState(value) }
     val currentExternalValue = rememberUpdatedState(value)
@@ -43,10 +43,10 @@ fun rememberBoundTextFieldState(
         if (textFieldState.text.toString() == value) return@LaunchedEffect
         val previousSelection = textFieldState.selection
         textFieldState.edit {
-            replace(0, length, value)
+            replace(start = 0, end = length, text = value)
             selection = TextRange(
                 start = previousSelection.start.coerceAtMost(value.length),
-                end = previousSelection.end.coerceAtMost(value.length)
+                end = previousSelection.end.coerceAtMost(value.length),
             )
         }
     }
@@ -108,13 +108,16 @@ fun RpScrollableOutlinedTextField(
     minLines: Int = 1,
     maxLines: Int = Int.MAX_VALUE,
     shape: Shape = OutlinedTextFieldDefaults.shape,
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     val scrollState = rememberScrollState()
     // 状态与滚动位置由调用方和文本框分别持有，指示器只负责展示和拖动纵向位置。
     OutlinedTextField(
         state = state,
-        modifier = (if (singleLine) modifier else modifier.draggableScrollIndicator(scrollState)).generalContentBackground(shape, hasLabel = label != null),
+        modifier = (if (singleLine) modifier else modifier.draggableScrollIndicator(scrollState)).generalContentBackground(
+            shape = shape,
+            hasLabel = label != null,
+        ),
         enabled = enabled,
         readOnly = readOnly,
         textStyle = textStyle,
@@ -132,12 +135,12 @@ fun RpScrollableOutlinedTextField(
         } else {
             TextFieldLineLimits.MultiLine(
                 minHeightInLines = minLines,
-                maxHeightInLines = maxLines.coerceAtLeast(minLines)
+                maxHeightInLines = maxLines.coerceAtLeast(minLines),
             )
         },
         scrollState = scrollState,
         shape = shape,
-        colors = pageOutlinedTextFieldColors(colors)
+        colors = pageOutlinedTextFieldColors(colors),
     )
 }
 
@@ -190,7 +193,7 @@ fun RpScrollableOutlinedTextField(
     minLines: Int = 1,
     maxLines: Int = Int.MAX_VALUE,
     shape: Shape = OutlinedTextFieldDefaults.shape,
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     // 状态式 API 让多行输入暴露真实滚动位置，单行输入则保持原有横向滚动行为。
     val textFieldState = rememberBoundTextFieldState(value, onValueChange)
@@ -213,6 +216,6 @@ fun RpScrollableOutlinedTextField(
         minLines = minLines,
         maxLines = maxLines,
         shape = shape,
-        colors = colors
+        colors = colors,
     )
 }

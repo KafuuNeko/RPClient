@@ -19,29 +19,18 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.net.InetAddress
-import java.net.ServerSocket
-import java.util.Random
-import java.util.Base64
-import java.util.UUID
-import kotlin.concurrent.thread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
-import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
@@ -57,8 +46,11 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
@@ -97,6 +89,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.util.Base64
+import java.util.Random
+import java.util.UUID
+import kotlin.concurrent.thread
 
 /** 使用真实 Android 解码、Room、临时 HTTP 文件和 OkHttp 写出验证端到端协议；不访问外网。 */
 @RunWith(AndroidJUnit4::class)
@@ -122,13 +122,19 @@ class MultimodalImageIntegrationTest {
             override fun onCreate() = true
             override fun getType(uri: Uri) = "image/png"
             override fun query(
-                uri: Uri, projection: Array<out String>?, selection: String?,
-                selectionArgs: Array<out String>?, sortOrder: String?
+                uri: Uri,
+                projection: Array<out String>?,
+                selection: String?,
+                selectionArgs: Array<out String>?,
+                sortOrder: String?,
             ): Cursor? = null
             override fun insert(uri: Uri, values: ContentValues?): Uri? = null
             override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
             override fun update(
-                uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?
+                uri: Uri,
+                values: ContentValues?,
+                selection: String?,
+                selectionArgs: Array<out String>?,
             ) = 0
             override fun openAssetFile(uri: Uri, mode: String): AssetFileDescriptor {
                 opened.complete(Unit)
@@ -147,10 +153,10 @@ class MultimodalImageIntegrationTest {
         }
         try {
             // 管道保持打开但不提供字节，稳定模拟等待云端资源的选择任务。
-            withTimeout(5_000) { opened.await() }
+            withTimeout(timeMillis = 5_000) { opened.await() }
             assertTrue(coordinator.state.processing)
             assertTrue(pick.isActive)
-            coordinator.handle(MessageImageAction.Preview(listOf("missing-history-image"), 0))
+            coordinator.handle(MessageImageAction.Preview(ids = listOf("missing-history-image"), index = 0))
             assertTrue("Preview error incorrectly unlocked sending while pick still runs", coordinator.state.processing)
             assertTrue(pick.isActive)
             assertFalse(requireNotNull(coordinator.state.preview).loading)
@@ -161,7 +167,7 @@ class MultimodalImageIntegrationTest {
             assertTrue(coordinator.state.processing)
         } finally {
             pipe[1].close()
-            withTimeout(5_000) { pick.await() }
+            withTimeout(timeMillis = 5_000) { pick.await() }
             coordinator.releaseDrafts()
         }
         assertFalse(coordinator.state.processing)
@@ -192,7 +198,7 @@ class MultimodalImageIntegrationTest {
             }
         }
         try {
-            withTimeout(5_000) {
+            withTimeout(timeMillis = 5_000) {
                 locked.await()
                 coordinator.startEditing(emptyList())
                 coordinator.choose(editing = true)
@@ -235,12 +241,37 @@ class MultimodalImageIntegrationTest {
         logDatabase = Room.inMemoryDatabaseBuilder(context, RequestLogDatabase::class.java).build()
         files = FileRepository(context, database)
         media = MessageImageRuntime(context, files) { ImageSendSettings() }
-        chat = ChatRepository(database, Gson(), MessageImageRepository(database, files))
+        chat = ChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(database, files),
+        )
         logs = LLMRequestLogRepository(logDatabase)
-        val characterId = database.getCharacterDao().insertOrReplace(Character(name = "test", avatar = "", characterTags = "[]",
-            description = "", personality = "", scenario = "", firstMessages = "", examplesOfDialogue = "", postHistoryInstructions = ""))
-        sessionId = database.getChatSessionDao().insertOrReplace(ChatSession(characterId = characterId,
-            createTime = 1, latestTime = 1, lorebookEntrySet = "[]", title = "test", userNote = "", userName = "test", userDescription = ""))
+        val characterId = database.getCharacterDao().insertOrReplace(
+            data = Character(
+                name = "test",
+                avatar = "",
+                characterTags = "[]",
+                description = "",
+                personality = "",
+                scenario = "",
+                firstMessages = "",
+                examplesOfDialogue = "",
+                postHistoryInstructions = "",
+            ),
+        )
+        sessionId = database.getChatSessionDao().insertOrReplace(
+            data = ChatSession(
+                characterId = characterId,
+                createTime = 1,
+                latestTime = 1,
+                lorebookEntrySet = "[]",
+                title = "test",
+                userNote = "",
+                userName = "test",
+                userDescription = "",
+            ),
+        )
         previousDebug = AppModel.debugModeEnabled
         AppModel.debugModeEnabled = true
     }
@@ -258,7 +289,11 @@ class MultimodalImageIntegrationTest {
         val bitmap = Bitmap.createBitmap(320, 160, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(if (jpeg) Color.RED else Color.argb(128, 20, 120, 220))
         return File(directory, UUID.randomUUID().toString()).also { file ->
-            file.outputStream().use { bitmap.compress(if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG, 90, it) }
+            file.outputStream().use { output -> bitmap.compress(
+                if (jpeg) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG,
+                90,
+                output,
+            ) }
             bitmap.recycle()
         }
     }
@@ -274,21 +309,33 @@ class MultimodalImageIntegrationTest {
         var settings = ImageSendSettings(ImageSendMode.Original)
         val runtime = MessageImageRuntime(context, files) { settings }
         val prepared = runtime.prepare("settings", Uri.fromFile(original))
-        val saved = runtime.submit(listOf(MessageImageInput.Prepared(prepared))) {
-            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        val saved = runtime.submit(listOf(MessageImageInput.Prepared(prepared))) { items ->
+            chat.createUserMessageWithImages(sessionId, "", items.filterIsInstance<MessageImageInput.Prepared>())
         }
-        val reference = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
+        val reference = runtime
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
         assertEquals(160, reference.width)
         assertEquals(320, reference.height)
-        runtime.withSendFile(reference) { assertTrue(original.readBytes().contentEquals(it.readBytes())) }
+        runtime.withSendFile(reference) { file -> assertTrue(original.readBytes().contentEquals(file.readBytes())) }
         // 新设置只影响下一次提交，不改变已保存图片的方向、尺寸和字节。
-        settings = ImageSendSettings(ImageSendMode.Custom, 64, 128, 256)
-        assertEquals(reference, runtime.references(listOf(saved)).getValue(saved.key.messageId).single())
+        settings = ImageSendSettings(mode = ImageSendMode.Custom, maxFileKiB = 64, maxWidth = 128, maxHeight = 256)
+        assertEquals(
+            reference,
+            runtime
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single(),
+        )
         val next = runtime.prepare("settings", Uri.fromFile(original))
-        val compressed = runtime.submit(listOf(MessageImageInput.Prepared(next))) {
-            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        val compressed = runtime.submit(listOf(MessageImageInput.Prepared(next))) { items ->
+            chat.createUserMessageWithImages(sessionId, "", items.filterIsInstance<MessageImageInput.Prepared>())
         }
-        val custom = runtime.references(listOf(compressed)).getValue(compressed.key.messageId).single()
+        val custom = runtime
+            .references(listOf(compressed))
+            .getValue(compressed.key.messageId)
+            .single()
         assertEquals(128, custom.width)
         assertEquals(256, custom.height)
         val stored = requireNotNull(files.getFile(custom.uuid))
@@ -296,12 +343,22 @@ class MultimodalImageIntegrationTest {
         val destination = File(directory, "saved.jpg")
         runtime.save(custom.uuid, Uri.fromFile(destination))
         assertTrue(stored.readBytes().contentEquals(destination.readBytes()))
-        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
-        assertTrue(context.cacheDir.listFiles().orEmpty().isEmpty())
+        assertTrue(
+            File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
+        assertTrue(
+            context
+            .cacheDir
+            .listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
         chat.deleteMessage(compressed.key.messageId)
         assertFalse(stored.exists())
         chat.deleteMessage(saved.key.messageId)
-        assertTrue(File(directory, "repository").listFiles().orEmpty().none { it.isFile })
+        assertTrue(File(directory, "repository").listFiles().orEmpty().none { file -> file.isFile })
     }
 
     /** 原图发送限制在提交时检查；失败保留草稿，切换压缩后可重试且不保留源图。 */
@@ -311,7 +368,7 @@ class MultimodalImageIntegrationTest {
         val random = Random(42)
         bitmap.setPixels(IntArray(1024 * 1024) { random.nextInt() }, 0, 1024, 0, 0, 1024, 1024)
         val original = File(directory, "noise.png")
-        original.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        original.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
         bitmap.recycle()
         assertTrue(original.length() > 2L * 1024 * 1024)
         var settings = ImageSendSettings(ImageSendMode.Original)
@@ -323,29 +380,46 @@ class MultimodalImageIntegrationTest {
         assertEquals(1, coordinator.state.draft.size)
         // 选图不预生成发送文件；失败不能创建空消息或丢失用户草稿。
         val failure = runCatching {
-            coordinator.submit { chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>()) }
+            coordinator.submit { items -> chat.createUserMessageWithImages(
+                sessionId = sessionId,
+                content = "",
+                images = items.filterIsInstance<MessageImageInput.Prepared>(),
+            ) }
         }.exceptionOrNull() as ImageRequestException
         assertEquals(ImageRequestFailure.OriginalTooLarge, failure.failure)
         assertEquals(listOf(source.file.uuid), coordinator.state.draft)
         assertFalse(coordinator.state.processing)
         assertTrue(chat.getMessagesBySessionId(sessionId).isEmpty())
-        settings = ImageSendSettings(ImageSendMode.Custom, 64, 1024, 1024)
-        val saved = coordinator.submit {
-            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        settings = ImageSendSettings(mode = ImageSendMode.Custom, maxFileKiB = 64, maxWidth = 1024, maxHeight = 1024)
+        val saved = coordinator.submit { items ->
+            chat.createUserMessageWithImages(sessionId, "", items.filterIsInstance<MessageImageInput.Prepared>())
         }
-        val reference = runtime.references(listOf(saved)).getValue(saved.key.messageId).single()
+        val reference = runtime
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
         assertTrue(reference.byteCount <= 64 * 1024L)
         assertTrue(reference.width < 1024 && reference.height < 1024)
-        runtime.withSendFile(reference) {
-            val decoded = BitmapFactory.decodeFile(it.absolutePath)
+        runtime.withSendFile(reference) { file ->
+            val decoded = BitmapFactory.decodeFile(file.absolutePath)
             assertTrue(decoded.hasAlpha())
             decoded.recycle()
         }
         assertTrue(coordinator.state.draft.isEmpty())
         assertNull(files.getFileEntity(source.file.uuid))
         assertFalse(File(directory, "repository/${source.file.hash}").exists())
-        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
-        assertTrue(context.cacheDir.listFiles().orEmpty().isEmpty())
+        assertTrue(
+            File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
+        assertTrue(
+            context
+            .cacheDir
+            .listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
     }
 
     /** 单次提交冻结设置；历史请求不读取设置，批量处理失败释放已经完成的处理结果。 */
@@ -356,24 +430,34 @@ class MultimodalImageIntegrationTest {
         var reads = 0
         val runtime = MessageImageRuntime(context, files) {
             reads++
-            ImageSendSettings(ImageSendMode.Custom, 64, if (reads == 1) 128 else 256, 128)
+            ImageSendSettings(
+                mode = ImageSendMode.Custom,
+                maxFileKiB = 64,
+                maxWidth = if (reads == 1) 128 else 256,
+                maxHeight = 128,
+            )
         }
         val inputs = listOf(first, second).map(MessageImageInput::Prepared)
-        val saved = runtime.submit(inputs) {
-            chat.createUserMessageWithImages(sessionId, "", it.filterIsInstance<MessageImageInput.Prepared>())
+        val saved = runtime.submit(inputs) { items ->
+            chat.createUserMessageWithImages(sessionId, "", items.filterIsInstance<MessageImageInput.Prepared>())
         }
         val refs = runtime.references(listOf(saved)).getValue(saved.key.messageId)
         assertEquals(1, reads)
-        assertTrue(refs.all { it.width <= 128 && it.height <= 128 })
+        assertTrue(refs.all { image -> image.width <= 128 && image.height <= 128 })
         // 第二张在处理时失败，第一张的新结果也必须清理，源草稿仍可重试。
         val good = media.prepare("failure", Uri.fromFile(fixture()))
         val bad = files.prepareStream("failure", ByteArrayInputStream("invalid".toByteArray()), "image/png")
         var committed = false
-        assertTrue(runCatching {
+        assertTrue(
+            runCatching {
             runtime.submit(listOf(good, bad).map(MessageImageInput::Prepared)) { committed = true }
-        }.isFailure)
+        }.isFailure,
+        )
         assertFalse(committed)
-        val staging = File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet()
+        val staging = File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .map { file -> file.name }
+            .toSet()
         assertEquals(setOf(good.handle, "${good.handle}.meta", bad.handle, "${bad.handle}.meta"), staging)
         files.releasePrepared(good)
         files.releasePrepared(bad)
@@ -391,13 +475,22 @@ class MultimodalImageIntegrationTest {
                 awaitCancellation()
             }
         }
-        withTimeout(5_000) { started.await() }
+        withTimeout(timeMillis = 5_000) { started.await() }
         job.cancelAndJoin()
-        assertEquals(setOf(source.handle, "${source.handle}.meta"),
-            File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet())
+        assertEquals(
+            setOf(source.handle, "${source.handle}.meta"),
+            File(directory, "repository/staging").listFiles()
+                .orEmpty()
+                .map { file -> file.name }
+                .toSet(),
+        )
         assertNull(files.getFileEntity(source.file.uuid))
         files.releasePrepared(source)
-        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        assertTrue(
+            File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
     }
 
     /** 编辑只处理新图；事务失败或取消编辑保留原消息，成功才回收移除项。 */
@@ -407,49 +500,83 @@ class MultimodalImageIntegrationTest {
         val runtime = MessageImageRuntime(context, files) { settings }
         val coordinator = MessageImageCoordinator(runtime, files) {}
         coordinator.choose(editing = false)
-        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(true)), Uri.fromFile(fixture()))))
-        val saved = coordinator.submit {
-            chat.createUserMessageWithImages(sessionId, "old", it.filterIsInstance<MessageImageInput.Prepared>())
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(jpeg = true)), Uri.fromFile(fixture()))))
+        val saved = coordinator.submit { items ->
+            chat.createUserMessageWithImages(sessionId, "old", items.filterIsInstance<MessageImageInput.Prepared>())
         }
-        val ids = saved.images.map { it.image.imageUuid }
+        val ids = saved.images.map { messageImageWithFile -> messageImageWithFile.image.imageUuid }
         val removed = requireNotNull(files.getFile(ids[0]))
         val retained = requireNotNull(files.getFile(ids[1])).readBytes()
-        settings = ImageSendSettings(ImageSendMode.Custom, 64, 128, 128)
+        settings = ImageSendSettings(mode = ImageSendMode.Custom, maxFileKiB = 64, maxWidth = 128, maxHeight = 128)
         coordinator.startEditing(ids)
-        coordinator.handle(MessageImageAction.Remove(ids[0], editing = true))
+        coordinator.handle(MessageImageAction.Remove(uuid = ids[0], editing = true))
         coordinator.choose(editing = true)
-        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(true)))))
-        val added = coordinator.editingInputs().filterIsInstance<MessageImageInput.Prepared>().single().value
+        coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture(jpeg = true)))))
+        val added = coordinator
+            .editingInputs()
+            .filterIsInstance<MessageImageInput.Prepared>()
+            .single()
+            .value
         // 让事务在附件替换之后失败，验证正文、关系和旧文件一起回滚。
         database.openHelper.writableDatabase.execSQL(
-            "CREATE TRIGGER fail_edit BEFORE UPDATE ON chat_messages BEGIN SELECT RAISE(ABORT, 'test'); END")
-        assertTrue(runCatching {
-            coordinator.submit(editing = true) { chat.editMessageWithImages(sessionId, saved.key.messageId, "new", it) }
-        }.isFailure)
+            sql = "CREATE TRIGGER fail_edit BEFORE UPDATE ON chat_messages BEGIN SELECT RAISE(ABORT, 'test'); END",
+        )
+        assertTrue(
+            runCatching {
+            coordinator.submit(editing = true) { items -> chat.editMessageWithImages(
+                sessionId = sessionId,
+                messageId = saved.key.messageId,
+                content = "new",
+                images = items,
+            ) }
+        }.isFailure,
+        )
         database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_edit")
         assertEquals("old", chat.getMessageById(saved.key.messageId)!!.content)
-        assertEquals(ids, chat.getMessagesWithImages(listOf(saved.key.messageId)).single().images.map { it.image.imageUuid })
+        assertEquals(
+            ids,
+            chat.getMessagesWithImages(listOf(saved.key.messageId)).single().images.map { messageImageWithFile -> messageImageWithFile.image.imageUuid },
+        )
         assertTrue(removed.exists())
-        assertEquals(setOf(added.handle, "${added.handle}.meta"),
-            File(directory, "repository/staging").listFiles().orEmpty().map { it.name }.toSet())
-        val edited = coordinator.submit(editing = true) {
-            chat.editMessageWithImages(sessionId, saved.key.messageId, "new", it)
+        assertEquals(
+            setOf(added.handle, "${added.handle}.meta"),
+            File(directory, "repository/staging").listFiles()
+                .orEmpty()
+                .map { file -> file.name }
+                .toSet(),
+        )
+        val edited = coordinator.submit(editing = true) { items ->
+            chat.editMessageWithImages(sessionId, saved.key.messageId, "new", items)
         }
         assertFalse(removed.exists())
         assertEquals(ids[1], edited.images.first().image.imageUuid)
         assertTrue(retained.contentEquals(requireNotNull(files.getFile(ids[1])).readBytes()))
-        assertTrue(runtime.references(listOf(edited)).getValue(saved.key.messageId).last().width <= 128)
-        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
-        coordinator.startEditing(edited.images.map { it.image.imageUuid })
-        coordinator.handle(MessageImageAction.Remove(ids[1], editing = true))
+        assertTrue(
+            runtime
+            .references(listOf(edited))
+            .getValue(saved.key.messageId)
+            .last()
+            .width <= 128,
+        )
+        assertTrue(
+            File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
+        coordinator.startEditing(edited.images.map { messageImageWithFile -> messageImageWithFile.image.imageUuid })
+        coordinator.handle(MessageImageAction.Remove(uuid = ids[1], editing = true))
         coordinator.choose(editing = true)
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
         coordinator.cancelEditing()
         assertTrue(retained.contentEquals(requireNotNull(files.getFile(ids[1])).readBytes()))
         assertEquals(edited, chat.getMessagesWithImages(listOf(saved.key.messageId)).single())
-        assertTrue(File(directory, "repository/staging").listFiles().orEmpty().isEmpty())
+        assertTrue(
+            File(directory, "repository/staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
         chat.deleteSession(sessionId)
-        assertTrue(File(directory, "repository").listFiles().orEmpty().none { it.isFile })
+        assertTrue(File(directory, "repository").listFiles().orEmpty().none { file -> file.isFile })
     }
 
     /** 保存文档类型必须来自真实字节，且草稿和历史图片导出均保留原图。 */
@@ -499,24 +626,28 @@ class MultimodalImageIntegrationTest {
         coordinator.handle(MessageImageAction.Picked(emptyList()))
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         assertEquals(listOf(uuid), coordinator.state.draft)
-        coordinator.handle(MessageImageAction.Preview(listOf(uuid), 0))
+        coordinator.handle(MessageImageAction.Preview(ids = listOf(uuid), index = 0))
         val metadata = requireNotNull(coordinator.beginSave())
         assertEquals("image/png", metadata.mimeType)
         assertEquals("image.png", metadata.fileName)
         // 系统保存期间切换预览，返回的 URI 仍必须接收原先选中的原图。
-        coordinator.handle(MessageImageAction.Preview(listOf("another-missing-image"), 0))
+        coordinator.handle(MessageImageAction.Preview(ids = listOf("another-missing-image"), index = 0))
         val destination = File(directory, "saved-original.png")
         coordinator.handle(MessageImageAction.SaveResult(Uri.fromFile(destination)))
         assertTrue(original.readBytes().contentEquals(destination.readBytes()))
         // 同一页面取消编辑后，迟到的选择结果不应污染未发送的草稿。
         coordinator.startEditing(emptyList())
-        coordinator.choose(true)
+        coordinator.choose(editing = true)
         coordinator.cancelEditing()
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         assertEquals(listOf(uuid), coordinator.state.draft)
         assertEquals(R.string.image_edit_ended, coordinator.state.errorResId)
         coordinator.releaseDrafts()
-        assertTrue(File(context.getDir("repository", Context.MODE_PRIVATE), "staging").listFiles().orEmpty().isEmpty())
+        assertTrue(
+            File(context.getDir("repository", Context.MODE_PRIVATE), "staging").listFiles()
+            .orEmpty()
+            .isEmpty(),
+        )
     }
 
     @Test
@@ -531,18 +662,18 @@ class MultimodalImageIntegrationTest {
         coordinator.startEditing(listOf(editing))
         coordinator.handle(MessageImageAction.Load(editing))
         // 缺图也是已完成的缓存项，滚动超过历史目标时不应淘汰任何受保护图片。
-        repeat(80) { coordinator.handle(MessageImageAction.Load("missing-history-$it")) }
+        repeat(times = 80) { value -> coordinator.handle(MessageImageAction.Load("missing-history-$value")) }
         assertNotNull(coordinator.state.thumbnails[draft])
         assertNotNull(coordinator.state.thumbnails[editing])
         coordinator.handle(MessageImageAction.RegisterDisplay(editing))
         coordinator.handle(MessageImageAction.RegisterDisplay(editing))
         coordinator.cancelEditing()
         coordinator.handle(MessageImageAction.ReleaseDisplay(editing))
-        repeat(80) { coordinator.handle(MessageImageAction.Load("more-history-$it")) }
+        repeat(times = 80) { value -> coordinator.handle(MessageImageAction.Load("more-history-$value")) }
         assertNotNull(coordinator.state.thumbnails[editing])
         // 最后一个显示引用释放后恢复回收，原图所有权始终属于历史消息。
         coordinator.handle(MessageImageAction.ReleaseDisplay(editing))
-        repeat(80) { coordinator.handle(MessageImageAction.Load("last-history-$it")) }
+        repeat(times = 80) { value -> coordinator.handle(MessageImageAction.Load("last-history-$value")) }
         assertFalse(coordinator.state.thumbnails.containsKey(editing))
         assertTrue(coordinator.state.thumbnails.size <= 64)
         assertNotNull(files.getFileEntity(editing))
@@ -557,16 +688,32 @@ class MultimodalImageIntegrationTest {
         val ready = media.prepare("ready", Uri.fromFile(fixture()))
         val invalidFile = File(directory, "damaged").apply { writeText("not an image") }
         val invalid = files.prepareFile("invalid", Uri.fromFile(invalidFile))
-        val saved = chat.createUserMessageWithImages(sessionId, "", listOf(
-            MessageImageInput.Prepared(ready), MessageImageInput.Prepared(invalid)))
-        val snapshot = saved.copy(images = saved.images + saved.images.first().copy(
-            image = saved.images.first().image.copy(position = 2), file = null))
+        val saved = chat.createUserMessageWithImages(
+            sessionId = sessionId,
+            content = "",
+            images = listOf(
+                MessageImageInput.Prepared(ready),
+                MessageImageInput.Prepared(invalid),
+            ),
+        )
+        val snapshot = saved.copy(
+            images = saved.images + saved.images.first().copy(
+                image = saved.images.first().image.copy(position = 2),
+                file = null,
+            ),
+        )
         // 每个附件的失败独立收集，未知程序错误不会在 Runtime 被 blanket catch 吞掉。
         val candidates = media.prepareCandidates(listOf(snapshot))
-        assertEquals(listOf(ready.file.uuid), candidates.references.getValue(saved.key.messageId).map { it.uuid })
+        assertEquals(
+            listOf(ready.file.uuid),
+            candidates.references.getValue(saved.key.messageId).map { image -> image.uuid },
+        )
         val failures = candidates.unavailable.getValue(saved.key.messageId)
-        assertEquals(listOf(1, 2), failures.map { it.position })
-        assertEquals(listOf(ImageRequestFailure.InvalidImage, ImageRequestFailure.Missing), failures.map { it.failure })
+        assertEquals(listOf(1, 2), failures.map { unavailablePromptImage -> unavailablePromptImage.position })
+        assertEquals(
+            listOf(ImageRequestFailure.InvalidImage, ImageRequestFailure.Missing),
+            failures.map { unavailablePromptImage -> unavailablePromptImage.failure },
+        )
         assertTrue(runCatching { media.references(listOf(snapshot)) }.exceptionOrNull() is ImageRequestException)
     }
 
@@ -586,66 +733,187 @@ class MultimodalImageIntegrationTest {
     fun bothSummaryBuildersRejectOnlyMissingImagesWithinTheSelectedPrefix() = runBlocking {
         val session = chat.getSessionById(sessionId)!!
         val character = database.getCharacterDao().getCharacterById(session.characterId)!!
-        val provider = LLMProvider(name = "test", providerType = LLMProviderType.Custom,
-            protocol = LLMProviderProtocol.OpenAICompatible, baseUrl = "https://example.invalid",
-            model = "unknown", contextTokens = 100_000)
-        val messages = (1L..3L).map { ChatMessage(it, sessionId, it, ChatMessage.Source.User, "text") }
-        val unavailable = UnavailablePromptImage(3, "missing", 0, ImageRequestFailure.Missing)
+        val provider = LLMProvider(
+            name = "test",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.invalid",
+            model = "unknown",
+            contextTokens = 100_000,
+        )
+        val messages = (1L..3L).map { id -> ChatMessage(
+            id = id,
+            sessionId = sessionId,
+            createTime = id,
+            source = ChatMessage.Source.User,
+            content = "text",
+        ) }
+        val unavailable = UnavailablePromptImage(
+            messageId = 3,
+            uuid = "missing",
+            position = 0,
+            failure = ImageRequestFailure.Missing,
+        )
         val history = FormattedHistoryBuilder()
-        val single = SummaryPromptBuilder(PromptMacroResolver(history), history, PromptRequestFinalizer())
+        val single = SummaryPromptBuilder(
+            mMacroResolver = PromptMacroResolver(history),
+            mHistoryBuilder = history,
+            mRequestFinalizer = PromptRequestFinalizer(),
+        )
         val baseline = single.buildWithSelection("user", "", character, session, "", messages, provider)
-        val outside = single.buildWithSelection("user", "", character, session, "", messages, provider,
-            unavailableImages = mapOf(3L to listOf(unavailable)))
+        val outside = single.buildWithSelection(
+            userName = "user",
+            userDescription = "",
+            character = character,
+            session = session,
+            existingSummary = "",
+            messages = messages,
+            provider = provider,
+            unavailableImages = mapOf(3L to listOf(unavailable)),
+        )
         assertEquals(baseline, outside)
-        assertTrue(runCatching { single.buildWithSelection("user", "", character, session, "", messages, provider,
-            unavailableImages = mapOf(1L to listOf(unavailable.copy(messageId = 1)))) }.exceptionOrNull() is ImageRequestException)
+        assertTrue(
+            runCatching { single.buildWithSelection(
+                userName = "user",
+                userDescription = "",
+                character = character,
+                session = session,
+                existingSummary = "",
+                messages = messages,
+                provider = provider,
+                unavailableImages = mapOf(1L to listOf(unavailable.copy(messageId = 1))),
+            ) }.exceptionOrNull() is ImageRequestException,
+        )
         // 群聊采用自己的 Builder，选择边界和资源错误仍应遵循相同规则。
         val group = GroupChatSummaryPromptBuilder()
-        val groupSession = GroupChatSession(title = "group", createTime = 1, latestTime = 1, userName = "user", userDescription = "")
-        val groupMessages = messages.map { GroupChatMessage(it.id, 1, it.createTime,
-            GroupChatMessage.Source.User, it.content, speakerNameSnapshot = "user") }
+        val groupSession = GroupChatSession(
+            title = "group",
+            createTime = 1,
+            latestTime = 1,
+            userName = "user",
+            userDescription = "",
+        )
+        val groupMessages = messages.map { message -> GroupChatMessage(
+            id = message.id,
+            sessionId = 1,
+            createTime = message.createTime,
+            source = GroupChatMessage.Source.User,
+            content = message.content,
+            speakerNameSnapshot = "user",
+        ) }
         val groupBaseline = group.buildWithSelection(groupSession, listOf("character"), "", groupMessages, provider)
-        val groupOutside = group.buildWithSelection(groupSession, listOf("character"), "", groupMessages, provider,
-            unavailableImages = mapOf(3L to listOf(unavailable)))
+        val groupOutside = group.buildWithSelection(
+            session = groupSession,
+            memberNames = listOf("character"),
+            existingSummary = "",
+            messages = groupMessages,
+            provider = provider,
+            unavailableImages = mapOf(3L to listOf(unavailable)),
+        )
         assertEquals(groupBaseline, groupOutside)
-        assertTrue(runCatching { group.buildWithSelection(groupSession, listOf("character"), "", groupMessages, provider,
-            unavailableImages = mapOf(1L to listOf(unavailable.copy(messageId = 1)))) }.exceptionOrNull() is ImageRequestException)
+        assertTrue(
+            runCatching { group.buildWithSelection(
+                session = groupSession,
+                memberNames = listOf("character"),
+                existingSummary = "",
+                messages = groupMessages,
+                provider = provider,
+                unavailableImages = mapOf(1L to listOf(unavailable.copy(messageId = 1))),
+            ) }.exceptionOrNull() is ImageRequestException,
+        )
     }
 
     @Test
     fun requestByteAndImageCountLimitsRejectBeforeNetworkAndReleaseTemporaryFiles() = runBlocking {
         val prepared = media.prepare("limits", Uri.fromFile(fixture()))
         val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
-        val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
-        val provider = LLMProviderConfig("test", LLMProviderType.Custom, LLMProviderProtocol.OpenAICompatible,
-            "https://example.invalid", model = "test")
+        val reference = media
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
+        val provider = LLMProviderConfig(
+            name = "test",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.invalid",
+            model = "test",
+        )
         // 直接检验最终 JSON 写出，超大扩展字段也不能绕过限制。
         for (count in listOf(1, 13)) {
             val codec = MultimodalWireCodec(provider)
             val message = messageWithBlocks(LLMMessageRole.User, List(count) { LLMContentBlock.Image(reference) })
-            val payload = JSONObject().put("messages", JSONArray().put(JSONObject().put("content", codec.content(message))))
+            val payload = JSONObject().put(
+                "messages",
+                JSONArray().put(
+                    JSONObject().put(
+                        "content",
+                        codec.content(message),
+                    ),
+                ),
+            )
             if (count == 1) payload.put("extension", "x".repeat(16 * 1024 * 1024))
             val failure = runCatching { codec.prepare(payload, LLMGenerationRequest(listOf(message)), media) }.exceptionOrNull()
             assertTrue(failure is ImageRequestException)
-            assertEquals(if (count == 1) ImageRequestFailure.TooLarge else
+            assertEquals(
+                if (count == 1) ImageRequestFailure.TooLarge else
                 ImageRequestFailure.TooMany,
-                (failure as ImageRequestException).failure)
-            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+                (failure as ImageRequestException).failure,
+            )
+            assertTrue(
+                File(context.cacheDir, "image-requests").listFiles()
+                .orEmpty()
+                .isEmpty(),
+            )
         }
         // 各协议无论在编码前还是编码后拒绝非法地址，都不能遗留请求文件。
-        val request = LLMGenerationRequest(listOf(messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Image(reference)))))
+        val request = LLMGenerationRequest(
+            messages = listOf(
+                element = messageWithBlocks(
+                    role = LLMMessageRole.User,
+                blocks = listOf(LLMContentBlock.Image(reference)),
+                ),
+            ),
+        )
         for (protocol in LLMProviderProtocol.entries) {
             val invalidProvider = provider.copy(protocol = protocol, baseUrl = "invalid-address")
             val invalidClient: LLMClient = when (protocol) {
-                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(OkHttpClient(), logs, invalidProvider, media)
-                LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(OkHttpClient(), logs, invalidProvider, media)
-                LLMProviderProtocol.Gemini -> GeminiLLMClient(OkHttpClient(), logs, invalidProvider, media)
-                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(OkHttpClient(), logs, invalidProvider, media)
+                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
+                    mOkHttpClient = OkHttpClient(),
+                    mLLMRequestLogRepository = logs,
+                    mProvider = invalidProvider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
+                    mOkHttpClient = OkHttpClient(),
+                    mLLMRequestLogRepository = logs,
+                    mProvider = invalidProvider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.Gemini -> GeminiLLMClient(
+                    mOkHttpClient = OkHttpClient(),
+                    mLLMRequestLogRepository = logs,
+                    mProvider = invalidProvider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(
+                    mOkHttpClient = OkHttpClient(),
+                    mLLMRequestLogRepository = logs,
+                    mProvider = invalidProvider,
+                    mImageRuntime = media,
+                )
             }
             assertTrue(runCatching { invalidClient.generate(request) }.exceptionOrNull() is IllegalArgumentException)
-            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+            assertTrue(
+                File(context.cacheDir, "image-requests").listFiles()
+                .orEmpty()
+                .isEmpty(),
+            )
             assertTrue(runCatching { invalidClient.streamGenerate(request).toList() }.exceptionOrNull() is IllegalArgumentException)
-            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+            assertTrue(
+                File(context.cacheDir, "image-requests").listFiles()
+                .orEmpty()
+                .isEmpty(),
+            )
         }
     }
 
@@ -655,7 +923,11 @@ class MultimodalImageIntegrationTest {
         for (bytes in listOf("not an image".toByteArray(), "GIF89a".toByteArray() + ByteArray(40))) {
             val original = File(directory, UUID.randomUUID().toString() + ".png").apply { writeBytes(bytes) }
             assertTrue(runCatching { media.prepare("invalid", Uri.fromFile(original)) }.isFailure)
-            assertTrue(File(context.getDir("repository", Context.MODE_PRIVATE), "staging").listFiles().orEmpty().isEmpty())
+            assertTrue(
+                File(context.getDir("repository", Context.MODE_PRIVATE), "staging").listFiles()
+                .orEmpty()
+                .isEmpty(),
+            )
         }
     }
 
@@ -663,29 +935,66 @@ class MultimodalImageIntegrationTest {
     fun allProtocolsWriteTextPureImageAndMixedImagesForBothModesWithoutLoggingBytes() = runBlocking {
         val prepared = media.prepare("test", Uri.fromFile(fixture()))
         val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
-        val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
+        val reference = media
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
         // 穷举用户与角色、各协议、两种传输和三类内容，检查实际请求字节及角色。
         for (protocol in LLMProviderProtocol.entries) for (stream in listOf(false, true))
         for (role in listOf(LLMMessageRole.User, LLMMessageRole.Assistant)) for (count in 0..2) {
             var payload = ""
             val http = OkHttpClient.Builder().addInterceptor { chain ->
-                payload = Buffer().also { chain.request().body!!.writeTo(it) }.readUtf8()
-                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
-                    .body(response(protocol, stream).toResponseBody("application/json".toMediaType())).build()
+                payload = Buffer().also { buffer -> chain.request().body!!.writeTo(buffer) }.readUtf8()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body(response(protocol, stream).toResponseBody("application/json".toMediaType()))
+                    .build()
             }.build()
-            val provider = LLMProviderConfig("test", LLMProviderType.Custom, protocol, "https://example.invalid", model = "test")
+            val provider = LLMProviderConfig(
+                name = "test",
+                providerType = LLMProviderType.Custom,
+                protocol = protocol,
+                baseUrl = "https://example.invalid",
+                model = "test",
+            )
             val client: LLMClient = when (protocol) {
-                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(http, logs, provider, media)
-                LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(http, logs, provider, media)
-                LLMProviderProtocol.Gemini -> GeminiLLMClient(http, logs, provider, media)
-                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(http, logs, provider, media)
+                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
+                    mOkHttpClient = http,
+                    mLLMRequestLogRepository = logs,
+                    mProvider = provider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
+                    mOkHttpClient = http,
+                    mLLMRequestLogRepository = logs,
+                    mProvider = provider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.Gemini -> GeminiLLMClient(
+                    mOkHttpClient = http,
+                    mLLMRequestLogRepository = logs,
+                    mProvider = provider,
+                    mImageRuntime = media,
+                )
+                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(
+                    mOkHttpClient = http,
+                    mLLMRequestLogRepository = logs,
+                    mProvider = provider,
+                    mImageRuntime = media,
+                )
             }
             val blocks = (0 until count).flatMap { index ->
                 listOf(LLMContentBlock.Image(reference)) + if (count == 2) listOf(LLMContentBlock.Text("after-$index")) else emptyList()
             }
             val message = if (count == 0) LLMMessage(role, "text") else messageWithBlocks(role, blocks)
-            val request = LLMGenerationRequest(listOf(message), isPromptFinalized = true)
-            if (stream) client.streamGenerate(request).toList() else assertEquals("ok", client.generate(request).content)
+            val request = LLMGenerationRequest(messages = listOf(message), isPromptFinalized = true)
+            if (stream) client.streamGenerate(request).toList() else assertEquals(
+                "ok",
+                client.generate(request).content,
+            )
             val json = JSONObject(payload)
             val messagesKey = when (protocol) {
                 LLMProviderProtocol.Gemini -> "contents"
@@ -702,17 +1011,30 @@ class MultimodalImageIntegrationTest {
                 assertEquals(if (count == 2) 4 else 1, content.length())
                 val first = content.getJSONObject(0)
                 val encoded = when (protocol) {
-                    LLMProviderProtocol.OpenAICompatible -> first.getJSONObject("image_url").getString("url").substringAfter("base64,")
+                    LLMProviderProtocol.OpenAICompatible -> first
+                        .getJSONObject("image_url")
+                        .getString("url")
+                        .substringAfter("base64,")
                     LLMProviderProtocol.OpenAIResponses -> first.getString("image_url").substringAfter("base64,")
                     LLMProviderProtocol.Gemini -> first.getJSONObject("inlineData").getString("data")
                     LLMProviderProtocol.AnthropicMessages -> first.getJSONObject("source").getString("data")
                 }
-                assertEquals(reference.byteCount, Base64.getDecoder().decode(encoded).size.toLong())
-                val logId = logs.getLogOverviews(10, 1, 0).single().id
+                assertEquals(
+                    reference.byteCount,
+                    Base64.getDecoder()
+                    .decode(encoded)
+                    .size
+                    .toLong(),
+                )
+                val logId = logs.getLogOverviews(previewLength = 10, limit = 1, offset = 0).single().id
                 assertFalse(logs.getRequestJson(logId)!!.contains(encoded))
                 assertTrue(logs.getRequestJson(logId)!!.contains("cannot be replayed directly"))
             }
-            assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+            assertTrue(
+                File(context.cacheDir, "image-requests").listFiles()
+                .orEmpty()
+                .isEmpty(),
+            )
         }
     }
 
@@ -720,14 +1042,18 @@ class MultimodalImageIntegrationTest {
     fun exifOrientationsAndTransparencyUseBoundedSendVersionsAndPreserveOriginal() = runBlocking {
         for (orientation in 1..8) {
             val original = fixture(jpeg = true)
-            ExifInterface(original).apply { setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString()); saveAttributes() }
+            ExifInterface(original).apply { setAttribute(ExifInterface.TAG_ORIENTATION, orientation.toString())
+            saveAttributes() }
             val bytes = original.readBytes()
             val prepared = media.prepare("test", Uri.fromFile(original))
             val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
-            val ref = media.references(listOf(saved)).getValue(saved.key.messageId).single()
+            val ref = media
+                .references(listOf(saved))
+                .getValue(saved.key.messageId)
+                .single()
             assertEquals(if (orientation in 5..8) 160 else 320, ref.width)
             assertEquals(if (orientation in 5..8) 320 else 160, ref.height)
-            assertTrue(files.withFileLease(ref.uuid) { it.readBytes().contentEquals(bytes) })
+            assertTrue(files.withFileLease(ref.uuid) { file -> file.readBytes().contentEquals(bytes) })
         }
         // 透明 PNG 保持 Alpha；解码不是简单把扩展名当 MIME。
         val png = media.prepare("test", Uri.fromFile(fixture()))
@@ -741,15 +1067,34 @@ class MultimodalImageIntegrationTest {
     fun nativeResponsesCloseIdleSocketsAndReleaseImageFilesOnCancelAndCompletion() = runBlocking {
         val prepared = media.prepare("responses", Uri.fromFile(fixture()))
         val saved = chat.createUserMessageWithImages(sessionId, "", listOf(MessageImageInput.Prepared(prepared)))
-        val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
-        val request = LLMGenerationRequest(listOf(messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Image(reference)))))
+        val reference = media
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
+        val request = LLMGenerationRequest(
+            messages = listOf(
+                element = messageWithBlocks(
+                    role = LLMMessageRole.User,
+                blocks = listOf(LLMContentBlock.Image(reference)),
+                ),
+            ),
+        )
         // 真正保持 HTTP 连接开启，分别检查用户停止和收到终态后的主动关闭。
         for (cancel in listOf(true, false)) {
-            val body = if (cancel) "" else response(LLMProviderProtocol.OpenAIResponses, true)
+            val body = if (cancel) "" else response(protocol = LLMProviderProtocol.OpenAIResponses, stream = true)
             IdleResponsesServer(body).use { server ->
-                val provider = LLMProviderConfig("test", LLMProviderType.ChatGPT, LLMProviderProtocol.OpenAIResponses,
-                    "http://127.0.0.1:${server.port}/v1", model = "test")
-                val client = LLMClientFactory(OkHttpClient(), logs, mImageRuntime = media).create(provider)
+                val provider = LLMProviderConfig(
+                    name = "test",
+                    providerType = LLMProviderType.ChatGPT,
+                    protocol = LLMProviderProtocol.OpenAIResponses,
+                    baseUrl = "http://127.0.0.1:${server.port}/v1",
+                    model = "test",
+                )
+                val client = LLMClientFactory(
+                    mOkHttpClient = OkHttpClient(),
+                    mLLMRequestLogRepository = logs,
+                    mImageRuntime = media,
+                ).create(provider)
                 val connected = CompletableDeferred<Unit>()
                 val events = mutableListOf<LLMStreamEvent>()
                 val job = async {
@@ -759,13 +1104,17 @@ class MultimodalImageIntegrationTest {
                     }
                 }
                 try {
-                    withTimeout(5_000) {
+                    withTimeout(timeMillis = 5_000) {
                         connected.await()
                         if (cancel) job.cancelAndJoin() else job.await()
                         server.closed.await()
                     }
-                    assertEquals(!cancel, events.any { it is LLMStreamEvent.Finished })
-                    assertTrue(File(context.cacheDir, "image-requests").listFiles().orEmpty().isEmpty())
+                    assertEquals(!cancel, events.any { event -> event is LLMStreamEvent.Finished })
+                    assertTrue(
+                        File(context.cacheDir, "image-requests").listFiles()
+                        .orEmpty()
+                        .isEmpty(),
+                    )
                     assertEquals(1, media.references(listOf(saved)).getValue(saved.key.messageId).size)
                 } finally {
                     job.cancelAndJoin()
@@ -779,10 +1128,20 @@ class MultimodalImageIntegrationTest {
         val prepared = media.prepare("test", Uri.fromFile(fixture()))
         val saved = chat.createUserMessageWithImages(sessionId, "old", listOf(MessageImageInput.Prepared(prepared)))
         val snapshot = chat.getSummaryInputSnapshot(sessionId, listOf(saved.key.messageId))
-        val reference = media.references(listOf(saved)).getValue(saved.key.messageId).single()
+        val reference = media
+            .references(listOf(saved))
+            .getValue(saved.key.messageId)
+            .single()
         chat.editMessageWithImages(sessionId, saved.key.messageId, "edited", emptyList())
-        assertNotNull(runCatching { chat.saveSummary(sessionId, "stale", saved.key.messageId, expectedSnapshot = snapshot) }.exceptionOrNull())
-        assertNotNull(runCatching { media.withSendFile(reference) { it.length() } }.exceptionOrNull())
+        assertNotNull(
+            runCatching { chat.saveSummary(
+                sessionId = sessionId,
+                content = "stale",
+                coveredMessageId = saved.key.messageId,
+                expectedSnapshot = snapshot,
+            ) }.exceptionOrNull(),
+        )
+        assertNotNull(runCatching { media.withSendFile(reference) { file -> file.length() } }.exceptionOrNull())
         assertEquals(null, chat.getLatestSummary(sessionId))
     }
 
@@ -808,13 +1167,19 @@ class MultimodalImageIntegrationTest {
             try {
                 mSocket.accept().use { client ->
                     client.soTimeout = 8_000
-                    val input = client.getInputStream().source().buffer()
+                    val input = client
+                        .getInputStream()
+                        .source()
+                        .buffer()
                     check(input.readUtf8LineStrict() == "POST /v1/responses HTTP/1.1")
                     var length = 0L
                     while (true) {
                         val header = input.readUtf8LineStrict()
                         if (header.isEmpty()) break
-                        if (header.startsWith("Content-Length:", true)) length = header.substringAfter(':').trim().toLong()
+                        if (header.startsWith(prefix = "Content-Length:", ignoreCase = true)) length = header
+                            .substringAfter(':')
+                            .trim()
+                            .toLong()
                     }
                     // 消费包含真实 Base64 的请求体，才发出连接成功与最终事件。
                     val payload = JSONObject(input.readUtf8(length))

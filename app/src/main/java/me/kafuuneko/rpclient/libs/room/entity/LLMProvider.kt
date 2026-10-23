@@ -99,5 +99,5 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     useServerReportedUsage = useServerReportedUsage,
     imageInputSetting = imageInputSetting,
     imageTokenEstimatorType = imageTokenEstimatorType,
-    providerId = id
+    providerId = id,
 )

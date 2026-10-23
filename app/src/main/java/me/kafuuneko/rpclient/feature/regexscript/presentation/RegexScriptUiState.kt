@@ -82,8 +82,6 @@ sealed class RegexScriptDialogState {
 internal fun RegexScriptUiState.Normal.targetOrNull(): RegexScriptTarget? {
     return when (scope) {
         RegexScriptScope.Global -> RegexScriptTarget(RegexScriptScope.Global)
-        RegexScriptScope.Character -> selectedCharacterId?.let {
-            RegexScriptTarget(RegexScriptScope.Character, it)
-        }
+        RegexScriptScope.Character -> selectedCharacterId?.let { RegexScriptTarget(RegexScriptScope.Character, it) }
     }
 }

@@ -27,9 +27,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     @UiIntentObserver(PromptPresetUiIntent.Init::class)
     private fun onInit() {
         if (!isStateOf<PromptPresetUiState.None>()) return
-        PromptPresetUiState.Normal(
-            promptValues = readPromptValues()
-        ).setup()
+        PromptPresetUiState.Normal(promptValues = readPromptValues()).setup()
     }
 
     /** 处理返回操作，迁移至 Finished 状态。 */
@@ -48,8 +46,8 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
                 type = intent.type,
                 draftText = uiState.promptValues[intent.type].orEmpty(),
                 defaultText = defaultPrompt(intent.type),
-                availableMacros = availableMacros(intent.type)
-            )
+                availableMacros = availableMacros(intent.type),
+            ),
         ).setup()
     }
 
@@ -66,9 +64,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
     private fun onChangePromptDraft(intent: PromptPresetUiIntent.ChangePromptDraft) {
         val uiState = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? PromptPresetDialogState.EditPrompt ?: return
-        uiState.copy(
-            dialogState = dialog.copy(draftText = intent.value)
-        ).setup()
+        uiState.copy(dialogState = dialog.copy(draftText = intent.value)).setup()
     }
 
     /** 保存编辑后的提示词模板覆盖值，并更新 UI 展示。 */
@@ -79,7 +75,7 @@ class PromptPresetViewModel : CoreViewModelWithEvent<PromptPresetUiIntent, Promp
         writePrompt(dialog.type, dialog.draftText)
         uiState.copy(
             promptValues = readPromptValues(),
-            dialogState = PromptPresetDialogState.None
+            dialogState = PromptPresetDialogState.None,
         ).setup()
     }
 

@@ -10,8 +10,8 @@ class RegexScriptEngineTest {
     @Test
     fun scriptsRunInScopeAndListOrder() {
         val scripts = listOf(
-            scoped(script("global", "/a/g", "b"), RegexScriptScope.Global, 0),
-            scoped(script("character", "/b/g", "c"), RegexScriptScope.Character, 0)
+            scoped(script = script("global", "/a/g", "b"), scope = RegexScriptScope.Global, order = 0),
+            scoped(script = script("character", "/b/g", "c"), scope = RegexScriptScope.Character, order = 0),
         )
 
         val result = engine.execute("a", scripts, context())
@@ -25,7 +25,7 @@ class RegexScriptEngineTest {
         val script = script(
             id = "capture",
             find = "/(?<word>foo)-(BAR)/gi",
-            replacement = "{{match}}:$<word>:$2"
+            replacement = "{{match}}:$<word>:$2",
         ).copy(trimStrings = listOf("o"))
 
         val result = engine.execute("Foo-BAR foo-bar", listOf(scoped(script)), context())
@@ -36,15 +36,15 @@ class RegexScriptEngineTest {
     @Test
     fun supportsMultilineDotAllAndUnicodeFlags() {
         val scripts = listOf(
-            scoped(script("multiline", "/^foo$/gm", "line"), order = 0),
-            scoped(script("dotall", "/a.b/gs", "joined"), order = 1),
-            scoped(script("unicode", "/\\u{1F60A}/gu", "face"), order = 2)
+            scoped(script = script("multiline", "/^foo$/gm", "line"), order = 0),
+            scoped(script = script("dotall", "/a.b/gs", "joined"), order = 1),
+            scoped(script = script("unicode", "/\\u{1F60A}/gu", "face"), order = 2),
         )
 
         val result = engine.execute(
-            "foo\na\nb 😊",
-            scripts,
-            context()
+            input = "foo\na\nb 😊",
+            scripts = scripts,
+            context = context(),
         )
 
         assertEquals("line\njoined face", result.text)
@@ -61,12 +61,8 @@ class RegexScriptEngineTest {
 
     @Test
     fun findMacrosSupportRawEscapedAndDisabledModes() {
-        val raw = script("raw", "/{{char}}/g", "x").copy(
-            substituteRegex = RegexFindMacroMode.Raw.value
-        )
-        val escaped = script("escaped", "/{{char}}/g", "y").copy(
-            substituteRegex = RegexFindMacroMode.Escaped.value
-        )
+        val raw = script("raw", "/{{char}}/g", "x").copy(substituteRegex = RegexFindMacroMode.Raw.value)
+        val escaped = script("escaped", "/{{char}}/g", "y").copy(substituteRegex = RegexFindMacroMode.Escaped.value)
         val disabled = script("disabled", "/\\{\\{char\\}\\}/g", "z")
         val macros = mapOf("char" to "A+B")
 
@@ -81,13 +77,13 @@ class RegexScriptEngineTest {
         val script = script(
             id = "replacement-macros",
             find = "/input/g",
-            replacement = "{{UsEr}}/{{missing}}"
+            replacement = "{{UsEr}}/{{missing}}",
         )
 
         val result = engine.execute(
-            "input",
-            listOf(scoped(script)),
-            context(macros = mapOf("user" to "Alice"))
+            input = "input",
+            scripts = listOf(scoped(script)),
+            context = context(macros = mapOf("user" to "Alice")),
         )
 
         assertEquals("Alice/{{missing}}", result.text)
@@ -99,7 +95,7 @@ class RegexScriptEngineTest {
             promptOnly = true,
             runOnEdit = false,
             minDepth = 1,
-            maxDepth = 2
+            maxDepth = 2,
         )
         val scoped = listOf(scoped(script))
 
@@ -107,26 +103,26 @@ class RegexScriptEngineTest {
         assertEquals(
             "x",
             engine.execute(
-                "x",
-                scoped,
-                context(mode = RegexExecutionMode.Prompt, depth = 0)
-            ).text
+                input = "x",
+                scripts = scoped,
+                context = context(mode = RegexExecutionMode.Prompt, depth = 0),
+            ).text,
         )
         assertEquals(
             "y",
             engine.execute(
-                "x",
-                scoped,
-                context(mode = RegexExecutionMode.Prompt, depth = 1)
-            ).text
+                input = "x",
+                scripts = scoped,
+                context = context(mode = RegexExecutionMode.Prompt, depth = 1),
+            ).text,
         )
         assertEquals(
             "x",
             engine.execute(
-                "x",
-                scoped,
-                context(mode = RegexExecutionMode.Prompt, depth = 1, isEdit = true)
-            ).text
+                input = "x",
+                scripts = scoped,
+                context = context(mode = RegexExecutionMode.Prompt, depth = 1, isEdit = true),
+            ).text,
         )
     }
 
@@ -134,25 +130,25 @@ class RegexScriptEngineTest {
     fun conflictingTemporaryModesDoNotRun() {
         val script = script("conflict", "/x/g", "y").copy(
             markdownOnly = true,
-            promptOnly = true
+            promptOnly = true,
         )
         val scripts = listOf(scoped(script))
 
         assertEquals(
             "x",
-            engine.execute("x", scripts, context(mode = RegexExecutionMode.Markdown)).text
+            engine.execute("x", scripts, context(mode = RegexExecutionMode.Markdown)).text,
         )
         assertEquals(
             "x",
-            engine.execute("x", scripts, context(mode = RegexExecutionMode.Prompt)).text
+            engine.execute("x", scripts, context(mode = RegexExecutionMode.Prompt)).text,
         )
     }
 
     @Test
     fun invalidScriptDoesNotBlockFollowingScripts() {
         val scripts = listOf(
-            scoped(script("bad", "/[/g", "x"), order = 0),
-            scoped(script("good", "/a/g", "b"), order = 1)
+            scoped(script = script("bad", "/[/g", "x"), order = 0),
+            scoped(script = script("good", "/a/g", "b"), order = 1),
         )
 
         val result = engine.execute("a", scripts, context())
@@ -165,9 +161,9 @@ class RegexScriptEngineTest {
     @Test
     fun unmatchedScriptsAreNotReportedAsHits() {
         val result = engine.execute(
-            "a",
-            listOf(scoped(script("unmatched", "/z/g", "x"))),
-            context()
+            input = "a",
+            scripts = listOf(scoped(script("unmatched", "/z/g", "x"))),
+            context = context(),
         )
 
         assertEquals("a", result.text)
@@ -177,9 +173,9 @@ class RegexScriptEngineTest {
     @Test
     fun stickyGlobalReplacementStopsAtFirstGap() {
         val result = engine.execute(
-            "aa-aa",
-            listOf(scoped(script("sticky", "/a/gy", "b"))),
-            context()
+            input = "aa-aa",
+            scripts = listOf(scoped(script("sticky", "/a/gy", "b"))),
+            context = context(),
         )
 
         assertEquals("bb-aa", result.text)
@@ -189,17 +185,15 @@ class RegexScriptEngineTest {
     fun runtimeSeparatesReasoningFromAiResponsePlacement() {
         val runtime = RegexScriptRuntime(engine)
         val reasoning = script("reasoning", "/secret/g", "hidden").copy(
-            placement = listOf(RegexPlacement.Reasoning.value)
+            placement = listOf(RegexPlacement.Reasoning.value),
         )
-        val answer = script("answer", "/answer/g", "reply").copy(
-            placement = listOf(RegexPlacement.AiResponse.value)
-        )
+        val answer = script("answer", "/answer/g", "reply").copy(placement = listOf(RegexPlacement.AiResponse.value))
 
         val result = runtime.executeAiMessage(
-            "<think>secret</think>answer",
-            listOf(scoped(reasoning), scoped(answer, order = 1)),
-            RegexExecutionMode.Source,
-            emptyMap()
+            input = "<think>secret</think>answer",
+            scripts = listOf(scoped(reasoning), scoped(script = answer, order = 1)),
+            mode = RegexExecutionMode.Source,
+            macros = emptyMap(),
         )
 
         assertEquals("<think>hidden</think>reply", result.text)
@@ -208,31 +202,31 @@ class RegexScriptEngineTest {
     private fun script(
         id: String,
         find: String,
-        replacement: String
+        replacement: String,
     ) = RegexScript(
         id = id,
         scriptName = id,
         findRegex = find,
         replaceString = replacement,
-        placement = listOf(RegexPlacement.UserInput.value)
+        placement = listOf(RegexPlacement.UserInput.value),
     )
 
     private fun scoped(
         script: RegexScript,
         scope: RegexScriptScope = RegexScriptScope.Global,
-        order: Int = 0
-    ) = ScopedRegexScript(script, scope, order = order)
+        order: Int = 0,
+    ) = ScopedRegexScript(script = script, scope = scope, order = order)
 
     private fun context(
         macros: Map<String, String> = emptyMap(),
         mode: RegexExecutionMode = RegexExecutionMode.Source,
         depth: Int? = null,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ) = RegexExecutionContext(
         placement = RegexPlacement.UserInput,
         mode = mode,
         depth = depth,
         isEdit = isEdit,
-        macros = macros
+        macros = macros,
     )
 }

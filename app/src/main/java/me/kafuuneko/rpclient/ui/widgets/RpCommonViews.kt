@@ -59,22 +59,22 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 fun RpPageTitle(
     title: String,
     subtitle: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
         )
     }
 }
@@ -84,28 +84,28 @@ fun RpPageTitle(
 fun RpSectionHeader(
     title: String,
     action: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier.padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
         if (action != null) {
             TextButton(
                 onClick = onAction,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
-                    action,
+                    text = action,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -127,13 +127,13 @@ fun RpAvatar(
     color: Color,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
-    image: ImageBitmap? = null
+    image: ImageBitmap? = null,
 ) {
     Surface(
         modifier = modifier.size(46.dp),
         shape = shape,
         color = color.copy(alpha = 0.14f),
-        border = BorderStroke(0.5.dp, color.copy(alpha = 0.28f))
+        border = BorderStroke(width = 0.5.dp, color = color.copy(alpha = 0.28f)),
     ) {
         // 图片沿用 Surface 的裁剪与边框，文字占位仍保留原有布局。
         if (image != null) {
@@ -141,18 +141,18 @@ fun RpAvatar(
                 bitmap = image,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         } else {
             Box(
                 modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = text,
                     color = color,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -168,21 +168,21 @@ fun RpIconBubble(
     iconSize: Dp = (size.value * 20f / 38f).dp,
     shape: Shape = RoundedCornerShape((size.value * 13f / 38f).dp),
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-    contentColor: Color = MaterialTheme.colorScheme.primary
+    contentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     // 图标底板继承所在内容区，图标本身保持原有强调色。
     AppSurface(
         modifier = modifier.size(size),
         shape = shape,
         color = containerColor,
-        border = BorderStroke(0.5.dp, contentColor.copy(alpha = 0.15f))
+        border = BorderStroke(width = 0.5.dp, color = contentColor.copy(alpha = 0.15f)),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(iconSize)
+                modifier = Modifier.size(iconSize),
             )
         }
     }
@@ -197,32 +197,31 @@ fun RpCheckBadge(
     size: Dp = 22.dp,
     onClick: (() -> Unit)? = null,
     selectedColor: Color = MaterialTheme.colorScheme.primary,
-    onSelectedColor: Color = MaterialTheme.colorScheme.onPrimary
+    onSelectedColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     val active = selected || indeterminate
     val badgeSurface = @Composable {
+        val selectionDecoration = if (active) {
+            Modifier.background(selectedColor, CircleShape)
+        } else {
+            Modifier.border(
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = CircleShape,
+            )
+        }
         Box(
             modifier = Modifier
                 .size(size)
-                .then(
-                    if (active) {
-                        Modifier.background(selectedColor, CircleShape)
-                    } else {
-                        Modifier.border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.outline,
-                            shape = CircleShape
-                        )
-                    }
-                ),
-            contentAlignment = Alignment.Center
+                .then(other = selectionDecoration),
+            contentAlignment = Alignment.Center,
         ) {
             if (active) {
                 Icon(
                     imageVector = if (selected) Icons.Rounded.Check else Icons.Rounded.Remove,
                     contentDescription = null,
                     tint = onSelectedColor,
-                    modifier = Modifier.size((size.value * 14f / 22f).dp)
+                    modifier = Modifier.size((size.value * 14f / 22f).dp),
                 )
             }
         }
@@ -234,17 +233,17 @@ fun RpCheckBadge(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onClick
+                    onClick = onClick,
                 )
                 .padding(6.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             badgeSurface()
         }
     } else {
         Box(
             modifier = modifier,
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             badgeSurface()
         }
@@ -257,12 +256,12 @@ fun RpCheckBadge(
 fun RpTagRow(
     tags: List<String>,
     modifier: Modifier = Modifier,
-    maxCount: Int = tags.size
+    maxCount: Int = tags.size,
 ) {
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         tags.take(maxCount).forEach { tag ->
             RpTagPill(tag)
@@ -277,7 +276,7 @@ fun RpTagPill(text: String) {
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+        border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
     ) {
         Text(
             text = text,
@@ -287,7 +286,7 @@ fun RpTagPill(text: String) {
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             maxLines = 1,
             softWrap = false,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -298,7 +297,7 @@ fun RpTagPill(text: String) {
 fun RpMetaRow(items: List<String>) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items.forEach { item ->
             RpMetaPill(item)
@@ -313,7 +312,7 @@ fun RpMetaPill(text: String) {
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+        border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
     ) {
         Text(
             text = text,
@@ -322,7 +321,7 @@ fun RpMetaPill(text: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             softWrap = false,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -334,40 +333,40 @@ fun RpInfoCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
 ) {
     AppCard(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+        ),
     ) {
         Row(
             modifier = Modifier.padding(15.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpIconBubble(icon)
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    title,
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    subtitle,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
                 )
             }
             trailing?.invoke()
@@ -382,16 +381,16 @@ fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+        ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            content = content
+            content = content,
         )
     }
 }
@@ -401,23 +400,23 @@ fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
 fun RpSettingsGroup(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     AppCard(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            content = content
+            content = content,
         )
     }
 }
@@ -426,15 +425,15 @@ fun RpSettingsGroup(
 @Composable
 fun RpSettingsDivider(
     modifier: Modifier = Modifier,
-    startIndent: Boolean = true
+    startIndent: Boolean = true,
 ) {
     HorizontalDivider(
         modifier = modifier.padding(
             start = if (startIndent) 58.dp else 16.dp,
-            end = 16.dp
+            end = 16.dp,
         ),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
     )
 }
 
@@ -449,7 +448,7 @@ fun RpSettingsTile(
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
 ) {
     val clickableModifier = if (onClick != null && enabled) {
         Modifier.clickable(onClick = onClick)
@@ -462,25 +461,25 @@ fun RpSettingsTile(
             .fillMaxWidth()
             .then(clickableModifier)
             .padding(horizontal = 16.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
             RpIconBubble(
                 icon = icon,
                 contentColor = if (enabled) iconColor else iconColor.copy(alpha = 0.38f),
-                containerColor = if (enabled) iconContainerColor else iconContainerColor.copy(alpha = 0.25f)
+                containerColor = if (enabled) iconContainerColor else iconContainerColor.copy(alpha = 0.25f),
             )
             Spacer(modifier = Modifier.width(14.dp))
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f)
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.40f),
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
@@ -490,7 +489,7 @@ fun RpSettingsTile(
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)
-                    }
+                    },
                 )
             }
         }
@@ -512,7 +511,7 @@ fun RpSettingsSwitchTile(
     icon: ImageVector? = null,
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     RpSettingsTile(
         title = title,
@@ -527,9 +526,9 @@ fun RpSettingsSwitchTile(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                enabled = enabled
+                enabled = enabled,
             )
-        }
+        },
     )
 }
 
@@ -544,7 +543,7 @@ fun RpSettingsValueTile(
     icon: ImageVector? = null,
     iconColor: Color = MaterialTheme.colorScheme.primary,
     iconContainerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     RpSettingsTile(
         title = title,
@@ -558,29 +557,32 @@ fun RpSettingsValueTile(
         trailing = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                    border = BorderStroke(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    ),
                 ) {
                     Text(
                         text = value,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 }
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
-        }
+        },
     )
 }
 
@@ -596,15 +598,18 @@ fun StoryUserPersonaCard(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     AppCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable(enabled = enabled) {
-                onCheckedChange(!checked)
-            },
+            .clickable(
+                enabled = enabled,
+                onClick = {
+                    onCheckedChange(!checked)
+                },
+            ),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             width = if (checked) 1.5.dp else 1.dp,
@@ -612,20 +617,20 @@ fun StoryUserPersonaCard(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            }
+            },
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (checked) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
             } else {
                 MaterialTheme.colorScheme.surface
-            }
-        )
+            },
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             RpIconBubble(
                 icon = Icons.Rounded.Person,
@@ -638,28 +643,28 @@ fun StoryUserPersonaCard(
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                },
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = stringResource(R.string.story_include_user_persona),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.story_include_user_persona_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 )
             }
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                enabled = enabled
+                enabled = enabled,
             )
         }
     }

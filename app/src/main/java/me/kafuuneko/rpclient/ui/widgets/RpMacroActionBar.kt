@@ -41,20 +41,20 @@ fun RpMacroActionBar(
     onInsertMacro: (String) -> Unit,
     modifier: Modifier = Modifier,
     onFullscreenClick: (() -> Unit)? = null,
-    macros: List<String> = DEFAULT_PROMPT_MACROS
+    macros: List<String> = DEFAULT_PROMPT_MACROS,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             modifier = Modifier
                 .weight(1f)
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             macros.forEach { macro ->
                 Surface(
@@ -63,8 +63,8 @@ fun RpMacroActionBar(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                     border = BorderStroke(
                         width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                    )
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    ),
                 ) {
                     Text(
                         text = macro,
@@ -72,7 +72,7 @@ fun RpMacroActionBar(
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -81,13 +81,13 @@ fun RpMacroActionBar(
         if (onFullscreenClick != null) {
             IconButton(
                 onClick = onFullscreenClick,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(32.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Fullscreen,
                     contentDescription = stringResource(R.string.fullscreen_editor),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }

@@ -7,8 +7,8 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
-import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -17,11 +17,13 @@ import org.junit.Test
 class RequestBodyPatchTest {
     @Test
     fun recursivelyMergesObjectsAndReplacesArrays() {
-        val result = JsonParser.parseString(mergeRequestBodyJson(
-            """{"provider":{"order":["a"],"sort":"price"},"plugins":[{"id":"x"}]}""",
-            """{"provider":{"order":["deepinfra"],"allow_fallbacks":false},"plugins":[{"id":"y"}]}""",
-            emptySet()
-        )).asJsonObject
+        val result = JsonParser.parseString(
+            mergeRequestBodyJson(
+                baseJson = """{"provider":{"order":["a"],"sort":"price"},"plugins":[{"id":"x"}]}""",
+                patchJson = """{"provider":{"order":["deepinfra"],"allow_fallbacks":false},"plugins":[{"id":"y"}]}""",
+                protectedPaths = emptySet(),
+            ),
+        ).asJsonObject
 
         assertEquals("price", result.getAsJsonObject("provider").get("sort").asString)
         assertEquals("deepinfra", result.getAsJsonObject("provider").getAsJsonArray("order")[0].asString)
@@ -31,11 +33,13 @@ class RequestBodyPatchTest {
 
     @Test
     fun nullRemovesAField() {
-        val result = JsonParser.parseString(mergeRequestBodyJson(
-            """{"provider":{"sort":"price","quantizations":["fp8"]}}""",
-            """{"provider":{"sort":null}}""",
-            emptySet()
-        )).asJsonObject
+        val result = JsonParser.parseString(
+            mergeRequestBodyJson(
+                baseJson = """{"provider":{"sort":"price","quantizations":["fp8"]}}""",
+                patchJson = """{"provider":{"sort":null}}""",
+                protectedPaths = emptySet(),
+            ),
+        ).asJsonObject
 
         assertFalse(result.getAsJsonObject("provider").has("sort"))
         assertTrue(result.getAsJsonObject("provider").has("quantizations"))
@@ -45,21 +49,21 @@ class RequestBodyPatchTest {
     fun rejectsProtectedNestedPathButAllowsSibling() {
         assertTrue(
             validateRequestBodyPatch(
-                """{"generationConfig":{"maxOutputTokens":1}}""",
-                setOf("generationConfig.maxOutputTokens")
-            ).isFailure
+                patchJson = """{"generationConfig":{"maxOutputTokens":1}}""",
+                protectedPaths = setOf("generationConfig.maxOutputTokens"),
+            ).isFailure,
         )
         assertTrue(
             validateRequestBodyPatch(
-                """{"generationConfig":{"candidateCount":2}}""",
-                setOf("generationConfig.maxOutputTokens")
-            ).isSuccess
+                patchJson = """{"generationConfig":{"candidateCount":2}}""",
+                protectedPaths = setOf("generationConfig.maxOutputTokens"),
+            ).isSuccess,
         )
         assertTrue(
             validateRequestBodyPatch(
-                """{"generationConfig":null}""",
-                setOf("generationConfig.maxOutputTokens")
-            ).isFailure
+                patchJson = """{"generationConfig":null}""",
+                protectedPaths = setOf("generationConfig.maxOutputTokens"),
+            ).isFailure,
         )
     }
 
@@ -85,41 +89,39 @@ class RequestBodyPatchTest {
 
         assertTrue(
             validateRequestBodyPatch(
-                """{"stream_options":{"include_usage":true}}""",
-                protectedPaths
-            ).isFailure
+                patchJson = """{"stream_options":{"include_usage":true}}""",
+                protectedPaths = protectedPaths,
+            ).isFailure,
         )
         assertTrue(
             validateRequestBodyPatch(
-                """{"stream_options":{"other_option":true}}""",
-                protectedPaths
-            ).isSuccess
+                patchJson = """{"stream_options":{"other_option":true}}""",
+                protectedPaths = protectedPaths,
+            ).isSuccess,
         )
     }
 
     @Test
     fun allowsDefaultProviderReasoningTemplatesForEveryProtocol() {
-        val openAIProtectedPaths = protectedRequestBodyPaths(
-            LLMProviderProtocol.OpenAICompatible
-        )
+        val openAIProtectedPaths = protectedRequestBodyPaths(protocol = LLMProviderProtocol.OpenAICompatible)
         listOf(
             DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON,
             DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
-            DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+            DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
         ).forEach { template ->
             assertTrue(validateRequestBodyPatch(template, openAIProtectedPaths).isSuccess)
         }
         assertTrue(
             validateRequestBodyPatch(
-                DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
-                protectedRequestBodyPaths(LLMProviderProtocol.AnthropicMessages)
-            ).isSuccess
+                patchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
+                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.AnthropicMessages),
+            ).isSuccess,
         )
         assertTrue(
             validateRequestBodyPatch(
-                DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
-                protectedRequestBodyPaths(LLMProviderProtocol.Gemini)
-            ).isSuccess
+                patchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
+                protectedPaths = protectedRequestBodyPaths(LLMProviderProtocol.Gemini),
+            ).isSuccess,
         )
     }
 
@@ -131,16 +133,14 @@ class RequestBodyPatchTest {
                 patchJson =
                     """{"metadata":{"session":"${'$'}rpclient.routing_session_id","literal":"prefix ${'$'}rpclient.routing_session_id"}}""",
                 protectedPaths = emptySet(),
-                systemVariables = mapOf(
-                    LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID to JsonPrimitive("routing-42")
-                )
-            )
+                systemVariables = mapOf(LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID to JsonPrimitive("routing-42")),
+            ),
         ).asJsonObject.getAsJsonObject("metadata")
 
         assertEquals("routing-42", result.get("session").asString)
         assertEquals(
             "prefix ${'$'}rpclient.routing_session_id",
-            result.get("literal").asString
+            result.get("literal").asString,
         )
     }
 
@@ -151,8 +151,8 @@ class RequestBodyPatchTest {
                 baseJson = """{"metadata":{"session":"old","keep":true}}""",
                 patchJson =
                     """{"metadata":{"session":"${'$'}rpclient.routing_session_id"}}""",
-                protectedPaths = emptySet()
-            )
+                protectedPaths = emptySet(),
+            ),
         ).asJsonObject.getAsJsonObject("metadata")
 
         assertFalse(result.has("session"))
@@ -163,15 +163,15 @@ class RequestBodyPatchTest {
     fun rejectsUnknownFullSystemVariable() {
         assertTrue(
             validateRequestBodyPatch(
-                """{"value":"${'$'}rpclient.unknown"}""",
-                emptySet()
-            ).isFailure
+                patchJson = """{"value":"${'$'}rpclient.unknown"}""",
+                protectedPaths = emptySet(),
+            ).isFailure,
         )
         assertTrue(
             validateRequestBodyPatch(
-                """{"value":"prefix ${'$'}rpclient.unknown"}""",
-                emptySet()
-            ).isSuccess
+                patchJson = """{"value":"prefix ${'$'}rpclient.unknown"}""",
+                protectedPaths = emptySet(),
+            ).isSuccess,
         )
     }
 }

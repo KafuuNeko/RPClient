@@ -30,24 +30,24 @@ class StoryEditorActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<StoryEditorViewModel>()
 
     private val mTextImporter = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri -> uri?.let { mViewModel.emit(StoryEditorUiIntent.ImportTextResult(it)) } }
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { uri -> mViewModel.emit(StoryEditorUiIntent.ImportTextResult(uri)) } }
 
     private val mStoryImporter = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri -> uri?.let { mViewModel.emit(StoryEditorUiIntent.ImportStoryResult(it)) } }
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { uri -> mViewModel.emit(StoryEditorUiIntent.ImportStoryResult(uri)) } }
 
     private val mTextExporter = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("text/plain")
-    ) { uri -> uri?.let { mViewModel.emit(StoryEditorUiIntent.ExportTextResult(it)) } }
+        contract = ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri -> uri?.let { uri -> mViewModel.emit(StoryEditorUiIntent.ExportTextResult(uri)) } }
 
     private val mMarkdownExporter = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("text/markdown")
-    ) { uri -> uri?.let { mViewModel.emit(StoryEditorUiIntent.ExportTextResult(it)) } }
+        contract = ActivityResultContracts.CreateDocument("text/markdown"),
+    ) { uri -> uri?.let { uri -> mViewModel.emit(StoryEditorUiIntent.ExportTextResult(uri)) } }
 
     private val mStoryExporter = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri -> uri?.let { mViewModel.emit(StoryEditorUiIntent.ExportStoryResult(it)) } }
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> uri?.let { uri -> mViewModel.emit(StoryEditorUiIntent.ExportStoryResult(uri)) } }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -65,16 +65,20 @@ class StoryEditorActivity : CoreActivityWithEvent() {
             uiState = uiState,
             background = background,
             document = document,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val storyId = intent.getLongExtra(EXTRA_STORY_ID, 0L)
-        mViewModel.emit(StoryEditorUiIntent.Init(storyId,
-            intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 },
-            intent.getStringExtra(SearchNavigation.EXTRA_QUERY).orEmpty()))
+        mViewModel.emit(
+            uiIntent = StoryEditorUiIntent.Init(
+                storyId = storyId,
+                searchChapterId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 },
+                searchQuery = intent.getStringExtra(SearchNavigation.EXTRA_QUERY).orEmpty(),
+            ),
+        )
     }
 
     override fun onResume() {
@@ -92,7 +96,7 @@ class StoryEditorActivity : CoreActivityWithEvent() {
             is StoryEditorViewEvent.CopyDraft -> {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(
-                    ClipData.newPlainText(getString(R.string.story_draft_clip_label), viewEvent.content)
+                    ClipData.newPlainText(getString(R.string.story_draft_clip_label), viewEvent.content),
                 )
             }
             is StoryEditorViewEvent.CopyGeneratedText -> {
@@ -100,8 +104,8 @@ class StoryEditorActivity : CoreActivityWithEvent() {
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         getString(R.string.story_generated_text_clip_label),
-                        viewEvent.content
-                    )
+                        viewEvent.content,
+                    ),
                 )
             }
             is StoryEditorViewEvent.CopyPromptText -> {
@@ -109,15 +113,15 @@ class StoryEditorActivity : CoreActivityWithEvent() {
                 clipboard.setPrimaryClip(
                     ClipData.newPlainText(
                         getString(R.string.prompt_inspector_title),
-                        viewEvent.content
-                    )
+                        viewEvent.content,
+                    ),
                 )
             }
             StoryEditorViewEvent.OpenTextImporter -> mTextImporter.launch(
-                arrayOf("text/plain", "text/markdown", "text/x-markdown")
+                input = arrayOf("text/plain", "text/markdown", "text/x-markdown"),
             )
             StoryEditorViewEvent.OpenStoryImporter -> mStoryImporter.launch(
-                arrayOf("application/json", "text/json")
+                input = arrayOf("application/json", "text/json"),
             )
             is StoryEditorViewEvent.OpenTextExporter -> {
                 if (viewEvent.markdown) {
@@ -131,7 +135,7 @@ class StoryEditorActivity : CoreActivityWithEvent() {
                 startActivity(
                     Intent(this, StoryEditorActivity::class.java).apply {
                         putExtra(EXTRA_STORY_ID, viewEvent.storyId)
-                    }
+                    },
                 )
                 finish()
             }

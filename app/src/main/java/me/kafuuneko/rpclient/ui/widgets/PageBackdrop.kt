@@ -48,24 +48,35 @@ val LocalPageBubbleOpacity = staticCompositionLocalOf { 1f }
 fun PageBackdrop(
     state: PageBackgroundUiState,
     useContainerAppearance: Boolean = state.settings?.page == BackgroundPage.General,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val settings = state.settings
     val image = state.image
     val scrimColor = pageBackdropScrimColor()
     var frame by remember { mutableStateOf(PageBackdropFrame()) }
     // 图片失效只回退画布底色；各栏位透明度不依赖图片是否存在。
-    Box(Modifier.fillMaxSize().clipToBounds().background(MaterialTheme.colorScheme.background)
-        .onGloballyPositioned { frame = PageBackdropFrame(it.positionInRoot(), it.size) }) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .background(MaterialTheme.colorScheme.background)
+            .onGloballyPositioned(onGloballyPositioned = {
+                frame = PageBackdropFrame(it.positionInRoot(), it.size)
+            }),
+    ) {
         if (image != null && settings != null) {
             Image(
                 bitmap = image,
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
-                alignment = BiasAlignment(settings.focalX * 2 - 1, settings.focalY * 2 - 1)
+                alignment = BiasAlignment(settings.focalX * 2 - 1, settings.focalY * 2 - 1),
             )
-            Box(Modifier.matchParentSize().background(scrimColor.copy(alpha = settings.scrim)))
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(scrimColor.copy(alpha = settings.scrim)),
+            )
         }
         CompositionLocalProvider(
             LocalGeneralPageSurfaces provides useContainerAppearance,
@@ -79,7 +90,7 @@ fun PageBackdrop(
             LocalPageContentOpacity provides (settings?.opacity ?: 1f),
             LocalPageTopBarOpacity provides (settings?.topBarOpacity ?: 1f),
             LocalPageBottomBarOpacity provides (settings?.bottomBarOpacity ?: 1f),
-            LocalPageBubbleOpacity provides (settings?.bubbleOpacity ?: 1f)
+            LocalPageBubbleOpacity provides (settings?.bubbleOpacity ?: 1f),
         ) {
             content()
         }
@@ -90,12 +101,17 @@ fun PageBackdrop(
 @Composable
 fun pageUserBubbleContentColor(): Color {
     val colors = MaterialTheme.colorScheme
-    val background = colors.primary.copy(alpha = LocalPageBubbleOpacity.current)
-        .compositeOver(colors.background).luminance()
+    val background = colors
+        .primary
+        .copy(alpha = LocalPageBubbleOpacity.current)
+        .compositeOver(colors.background)
+        .luminance()
     val primary = colors.onPrimary.luminance()
     val surface = colors.onSurface.luminance()
-    val primaryContrast = (maxOf(background, primary) + 0.05f) / (minOf(background, primary) + 0.05f)
-    val surfaceContrast = (maxOf(background, surface) + 0.05f) / (minOf(background, surface) + 0.05f)
+    val primaryContrast =
+        (maxOf(background, primary) + 0.05f) / (minOf(background, primary) + 0.05f)
+    val surfaceContrast =
+        (maxOf(background, surface) + 0.05f) / (minOf(background, surface) + 0.05f)
     return if (primaryContrast >= surfaceContrast) colors.onPrimary else colors.onSurface
 }
 

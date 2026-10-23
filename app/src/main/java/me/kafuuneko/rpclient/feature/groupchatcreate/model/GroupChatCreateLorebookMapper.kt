@@ -13,7 +13,7 @@ internal fun List<LorebookWithEntries>.toGroupChatCreateLorebookGroups(): List<G
             lorebookId = lorebook.id,
             lorebookName = lorebook.name,
             entries = lorebookWithEntries.entries
-                .sortedBy { it.order }
+                .sortedBy { entry -> entry.order }
                 .map { entry ->
                     GroupChatLorebookEntryItem(
                         id = entry.id,
@@ -26,9 +26,9 @@ internal fun List<LorebookWithEntries>.toGroupChatCreateLorebookGroups(): List<G
                         constant = entry.constant,
                         order = entry.order,
                         depth = entry.depth,
-                        enabled = false
+                        enabled = false,
                     )
-                }
+                },
         )
     }.filter { it.entries.isNotEmpty() }
 }

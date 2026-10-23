@@ -41,7 +41,7 @@ fun PageOutlinedTextField(
     minLines: Int = 1,
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = OutlinedTextFieldDefaults.shape,
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     // 只修改颜色中的边框通道，避免整体 alpha 连带淡化输入内容和浮动标签。
     OutlinedTextField(
@@ -67,6 +67,6 @@ fun PageOutlinedTextField(
         minLines = minLines,
         interactionSource = interactionSource,
         shape = shape,
-        colors = pageOutlinedTextFieldColors(colors)
+        colors = pageOutlinedTextFieldColors(colors),
     )
 }

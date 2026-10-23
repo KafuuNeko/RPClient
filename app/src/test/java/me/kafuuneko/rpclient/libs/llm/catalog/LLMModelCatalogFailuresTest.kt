@@ -12,11 +12,11 @@ class LLMModelCatalogFailuresTest {
     fun unsupportedHttpStatusesUseManualInputFallback() {
         assertEquals(
             LLMModelCatalogFailure.UnsupportedEndpoint,
-            classifyModelCatalogFailure(LLMHttpStatusException(404, "private"))
+            classifyModelCatalogFailure(LLMHttpStatusException(statusCode = 404, responseDetail = "private")),
         )
         assertEquals(
             LLMModelCatalogFailure.UnsupportedEndpoint,
-            classifyModelCatalogFailure(LLMHttpStatusException(405, "private"))
+            classifyModelCatalogFailure(LLMHttpStatusException(statusCode = 405, responseDetail = "private")),
         )
     }
 
@@ -25,25 +25,21 @@ class LLMModelCatalogFailuresTest {
         assertEquals(
             LLMModelCatalogFailure.Unauthorized,
             classifyModelCatalogFailure(
-                LLMHttpStatusException(401, "credential detail")
-            )
+                throwable = LLMHttpStatusException(statusCode = 401, responseDetail = "credential detail"),
+            ),
         )
         assertEquals(
             LLMModelCatalogFailure.Network,
-            classifyModelCatalogFailure(IOException("private host"))
+            classifyModelCatalogFailure(IOException("private host")),
         )
         assertEquals(
             LLMModelCatalogFailure.InvalidResponse,
-            classifyModelCatalogFailure(
-                LLMModelCatalogInvalidResponseException()
-            )
+            classifyModelCatalogFailure(LLMModelCatalogInvalidResponseException()),
         )
     }
 
     @Test
     fun cancellationDoesNotBecomeVisibleFailure() {
-        assertNull(
-            classifyModelCatalogFailure(CancellationException("cancelled"))
-        )
+        assertNull(classifyModelCatalogFailure(CancellationException("cancelled")))
     }
 }

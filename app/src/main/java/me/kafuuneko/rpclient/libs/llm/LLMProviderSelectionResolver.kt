@@ -16,6 +16,7 @@ class UnavailableLLMProviderSelectionException(
 /** 模型配置选择的业务作用域。 */
 enum class LLMProviderSelectionScope {
     Character,
+
     Summary
 }
 
@@ -59,14 +60,14 @@ class LLMProviderSelectionResolver(
 
     private suspend fun requireExplicitProvider(
         providerId: Long,
-        scope: LLMProviderSelectionScope
+        scope: LLMProviderSelectionScope,
     ): LLMProvider {
         val provider = mLLMRepository.getProviderById(providerId)
         return provider?.takeIf { it.isEnabled }
             ?: throw UnavailableLLMProviderSelectionException(
                 scope = scope,
                 providerId = providerId,
-                providerName = provider?.name
+                providerName = provider?.name,
             )
     }
 

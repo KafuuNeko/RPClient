@@ -17,29 +17,29 @@ class StoryArchiveCodecTest {
                 summary = "Summary",
                 includeUserPersona = true,
                 ungroupedChapters = listOf(
-                    ArchivedChapter("序章", "正文😀", "维持雨夜氛围")
+                    element = ArchivedChapter(title = "序章", content = "正文😀", continuationGuidance = "维持雨夜氛围"),
                 ),
                 volumes = listOf(
                     ArchivedVolume(
                         title = "第一卷",
                         chapters = listOf(
                             ArchivedChapter("第一章", "雨夜"),
-                            ArchivedChapter("第二章", "旧城")
-                        )
+                            ArchivedChapter("第二章", "旧城"),
+                        ),
                     ),
-                    ArchivedVolume(title = "第二卷")
-                )
+                    ArchivedVolume(title = "第二卷"),
+                ),
             ),
             characterHints = listOf(
-                StoryCharacterHint("Alice", "abc", "primary")
+                element = StoryCharacterHint(name = "Alice", fingerprint = "abc", activationMode = "primary"),
             ),
             lorebookHints = listOf(
-                StoryLorebookHint(
-                    "City",
-                    "Station",
-                    "def"
-                )
-            )
+                element = StoryLorebookHint(
+                    lorebookName = "City",
+                    entryName = "Station",
+                    fingerprint = "def",
+                ),
+            ),
         )
 
         assertEquals(source, mCodec.decode(mCodec.encode(source)))
@@ -48,7 +48,7 @@ class StoryArchiveCodecTest {
     @Test
     fun v2ArchiveWithoutGuidanceDefaultsToEmpty() {
         val archive = mCodec.decode(
-            """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[{"title":"正文","content":"y"}],"volumes":[]}}"""
+            json = """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[{"title":"正文","content":"y"}],"volumes":[]}}""",
         )
 
         assertEquals("", archive.story.ungroupedChapters.single().continuationGuidance)
@@ -57,13 +57,13 @@ class StoryArchiveCodecTest {
     @Test
     fun v1ArchiveMapsContinuousContentToDefaultChapter() {
         val archive = mCodec.decode(
-            """{"format":"rpclient_story","version":1,"story":{"title":"x","content":"正文😀","memory":"m","summary":"s","authorNote":"n","includeUserPersona":true}}"""
+            json = """{"format":"rpclient_story","version":1,"story":{"title":"x","content":"正文😀","memory":"m","summary":"s","authorNote":"n","includeUserPersona":true}}""",
         )
 
         assertEquals(StoryArchive.VERSION, archive.version)
         assertEquals(
             listOf(ArchivedChapter("Chapter 1", "正文😀")),
-            archive.story.ungroupedChapters
+            archive.story.ungroupedChapters,
         )
         assertEquals(emptyList<ArchivedVolume>(), archive.story.volumes)
         assertEquals("m", archive.story.memory)
@@ -75,52 +75,49 @@ class StoryArchiveCodecTest {
     @Test
     fun olderV1ArchiveIgnoresLegacyBindingFields() {
         val archive = mCodec.decode(
-            """{"format":"rpclient_story","version":1,"story":{"title":"x","content":"y"},"characterHints":[{"name":"Alice","fingerprint":"abc","activationMode":"auto"}],"lorebookHints":[{"lorebookName":"City","entryName":"Station","fingerprint":"def","boundCharacterName":"Alice","boundCharacterFingerprint":"abc"}]}"""
+            json = """{"format":"rpclient_story","version":1,"story":{"title":"x","content":"y"},"characterHints":[{"name":"Alice","fingerprint":"abc","activationMode":"auto"}],"lorebookHints":[{"lorebookName":"City","entryName":"Station","fingerprint":"def","boundCharacterName":"Alice","boundCharacterFingerprint":"abc"}]}""",
         )
 
         assertEquals("auto", archive.characterHints.single().activationMode)
-        assertEquals(StoryLorebookHint("City", "Station", "def"), archive.lorebookHints.single())
+        assertEquals(
+            StoryLorebookHint(lorebookName = "City", entryName = "Station", fingerprint = "def"),
+            archive.lorebookHints.single(),
+        )
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun unknownMajorVersionIsRejected() {
-        mCodec.decode(
-            """{"format":"rpclient_story","version":3,"story":{"title":"x"}}"""
-        )
+        mCodec.decode("""{"format":"rpclient_story","version":3,"story":{"title":"x"}}""")
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun missingV1ContentIsRejected() {
-        mCodec.decode(
-            """{"format":"rpclient_story","version":1,"story":{"title":"x"}}"""
-        )
+        mCodec.decode("""{"format":"rpclient_story","version":1,"story":{"title":"x"}}""")
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun v2ArchiveWithoutAnyChapterIsRejected() {
         mCodec.decode(
-            """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[],"volumes":[]}}"""
+            json = """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[],"volumes":[]}}""",
         )
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun v2ArchiveMissingStructureArrayIsRejected() {
         mCodec.decode(
-            """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[{"title":"正文","content":"y"}]}}"""
+            json = """{"format":"rpclient_story","version":2,"story":{"title":"x","ungroupedChapters":[{"title":"正文","content":"y"}]}}""",
         )
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun archiveWithTooManyChaptersIsRejectedBeforeEncoding() {
         mCodec.encode(
-            StoryArchive(
+            archive = StoryArchive(
                 story = ArchivedStory(
                     title = "x",
-                    ungroupedChapters = List(10_001) {
-                        ArchivedChapter("Chapter $it", "")
-                    }
-                )
-            )
+                    ungroupedChapters = List(size = 10_001) { ArchivedChapter("Chapter $it", "") },
+                ),
+            ),
         )
     }
 }

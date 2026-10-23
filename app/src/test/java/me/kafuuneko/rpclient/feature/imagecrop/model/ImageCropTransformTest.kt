@@ -32,7 +32,7 @@ class ImageCropTransformTest {
         val panned = ImageCropTransform(sourceAspectRatio = 1f)
             .update(panX = 0.2f, panY = -0.1f, zoomChange = 2f)
         val before = panned.toSelection()
-        val after = panned.update(0f, 0f, 2f).toSelection()
+        val after = panned.update(panX = 0f, panY = 0f, zoomChange = 2f).toSelection()
 
         assertEquals(before.centerX, after.centerX, EPSILON)
         assertEquals(before.centerY, after.centerY, EPSILON)

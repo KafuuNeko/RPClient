@@ -1,10 +1,9 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
-import java.io.File
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -13,10 +12,10 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -24,7 +23,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
-import me.kafuuneko.rpclient.libs.room.entity.SearchProgress
 import me.kafuuneko.rpclient.libs.room.entity.SearchSource
 import me.kafuuneko.rpclient.libs.search.SearchCursor
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
@@ -38,6 +36,7 @@ import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.search.query.SearchQueryCoordinator
 import me.kafuuneko.rpclient.libs.search.storage.SearchStorageMaintenance
 import me.kafuuneko.rpclient.libs.search.storage.readSearchText
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -72,7 +71,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
         if (query.length > MAX_RAW_QUERY_LENGTH) return SearchQueryValidation.TooLong
         val normalized = SearchTextCodec.normalize(query)
         if (normalized.isBlank()) return SearchQueryValidation.Empty
-        if (normalized.codePointCount(0, normalized.length) > SearchTextCodec.MAX_QUERY_POINTS) return SearchQueryValidation.TooLong
+        if (normalized.codePointCount(beginIndex = 0, endIndex = normalized.length) > SearchTextCodec.MAX_QUERY_POINTS) return SearchQueryValidation.TooLong
         return SearchQueryValidation.Valid(normalized)
     }
 
@@ -86,8 +85,9 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
      * @throws IllegalArgumentException 输入为空白或超过长度限制。
      */
     suspend fun search(
-        request: SearchRequest, cursor: SearchCursor? = null,
-        onPartial: suspend (List<SearchHit>) -> Unit = {}
+        request: SearchRequest,
+        cursor: SearchCursor? = null,
+        onPartial: suspend (List<SearchHit>) -> Unit = {},
     ): SearchPage {
         val validation = validateQuery(request.query)
         require(validation is SearchQueryValidation.Valid) { "Invalid search query" }
@@ -216,7 +216,7 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
     private fun startWorker() {
         mJob = mScope.launch {
             try {
-                delay(100)
+                delay(timeMillis = 100)
                 processQueue()
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -269,7 +269,11 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
                 val removed = mDao.pruneDeletedSources()
                 nextPrune = if (removed == 256) 0 else System.currentTimeMillis() + 60_000
             }
-            if (!seeded && pending.isEmpty() && !mDao.hasPending() && mergeRounds > 0) {
+            val canMergeIdleIndex = !seeded
+                && pending.isEmpty()
+                && !mDao.hasPending()
+                && mergeRounds > 0
+            if (canMergeIdleIndex) {
                 mDao.mergeFts()
                 mergeRounds--
             }
@@ -288,10 +292,20 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
     private suspend fun seedBatch(): Boolean {
         val checkpoint = mDao.progress().firstOrNull { it.kind > 0 && !it.complete } ?: return false
         // 只读键，不把历史正文带入迁移或播种事务。
-        val rows = mSourceDao.sourceBatch(kind = checkpoint.kind, afterId = checkpoint.cursor, parentId = null, limit = 200)
+        val rows = mSourceDao.sourceBatch(
+            kind = checkpoint.kind,
+            afterId = checkpoint.cursor,
+            parentId = null,
+            limit = 200,
+        )
         mDatabase.withTransaction {
             mDao.seed(rows)
-            mDao.saveProgress(checkpoint.copy(cursor = rows.lastOrNull()?.sourceId ?: checkpoint.cursor, complete = rows.size < 200))
+            mDao.saveProgress(
+                value = checkpoint.copy(
+                    cursor = rows.lastOrNull()?.sourceId ?: checkpoint.cursor,
+                    complete = rows.size < 200,
+                ),
+            )
         }
         return true
     }
@@ -313,23 +327,29 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
             val tokens = SearchTextCodec.tokens(chunk)
             val bytes = tokens.toByteArray(Charsets.UTF_8).size
             if (batch.isNotEmpty() && batchBytes + bytes > BATCH_BYTES) {
-                if (!writeBatch(source, batch, replace, complete = false)) return
+                if (!writeBatch(source = source, chunks = batch, replace = replace, complete = false)) return
                 replace = false
                 batch.clear()
                 batchBytes = 0
             }
-            batch += SearchChunk(kind = source.kind, sourceId = source.sourceId, parentId = source.parentId,
-                revision = source.revision, position = position, tokens = tokens)
+            batch += SearchChunk(
+                kind = source.kind,
+                sourceId = source.sourceId,
+                parentId = source.parentId,
+                revision = source.revision,
+                position = position,
+                tokens = tokens,
+            )
             batchBytes += bytes
             if (batch.size == 16) {
-                if (!writeBatch(source, batch, replace, complete = false)) return
+                if (!writeBatch(source = source, chunks = batch, replace = replace, complete = false)) return
                 replace = false
                 batch.clear()
                 batchBytes = 0
             }
         }
         // 常见短消息把替换、写入和确认放进一个事务，长源仍分批且最后才发布。
-        writeBatch(source, batch, replace, complete = true)
+        writeBatch(source = source, chunks = batch, replace = replace, complete = true)
     }
 
     private suspend fun isCurrent(source: SearchSource): Boolean =
@@ -337,7 +357,10 @@ class ContentSearchRepository(private val mDatabase: AppDatabase) {
 
     /** 替换首批时删除旧块，末批才确认；每批都检查代次与空间预算。 */
     private suspend fun writeBatch(
-        source: SearchSource, chunks: List<SearchChunk>, replace: Boolean, complete: Boolean
+        source: SearchSource,
+        chunks: List<SearchChunk>,
+        replace: Boolean,
+        complete: Boolean,
     ): Boolean = mDatabase.withTransaction {
         if (!isCurrent(source) || (chunks.isNotEmpty() && !hasStorageBudget())) return@withTransaction false
         if (replace) mDao.deleteChunks(source.kind, source.sourceId)

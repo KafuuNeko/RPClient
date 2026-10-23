@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.appearance.AppearanceActivity
+import me.kafuuneko.rpclient.feature.backuprestore.BackupRestoreActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
@@ -48,7 +49,6 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
-import me.kafuuneko.rpclient.feature.backuprestore.BackupRestoreActivity
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
@@ -166,7 +166,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 Route.Setting -> MainPage.Settings
             },
             homeState = buildHomeState(),
-            settingsState = buildSettingsState(providers, selectedProvider, allProviders)
+            settingsState = buildSettingsState(providers, selectedProvider, allProviders),
         ).setup()
         // 订阅应用级任务；旋转页面不会重复启动构建或丢失清理进度。
         observeSearchIndex()
@@ -185,7 +185,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.mergeResumeRefresh(
             homeState = homeState,
-            settingsState = settingsState
+            settingsState = settingsState,
         ).setup()
     }
 
@@ -205,11 +205,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             }
         }
         if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) {
-            uiState.copy(
-                homeState = uiState.homeState.copy(
-                    selectionState = MainHomeSelectionState.None
-                )
-            ).setup()
+            uiState.copy(homeState = uiState.homeState.copy(selectionState = MainHomeSelectionState.None)).setup()
             return
         }
         if (uiState.selectedPage != MainPage.Home) {
@@ -226,10 +222,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) return
         uiState.copy(
             homeState = uiState.homeState.copy(
-                selectionState = MainHomeSelectionState.Selecting(
-                    selectedItems = setOf(intent.item)
-                )
-            )
+                selectionState = MainHomeSelectionState.Selecting(selectedItems = setOf(intent.item)),
+            ),
         ).setup()
     }
 
@@ -241,9 +235,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             as? MainHomeSelectionState.Selecting
             ?: return
         uiState.copy(
-            homeState = uiState.homeState.copy(
-                selectionState = selectionState.toggleItem(intent.item)
-            )
+            homeState = uiState.homeState.copy(selectionState = selectionState.toggleItem(intent.item)),
         ).setup()
     }
 
@@ -263,10 +255,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         }
         uiState.copy(
             homeState = uiState.homeState.copy(
-                recentChatsState = recentChatsState.copy(
-                    collapsedCharacterIds = updated
-                )
-            )
+                recentChatsState = recentChatsState.copy(collapsedCharacterIds = updated),
+            ),
         ).setup()
     }
 
@@ -275,11 +265,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onExitMultiSelect() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (uiState.homeState.selectionState !is MainHomeSelectionState.Selecting) return
-        uiState.copy(
-            homeState = uiState.homeState.copy(
-                selectionState = MainHomeSelectionState.None
-            )
-        ).setup()
+        uiState.copy(homeState = uiState.homeState.copy(selectionState = MainHomeSelectionState.None)).setup()
     }
 
     /** 点击批量删除按钮，弹出二次确认弹窗。 */
@@ -292,9 +278,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ?: return
         val count = selectionState.selectedItems.size
         if (count == 0) return
-        uiState.copy(
-            dialogState = MainDialogState.DeleteSelectedItems(count = count)
-        ).setup()
+        uiState.copy(dialogState = MainDialogState.DeleteSelectedItems(count = count)).setup()
     }
 
     /** 确认批量删除选中的单聊、群聊或故事会话。 */
@@ -325,7 +309,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -345,8 +329,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             dialogState = MainDialogState.RenameItem(
                 item = intent.item,
-                title = title
-            )
+                title = title,
+            ),
         ).setup()
     }
 
@@ -390,7 +374,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState)
+                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -431,16 +415,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.canOpenDialog() || mChatImportJob?.isActive == true) return
         uiState.copy(
-            settingsState = uiState.settingsState.copy(
-                chatDataManagementState = MainChatDataManagementState.Reading
-            )
+            settingsState = uiState.settingsState.copy(chatDataManagementState = MainChatDataManagementState.Reading),
         ).setup()
         mChatImportJob = viewModelScope.launch {
             try {
                 // 在 IO 线程解析聊天存档并检索全量候选角色
                 val archive = mChatArchiveRepository.readImportFromUri(
                     uri = intent.uri,
-                    fallbackUserName = AppModel.resolvedUserName
+                    fallbackUserName = AppModel.resolvedUserName,
                 )
                 releasePendingChatImport()
                 mPendingChatImport = archive
@@ -450,27 +432,27 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     releasePendingChatImport()
                     return@launch
                 }
-                val items = characters.map { it.toImportCharacterItem() }
+                val items = characters.map { character -> character.toImportCharacterItem() }
                 // 推荐最佳匹配角色并展示角色绑定选择弹窗
                 current.copy(
                     settingsState = current.settingsState.copy(
-                        chatDataManagementState = MainChatDataManagementState.Idle
+                        chatDataManagementState = MainChatDataManagementState.Idle,
                     ),
                     dialogState = MainDialogState.ImportChatCharacterSelection(
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
                         messageCount = archive.messages.size,
                         externalImageCount = archive.messages.sumOf { message ->
-                            message.images.count { it.sourceUrl != null && it.resourceKey == null }
+                            message.images.count { chatArchiveImage -> chatArchiveImage.sourceUrl != null && chatArchiveImage.resourceKey == null }
                         },
                         query = "",
                         characters = items,
                         visibleCharacters = items,
                         selectedCharacterId = ChatCharacterMatcher.suggestCharacterId(
-                            archive,
-                            characters
-                        )
-                    )
+                            archive = archive,
+                            characters = characters,
+                        ),
+                    ),
                 ).setup()
             } catch (cancellation: CancellationException) {
                 releasePendingChatImport()
@@ -481,8 +463,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 getOrNull<MainUiState.Normal>()?.let { current ->
                     current.copy(
                         settingsState = current.settingsState.copy(
-                            chatDataManagementState = MainChatDataManagementState.Idle
-                        )
+                            chatDataManagementState = MainChatDataManagementState.Idle,
+                        ),
                     ).setup()
                 }
             } finally {
@@ -521,9 +503,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 mChatImageSources = sources
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 val currentDialog = current.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return@launch
-                current.copy(dialogState = currentDialog.copy(resolvedImageCount = archive.messages.sumOf { message ->
-                    message.images.count { it.sourceUrl in sources }
-                })).setup()
+                current.copy(
+                    dialogState = currentDialog.copy(
+                        resolvedImageCount = archive.messages.sumOf { message ->
+                    message.images.count { chatArchiveImage -> chatArchiveImage.sourceUrl in sources }
+                },
+                    ),
+                ).setup()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -542,7 +528,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** 过滤导入角色绑定弹窗中的候选角色列表。 */
     @UiIntentObserver(MainUiIntent.ChangeImportCharacterQuery::class)
     private fun onChangeImportCharacterQuery(
-        intent: MainUiIntent.ChangeImportCharacterQuery
+        intent: MainUiIntent.ChangeImportCharacterQuery,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
@@ -552,15 +538,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             dialog.characters
         } else {
             dialog.characters.filter { item ->
-                item.name.contains(query, ignoreCase = true) ||
-                    item.details.contains(query, ignoreCase = true)
+                item.name.contains(other = query, ignoreCase = true)
+                    || item.details.contains(other = query, ignoreCase = true)
             }
         }
         uiState.copy(
             dialogState = dialog.copy(
                 query = intent.value,
-                visibleCharacters = visible
-            )
+                visibleCharacters = visible,
+            ),
         ).setup()
     }
 
@@ -570,9 +556,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
         if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
-        uiState.copy(
-            dialogState = dialog.copy(selectedCharacterId = intent.characterId)
-        ).setup()
+        uiState.copy(dialogState = dialog.copy(selectedCharacterId = intent.characterId)).setup()
     }
 
     /** 确认将暂存的聊天存档与选定角色绑定并原子事务落库，导入成功后立即进入聊天页。 */
@@ -601,10 +585,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         MainDialogState.None
                     } else {
                         current.dialogState
-                    }
+                    },
                 ).setup()
                 if (result.skippedImages > 0) AppViewEvent.PopupToastMessage(
-                    mContext.getString(R.string.chat_archive_images_skipped, result.skippedImages)
+                    message = mContext.getString(R.string.chat_archive_images_skipped, result.skippedImages),
                 ).tryEmit()
                 else AppViewEvent.PopupToastMessageByResId(R.string.import_chat_success).tryEmit()
                 // 导航进入新导入的会话页
@@ -612,7 +596,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     activity = ChatActivity::class.java,
                     extras = Bundle().apply {
                         putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
-                    }
+                    },
                 ).tryEmit()
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -622,9 +606,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val currentDialog = current.dialogState
                     as? MainDialogState.ImportChatCharacterSelection
                     ?: return@launch
-                current.copy(
-                    dialogState = currentDialog.copy(isImporting = false)
-                ).setup()
+                current.copy(dialogState = currentDialog.copy(isImporting = false)).setup()
             } finally {
                 mChatImportJob = null
             }
@@ -654,7 +636,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
                 current.copy(
                     settingsState = current.settingsState.copy(searchIndexState = index),
-                    dialogState = dialog
+                    dialogState = dialog,
                 ).setup()
             }
         }
@@ -671,7 +653,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val index = state.settingsState.searchIndexState
         if (index.busy || intent.enabled == index.enabled) return
         state.copy(
-            dialogState = if (intent.enabled) MainDialogState.EnableSearchIndex else MainDialogState.DisableSearchIndex
+            dialogState = if (intent.enabled) MainDialogState.EnableSearchIndex else MainDialogState.DisableSearchIndex,
         ).setup()
     }
 
@@ -684,7 +666,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (index.busy || index.enabled) return
         state.copy(
             dialogState = MainDialogState.None,
-            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Building())
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Building()),
         ).setup()
         viewModelScope.launch { mContentSearchRepository.enable() }
     }
@@ -721,7 +703,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun cleanSearchIndex(state: MainUiState.Normal) {
         state.copy(
             dialogState = MainDialogState.None,
-            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Cleaning)
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Cleaning),
         ).setup()
         viewModelScope.launch { mContentSearchRepository.disable() }
     }
@@ -733,10 +715,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         mAppThemeManager.setThemeMode(intent.themeMode)
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                appearanceState = uiState.settingsState.appearanceState.copy(
-                    themeMode = intent.themeMode
-                )
-            )
+                appearanceState = uiState.settingsState.appearanceState.copy(themeMode = intent.themeMode),
+            ),
         ).setup()
     }
 
@@ -745,9 +725,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onToggleSeparateThinkWhenEditing(intent: MainUiIntent.ToggleSeparateThinkWhenEditing) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.separateThinkWhenEditing = intent.enabled
-        uiState.copy(
-            settingsState = uiState.settingsState.copy(separateThinkWhenEditing = intent.enabled)
-        ).setup()
+        uiState.copy(settingsState = uiState.settingsState.copy(separateThinkWhenEditing = intent.enabled)).setup()
     }
 
     /** 保存故事 Markdown 预览偏好，并同步设置页状态。 */
@@ -755,11 +733,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onToggleStoryMarkdownRendering(intent: MainUiIntent.ToggleStoryMarkdownRendering) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.storyMarkdownRenderingEnabled = intent.enabled
-        uiState.copy(settingsState = uiState.settingsState.copy(
-            appearanceState = uiState.settingsState.appearanceState.copy(
-                storyMarkdownRenderingEnabled = intent.enabled
-            )
-        )).setup()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                appearanceState = uiState.settingsState.appearanceState.copy(
+                    storyMarkdownRenderingEnabled = intent.enabled,
+                ),
+            ),
+        ).setup()
     }
 
     /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
@@ -767,9 +747,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onSelectHomeContentTab(intent: MainUiIntent.SelectHomeContentTab) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (uiState.homeState.selectedContentTab == intent.tab) return
-        uiState.copy(
-            homeState = uiState.homeState.copy(selectedContentTab = intent.tab)
-        ).setup()
+        uiState.copy(homeState = uiState.homeState.copy(selectedContentTab = intent.tab)).setup()
     }
 
     /** 打开指定的单聊会话页面。 */
@@ -778,7 +756,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(
             activity = ChatActivity::class.java,
-            extras = Bundle().apply { putString(ChatActivity.EXTRA_SESSION_ID, intent.sessionId) }
+            extras = Bundle().apply { putString(ChatActivity.EXTRA_SESSION_ID, intent.sessionId) },
         ).tryEmit()
     }
 
@@ -792,8 +770,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             MainHomeContentTab.Group -> SearchKind.Group
             MainHomeContentTab.Story -> SearchKind.Story
         }
-        AppViewEvent.StartActivity(ContentSearchActivity::class.java,
-            Bundle().apply { putInt(ContentSearchActivity.EXTRA_KIND, kind.code) }).tryEmit()
+        AppViewEvent.StartActivity(
+            activity = ContentSearchActivity::class.java,
+            extras = Bundle().apply { putInt(ContentSearchActivity.EXTRA_KIND, kind.code) },
+        ).tryEmit()
     }
 
     /** 打开新建单聊会话页。 */
@@ -811,7 +791,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = GroupChatActivity::class.java,
             extras = Bundle().apply {
                 putString(GroupChatActivity.EXTRA_SESSION_ID, intent.sessionId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -831,7 +811,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = StoryEditorActivity::class.java,
             extras = Bundle().apply {
                 putLong(StoryEditorActivity.EXTRA_STORY_ID, intent.storyId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -874,14 +854,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = LLMProviderEditActivity::class.java,
             extras = Bundle().apply {
                 putLong(LLMProviderEditActivity.EXTRA_PROVIDER_ID, providerState.selectedProviderId)
-            }
+            },
         ).tryEmit()
     }
 
     /** 弹出模型生成参数（温度 / TopP / MaxTokens / ContextTokens）快速编辑弹窗。 */
     @UiIntentObserver(MainUiIntent.ShowGenerationParameterDialog::class)
     private suspend fun onShowGenerationParameterDialog(
-        intent: MainUiIntent.ShowGenerationParameterDialog
+        intent: MainUiIntent.ShowGenerationParameterDialog,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.canOpenDialog()) return
@@ -902,21 +882,19 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         current.copy(
             dialogState = MainDialogState.EditGenerationParameter(
                 parameter = intent.parameter,
-                draftValue = intent.parameter.valueOf(provider)
-            )
+                draftValue = intent.parameter.valueOf(provider),
+            ),
         ).setup()
     }
 
     /** 修改模型生成参数编辑弹窗中的草稿数值。 */
     @UiIntentObserver(MainUiIntent.ChangeGenerationParameterDraft::class)
     private fun onChangeGenerationParameterDraft(
-        intent: MainUiIntent.ChangeGenerationParameterDraft
+        intent: MainUiIntent.ChangeGenerationParameterDraft,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.EditGenerationParameter ?: return
-        uiState.copy(
-            dialogState = dialog.copy(draftValue = intent.value)
-        ).setup()
+        uiState.copy(dialogState = dialog.copy(draftValue = intent.value)).setup()
     }
 
     /** 确认并持久化修改后的模型生成参数。 */
@@ -961,9 +939,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             },
             settingsState = current.settingsState.copy(
                 providerState = currentProviderState.copy(
-                    generationParametersState = updatedProvider.toGenerationParametersState()
-                )
-            )
+                    generationParametersState = updatedProvider.toGenerationParametersState(),
+                ),
+            ),
         ).setup()
     }
 
@@ -994,9 +972,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         current.copy(
             settingsState = current.settingsState.copy(
                 identityState = current.settingsState.identityState.copy(
-                    avatarState = MainUserAvatarState.Configured(avatarImage)
-                )
-            )
+                    avatarState = MainUserAvatarState.Configured(avatarImage),
+                ),
+            ),
         ).setup()
     }
 
@@ -1018,10 +996,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.copy(
             settingsState = current.settingsState.copy(
-                identityState = current.settingsState.identityState.copy(
-                    avatarState = MainUserAvatarState.None
-                )
-            )
+                identityState = current.settingsState.identityState.copy(avatarState = MainUserAvatarState.None),
+            ),
         ).setup()
     }
 
@@ -1088,10 +1064,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = identityState.userDescription,
                         characterName = null,
-                        userName = value
-                    )
-                )
-            )
+                        userName = value,
+                    ),
+                ),
+            ),
         ).setup()
     }
 
@@ -1107,10 +1083,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = intent.value,
                         characterName = null,
-                        userName = uiState.settingsState.identityState.userName.normalizedUserName()
-                    )
-                )
-            )
+                        userName = uiState.settingsState.identityState.userName.normalizedUserName(),
+                    ),
+                ),
+            ),
         ).setup()
     }
 
@@ -1121,15 +1097,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (!uiState.canOpenDialog()) return
         uiState.copy(
             dialogState = MainDialogState.EditUserDescription(
-                draftText = uiState.settingsState.identityState.userDescription
-            )
+                draftText = uiState.settingsState.identityState.userDescription,
+            ),
         ).setup()
     }
 
     /** 修改全屏用户人设描述的暂存文本，确认前不写入偏好设置。 */
     @UiIntentObserver(MainUiIntent.ChangeUserDescriptionEditorDraft::class)
     private fun onChangeUserDescriptionEditorDraft(
-        intent: MainUiIntent.ChangeUserDescriptionEditorDraft
+        intent: MainUiIntent.ChangeUserDescriptionEditorDraft,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.EditUserDescription ?: return
@@ -1149,11 +1125,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     userDescriptionPreview = resolveCharacterUserMacros(
                         template = dialog.draftText,
                         characterName = null,
-                        userName = uiState.settingsState.identityState.userName.normalizedUserName()
-                    )
-                )
+                        userName = uiState.settingsState.identityState.userName.normalizedUserName(),
+                    ),
+                ),
             ),
-            dialogState = MainDialogState.None
+            dialogState = MainDialogState.None,
         ).setup()
     }
 
@@ -1174,10 +1150,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 providerState = buildProviderSettingsState(providers, selectedProvider),
                 promptBehaviorState = promptBehaviorState.copy(
                     providerPostProcessingState = MainProviderPostProcessingState.Available(
-                        selectedProvider.postProcessingMode()
-                    )
-                )
-            )
+                        mode = selectedProvider.postProcessingMode(),
+                    ),
+                ),
+            ),
         ).setup()
     }
 
@@ -1188,10 +1164,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.autoSummaryEnabled = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    autoSummaryEnabled = intent.enabled
-                )
-            )
+                summaryState = uiState.settingsState.summaryState.copy(autoSummaryEnabled = intent.enabled),
+            ),
         ).setup()
     }
 
@@ -1208,66 +1182,56 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             settingsState = uiState.settingsState.copy(
                 summaryState = summaryState.copy(
                     selectedProviderId = intent.providerId,
-                    providers = summaryState.providers.filter {
-                        it.isEnabled || it.id == intent.providerId
-                    }
-                )
-            )
+                    providers = summaryState.providers.filter { mainProviderItem ->
+                        mainProviderItem.isEnabled || mainProviderItem.id == intent.providerId
+                    },
+                ),
+            ),
         ).setup()
     }
 
     /** 修改自动总结的触发消息轮数阈值。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryTriggerMessageCount::class)
     private fun onChangeSummaryTriggerMessageCount(intent: MainUiIntent.ChangeSummaryTriggerMessageCount) {
-        updateSettingsInt(intent.value, minimum = 1) {
-            AppModel.summaryTriggerMessageCount = it
-            copy(
-                summaryState = summaryState.copy(triggerMessageCount = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 1) { value ->
+            AppModel.summaryTriggerMessageCount = value
+            copy(summaryState = summaryState.copy(triggerMessageCount = value))
         }
     }
 
     /** 修改总结生成的目标字数限制。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryWordsLimit::class)
     private fun onChangeSummaryWordsLimit(intent: MainUiIntent.ChangeSummaryWordsLimit) {
-        updateSettingsInt(intent.value, minimum = 50) {
-            AppModel.summaryWordsLimit = it
-            copy(
-                summaryState = summaryState.copy(wordsLimit = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 50) { value ->
+            AppModel.summaryWordsLimit = value
+            copy(summaryState = summaryState.copy(wordsLimit = value))
         }
     }
 
     /** 修改单次总结请求包含的最大历史消息条数。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryMaxMessagesPerRequest::class)
     private fun onChangeSummaryMaxMessagesPerRequest(intent: MainUiIntent.ChangeSummaryMaxMessagesPerRequest) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.summaryMaxMessagesPerRequest = it
-            copy(
-                summaryState = summaryState.copy(maxMessagesPerRequest = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 0) { value ->
+            AppModel.summaryMaxMessagesPerRequest = value
+            copy(summaryState = summaryState.copy(maxMessagesPerRequest = value))
         }
     }
 
     /** 修改普通生成最多读取的最近历史消息条数。 */
     @UiIntentObserver(MainUiIntent.ChangeMaxPromptHistoryMessages::class)
     private fun onChangeMaxPromptHistoryMessages(intent: MainUiIntent.ChangeMaxPromptHistoryMessages) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.maxPromptHistoryMessages = it
-            copy(
-                promptBehaviorState = promptBehaviorState.copy(maxHistoryMessages = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 0) { value ->
+            AppModel.maxPromptHistoryMessages = value
+            copy(promptBehaviorState = promptBehaviorState.copy(maxHistoryMessages = value))
         }
     }
 
     /** 修改总结生成请求的最大 Token 限制。 */
     @UiIntentObserver(MainUiIntent.ChangeSummaryResponseTokens::class)
     private fun onChangeSummaryResponseTokens(intent: MainUiIntent.ChangeSummaryResponseTokens) {
-        updateSettingsInt(intent.value, minimum = 128) {
-            AppModel.summaryResponseTokens = it
-            copy(
-                summaryState = summaryState.copy(responseTokens = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 128) { value ->
+            AppModel.summaryResponseTokens = value
+            copy(summaryState = summaryState.copy(responseTokens = value))
         }
     }
 
@@ -1277,26 +1241,24 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                summaryState = uiState.settingsState.summaryState.copy(
-                    selectedTab = intent.tab
-                )
-            )
+                summaryState = uiState.settingsState.summaryState.copy(selectedTab = intent.tab),
+            ),
         ).setup()
     }
 
     /** 选择总结内容在 Prompt 上下文中的注入位置（系统提示词 / 对话历史中）。 */
     @UiIntentObserver(MainUiIntent.SelectSummaryInjectionPosition::class)
     private fun onSelectSummaryInjectionPosition(
-        intent: MainUiIntent.SelectSummaryInjectionPosition
+        intent: MainUiIntent.SelectSummaryInjectionPosition,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.summaryInjectionPosition = intent.position.persistedValue
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = buildSummaryInjectionState(intent.position)
-                )
-            )
+                    injectionState = buildSummaryInjectionState(intent.position),
+                ),
+            ),
         ).setup()
     }
 
@@ -1312,9 +1274,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = injectionState.copy(depth = value)
-                )
-            )
+                    injectionState = injectionState.copy(depth = value),
+                ),
+            ),
         ).setup()
     }
 
@@ -1329,9 +1291,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 summaryState = uiState.settingsState.summaryState.copy(
-                    injectionState = injectionState.copy(role = intent.role)
-                )
-            )
+                    injectionState = injectionState.copy(role = intent.role),
+                ),
+            ),
         ).setup()
     }
 
@@ -1342,10 +1304,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.streamEnabled = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    streamEnabled = intent.enabled
-                )
-            )
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(streamEnabled = intent.enabled),
+            ),
         ).setup()
     }
 
@@ -1374,11 +1334,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         current.copy(
             settingsState = current.settingsState.copy(
                 promptBehaviorState = current.settingsState.promptBehaviorState.copy(
-                    providerPostProcessingState = MainProviderPostProcessingState.Available(
-                        intent.mode
-                    )
-                )
-            )
+                    providerPostProcessingState = MainProviderPostProcessingState.Available(mode = intent.mode),
+                ),
+            ),
         ).setup()
     }
 
@@ -1390,9 +1348,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    includeThinkInContext = intent.enabled
-                )
-            )
+                    includeThinkInContext = intent.enabled,
+                ),
+            ),
         ).setup()
     }
 
@@ -1400,25 +1358,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetPercent::class)
     private fun onChangeWorldInfoBudgetPercent(intent: MainUiIntent.ChangeWorldInfoBudgetPercent) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val percent = intent.value.coerceIn(0, 100)
+        val percent = intent.value.coerceIn(minimumValue = 0, maximumValue = 100)
         AppModel.worldInfoBudgetPercent = percent
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
-                    budgetPercent = percent
-                )
-            )
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(budgetPercent = percent),
+            ),
         ).setup()
     }
 
     /** 修改世界书硬性 Token 上限预算（Cap）。 */
     @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetCap::class)
     private fun onChangeWorldInfoBudgetCap(intent: MainUiIntent.ChangeWorldInfoBudgetCap) {
-        updateSettingsInt(intent.value, minimum = 0) {
-            AppModel.worldInfoBudgetCap = it
-            copy(
-                worldInfoBudgetState = worldInfoBudgetState.copy(budgetCap = it)
-            )
+        updateSettingsInt(value = intent.value, minimum = 0) { value ->
+            AppModel.worldInfoBudgetCap = value
+            copy(worldInfoBudgetState = worldInfoBudgetState.copy(budgetCap = value))
         }
     }
 
@@ -1429,10 +1383,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.worldInfoOverflowAlert = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(
-                    overflowAlert = intent.enabled
-                )
-            )
+                worldInfoBudgetState = uiState.settingsState.worldInfoBudgetState.copy(overflowAlert = intent.enabled),
+            ),
         ).setup()
     }
 
@@ -1444,25 +1396,25 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    contextTrimmingAlert = intent.enabled
-                )
-            )
+                    contextTrimmingAlert = intent.enabled,
+                ),
+            ),
         ).setup()
     }
 
     /** 选择示例对话（MES / Example Dialogue）的注入与展示行为。 */
     @UiIntentObserver(MainUiIntent.SelectExampleDialogueBehavior::class)
     private fun onSelectExampleDialogueBehavior(
-        intent: MainUiIntent.SelectExampleDialogueBehavior
+        intent: MainUiIntent.SelectExampleDialogueBehavior,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.exampleDialogueBehavior = intent.behavior.persistedValue
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
-                    exampleDialogueBehavior = intent.behavior
-                )
-            )
+                    exampleDialogueBehavior = intent.behavior,
+                ),
+            ),
         ).setup()
     }
 
@@ -1473,9 +1425,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (uiState.settingsState.imageSendState.mode == intent.mode) return
         val settings = ImageSendSettings.decode(AppModel.imageSendSettings).copy(mode = intent.mode)
         AppModel.imageSendSettings = settings.encode()
-        uiState.copy(settingsState = uiState.settingsState.copy(
-            imageSendState = MainImageSendState.from(settings)
-        )).setup()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(imageSendState = MainImageSendState.from(settings)),
+        ).setup()
     }
 
     /** 保存用户输入草稿；允许暂时清空字段，校验失败不会写入持久偏好。 */
@@ -1489,9 +1441,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             ImageSendField.Width -> state.copy(maxWidth = intent.value)
             ImageSendField.Height -> state.copy(maxHeight = intent.value)
         }
-        uiState.copy(settingsState = uiState.settingsState.copy(
-            imageSendState = edited.copy(hasChanges = true, errorResId = null)
-        )).setup()
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                imageSendState = edited.copy(hasChanges = true, errorResId = null),
+            ),
+        ).setup()
     }
 
     /** 校验完整参数后一次性保存，避免请求读到编辑中的混合上限。 */
@@ -1501,8 +1455,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val state = uiState.settingsState.imageSendState
         if (state.mode != ImageSendMode.Custom) return
         // 草稿保留原始输入用于纠错，非法值不自动钳制成意外的发送设置。
-        val settings = ImageSendSettings(state.mode, state.maxFileKiB.trim().toIntOrNull() ?: 0,
-            state.maxWidth.trim().toIntOrNull() ?: 0, state.maxHeight.trim().toIntOrNull() ?: 0)
+        val settings = ImageSendSettings(
+            mode = state.mode,
+            maxFileKiB = state.maxFileKiB.trim().toIntOrNull() ?: 0,
+            maxWidth = state.maxWidth.trim().toIntOrNull() ?: 0,
+            maxHeight = state.maxHeight.trim().toIntOrNull() ?: 0,
+        )
         val updated = if (settings.isValid()) {
             AppModel.imageSendSettings = settings.encode()
             MainImageSendState.from(settings)
@@ -1517,8 +1475,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppModel.debugModeEnabled = intent.enabled
         uiState.copy(
             settingsState = uiState.settingsState.copy(
-                debugState = uiState.settingsState.debugState.copy(enabled = intent.enabled)
-            )
+                debugState = uiState.settingsState.debugState.copy(enabled = intent.enabled),
+            ),
         ).setup()
     }
 
@@ -1531,7 +1489,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return withContext(Dispatchers.IO) {
             // 并发拉取基础实体与会话概览
             val characters = mCharacterRepository.getAllCharacters()
-            val characterMap = characters.associateBy { it.id }
+            val characterMap = characters.associateBy { character -> character.id }
             val sessions = mChatRepository.getSessionOverviews()
             val groupSessions = mGroupChatRepository.getSessionOverviews()
             val storyOverviews = mStoryRepository.getStoryOverviews()
@@ -1540,20 +1498,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 session.toUiModel(
                     characterName = characterMap[session.characterId]?.name.orEmpty()
                         .ifBlank { mContext.getString(R.string.unknown_character) },
-                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
                 )
             }
-            val sessionGroups = sessionItems.groupBy { it.characterId }.map { (id, items) ->
+            val sessionGroups = sessionItems.groupBy { mainChatSessionItem -> mainChatSessionItem.characterId }.map { (id, items) ->
                 MainChatSessionGroup(
                     characterId = id,
                     characterName = items.firstOrNull()?.characterName.orEmpty(),
-                    sessions = items
+                    sessions = items,
                 )
             }
             // 格式化群聊会话列表项
             val groupChatItems = groupSessions.map { session ->
                 session.toUiModel(
-                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
                 )
             }
             // 格式化故事列表项
@@ -1564,7 +1522,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             MainHomeState(
                 resourceState = MainHomeResourceState(
                     totalCharacters = characters.size,
-                    totalWorldBooks = mLorebookRepository.getAllLorebooks().size
+                    totalWorldBooks = mLorebookRepository.getAllLorebooks().size,
                 ),
                 recentChatsState = if (sessionGroups.isEmpty()) {
                     MainRecentChatsState.Empty
@@ -1584,8 +1542,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 allRecentItems = mergeAllRecentItems(
                     chats = sessionItems,
                     groupChats = groupChatItems,
-                    stories = storyItems
-                )
+                    stories = storyItems,
+                ),
             )
         }
     }
@@ -1594,7 +1552,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun buildSettingsState(
         providers: List<LLMProvider>,
         selectedProvider: LLMProvider?,
-        allProviders: List<LLMProvider>
+        allProviders: List<LLMProvider>,
     ): MainSettingsState {
         // 全量装配读取共享仓库的当前值，持续变化由状态订阅更新。
         return MainSettingsState(
@@ -1603,7 +1561,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
                 themeMode = mAppThemeManager.themeModeFlow.value,
-                storyMarkdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled
+                storyMarkdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled,
             ),
             identityState = MainUserIdentityState(
                 userName = AppModel.resolvedUserName,
@@ -1611,29 +1569,29 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 userDescriptionPreview = resolveCharacterUserMacros(
                     template = AppModel.userDescription,
                     characterName = null,
-                    userName = AppModel.resolvedUserName
+                    userName = AppModel.resolvedUserName,
                 ),
                 avatarState = if (AppModel.userAvatar.isBlank()) {
                     MainUserAvatarState.None
                 } else {
                     MainUserAvatarState.Configured(resolveUserAvatarImage())
-                }
+                },
             ),
             providerState = buildProviderSettingsState(providers, selectedProvider),
             promptBehaviorState = MainPromptBehaviorState(
-                providerPostProcessingState = selectedProvider?.let {
-                    MainProviderPostProcessingState.Available(it.postProcessingMode())
+                providerPostProcessingState = selectedProvider?.let { provider ->
+                    MainProviderPostProcessingState.Available(provider.postProcessingMode())
                 } ?: MainProviderPostProcessingState.Unavailable,
                 exampleDialogueBehavior = readExampleDialogueBehavior(),
                 includeThinkInContext = AppModel.includeThinkInContext,
                 maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
-                streamEnabled = AppModel.streamEnabled
+                streamEnabled = AppModel.streamEnabled,
             ),
             worldInfoBudgetState = MainWorldInfoBudgetState(
-                budgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(0, 100),
+                budgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(minimumValue = 0, maximumValue = 100),
                 budgetCap = AppModel.worldInfoBudgetCap.coerceAtLeast(0),
-                overflowAlert = AppModel.worldInfoOverflowAlert
+                overflowAlert = AppModel.worldInfoOverflowAlert,
             ),
             summaryState = MainSummarySettingsState(
                 selectedProviderId = AppModel.summaryLLMProvider,
@@ -1645,21 +1603,19 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 wordsLimit = AppModel.summaryWordsLimit,
                 maxMessagesPerRequest = AppModel.summaryMaxMessagesPerRequest,
                 responseTokens = AppModel.summaryResponseTokens,
-                injectionState = buildSummaryInjectionState(readSummaryInjectionPosition())
+                injectionState = buildSummaryInjectionState(readSummaryInjectionPosition()),
             ),
-            debugState = MainDebugSettingsState(
-                enabled = AppModel.debugModeEnabled
-            )
+            debugState = MainDebugSettingsState(enabled = AppModel.debugModeEnabled),
         )
     }
 
     /** 构建总结注入配置子状态（根据注入位置分别构建 System 或 InChat 配置）。 */
     private fun buildSummaryInjectionState(
-        position: SummaryInjectionPosition
+        position: SummaryInjectionPosition,
     ): MainSummaryInjectionState {
         return position.toMainSummaryInjectionState(
             depth = AppModel.summaryInjectionDepth,
-            role = readSummaryInjectionRole()
+            role = readSummaryInjectionRole(),
         )
     }
 
@@ -1682,9 +1638,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private suspend fun resolveUserAvatarImage() =
         AppModel.userAvatar
             .takeIf { it.isNotBlank() }
-            ?.let {
+            ?.let { text ->
                 withContext(Dispatchers.IO) {
-                    mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+                    mFileRepository.loadAvatarBitmap(text)?.asImageBitmap()
                 }
             }
 
@@ -1692,13 +1648,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun updateSettingsInt(
         value: String,
         minimum: Int,
-        update: MainSettingsState.(Int) -> MainSettingsState
+        update: MainSettingsState.(Int) -> MainSettingsState,
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val intValue = value.toIntOrNull()?.coerceAtLeast(minimum) ?: minimum
-        uiState.copy(
-            settingsState = uiState.settingsState.update(intValue)
-        ).setup()
+        uiState.copy(settingsState = uiState.settingsState.update(intValue)).setup()
     }
 
     /**

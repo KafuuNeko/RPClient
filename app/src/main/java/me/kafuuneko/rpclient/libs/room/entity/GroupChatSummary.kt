@@ -13,7 +13,7 @@ import androidx.room.PrimaryKey
             entity = GroupChatSession::class,
             parentColumns = ["id"],
             childColumns = ["sessionId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [

@@ -92,7 +92,6 @@ import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpChartDataPoint
 import me.kafuuneko.rpclient.ui.widgets.RpChartMode
 import me.kafuuneko.rpclient.ui.widgets.RpChartSegment
@@ -102,6 +101,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpStackedRatioBar
 import me.kafuuneko.rpclient.ui.widgets.RpTrendChartCard
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 
 /**
  * Token 消耗总览、时序图表、模型排行榜与近期请求明细的 Compose 布局入口。
@@ -115,12 +115,12 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 @Composable
 fun TokenUsageLayout(
     uiState: TokenUsageUiState,
-    emit: TokenUsageUiIntent.() -> Unit = {}
+    emit: TokenUsageUiIntent.() -> Unit = {},
 ) {
-    BackHandler(enabled = uiState is TokenUsageUiState.Normal) { TokenUsageUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is TokenUsageUiState.Normal, onBack = { TokenUsageUiIntent.Back.emit() })
     when (uiState) {
         TokenUsageUiState.None -> Unit
-        is TokenUsageUiState.Finished -> TokenUsageLayout(uiState.previous) {}
+        is TokenUsageUiState.Finished -> TokenUsageLayout(uiState = uiState.previous, emit = {})
         is TokenUsageUiState.Normal -> {
             NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -132,13 +132,13 @@ fun TokenUsageLayout(
 @Composable
 private fun NormalView(
     uiState: TokenUsageUiState.Normal,
-    emit: TokenUsageUiIntent.() -> Unit
+    emit: TokenUsageUiIntent.() -> Unit,
 ) {
     // 清空入口与内容空态采用同一周期内的请求数判断。
     val hasRecords = uiState.summary.requestCount > 0L
     AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0.dp),
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.token_usage),
@@ -148,16 +148,17 @@ private fun NormalView(
                         IconButton(onClick = { TokenUsageUiIntent.ShowClearConfirmDialog.emit() }) {
                             Icon(
                                 imageVector = Icons.Rounded.Delete,
-                                contentDescription = stringResource(R.string.clear_token_usage)
+                                contentDescription = stringResource(R.string.clear_token_usage),
                             )
                         }
                     }
-                }
+                },
             )
-        }
-    ) { paddingValues ->
-        UsageContent(uiState, hasRecords, paddingValues, emit)
-    }
+        },
+        content = { paddingValues ->
+            UsageContent(uiState = uiState, hasRecords = hasRecords, paddingValues = paddingValues, emit = emit)
+        },
+    )
 }
 
 /** 按原顺序组织统计列表，保留各区块的惰性加载边界。 */
@@ -166,7 +167,7 @@ private fun UsageContent(
     uiState: TokenUsageUiState.Normal,
     hasRecords: Boolean,
     paddingValues: PaddingValues,
-    emit: TokenUsageUiIntent.() -> Unit
+    emit: TokenUsageUiIntent.() -> Unit,
 ) {
     RpLazyColumn(
         modifier = Modifier
@@ -178,9 +179,9 @@ private fun UsageContent(
             start = 18.dp,
             top = 18.dp,
             end = 18.dp,
-            bottom = 32.dp
+            bottom = 32.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { PeriodFilters(uiState.selectedPeriod, emit) }
         item { HeroSummaryCard(uiState.summary) }
@@ -194,17 +195,17 @@ private fun UsageContent(
                         selectedPointKey = uiState.selectedPointKey,
                         chartMode = uiState.chartMode,
                         selectedPeriod = uiState.selectedPeriod,
-                        emit = emit
+                        emit = emit,
                     )
                 }
             }
             item { RpSectionHeader(stringResource(R.string.token_usage_model_ranking)) }
-            itemsIndexed(uiState.groups, key = { _, item -> "${item.model}|${item.endpoint}" }) { index, group ->
+            itemsIndexed(items = uiState.groups, key = { _, item -> "${item.model}|${item.endpoint}" }) { index, group ->
                 UsageGroupRankCard(index = index + 1, item = group)
             }
             item { RpSectionHeader(stringResource(R.string.token_usage_recent_requests)) }
             // 使用记录 ID 保持卡片展开状态与对应请求绑定。
-            items(uiState.recentRecords, key = { it.id }) { record ->
+            items(items = uiState.recentRecords, key = { tokenUsageRecordItem -> tokenUsageRecordItem.id }) { record ->
                 RecentRequestCard(record)
             }
         } else {
@@ -213,7 +214,7 @@ private fun UsageContent(
                     modifier = Modifier.fillMaxWidth(),
                     icon = Icons.Rounded.Numbers,
                     title = stringResource(R.string.token_usage_no_data),
-                    subtitle = stringResource(R.string.token_usage_no_data_desc)
+                    subtitle = stringResource(R.string.token_usage_no_data_desc),
                 )
             }
         }
@@ -223,7 +224,7 @@ private fun UsageContent(
                 modifier = Modifier.fillMaxWidth(),
                 icon = Icons.Rounded.Info,
                 title = stringResource(R.string.token_usage_notice_title),
-                subtitle = stringResource(R.string.token_usage_notice_desc)
+                subtitle = stringResource(R.string.token_usage_notice_desc),
             )
         }
     }
@@ -236,29 +237,30 @@ private fun UsageTrendCard(
     selectedPointKey: String?,
     chartMode: TokenUsageChartMode,
     selectedPeriod: TokenUsagePeriod,
-    emit: TokenUsageUiIntent.() -> Unit
+    emit: TokenUsageUiIntent.() -> Unit,
 ) {
     // 趋势点未变时复用图表数据；全零区间不显示峰值说明。
     val chartPoints = remember(points) {
-        points.map { it.toChartDataPoint() }
+        points.map { tokenUsageTrendPoint -> tokenUsageTrendPoint.toChartDataPoint() }
     }
     val peakPoint = points.maxByOrNull { it.totalTokens }
     val peakText = if (peakPoint != null && peakPoint.totalTokens > 0L) {
         stringResource(
             R.string.token_usage_peak_day,
             peakPoint.label,
-            peakPoint.totalTokens.formatted()
+            peakPoint.totalTokens.formatted(),
         )
     } else null
 
+    val trendChartMode = when (chartMode) {
+        TokenUsageChartMode.Bar -> RpChartMode.Bar
+        TokenUsageChartMode.Line -> RpChartMode.Line
+    }
     RpTrendChartCard(
         title = stringResource(R.string.token_usage_trend),
         points = chartPoints,
         selectedKey = selectedPointKey,
-        chartMode = when (chartMode) {
-            TokenUsageChartMode.Bar -> RpChartMode.Bar
-            TokenUsageChartMode.Line -> RpChartMode.Line
-        },
+        chartMode = trendChartMode,
         onSelectPoint = { key -> TokenUsageUiIntent.SelectTrendPoint(key).emit() },
         onSelectChartMode = { mode ->
             val target = when (mode) {
@@ -272,11 +274,11 @@ private fun UsageTrendCard(
         peakText = peakText,
         autoScrollKey = selectedPeriod,
         tooltipContent = { selectedDataPoint ->
-            val selectedPoint = points.firstOrNull { it.key == selectedDataPoint.key }
+            val selectedPoint = points.firstOrNull { tokenUsageTrendPoint -> tokenUsageTrendPoint.key == selectedDataPoint.key }
             if (selectedPoint != null) {
                 TrendPointDetails(selectedPoint)
             }
-        }
+        },
     )
 }
 
@@ -287,25 +289,28 @@ private fun TrendPointDetails(selectedPoint: TokenUsageTrendPoint) {
     AppSurface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-        modifier = Modifier.fillMaxWidth()
+        border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${selectedPoint.key} · ${stringResource(R.string.token_usage_request_count, selectedPoint.requestCount)}",
+                text = "${selectedPoint.key} · ${stringResource(
+                    R.string.token_usage_request_count,
+                    selectedPoint.requestCount,
+                )}",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             Text(
                 text = "${stringResource(R.string.token_usage_total)} ${selectedPoint.totalTokens.formatted()}",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -315,20 +320,20 @@ private fun TrendPointDetails(selectedPoint: TokenUsageTrendPoint) {
 @Composable
 private fun PeriodFilters(
     selectedPeriod: TokenUsagePeriod,
-    emit: TokenUsageUiIntent.() -> Unit
+    emit: TokenUsageUiIntent.() -> Unit,
 ) {
     // 小屏允许横向滚动，周期切换仍由页面 Intent 驱动。
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TokenUsagePeriod.entries.forEach { period ->
             FilterChip(
                 selected = period == selectedPeriod,
                 onClick = { TokenUsageUiIntent.SelectPeriod(period).emit() },
-                label = { Text(stringResource(period.titleRes())) }
+                label = { Text(stringResource(period.titleRes())) },
             )
         }
     }
@@ -343,13 +348,13 @@ private fun HeroSummaryCard(summary: TokenUsageSummaryItem) {
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             SummaryHeader(summary)
 
@@ -369,42 +374,42 @@ private fun SummaryHeader(summary: TokenUsageSummaryItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = stringResource(R.string.token_usage_total),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = summary.totalTokens.formatted(),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         AppSurface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
+            border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(
-                    Icons.Rounded.Schedule,
+                    imageVector = Icons.Rounded.Schedule,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
                 Text(
                     text = stringResource(R.string.token_usage_request_count, summary.requestCount),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -416,19 +421,21 @@ private fun SummaryHeader(summary: TokenUsageSummaryItem) {
 private fun SummaryRatio(summary: TokenUsageSummaryItem) {
     // 无消耗时隐藏比例条，避免展示没有意义的占比。
     if (summary.totalTokens > 0L) {
+        val inputPercent = (summary.inputRatio * 100).toInt()
+        val outputPercent = (summary.outputRatio * 100).toInt()
         RpStackedRatioBar(
             segments = listOf(
                 RpChartSegment(
                     value = summary.inputTokens.toFloat(),
                     color = TokenUsageInputColor,
-                    label = "${stringResource(R.string.token_usage_input)} ${(summary.inputRatio * 100).toInt()}%"
+                    label = "${stringResource(R.string.token_usage_input)} $inputPercent%",
                 ),
                 RpChartSegment(
                     value = summary.outputTokens.toFloat(),
                     color = TokenUsageOutputColor,
-                    label = "${stringResource(R.string.token_usage_output)} ${(summary.outputRatio * 100).toInt()}%"
-                )
-            )
+                    label = "${stringResource(R.string.token_usage_output)} $outputPercent%",
+                ),
+            ),
         )
     }
 }
@@ -439,28 +446,28 @@ private fun SummaryMetrics(summary: TokenUsageSummaryItem) {
     // 缓存和推理仅在有正值时补充展示，不作为额外消耗加入总量。
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SummaryMetricCell(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.Storage,
             title = stringResource(R.string.token_usage_input),
             value = summary.inputTokens.formatted(),
-            accentColor = TokenUsageInputColor
+            accentColor = TokenUsageInputColor,
         )
         SummaryMetricCell(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.Stream,
             title = stringResource(R.string.token_usage_output),
             value = summary.outputTokens.formatted(),
-            accentColor = TokenUsageOutputColor
+            accentColor = TokenUsageOutputColor,
         )
     }
 
     if (summary.cachedInputTokens > 0L || summary.reasoningTokens > 0L) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (summary.cachedInputTokens > 0L) {
                 SummaryMetricCell(
@@ -468,7 +475,7 @@ private fun SummaryMetrics(summary: TokenUsageSummaryItem) {
                     icon = Icons.Rounded.Savings,
                     title = stringResource(R.string.token_usage_cached_input, "").trim(),
                     value = summary.cachedInputTokens.formatted(),
-                    accentColor = TokenUsageCachedColor
+                    accentColor = TokenUsageCachedColor,
                 )
             }
             if (summary.reasoningTokens > 0L) {
@@ -477,7 +484,7 @@ private fun SummaryMetrics(summary: TokenUsageSummaryItem) {
                     icon = Icons.Rounded.AutoGraph,
                     title = stringResource(R.string.token_usage_reasoning, "").trim(),
                     value = summary.reasoningTokens.formatted(),
-                    accentColor = TokenUsageReasoningColor
+                    accentColor = TokenUsageReasoningColor,
                 )
             }
         }
@@ -491,28 +498,33 @@ private fun SummaryMetricCell(
     icon: ImageVector,
     title: String,
     value: String,
-    accentColor: Color
+    accentColor: Color,
 ) {
     // 指标配色同时用于图标与边框，单行数值溢出时省略。
     AppSurface(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-        border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.18f))
+        border = BorderStroke(width = 0.5.dp, color = accentColor.copy(alpha = 0.18f)),
     ) {
         Row(
             modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(accentColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(16.dp),
+                )
             }
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
@@ -520,12 +532,12 @@ private fun SummaryMetricCell(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -540,13 +552,13 @@ private fun UsageGroupRankCard(index: Int, item: TokenUsageGroupItem) {
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             UsageGroupHeader(index, item)
 
@@ -556,13 +568,13 @@ private fun UsageGroupRankCard(index: Int, item: TokenUsageGroupItem) {
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(item.ratio.coerceIn(0.01f, 1.0f))
+                        .fillMaxWidth(item.ratio.coerceIn(minimumValue = 0.01f, maximumValue = 1.0f))
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(MaterialTheme.colorScheme.primary),
                 )
             }
 
@@ -591,14 +603,14 @@ private fun RankBadge(index: Int) {
     AppSurface(
         modifier = Modifier.size(28.dp),
         shape = CircleShape,
-        color = rankBadgeBg
+        color = rankBadgeBg,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = index.toString(),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = rankBadgeText
+                color = rankBadgeText,
             )
         }
     }
@@ -610,7 +622,7 @@ private fun UsageGroupHeader(index: Int, item: TokenUsageGroupItem) {
     // 模型名和端点保留单行省略，避免长名称挤占右侧总量。
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         RankBadge(index)
 
@@ -620,14 +632,14 @@ private fun UsageGroupHeader(index: Int, item: TokenUsageGroupItem) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = item.endpoint,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -636,13 +648,14 @@ private fun UsageGroupHeader(index: Int, item: TokenUsageGroupItem) {
                 text = item.totalTokens.formatted(),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            val usagePercent = (item.ratio * 100).toInt()
             Text(
-                text = "${(item.ratio * 100).toInt()}%",
+                text = "$usagePercent%",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -655,23 +668,23 @@ private fun UsageGroupMetrics(item: TokenUsageGroupItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.token_usage_request_count, item.requestCount),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "${stringResource(R.string.token_usage_input)} ${item.inputTokens.formatted()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = TokenUsageInputColor
+                color = TokenUsageInputColor,
             )
             Text(
                 text = "${stringResource(R.string.token_usage_output)} ${item.outputTokens.formatted()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = TokenUsageOutputColor
+                color = TokenUsageOutputColor,
             )
         }
     }
@@ -686,17 +699,17 @@ private fun RecentRequestCard(item: TokenUsageRecordItem) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { isExpanded = !isExpanded },
+            .clickable(onClick = { isExpanded = !isExpanded }),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             RequestHeader(item)
 
@@ -708,7 +721,7 @@ private fun RecentRequestCard(item: TokenUsageRecordItem) {
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = fadeIn(),
-                exit = fadeOut() + shrinkVertically()
+                exit = fadeOut() + shrinkVertically(),
             ) {
                 RequestDetails(item)
             }
@@ -723,24 +736,24 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 text = item.model,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(weight = 1f, fill = false),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             AppSurface(
                 shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
             ) {
                 Text(
                     text = item.protocol.shortName(),
@@ -749,7 +762,7 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    softWrap = false
+                    softWrap = false,
                 )
             }
         }
@@ -759,7 +772,7 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
         AppSurface(
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
+            border = BorderStroke(width = 0.5.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
         ) {
             Text(
                 text = "+${item.totalTokens.formatted()} Tk",
@@ -768,7 +781,7 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
-                softWrap = false
+                softWrap = false,
             )
         }
     }
@@ -778,34 +791,32 @@ private fun RequestHeader(item: TokenUsageRecordItem) {
 @Composable
 private fun RequestMetadata(item: TokenUsageRecordItem) {
     // 缓存值缺失或为零时省略缓存提示。
-    val mode = stringResource(
-        if (item.isStreaming) R.string.token_usage_stream else R.string.token_usage_once
-    )
+    val mode = stringResource(if (item.isStreaming) R.string.token_usage_stream else R.string.token_usage_once)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             text = item.createTimeText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
+            maxLines = 1,
         )
         Text(text = "·", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outlineVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             Icon(
-                Icons.Rounded.ElectricBolt,
+                imageVector = Icons.Rounded.ElectricBolt,
                 contentDescription = null,
                 tint = TokenUsageLatencyColor,
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(13.dp),
             )
             Text(
                 text = stringResource(R.string.token_usage_duration, item.durationMs),
                 style = MaterialTheme.typography.bodySmall,
                 color = TokenUsageLatencyColor,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1
+                maxLines = 1,
             )
         }
         Text(text = "·", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outlineVariant)
@@ -813,16 +824,20 @@ private fun RequestMetadata(item: TokenUsageRecordItem) {
             text = mode,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
+            maxLines = 1,
         )
         if (item.cachedInputTokens != null && item.cachedInputTokens > 0L) {
-            Text(text = "·", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                text = "·",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
             Text(
                 text = "💾 ${item.cachedInputTokens.formatted()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = TokenUsageCachedColor,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1
+                maxLines = 1,
             )
         }
     }
@@ -835,24 +850,24 @@ private fun RequestTokenBreakdown(item: TokenUsageRecordItem, isExpanded: Boolea
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = "${stringResource(R.string.token_usage_input)} ${item.inputTokens.formatted()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = TokenUsageInputColor
+                color = TokenUsageInputColor,
             )
             Text(
                 text = "${stringResource(R.string.token_usage_output)} ${item.outputTokens.formatted()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = TokenUsageOutputColor
+                color = TokenUsageOutputColor,
             )
             if (item.reasoningTokens != null && item.reasoningTokens > 0L) {
                 Text(
                     text = "🧠 ${item.reasoningTokens.formatted()}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TokenUsageReasoningColor
+                    color = TokenUsageReasoningColor,
                 )
             }
         }
@@ -861,7 +876,7 @@ private fun RequestTokenBreakdown(item: TokenUsageRecordItem, isExpanded: Boolea
             imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(18.dp),
         )
     }
 }
@@ -877,24 +892,24 @@ private fun RequestDetails(item: TokenUsageRecordItem) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
         Text(
             text = stringResource(R.string.token_usage_host, item.endpoint, item.providerName),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
         )
         Text(
             text = stringResource(R.string.token_usage_source_format, inputSource, outputSource),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
         )
         if (!item.tokenizerName.isNullOrBlank()) {
             Text(
                 text = stringResource(R.string.token_usage_tokenizer, item.tokenizerName),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             )
         }
     }
@@ -904,7 +919,7 @@ private fun RequestDetails(item: TokenUsageRecordItem) {
 @Composable
 private fun DialogSwitch(
     dialogState: TokenUsageDialogState,
-    emit: TokenUsageUiIntent.() -> Unit
+    emit: TokenUsageUiIntent.() -> Unit,
 ) {
     // 确认与取消都回传 Intent，由 ViewModel 维护互斥对话框状态。
     when (dialogState) {
@@ -915,7 +930,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.clear_token_usage_confirm),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { TokenUsageUiIntent.ConfirmClearRecords.emit() }
+            onConfirm = { TokenUsageUiIntent.ConfirmClearRecords.emit() },
         )
     }
 }
@@ -956,7 +971,10 @@ private fun Long.formatted(): String {
         this >= 1_000_000L -> (this / 1_000_000.0) to "M"
         else -> (this / 1_000.0) to "K"
     }
-    val formattedNumber = "%.2f".format(java.util.Locale.US, value).trimEnd('0').trimEnd('.')
+    val formattedNumber = "%.2f"
+        .format(java.util.Locale.US, value)
+        .trimEnd('0')
+        .trimEnd('.')
     return "$formattedNumber$unit"
 }
 
@@ -967,9 +985,9 @@ private fun TokenUsageTrendPoint.toChartDataPoint(): RpChartDataPoint {
         value = totalTokens.toFloat(),
         segments = listOf(
             RpChartSegment(outputTokens.toFloat(), TokenUsageOutputColor),
-            RpChartSegment(inputTokens.toFloat(), TokenUsageInputColor)
+            RpChartSegment(inputTokens.toFloat(), TokenUsageInputColor),
         ),
-        isCurrent = isCurrent
+        isCurrent = isCurrent,
     )
 }
 
@@ -979,32 +997,100 @@ private fun TokenUsageLayoutPreview() {
     // 固定主题与多种用量来源，便于检查总览、趋势和明细的组合布局。
     AppTheme(dynamicColor = false) {
         TokenUsageLayout(
-            TokenUsageUiState.Normal(
+            uiState = TokenUsageUiState.Normal(
                 selectedPeriod = TokenUsagePeriod.LastSevenDays,
                 summary = TokenUsageSummaryItem(
                     requestCount = 42,
                     inputTokens = 124_680,
                     outputTokens = 38_320,
                     cachedInputTokens = 45_000,
-                    reasoningTokens = 6_200
+                    reasoningTokens = 6_200,
                 ),
                 trendPoints = listOf(
-                    TokenUsageTrendPoint("2026-08-25", "08-25", 32000, 4000, 2000, 3),
-                    TokenUsageTrendPoint("2026-08-26", "08-26", 24000, 8000, 5000, 6),
-                    TokenUsageTrendPoint("2026-08-27", "08-27", 18000, 6000, 4000, 5),
-                    TokenUsageTrendPoint("2026-08-28", "08-28", 35000, 10000, 15000, 10),
-                    TokenUsageTrendPoint("2026-08-29", "08-29", 15000, 5000, 3000, 4),
-                    TokenUsageTrendPoint("2026-08-30", "08-30", 8000, 2500, 1000, 2),
-                    TokenUsageTrendPoint("2026-08-31", "08-31", 12680, 2820, 15000, 12, isCurrent = true)
+                    TokenUsageTrendPoint(
+                        key = "2026-08-25",
+                        label = "08-25",
+                        inputTokens = 32000,
+                        outputTokens = 4000,
+                        cachedInputTokens = 2000,
+                        requestCount = 3,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-26",
+                        label = "08-26",
+                        inputTokens = 24000,
+                        outputTokens = 8000,
+                        cachedInputTokens = 5000,
+                        requestCount = 6,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-27",
+                        label = "08-27",
+                        inputTokens = 18000,
+                        outputTokens = 6000,
+                        cachedInputTokens = 4000,
+                        requestCount = 5,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-28",
+                        label = "08-28",
+                        inputTokens = 35000,
+                        outputTokens = 10000,
+                        cachedInputTokens = 15000,
+                        requestCount = 10,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-29",
+                        label = "08-29",
+                        inputTokens = 15000,
+                        outputTokens = 5000,
+                        cachedInputTokens = 3000,
+                        requestCount = 4,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-30",
+                        label = "08-30",
+                        inputTokens = 8000,
+                        outputTokens = 2500,
+                        cachedInputTokens = 1000,
+                        requestCount = 2,
+                    ),
+                    TokenUsageTrendPoint(
+                        key = "2026-08-31",
+                        label = "08-31",
+                        inputTokens = 12680,
+                        outputTokens = 2820,
+                        cachedInputTokens = 15000,
+                        requestCount = 12,
+                        isCurrent = true,
+                    ),
                 ),
                 selectedPointKey = "2026-08-28",
                 chartMode = TokenUsageChartMode.Bar,
                 groups = listOf(
-                    TokenUsageGroupItem("gpt-4o-mini", "api.openai.com", 28, 84_680, 25_320, 30000, 0, ratio = 0.67f),
-                    TokenUsageGroupItem("claude-3-5-sonnet", "api.anthropic.com", 14, 40_000, 13_000, 15000, 6200, ratio = 0.33f)
+                    TokenUsageGroupItem(
+                        model = "gpt-4o-mini",
+                        endpoint = "api.openai.com",
+                        requestCount = 28,
+                        inputTokens = 84_680,
+                        outputTokens = 25_320,
+                        cachedInputTokens = 30000,
+                        reasoningTokens = 0,
+                        ratio = 0.67f,
+                    ),
+                    TokenUsageGroupItem(
+                        model = "claude-3-5-sonnet",
+                        endpoint = "api.anthropic.com",
+                        requestCount = 14,
+                        inputTokens = 40_000,
+                        outputTokens = 13_000,
+                        cachedInputTokens = 15000,
+                        reasoningTokens = 6200,
+                        ratio = 0.33f,
+                    ),
                 ),
                 recentRecords = listOf(
-                    TokenUsageRecordItem(
+                    element = TokenUsageRecordItem(
                         id = 1,
                         createTimeText = "08-31 12:30:00",
                         providerName = "ChatGPT",
@@ -1019,10 +1105,10 @@ private fun TokenUsageLayoutPreview() {
                         tokenizerName = null,
                         cachedInputTokens = 1_024,
                         reasoningTokens = null,
-                        durationMs = 2_340
-                    )
-                )
-            )
+                        durationMs = 2_340,
+                    ),
+                ),
+            ),
         )
     }
 }

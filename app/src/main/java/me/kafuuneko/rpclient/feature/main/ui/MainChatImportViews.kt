@@ -17,7 +17,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,12 +43,13 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 设置页中的对话文件导入入口。 */
 @Composable
 internal fun ChatDataManagementPanel(
     state: MainChatDataManagementState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val isReading = state == MainChatDataManagementState.Reading
     RpSettingsGroup {
@@ -68,17 +68,17 @@ internal fun ChatDataManagementPanel(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
-            }
+            },
         )
     }
 }
@@ -87,7 +87,7 @@ internal fun ChatDataManagementPanel(
 @Composable
 internal fun ImportChatCharacterDialog(
     state: MainDialogState.ImportChatCharacterSelection,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val canDismiss = !state.isImporting && !state.isResolvingImages
     AppDialogScaffold(
@@ -97,16 +97,14 @@ internal fun ImportChatCharacterDialog(
         title = stringResource(R.string.select_import_character_title),
         badgeIcon = Icons.Rounded.FileDownload,
         badgeTone = DialogBadgeTone.Primary,
-        confirmText = stringResource(
-            if (state.isImporting) R.string.importing_chat else R.string.import_chat
-        ),
+        confirmText = stringResource(if (state.isImporting) R.string.importing_chat else R.string.import_chat),
         dismissText = stringResource(R.string.cancel),
         confirmEnabled = state.selectedCharacterId != null && !state.isImporting && !state.isResolvingImages,
         isConfirmLoading = state.isImporting,
         onConfirm = { MainUiIntent.ConfirmImportChat.emit() },
         onDismiss = {
             if (canDismiss) MainUiIntent.DismissDialog.emit()
-        }
+        },
     ) {
         ImportCharacterSelectionContent(state, emit)
     }
@@ -115,69 +113,79 @@ internal fun ImportChatCharacterDialog(
 @Composable
 private fun ImportCharacterSelectionContent(
     state: MainDialogState.ImportChatCharacterSelection,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ImportPreview(state)
         // 仅外部引用需要用户选择目录；自有 Base64 归档不增加额外操作。
         if (state.externalImageCount > 0) {
             Text(
-                stringResource(R.string.chat_import_external_images, state.externalImageCount, state.resolvedImageCount),
+                text = stringResource(
+                    R.string.chat_import_external_images,
+                    state.externalImageCount,
+                    state.resolvedImageCount,
+                ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(
                 enabled = !state.isImporting && !state.isResolvingImages,
-                onClick = { MainUiIntent.ChooseChatImageDirectory.emit() }
-            ) { Text(stringResource(if (state.isResolvingImages) R.string.chat_import_reading_images
-                else R.string.chat_import_choose_image_directory)) }
+                onClick = { MainUiIntent.ChooseChatImageDirectory.emit() },
+            ) { Text(
+                text = stringResource(
+                    id = if (state.isResolvingImages) R.string.chat_import_reading_images
+                else R.string.chat_import_choose_image_directory,
+                ),
+            ) }
         }
         if (state.characters.isEmpty()) {
             Text(
                 text = stringResource(R.string.no_characters_for_chat_import),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@Column
         }
         OutlinedTextField(
             value = state.query,
-            onValueChange = { MainUiIntent.ChangeImportCharacterQuery(it).emit() },
-            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
+            onValueChange = { text -> MainUiIntent.ChangeImportCharacterQuery(text).emit() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(RoundedCornerShape(12.dp)),
             enabled = !state.isImporting,
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_characters),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             },
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         if (state.visibleCharacters.isEmpty()) {
             Text(
                 text = stringResource(R.string.no_matching_characters),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             RpLazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 360.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(state.visibleCharacters, key = { it.id }) { character ->
+                items(items = state.visibleCharacters, key = { mainImportCharacterItem -> mainImportCharacterItem.id }) { character ->
                     ImportCharacterItem(
                         character = character,
                         selected = character.id == state.selectedCharacterId,
                         enabled = !state.isImporting,
                         onClick = {
                             MainUiIntent.SelectImportCharacter(character.id).emit()
-                        }
+                        },
                     )
                 }
             }
@@ -197,24 +205,24 @@ private fun ImportPreview(state: MainDialogState.ImportChatCharacterSelection) {
             text = state.title,
             style = MaterialTheme.typography.titleSmall,
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = stringResource(
                 R.string.import_chat_source_character,
-                sourceCharacterName
+                sourceCharacterName,
             ),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = pluralStringResource(
                 R.plurals.import_chat_message_count,
                 state.messageCount,
-                state.messageCount
+                state.messageCount,
             ),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -224,7 +232,7 @@ private fun ImportCharacterItem(
     character: MainImportCharacterItem,
     selected: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
@@ -235,25 +243,25 @@ private fun ImportCharacterItem(
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
         } else {
             MaterialTheme.colorScheme.surface
-        }
+        },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             RadioButton(selected = selected, enabled = enabled, onClick = onClick)
             RpAvatar(
                 text = character.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                 color = getMacaronColor(character.name.ifBlank { "character" }),
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(38.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = character.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (character.details.isNotBlank()) {
                     Text(
@@ -261,7 +269,7 @@ private fun ImportCharacterItem(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -273,8 +281,8 @@ private fun ImportCharacterItem(
 @Composable
 private fun ImportChatCharacterDialogPreview() {
     val characters = listOf(
-        MainImportCharacterItem(1L, "Seraphina", "Example creator"),
-        MainImportCharacterItem(2L, "Rowan", "An impulsive explorer")
+        MainImportCharacterItem(id = 1L, name = "Seraphina", details = "Example creator"),
+        MainImportCharacterItem(id = 2L, name = "Rowan", details = "An impulsive explorer"),
     )
     AppTheme(dynamicColor = false) {
         ImportChatCharacterDialog(
@@ -285,9 +293,9 @@ private fun ImportChatCharacterDialogPreview() {
                 query = "",
                 characters = characters,
                 visibleCharacters = characters,
-                selectedCharacterId = 1L
+                selectedCharacterId = 1L,
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

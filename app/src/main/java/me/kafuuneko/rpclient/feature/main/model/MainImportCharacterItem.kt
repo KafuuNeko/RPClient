@@ -18,6 +18,10 @@ internal fun Character.toImportCharacterItem(): MainImportCharacterItem {
         id = id,
         name = name,
         details = creator.takeIf { it.isNotBlank() }
-            ?: description.lineSequence().firstOrNull().orEmpty().take(80)
+            ?: description
+                .lineSequence()
+                .firstOrNull()
+                .orEmpty()
+                .take(80),
     )
 }

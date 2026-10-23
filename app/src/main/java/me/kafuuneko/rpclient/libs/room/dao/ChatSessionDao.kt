@@ -164,7 +164,7 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateGenerationMetadata(
         id: Long,
         latestTime: Long,
-        worldInfoStateJson: String
+        worldInfoStateJson: String,
     )
 
     /** 仅暂停或恢复指定会话的自动总结。 */

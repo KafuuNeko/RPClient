@@ -1,14 +1,26 @@
 package me.kafuuneko.rpclient.libs.llm
 
 import com.google.gson.JsonParser
-import java.security.MessageDigest
-import java.util.concurrent.ConcurrentHashMap
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 
 /** 图片请求可安全映射到界面的失败分类，不携带文件路径或服务商原文。 */
-enum class ImageRequestFailure { Unsupported, Missing, InvalidImage, OriginalUnsupported, OriginalTooLarge, TooLarge, TooMany }
+enum class ImageRequestFailure { Unsupported,
+
+Missing,
+
+InvalidImage,
+
+OriginalUnsupported,
+
+OriginalTooLarge,
+
+TooLarge,
+
+TooMany }
 
 /** 图片准备、能力和预算错误的结构化边界。 */
 class ImageRequestException(val failure: ImageRequestFailure) : IllegalStateException("Image request: $failure")
@@ -51,18 +63,24 @@ class ImageInputCapabilityResolver {
         val detail = payload?.get("error")?.takeIf { it.isJsonObject }?.asJsonObject ?: return error
         val code = detail.get("code")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
         val message = detail.get("message")?.takeIf { it.isJsonPrimitive }?.asString.orEmpty().lowercase()
-        val explicit = code in setOf("vision_not_supported", "model_does_not_support_images") ||
-            ("model" in message && ("does not support image" in message || "doesn't support image" in message || "does not support vision" in message))
+        val explicit = code in setOf("vision_not_supported", "model_does_not_support_images")
+            || ("model" in message && ("does not support image" in message || "doesn't support image" in message || "does not support vision" in message))
         if (!explicit) return error
         mCatalog[scope(provider)] = ImageInputSetting.Unsupported to System.currentTimeMillis()
         return ImageRequestException(ImageRequestFailure.Unsupported)
     }
 
-    private fun scope(provider: LLMProviderConfig) = Scope(provider.providerId, provider.baseUrl.trim().trimEnd('/'),
-        provider.model, provider.protocol.name, digest(provider.apiKey + provider.customHeadersJson + provider.requestBodyPatchJson))
+    private fun scope(provider: LLMProviderConfig) = Scope(
+        id = provider.providerId,
+        address = provider.baseUrl.trim().trimEnd('/'),
+        model = provider.model,
+        protocol = provider.protocol.name,
+        credentials = digest(provider.apiKey + provider.customHeadersJson + provider.requestBodyPatchJson),
+    )
 
     private fun digest(value: String) = MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+        .digest(value.toByteArray())
+        .joinToString("") { "%02x".format(it) }
 
     private data class Scope(val id: Long?, val address: String, val model: String, val protocol: String, val credentials: String)
 }

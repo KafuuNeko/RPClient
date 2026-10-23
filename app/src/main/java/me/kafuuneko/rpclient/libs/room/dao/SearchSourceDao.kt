@@ -20,7 +20,12 @@ interface SearchSourceDao {
         WHERE kind = :kind AND sourceId > :afterId AND (:parentId IS NULL OR parentId = :parentId)
         ORDER BY sourceId LIMIT :limit
     """)
-    suspend fun sourceBatch(kind: Int, afterId: Long, parentId: Long?, limit: Int): List<SearchSource>
+    suspend fun sourceBatch(
+        kind: Int,
+        afterId: Long,
+        parentId: Long?,
+        limit: Int,
+    ): List<SearchSource>
 
     /** 导航前核对源的存在性、归属及可见性，不读取正文。 */
     @Query("""
@@ -43,7 +48,11 @@ interface SearchSourceDao {
         ORDER BY kind, parentId, sourceId LIMIT :limit
     """)
     suspend fun metadataBatch(
-        filterKind: Int, afterKind: Int, afterParentId: Long, afterSourceId: Long, limit: Int
+        filterKind: Int,
+        afterKind: Int,
+        afterParentId: Long,
+        afterSourceId: Long,
+        limit: Int,
     ): List<SearchObject>
 
     /** 标签与 FTS 查询共享表达式，源被删除时返回空字符串。 */
@@ -68,5 +77,11 @@ interface SearchSourceDao {
         SELECT substr(content, :offset, :length) FROM story_chapters
         WHERE :kind = 3 AND id = :sourceId AND storyId = :parentId
     """)
-    suspend fun contentPart(kind: Int, sourceId: Long, parentId: Long, offset: Int, length: Int): String?
+    suspend fun contentPart(
+        kind: Int,
+        sourceId: Long,
+        parentId: Long,
+        offset: Int,
+        length: Int,
+    ): String?
 }

@@ -27,7 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
@@ -60,18 +59,17 @@ import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.PageOverlayHost
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 
 /** 主页面 Compose 入口，承载首页聊天与故事列表以及全局设置。 */
 @Composable
 fun MainLayout(
     uiState: MainUiState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is MainUiState.Normal) { MainUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is MainUiState.Normal, onBack = { MainUiIntent.Back.emit() })
     when (uiState) {
         MainUiState.None -> Unit
-        is MainUiState.Finished -> MainLayout(uiState.previous) {}
+        is MainUiState.Finished -> MainLayout(uiState = uiState.previous, emit = {})
         is MainUiState.Normal -> MainNormal(uiState, emit)
     }
 }
@@ -79,7 +77,7 @@ fun MainLayout(
 @Composable
 private fun MainNormal(
     uiState: MainUiState.Normal,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     // 子页离开组合时保存各自列表与可恢复的局部状态，切回后恢复原位置。
     val pageStateHolder = rememberSaveableStateHolder()
@@ -87,23 +85,25 @@ private fun MainNormal(
         modifier = Modifier
             .fillMaxSize()
             .background(pageCanvasColor()),
-        contentWindowInsets = WindowInsets(0.dp)
+        contentWindowInsets = WindowInsets(left = 0.dp),
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(pageCanvasColor(MaterialTheme.colorScheme.background))
+                .background(pageCanvasColor(MaterialTheme.colorScheme.background)),
         ) {
             // 滚动内容单独记录为后景，底栏不会把后方卡片擦成壁纸。
-            PageOverlayHost(content = {
+            PageOverlayHost(
+                content = {
                 pageStateHolder.SaveableStateProvider(uiState.selectedPage.name) {
                     when (uiState.selectedPage) {
                         MainPage.Home -> MainHomePage(uiState.homeState, emit)
                         MainPage.Settings -> MainSettingsPage(uiState.settingsState, emit)
                     }
                 }
-            }, overlay = {
+            },
+                overlay = {
                 Box(Modifier.fillMaxSize()) {
                     val selectionState = uiState.homeState.selectionState as? MainHomeSelectionState.Selecting
                     val barModifier = Modifier
@@ -111,19 +111,24 @@ private fun MainNormal(
                         .padding(horizontal = 24.dp, vertical = 16.dp)
                         .navigationBarsPadding()
                     if (selectionState != null && uiState.selectedPage == MainPage.Home) {
-                        MultiSelectBottomBar(barModifier, selectionState.selectedItems.size, emit)
+                        MultiSelectBottomBar(
+                            modifier = barModifier,
+                            selectedCount = selectionState.selectedItems.size,
+                            emit = emit,
+                        )
                     } else {
-                        MainBottomBar(barModifier, uiState.selectedPage, emit)
+                        MainBottomBar(modifier = barModifier, selectedPage = uiState.selectedPage, emit = emit)
                     }
                 }
-            })
+            },
+            )
         }
     }
 
     DialogSwitch(
         dialogState = uiState.dialogState,
         searchIndexState = uiState.settingsState.searchIndexState.takeIf { uiState.selectedPage == MainPage.Settings },
-        emit = emit
+        emit = emit,
     )
 }
 
@@ -131,7 +136,7 @@ private fun MainNormal(
 private fun MainBottomBar(
     modifier: Modifier = Modifier,
     selectedPage: MainPage,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     AppSurface(
         kind = PageSurfaceKind.BottomBar,
@@ -139,31 +144,31 @@ private fun MainBottomBar(
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
         ),
-        shadowElevation = 6.dp
+        shadowElevation = 6.dp,
     ) {
         Row(
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 6.dp)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             MainBottomBarItem(
                 selected = selectedPage == MainPage.Home,
                 onClick = { MainUiIntent.SelectPage(MainPage.Home).emit() },
                 icon = Icons.Rounded.Home,
                 label = stringResource(R.string.home),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             MainBottomBarItem(
                 selected = selectedPage == MainPage.Settings,
                 onClick = { MainUiIntent.SelectPage(MainPage.Settings).emit() },
                 icon = Icons.Rounded.Settings,
                 label = stringResource(R.string.settings),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -173,7 +178,7 @@ private fun MainBottomBar(
 private fun MultiSelectBottomBar(
     modifier: Modifier = Modifier,
     selectedCount: Int,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     AppSurface(
         kind = PageSurfaceKind.BottomBar,
@@ -181,24 +186,24 @@ private fun MultiSelectBottomBar(
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
         ),
-        shadowElevation = 6.dp
+        shadowElevation = 6.dp,
     ) {
         Row(
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 6.dp)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             MainBottomBarItem(
                 selected = false,
                 onClick = { MainUiIntent.ExitMultiSelect.emit() },
                 icon = Icons.Rounded.Close,
                 label = stringResource(R.string.cancel),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             MainBottomBarItem(
                 selected = false,
@@ -206,7 +211,7 @@ private fun MultiSelectBottomBar(
                 icon = Icons.Rounded.Delete,
                 label = stringResource(R.string.delete),
                 modifier = Modifier.weight(1f),
-                enabled = selectedCount > 0
+                enabled = selectedCount > 0,
             )
         }
     }
@@ -217,7 +222,7 @@ private fun MultiSelectBottomBar(
 private fun DialogSwitch(
     dialogState: MainDialogState,
     searchIndexState: SearchIndexState?,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     // 索引进度仅由设置页展示，并与其他业务窗口互斥。
     when (dialogState) {
@@ -227,7 +232,7 @@ private fun DialogSwitch(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.content_search_index_confirm_title),
             message = stringResource(R.string.content_search_index_confirm_message),
-            onConfirm = { MainUiIntent.ConfirmEnableSearchIndex.emit() }
+            onConfirm = { MainUiIntent.ConfirmEnableSearchIndex.emit() },
         )
 
         MainDialogState.DisableSearchIndex -> AppDangerDialog(
@@ -235,7 +240,7 @@ private fun DialogSwitch(
             title = stringResource(R.string.content_search_index_disable_confirm_title),
             message = stringResource(R.string.content_search_index_disable_confirm_message),
             confirmText = stringResource(R.string.confirm),
-            onConfirm = { MainUiIntent.ConfirmDisableSearchIndex.emit() }
+            onConfirm = { MainUiIntent.ConfirmDisableSearchIndex.emit() },
         )
 
         is MainDialogState.DeleteSelectedItems -> AppDangerDialog(
@@ -243,7 +248,7 @@ private fun DialogSwitch(
             title = stringResource(R.string.delete_selected_items_title),
             message = stringResource(
                 R.string.delete_selected_items_message,
-                dialogState.count
+                dialogState.count,
             ),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
@@ -262,7 +267,7 @@ private fun DialogSwitch(
             dismissText = stringResource(R.string.cancel),
             confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
             isConfirmLoading = dialogState.isSaving,
-            onConfirm = { MainUiIntent.ConfirmItemRename.emit() }
+            onConfirm = { MainUiIntent.ConfirmItemRename.emit() },
         )
 
         is MainDialogState.EditGenerationParameter -> NumericEditDialog(
@@ -274,7 +279,7 @@ private fun DialogSwitch(
             quickOptions = dialogState.parameter.quickOptions(),
             onValueChange = { MainUiIntent.ChangeGenerationParameterDraft(it).emit() },
             onConfirm = { MainUiIntent.ConfirmGenerationParameter.emit() },
-            onDismiss = { MainUiIntent.DismissDialog.emit() }
+            onDismiss = { MainUiIntent.DismissDialog.emit() },
         )
 
         is MainDialogState.EditUserDescription -> AppPromptEditorDialog(
@@ -282,15 +287,13 @@ private fun DialogSwitch(
             title = stringResource(R.string.user_persona_description),
             value = dialogState.draftText,
             availableMacros = USER_PERSONA_MACROS,
-            onValueChange = {
-                MainUiIntent.ChangeUserDescriptionEditorDraft(it).emit()
-            },
-            onConfirm = { MainUiIntent.ConfirmUserDescriptionEditor.emit() }
+            onValueChange = { MainUiIntent.ChangeUserDescriptionEditorDraft(it).emit() },
+            onConfirm = { MainUiIntent.ConfirmUserDescriptionEditor.emit() },
         )
 
         is MainDialogState.ImportChatCharacterSelection -> ImportChatCharacterDialog(
             state = dialogState,
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -304,15 +307,15 @@ private fun SearchIndexProgressDialog(index: SearchIndexState?, emit: MainUiInte
             title = stringResource(R.string.content_search_index_title),
             description = stringResource(R.string.content_search_index_building, index.processed),
             onCancel = { MainUiIntent.CancelSearchIndexBuild.emit() },
-            cancelOnBackPress = true
+            cancelOnBackPress = true,
         )
         SearchIndexState.Preparing -> LoadingDialog(
             title = stringResource(R.string.content_search_index_title),
-            description = stringResource(R.string.loading)
+            description = stringResource(R.string.loading),
         )
         SearchIndexState.Cleaning -> LoadingDialog(
             title = stringResource(R.string.content_search_index_title),
-            description = stringResource(R.string.content_search_index_cleaning)
+            description = stringResource(R.string.content_search_index_cleaning),
         )
         SearchIndexState.CleanupFailed -> AppConfirmDialog(
             onDismissRequest = { MainUiIntent.Back.emit() },
@@ -321,7 +324,7 @@ private fun SearchIndexProgressDialog(index: SearchIndexState?, emit: MainUiInte
             confirmText = stringResource(R.string.retry),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { MainUiIntent.RetrySearchIndexCleanup.emit() },
-            properties = DialogProperties(dismissOnClickOutside = false)
+            properties = DialogProperties(dismissOnClickOutside = false),
         )
         else -> Unit
     }
@@ -352,14 +355,14 @@ private fun MainGenerationParameter.sliderConfig(): SliderConfig? = when (this) 
         range = 0.00f..2.00f,
         step = 0.05f,
         minLabel = stringResource(R.string.parameter_temp_min_label),
-        maxLabel = stringResource(R.string.parameter_temp_max_label)
+        maxLabel = stringResource(R.string.parameter_temp_max_label),
     )
 
     MainGenerationParameter.TopP -> SliderConfig(
         range = 0.00f..1.00f,
         step = 0.05f,
         minLabel = stringResource(R.string.parameter_topp_min_label),
-        maxLabel = stringResource(R.string.parameter_topp_max_label)
+        maxLabel = stringResource(R.string.parameter_topp_max_label),
     )
 
     MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> null
@@ -370,21 +373,21 @@ private fun MainGenerationParameter.quickOptions(): List<NumericEditQuickOption>
     MainGenerationParameter.Temperature -> listOf(
         NumericEditQuickOption(stringResource(R.string.parameter_preset_precise), "0.20"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_balanced), "0.70"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20")
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_creative), "1.20"),
     )
 
     MainGenerationParameter.TopP -> listOf(
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_focused), "0.50"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_balanced), "0.80"),
         NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_rich), "0.95"),
-        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00")
+        NumericEditQuickOption(stringResource(R.string.parameter_preset_topp_full), "1.00"),
     )
 
     MainGenerationParameter.MaxTokens, MainGenerationParameter.ContextTokens -> {
         TokenPreset.entries.map { preset ->
             NumericEditQuickOption(
                 label = preset.displayName,
-                value = preset.value.toString()
+                value = preset.value.toString(),
             )
         }
     }
@@ -397,7 +400,7 @@ private fun MainBottomBarItem(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val targetContentColor = when {
@@ -414,11 +417,11 @@ private fun MainBottomBarItem(
 
     val contentColor by animateColorAsState(
         targetValue = targetContentColor,
-        label = "bottomBarContentColor"
+        label = "bottomBarContentColor",
     )
     val containerColor by animateColorAsState(
         targetValue = targetContainerColor,
-        label = "bottomBarContainerColor"
+        label = "bottomBarContainerColor",
     )
 
     Box(
@@ -430,22 +433,22 @@ private fun MainBottomBarItem(
                 },
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null
+                indication = null,
             )
             .padding(vertical = 4.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
                 .background(containerColor, CircleShape)
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = contentColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             )
         }
     }

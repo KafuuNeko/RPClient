@@ -84,7 +84,12 @@ interface StoryChapterDao : MutableDao<StoryChapter> {
         WHERE id = :id AND storyId = :storyId
         """
     )
-    suspend fun rename(id: Long, storyId: Long, title: String, latestTime: Long): Int
+    suspend fun rename(
+        id: Long,
+        storyId: Long,
+        title: String,
+        latestTime: Long,
+    ): Int
 
     @Query(
         """
@@ -102,7 +107,7 @@ interface StoryChapterDao : MutableDao<StoryChapter> {
         storyId: Long,
         expectedRevision: Long,
         content: String,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -123,7 +128,7 @@ interface StoryChapterDao : MutableDao<StoryChapter> {
         expectedRevision: Long,
         content: String,
         continuationGuidance: String,
-        latestTime: Long
+        latestTime: Long,
     ): Int
 
     @Query(
@@ -138,7 +143,7 @@ interface StoryChapterDao : MutableDao<StoryChapter> {
         id: Long,
         storyId: Long,
         volumeId: Long?,
-        sortOrder: Int
+        sortOrder: Int,
     ): Int
 
     @Query(

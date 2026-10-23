@@ -3,10 +3,6 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import java.io.File
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -36,6 +32,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
@@ -53,7 +53,8 @@ internal suspend fun OkHttpClient.await(request: Request): String {
     val call = newCall(request)
     return suspendCancellableCoroutine { continuation ->
         continuation.invokeOnCancellation { call.cancel() }
-        call.enqueue(object : Callback {
+        call.enqueue(
+            responseCallback = object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 if (!continuation.isCancelled) continuation.resumeWithException(e)
             }
@@ -61,20 +62,24 @@ internal suspend fun OkHttpClient.await(request: Request): String {
             override fun onResponse(call: Call, response: Response) {
                 // 读取响应期间的断流或取消也必须恢复挂起调用，不能逸出 OkHttp 回调线程。
                 val result = runCatching {
-                    response.use {
-                        val body = it.body?.string().orEmpty()
-                        if (!it.isSuccessful) {
-                            throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(body.ifBlank { it.message }))
+                    response.use { response ->
+                        val body = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            throw LLMHttpStatusException(
+                                statusCode = response.code,
+                                responseDetail = ImageLogSanitizer.sanitize(body.ifBlank { response.message }),
+                            )
                         }
                         body
                     }
                 }
                 if (!continuation.isCancelled) result.fold(
-                    onSuccess = { continuation.resume(it) },
-                    onFailure = { continuation.resumeWithException(it) }
+                    onSuccess = { text -> continuation.resume(text) },
+                    onFailure = { error -> continuation.resumeWithException(error) },
                 )
             }
-        })
+        },
+        )
     }
 }
 
@@ -83,7 +88,7 @@ internal suspend fun OkHttpClient.await(request: Request): String {
  */
 internal fun OkHttpClient.streamLines(
     request: Request,
-    onConnected: suspend () -> Unit = {}
+    onConnected: suspend () -> Unit = {},
 ): Flow<String> = flow {
     coroutineScope {
         val call = newCall(request)
@@ -93,11 +98,14 @@ internal fun OkHttpClient.streamLines(
         }
         try {
             val response = withCancellableNetworkIo { call.execute() }
-            response.use {
-                val body = it.body ?: throw LLMEmptyResponseException()
-                if (!it.isSuccessful) {
+            response.use { response ->
+                val body = response.body ?: throw LLMEmptyResponseException()
+                if (!response.isSuccessful) {
                     val errorBody = withCancellableNetworkIo { body.string() }
-                    throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(errorBody.ifBlank { it.message }))
+                    throw LLMHttpStatusException(
+                        statusCode = response.code,
+                        responseDetail = ImageLogSanitizer.sanitize(errorBody.ifBlank { response.message }),
+                    )
                 }
                 onConnected()
                 while (true) {
@@ -130,7 +138,7 @@ internal fun JSONObject.putIfNotNull(name: String, value: Any?) {
  * 将字符串列表转换为 JSONArray。
  */
 internal fun List<String>.toJsonArray(): JSONArray {
-    return JSONArray().also { array -> forEach { array.put(it) } }
+    return JSONArray().also { array -> forEach { text -> array.put(text) } }
 }
 
 /**
@@ -186,7 +194,7 @@ internal fun JsonObject.cleanString(name: String): String {
 
 /** 清理兼容网关返回的伪 null 文本，供流式与非流式解析共享。 */
 internal fun cleanContentString(value: String): String {
-    return if (value.equals("null", ignoreCase = true)) "" else value
+    return if (value.equals(other = "null", ignoreCase = true)) "" else value
 }
 
 /** 安全读取 Gson 对象中的布尔值。 */
@@ -212,7 +220,7 @@ internal fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
         completionTokens = newer.completionTokens ?: completionTokens,
         totalTokens = newer.totalTokens ?: totalTokens,
         cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
-        reasoningTokens = newer.reasoningTokens ?: reasoningTokens
+        reasoningTokens = newer.reasoningTokens ?: reasoningTokens,
     )
 }
 
@@ -294,20 +302,20 @@ internal class LLMStreamPartMapper(
     }
 
     private fun mapText(
-        part: LLMProviderStreamPart.Text
+        part: LLMProviderStreamPart.Text,
     ): List<LLMStreamEvent> {
         if (part.content.isEmpty()) return emptyList()
         val prefix = closeReasoning()?.content.orEmpty()
         return listOf(
-            LLMStreamEvent.Delta(
+            element = LLMStreamEvent.Delta(
                 content = prefix + part.content,
-                rawChunk = part.rawChunk
-            )
+                rawChunk = part.rawChunk,
+            ),
         )
     }
 
     private fun mapReasoning(
-        part: LLMProviderStreamPart.Reasoning
+        part: LLMProviderStreamPart.Reasoning,
     ): List<LLMStreamEvent> {
         if (part.content.isEmpty()) return emptyList()
         // 聊天兼容模式将推理并入正文，结构化捕获模式则保持独立事件
@@ -315,19 +323,19 @@ internal class LLMStreamPartMapper(
             val content = if (mIsThinking) part.content else "<think>\n${part.content}"
             mIsThinking = true
             return listOf(
-                LLMStreamEvent.Delta(
+                element = LLMStreamEvent.Delta(
                     content = content,
-                    rawChunk = part.rawChunk
-                )
+                    rawChunk = part.rawChunk,
+                ),
             )
         }
         if (!captureReasoning) return emptyList()
         return listOf(
-            LLMStreamEvent.ReasoningDelta(
+            element = LLMStreamEvent.ReasoningDelta(
                 content = part.content,
                 rawChunk = part.rawChunk,
-                kind = part.kind
-            )
+                kind = part.kind,
+            ),
         )
     }
 
@@ -343,12 +351,12 @@ internal class LLMStreamPartMapper(
     private fun finishEvents(): List<LLMStreamEvent> = buildList {
         closeReasoning()?.let(::add)
         add(
-            LLMStreamEvent.Finished(
+            element = LLMStreamEvent.Finished(
                 rawChunk = mRawChunk,
                 finishReason = mFinishReason,
                 model = mModel,
-                usage = mUsage
-            )
+                usage = mUsage,
+            ),
         )
         mHasFinished = true
     }
@@ -358,7 +366,7 @@ internal class LLMStreamPartMapper(
         mIsThinking = false
         return LLMStreamEvent.Delta(
             content = "\n</think>\n\n",
-            rawChunk = "reasoning_close"
+            rawChunk = "reasoning_close",
         )
     }
 }
@@ -413,7 +421,7 @@ internal fun List<LLMMessage>.leadingSystemPrompt(): String {
  * 再合并连续同角色消息，确保 Anthropic 和 Gemini 收到合法的交替轮次。
  */
 internal fun List<LLMMessage>.toAlternatingConversationMessages(
-    emptyPlaceholder: String = "Let's get started."
+    emptyPlaceholder: String = "Let's get started.",
 ): List<LLMMessage> {
     val converted = dropWhile { it.role == LLMMessageRole.System }
         .map { message ->
@@ -431,9 +439,9 @@ internal fun List<LLMMessage>.toAlternatingConversationMessages(
         if (previous?.role == message.role) {
             merged[merged.lastIndex] = previous.copy(
                 content = listOf(previous.content, message.content)
-                    .filter { it.isNotBlank() }
+                    .filter { text -> text.isNotBlank() }
                     .joinToString("\n\n"),
-                blocks = if (previous.images.isNotEmpty() || message.images.isNotEmpty()) mergeContentBlocks(previous.contentBlocks + message.contentBlocks) else emptyList()
+                blocks = if (previous.images.isNotEmpty() || message.images.isNotEmpty()) mergeContentBlocks(previous.contentBlocks + message.contentBlocks) else emptyList(),
             )
         } else {
             merged += message
@@ -478,7 +486,7 @@ internal suspend fun LLMRequestLogRepository.trySaveLog(
     model: String,
     isStreaming: Boolean,
     requestJson: String,
-    responseJson: String
+    responseJson: String,
 ) {
     runCatching {
         saveLog(
@@ -486,7 +494,7 @@ internal suspend fun LLMRequestLogRepository.trySaveLog(
             model = model,
             isStreaming = isStreaming,
             requestJson = requestJson,
-            responseJson = responseJson
+            responseJson = responseJson,
         )
     }
 }

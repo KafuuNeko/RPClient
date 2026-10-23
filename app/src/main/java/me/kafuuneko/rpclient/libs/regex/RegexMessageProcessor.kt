@@ -23,7 +23,7 @@ class RegexMessageProcessor(
         input: String,
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): String {
         // 指令输入先展开 SlashCommand，普通文本直接进入 UserInput。
         val slashProcessed = if (input.startsWith('/')) {
@@ -33,7 +33,7 @@ class RegexMessageProcessor(
                 placement = RegexPlacement.SlashCommand,
                 mode = RegexExecutionMode.Source,
                 macros = macros,
-                isEdit = isEdit
+                isEdit = isEdit,
             ).text
         } else {
             input
@@ -45,7 +45,7 @@ class RegexMessageProcessor(
             placement = RegexPlacement.UserInput,
             mode = RegexExecutionMode.Source,
             macros = macros,
-            isEdit = isEdit
+            isEdit = isEdit,
         ).text
     }
 
@@ -62,14 +62,14 @@ class RegexMessageProcessor(
         input: String,
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): String {
         return mRuntime.executeAiMessage(
             input = input,
             scripts = scripts,
             mode = RegexExecutionMode.Source,
             macros = macros,
-            isEdit = isEdit
+            isEdit = isEdit,
         ).text
     }
 
@@ -79,7 +79,7 @@ class RegexMessageProcessor(
         source: RegexMessageSource,
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
-        depth: Int? = null
+        depth: Int? = null,
     ): RegexExecutionResult {
         // 用户正文使用 UserInput，角色正文使用 AiResponse；两者都共享 Prompt 阶段和深度约束。
         return when (source) {
@@ -89,14 +89,14 @@ class RegexMessageProcessor(
                 placement = RegexPlacement.UserInput,
                 mode = RegexExecutionMode.Prompt,
                 macros = macros,
-                depth = depth
+                depth = depth,
             )
             RegexMessageSource.Character -> mRuntime.executeAiMessage(
                 input = input,
                 scripts = scripts,
                 mode = RegexExecutionMode.Prompt,
                 macros = macros,
-                depth = depth
+                depth = depth,
             )
         }
     }
@@ -105,14 +105,14 @@ class RegexMessageProcessor(
     fun applyWorldInfo(
         input: String,
         scripts: List<ScopedRegexScript>,
-        macros: Map<String, String>
+        macros: Map<String, String>,
     ): RegexExecutionResult {
         return mRuntime.execute(
             input = input,
             scripts = scripts,
             placement = RegexPlacement.WorldInfo,
             mode = RegexExecutionMode.Prompt,
-            macros = macros
+            macros = macros,
         )
     }
 
@@ -131,7 +131,7 @@ class RegexMessageProcessor(
         source: RegexMessageSource,
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): String {
         return when (source) {
             RegexMessageSource.User -> applyUserInput(input, scripts, macros, isEdit)
@@ -154,7 +154,7 @@ class RegexMessageProcessor(
         source: RegexMessageSource,
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
-        depth: Int? = null
+        depth: Int? = null,
     ): String {
         // 用户和角色消息使用不同正文 placement，但共享同一套推理块处理。
         val bodyPlacement = when (source) {
@@ -166,7 +166,7 @@ class RegexMessageProcessor(
             scripts = scripts,
             macros = macros,
             depth = depth,
-            bodyPlacement = bodyPlacement
+            bodyPlacement = bodyPlacement,
         ).text
     }
 }
@@ -174,5 +174,6 @@ class RegexMessageProcessor(
 /** 聊天消息进入 Regex 流水线时的逻辑来源。 */
 enum class RegexMessageSource {
     User,
+
     Character
 }

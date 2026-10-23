@@ -27,7 +27,7 @@ class LLMProviderEditActivity : CoreActivityWithEvent() {
 
         LLMProviderEditLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

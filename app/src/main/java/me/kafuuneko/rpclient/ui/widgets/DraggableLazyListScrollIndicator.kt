@@ -48,20 +48,18 @@ import kotlin.math.roundToInt
 @Composable
 fun Modifier.draggableLazyListScrollIndicator(
     state: LazyListState,
-    color: Color = MaterialTheme.colorScheme.outline.copy(
-        alpha = LAZY_LIST_SCROLL_INDICATOR_THUMB_OPACITY
-    ),
-    onDragStateChanged: (Boolean) -> Unit = {}
+    color: Color = MaterialTheme.colorScheme.outline.copy(alpha = LAZY_LIST_SCROLL_INDICATOR_THUMB_OPACITY),
+    onDragStateChanged: (Boolean) -> Unit = {},
 ): Modifier {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val currentOnDragStateChanged = rememberUpdatedState(onDragStateChanged)
     val thumbDraggedState = remember { mutableStateOf(false) }
-    val draggedGeometryState = remember { mutableStateOf<LazyListScrollIndicatorGeometry?>(null) }
+    val draggedGeometryState = remember { mutableStateOf<LazyListScrollIndicatorGeometry?>(value = null) }
     val sizeCache = remember(state) { LazyListScrollIndicatorSizeCache() }
     val indicatorAlpha = rememberScrollIndicatorAlpha(
         state = state,
-        thumbDraggedState = thumbDraggedState
+        thumbDraggedState = thumbDraggedState,
     )
 
     return drawWithContent {
@@ -72,14 +70,13 @@ fun Modifier.draggableLazyListScrollIndicator(
             ?: density.calculateLazyListScrollIndicatorGeometry(
                 containerLength = size.height,
                 state = state,
-                sizeCache = sizeCache
-            )
-            ?: return@drawWithContent
+                sizeCache = sizeCache,
+            ) ?: return@drawWithContent
         drawLazyListScrollIndicator(
             geometry = geometry,
             color = color.copy(alpha = color.alpha * alpha),
             layoutDirection = layoutDirection,
-            density = density
+            density = density,
         )
     }.pointerInput(state, layoutDirection, density) {
         coroutineScope {
@@ -90,7 +87,7 @@ fun Modifier.draggableLazyListScrollIndicator(
                 capacity = Channel.CONFLATED,
                 onUndeliveredElement = { request: LazyListScrollRequest ->
                     request.completion?.complete(Unit)
-                }
+                },
             )
             launch {
                 for (request in scrollRequests) {
@@ -104,23 +101,23 @@ fun Modifier.draggableLazyListScrollIndicator(
             awaitEachGesture {
                 val down = awaitFirstDown(
                     requireUnconsumed = false,
-                    pass = PointerEventPass.Initial
+                    pass = PointerEventPass.Initial,
                 )
                 // 完全隐藏后不保留透明命中区，避免抢占消息点击与文本选择。
                 if (indicatorAlpha.value == 0f) return@awaitEachGesture
                 val geometry = density.calculateLazyListScrollIndicatorGeometry(
                     containerLength = size.height.toFloat(),
                     state = state,
-                    sizeCache = sizeCache
+                    sizeCache = sizeCache,
                 ) ?: return@awaitEachGesture
 
                 // 只接管逻辑末端滑块附近的按压，避免影响消息气泡中的选择和点击。
                 if (!density.isInsideLazyListScrollThumb(
-                        position = down.position,
-                        containerWidth = size.width.toFloat(),
-                        geometry = geometry,
-                        layoutDirection = layoutDirection
-                    )
+                    position = down.position,
+                    containerWidth = size.width.toFloat(),
+                    geometry = geometry,
+                    layoutDirection = layoutDirection,
+                )
                 ) return@awaitEachGesture
 
                 val dragAnchor = down.position.y - geometry.thumbStart
@@ -133,7 +130,7 @@ fun Modifier.draggableLazyListScrollIndicator(
                 try {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        val change = event.changes.firstOrNull { pointerInputChange -> pointerInputChange.id == down.id } ?: break
                         change.consume()
                         if (!change.pressed) break
 
@@ -141,12 +138,12 @@ fun Modifier.draggableLazyListScrollIndicator(
                         val targetFraction = (
                             (change.position.y - dragAnchor - geometry.trackStart) /
                                 geometry.thumbTravel
-                            ).coerceIn(0f, 1f)
+                            ).coerceIn(minimumValue = 0f, maximumValue = 1f)
                         draggedGeometryState.value = geometry.withScrollFraction(targetFraction)
                         latestTarget = calculateLazyListScrollTarget(
                             targetFraction = targetFraction,
                             totalItemsCount = geometry.totalItemsCount,
-                            visibleItemSpan = geometry.visibleItemSpan
+                            visibleItemSpan = geometry.visibleItemSpan,
                         )
                         latestTarget?.let { target ->
                             scrollRequests.trySend(LazyListScrollRequest(target))
@@ -164,10 +161,10 @@ fun Modifier.draggableLazyListScrollIndicator(
                             val completion = CompletableDeferred<Unit>()
                             try {
                                 scrollRequests.send(
-                                    LazyListScrollRequest(
+                                    element = LazyListScrollRequest(
                                         target = finalTarget,
-                                        completion = completion
-                                    )
+                                        completion = completion,
+                                    ),
                                 )
                                 completion.await()
                             } finally {
@@ -210,7 +207,7 @@ private data class LazyListScrollIndicatorGeometry(
 
     fun withScrollFraction(fraction: Float): LazyListScrollIndicatorGeometry = copy(
         thumbStart = trackStart + fraction * thumbTravel,
-        scrollFraction = fraction
+        scrollFraction = fraction,
     )
 }
 
@@ -268,15 +265,15 @@ internal class LazyListScrollIndicatorSizeCache {
     /** 根据结构周期返回稳定的滑块比例。 */
     fun resolve(metrics: LazyListItemSpaceMetrics): Float {
         if (
-            metrics.totalItemsCount != mTotalItemsCount ||
-            metrics.viewportSize != mViewportSize ||
-            mSizeFraction <= 0f
+            metrics.totalItemsCount != mTotalItemsCount
+            || metrics.viewportSize != mViewportSize
+            || mSizeFraction <= 0f
         ) {
             mTotalItemsCount = metrics.totalItemsCount
             mViewportSize = metrics.viewportSize
             mSizeFraction = (
                 metrics.visibleItemSpan / metrics.totalItemsCount.coerceAtLeast(1)
-                ).coerceIn(0f, 1f)
+                ).coerceIn(minimumValue = 0f, maximumValue = 1f)
         }
         return mSizeFraction
     }
@@ -286,7 +283,7 @@ internal class LazyListScrollIndicatorSizeCache {
 private fun Density.calculateLazyListScrollIndicatorGeometry(
     containerLength: Float,
     state: LazyListState,
-    sizeCache: LazyListScrollIndicatorSizeCache
+    sizeCache: LazyListScrollIndicatorSizeCache,
 ): LazyListScrollIndicatorGeometry? {
     if (!state.canScrollBackward && !state.canScrollForward) return null
     val layoutInfo = state.layoutInfo
@@ -298,9 +295,9 @@ private fun Density.calculateLazyListScrollIndicatorGeometry(
             LazyListVisibleItem(
                 index = item.index,
                 offset = item.offset,
-                size = item.size
+                size = item.size,
             )
-        }
+        },
     ) ?: return null
 
     // 上下留白让滑块与页面边缘保持与故事正文一致的视觉距离。
@@ -309,8 +306,8 @@ private fun Density.calculateLazyListScrollIndicatorGeometry(
     val minThumbLength = LazyListScrollIndicatorMinThumbLength.toPx()
     if (trackLength < minThumbLength) return null
     val maxThumbLength = maxOf(
-        minThumbLength,
-        trackLength * LAZY_LIST_SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION
+        a = minThumbLength,
+        b = trackLength * LAZY_LIST_SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION,
     )
     val stableSizeFraction = sizeCache.resolve(metrics)
     val thumbLength = (trackLength * stableSizeFraction)
@@ -324,7 +321,7 @@ private fun Density.calculateLazyListScrollIndicatorGeometry(
         metrics = metrics,
         stableVisibleItemSpan = stableVisibleItemSpan,
         canScrollBackward = state.canScrollBackward,
-        canScrollForward = state.canScrollForward
+        canScrollForward = state.canScrollForward,
     )
     return LazyListScrollIndicatorGeometry(
         trackStart = trackStart,
@@ -333,7 +330,7 @@ private fun Density.calculateLazyListScrollIndicatorGeometry(
         thumbLength = thumbLength,
         scrollFraction = listScrollFraction,
         totalItemsCount = metrics.totalItemsCount,
-        visibleItemSpan = stableVisibleItemSpan
+        visibleItemSpan = stableVisibleItemSpan,
     )
 }
 
@@ -342,7 +339,7 @@ private fun DrawScope.drawLazyListScrollIndicator(
     geometry: LazyListScrollIndicatorGeometry,
     color: Color,
     layoutDirection: LayoutDirection,
-    density: Density
+    density: Density,
 ) {
     // 使用逻辑末端定位，确保滑块在 RTL 布局中切换到左侧。
     val thickness = with(density) { LazyListScrollIndicatorThickness.toPx() }
@@ -356,7 +353,7 @@ private fun DrawScope.drawLazyListScrollIndicator(
         color = color,
         topLeft = Offset(left, geometry.thumbStart),
         size = Size(thickness, geometry.thumbLength),
-        cornerRadius = CornerRadius(thickness / 2f, thickness / 2f)
+        cornerRadius = CornerRadius(thickness / 2f, thickness / 2f),
     )
 }
 
@@ -365,7 +362,7 @@ private fun Density.isInsideLazyListScrollThumb(
     position: Offset,
     containerWidth: Float,
     geometry: LazyListScrollIndicatorGeometry,
-    layoutDirection: LayoutDirection
+    layoutDirection: LayoutDirection,
 ): Boolean {
     // 横向扩大命中范围，纵向仅在短滑块不足最小触控尺寸时对称扩展。
     val touchTargetSize = LazyListScrollIndicatorTouchTargetSize.toPx()
@@ -392,13 +389,13 @@ internal fun calculateLazyListItemSpaceMetrics(
     totalItemsCount: Int,
     viewportStartOffset: Int,
     viewportEndOffset: Int,
-    visibleItems: List<LazyListVisibleItem>
+    visibleItems: List<LazyListVisibleItem>,
 ): LazyListItemSpaceMetrics? {
     if (totalItemsCount <= 0 || viewportEndOffset <= viewportStartOffset) return null
     val viewportItems = visibleItems.filter { item ->
-        item.size > 0 &&
-            item.offset < viewportEndOffset &&
-            item.offset + item.size > viewportStartOffset
+        item.size > 0
+            && item.offset < viewportEndOffset
+            && item.offset + item.size > viewportStartOffset
     }
     val firstItem = viewportItems.firstOrNull() ?: return null
     val lastItem = viewportItems.last()
@@ -416,7 +413,7 @@ internal fun calculateLazyListItemSpaceMetrics(
         totalItemsCount = totalItemsCount,
         viewportSize = viewportEndOffset - viewportStartOffset,
         firstVisibleItemIndex = firstVisibleItemIndex,
-        visibleItemSpan = visibleItemSpan
+        visibleItemSpan = visibleItemSpan,
     )
 }
 
@@ -425,7 +422,7 @@ internal fun calculateLazyListScrollFraction(
     metrics: LazyListItemSpaceMetrics,
     stableVisibleItemSpan: Float,
     canScrollBackward: Boolean,
-    canScrollForward: Boolean
+    canScrollForward: Boolean,
 ): Float = when {
     !canScrollBackward -> 0f
     !canScrollForward -> 1f
@@ -433,7 +430,7 @@ internal fun calculateLazyListScrollFraction(
         val scrollableItemSpan = (
             metrics.totalItemsCount - stableVisibleItemSpan
             ).coerceAtLeast(LAZY_LIST_SCROLL_INDICATOR_MIN_VISIBLE_ITEM_SPAN)
-        (metrics.firstVisibleItemIndex / scrollableItemSpan).coerceIn(0f, 1f)
+        (metrics.firstVisibleItemIndex / scrollableItemSpan).coerceIn(minimumValue = 0f, maximumValue = 1f)
     }
 }
 
@@ -441,7 +438,7 @@ internal fun calculateLazyListScrollFraction(
 internal fun calculateLazyListScrollTarget(
     targetFraction: Float,
     totalItemsCount: Int,
-    visibleItemSpan: Float
+    visibleItemSpan: Float,
 ): LazyListScrollTarget? {
     if (totalItemsCount <= 0) return null
     if (targetFraction <= 0f) {
@@ -451,7 +448,7 @@ internal fun calculateLazyListScrollTarget(
         return LazyListScrollTarget(
             index = totalItemsCount - 1,
             scrollOffsetFraction = 0f,
-            scrollToEnd = true
+            scrollToEnd = true,
         )
     }
 
@@ -460,10 +457,10 @@ internal fun calculateLazyListScrollTarget(
         .coerceAtLeast(0f)
     val targetItemIndex = targetFraction * scrollableItemSpan
     val targetIndex = floor(targetItemIndex).toInt()
-        .coerceIn(0, totalItemsCount - 1)
+        .coerceIn(minimumValue = 0, maximumValue = totalItemsCount - 1)
     return LazyListScrollTarget(
         index = targetIndex,
-        scrollOffsetFraction = (targetItemIndex - targetIndex).coerceIn(0f, 1f)
+        scrollOffsetFraction = (targetItemIndex - targetIndex).coerceIn(minimumValue = 0f, maximumValue = 1f),
     )
 }
 
@@ -479,7 +476,7 @@ private suspend fun LazyListState.scrollToLazyListTarget(target: LazyListScrollT
     if (visibleTarget != null) {
         scrollToItem(
             index = target.index,
-            scrollOffset = visibleTarget.calculateScrollOffset(target.scrollOffsetFraction)
+            scrollOffset = visibleTarget.calculateScrollOffset(target.scrollOffsetFraction),
         )
         return
     }
@@ -496,10 +493,10 @@ private suspend fun LazyListState.scrollToLazyListTarget(target: LazyListScrollT
 
 /** 将项目内比例换算为不越过项目末端的像素偏移。 */
 private fun LazyListItemInfo.calculateScrollOffset(
-    scrollOffsetFraction: Float
+    scrollOffsetFraction: Float,
 ): Int = (size * scrollOffsetFraction)
     .roundToInt()
-    .coerceIn(0, (size - 1).coerceAtLeast(0))
+    .coerceIn(minimumValue = 0, maximumValue = (size - 1).coerceAtLeast(0))
 
 private const val LAZY_LIST_SCROLL_INDICATOR_THUMB_OPACITY = 0.7f
 private const val LAZY_LIST_SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION = 0.9f

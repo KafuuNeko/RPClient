@@ -7,7 +7,7 @@ import java.util.Locale
 /** 将毫秒时间戳按指定格式转换为本地时间文本。 */
 fun Long.formatTimestamp(
     pattern: String,
-    locale: Locale = Locale.getDefault()
+    locale: Locale = Locale.getDefault(),
 ): String {
     return SimpleDateFormat(pattern, locale).format(Date(this))
 }

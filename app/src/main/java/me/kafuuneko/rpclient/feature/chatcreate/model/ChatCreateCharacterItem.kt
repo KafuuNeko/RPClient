@@ -23,8 +23,8 @@ internal fun Character.toChatCreateCharacterItem(userName: String): ChatCreateCh
         description = resolveCharacterUserMacros(
             template = description,
             characterName = name,
-            userName = userName
+            userName = userName,
         ),
-        tags = getCharacterTagList()
+        tags = getCharacterTagList(),
     )
 }

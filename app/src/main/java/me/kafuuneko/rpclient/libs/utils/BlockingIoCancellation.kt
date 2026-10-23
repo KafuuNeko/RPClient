@@ -16,10 +16,10 @@ import kotlinx.coroutines.launch
  */
 internal suspend fun <T> withBlockingIoCancellation(
     cleanup: () -> Unit,
-    block: suspend () -> T
+    block: suspend () -> T,
 ): T = coroutineScope {
     val owner = currentCoroutineContext()
-    val cancellation = launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
+    val cancellation = launch(context = Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
         try {
             awaitCancellation()
         } finally {

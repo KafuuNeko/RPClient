@@ -15,9 +15,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 /** JSON 语法高亮分词类别。 */
 enum class JsonSyntaxTokenType {
     Key,
+
     String,
+
     Number,
+
     Literal,
+
     Punctuation
 }
 
@@ -50,7 +54,7 @@ data class JsonSyntaxColors(
  */
 @Composable
 fun rememberJsonSyntaxVisualTransformation(
-    colors: JsonSyntaxColors = rememberDefaultJsonSyntaxColors()
+    colors: JsonSyntaxColors = rememberDefaultJsonSyntaxColors(),
 ): VisualTransformation {
     return remember(colors) {
         JsonSyntaxVisualTransformation(colors)
@@ -67,14 +71,14 @@ fun rememberDefaultJsonSyntaxColors(): JsonSyntaxColors {
         colorScheme.primary,
         colorScheme.tertiary,
         colorScheme.secondary,
-        colorScheme.onSurfaceVariant
+        colorScheme.onSurfaceVariant,
     ) {
         JsonSyntaxColors(
             key = colorScheme.primary,
             string = colorScheme.tertiary,
             number = colorScheme.secondary,
             literal = colorScheme.primary,
-            punctuation = colorScheme.onSurfaceVariant
+            punctuation = colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -94,7 +98,7 @@ class JsonSyntaxVisualTransformation(
                 addStyle(
                     style = token.style(mColors),
                     start = token.start,
-                    end = token.end
+                    end = token.end,
                 )
             }
         }
@@ -106,13 +110,13 @@ private fun JsonSyntaxToken.style(colors: JsonSyntaxColors): SpanStyle {
     return when (type) {
         JsonSyntaxTokenType.Key -> SpanStyle(
             color = colors.key,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
         JsonSyntaxTokenType.String -> SpanStyle(color = colors.string)
         JsonSyntaxTokenType.Number -> SpanStyle(color = colors.number)
         JsonSyntaxTokenType.Literal -> SpanStyle(
             color = colors.literal,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
         JsonSyntaxTokenType.Punctuation -> SpanStyle(color = colors.punctuation)
     }
@@ -132,24 +136,24 @@ fun tokenizeJsonSyntax(source: String): List<JsonSyntaxToken> {
                 } else {
                     JsonSyntaxTokenType.String
                 }
-                tokens += JsonSyntaxToken(start, index, type)
+                tokens += JsonSyntaxToken(start = start, end = index, type = type)
             }
 
             '-', in '0'..'9' -> {
                 index = readNumberEnd(source, start)
-                tokens += JsonSyntaxToken(start, index, JsonSyntaxTokenType.Number)
+                tokens += JsonSyntaxToken(start = start, end = index, type = JsonSyntaxTokenType.Number)
             }
 
             '{', '}', '[', ']', ':', ',' -> {
                 index++
-                tokens += JsonSyntaxToken(start, index, JsonSyntaxTokenType.Punctuation)
+                tokens += JsonSyntaxToken(start = start, end = index, type = JsonSyntaxTokenType.Punctuation)
             }
 
             else -> {
                 val literalEnd = readLiteralEnd(source, start)
                 if (literalEnd != null) {
                     index = literalEnd
-                    tokens += JsonSyntaxToken(start, index, JsonSyntaxTokenType.Literal)
+                    tokens += JsonSyntaxToken(start = start, end = index, type = JsonSyntaxTokenType.Literal)
                 } else {
                     index++
                 }

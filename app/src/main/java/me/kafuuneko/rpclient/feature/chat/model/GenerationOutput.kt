@@ -12,6 +12,7 @@ internal sealed class GenerationOutput {
         /** 产生当前数据的来源。 */
         val source: ChatMessage.Source
     ) : GenerationOutput()
+
     /** 更新覆盖已有的消息记录（如重新生成） */
     data class Update(
         /** 当前操作关联的消息 ID。 */

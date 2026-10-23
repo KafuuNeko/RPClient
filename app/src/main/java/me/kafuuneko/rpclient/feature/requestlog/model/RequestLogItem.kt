@@ -25,6 +25,6 @@ internal fun LLMRequestLogOverview.toUiModel(): RequestLogItem {
         title = "$providerName / $model",
         subtitle = "${createTime.formatTimestamp("MM-dd HH:mm:ss")} · ${protocol.name} · $mode",
         requestPreview = requestPreview,
-        responsePreview = responsePreview
+        responsePreview = responsePreview,
     )
 }

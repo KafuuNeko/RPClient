@@ -20,7 +20,7 @@ class LLMResponseValidatorTest {
                 model = "routed-model",
                 provider = LLMProviderType.Custom,
                 finishReason = "stop",
-                rawResponse = "{}"
+                rawResponse = "{}",
             ).requireNonEmptyContent()
         }
 
@@ -40,7 +40,7 @@ class LLMResponseValidatorTest {
                     finishReason = finishReason,
                     reasoningContent = "The summary is still being planned.",
                     usage = LLMUsage(completionTokens = 512, reasoningTokens = 512),
-                    rawResponse = "private response sentinel"
+                    rawResponse = "private response sentinel",
                 ).requireNonEmptyContent()
             }
             // 复现 Repository 的异常包装，验证页面依赖的错误分类仍保留截断原因。
@@ -61,12 +61,12 @@ class LLMResponseValidatorTest {
                     provider = LLMProviderType.Custom,
                     finishReason = finishReason,
                     usage = LLMUsage(completionTokens = 512, reasoningTokens = 512),
-                    rawResponse = "{}"
+                    rawResponse = "{}",
                 ).requireNonEmptyContent()
             }
             assertEquals(
                 GenerationFailure.EmptyResponse(),
-                classifyGenerationFailure(LLMProviderRequestException("Summary model", error))
+                classifyGenerationFailure(LLMProviderRequestException("Summary model", error)),
             )
         }
     }
@@ -76,10 +76,10 @@ class LLMResponseValidatorTest {
         val error = assertThrows(LLMEmptyResponseException::class.java) {
             runBlocking {
                 flowOf(
-                    LLMStreamEvent.Finished(
+                    value = LLMStreamEvent.Finished(
                         finishReason = "stop",
-                        model = "routed-model"
-                    )
+                        model = "routed-model",
+                    ),
                 )
                     .requireNonEmptyContent()
                     .toList()
@@ -93,7 +93,7 @@ class LLMResponseValidatorTest {
     fun streamingContentPassesThroughUnchanged() = runBlocking {
         val events = listOf(
             LLMStreamEvent.Delta("Hello", "chunk"),
-            LLMStreamEvent.Finished(finishReason = "stop")
+            LLMStreamEvent.Finished(finishReason = "stop"),
         )
 
         val result = flowOf(*events.toTypedArray())

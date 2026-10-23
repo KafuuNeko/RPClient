@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.libs.llm.image
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.round
 import kotlin.math.sqrt
-import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 
 /** 纯函数估算发送版本的视觉 Token，不读取图片、不改变请求。 */
 fun interface ImageTokenEstimator {
@@ -19,11 +19,11 @@ internal const val GENERIC_IMAGE_TOKENS = 4096L
 internal class TileImageTokenEstimator(private val mBase: Long, private val mTile: Long) : ImageTokenEstimator {
     override fun estimate(image: LLMImageReference): Long {
         if (image.width <= 0 || image.height <= 0) return GENERIC_IMAGE_TOKENS
-        val fit = minOf(1.0, 2048.0 / maxOf(image.width, image.height))
+        val fit = minOf(a = 1.0, b = 2048.0 / maxOf(image.width, image.height))
         val width = floor(image.width * fit).coerceAtLeast(1.0)
         val height = floor(image.height * fit).coerceAtLeast(1.0)
-        val shortSideFit = minOf(1.0, 768.0 / minOf(width, height))
-        val tiles = patchCount(floor(width * shortSideFit), floor(height * shortSideFit), 512)
+        val shortSideFit = minOf(a = 1.0, b = 768.0 / minOf(width, height))
+        val tiles = patchCount(width = floor(width * shortSideFit), height = floor(height * shortSideFit), patch = 512)
         return mBase + mTile * tiles
     }
 }
@@ -40,21 +40,21 @@ internal class OpenAiPatchImageTokenEstimator(
     override fun estimate(image: LLMImageReference): Long {
         if (image.width <= 0 || image.height <= 0) return GENERIC_IMAGE_TOKENS
         // 先限制像素边长，不放大小图；保持全精度至最后的像素取整。
-        val fit = minOf(1.0, mMaxEdge.toDouble() / maxOf(image.width, image.height))
+        val fit = minOf(a = 1.0, b = mMaxEdge.toDouble() / maxOf(image.width, image.height))
         var width = round(image.width * fit).coerceAtLeast(1.0)
         var height = round(image.height * fit).coerceAtLeast(1.0)
-        if (patchCount(width, height, 32) > mPatchBudget) {
+        if (patchCount(width = width, height = height, patch = 32) > mPatchBudget) {
             val shrink = sqrt(32.0 * 32 * mPatchBudget / (width * height))
             val widthPatches = width * shrink / 32
             val heightPatches = height * shrink / 32
             val adjusted = shrink * minOf(
-                floor(widthPatches) / widthPatches,
-                floor(heightPatches) / heightPatches
+                a = floor(widthPatches) / widthPatches,
+                b = floor(heightPatches) / heightPatches,
             )
             width = floor(width * adjusted).coerceAtLeast(1.0)
             height = floor(height * adjusted).coerceAtLeast(1.0)
         }
-        return ceil(patchCount(width, height, 32) * mMultiplier).toLong()
+        return ceil(patchCount(width = width, height = height, patch = 32) * mMultiplier).toLong()
     }
 }
 
@@ -71,7 +71,11 @@ internal class ClaudeImageTokenEstimator(
         if (image.width <= 0 || image.height <= 0) return GENERIC_IMAGE_TOKENS
         val longEdge = maxOf(image.width, image.height)
         val shortEdge = minOf(image.width, image.height)
-        if (fits(longEdge, shortEdge)) return patchCount(longEdge.toDouble(), shortEdge.toDouble(), 28)
+        if (fits(longEdge, shortEdge)) return patchCount(
+            width = longEdge.toDouble(),
+            height = shortEdge.toDouble(),
+            patch = 28,
+        )
         // 在整数长边上搜索，避免连续面积近似忽略 patch 补齐后的阶跃。
         val aspect = longEdge.toDouble() / shortEdge
         var low = 1
@@ -81,12 +85,16 @@ internal class ClaudeImageTokenEstimator(
             if (fits(middle, round(middle / aspect).toInt().coerceAtLeast(1))) low = middle
             else high = middle
         }
-        return patchCount(low.toDouble(), round(low / aspect).coerceAtLeast(1.0), 28)
+        return patchCount(
+            width = low.toDouble(),
+            height = round(low / aspect).coerceAtLeast(1.0),
+            patch = 28,
+        )
     }
 
     private fun fits(width: Int, height: Int): Boolean =
-        ceil(width / 28.0) * 28 <= mMaxEdge && ceil(height / 28.0) * 28 <= mMaxEdge &&
-            patchCount(width.toDouble(), height.toDouble(), 28) <= mMaxTokens
+        ceil(width / 28.0) * 28 <= mMaxEdge && ceil(height / 28.0) * 28 <= mMaxEdge
+            && patchCount(width = width.toDouble(), height = height.toDouble(), patch = 28) <= mMaxTokens
 }
 
 /** 先转为 Long 再相乘，避免极端尺寸使中间值溢出。 */

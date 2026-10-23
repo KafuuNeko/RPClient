@@ -45,11 +45,17 @@ const val DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON =
  */
 enum class LLMProviderType {
     ChatGPT,
+
     Gemini,
+
     Claude,
+
     DeepSeek,
+
     Grok,
+
     OpenRouter,
+
     Custom
 }
 
@@ -60,8 +66,11 @@ enum class LLMProviderType {
  */
 enum class LLMProviderProtocol {
     OpenAICompatible,
+
     Gemini,
+
     AnthropicMessages,
+
     OpenAIResponses
 }
 
@@ -132,7 +141,9 @@ data class LLMProviderConfig(
  */
 enum class LLMMessageRole {
     System,
+
     User,
+
     Assistant
 }
 
@@ -181,7 +192,7 @@ data class ResolvedLLMGenerationOptions(
 
 /** 将业务请求参数与模型配置默认值合并，并过滤未启用的可选参数。 */
 fun LLMGenerationOptions.resolveFor(
-    provider: LLMProviderConfig
+    provider: LLMProviderConfig,
 ): ResolvedLLMGenerationOptions {
     return ResolvedLLMGenerationOptions(
         temperature = if (provider.sendTemperature) {
@@ -191,7 +202,7 @@ fun LLMGenerationOptions.resolveFor(
         },
         maxTokens = maxTokens ?: provider.maxTokens,
         topP = if (provider.sendTopP) topP ?: provider.topP else null,
-        stop = stop
+        stop = stop,
     )
 }
 
@@ -298,6 +309,7 @@ sealed class LLMStreamEvent {
 /** 模型服务返回的推理文本粒度。 */
 enum class LLMReasoningKind {
     Summary,
+
     Detailed
 }
 

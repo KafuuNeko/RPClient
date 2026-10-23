@@ -26,7 +26,7 @@ class AppUpgradeManager(
 
     /** 执行当前安装包范围内尚未完成的迁移和清理。 */
     suspend fun upgrade(
-        currentVersionCode: Int = mVersionCodeProvider.currentVersionCode()
+        currentVersionCode: Int = mVersionCodeProvider.currentVersionCode(),
     ) {
         require(currentVersionCode > 0) {
             "Current version code must be positive"

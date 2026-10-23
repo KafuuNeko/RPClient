@@ -33,7 +33,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode),
     imageInputSetting = imageInputSetting,
     imageTokenEstimatorType = imageTokenEstimatorType,
-    isEnabled = isEnabled
+    isEnabled = isEnabled,
 )
 
 /** 提取 OpenRouter 专属路由配置状态。 */
@@ -44,6 +44,6 @@ internal fun LLMProviderEditForm.toRequestExtensionsState():
         isOpenRouter = providerType == LLMProviderType.OpenRouter,
         usesPreferredProvider = routing.usesPreferredProvider,
         preferredProvider = routing.preferredProvider,
-        allowFallbacks = routing.allowFallbacks
+        allowFallbacks = routing.allowFallbacks,
     )
 }

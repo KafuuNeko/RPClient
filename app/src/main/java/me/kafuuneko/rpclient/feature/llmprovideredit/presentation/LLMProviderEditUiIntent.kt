@@ -13,6 +13,7 @@ sealed class LLMProviderEditUiIntent {
     data class Init(val providerId: Long?) : LLMProviderEditUiIntent()
 
     data class SelectImageTokenEstimator(val value: ImageTokenEstimatorType) : LLMProviderEditUiIntent()
+
     data class ChangeImageInput(val value: ImageInputSetting) : LLMProviderEditUiIntent()
 
     data object Back : LLMProviderEditUiIntent()

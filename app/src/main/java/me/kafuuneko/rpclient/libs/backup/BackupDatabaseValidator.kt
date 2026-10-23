@@ -3,9 +3,9 @@ package me.kafuuneko.rpclient.libs.backup
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
-import java.io.File
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import java.io.File
 
 /**
  * 在暂存目录验证数据库的可打开性。

@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import org.junit.Test
 
 class SummaryPromptBuilderTest {
@@ -14,9 +14,9 @@ class SummaryPromptBuilderTest {
 
         val selected = selectSummaryPrefix(
             items = messages,
-            promptBudget = 18
+            promptBudget = 18,
         ) { prefix ->
-            10 + prefix.sumOf { it.length + 1 }
+            10 + prefix.sumOf { text -> text.length + 1 }
         }
 
         assertEquals(listOf("one", "two"), selected)
@@ -26,7 +26,7 @@ class SummaryPromptBuilderTest {
     fun selectionRejectsFirstMessageWhenCompleteRequestExceedsBudget() {
         val selected = selectSummaryPrefix(
             items = listOf("oversized"),
-            promptBudget = 8
+            promptBudget = 8,
         ) { 9 }
 
         assertEquals(emptyList<String>(), selected)
@@ -39,7 +39,7 @@ class SummaryPromptBuilderTest {
 
         val selected = selectSummaryPrefix(
             items = messages,
-            promptBudget = 54_321
+            promptBudget = 54_321,
         ) { prefix ->
             probeCount += 1
             prefix.size
@@ -51,32 +51,51 @@ class SummaryPromptBuilderTest {
 
     @Test
     fun candidateLimitHonorsExplicitSettingAndPromptBudget() {
-        assertEquals(900, summaryCandidateMessageLimit(1_000, 100, 0))
-        assertEquals(50, summaryCandidateMessageLimit(1_000, 100, 50))
-        assertEquals(900, summaryCandidateMessageLimit(1_000, 100, 2_000))
-        assertEquals(256, nextSummaryCandidateWindowSize(128, 900))
-        assertEquals(900, nextSummaryCandidateWindowSize(512, 900))
+        assertEquals(
+            900,
+            summaryCandidateMessageLimit(
+                maxContextTokens = 1_000,
+                responseTokens = 100,
+                configuredMaxMessages = 0,
+            ),
+        )
+        assertEquals(
+            50,
+            summaryCandidateMessageLimit(
+                maxContextTokens = 1_000,
+                responseTokens = 100,
+                configuredMaxMessages = 50,
+            ),
+        )
+        assertEquals(
+            900,
+            summaryCandidateMessageLimit(
+                maxContextTokens = 1_000,
+                responseTokens = 100,
+                configuredMaxMessages = 2_000,
+            ),
+        )
+        assertEquals(256, nextSummaryCandidateWindowSize(currentSize = 128, maximumSize = 900))
+        assertEquals(900, nextSummaryCandidateWindowSize(currentSize = 512, maximumSize = 900))
     }
 
     @Test
     fun boundedBpeCountingMatchesExactResultAndSignalsOverflow() {
-        val tokenizer = PromptTokenizerRegistry().resolve(null)
+        val tokenizer = PromptTokenizerRegistry().resolve(provider = null)
         val messages = buildRawSummaryMessages(
             instruction = "Summarize the conversation",
             existingSummary = "Earlier events",
-            history = (1..200).joinToString("\n") { "User: message-$it" }
+            history = (1..200).joinToString("\n") { "User: message-$it" },
         )
         val exactCount = tokenizer.countMessages(messages)
 
         assertEquals(exactCount, tokenizer.countMessagesUpTo(messages, exactCount))
-        assertTrue(
-            tokenizer.countMessagesUpTo(messages, exactCount - 1) > exactCount - 1
-        )
+        assertTrue(tokenizer.countMessagesUpTo(messages, exactCount - 1) > exactCount - 1)
     }
 
     @Test
     fun optimizedSelectionMatchesLegacyGreedyTokenBoundary() {
-        val tokenizer = PromptTokenizerRegistry().resolve(null)
+        val tokenizer = PromptTokenizerRegistry().resolve(provider = null)
         val historyLines = (1..80).map { index ->
             when (index % 4) {
                 0 -> "Alice: short message $index"
@@ -112,31 +131,31 @@ class SummaryPromptBuilderTest {
     fun legacySummaryPositionsMigrateToCurrentSemantics() {
         assertEquals(
             SummaryInjectionPosition.AfterMain,
-            SummaryInjectionPosition.default
+            SummaryInjectionPosition.default,
         )
         assertEquals(
             SummaryInjectionPosition.None,
-            SummaryInjectionPosition.fromPersistedValue(-1)
+            SummaryInjectionPosition.fromPersistedValue(-1),
         )
         assertEquals(
             SummaryInjectionPosition.BeforeMain,
-            SummaryInjectionPosition.fromPersistedValue(0)
+            SummaryInjectionPosition.fromPersistedValue(0),
         )
         assertEquals(
             SummaryInjectionPosition.AfterMain,
-            SummaryInjectionPosition.fromPersistedValue(1)
+            SummaryInjectionPosition.fromPersistedValue(1),
         )
         assertEquals(
             SummaryInjectionPosition.InChat,
-            SummaryInjectionPosition.fromPersistedValue(2)
+            SummaryInjectionPosition.fromPersistedValue(2),
         )
         assertEquals(
             SummaryInjectionPosition.InChat,
-            SummaryInjectionPosition.fromPersistedValue(3)
+            SummaryInjectionPosition.fromPersistedValue(3),
         )
         assertEquals(
             SummaryInjectionPosition.default,
-            SummaryInjectionPosition.fromPersistedValue(Int.MAX_VALUE)
+            SummaryInjectionPosition.fromPersistedValue(Int.MAX_VALUE),
         )
     }
 
@@ -145,30 +164,30 @@ class SummaryPromptBuilderTest {
         val messages = buildRawSummaryMessages(
             instruction = "Summarize",
             existingSummary = "Earlier events",
-            history = "User: New event"
+            history = "User: New event",
         )
 
         assertEquals(
             listOf(LLMMessageRole.System, LLMMessageRole.User),
-            messages.map { it.role }
+            messages.map { it.role },
         )
         assertEquals("Summarize", messages[0].content)
         assertEquals(
             "Existing summary:\nEarlier events\n\nChat history:\nUser: New event",
-            messages[1].content
+            messages[1].content,
         )
     }
 
     @Test
     fun summaryCandidatesAlwaysExcludeLastMessage() {
-        assertEquals(listOf("one", "two"), listOf("one", "two", "three").summaryCandidates(0))
-        assertEquals(listOf("one"), listOf("one", "two", "three").summaryCandidates(1))
+        assertEquals(listOf("one", "two"), listOf("one", "two", "three").summaryCandidates(maxMessages = 0))
+        assertEquals(listOf("one"), listOf("one", "two", "three").summaryCandidates(maxMessages = 1))
     }
 
     /** 使用优化前的逐前缀算法生成兼容性基准。 */
     private fun <T> List<T>.selectLinearly(
         promptBudget: Int,
-        countPrefixTokens: (List<T>) -> Int
+        countPrefixTokens: (List<T>) -> Int,
     ): List<T> {
         val selected = mutableListOf<T>()
         for (item in this) {
@@ -183,6 +202,6 @@ class SummaryPromptBuilderTest {
     private fun summaryMessagesForHistory(historyLines: List<String>) = buildRawSummaryMessages(
         instruction = "Summarize the conversation",
         existingSummary = "Earlier events",
-        history = historyLines.joinToString("\n")
+        history = historyLines.joinToString("\n"),
     )
 }

@@ -17,20 +17,20 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
         db.beginTransaction()
         try {
             val phase = phase(db)
-            val compatible = db.query("SELECT cursor FROM search_progress WHERE kind = -1").use {
-                it.moveToFirst() && it.getLong(0) == SearchTextCodec.FORMAT_VERSION
+            val compatible = db.query("SELECT cursor FROM search_progress WHERE kind = -1").use { cursor ->
+                cursor.moveToFirst() && cursor.getLong(0) == SearchTextCodec.FORMAT_VERSION
             }
             // 已完成索引才恢复维护，丢失的检查点不能被误认为全量完成。
-            val complete = db.query("SELECT count(*) FROM search_progress WHERE kind BETWEEN 1 AND 3 AND complete = 1").use {
-                it.moveToFirst() && it.getInt(0) == 3
+            val complete = db.query("SELECT count(*) FROM search_progress WHERE kind BETWEEN 1 AND 3 AND complete = 1").use { cursor ->
+                cursor.moveToFirst() && cursor.getInt(0) == 3
             }
             if (phase == SearchIndexPhase.Enabled && compatible && complete) {
                 install(db)
             } else {
                 uninstall(db)
                 val clean = phase == null || phase == SearchIndexPhase.Disabled
-                val remains = db.query("SELECT EXISTS(SELECT 1 FROM search_progress WHERE kind != -2) OR EXISTS(SELECT 1 FROM search_sources) OR EXISTS(SELECT 1 FROM search_chunks)").use {
-                    it.moveToFirst() && it.getInt(0) != 0
+                val remains = db.query(query = "SELECT EXISTS(SELECT 1 FROM search_progress WHERE kind != -2) OR EXISTS(SELECT 1 FROM search_sources) OR EXISTS(SELECT 1 FROM search_chunks)").use { cursor ->
+                    cursor.moveToFirst() && cursor.getInt(0) != 0
                 }
                 setPhase(db, if (clean && !remains) SearchIndexPhase.Disabled else SearchIndexPhase.Cleaning)
             }
@@ -42,16 +42,19 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
 
     /** 读取唯一权威开关；缺失表示旧自动索引实现，不能视为用户同意开启。 */
     internal fun phase(db: SupportSQLiteDatabase): SearchIndexPhase? =
-        db.query("SELECT cursor FROM search_progress WHERE kind = -2").use {
-            if (it.moveToFirst()) {
-                val code = it.getLong(0)
+        db.query("SELECT cursor FROM search_progress WHERE kind = -2").use { cursor ->
+            if (cursor.moveToFirst()) {
+                val code = cursor.getLong(0)
                 SearchIndexPhase.entries.firstOrNull { phase -> phase.code == code }
             } else null
         }
 
     /** 调用方必须与维护入口变更放在同一事务内。 */
     internal fun setPhase(db: SupportSQLiteDatabase, phase: SearchIndexPhase) {
-        db.execSQL("INSERT OR REPLACE INTO search_progress(kind, cursor, complete) VALUES(-2, ?, 1)", arrayOf(phase.code))
+        db.execSQL(
+            sql = "INSERT OR REPLACE INTO search_progress(kind, cursor, complete) VALUES(-2, ?, 1)",
+            bindArgs = arrayOf(phase.code),
+        )
     }
 
     /** 显式开启时初始化全部检查点，不能继承上次关闭前的修订号。 */
@@ -59,7 +62,10 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
         for (kind in 0..3) {
             db.execSQL("INSERT INTO search_progress(kind, cursor, complete) VALUES(?, 0, 0)", arrayOf(kind))
         }
-        db.execSQL("INSERT INTO search_progress(kind, cursor, complete) VALUES(-1, ?, 1)", arrayOf(SearchTextCodec.FORMAT_VERSION))
+        db.execSQL(
+            sql = "INSERT INTO search_progress(kind, cursor, complete) VALUES(-1, ?, 1)",
+            bindArgs = arrayOf(SearchTextCodec.FORMAT_VERSION),
+        )
         setPhase(db, SearchIndexPhase.Building)
         install(db)
     }
@@ -84,8 +90,8 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
 
     /** 仅读取本模块拥有的名字，旧定义也可在关闭路径移除。 */
     private fun installedTriggers(db: SupportSQLiteDatabase): Map<String, String> =
-        db.query("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND (name GLOB 'search_source_*' OR name GLOB 'search_meta_*')").use {
-            buildMap { while (it.moveToNext()) put(it.getString(0), it.getString(1)) }
+        db.query(query = "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND (name GLOB 'search_source_*' OR name GLOB 'search_meta_*')").use { cursor ->
+            buildMap { while (cursor.moveToNext()) put(cursor.getString(0), cursor.getString(1)) }
         }
 
     /** 所有原文表与查询依赖集中声明；字段实际变化才触发，兼容 Room 全字段 UPDATE。 */
@@ -98,7 +104,9 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
                 val event = event(operation, source.columns)
                 val guard = guard(operation, source.columns)
                 // 外层 INSERT OR REPLACE 会覆盖内层冲突策略，必须先判断存在，不能依赖 OR IGNORE。
-                put(name, """
+                put(
+                    key = name,
+                    value = """
                     CREATE TRIGGER `$name` AFTER $event ON `${source.table}` $guard
                     BEGIN
                         INSERT INTO search_sources(kind, sourceId, parentId, revision, indexedRevision, deleted, dirty, changedTime)
@@ -109,17 +117,21 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
                             WHERE kind = ${source.kind} AND sourceId = $row.id;
                         UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0;
                     END
-                """.trimIndent())
+                """.trimIndent(),
+                )
             }
         }
         // 这些列覆盖标题、角色关联、结果排序与发言者标注，其他更新无需作废分页。
         for ((table, columns) in SearchSourceContract.metadataColumns) {
             for (operation in listOf("INSERT", "UPDATE", "DELETE")) {
                 val name = "search_meta_${table}_$operation"
-                put(name, """
+                put(
+                    key = name,
+                    value = """
                     CREATE TRIGGER `$name` AFTER ${event(operation, columns)} ON `$table` ${guard(operation, columns)}
                     BEGIN UPDATE search_progress SET cursor = cursor + 1 WHERE kind = 0; END
-                """.trimIndent())
+                """.trimIndent(),
+                )
             }
         }
     }

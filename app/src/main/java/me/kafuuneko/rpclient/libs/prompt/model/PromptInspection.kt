@@ -8,34 +8,63 @@ import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 /** Prompt 内容来源，用于检查器展示、预算裁剪记录和领域对象追踪。 */
 enum class PromptSourceKind {
     MainPrompt,
+
     WorldInfo,
+
     UserPersona,
+
     CharacterDescription,
+
     CharacterPersonality,
+
     Scenario,
+
     Summary,
+
     AuxiliaryPrompt,
+
     ExampleDialogue,
+
     NewChatMarker,
+
     ChatHistory,
+
     UserNote,
+
     CharacterNote,
+
     PostHistoryInstructions,
+
     CharacterReplyNudge,
+
     ContinueNudge,
+
     ImpersonationNudge,
+
     GroupIdentity,
+
     CharacterCard,
+
     GroupNudge,
+
     StoryMainPrompt,
+
     StoryMemory,
+
     StorySummary,
+
     StoryAuthorNote,
+
     StoryCharacter,
+
     StoryDocumentContext,
+
     StoryContinuationGuidance,
+
     StoryTask,
+
     PostProcessing,
+
     Other
 }
 
@@ -57,8 +86,11 @@ data class PromptSource(
 /** Prompt 内容未进入最终请求的原因。 */
 enum class PromptOmissionReason {
     ContextBudget,
+
     WorldInfoBudget,
+
     ImageCount,
+
     RequestBytes
 }
 

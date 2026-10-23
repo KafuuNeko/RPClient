@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.libs.search.storage
 
 import androidx.sqlite.db.SupportSQLiteDatabase
-import java.io.File
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import java.io.File
 
 /** 搜索关闭后的文件回收，仅由索引生命周期管理器在工作器退出后调用。 */
 internal class SearchStorageMaintenance(private val mDatabase: AppDatabase) {
@@ -30,13 +30,13 @@ internal class SearchStorageMaintenance(private val mDatabase: AppDatabase) {
 
     /** WAL 仍被占用时可重试，不能把未落盘的文件长度当作已回收。 */
     private fun checkpoint(db: SupportSQLiteDatabase) {
-        db.query("PRAGMA wal_checkpoint(TRUNCATE)").use {
-            check(it.moveToFirst() && it.getInt(0) == 0) { "Search cleanup checkpoint is busy" }
+        db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
+            check(cursor.moveToFirst() && cursor.getInt(0) == 0) { "Search cleanup checkpoint is busy" }
         }
     }
 
-    private fun scalar(db: SupportSQLiteDatabase, sql: String): Long = db.query(sql).use {
-        check(it.moveToFirst()) { "Missing storage pragma" }
-        it.getLong(0)
+    private fun scalar(db: SupportSQLiteDatabase, sql: String): Long = db.query(sql).use { cursor ->
+        check(cursor.moveToFirst()) { "Missing storage pragma" }
+        cursor.getLong(0)
     }
 }

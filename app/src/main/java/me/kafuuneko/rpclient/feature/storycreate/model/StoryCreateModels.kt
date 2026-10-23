@@ -37,15 +37,13 @@ data class StoryCreateForm(
         } else {
             StoryCreateCharacterActivationMode.Auto
         }
-        return copy(
-            characterActivationModes = characterActivationModes + (characterId to initialMode)
-        )
+        return copy(characterActivationModes = characterActivationModes + (characterId to initialMode))
     }
 
     /** 设置指定角色的激活模式；若设为 Primary 则自动将既有主角降级为 Auto。 */
     fun setCharacterActivationMode(
         characterId: Long,
-        activationMode: StoryCreateCharacterActivationMode
+        activationMode: StoryCreateCharacterActivationMode,
     ): StoryCreateForm {
         if (characterId !in characterActivationModes) return this
         val nextModes = if (activationMode == StoryCreateCharacterActivationMode.Primary) {
@@ -69,8 +67,10 @@ data class StoryCreateForm(
 enum class StoryCreateCharacterActivationMode {
     /** 主角：常驻置顶注入，单篇故事仅允许一个主角。 */
     Primary,
+
     /** 常驻配角：常驻注入。 */
     Always,
+
     /** 自动匹配：根据正文提及关键词动态激活。 */
     Auto
 }
@@ -126,7 +126,7 @@ data class StoryCreateLorebookGroupItem(
 
 /** 根据检索文本对世界书分组及条目进行匹配过滤。 */
 internal fun List<StoryCreateLorebookGroupItem>.filterForQuery(
-    query: String
+    query: String,
 ): List<StoryCreateLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -135,12 +135,12 @@ internal fun List<StoryCreateLorebookGroupItem>.filterForQuery(
         sequenceOf(entry.lorebookName, entry.name, entry.content) +
             entry.keywords.asSequence()
     },
-    copyWithEntries = { group, entries -> group.copy(entries = entries) }
+    copyWithEntries = { group, entries -> group.copy(entries = entries) },
 )
 
 /** 根据检索文本匹配角色名称、简介或标签。 */
 internal fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
-    query: String
+    query: String,
 ): List<StoryCreateCharacterItem> {
     val normalizedQuery = query.trim()
     if (normalizedQuery.isBlank()) return this
@@ -161,7 +161,7 @@ internal fun StoryCreateCharacterActivationMode.toStorageValue(): Int {
 /** 将持久化角色转换为当前页面的候选展示项。 */
 internal fun Character.toStoryCreateCharacterItem(
     userName: String,
-    lorebookNames: Map<Long, String>
+    lorebookNames: Map<Long, String>,
 ): StoryCreateCharacterItem {
     // 保留角色绑定世界书的原始查询规则；显示名称与有效 ID 分别解析。
     return StoryCreateCharacterItem(
@@ -170,11 +170,11 @@ internal fun Character.toStoryCreateCharacterItem(
         description = resolveCharacterUserMacros(
             template = description,
             characterName = name,
-            userName = userName
+            userName = userName,
         ),
         tags = getCharacterTagList(),
         linkedLorebookId = characterLorebookId.takeIf { it > 0L },
-        linkedLorebookName = lorebookNames[characterLorebookId]
+        linkedLorebookName = lorebookNames[characterLorebookId],
     )
 }
 
@@ -187,7 +187,7 @@ internal fun List<LorebookWithEntries>.toStoryCreateLorebookGroups(): List<Story
             lorebookId = lorebook.id,
             lorebookName = lorebook.name,
             entries = lorebookWithEntries.entries
-                .sortedBy { it.order }
+                .sortedBy { entry -> entry.order }
                 .map { entry ->
                     StoryCreateLorebookEntryItem(
                         id = entry.id,
@@ -197,9 +197,9 @@ internal fun List<LorebookWithEntries>.toStoryCreateLorebookGroups(): List<Story
                         keywords = entry.getKeywordList(),
                         constant = entry.constant,
                         order = entry.order,
-                        depth = entry.depth
+                        depth = entry.depth,
                     )
-                }
+                },
         )
     }.filter { it.entries.isNotEmpty() }
 }

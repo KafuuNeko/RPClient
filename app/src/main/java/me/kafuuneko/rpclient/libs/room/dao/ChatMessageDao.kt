@@ -49,7 +49,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getLatestMessagePageBySessionId(
         sessionId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /**
@@ -74,7 +74,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         beforeCreateTime: Long,
         beforeMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /**
@@ -100,7 +100,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         afterCreateTime: Long,
         afterMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /**
@@ -174,7 +174,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getLatestMessageAfterId(
         sessionId: Long,
-        coveredMessageId: Long
+        coveredMessageId: Long,
     ): ChatMessage?
 
     /**
@@ -201,7 +201,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         coveredMessageId: Long,
         latestCreateTime: Long,
         latestMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /** 从会话末尾读取总结边界之后的有限普通消息窗口。 */
@@ -218,7 +218,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getLatestMessagesAfterId(
         sessionId: Long,
         coveredMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /**
@@ -242,7 +242,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getMessagesInRange(
         sessionId: Long,
         afterMessageId: Long,
-        throughMessageId: Long
+        throughMessageId: Long,
     ): List<ChatMessage>
 
     /** 读取指定摘要范围按稳定顺序排列的最后一条普通消息。 */
@@ -260,7 +260,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getLatestMessageInRange(
         sessionId: Long,
         afterMessageId: Long,
-        throughMessageId: Long
+        throughMessageId: Long,
     ): ChatMessage?
 
     /** 读取指定摘要范围内、最后一条消息之前的最早候选窗口。 */
@@ -285,7 +285,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         throughMessageId: Long,
         latestCreateTime: Long,
         latestMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /** 从范围末尾读取有限普通消息窗口，供重生成回退总结边界时使用。 */
@@ -304,7 +304,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         sessionId: Long,
         afterMessageId: Long,
         throughMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<ChatMessage>
 
     /**
@@ -342,7 +342,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getPreviousSummaryBeforeBoundary(
         sessionId: Long,
-        coveredMessageId: Long
+        coveredMessageId: Long,
     ): ChatMessage?
 
     /** 按快照写入顺序读取上一份总结，供“恢复上一版”使用。 */
@@ -358,7 +358,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     )
     suspend fun getPreviousSummaryBeforeId(
         sessionId: Long,
-        summaryId: Long
+        summaryId: Long,
     ): ChatMessage?
 
     /**

@@ -19,9 +19,9 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
+import me.kafuuneko.rpclient.libs.appearance.DialogAppearance
 import java.util.function.Consumer
 import kotlin.math.roundToInt
-import me.kafuuneko.rpclient.libs.appearance.DialogAppearance
 
 /** 观察设备与省电模式的实时窗口模糊能力，预览和弹窗使用同一降级判断。 */
 @Composable
@@ -35,7 +35,7 @@ internal fun rememberDialogBlurAvailable(): Boolean {
     // 设备可以在弹窗显示期间关闭模糊，监听必须随组合释放，不能持有已关闭的窗口。
     DisposableEffect(manager, inspection) {
         if (!inspection && Build.VERSION.SDK_INT >= 31) {
-            val listener = Consumer<Boolean> { available = it }
+            val listener = Consumer<Boolean> { enabled -> available = enabled }
             manager.addCrossWindowBlurEnabledListener(context.mainExecutor, listener)
             onDispose { manager.removeCrossWindowBlurEnabledListener(listener) }
         } else onDispose { }
@@ -79,7 +79,7 @@ private fun updateDialogWindow(window: Window, settings: DialogAppearance, densi
     window.setDimAmount(settings.dim / 100f)
     if (Build.VERSION.SDK_INT < 31) return
     // 强度按密度转换为物理像素，并限制半径，避免高密度设备产生过大 GPU 开销。
-    fun radius(strength: Int) = (strength * 0.4f * density).roundToInt().coerceIn(0, 150)
+    fun radius(strength: Int) = (strength * 0.4f * density).roundToInt().coerceIn(minimumValue = 0, maximumValue = 150)
     window.setBackgroundBlurRadius(if (settings.transparency > 0) radius(settings.blur) else 0)
     val attributes = window.attributes
     attributes.blurBehindRadius = radius(settings.behindBlur)

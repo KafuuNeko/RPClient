@@ -127,7 +127,7 @@ internal fun LLMTokenUsageGroup.toUiModel(ratio: Float): TokenUsageGroupItem {
         outputTokens = outputTokens,
         cachedInputTokens = cachedInputTokens,
         reasoningTokens = reasoningTokens,
-        ratio = ratio
+        ratio = ratio,
     )
 }
 
@@ -149,6 +149,6 @@ internal fun LLMTokenUsageRecord.toUiModel(): TokenUsageRecordItem {
         tokenizerName = tokenizerName,
         cachedInputTokens = cachedInputTokens,
         reasoningTokens = reasoningTokens,
-        durationMs = durationMs
+        durationMs = durationMs,
     )
 }

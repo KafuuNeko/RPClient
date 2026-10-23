@@ -29,13 +29,16 @@ fun PageOutlinedButton(
     border: BorderStroke? = ButtonDefaults.outlinedButtonBorder(enabled),
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     val opacity = generalOpacity(LocalGeneralSurfaceKind.current)
     val borderColor = (border?.brush as? SolidColor)?.value
     // 只淡化底板与描边，避免把标签、禁用状态和点击反馈一起变透明。
     val outline = if (borderColor != null) {
-        BorderStroke(border.width, borderColor.copy(alpha = borderColor.alpha * opacity.coerceAtLeast(0.1f)))
+        BorderStroke(
+            width = border.width,
+            color = borderColor.copy(alpha = borderColor.alpha * opacity.coerceAtLeast(0.1f)),
+        )
     } else border
     OutlinedButton(
         onClick = onClick,
@@ -47,7 +50,7 @@ fun PageOutlinedButton(
         border = outline,
         contentPadding = contentPadding,
         interactionSource = interactionSource,
-        content = content
+        content = content,
     )
 }
 
@@ -61,12 +64,12 @@ fun PageButton(
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     val opacity = generalOpacity(LocalGeneralSurfaceKind.current)
     // 主色填充淡出后改用页面前景，防止 onPrimary 文字落在壁纸上失去对比。
     val fill = colors.withSurfaceOpacity(opacity).copy(
-        contentColor = if (opacity < 0.5f) MaterialTheme.colorScheme.onSurface else colors.contentColor
+        contentColor = if (opacity < 0.5f) MaterialTheme.colorScheme.onSurface else colors.contentColor,
     )
     // 可见底板覆盖最小触摸高度，防止模糊画进 Material 按钮上下的透明触摸留白。
     val bounds = modifier.heightIn(min = 48.dp)
@@ -82,12 +85,12 @@ fun PageButton(
         elevation = if (opacity < 1f) null else ButtonDefaults.buttonElevation(),
         contentPadding = contentPadding,
         interactionSource = interactionSource,
-        content = content
+        content = content,
     )
 }
 
 /** 背景独立于内容颜色，禁用按钮也遵循同一套区域参数。 */
 private fun ButtonColors.withSurfaceOpacity(opacity: Float): ButtonColors = copy(
     containerColor = containerColor.copy(alpha = containerColor.alpha * opacity),
-    disabledContainerColor = disabledContainerColor.copy(alpha = disabledContainerColor.alpha * opacity)
+    disabledContainerColor = disabledContainerColor.copy(alpha = disabledContainerColor.alpha * opacity),
 )

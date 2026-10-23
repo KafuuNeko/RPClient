@@ -54,34 +54,30 @@ class GroupChatGreetingPlanner {
         candidates: List<GroupChatGreetingCandidate>,
         selection: GroupChatGreetingSelection,
         userName: String,
-        random: Random = Random.Default
+        random: Random = Random.Default,
     ): List<GroupChatOpeningMessage> {
         return when (selection) {
             GroupChatGreetingSelection.RandomPerCharacter -> candidates.mapNotNull { candidate ->
                 candidate.greetings
-                    .filter { it.isNotBlank() }
+                    .filter { text -> text.isNotBlank() }
                     .randomOrNull(random)
                     ?.toOpeningMessage(candidate, userName)
             }
             is GroupChatGreetingSelection.Manual -> {
-                val candidate = candidates.firstOrNull {
-                    it.characterId == selection.characterId
-                } ?: return emptyList()
+                val candidate = candidates.firstOrNull { it.characterId == selection.characterId } ?: return emptyList()
                 listOfNotNull(
-                    candidate.greetings
+                    element = candidate.greetings
                         .getOrNull(selection.greetingIndex)
                         ?.takeIf { it.isNotBlank() }
-                        ?.toOpeningMessage(candidate, userName)
+                        ?.toOpeningMessage(candidate, userName),
                 )
             }
             is GroupChatGreetingSelection.Custom -> {
-                val candidate = candidates.firstOrNull {
-                    it.characterId == selection.characterId
-                } ?: return emptyList()
+                val candidate = candidates.firstOrNull { it.characterId == selection.characterId } ?: return emptyList()
                 listOfNotNull(
-                    selection.content
+                    element = selection.content
                         .takeIf { it.isNotBlank() }
-                        ?.toOpeningMessage(candidate, userName)
+                        ?.toOpeningMessage(candidate, userName),
                 )
             }
             GroupChatGreetingSelection.None -> emptyList()
@@ -90,14 +86,14 @@ class GroupChatGreetingPlanner {
 
     private fun String.toOpeningMessage(
         candidate: GroupChatGreetingCandidate,
-        userName: String
+        userName: String,
     ): GroupChatOpeningMessage {
         return GroupChatOpeningMessage(
             characterId = candidate.characterId,
             characterName = candidate.characterName,
-            content = replace("{{char}}", candidate.characterName, ignoreCase = true)
-                .replace("{{user}}", userName, ignoreCase = true)
-                .trim()
+            content = replace(oldValue = "{{char}}", newValue = candidate.characterName, ignoreCase = true)
+                .replace(oldValue = "{{user}}", newValue = userName, ignoreCase = true)
+                .trim(),
         )
     }
 }

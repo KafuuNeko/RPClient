@@ -27,7 +27,7 @@ internal fun StoryOverview.toUiModel(): MainStoryItem {
         preview = preview.replace(WHITESPACE_REGEX, " ").trim(),
         contentCharacterCount = contentCharacterCount,
         updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
-        latestTime = latestTime
+        latestTime = latestTime,
     )
 }
 

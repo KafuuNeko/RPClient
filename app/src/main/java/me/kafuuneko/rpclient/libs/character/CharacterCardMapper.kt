@@ -32,21 +32,17 @@ class CharacterCardMapper(
         val data = root.optJsonObject("data")
         return if (data != null) {
             val character = data.toCharacter(avatar, characterLorebookId)
-            val regexExtraction = mRegexCodec.extractFromCharacterExtensions(
-                character.extensionsJson
-            )
+            val regexExtraction = mRegexCodec.extractFromCharacterExtensions(character.extensionsJson)
             CharacterCardImport(
-                character = character.copy(
-                    extensionsJson = regexExtraction.extensionsJson
-                ),
+                character = character.copy(extensionsJson = regexExtraction.extensionsJson),
                 embeddedLorebook = data.optJsonObject("character_book")?.toLorebookImport(),
-                regexScripts = regexExtraction.scripts
+                regexScripts = regexExtraction.scripts,
             )
         } else {
             CharacterCardImport(
                 character = root.toV1Character(avatar, characterLorebookId),
                 embeddedLorebook = null,
-                regexScripts = emptyList()
+                regexScripts = emptyList(),
             )
         }
     }
@@ -56,7 +52,7 @@ class CharacterCardMapper(
         character: Character,
         lorebook: Lorebook? = null,
         entries: List<LorebookEntry> = emptyList(),
-        regexScripts: List<RegexScript> = emptyList()
+        regexScripts: List<RegexScript> = emptyList(),
     ): String {
         // 组装 V2 规范中的 data 节点基础字段
         val data = JsonObject()
@@ -64,7 +60,13 @@ class CharacterCardMapper(
         data.addProperty("description", character.description)
         data.addProperty("personality", character.personality)
         data.addProperty("scenario", character.scenario)
-        data.addProperty("first_mes", character.getFirstMessageList().firstOrNull().orEmpty())
+        data.addProperty(
+            "first_mes",
+            character
+            .getFirstMessageList()
+            .firstOrNull()
+            .orEmpty(),
+        )
         data.addProperty("mes_example", character.examplesOfDialogue)
         data.addProperty("creator_notes", character.creatorNotes)
         data.addProperty("system_prompt", character.systemPrompt)
@@ -76,12 +78,12 @@ class CharacterCardMapper(
 
         // 注入角色作用域正则脚本与 Depth Prompt 扩展属性
         val extensionsWithRegex = mRegexCodec.injectIntoCharacterExtensions(
-            character.extensionsJson,
-            regexScripts
+            json = character.extensionsJson,
+            scripts = regexScripts,
         )
         data.add(
             "extensions",
-            parseObjectOrEmpty(extensionsWithRegex).withDepthPrompt(character)
+            parseObjectOrEmpty(extensionsWithRegex).withDepthPrompt(character),
         )
 
         // 嵌入绑定的专属世界书（若存在）
@@ -100,7 +102,7 @@ class CharacterCardMapper(
     /** 将 V2 data 节点解析映射为本地 Character 实体。 */
     private fun JsonObject.toCharacter(
         avatar: String,
-        characterLorebookId: Long
+        characterLorebookId: Long,
     ): Character {
         val extensions = optJsonObject("extensions") ?: JsonObject()
         val depthPrompt = extensions.optJsonObject("depth_prompt") ?: JsonObject()
@@ -123,16 +125,16 @@ class CharacterCardMapper(
             alternateGreetings = mGson.toJsonString(alternates),
             extensionsJson = mGson.toJson(extensions),
             depthPromptPrompt = depthPrompt.optString("prompt"),
-            depthPromptDepth = depthPrompt.optInt("depth", 4),
+            depthPromptDepth = depthPrompt.optInt(name = "depth", default = 4),
             depthPromptRole = depthPrompt.optRole("role"),
-            characterLorebookId = characterLorebookId
+            characterLorebookId = characterLorebookId,
         )
     }
 
     /** 将旧版 V1 根节点格式解析映射为本地 Character 实体。 */
     private fun JsonObject.toV1Character(
         avatar: String,
-        characterLorebookId: Long
+        characterLorebookId: Long,
     ): Character {
         return Character(
             name = optString("name").ifBlank { optString("char_name") },
@@ -146,7 +148,7 @@ class CharacterCardMapper(
             examplesOfDialogue = optString("mes_example").ifBlank { optString("example_dialogue") },
             postHistoryInstructions = "",
             creator = optString("creator"),
-            characterLorebookId = characterLorebookId
+            characterLorebookId = characterLorebookId,
         )
     }
 
@@ -156,10 +158,10 @@ class CharacterCardMapper(
         val lorebook = Lorebook(
             name = name,
             description = optString("description"),
-            scanDepth = optInt("scan_depth", 2),
-            tokenBudget = optInt("token_budget", 0),
-            recursiveScanning = optBoolean("recursive_scanning", false),
-            extensionsJson = mGson.toJson(optJsonObject("extensions") ?: JsonObject())
+            scanDepth = optInt(name = "scan_depth", default = 2),
+            tokenBudget = optInt(name = "token_budget", default = 0),
+            recursiveScanning = optBoolean(name = "recursive_scanning", default = false),
+            extensionsJson = mGson.toJson(optJsonObject("extensions") ?: JsonObject()),
         )
         val entries = getAsJsonArray("entries")?.mapIndexed { index, element ->
             val entry = element.asJsonObject
@@ -177,39 +179,39 @@ class CharacterCardMapper(
             name = optString("name").ifBlank { optString("comment") },
             keywords = mGson.toJsonString(getAsJsonArray("keys")?.toStringList().orEmpty()),
             secondaryKeywords = mGson.toJsonString(getAsJsonArray("secondary_keys")?.toStringList().orEmpty()),
-            constant = optBoolean("constant", false),
+            constant = optBoolean(name = "constant", default = false),
             order = optInt("insertion_order", optInt("priority", index)),
-            depth = extensions.optInt("depth", 4),
+            depth = extensions.optInt(name = "depth", default = 4),
             category = "[]",
             content = optString("content"),
-            disabled = !optBoolean("enabled", true),
+            disabled = !optBoolean(name = "enabled", default = true),
             position = extensions.optInt("position", optPosition()),
             role = extensions.optRole("role"),
-            probability = extensions.optInt("probability", 100),
-            ignoreBudget = extensions.optBoolean("ignore_budget", false),
+            probability = extensions.optInt(name = "probability", default = 100),
+            ignoreBudget = extensions.optBoolean(name = "ignore_budget", default = false),
             scanDepth = extensions.optNullableInt("scan_depth"),
             selectiveLogic = extensions.optInt("selectiveLogic", LorebookEntry.LOGIC_AND_ANY),
             matchWholeWords = extensions.optNullableBoolean("match_whole_words"),
-            caseSensitive = if (has("case_sensitive")) optBoolean("case_sensitive", false) else extensions.optNullableBoolean("case_sensitive"),
-            useGroupScoring = extensions.optBoolean("use_group_scoring", false),
+            caseSensitive = if (has("case_sensitive")) optBoolean(name = "case_sensitive", default = false) else extensions.optNullableBoolean("case_sensitive"),
+            useGroupScoring = extensions.optBoolean(name = "use_group_scoring", default = false),
             group = extensions.optString("group"),
-            groupOverride = extensions.optBoolean("group_override", false),
+            groupOverride = extensions.optBoolean(name = "group_override", default = false),
             groupWeight = extensions.optNullableInt("group_weight"),
-            preventRecursion = extensions.optBoolean("prevent_recursion", false),
-            delayUntilRecursion = extensions.optBoolean("delay_until_recursion", false),
+            preventRecursion = extensions.optBoolean(name = "prevent_recursion", default = false),
+            delayUntilRecursion = extensions.optBoolean(name = "delay_until_recursion", default = false),
             sticky = extensions.optNullableInt("sticky"),
             cooldown = extensions.optNullableInt("cooldown"),
             delay = extensions.optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
             triggers = mGson.toJsonString(extensions.getAsJsonArray("triggers")?.toStringList().orEmpty()),
-            matchPersonaDescription = extensions.optBoolean("match_persona_description", false),
-            matchCharacterDescription = extensions.optBoolean("match_character_description", false),
-            matchCharacterPersonality = extensions.optBoolean("match_character_personality", false),
-            matchCharacterDepthPrompt = extensions.optBoolean("match_character_depth_prompt", false),
-            matchScenario = extensions.optBoolean("match_scenario", false),
-            matchCreatorNotes = extensions.optBoolean("match_creator_notes", false),
+            matchPersonaDescription = extensions.optBoolean(name = "match_persona_description", default = false),
+            matchCharacterDescription = extensions.optBoolean(name = "match_character_description", default = false),
+            matchCharacterPersonality = extensions.optBoolean(name = "match_character_personality", default = false),
+            matchCharacterDepthPrompt = extensions.optBoolean(name = "match_character_depth_prompt", default = false),
+            matchScenario = extensions.optBoolean(name = "match_scenario", default = false),
+            matchCreatorNotes = extensions.optBoolean(name = "match_creator_notes", default = false),
             extensionsJson = mGson.toJson(extensions),
-            rawJson = mGson.toJson(this)
+            rawJson = mGson.toJson(this),
         )
     }
 
@@ -286,11 +288,14 @@ class CharacterCardMapper(
         val depthPrompt = optJsonObject("depth_prompt") ?: JsonObject()
         depthPrompt.addProperty("prompt", character.depthPromptPrompt)
         depthPrompt.addProperty("depth", character.depthPromptDepth)
-        depthPrompt.addProperty("role", when (character.depthPromptRole) {
+        depthPrompt.addProperty(
+            "role",
+            when (character.depthPromptRole) {
             LorebookEntry.ROLE_USER -> "user"
             LorebookEntry.ROLE_ASSISTANT -> "assistant"
             else -> "system"
-        })
+        },
+        )
         add("depth_prompt", depthPrompt)
         return this
     }
@@ -307,9 +312,12 @@ class CharacterCardMapper(
         return when (val value = get(name)?.takeIf { !it.isJsonNull }) {
             null -> LorebookEntry.ROLE_SYSTEM
             else -> when {
-                value.isJsonPrimitive && value.asJsonPrimitive.isNumber -> value.asInt.coerceIn(0, 2)
-                value.asString.equals("user", ignoreCase = true) -> LorebookEntry.ROLE_USER
-                value.asString.equals("assistant", ignoreCase = true) -> LorebookEntry.ROLE_ASSISTANT
+                value.isJsonPrimitive && value.asJsonPrimitive.isNumber -> value.asInt.coerceIn(
+                    minimumValue = 0,
+                    maximumValue = 2,
+                )
+                value.asString.equals(other = "user", ignoreCase = true) -> LorebookEntry.ROLE_USER
+                value.asString.equals(other = "assistant", ignoreCase = true) -> LorebookEntry.ROLE_ASSISTANT
                 else -> LorebookEntry.ROLE_SYSTEM
             }
         }
@@ -325,23 +333,23 @@ class CharacterCardMapper(
     }
 
     private fun JsonObject.optInt(name: String, default: Int): Int {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull() ?: default
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull() ?: default
     }
 
     private fun JsonObject.optNullableInt(name: String): Int? {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull()
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull()
     }
 
     private fun JsonObject.optBoolean(name: String, default: Boolean): Boolean {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull() ?: default
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asBoolean }.getOrNull() ?: default
     }
 
     private fun JsonObject.optNullableBoolean(name: String): Boolean? {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull()
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asBoolean }.getOrNull()
     }
 
     private fun JsonArray.toStringList(): List<String> {
-        return mapNotNull { element -> element.takeIf { !it.isJsonNull }?.asString }
+        return mapNotNull { element -> element.takeIf { element -> !element.isJsonNull }?.asString }
     }
 
     private fun parseArrayOrEmpty(json: String): JsonArray {

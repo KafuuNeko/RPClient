@@ -23,12 +23,17 @@ internal class DatabaseScanSearchEngine(
     private val mOrder = compareByDescending<SearchHit> { it.latestTime }.thenBy { it.kind }.thenByDescending { it.parentId }
 
     /** 只观察业务表写入，关闭索引后仍可正确拒绝过期分页。 */
-    override suspend fun snapshot(): Snapshot = Snapshot(mRevision.current(), true)
+    override suspend fun snapshot(): Snapshot = Snapshot(revision = mRevision.current(), complete = true)
 
     /** 用户明确选择的慢速路径，遍历原始正文，不依赖全文索引是否可用。 */
     override suspend fun body(
-        request: SearchRequest, query: String, cursor: SearchCursor?, initial: Snapshot,
-        metadata: List<SearchHit>, excluded: Set<String>, onPartial: suspend (List<SearchHit>) -> Unit
+        request: SearchRequest,
+        query: String,
+        cursor: SearchCursor?,
+        initial: Snapshot,
+        metadata: List<SearchHit>,
+        excluded: Set<String>,
+        onPartial: suspend (List<SearchHit>) -> Unit,
     ): SearchPage {
         val limit = PAGE_SIZE - metadata.size
         val candidates = LinkedHashMap<String, SearchHit>()
@@ -50,12 +55,30 @@ internal class DatabaseScanSearchEngine(
                     val text = mDao.readSearchText(source)
                     val normalized = withContext(Dispatchers.Default) { SearchTextCodec.normalize(SearchTextCodec.project(text)) }
                     val chunk = SearchTextCodec.chunks(normalized).firstOrNull { it.second.contains(query) } ?: continue
-                    val match = SearchChunkMatch(kind, source.parentId, source.sourceId, 0, owner.latestTime,
-                        owner.title, owner.names, "", support.sourceLabel(kind, source.sourceId, owner.names))
+                    val match = SearchChunkMatch(
+                        kind = kind,
+                        parentId = source.parentId,
+                        sourceId = source.sourceId,
+                        rowid = 0,
+                        latestTime = owner.latestTime,
+                        title = owner.title,
+                        names = owner.names,
+                        tokens = "",
+                        sourceLabel = support.sourceLabel(
+                            kind = kind,
+                            sourceId = source.sourceId,
+                            fallback = owner.names,
+                        ),
+                    )
                     val hit = support.hydrate(match, query, chunk.second) ?: continue
                     val boundary = cursor?.takeIf { it.phase == 1 }
-                    if (!support.after(hit, boundary) && !(request.parentId != null && boundary != null &&
-                            hit.latestTime == boundary.time && hit.parentId == boundary.id && hit.sourceId < boundary.sourceId)) continue
+                    val isOutsideCursorBoundary = !support.after(hit, boundary)
+                        && !(request.parentId != null
+                        && boundary != null
+                        && hit.latestTime == boundary.time
+                        && hit.parentId == boundary.id
+                        && hit.sourceId < boundary.sourceId)
+                    if (isOutsideCursorBoundary) continue
                     val key = if (request.parentId == null) hit.key else "${hit.key}:${hit.sourceId}"
                     candidates.putIfAbsent(key, hit)
                     if (candidates.size > limit + 1) {
@@ -69,6 +92,13 @@ internal class DatabaseScanSearchEngine(
             }
         }
         val hits = metadata + candidates.values.sortedWith(order).take(limit)
-        return SearchPage(hits, if (candidates.size > limit) with(support) { hits.last().cursor(initial.revision, 1) } else null, true)
+        return SearchPage(
+            hits = hits,
+            next = if (candidates.size > limit) with(support) { hits.last().cursor(
+                revision = initial.revision,
+                phase = 1,
+            ) } else null,
+            complete = true,
+        )
     }
 }

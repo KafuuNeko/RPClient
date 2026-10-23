@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -44,25 +43,25 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 fun ChatLayout(
     uiState: ChatUiState,
     background: PageBackgroundUiState = PageBackgroundUiState(),
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is ChatUiState.Normal) { ChatUiIntent.Back.emit() }
+    BackHandler(enabled = uiState is ChatUiState.Normal, onBack = { ChatUiIntent.Back.emit() })
     when (uiState) {
         ChatUiState.None -> {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(pageCanvasColor())
+                    .background(pageCanvasColor()),
             )
         }
 
-        is ChatUiState.Finished -> ChatLayout(uiState.previous, background) {}
+        is ChatUiState.Finished -> ChatLayout(uiState = uiState.previous, background = background, emit = {})
 
         is ChatUiState.Normal -> {
             // 页面切换只卸载视图，保留会话和设置各自的列表位置。
             val pageStateHolder = rememberSaveableStateHolder()
             // 设置子页沿用会话背景，公共表面按该页内容区参数装饰。
-            PageBackdrop(background, useContainerAppearance = uiState.page == ChatPage.Settings) {
+            PageBackdrop(state = background, useContainerAppearance = uiState.page == ChatPage.Settings) {
                 pageStateHolder.SaveableStateProvider("${uiState.session.id}:${uiState.page.name}") {
                     when (uiState.page) {
                         ChatPage.Conversation -> ChatNormalPage(uiState, emit)
@@ -70,7 +69,7 @@ fun ChatLayout(
                             session = uiState.session,
                             lorebookState = uiState.lorebookState,
                             loadState = uiState.loadState,
-                            emit = emit
+                            emit = emit,
                         )
                     }
                 }
@@ -83,7 +82,7 @@ fun ChatLayout(
 @Composable
 private fun DialogSwitch(
     state: ChatUiState.Normal,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     when (val dialogState = state.dialogState) {
         ChatDialogState.None -> Unit
@@ -91,7 +90,7 @@ private fun DialogSwitch(
         is ChatDialogState.SessionLorebook -> ChatSessionLorebookDialog(
             groups = state.lorebookState.groups,
             dialogState = dialogState,
-            emit = emit
+            emit = emit,
         )
 
         ChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
@@ -101,11 +100,11 @@ private fun DialogSwitch(
                 R.string.summary_token_limit_message,
                 stringResource(R.string.summary_memory),
                 stringResource(R.string.general_summary_memory),
-                stringResource(R.string.summary_response_tokens)
+                stringResource(R.string.summary_response_tokens),
             ),
             confirmText = stringResource(R.string.summary_go_to_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { ChatUiIntent.OpenSummarySettings.emit() }
+            onConfirm = { ChatUiIntent.OpenSummarySettings.emit() },
         )
 
         is ChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
@@ -114,18 +113,18 @@ private fun DialogSwitch(
             message = dialogState.message,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { ChatUiIntent.OpenProviderSettings.emit() }
+            onConfirm = { ChatUiIntent.OpenProviderSettings.emit() },
         )
 
         ChatDialogState.Exporting -> LoadingDialog(
             title = stringResource(R.string.exporting_chat),
-            description = stringResource(R.string.export_chat_desc)
+            description = stringResource(R.string.export_chat_desc),
         )
 
         ChatDialogState.Summarizing -> LoadingDialog(
             title = stringResource(R.string.updating_summary),
             description = stringResource(R.string.summarize_now_desc),
-            onCancel = { ChatUiIntent.CancelSummary.emit() }
+            onCancel = { ChatUiIntent.CancelSummary.emit() },
         )
 
         is ChatDialogState.PromptInspector -> PromptInspectorDialog(
@@ -135,7 +134,7 @@ private fun DialogSwitch(
             onPreviewImages = { ids, index ->
                 ChatUiIntent.ImageAction(MessageImageAction.Preview(ids, index))
                     .emit()
-            }
+            },
         )
 
         is ChatDialogState.DeleteSessionConfirm -> AppDangerDialog(
@@ -144,7 +143,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.delete_chat_message, dialogState.sessionTitle),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { ChatUiIntent.ConfirmDeleteSession.emit() }
+            onConfirm = { ChatUiIntent.ConfirmDeleteSession.emit() },
         )
 
         is ChatDialogState.DeleteMessageConfirm -> AppDangerDialog(
@@ -153,7 +152,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.delete_message_confirm),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() }
+            onConfirm = { ChatUiIntent.ConfirmDeleteMessage(dialogState.messageId).emit() },
         )
     }
 }
@@ -163,7 +162,7 @@ private fun DialogSwitch(
 private fun ChatSessionLorebookDialog(
     groups: List<ChatLorebookGroupItem>,
     dialogState: ChatDialogState.SessionLorebook,
-    emit: ChatUiIntent.() -> Unit
+    emit: ChatUiIntent.() -> Unit,
 ) {
     // 映射只包含通用 Dialog 所需的展示字段，确认后的持久化仍由单聊状态层负责。
     val dialogGroups = remember(groups) {
@@ -182,7 +181,7 @@ private fun ChatSessionLorebookDialog(
         onToggleEntry = { ChatUiIntent.ToggleSessionLorebookDialogEntry(it).emit() },
         onConfirmSelection = { ChatUiIntent.ConfirmSessionLorebookSelection.emit() },
         onManageWorldBooks = { ChatUiIntent.OpenWorldBookManager.emit() },
-        onDismissRequest = { ChatUiIntent.DismissDialog.emit() }
+        onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
     )
 }
 
@@ -197,9 +196,9 @@ private fun ChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLoreboo
                 name = entry.name,
                 content = entry.content,
                 keywords = entry.keywords,
-                constant = entry.constant
+                constant = entry.constant,
             )
-        }
+        },
     )
 }
 
@@ -219,7 +218,7 @@ private fun ChatLayoutPreview() {
                     creatorNotes = "",
                     autoSummaryPaused = false,
                     messageCount = 1,
-                    enabledLorebookEntryIds = setOf(1)
+                    enabledLorebookEntryIds = setOf(1),
                 ),
                 character = ChatCharacterItem(
                     id = 1,
@@ -231,55 +230,55 @@ private fun ChatLayoutPreview() {
                     postHistoryInstructions = "",
                     creatorNotes = "",
                     avatarText = "L",
-                    accentColor = DefaultCharacterAccentColor
+                    accentColor = DefaultCharacterAccentColor,
                 ),
                 conversationState = ChatConversationState(
                     messages = listOf(
-                        ChatMessageUiModel(
+                        element = ChatMessageUiModel(
                             id = "1",
                             role = MessageRole.Assistant,
                             speaker = "Lyra",
                             content = "## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf",
-                            parts = listOf(MessageContentPart.Text("## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf")),
+                            parts = listOf(element = MessageContentPart.Text(content = "## Archive note\nThe rain kept **tapping** on the archive windows.\n\n- Index the file\n- Check `sealed` shelf")),
                             time = "02:15",
-                            tokenCount = 12
-                        )
+                            tokenCount = 12,
+                        ),
                     ),
-                    hasAssistantMessage = true
+                    hasAssistantMessage = true,
                 ),
                 lorebookState = ChatLorebookState(
                     groups = listOf(
-                        ChatLorebookGroupItem(
+                        element = ChatLorebookGroupItem(
                             lorebookId = 1,
                             lorebookName = "Fog Harbor",
                             enabledCount = 1,
                             totalCount = 1,
                             entries = listOf(
-                                ChatLorebookEntryItem(
-                                    1,
-                                    1,
-                                    "Fog Harbor",
-                                    "Old District",
-                                    listOf("rain"),
-                                    emptyList(),
-                                    false,
-                                    0,
-                                    0,
-                                    "",
-                                    true
-                                )
-                            )
-                        )
-                    )
+                                element = ChatLorebookEntryItem(
+                                    id = 1,
+                                    lorebookId = 1,
+                                    lorebookName = "Fog Harbor",
+                                    name = "Old District",
+                                    keywords = listOf("rain"),
+                                    secondaryKeywords = emptyList(),
+                                    constant = false,
+                                    order = 0,
+                                    depth = 0,
+                                    content = "",
+                                    enabled = true,
+                                ),
+                            ),
+                        ),
+                    ),
                 ),
                 streamEnabled = true,
                 dialogState = ChatDialogState.SessionLorebook(
                     query = "",
                     visibleGroups = emptyList(),
-                    enabledEntryIds = setOf(1)
-                )
+                    enabledEntryIds = setOf(1),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

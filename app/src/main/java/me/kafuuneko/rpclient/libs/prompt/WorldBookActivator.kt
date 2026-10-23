@@ -6,10 +6,10 @@ import com.google.gson.annotations.SerializedName
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
+import me.kafuuneko.rpclient.libs.regex.JavaScriptRegexCompiler
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
-import me.kafuuneko.rpclient.libs.regex.JavaScriptRegexCompiler
 import kotlin.random.Random
 
 /**
@@ -40,21 +40,19 @@ class WorldBookActivator {
      */
     fun activateStructured(context: PromptBuildContext): WorldBookActivationResult {
         return activateStructured(
-            WorldBookScanContext(
-                messages = context.messages.map {
+            context = WorldBookScanContext(
+                messages = context.messages.map { message ->
                     WorldBookScanMessage(
-                        speakerName = when (it.source) {
+                        speakerName = when (message.source) {
                             ChatMessage.Source.User -> context.userName
                             ChatMessage.Source.Char -> context.character.name
                             ChatMessage.Source.System,
                             ChatMessage.Source.Summary -> "System"
                         },
-                        content = it.content
+                        content = message.content,
                     )
                 },
-                currentUserMessage = context.currentUserMessage?.let {
-                    WorldBookScanMessage(context.userName, it)
-                },
+                currentUserMessage = context.currentUserMessage?.let { WorldBookScanMessage(context.userName, it) },
                 totalMessageCount = context.totalMessageCount,
                 worldInfoStateJson = context.session.worldInfoStateJson,
                 candidateLorebookEntries = context.candidateLorebookEntries,
@@ -66,8 +64,8 @@ class WorldBookActivator {
                 characterPersonality = context.character.personality,
                 characterDepthPrompt = context.character.depthPromptPrompt,
                 scenario = context.character.scenario,
-                creatorNotes = context.character.creatorNotes
-            )
+                creatorNotes = context.character.creatorNotes,
+            ),
         )
     }
 
@@ -88,9 +86,9 @@ class WorldBookActivator {
             .filter { it.allowsGenerationType(context.generationType) }
             .filter { it.isStickyActive(state, messageCount) }
             .sortedForActivation()
-            .forEach {
-                activated[it.id] = it
-                timedStickyIds += it.id
+            .forEach { entry ->
+                activated[entry.id] = entry
+                timedStickyIds += entry.id
             }
 
         // 多轮递归扫描匹配（第 0 轮扫描上下文文本；后续轮次扫描递归缓冲区）
@@ -114,14 +112,14 @@ class WorldBookActivator {
                         recursionBuffer = recursionBuffer.takeIf {
                             step > 0 && context.isRecursiveScanningEnabled(entry.lorebookId)
                         }.orEmpty(),
-                        messageCount = messageCount
+                        messageCount = messageCount,
                     )
-                    score?.let { EntryActivation(entry, it) }
+                    score?.let { value -> EntryActivation(entry, value) }
                 }
                 .sortedWith(
-                    compareByDescending<EntryActivation> { it.entry.constant }
+                    comparator = compareByDescending<EntryActivation> { it.entry.constant }
                         .thenByDescending { it.entry.order }
-                        .thenBy { it.entry.id }
+                        .thenBy { it.entry.id },
                 )
 
             if (matchedEntries.isEmpty()) break
@@ -132,7 +130,7 @@ class WorldBookActivator {
                 .applyInclusionGroups(
                     activationScores = activationScores,
                     stickyIds = timedStickyIds,
-                    alreadyActivated = activated.values
+                    alreadyActivated = activated.values,
                 )
                 .filter { entry ->
                     entry.passesProbability().also { passed ->
@@ -157,14 +155,14 @@ class WorldBookActivator {
             freshTimedIds = activated.values
                 .filter { it.id !in timedStickyIds && it.hasTimedEffect() }
                 .map { it.id }
-                .toSet()
+                .toSet(),
         )
 
         // 转换为按位置结构化分组的激活结果对象
         return activated.values.toList().toActivationResult(
             nextState = nextState,
             previousState = state,
-            messageCount = messageCount
+            messageCount = messageCount,
         )
     }
 
@@ -186,11 +184,11 @@ class WorldBookActivator {
             messageCount = result.messageCount,
             entries = result.activatedEntries,
             stickyIds = stickyIds,
-            freshTimedIds = freshTimedIds
+            freshTimedIds = freshTimedIds,
         )
         return result.copy(
             nextStateJson = nextState.toJson(mGson),
-            nextState = nextState
+            nextState = nextState,
         )
     }
 
@@ -198,7 +196,7 @@ class WorldBookActivator {
     private fun LorebookEntry.activationScore(
         context: WorldBookScanContext,
         recursionBuffer: String,
-        messageCount: Int
+        messageCount: Int,
     ): Int? {
         if (disabled) return null
         if ((delay ?: 0) > messageCount) return null
@@ -236,8 +234,8 @@ class WorldBookActivator {
     /** 判定条目是否通过概率掷骰测试。 */
     private fun LorebookEntry.passesProbability(): Boolean {
         return probability >= 100 || (
-            probability > 0 &&
-                Random.nextInt(100) < probability
+            probability > 0
+                && Random.nextInt(until = 100) < probability
             )
     }
 
@@ -245,7 +243,7 @@ class WorldBookActivator {
     private fun buildScanBuffer(
         context: WorldBookScanContext,
         entry: LorebookEntry,
-        recursionBuffer: String
+        recursionBuffer: String,
     ): String {
         // 解析生效的扫描消息深度
         val depth = entry.scanDepth
@@ -253,22 +251,22 @@ class WorldBookActivator {
             ?: DEFAULT_SCAN_DEPTH
         val recentMessages = buildList {
             addAll(context.messages)
-            context.currentUserMessage?.let { add(it) }
+            context.currentUserMessage?.let { worldBookScanMessage -> add(worldBookScanMessage) }
         }
             .takeLast(depth.coerceAtLeast(0))
             .asReversed()
             .map { it.toScanText(context.includeNames) }
         // 拼接附加扫描源（静态属性与递归文本）
         return buildList {
-            addAll(recentMessages.filter { it.isNotBlank() })
+            addAll(recentMessages.filter { text -> text.isNotBlank() })
             if (entry.matchCharacterDescription) add(context.characterDescription)
             if (entry.matchPersonaDescription) add(context.userDescription)
             if (entry.matchCharacterPersonality) add(context.characterPersonality)
             if (entry.matchCharacterDepthPrompt) add(context.characterDepthPrompt)
             if (entry.matchScenario) add(context.scenario)
             if (entry.matchCreatorNotes) add(context.creatorNotes)
-            recursionBuffer.takeIf { it.isNotBlank() }?.let { add(it) }
-        }.filter { it.isNotBlank() }.joinToString("\n\u0001", prefix = "\u0001")
+            recursionBuffer.takeIf { text -> text.isNotBlank() }?.let { text -> add(text) }
+        }.filter { it.isNotBlank() }.joinToString(separator = "\n\u0001", prefix = "\u0001")
     }
 
     /** 检查扫描文本是否匹配指定关键词（支持 `/pattern/flags` 正则、全词匹配与大小写敏感）。 */
@@ -282,7 +280,7 @@ class WorldBookActivator {
             key = keyword,
             ignoreCase = entry.caseSensitive != true,
             // 当前编辑器是二态开关；未设置值必须与 UI 的关闭状态保持一致。
-            matchWholeWords = entry.matchWholeWords == true
+            matchWholeWords = entry.matchWholeWords == true,
         )
     }
 
@@ -300,7 +298,7 @@ class WorldBookActivator {
     private fun List<LorebookEntry>.applyInclusionGroups(
         activationScores: Map<Long, Int>,
         stickyIds: Set<Long>,
-        alreadyActivated: Collection<LorebookEntry> = emptyList()
+        alreadyActivated: Collection<LorebookEntry> = emptyList(),
     ): List<LorebookEntry> {
         val selectedIds = map { it.id }.toMutableSet()
         val groups = linkedMapOf<String, MutableList<LorebookEntry>>()
@@ -316,38 +314,38 @@ class WorldBookActivator {
 
         // 针对每个互斥组执行裁决
         groups.forEach { (groupName, originalEntries) ->
-            var entries = originalEntries.filter { it.id in selectedIds }
+            var entries = originalEntries.filter { entry -> entry.id in selectedIds }
             if (entries.isEmpty()) return@forEach
             if (groupName in activatedGroups) {
-                entries.forEach { selectedIds -= it.id }
+                entries.forEach { entry -> selectedIds -= entry.id }
                 return@forEach
             }
             if (entries.size <= 1) return@forEach
 
             // 优先保留 Sticky 条目
-            val stickyEntries = entries.filter { it.id in stickyIds }
+            val stickyEntries = entries.filter { entry -> entry.id in stickyIds }
             if (stickyEntries.isNotEmpty()) {
-                entries.filterNot { it.id in stickyIds }.forEach { selectedIds -= it.id }
+                entries.filterNot { entry -> entry.id in stickyIds }.forEach { entry -> selectedIds -= entry.id }
                 return@forEach
             }
 
             // 组内评分机制（淘汰最高分以下的条目）
-            if (entries.any { it.useGroupScoring }) {
-                val maxScore = entries.maxOf { activationScores[it.id] ?: 0 }
-                entries.filter {
-                    it.useGroupScoring && (activationScores[it.id] ?: 0) < maxScore
-                }.forEach { selectedIds -= it.id }
-                entries = entries.filter { it.id in selectedIds }
+            if (entries.any { entry -> entry.useGroupScoring }) {
+                val maxScore = entries.maxOf { entry -> activationScores[entry.id] ?: 0 }
+                entries.filter { entry ->
+                    entry.useGroupScoring && (activationScores[entry.id] ?: 0) < maxScore
+                }.forEach { entry -> selectedIds -= entry.id }
+                entries = entries.filter { entry -> entry.id in selectedIds }
             }
             if (entries.size <= 1) return@forEach
 
             // 强制覆盖优先，否则按权重加权随机决出唯一赢家
             val prioritized = entries
-                .filter { it.groupOverride }
-                .sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id })
+                .filter { entry -> entry.groupOverride }
+                .sortedWith(compareByDescending<LorebookEntry> { entry -> entry.order }.thenBy { entry -> entry.id })
                 .firstOrNull()
             val winner = prioritized ?: entries.weightedRandom()
-            entries.filterNot { it.id == winner.id }.forEach { selectedIds -= it.id }
+            entries.filterNot { entry -> entry.id == winner.id }.forEach { entry -> selectedIds -= entry.id }
         }
 
         return filter { it.id in selectedIds }.sortedForActivation()
@@ -375,7 +373,7 @@ class WorldBookActivator {
 
     /** 校验条目是否允许在当前生成类型（如 Normal / Continue / Impersonate 等）下激活。 */
     private fun LorebookEntry.allowsGenerationType(
-        generationType: WorldBookGenerationType
+        generationType: WorldBookGenerationType,
     ): Boolean {
         val filters = getTriggerList()
             .map { it.trim().lowercase() }
@@ -407,14 +405,13 @@ class WorldBookActivator {
         val delimiterIndex = keyword.lastIndexOf('/')
         if (delimiterIndex <= 0) return null
 
-        val rawPattern = keyword.substring(1, delimiterIndex)
+        val rawPattern = keyword.substring(startIndex = 1, endIndex = delimiterIndex)
         val flags = keyword.substring(delimiterIndex + 1)
-        if (
-            rawPattern.isEmpty() ||
-            rawPattern.hasUnescapedSlash() ||
-            flags.any { it !in SUPPORTED_REGEX_FLAGS } ||
-            flags.toSet().size != flags.length
-        ) {
+        val isRegexKeywordInvalid = rawPattern.isEmpty()
+            || rawPattern.hasUnescapedSlash()
+            || flags.any { it !in SUPPORTED_REGEX_FLAGS }
+            || flags.toSet().size != flags.length
+        if (isRegexKeywordInvalid) {
             return null
         }
         val pattern = rawPattern.replace("\\/", "/")
@@ -448,7 +445,7 @@ class WorldBookActivator {
     private fun List<LorebookEntry>.toActivationResult(
         nextState: WorldInfoRuntimeState,
         previousState: WorldInfoRuntimeState,
-        messageCount: Int
+        messageCount: Int,
     ): WorldBookActivationResult {
         val before = mutableListOf<LorebookEntry>()
         val after = mutableListOf<LorebookEntry>()
@@ -462,23 +459,27 @@ class WorldBookActivator {
         // 按 order 降序遍历并头插以保留同位置同顺序的稳定升序
         sortedWith(compareByDescending<LorebookEntry> { it.order }.thenBy { it.id }).forEach { entry ->
             when (entry.position) {
-                LorebookEntry.POSITION_BEFORE -> before.add(0, entry)
-                LorebookEntry.POSITION_AFTER -> after.add(0, entry)
-                LorebookEntry.POSITION_EXAMPLE_TOP -> exampleBefore.add(0, entry)
-                LorebookEntry.POSITION_EXAMPLE_BOTTOM -> exampleAfter.add(0, entry)
-                LorebookEntry.POSITION_AN_TOP -> anTop.add(0, entry)
-                LorebookEntry.POSITION_AN_BOTTOM -> anBottom.add(0, entry)
+                LorebookEntry.POSITION_BEFORE -> before.add(index = 0, element = entry)
+                LorebookEntry.POSITION_AFTER -> after.add(index = 0, element = entry)
+                LorebookEntry.POSITION_EXAMPLE_TOP -> exampleBefore.add(index = 0, element = entry)
+                LorebookEntry.POSITION_EXAMPLE_BOTTOM -> exampleAfter.add(index = 0, element = entry)
+                LorebookEntry.POSITION_AN_TOP -> anTop.add(index = 0, element = entry)
+                LorebookEntry.POSITION_AN_BOTTOM -> anBottom.add(index = 0, element = entry)
                 LorebookEntry.POSITION_OUTLET -> {
                     if (entry.outletName.isNotBlank()) {
-                        outlet.getOrPut(entry.outletName.trim()) { mutableListOf() }.add(0, entry)
+                        outlet.getOrPut(entry.outletName.trim()) { mutableListOf() }.add(index = 0, element = entry)
                     }
                 }
                 LorebookEntry.POSITION_AT_DEPTH -> {
-                    val existing = depth.firstOrNull { it.depth == entry.depth && it.role == entry.toMessageRole() }
+                    val existing = depth.firstOrNull { worldBookDepthEntry -> worldBookDepthEntry.depth == entry.depth && worldBookDepthEntry.role == entry.toMessageRole() }
                     if (existing == null) {
-                        depth += WorldBookDepthEntry(entry.depth, entry.toMessageRole(), mutableListOf(entry))
+                        depth += WorldBookDepthEntry(
+                            depth = entry.depth,
+                            role = entry.toMessageRole(),
+                            entries = mutableListOf(entry),
+                        )
                     } else {
-                        existing.entries.add(0, entry)
+                        existing.entries.add(index = 0, element = entry)
                     }
                 }
             }
@@ -498,14 +499,14 @@ class WorldBookActivator {
             previousStateJson = previousState.toJson(mGson),
             messageCount = messageCount,
             nextState = nextState,
-            previousState = previousState
+            previousState = previousState,
         )
     }
 
     /** 检查条目是否处于 Sticky 保持生效期内。 */
     private fun LorebookEntry.isStickyActive(
         state: WorldInfoRuntimeState,
-        messageCount: Int
+        messageCount: Int,
     ): Boolean {
         if (disabled) return false
         val item = state.entries[id.toString()] ?: return false
@@ -516,7 +517,7 @@ class WorldBookActivator {
     /** 检查条目是否处于 Cooldown 冷却期内。 */
     private fun LorebookEntry.isOnCooldown(
         state: WorldInfoRuntimeState,
-        messageCount: Int
+        messageCount: Int,
     ): Boolean {
         val item = state.entries[id.toString()] ?: return false
         if (item.signature != timedSignature()) return false
@@ -568,16 +569,19 @@ class WorldBookActivator {
             matchCharacterPersonality.toString(),
             matchCharacterDepthPrompt.toString(),
             matchScenario.toString(),
-            matchCreatorNotes.toString()
-        ).joinToString("\u001F").hashCode().toString()
+            matchCreatorNotes.toString(),
+        )
+            .joinToString("\u001F")
+            .hashCode()
+            .toString()
     }
 
     /** 按常驻优先、Order 降序、ID 升序对条目进行激活排序。 */
     private fun List<LorebookEntry>.sortedForActivation(): List<LorebookEntry> {
         return sortedWith(
-            compareByDescending<LorebookEntry> { it.constant }
+            comparator = compareByDescending<LorebookEntry> { it.constant }
                 .thenByDescending { it.order }
-                .thenBy { it.id }
+                .thenBy { it.id },
         )
     }
 
@@ -592,7 +596,7 @@ class WorldBookActivator {
 
     /** 检查会话是否回滚，若当前消息轮数小于最后记录轮数则丢弃旧时序状态。 */
     private fun WorldInfoRuntimeState.discardIfChatRewound(
-        messageCount: Int
+        messageCount: Int,
     ): WorldInfoRuntimeState {
         if (lastMessageCount <= messageCount) return this
         return WorldInfoRuntimeState(lastMessageCount = messageCount)
@@ -608,7 +612,7 @@ class WorldBookActivator {
         messageCount: Int,
         entries: List<LorebookEntry>,
         stickyIds: Set<Long>,
-        freshTimedIds: Set<Long>
+        freshTimedIds: Set<Long>,
     ): WorldInfoRuntimeState {
         // 清理已过期的时序记录
         val nextEntries = this.entries
@@ -627,7 +631,7 @@ class WorldBookActivator {
                         activatedAt = messageCount,
                         stickyUntil = stickyUntil,
                         cooldownUntil = cooldownUntil,
-                        signature = entry.timedSignature()
+                        signature = entry.timedSignature(),
                     )
                 }
             }
@@ -635,7 +639,7 @@ class WorldBookActivator {
 
         return WorldInfoRuntimeState(
             lastMessageCount = messageCount,
-            entries = nextEntries
+            entries = nextEntries,
         )
     }
 
@@ -712,10 +716,15 @@ data class WorldBookScanMessage(
 /** 世界书 triggers 可过滤的生成操作类型枚举。 */
 enum class WorldBookGenerationType(val value: String) {
     Normal("normal"),
+
     Continue("continue"),
+
     Impersonate("impersonate"),
+
     Swipe("swipe"),
+
     Regenerate("regenerate"),
+
     Quiet("quiet")
 }
 

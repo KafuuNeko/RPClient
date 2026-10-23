@@ -16,8 +16,8 @@ class TextShareActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val selectedText = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-        if (intent.action != Intent.ACTION_PROCESS_TEXT ||
-            intent.type != "text/plain" || selectedText.isNullOrEmpty()
+        if (intent.action != Intent.ACTION_PROCESS_TEXT
+            || intent.type != "text/plain" || selectedText.isNullOrEmpty()
         ) {
             finish()
             return

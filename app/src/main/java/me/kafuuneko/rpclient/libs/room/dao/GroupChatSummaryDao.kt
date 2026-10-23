@@ -30,7 +30,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     )
     suspend fun getPrevious(
         sessionId: Long,
-        coveredMessageId: Long
+        coveredMessageId: Long,
     ): GroupChatSummary?
 
     /** 按快照写入顺序读取上一份摘要。 */
@@ -44,7 +44,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     )
     suspend fun getPreviousById(
         sessionId: Long,
-        summaryId: Long
+        summaryId: Long,
     ): GroupChatSummary?
 
     /** 原位更新摘要内容、覆盖边界和生成时间。 */
@@ -59,7 +59,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         id: Long,
         content: String,
         coveredMessageId: Long,
-        createTime: Long
+        createTime: Long,
     )
 
     /** 删除覆盖了已修改或删除消息的失效摘要。 */

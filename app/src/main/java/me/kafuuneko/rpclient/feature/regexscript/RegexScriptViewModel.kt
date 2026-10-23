@@ -2,11 +2,9 @@ package me.kafuuneko.rpclient.feature.regexscript
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
-import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -31,6 +29,7 @@ import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.util.UUID
 
 /**
  * 正则表达式脚本（Regex Script）管理页状态持有者。
@@ -81,22 +80,26 @@ class RegexScriptViewModel :
     @UiIntentObserver(RegexScriptUiIntent.SelectScope::class)
     private suspend fun onSelectScope(intent: RegexScriptUiIntent.SelectScope) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
-        state.copy(
-            scope = intent.scope,
-            selectedCharacterId = if (intent.scope == RegexScriptScope.Character) {
+        state
+            .copy(
+                scope = intent.scope,
+                selectedCharacterId = if (intent.scope == RegexScriptScope.Character) {
                 state.selectedCharacterId ?: state.characters.firstOrNull()?.id
             } else {
                 state.selectedCharacterId
             },
-            dialogState = RegexScriptDialogState.None
-        ).refreshScripts().setup()
+                dialogState = RegexScriptDialogState.None,
+            )
+            .refreshScripts()
+            .setup()
     }
 
     /** 切换当前聚焦的角色，并读取该角色的内嵌脚本及授权状态。 */
     @UiIntentObserver(RegexScriptUiIntent.SelectCharacter::class)
     private suspend fun onSelectCharacter(intent: RegexScriptUiIntent.SelectCharacter) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
-        state.copy(selectedCharacterId = intent.characterId)
+        state
+            .copy(selectedCharacterId = intent.characterId)
             .refreshScripts()
             .setup()
     }
@@ -107,8 +110,8 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         when (state.scope) {
             RegexScriptScope.Global -> Unit
-            RegexScriptScope.Character -> state.selectedCharacterId?.let {
-                mRepository.setCharacterAuthorized(it, intent.authorized)
+            RegexScriptScope.Character -> state.selectedCharacterId?.let { id ->
+                mRepository.setCharacterAuthorized(id, intent.authorized)
             }
         }
         state.copy(authorized = intent.authorized).setup()
@@ -123,8 +126,8 @@ class RegexScriptViewModel :
         state.copy(
             dialogState = RegexScriptDialogState.Editor(
                 draft = draft,
-                validationError = validate(draft)
-            )
+                validationError = validate(draft),
+            ),
         ).setup()
     }
 
@@ -133,9 +136,7 @@ class RegexScriptViewModel :
     private fun onEditScript(intent: RegexScriptUiIntent.EditScript) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val script = state.scripts.firstOrNull { it.id == intent.scriptId } ?: return
-        state.copy(
-            dialogState = RegexScriptDialogState.Editor(RegexScriptDraft.from(script))
-        ).setup()
+        state.copy(dialogState = RegexScriptDialogState.Editor(RegexScriptDraft.from(script))).setup()
     }
 
     /** 复制脚本并生成新 ID，同时保留未知 JSON 扩展字段。 */
@@ -144,10 +145,10 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val target = state.targetOrNull() ?: return
         mutateScripts(target) { current ->
-            val source = current.firstOrNull { it.id == intent.scriptId } ?: return@mutateScripts current
+            val source = current.firstOrNull { regexScript -> regexScript.id == intent.scriptId } ?: return@mutateScripts current
             current + source.copy(
                 id = UUID.randomUUID().toString(),
-                scriptName = "${source.scriptName} Copy"
+                scriptName = "${source.scriptName} Copy",
             )
         }
     }
@@ -157,9 +158,7 @@ class RegexScriptViewModel :
     private fun onDeleteScriptClick(intent: RegexScriptUiIntent.DeleteScriptClick) {
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val script = state.scripts.firstOrNull { it.id == intent.scriptId } ?: return
-        state.copy(
-            dialogState = RegexScriptDialogState.DeleteConfirm(script.id, script.scriptName)
-        ).setup()
+        state.copy(dialogState = RegexScriptDialogState.DeleteConfirm(script.id, script.scriptName)).setup()
     }
 
     /** 用户确认删除脚本，从存储库中移除。 */
@@ -168,7 +167,7 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val dialog = state.dialogState as? RegexScriptDialogState.DeleteConfirm ?: return
         val target = state.targetOrNull() ?: return
-        mutateScripts(target) { current -> current.filterNot { it.id == dialog.scriptId } }
+        mutateScripts(target) { current -> current.filterNot { regexScript -> regexScript.id == dialog.scriptId } }
         getOrNull<RegexScriptUiState.Normal>()
             ?.takeIf { it.targetOrNull() == target }
             ?.copy(dialogState = RegexScriptDialogState.None)
@@ -193,7 +192,7 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val target = state.targetOrNull() ?: return
         val finalScripts = state.scripts
-        mutateScripts(target) { _ -> finalScripts }
+        mutateScripts(target) { finalScripts }
     }
 
     /** 每次表单变化都重新编译 Find Regex，向 UI 返回即时错误提示。 */
@@ -204,8 +203,8 @@ class RegexScriptViewModel :
         state.copy(
             dialogState = RegexScriptDialogState.Editor(
                 draft = intent.draft,
-                validationError = validate(intent.draft)
-            )
+                validationError = validate(intent.draft),
+            ),
         ).setup()
     }
 
@@ -225,7 +224,7 @@ class RegexScriptViewModel :
         // 写入存储库并更新 UI
         mutateScripts(target) { current ->
             current.toMutableList().apply {
-                val index = indexOfFirst { it.id == script.id }
+                val index = indexOfFirst { regexScript -> regexScript.id == script.id }
                 if (index < 0) add(script) else this[index] = script
             }
         }
@@ -248,8 +247,8 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         val target = state.targetOrNull() ?: return
         mutateScripts(target) { current ->
-            current.map {
-                if (it.id == intent.scriptId) it.copy(disabled = !it.disabled) else it
+            current.map { regexScript ->
+                if (regexScript.id == intent.scriptId) regexScript.copy(disabled = !regexScript.disabled) else regexScript
             }
         }
     }
@@ -281,25 +280,23 @@ class RegexScriptViewModel :
         val state = getOrNull<RegexScriptUiState.Normal>() ?: return
         // 构造带有作用域与顺序信息的脚本列表
         val scripts = state.scripts.mapIndexed { index, script ->
-            ScopedRegexScript(script, state.scope, order = index)
+            ScopedRegexScript(script = script, scope = state.scope, order = index)
         }
         // 调用引擎执行沙盒正则替换
         val result = mEngine.execute(
-            state.testInput,
-            scripts,
-            RegexExecutionContext(
+            input = state.testInput,
+            scripts = scripts,
+            context = RegexExecutionContext(
                 placement = state.testPlacement,
                 mode = state.testMode,
-                macros = RegexScriptRuntime.macros("User", "Character")
-            )
+                macros = RegexScriptRuntime.macros("User", "Character"),
+            ),
         )
         // 汇集替换输出与异常信息
-        val errors = result.errors.joinToString("\n") {
-            "${it.scriptName}: ${mContext.getString(R.string.regex_execution_invalid)}"
+        val errors = result.errors.joinToString("\n") { regexExecutionError ->
+            "${regexExecutionError.scriptName}: ${mContext.getString(R.string.regex_execution_invalid)}"
         }
-        state.copy(
-            testOutput = listOf(result.text, errors).filter { it.isNotBlank() }.joinToString("\n\n")
-        ).setup()
+        state.copy(testOutput = listOf(result.text, errors).filter { it.isNotBlank() }.joinToString("\n\n")).setup()
     }
 
     /** 触发系统文件选择器导入正则脚本 JSON 文件。 */
@@ -329,7 +326,7 @@ class RegexScriptViewModel :
                 // 处理 ID 冲突并追加写入存储库
                 val scripts = withContext(Dispatchers.IO) {
                     mRepository.updateScripts(target) { current ->
-                        val existingIds = current.map { it.id }.toMutableSet()
+                        val existingIds = current.map { regexScript -> regexScript.id }.toMutableSet()
                         val normalized = imported.map { script ->
                             if (script.id.isBlank() || !existingIds.add(script.id)) {
                                 script.copy(id = UUID.randomUUID().toString())
@@ -416,26 +413,24 @@ class RegexScriptViewModel :
     private suspend fun RegexScriptUiState.Normal.refreshScripts(): RegexScriptUiState.Normal {
         val characterId = selectedCharacterId ?: characters.firstOrNull()?.id
         val target = copy(selectedCharacterId = characterId).targetOrNull()
-        val scripts = target?.let {
-            withContext(Dispatchers.IO) { mRepository.getScripts(it) }
+        val scripts = target?.let { regexScriptTarget ->
+            withContext(Dispatchers.IO) { mRepository.getScripts(regexScriptTarget) }
         }.orEmpty()
         val authorized = when (scope) {
             RegexScriptScope.Global -> true
-            RegexScriptScope.Character -> characterId?.let {
-                mRepository.isCharacterAuthorized(it)
-            } ?: false
+            RegexScriptScope.Character -> characterId?.let { mRepository.isCharacterAuthorized(it) } ?: false
         }
         return copy(
             selectedCharacterId = characterId,
             scripts = scripts,
-            authorized = authorized
+            authorized = authorized,
         )
     }
 
     /** 原子修改指定目标的脚本列表并更新 UI 状态。 */
     private suspend fun mutateScripts(
         target: RegexScriptTarget,
-        transform: (List<RegexScript>) -> List<RegexScript>
+        transform: (List<RegexScript>) -> List<RegexScript>,
     ): List<RegexScript> {
         val scripts = withContext(Dispatchers.IO) {
             mRepository.updateScripts(target, transform)

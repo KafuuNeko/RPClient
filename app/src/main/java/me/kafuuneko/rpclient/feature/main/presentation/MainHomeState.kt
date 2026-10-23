@@ -55,7 +55,7 @@ data class MainHomeState(
 internal fun mergeAllRecentItems(
     chats: List<MainChatSessionItem>,
     groupChats: List<MainGroupChatSessionItem>,
-    stories: List<MainStoryItem>
+    stories: List<MainStoryItem>,
 ): List<MainHomeContentItem> {
     return (chats + groupChats + stories).sortedByDescending { it.latestTime }
 }
@@ -112,7 +112,7 @@ sealed class MainHomeSelectionState {
 
 /** 切换单个主页内容的选择状态；内容类型属于稳定键的一部分。 */
 internal fun MainHomeSelectionState.Selecting.toggleItem(
-    item: MainHomeItemSelection
+    item: MainHomeItemSelection,
 ): MainHomeSelectionState.Selecting {
     val updated = if (item in selectedItems) {
         selectedItems - item
@@ -128,7 +128,7 @@ internal fun MainHomeSelectionState.Selecting.toggleItem(
  * 多选状态不跨刷新恢复，避免数据库内容变化后保留失效的内容选择。
  */
 internal fun MainHomeState.preserveCollapsedGroupsFrom(
-    previous: MainHomeState
+    previous: MainHomeState,
 ): MainHomeState {
     val tabPreserved = copy(selectedContentTab = previous.selectedContentTab)
     val refreshed =
@@ -139,7 +139,7 @@ internal fun MainHomeState.preserveCollapsedGroupsFrom(
     return tabPreserved.copy(
         recentChatsState = refreshed.copy(
             collapsedCharacterIds = previousContent.collapsedCharacterIds
-                .intersect(availableCharacterIds)
-        )
+                .intersect(availableCharacterIds),
+        ),
     )
 }

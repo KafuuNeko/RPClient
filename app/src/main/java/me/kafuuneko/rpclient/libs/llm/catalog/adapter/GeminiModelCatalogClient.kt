@@ -29,7 +29,7 @@ class GeminiModelCatalogClient(
                     if (mProvider.apiKey.isNotBlank()) {
                         addQueryParameter("key", mProvider.apiKey)
                     }
-                    pageToken?.let { addQueryParameter("pageToken", it) }
+                    pageToken?.let { text -> addQueryParameter("pageToken", text) }
                 }
                 .build()
             val request = Request.Builder()
@@ -57,35 +57,32 @@ internal data class GeminiModelCatalogPage(
  */
 internal fun parseGeminiModelCatalogPage(raw: String): GeminiModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
-    val data = json.arrayOrNull("models")
-        ?: throw LLMModelCatalogInvalidResponseException()
+    val data = json.arrayOrNull("models") ?: throw LLMModelCatalogInvalidResponseException()
     return GeminiModelCatalogPage(
         models = buildList {
             data.forEach { element ->
-                val item = element.takeIf { it.isJsonObject }?.asJsonObject
+                val item = element.takeIf { element -> element.isJsonObject }?.asJsonObject
                     ?: return@forEach
                 if (!item.supportsGeminiGeneration()) return@forEach
                 val id = item.stringOrNull("name")
-                    ?.removePrefix("models/")
-                    ?: return@forEach
+                    ?.removePrefix("models/") ?: return@forEach
                 add(
-                    LLMAvailableModel(
+                    element = LLMAvailableModel(
                         id = id,
                         displayName = item.stringOrNull("displayName") ?: id,
                         description = item.stringOrNull("description"),
                         contextTokens = item.positiveIntOrNull("inputTokenLimit"),
-                        maxOutputTokens = item.positiveIntOrNull("outputTokenLimit")
-                    )
+                        maxOutputTokens = item.positiveIntOrNull("outputTokenLimit"),
+                    ),
                 )
             }
         },
-        nextPageToken = json.stringOrNull("nextPageToken")
+        nextPageToken = json.stringOrNull("nextPageToken"),
     )
 }
 
 private fun com.google.gson.JsonObject.supportsGeminiGeneration(): Boolean {
     val methods = arrayOrNull("supportedGenerationMethods")
-        ?: arrayOrNull("supportedActions")
-        ?: return false
+        ?: arrayOrNull("supportedActions") ?: return false
     return methods.containsString("generateContent")
 }

@@ -33,13 +33,13 @@ internal fun Character.toCharacterListItem(userName: String): CharacterListItem 
         description = resolveCharacterUserMacros(
             template = description,
             characterName = name,
-            userName = userName
+            userName = userName,
         ),
         tags = getCharacterTagList(),
         avatarText = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
         avatarColor = CharacterAccentColors[
             (id % CharacterAccentColors.size).toInt()
-        ]
+        ],
     )
 }
 
@@ -52,6 +52,6 @@ internal fun Character.toSearchCorpus(): String {
         personality,
         scenario,
         postHistoryInstructions,
-        getCharacterTagList().joinToString(" ")
+        getCharacterTagList().joinToString(" "),
     ).joinToString("\n")
 }

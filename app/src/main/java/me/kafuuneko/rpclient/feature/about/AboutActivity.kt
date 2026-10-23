@@ -36,12 +36,12 @@ class AboutActivity : CoreActivity() {
                 appInfo = AboutAppInfoState(
                     versionName = packageInfo.versionName ?: getString(R.string.unknown_version),
                     buildNumber = PackageInfoCompat.getLongVersionCode(packageInfo).toString(),
-                    isDevelopmentBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+                    isDevelopmentBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
                 ),
                 githubRepoUrl = AppModel.GITHUB_REPO,
                 githubRepoName = "KafuuNeko/RPClient",
                 developerEmail = AppModel.EMAIL,
-                githubIssuesUrl = "${AppModel.GITHUB_REPO}/issues"
+                githubIssuesUrl = "${AppModel.GITHUB_REPO}/issues",
             )
         }
 
@@ -53,7 +53,7 @@ class AboutActivity : CoreActivity() {
                 onCopyDeveloperEmail = { copyDeveloperEmail(uiState.developerEmail) },
                 onOpenRepository = { safeOpenUrl(uiState.githubRepoUrl) },
                 onRateApp = { openGooglePlay() },
-                onOpenFeedback = { safeOpenUrl(uiState.githubIssuesUrl) }
+                onOpenFeedback = { safeOpenUrl(uiState.githubIssuesUrl) },
             )
         }
     }
@@ -64,13 +64,13 @@ class AboutActivity : CoreActivity() {
         clipboard.setPrimaryClip(
             ClipData.newPlainText(
                 getString(R.string.developer_contact),
-                email
-            )
+                email,
+            ),
         )
         Toast.makeText(
             this,
             R.string.copied_to_clipboard,
-            Toast.LENGTH_SHORT
+            Toast.LENGTH_SHORT,
         ).show()
     }
 
@@ -79,7 +79,7 @@ class AboutActivity : CoreActivity() {
         val pkg = packageName
         val playStoreIntent = Intent(
             Intent.ACTION_VIEW,
-            "market://details?id=$pkg".toUri()
+            "market://details?id=$pkg".toUri(),
         ).apply {
             setPackage("com.android.vending")
         }
@@ -100,9 +100,7 @@ class AboutActivity : CoreActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
         } catch (_: ActivityNotFoundException) {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(
-                ClipData.newPlainText(getString(R.string.about), url)
-            )
+            clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.about), url))
             Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
         }
     }

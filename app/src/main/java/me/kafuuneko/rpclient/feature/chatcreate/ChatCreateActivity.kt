@@ -27,7 +27,7 @@ class ChatCreateActivity : CoreActivityWithEvent() {
 
         ChatCreateLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

@@ -8,19 +8,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
 import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
-import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
-import me.kafuuneko.rpclient.ui.theme.LocalDialogAppearance
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.theme.LocalDialogAppearance
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -89,11 +89,11 @@ abstract class CoreActivity : ComponentActivity(), KoinComponent {
             val style = SystemBarStyle.auto(
                 lightScrim = Color.TRANSPARENT,
                 darkScrim = Color.TRANSPARENT,
-                detectDarkMode = { darkTheme }
+                detectDarkMode = { darkTheme },
             )
             enableEdgeToEdge(
                 statusBarStyle = style,
-                navigationBarStyle = style
+                navigationBarStyle = style,
             )
         }
     }

@@ -51,6 +51,7 @@ sealed class CharacterListDialogState {
 /** 角色列表读取或导入期间的阻塞状态。 */
 sealed class CharacterListLoadState {
     data object None : CharacterListLoadState()
+
     data object Loading : CharacterListLoadState()
 
     data class Importing(
@@ -66,5 +67,6 @@ sealed class CharacterListLoadState {
 /** 批量角色卡导入的当前处理阶段。 */
 enum class CharacterImportStage {
     Reading,
+
     Saving
 }

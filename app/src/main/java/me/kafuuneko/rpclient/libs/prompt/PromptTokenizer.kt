@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.libs.prompt
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
-import kotlin.math.ceil
 import me.kafuuneko.rpclient.libs.llm.image.GENERIC_IMAGE_TOKENS
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenCounter
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
@@ -19,6 +18,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
+import kotlin.math.ceil
 
 /**
  * Prompt Token 统计抽象。
@@ -140,11 +140,11 @@ class PromptTokenizerRegistry(
         val o200kOpenAiPrefixes = listOf("gpt-5", "gpt-4o", "o1", "o3", "o4")
         val o200kProxyMarkers = listOf("gemini", "gemma", "grok")
         val isOpenAiModel = { context: AutomaticEstimatorContext ->
-            (context.protocol == LLMProviderProtocol.OpenAICompatible ||
-                context.protocol == LLMProviderProtocol.OpenAIResponses) &&
-                (context.providerType == LLMProviderType.ChatGPT ||
-                    context.normalizedModel.startsWith("gpt-") ||
-                    context.normalizedModel.matches(openAiReasoningModelPattern))
+            (context.protocol == LLMProviderProtocol.OpenAICompatible
+                || context.protocol == LLMProviderProtocol.OpenAIResponses)
+                && (context.providerType == LLMProviderType.ChatGPT
+                    || context.normalizedModel.startsWith("gpt-")
+                    || context.normalizedModel.matches(openAiReasoningModelPattern))
         }
         linkedMapOf(
             // 新模型没有已核实的本地精确编码时使用带预留的代理，避免误报精确预算。
@@ -152,8 +152,8 @@ class PromptTokenizerRegistry(
                 isOpenAiModel(context) && context.normalizedModel.startsWith("gpt-6")
             } to AutomaticEstimatorFactory { _, reservePercent -> estimatedO200k(reservePercent) },
             AutomaticEstimatorMatcher { context ->
-                isOpenAiModel(context) &&
-                    o200kOpenAiPrefixes.any(context.normalizedModel::startsWith)
+                isOpenAiModel(context)
+                    && o200kOpenAiPrefixes.any(context.normalizedModel::startsWith)
             } to AutomaticEstimatorFactory { _, _ -> mO200k },
             AutomaticEstimatorMatcher { context ->
                 isOpenAiModel(context) && context.registeredEncoding != null
@@ -161,25 +161,25 @@ class PromptTokenizerRegistry(
                 JTokkitPromptTokenizer(requireNotNull(context.registeredEncoding))
             },
             AutomaticEstimatorMatcher { context ->
-                    context.protocol == LLMProviderProtocol.Gemini ||
-                    context.providerType == LLMProviderType.Gemini ||
-                    context.providerType == LLMProviderType.Grok ||
-                    o200kProxyMarkers.any(context.normalizedModel::contains)
+                    context.protocol == LLMProviderProtocol.Gemini
+                    || context.providerType == LLMProviderType.Gemini
+                    || context.providerType == LLMProviderType.Grok
+                    || o200kProxyMarkers.any(context.normalizedModel::contains)
             } to AutomaticEstimatorFactory { _, reservePercent ->
                 estimatedO200k(reservePercent)
             },
             AutomaticEstimatorMatcher { true } to
                 AutomaticEstimatorFactory { _, reservePercent ->
                     estimatedCl100k(reservePercent)
-                }
+                },
         )
     }
 
     override fun resolve(provider: LLMProvider?): PromptTokenizer {
         val reservePercent = provider?.tokenEstimateReservePercent
             ?.coerceIn(
-                MIN_TOKEN_ESTIMATE_RESERVE_PERCENT,
-                MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
+                minimumValue = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT,
+                maximumValue = MAX_TOKEN_ESTIMATE_RESERVE_PERCENT,
             )
             ?: DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
         if (provider == null) return estimatedCl100k(reservePercent)
@@ -188,7 +188,7 @@ class PromptTokenizerRegistry(
             protocol = provider.protocol,
             providerType = provider.providerType,
             reservePercent = reservePercent,
-            estimatorType = provider.localTokenEstimatorType
+            estimatorType = provider.localTokenEstimatorType,
         ).withImageCounter(mImages.resolve(provider.toConfig()))
     }
 
@@ -203,7 +203,7 @@ class PromptTokenizerRegistry(
             protocol = provider.protocol,
             providerType = provider.providerType,
             reservePercent = 0,
-            estimatorType = provider.localTokenEstimatorType
+            estimatorType = provider.localTokenEstimatorType,
         ).withImageCounter(mImages.resolve(provider))
     }
 
@@ -212,7 +212,7 @@ class PromptTokenizerRegistry(
         protocol: LLMProviderProtocol,
         providerType: LLMProviderType,
         reservePercent: Int,
-        estimatorType: LocalTokenEstimatorType
+        estimatorType: LocalTokenEstimatorType,
     ): PromptTokenizer {
         return when (estimatorType) {
             // 手动选择绕过自动匹配表，保证未知模型别名稳定复用指定编码。
@@ -222,7 +222,7 @@ class PromptTokenizerRegistry(
                 model = model,
                 protocol = protocol,
                 providerType = providerType,
-                reservePercent = reservePercent
+                reservePercent = reservePercent,
             )
         }
     }
@@ -232,13 +232,13 @@ class PromptTokenizerRegistry(
         model: String,
         protocol: LLMProviderProtocol,
         providerType: LLMProviderType,
-        reservePercent: Int
+        reservePercent: Int,
     ): PromptTokenizer {
         val context = AutomaticEstimatorContext(
             normalizedModel = model.lowercase(),
             protocol = protocol,
             providerType = providerType,
-            registeredEncoding = mEncodingRegistry.getEncodingForModel(model).orElse(null)
+            registeredEncoding = mEncodingRegistry.getEncodingForModel(model).orElse(null),
         )
         val factory = mAutomaticEstimatorMap.entries
             .first { (matcher, _) -> matcher.matches(context) }
@@ -250,7 +250,7 @@ class PromptTokenizerRegistry(
         return EstimatedBpePromptTokenizer(
             mEncoding = mEncodingRegistry.getEncoding(EncodingType.CL100K_BASE),
             label = "CL100K proxy",
-            reservePercent = reservePercent
+            reservePercent = reservePercent,
         )
     }
 
@@ -258,7 +258,7 @@ class PromptTokenizerRegistry(
         return EstimatedBpePromptTokenizer(
             mEncoding = mEncodingRegistry.getEncoding(EncodingType.O200K_BASE),
             label = "O200K proxy",
-            reservePercent = reservePercent
+            reservePercent = reservePercent,
         )
     }
 
@@ -363,4 +363,4 @@ private fun PromptTokenizer.withImageCounter(counter: ImageTokenCounter): Prompt
 }
 
 /** 兼容既有 Int 接口，溢出时饱和而非回绕成负数。 */
-internal fun Long.toTokenInt(): Int = coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+internal fun Long.toTokenInt(): Int = coerceIn(minimumValue = 0, maximumValue = Int.MAX_VALUE.toLong()).toInt()

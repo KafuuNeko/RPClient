@@ -7,7 +7,7 @@ class GroupChatOutputSanitizer {
         content: String,
         currentSpeakerName: String,
         otherSpeakerNames: List<String>,
-        trimOtherSpeakers: Boolean
+        trimOtherSpeakers: Boolean,
     ): String {
         var result = content.trim()
         result = result.removeSpeakerPrefix(currentSpeakerName)
@@ -17,8 +17,8 @@ class GroupChatOutputSanitizer {
                 listOf("\n$name:", "\n$name：")
             }
             .mapNotNull { marker ->
-                result.indexOf(marker, ignoreCase = true)
-                    .takeIf { it >= 0 }
+                result.indexOf(string = marker, ignoreCase = true)
+                    .takeIf { value -> value >= 0 }
             }
             .minOrNull()
         return boundary?.let { result.take(it).trimEnd() } ?: result
@@ -28,8 +28,8 @@ class GroupChatOutputSanitizer {
     private fun String.removeSpeakerPrefix(name: String): String {
         val trimmed = trimStart()
         val prefixes = listOf("$name:", "$name：")
-        val prefix = prefixes.firstOrNull {
-            trimmed.startsWith(it, ignoreCase = true)
+        val prefix = prefixes.firstOrNull { text ->
+            trimmed.startsWith(prefix = text, ignoreCase = true)
         } ?: return this
         return trimmed.substring(prefix.length).trimStart()
     }

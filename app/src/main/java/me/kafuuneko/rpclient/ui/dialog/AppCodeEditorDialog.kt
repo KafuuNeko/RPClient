@@ -63,7 +63,7 @@ fun AppCodeEditorDialog(
     dismissText: String? = stringResource(R.string.cancel),
     confirmEnabled: Boolean = true,
     isConfirmLoading: Boolean = false,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
 ) {
     AppDialogScaffold(
         modifier = modifier,
@@ -76,17 +76,17 @@ fun AppCodeEditorDialog(
         dismissText = dismissText,
         confirmEnabled = confirmEnabled,
         isConfirmLoading = isConfirmLoading,
-        onConfirm = onConfirm
+        onConfirm = onConfirm,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (!editorNote.isNullOrBlank()) {
                 Text(
                     text = editorNote,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -102,8 +102,8 @@ fun AppCodeEditorDialog(
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
+                        shape = RoundedCornerShape(16.dp),
+                    ),
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val horizontalPadding = 24.dp
@@ -117,7 +117,7 @@ fun AppCodeEditorDialog(
                             .draggableScrollIndicator(verticalScrollState)
                             .horizontalScroll(horizontalScrollState)
                             .verticalScroll(verticalScrollState)
-                            .padding(12.dp)
+                            .padding(12.dp),
                     ) {
                         BasicTextField(
                             value = value,
@@ -127,10 +127,10 @@ fun AppCodeEditorDialog(
                                 .heightIn(min = minimumContentHeight),
                             textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             ),
                             visualTransformation = visualTransformation,
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         )
                     }
                 }
@@ -150,8 +150,8 @@ private fun AppCodeEditorDialogPreview() {
                 title = "自定义请求头 JSON",
                 editorNote = "请以合法的 JSON 格式输入请求头键值对。",
                 value = code,
-                onValueChange = { code = it },
-                onConfirm = {}
+                onValueChange = { text -> code = text },
+                onConfirm = {},
             )
         }
     }

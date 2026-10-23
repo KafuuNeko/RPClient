@@ -22,8 +22,8 @@ internal class GetContentWithMimeTypes : ActivityResultContract<Array<String>, U
             "At least one MIME type is required"
         }
         return mDelegate.createIntent(
-            context,
-            mimeTypes.singleOrNull() ?: "*/*"
+            context = context,
+            input = mimeTypes.singleOrNull() ?: "*/*",
         ).apply {
             if (mimeTypes.size > 1) {
                 putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())

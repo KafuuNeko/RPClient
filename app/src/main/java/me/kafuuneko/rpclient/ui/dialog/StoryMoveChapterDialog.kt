@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,8 +31,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 
 /**
  * 移动章节弹窗中的目标分卷或未分卷选择项。
@@ -68,7 +67,7 @@ fun StoryMoveChapterDialog(
     selectedVolumeId: Long?,
     isSaving: Boolean,
     onDestinationSelected: (Long?) -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
@@ -82,14 +81,14 @@ fun StoryMoveChapterDialog(
         dismissText = stringResource(R.string.cancel),
         confirmEnabled = !isSaving,
         isConfirmLoading = isSaving,
-        onConfirm = onConfirm
+        onConfirm = onConfirm,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .draggableScrollIndicator(scrollState)
                 .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // 当前移动章节信息卡片
             Surface(
@@ -97,20 +96,20 @@ fun StoryMoveChapterDialog(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                 border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                )
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                ),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Description,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -118,12 +117,12 @@ fun StoryMoveChapterDialog(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = stringResource(R.string.story_move_chapter),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -132,7 +131,7 @@ fun StoryMoveChapterDialog(
             // 目标分卷卡片式单选列表
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // 选择只更新待确认目标，实际移动由确认动作统一触发。
                 options.forEach { option ->
@@ -141,10 +140,13 @@ fun StoryMoveChapterDialog(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !isSaving) {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onDestinationSelected(option.volumeId)
-                            },
+                            .clickable(
+                                enabled = !isSaving,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onDestinationSelected(option.volumeId)
+                                },
+                            ),
                         shape = RoundedCornerShape(14.dp),
                         color = if (selected) {
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
@@ -157,13 +159,13 @@ fun StoryMoveChapterDialog(
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                            }
-                        )
+                            },
+                        ),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             // 分卷类型图标指示
                             Icon(
@@ -178,27 +180,27 @@ fun StoryMoveChapterDialog(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
-                                }
+                                },
                             )
                             // 标题与章节数统计
                             Column(
                                 modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 Text(
                                     text = option.title,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = stringResource(
                                         R.string.story_chapter_count,
-                                        option.chapterCount
+                                        option.chapterCount,
                                     ),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             // 选中态对勾指示器
@@ -214,10 +216,10 @@ fun StoryMoveChapterDialog(
                                     null
                                 } else {
                                     BorderStroke(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                     )
-                                }
+                                },
                             ) {
                                 if (selected) {
                                     Icon(
@@ -226,7 +228,7 @@ fun StoryMoveChapterDialog(
                                         modifier = Modifier
                                             .padding(3.dp)
                                             .size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary
+                                        tint = MaterialTheme.colorScheme.onPrimary,
                                     )
                                 }
                             }
@@ -246,14 +248,14 @@ private fun StoryMoveChapterDialogPreview() {
             onDismissRequest = {},
             chapterTitle = "第一章 宿命之始",
             options = listOf(
-                StoryChapterDestinationOption(null, "未分卷章节", 2),
-                StoryChapterDestinationOption(1L, "第一卷 启程", 5),
-                StoryChapterDestinationOption(2L, "第二卷 远征", 3)
+                StoryChapterDestinationOption(volumeId = null, title = "未分卷章节", chapterCount = 2),
+                StoryChapterDestinationOption(volumeId = 1L, title = "第一卷 启程", chapterCount = 5),
+                StoryChapterDestinationOption(volumeId = 2L, title = "第二卷 远征", chapterCount = 3),
             ),
             selectedVolumeId = 1L,
             isSaving = false,
             onDestinationSelected = {},
-            onConfirm = {}
+            onConfirm = {},
         )
     }
 }

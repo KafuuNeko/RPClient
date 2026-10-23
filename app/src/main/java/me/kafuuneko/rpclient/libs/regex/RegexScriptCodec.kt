@@ -24,7 +24,7 @@ class RegexScriptCodec(
         }.getOrNull() ?: return RegexExtensionsExtraction(
             scripts = emptyList(),
             extensionsJson = json,
-            hadRegexScripts = false
+            hadRegexScripts = false,
         )
         val regexElement = extensions.remove(REGEX_SCRIPTS_KEY)
         val scripts = regexElement
@@ -34,21 +34,21 @@ class RegexScriptCodec(
         return RegexExtensionsExtraction(
             scripts = scripts,
             extensionsJson = mGson.toJson(extensions),
-            hadRegexScripts = regexElement != null
+            hadRegexScripts = regexElement != null,
         )
     }
 
     /** 将 Room 中的角色脚本临时注入扩展 JSON，供角色卡导出使用。 */
     fun injectIntoCharacterExtensions(
         json: String,
-        scripts: List<RegexScript>
+        scripts: List<RegexScript>,
     ): String {
         val extensions = runCatching {
             JsonParser.parseString(json).asJsonObject.deepCopy()
         }.getOrDefault(JsonObject())
         extensions.add(
             REGEX_SCRIPTS_KEY,
-            JsonParser.parseString(toJson(scripts)).asJsonArray
+            JsonParser.parseString(toJson(scripts)).asJsonArray,
         )
         return mGson.toJson(extensions)
     }
@@ -64,7 +64,7 @@ class RegexScriptCodec(
                 else -> JsonArray()
             }
             array.mapNotNull { element ->
-                element.takeIf { it.isJsonObject }?.asJsonObject?.toScript()
+                element.takeIf { element -> element.isJsonObject }?.asJsonObject?.toScript()
             }
         }.getOrDefault(emptyList())
     }
@@ -74,7 +74,11 @@ class RegexScriptCodec(
         val array = JsonArray()
         scripts.forEach { array.add(it.toJsonObject()) }
         return if (pretty) {
-            mGson.newBuilder().setPrettyPrinting().create().toJson(array)
+            mGson
+                .newBuilder()
+                .setPrettyPrinting()
+                .create()
+                .toJson(array)
         } else {
             mGson.toJson(array)
         }
@@ -96,7 +100,7 @@ class RegexScriptCodec(
             substituteRegex = optInt("substituteRegex", RegexFindMacroMode.Disabled.value),
             minDepth = optNullableInt("minDepth"),
             maxDepth = optNullableInt("maxDepth"),
-            rawJson = mGson.toJson(this)
+            rawJson = mGson.toJson(this),
         )
     }
 
@@ -125,23 +129,23 @@ class RegexScriptCodec(
         get(name)?.takeIf { !it.isJsonNull }?.asString.orEmpty()
 
     private fun JsonObject.optBoolean(name: String): Boolean =
-        runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull() ?: false
+        runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asBoolean }.getOrNull() ?: false
 
     private fun JsonObject.optInt(name: String, default: Int): Int =
-        runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull() ?: default
+        runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull() ?: default
 
     private fun JsonObject.optNullableInt(name: String): Int? =
-        runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull()
+        runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull()
 
     private fun JsonObject.optStringArray(name: String): List<String> =
         runCatching {
-            getAsJsonArray(name).mapNotNull { it.takeIf { value -> !value.isJsonNull }?.asString }
+            getAsJsonArray(name).mapNotNull { element -> element.takeIf { value -> !value.isJsonNull }?.asString }
         }.getOrDefault(emptyList())
 
     private fun JsonObject.optIntArray(name: String): List<Int> =
         runCatching {
-            getAsJsonArray(name).mapNotNull {
-                runCatching { it.takeIf { value -> !value.isJsonNull }?.asInt }.getOrNull()
+            getAsJsonArray(name).mapNotNull { element ->
+                runCatching { element.takeIf { value -> !value.isJsonNull }?.asInt }.getOrNull()
             }
         }.getOrDefault(emptyList())
 

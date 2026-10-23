@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -31,8 +29,28 @@ class SessionOverviewRepositoryTest {
         mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        mChatRepository = ChatRepository(mDatabase, Gson(), MessageImageRepository(mDatabase, FileRepository(context, mDatabase)))
-        mGroupChatRepository = GroupChatRepository(mDatabase, Gson(), MessageImageRepository(mDatabase, FileRepository(context, mDatabase)))
+        mChatRepository = ChatRepository(
+            mAppDatabase = mDatabase,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = mDatabase,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = mDatabase,
+                ),
+            ),
+        )
+        mGroupChatRepository = GroupChatRepository(
+            mAppDatabase = mDatabase,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = mDatabase,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = mDatabase,
+                ),
+            ),
+        )
     }
 
     @After
@@ -44,36 +62,36 @@ class SessionOverviewRepositoryTest {
     fun chatOverviewReturnsLatestOrdinaryMessageAndCount() = runBlocking {
         val characterId = insertCharacter("Solo")
         val sessionId = mDatabase.getChatSessionDao().insertOrReplace(
-            ChatSession(
+            data = ChatSession(
                 characterId = characterId,
                 createTime = 1L,
                 latestTime = 10L,
                 lorebookEntrySet = "[]",
                 title = "Solo chat",
-                userNote = ""
-            )
+                userNote = "",
+            ),
         )
         mDatabase.getChatMessageDao().insertOrReplaceAll(
-            listOf(
+            data = listOf(
                 ChatMessage(
                     sessionId = sessionId,
                     createTime = 2L,
                     source = ChatMessage.Source.User,
-                    content = "first"
+                    content = "first",
                 ),
                 ChatMessage(
                     sessionId = sessionId,
                     createTime = 2L,
                     source = ChatMessage.Source.Char,
-                    content = "latest"
+                    content = "latest",
                 ),
                 ChatMessage(
                     sessionId = sessionId,
                     createTime = 3L,
                     source = ChatMessage.Source.Summary,
-                    content = "summary"
-                )
-            )
+                    content = "summary",
+                ),
+            ),
         )
 
         val overview = mChatRepository.getSessionOverviews().single()
@@ -94,16 +112,16 @@ class SessionOverviewRepositoryTest {
             characterIds = listOf(secondCharacterId, firstCharacterId),
             activationStrategy = GroupChatSession.ActivationStrategy.Natural,
             allowSelfResponses = false,
-            createTime = 1L
+            createTime = 1L,
         )
         mDatabase.getGroupChatMessageDao().insertOrReplaceAll(
-            listOf(
+            data = listOf(
                 GroupChatMessage(
                     sessionId = sessionId,
                     createTime = 2L,
                     source = GroupChatMessage.Source.User,
                     content = "first",
-                    speakerNameSnapshot = "User"
+                    speakerNameSnapshot = "User",
                 ),
                 GroupChatMessage(
                     sessionId = sessionId,
@@ -111,9 +129,9 @@ class SessionOverviewRepositoryTest {
                     source = GroupChatMessage.Source.Character,
                     content = "latest",
                     speakerCharacterId = firstCharacterId,
-                    speakerNameSnapshot = "First"
-                )
-            )
+                    speakerNameSnapshot = "First",
+                ),
+            ),
         )
 
         val overview = mGroupChatRepository.getSessionOverviews().single()
@@ -126,7 +144,7 @@ class SessionOverviewRepositoryTest {
 
     private suspend fun insertCharacter(name: String): Long {
         return mDatabase.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = name,
                 avatar = "",
                 characterTags = "[]",
@@ -135,8 +153,8 @@ class SessionOverviewRepositoryTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
-            )
+                postHistoryInstructions = "",
+            ),
         )
     }
 }

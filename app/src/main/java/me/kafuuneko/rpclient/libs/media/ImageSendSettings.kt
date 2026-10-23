@@ -1,11 +1,15 @@
 package me.kafuuneko.rpclient.libs.media
 
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
+import kotlin.math.roundToInt
 
 /** 图片发送模式；持久化使用稳定标识，不依赖枚举顺序。 */
 enum class ImageSendMode(val persistedValue: String) {
-    Auto("auto"), Original("original"), Custom("custom")
+    Auto("auto"),
+
+    Original("original"),
+
+    Custom("custom")
 }
 
 /**
@@ -46,7 +50,7 @@ data class ImageSendSettings(
         if (mode == ImageSendMode.Original) return width to height
         val limitWidth = if (mode == ImageSendMode.Custom) maxWidth else MessageImagePolicy.SEND_LONG_EDGE
         val limitHeight = if (mode == ImageSendMode.Custom) maxHeight else MessageImagePolicy.SEND_LONG_EDGE
-        val ratio = minOf(1.0, limitWidth.toDouble() / width, limitHeight.toDouble() / height)
+        val ratio = minOf(a = 1.0, b = limitWidth.toDouble() / width, c = limitHeight.toDouble() / height)
         return (width * ratio).roundToInt().coerceAtLeast(1) to
             (height * ratio).roundToInt().coerceAtLeast(1)
     }
@@ -63,9 +67,10 @@ data class ImageSendSettings(
             val mode = ImageSendMode.entries.firstOrNull { it.persistedValue == parts[0] }
                 ?: return ImageSendSettings()
             return ImageSendSettings(
-                mode, parts[1].toIntOrNull() ?: return ImageSendSettings(),
-                parts[2].toIntOrNull() ?: return ImageSendSettings(),
-                parts[3].toIntOrNull() ?: return ImageSendSettings()
+                mode = mode,
+                maxFileKiB = parts[1].toIntOrNull() ?: return ImageSendSettings(),
+                maxWidth = parts[2].toIntOrNull() ?: return ImageSendSettings(),
+                maxHeight = parts[3].toIntOrNull() ?: return ImageSendSettings(),
             ).takeIf { it.isValid() } ?: ImageSendSettings()
         }
     }

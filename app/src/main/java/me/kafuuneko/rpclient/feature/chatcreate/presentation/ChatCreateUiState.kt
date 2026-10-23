@@ -42,6 +42,8 @@ sealed class ChatCreateUiState {
 /** 新建单聊页面的数据加载与创建状态。 */
 sealed class ChatCreateLoadState {
     data object None : ChatCreateLoadState()
+
     data object Loading : ChatCreateLoadState()
+
     data object Creating : ChatCreateLoadState()
 }

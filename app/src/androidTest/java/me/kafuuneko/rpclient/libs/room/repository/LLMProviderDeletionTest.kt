@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -46,22 +44,24 @@ class LLMProviderDeletionTest {
             .allowMainThreadQueries()
             .build()
         mRequestLogDatabase = Room.inMemoryDatabaseBuilder(
-            context,
-            RequestLogDatabase::class.java
-        ).allowMainThreadQueries().build()
+            context = context,
+            klass = RequestLogDatabase::class.java,
+        )
+            .allowMainThreadQueries()
+            .build()
         mRepository = LLMRepository(
-            mDatabase,
-            LLMClientFactory(
-                OkHttpClient(),
-                LLMRequestLogRepository(mRequestLogDatabase)
-            )
+            mAppDatabase = mDatabase,
+            mLLMClientFactory = LLMClientFactory(
+                mOkHttpClient = OkHttpClient(),
+                mLLMRequestLogRepository = LLMRequestLogRepository(mRequestLogDatabase),
+            ),
         )
         val gson = Gson()
         mCharacterRepository = CharacterRepository(
-            mDatabase,
-            gson,
-            RegexScriptCodec(gson),
-            MessageImageRepository(mDatabase, FileRepository(context, mDatabase))
+            mAppDatabase = mDatabase,
+            mGson = gson,
+            mRegexCodec = RegexScriptCodec(gson),
+            mImages = MessageImageRepository(mDatabase, FileRepository(context, mDatabase)),
         )
     }
 
@@ -78,7 +78,7 @@ class LLMProviderDeletionTest {
     fun deleteProviderClearsCharacterAndSummaryAssociations() = runBlocking {
         val providerId = mRepository.saveProvider(provider("Provider"))
         val characterId = mCharacterRepository.saveCharacterWithLLMProvider(
-            Character(
+            character = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -87,9 +87,9 @@ class LLMProviderDeletionTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
+                postHistoryInstructions = "",
             ),
-            llmProviderId = providerId
+            llmProviderId = providerId,
         )
         AppModel.summaryLLMProvider = providerId
 
@@ -106,7 +106,7 @@ class LLMProviderDeletionTest {
         val globalProviderId = mRepository.saveProvider(provider("Global"))
         val explicitProviderId = mRepository.saveProvider(provider("Explicit"))
         val characterId = mCharacterRepository.saveCharacterWithLLMProvider(
-            Character(
+            character = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -115,9 +115,9 @@ class LLMProviderDeletionTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
+                postHistoryInstructions = "",
             ),
-            llmProviderId = explicitProviderId
+            llmProviderId = explicitProviderId,
         )
         val character = checkNotNull(mCharacterRepository.getCharacterById(characterId))
         val resolver = LLMProviderSelectionResolver(mRepository, mCharacterRepository)
@@ -127,17 +127,17 @@ class LLMProviderDeletionTest {
         assertEquals(explicitProviderId, resolver.requireCharacterProvider(character).id)
         assertEquals(explicitProviderId, resolver.requireSummaryProvider().id)
 
-        mRepository.updateProviderEnabled(explicitProviderId, false)
+        mRepository.updateProviderEnabled(id = explicitProviderId, isEnabled = false)
 
         assertEquals(
             true,
             runCatching { resolver.requireCharacterProvider(character) }
-                .exceptionOrNull() is UnavailableLLMProviderSelectionException
+                .exceptionOrNull() is UnavailableLLMProviderSelectionException,
         )
         assertEquals(
             true,
             runCatching { resolver.requireSummaryProvider() }
-                .exceptionOrNull() is UnavailableLLMProviderSelectionException
+                .exceptionOrNull() is UnavailableLLMProviderSelectionException,
         )
     }
 
@@ -145,7 +145,7 @@ class LLMProviderDeletionTest {
     fun deletingAllInitializedTemplatesDoesNotRecreateThem() = runBlocking {
         val providers = mRepository.getAllProviders()
 
-        providers.forEach { mRepository.deleteProvider(it.id) }
+        providers.forEach { provider -> mRepository.deleteProvider(provider.id) }
 
         assertEquals(emptyList<LLMProvider>(), mRepository.getAllProviders())
     }
@@ -155,6 +155,6 @@ class LLMProviderDeletionTest {
         providerType = LLMProviderType.Custom,
         protocol = LLMProviderProtocol.OpenAICompatible,
         baseUrl = "https://example.invalid",
-        model = "model"
+        model = "model",
     )
 }

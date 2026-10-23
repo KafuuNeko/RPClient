@@ -6,8 +6,11 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 /** 设置页支持快速编辑的模型配置生成参数。 */
 enum class MainGenerationParameter {
     Temperature,
+
     TopP,
+
     MaxTokens,
+
     ContextTokens;
 
     fun valueOf(provider: LLMProvider): String = when (this) {

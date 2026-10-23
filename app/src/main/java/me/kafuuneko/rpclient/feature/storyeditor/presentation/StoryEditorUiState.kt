@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -108,16 +108,22 @@ data class StoryContinuationInputState(
 /** 正文自动保存状态。冲突草稿只保留在 ViewModel，不进入可重放 UiState。 */
 sealed class StorySaveState {
     data object Saved : StorySaveState()
+
     data object Dirty : StorySaveState()
+
     data object Saving : StorySaveState()
+
     data object Failed : StorySaveState()
+
     data object Conflict : StorySaveState()
 }
 
 /** 一轮续写从准备、流式接收到应用结果的互斥状态。 */
 sealed class StoryGenerationState {
     data object Idle : StoryGenerationState()
+
     data object Preparing : StoryGenerationState()
+
     data class Streaming(
         /** 生成中断时仍可恢复或保存的正文片段。 */
         val partialText: String,
@@ -132,7 +138,9 @@ sealed class StoryGenerationState {
         /** 当前生成状态中的推理详情是否展开。 */
         val isReasoningExpanded: Boolean = false
     ) : StoryGenerationState()
+
     data object Applying : StoryGenerationState()
+
     data class Failed(
         /** 当前状态或取舍产生的原因。 */
         val reason: StoryGenerationFailure,
@@ -146,32 +154,44 @@ sealed class StoryGenerationState {
 /** 流式故事生成中由真实协议事件驱动的当前阶段。 */
 enum class StoryGenerationPhase {
     AwaitingResponse,
+
     Connected,
+
     Reasoning,
+
     Writing
 }
 
 /** 用户可恢复或重试的续写失败类型。 */
 enum class StoryGenerationFailure {
     Setup,
+
     Provider,
+
     ApplyResult,
+
     Conflict,
+
     EmptyResult,
+
     ContextBudget
 }
 
 /** 故事设置页的可选分区。 */
 enum class StorySettingsSection {
     Context,
+
     Characters,
+
     Lorebook
 }
 
 /** 编辑器与全屏设置之间的页面状态。 */
 sealed class StoryEditorPageState {
     data object Editor : StoryEditorPageState()
+
     data object Outline : StoryEditorPageState()
+
     data object LoadingSettings : StoryEditorPageState()
 
     data class Settings(

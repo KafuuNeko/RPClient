@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonObject
-import java.io.IOException
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMResponseException
+import java.io.IOException
 
 /**
  * Responses 流式状态机。
@@ -40,7 +40,7 @@ internal class OpenAIResponsesStreamDecoder {
             "response.output_item.done" -> itemDone(json, event.data)
             "response.completed", "response.incomplete" -> terminal(json, event.data)
             "response.failed" -> throw OpenAIResponsesResponseCodec.error(
-                json.objectOrNull("response") ?: json
+                payload = json.objectOrNull("response") ?: json,
             )
             "error" -> throw OpenAIResponsesResponseCodec.error(json)
             else -> emptyList()
@@ -109,7 +109,7 @@ internal class OpenAIResponsesStreamDecoder {
             rawChunk = raw,
             finishReason = finishReason,
             model = response.cleanString("model").takeIf { it.isNotEmpty() },
-            usage = OpenAIResponsesResponseCodec.usage(response)
+            usage = OpenAIResponsesResponseCodec.usage(response),
         )
     }
 
@@ -126,15 +126,17 @@ internal class OpenAIResponsesStreamDecoder {
         val output = json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
         val field = if (type == "summary_text") "summary_index" else "content_index"
         val content = json.intOrNull(field) ?: throw LLMResponseException("invalid_content_index")
-        return ResponsesContentKey(output, content, type)
+        return ResponsesContentKey(outputIndex = output, contentIndex = content, type = type)
     }
 
     private fun part(content: ResponsesContent, raw: String): List<LLMProviderStreamPart> {
         if (content.text.isEmpty()) return emptyList()
-        return listOf(if (content.isReasoning) {
-            LLMProviderStreamPart.Reasoning(content.text, raw, content.reasoningKind)
+        return listOf(
+            element = if (content.isReasoning) {
+            LLMProviderStreamPart.Reasoning(content = content.text, rawChunk = raw, kind = content.reasoningKind)
         } else {
             LLMProviderStreamPart.Text(content.text, raw)
-        })
+        },
+        )
     }
 }

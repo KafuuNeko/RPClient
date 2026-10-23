@@ -9,16 +9,20 @@
 - **代码首先是写给人读的，顺便由机器执行**：优秀的实现必须具备高自解释性，降低后续维护者与代码审查的心智负担。
 - **结构清晰先于行数节省**：严禁为了追求“少写几行”而将复杂逻辑挤成密密麻麻的一行，拒绝难以调试和阅读的代码高尔夫（Code Golf）。
 - **杜绝猜谜与隐式调用**：通过显式具名实参、语义明确的解释性中间变量与扁平的卫语句，让控制流与数据流一目了然。
+- **保留清晰的紧凑表达**：单个含义明确的实参、简短 Lambda 和构造表达式可以保持简洁；根据参数语义与表达式复杂度决定换行，避免机械地增加参数名、局部变量或行数。
+- **格式化服务于阅读**：自动格式化的结果仍须按本文复核。审查调用时同时考虑参数数量、同类型参数的辨识难度、集合转换与回调的组合，不仅根据字符数判断是否需要整理。
 - **列表严禁使用数字序号**：文档与注释中一律使用 `- xxx` 短横线无序列表。
 
 ---
 
 ## 具名实参（Named Arguments）与调用排版
 
-### 规则：多行调用全量显式命名
+### 规则：多行调用优先全量显式命名
 
-- 只要函数调用、构造器实例化或对象创建发生换行跨多行，**所有参数必须全量使用具名参数**（`param = value`）。
-- 严禁在跨行调用中直接裸传位置参数。
+- 函数、构造器及 `copy()` 调用跨行时，语言与 API 支持的情况下，**默认全量使用具名实参**（`param = value`），让调用点直接说明每个参数的作用。
+- Java 方法、函数类型调用或部分 vararg API 受语言限制时，保留合法的位置实参形式；不能为了具名而改变 API、参数顺序或展开方式。
+- 本文中的位置参数分组示例仅说明未具名调用的换行方式，不代表一般性放宽多行调用的具名要求，也不应据此删除已有的形参名。
+- Android Studio 显示的灰色形参提示不属于源码，不能作为已经使用具名实参的依据。
 
 反例：
 ```kotlin
@@ -42,7 +46,7 @@ call(
 
 ### 规则：严禁混用位置参数与具名参数（拒绝半裸传参）
 
-- 在函数调用（特别是 Jetpack Compose 组件）中，一旦有一个参数使用了具名参数（如 `style = ...`、`modifier = ...`），前面的所有参数也必须补齐形参名（如 `text = ...`），严禁“半裸”调用。
+- 在函数调用（特别是 Jetpack Compose 组件）中，一旦有一个参数使用了具名参数（如 `style = ...`、`modifier = ...`），其余可以具名的参数也应补齐形参名（如 `text = ...`），避免“半裸”调用。受语言或 vararg 语法限制的部分保留合法写法。
 
 反例：
 ```kotlin
@@ -64,7 +68,17 @@ Text(
 
 ### 规则：无上下文自解释性的字面量必须具名
 
-- 传给函数的布尔字面量（`true` / `false`）、纯数值（如超时毫秒数、重试次数、容量限制）或 `null`，必须显式指明参数名，消除“神秘字面量（Magic Literals）”。
+- 传给函数的布尔字面量（`true` / `false`）、纯数值（如超时毫秒数、重试次数、容量限制）或 `null`，如果无法从调用上下文直接判断含义，必须在 API 支持时显式指明参数名，消除“神秘字面量（Magic Literals）”。
+- 单行调用只有一个实参，且函数或构造器已经明确表达其含义时，优先使用简洁的位置参数，包括含义明确的数字字面量；例如 `Color(0xFF3B66F5)`。
+- 存在含义歧义、多个容易混淆的同类型参数或需要说明单位时，仍使用具名参数。单参数例外不改变多行调用优先全量具名的规则。
+
+单个含义明确的参数：
+
+```kotlin
+val PrimaryColor = Color(0xFF3B66F5)
+```
+
+这里构造器已经表明数值是颜色，可以省略 `color =`。
 
 反例：
 ```kotlin
@@ -112,11 +126,81 @@ val match = SearchChunkMatch(
 
 ### 规则：调用括号断行与尾随逗号格式化
 
-- 多行参数排版时：
-  - 左括号 `(` 后立即换行。
-  - 每个参数独占一行，统一缩进 4 空格。
-  - 行尾保留 Kotlin 尾随逗号（trailing comma），便于后续新增或调整参数顺序时的 Git Diff 最小化。
-  - 右括号 `)` 单独成行，并与函数声明行起始缩进保持对齐。
+- 调用需要跨行时，左括号 `(` 后换行，参数相对调用所在语句缩进 4 空格。
+- 右括号 `)` 单独成行，与调用所在语句的起始缩进对齐；即使最后一个参数是 Lambda，也不能把右括号挤到 `}` 后面形成 `})`。
+- 具名参数较长、表达式复杂或需要逐项对应时，每个参数独占一行；较短、含义清楚且关系紧密的参数可以放在同一行，分组不能牺牲形参名和阅读清晰度。
+- 多行调用与声明继续保留 Kotlin 尾随逗号（trailing comma），便于新增或调整参数时保持清晰的 Git Diff。
+
+反例：
+
+```kotlin
+is ChatUiState.Finished -> ChatLayout(
+    uiState = uiState.previous,
+    background = background,
+    emit = {})
+```
+
+推荐：
+
+```kotlin
+is ChatUiState.Finished -> ChatLayout(
+    uiState = uiState.previous,
+    background = background,
+    emit = {},
+)
+```
+
+### 规则：未具名调用按参数复杂度分组换行
+
+- 对受语言限制或局部整理时尚未具名的调用，连续的简单参数可以放在同一行，带集合转换、Lambda 等相对复杂表达式的参数另起一行，末尾回调可以单独一行。
+- 下面的位置参数示例仅表达分组偏好；在支持具名参数的多行调用中，仍优先采用后面的全量具名写法。
+- 简短的 `metadata.mapTo(HashSet()) { it.key }` 可以保留在参数中；确实过长、重复使用或需要解释业务含义时，再提取局部变量。
+
+未具名时的分组示例：
+
+```kotlin
+else -> body(
+    request, query, cursor, initial, page,
+    metadata.mapTo(HashSet()) { it.key },
+    onPartial,
+)
+```
+
+支持具名参数时优先采用：
+
+```kotlin
+else -> body(
+    request = request,
+    query = query,
+    cursor = cursor,
+    initial = initial,
+    metadata = page,
+    excluded = metadata.mapTo(HashSet()) { it.key },
+    onPartial = onPartial,
+)
+```
+
+### 规则：赋值表达式优先从调用参数处换行
+
+- 长调用赋给局部变量时，优先保留 `val name = receiver.method(` 在同一行，从参数列表开始换行；该行本身过长时再进一步拆分。
+- 参数较短且同一行仍易读时可以紧凑分组，同时遵守多行调用优先全量具名的要求。
+- 简短的 Elvis 提前返回表达式（如 `?: return@launch`）跟在结束右括号后，不单独悬挂到更深缩进的一行；右侧表达式较复杂时另行展开。
+
+反例：
+
+```kotlin
+val failure =
+    error.toGenerationFailurePresentation(mContext, R.string.generation_failed)
+        ?: return@launch
+```
+
+推荐：
+
+```kotlin
+val failure = error.toGenerationFailurePresentation(
+    context = mContext, fallbackMessageResId = R.string.generation_failed,
+) ?: return@launch
+```
 
 ---
 
@@ -299,10 +383,31 @@ Icon(
 
 ## 集合流式操作与高阶函数
 
+### 规则：未使用的单个 Lambda 参数省略声明
+
+- Lambda 提供的单个参数没有被使用，且 Kotlin 语法与作用域允许省略时，直接省略 `_ ->`。
+- 多行或嵌套 Lambda 的显式命名要求针对实际使用的参数，不应机械地为未使用参数补充 `_ ->`。
+- 多参数 Lambda 中仅部分参数未使用，或省略声明会影响类型推断、引用解析时，保留必要的参数声明与 `_` 占位。
+
+反例：
+
+```kotlin
+single { _ -> MessageImageRuntime(get(), get()) }
+```
+
+推荐：
+
+```kotlin
+single { MessageImageRuntime(get(), get()) }
+```
+
+这种简短的依赖注册保持单行即可。
+
 ### 规则：多步处理或嵌套 Lambda 严禁使用隐式 it
 
 - 仅在非常简短的单行表达式（如 `.map { it.id }`）中允许使用 `it`。
-- 一旦包含多行逻辑、条件判断或出现 Lambda 嵌套，**必须显式声明语义参数名**。
+- 实际使用 Lambda 参数，且包含多行逻辑、复杂条件判断或出现 Lambda 嵌套时，**必须显式声明语义参数名**。
+- 判断依据是 Lambda 自身的逻辑和嵌套关系；外层函数调用跨行，不会让简单的 `{ it.key }` 自动变成需要改名的多行 Lambda。
 
 反例：
 ```kotlin
@@ -353,6 +458,31 @@ val activeNames = users
 
 ## 函数签名与长表达式排版
 
+### 规则：相邻类型声明之间统一空一行
+
+- 同一层级的相邻 `class`、`data class`、`object`、`data object` 等类型声明之间统一保留一个空行，不因声明是单行还是多行而区别处理。
+- 连续的单行类型声明也要分隔；一个多行声明结束后同样只空一行。
+- KDoc 和注解紧贴其所属声明，空行放在前一个声明与下一组 KDoc、注解或声明之间。
+- 这条规则针对独立类型声明，不要求构造器参数、枚举项或一组紧密相关的简单属性逐项插入空行。
+
+示例：
+
+```kotlin
+sealed class ChatUiIntent {
+    data object ImpersonateUser : ChatUiIntent()
+
+    data class RegenerateFromMessage(val messageId: String) : ChatUiIntent()
+
+    data class BranchFromMessage(
+        val messageId: String,
+    ) : ChatUiIntent()
+
+    data object ShowSessionLoreDialog : ChatUiIntent()
+
+    data object OpenWorldBookManager : ChatUiIntent()
+}
+```
+
 ### 规则：多参数声明统一多行排版
 
 - 函数形参超过 3 个或单行超出屏幕宽度时，采用标准多行函数签名排版。
@@ -396,11 +526,15 @@ val info = "Status: $statusDetail"
 
 编写或修改代码提交前，对照此清单快速自检：
 
-- 跨行函数调用、构造器与 `uiState.copy(...)` 是否全量使用了具名参数？
-- 是否彻底杜绝了“半裸”传参（如 `Text(title, style = ...)` 已纠正为 `Text(text = title, style = ...)`）？
+- 跨行函数调用、构造器与 `uiState.copy(...)` 是否在语言及 API 支持时优先全量具名，且未把位置参数分组示例当成一般例外？
+- 是否避免了可以具名却混用位置实参的“半裸”传参？
+- 单个含义明确的实参是否保留了简洁写法，对无上下文语义的字面量是否仍使用具名参数？
+- 多行调用是否从参数列表换行，右括号是否单独成行，短参数分组和复杂参数换行是否清晰？
+- 赋值表达式是否优先保留 `val name = receiver.method(`，简短的 `?: return` 是否紧跟结束右括号？
+- 相邻类型声明之间是否统一空一行，KDoc 与注解是否仍归属于正确声明？
 - 复杂布尔运算是否已提取语义清晰的局部变量（如 `isAfterBoundary`、`isSameBoundaryParent`）？
 - 多行条件的操作符（`&&`、`||`）是否统一置于行首对齐？
 - 是否消除了深层嵌套，优先采用了卫语句提前返回？
 - Compose 组件的 Modifier 链是否每步独立成行？
-- 多行或嵌套 Lambda 是否已消除隐式 `it`，改用显式形参命名？
+- 多行或嵌套 Lambda 中实际使用的参数是否显式命名，未使用的单个参数是否省略了多余的 `_ ->`？
 - 组件声明参数和字符串模板内部是否已剥离巨型计算与复杂内联表达式？

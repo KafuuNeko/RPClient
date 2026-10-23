@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Search
@@ -28,8 +27,6 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +47,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 通用会话世界书对话框中的分组展示模型。 */
 data class SessionLorebookDialogGroup(
@@ -104,12 +103,12 @@ fun SessionLorebookDialog(
     onToggleEntry: (Long) -> Unit,
     onConfirmSelection: () -> Unit,
     onManageWorldBooks: () -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
 ) {
     var expandedGroupIds by remember { mutableStateOf(emptySet<Long>()) }
     val listState = rememberLazyListState()
     val isSearching = query.isNotBlank()
-    val completeGroupsById = remember(groups) { groups.associateBy { it.id } }
+    val completeGroupsById = remember(groups) { groups.associateBy { sessionLorebookDialogGroup -> sessionLorebookDialogGroup.id } }
 
     AppDialogScaffold(
         onDismissRequest = onDismissRequest,
@@ -124,27 +123,27 @@ fun SessionLorebookDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .padding(horizontal = 20.dp)
-            .widthIn(max = 560.dp)
+            .widthIn(max = 560.dp),
     ) {
         // 搜索框与结果列表共享固定上限，避免大量条目撑出屏幕边界。
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SessionLorebookManagerLink(onClick = onManageWorldBooks)
             if (groups.isNotEmpty()) {
                 SessionLorebookSearchField(
                     query = query,
-                    onQueryChange = onQueryChange
+                    onQueryChange = onQueryChange,
                 )
             }
             when {
                 groups.isEmpty() -> SessionLorebookEmptyText(
-                    text = stringResource(R.string.no_world_book_entries_selectable)
+                    text = stringResource(R.string.no_world_book_entries_selectable),
                 )
 
                 visibleGroups.isEmpty() -> SessionLorebookEmptyText(
-                    text = stringResource(R.string.no_world_book_search_results)
+                    text = stringResource(R.string.no_world_book_search_results),
                 )
 
                 else -> LazyColumn(
@@ -154,25 +153,25 @@ fun SessionLorebookDialog(
                         .heightIn(max = 380.dp)
                         .draggableLazyListScrollIndicator(listState),
                     contentPadding = PaddingValues(end = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(visibleGroups, key = { it.id }) { group ->
+                    items(items = visibleGroups, key = { sessionLorebookDialogGroup -> sessionLorebookDialogGroup.id }) { group ->
                         val expanded = isSearching || group.id in expandedGroupIds
                         val completeGroup = completeGroupsById.getValue(group.id)
-                        val completeEntryIds = completeGroup.entries.mapTo(mutableSetOf()) { it.id }
+                        val completeEntryIds = completeGroup.entries.mapTo(mutableSetOf()) { sessionLorebookDialogEntry -> sessionLorebookDialogEntry.id }
                         SessionLorebookGroupCard(
                             group = group,
                             enabledEntryIds = enabledEntryIds,
-                            enabledCount = completeEntryIds.count { it in enabledEntryIds },
+                            enabledCount = completeEntryIds.count { id -> id in enabledEntryIds },
                             totalCount = completeEntryIds.size,
-                            allEnabled = completeEntryIds.isNotEmpty() &&
-                                completeEntryIds.all { it in enabledEntryIds },
+                            allEnabled = completeEntryIds.isNotEmpty()
+                                && completeEntryIds.all { id -> id in enabledEntryIds },
                             expanded = expanded,
                             onExpandedChange = {
                                 expandedGroupIds = expandedGroupIds.toggle(group.id)
                             },
                             onToggleGroup = { onToggleGroup(group.id) },
-                            onToggleEntry = onToggleEntry
+                            onToggleEntry = onToggleEntry,
                         )
                     }
                 }
@@ -190,28 +189,28 @@ private fun SessionLorebookManagerLink(onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Rounded.Settings,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = stringResource(R.string.manage_world_books),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
@@ -226,7 +225,7 @@ private fun SessionLorebookEmptyText(text: String) {
             .fillMaxWidth()
             .padding(vertical = 24.dp),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -241,7 +240,7 @@ private fun SessionLorebookGroupCard(
     expanded: Boolean,
     onExpandedChange: () -> Unit,
     onToggleGroup: () -> Unit,
-    onToggleEntry: (Long) -> Unit
+    onToggleEntry: (Long) -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -249,14 +248,14 @@ private fun SessionLorebookGroupCard(
             .then(if (!expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
         ),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = if (expanded) 12.dp else 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // 分组标题负责折叠，末端开关独立控制当前会话中的整组条目。
             Row(
@@ -264,13 +263,13 @@ private fun SessionLorebookGroupCard(
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 44.dp)
                     .then(if (expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RpIconBubble(
                     icon = Icons.AutoMirrored.Rounded.MenuBook,
                     size = 32.dp,
                     iconSize = 17.dp,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -278,16 +277,16 @@ private fun SessionLorebookGroupCard(
                         text = group.name,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = stringResource(
                             R.string.enabled_entries_count,
                             enabledCount,
-                            totalCount
+                            totalCount,
                         ),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -295,7 +294,7 @@ private fun SessionLorebookGroupCard(
                 RpCheckBadge(
                     selected = allEnabled,
                     indeterminate = indeterminate,
-                    onClick = onToggleGroup
+                    onClick = onToggleGroup,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
@@ -305,7 +304,7 @@ private fun SessionLorebookGroupCard(
                         Icons.AutoMirrored.Rounded.KeyboardArrowRight
                     },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (expanded) {
@@ -313,7 +312,7 @@ private fun SessionLorebookGroupCard(
                     SessionLorebookEntryRow(
                         entry = entry,
                         enabled = entry.id in enabledEntryIds,
-                        onToggle = { onToggleEntry(entry.id) }
+                        onToggle = { onToggleEntry(entry.id) },
                     )
                 }
             }
@@ -326,7 +325,7 @@ private fun SessionLorebookGroupCard(
 private fun SessionLorebookEntryRow(
     entry: SessionLorebookDialogEntry,
     enabled: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
 ) {
     val constantLabel = stringResource(R.string.entry_constant)
     // 整行与末端开关共享同一切换回调，扩大移动端触控区域。
@@ -335,17 +334,17 @@ private fun SessionLorebookEntryRow(
             .fillMaxWidth()
             .clickable(onClick = onToggle)
             .padding(horizontal = 4.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             if (entry.content.isNotBlank()) {
                 Text(
@@ -353,7 +352,7 @@ private fun SessionLorebookEntryRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             RpTagRow(
@@ -361,7 +360,7 @@ private fun SessionLorebookEntryRow(
                     if (entry.constant) add(constantLabel)
                     addAll(entry.keywords)
                 },
-                maxCount = 3
+                maxCount = 3,
             )
         }
         Spacer(modifier = Modifier.width(10.dp))
@@ -373,7 +372,7 @@ private fun SessionLorebookEntryRow(
 @Composable
 private fun SessionLorebookSearchField(
     query: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         modifier = Modifier.fillMaxWidth(),
@@ -384,23 +383,23 @@ private fun SessionLorebookSearchField(
                 text = stringResource(R.string.search_world_books),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         },
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
         trailingIcon = {
             // 仅在存在搜索词时提供一键清空，清空动作仍由调用方更新状态树。
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.clear_search)
+                        contentDescription = stringResource(R.string.clear_search),
                     )
                 }
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
@@ -418,13 +417,13 @@ private fun SessionLorebookDialogPreview() {
             onToggleEntry = {},
             onConfirmSelection = {},
             onManageWorldBooks = {},
-            onDismissRequest = {}
+            onDismissRequest = {},
         )
     }
 }
 
 private val previewSessionLorebookGroups = listOf(
-    SessionLorebookDialogGroup(
+    element = SessionLorebookDialogGroup(
         id = 1,
         name = "Fog Harbor",
         entries = listOf(
@@ -433,15 +432,15 @@ private val previewSessionLorebookGroups = listOf(
                 name = "Old District",
                 content = "A rain-soaked district surrounding the abandoned archive.",
                 keywords = listOf("archive", "rain"),
-                constant = false
+                constant = false,
             ),
             SessionLorebookDialogEntry(
                 id = 2,
                 name = "Night Watch",
                 content = "Patrol routes and curfew rules used after midnight.",
                 keywords = listOf("night"),
-                constant = true
-            )
-        )
-    )
+                constant = true,
+            ),
+        ),
+    ),
 )

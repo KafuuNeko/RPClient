@@ -5,9 +5,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -33,7 +33,7 @@ class StorySummaryPromptBuilder(
         content: String,
         provider: LLMProvider,
         userName: String,
-        primaryCharacterName: String?
+        primaryCharacterName: String?,
     ): LLMGenerationRequest {
         require(content.isNotBlank()) { "Story manuscript cannot be blank" }
         // 校验并计算可用 Prompt 输入预算
@@ -48,47 +48,47 @@ class StorySummaryPromptBuilder(
             target = StoryEditTarget(content.length, content.length),
             authorNote = "",
             tokenizer = mRequestFinalizer.tokenizerFor(provider),
-            promptBudget = promptBudget
+            promptBudget = promptBudget,
         )
         // 组装必需的系统提示词与正文上下文草稿
         val drafts = buildList {
             addRequired(
-                renderStoryInstructionTemplate(
+                content = renderStoryInstructionTemplate(
                     template = AppModel.storySummarizePrompt.replace(
-                        "{{words}}",
-                        AppModel.summaryWordsLimit.toString(),
-                        ignoreCase = true
+                        oldValue = "{{words}}",
+                        newValue = AppModel.summaryWordsLimit.toString(),
+                        ignoreCase = true,
                     ),
                     userName = userName,
-                    primaryCharacterName = primaryCharacterName
+                    primaryCharacterName = primaryCharacterName,
                 ),
-                PromptSourceKind.StoryMainPrompt
+                sourceKind = PromptSourceKind.StoryMainPrompt,
             )
             addRequired(
-                renderStoryMemoryTemplate(AppModel.storyMemoryTemplate, memory),
-                PromptSourceKind.StoryMemory
+                content = renderStoryMemoryTemplate(AppModel.storyMemoryTemplate, memory),
+                sourceKind = PromptSourceKind.StoryMemory,
             )
             addRequired(
-                renderStorySummaryTemplate(
-                    AppModel.storySummaryTemplate,
-                    currentSummary
+                content = renderStorySummaryTemplate(
+                    template = AppModel.storySummaryTemplate,
+                    summary = currentSummary,
                 ),
-                PromptSourceKind.StorySummary
+                sourceKind = PromptSourceKind.StorySummary,
             )
             selection.chunks.forEachIndexed { index, chunk ->
                 add(
-                    PromptMessageDraft(
+                    element = PromptMessageDraft(
                         role = LLMMessageRole.User,
                         content = chunk.content,
                         source = PromptSource(
                             kind = PromptSourceKind.StoryDocumentContext,
                             detail = "${chunk.start}-${chunk.end}",
-                            referenceId = index.toLong()
+                            referenceId = index.toLong(),
                         ),
                         retentionPriority = PRIORITY_DOCUMENT_MAX -
                             chunk.distance.coerceAtMost(PRIORITY_DOCUMENT_DISTANCE_LIMIT),
-                        canDrop = !chunk.required
-                    )
+                        canDrop = !chunk.required,
+                    ),
                 )
             }
         }
@@ -100,32 +100,30 @@ class StorySummaryPromptBuilder(
             options = LLMGenerationOptions(
                 temperature = provider.temperature,
                 maxTokens = responseTokens,
-                topP = provider.topP
+                topP = provider.topP,
             ),
             includeReasoningInContent = false,
             maxContextTokens = provider.contextTokens,
             maxResponseTokens = responseTokens,
-            postProcessingMode = PromptPostProcessingMode.fromOrdinal(
-                provider.promptPostProcessingMode
-            ),
-            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER
+            postProcessingMode = PromptPostProcessingMode.fromOrdinal(provider.promptPostProcessingMode),
+            strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
         ).request
     }
 
     /** 辅助函数：向草稿列表追加必需的不可丢弃 System 消息。 */
     private fun MutableList<PromptMessageDraft>.addRequired(
         content: String,
-        sourceKind: PromptSourceKind
+        sourceKind: PromptSourceKind,
     ) {
         if (content.isBlank()) return
         add(
-            PromptMessageDraft(
+            element = PromptMessageDraft(
                 role = LLMMessageRole.System,
                 content = content,
                 source = PromptSource(sourceKind),
                 retentionPriority = PRIORITY_REQUIRED,
-                canDrop = false
-            )
+                canDrop = false,
+            ),
         )
     }
 

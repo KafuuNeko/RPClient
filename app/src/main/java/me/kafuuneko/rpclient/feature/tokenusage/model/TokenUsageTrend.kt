@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.feature.tokenusage.model
 
+import me.kafuuneko.rpclient.feature.tokenusage.presentation.TokenUsagePeriod
+import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageDailyStat
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import me.kafuuneko.rpclient.feature.tokenusage.presentation.TokenUsagePeriod
-import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageDailyStat
 
 /**
  * 根据当前选择的统计周期生成连续的时序数据点。
@@ -20,7 +20,7 @@ import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageDailyStat
  */
 internal fun buildTrendPoints(
     period: TokenUsagePeriod,
-    rawStats: List<LLMTokenUsageDailyStat>
+    rawStats: List<LLMTokenUsageDailyStat>,
 ): List<TokenUsageTrendPoint> {
     val statMap = rawStats.associateBy { it.dateText }
     val zone = ZoneId.systemDefault()
@@ -45,7 +45,7 @@ internal fun buildTrendPoints(
                 outputTokens = stat.outputTokens,
                 cachedInputTokens = stat.cachedInputTokens,
                 requestCount = stat.requestCount,
-                isCurrent = stat.dateText == today.format(fullDateFormatter)
+                isCurrent = stat.dateText == today.format(fullDateFormatter),
             )
         }
     }
@@ -64,7 +64,7 @@ internal fun buildTrendPoints(
             outputTokens = stat?.outputTokens ?: 0L,
             cachedInputTokens = stat?.cachedInputTokens ?: 0L,
             requestCount = stat?.requestCount ?: 0L,
-            isCurrent = date == today
+            isCurrent = date == today,
         )
     }
 }

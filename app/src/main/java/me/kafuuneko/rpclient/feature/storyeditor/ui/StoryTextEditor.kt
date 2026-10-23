@@ -10,7 +10,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,7 +99,7 @@ internal val LocalStoryMarkdownEditorController = compositionLocalOf {
 @Composable
 internal fun rememberStoryMarkdownController(document: StoryEditorDocument?, enabled: Boolean): StoryMarkdownEditorController {
     val controller = remember(document?.chapterId, enabled) {
-        StoryMarkdownEditorController(enabled, initialPreview = document?.searchRange == null)
+        StoryMarkdownEditorController(enabled = enabled, initialPreview = document?.searchRange == null)
     }
     LaunchedEffect(document?.chapterId, document?.searchRange) {
         if (document?.searchRange != null) controller.preview = false
@@ -120,13 +119,9 @@ internal fun MarkdownModeToolbarAction() {
                 } else {
                     controller.onConfirm?.invoke()
                 }
-            }
+            },
         ) {
-            Text(
-                stringResource(
-                    if (controller.preview) R.string.story_markdown_edit else R.string.confirm
-                )
-            )
+            Text(stringResource(if (controller.preview) R.string.story_markdown_edit else R.string.confirm))
         }
     }
 }
@@ -140,17 +135,17 @@ internal fun StoryTextEditor(
     editorState: TextFieldState,
     editable: Boolean,
     generationState: StoryGenerationState,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 正文不使用 rememberSaveable，避免长文进入 Activity Bundle；Room 承担进程恢复。
     val editorScrollState = rememberScrollState()
     val searchScope = rememberCoroutineScope()
     var pendingSearchScroll by remember(document.chapterId, document.searchRange) { mutableStateOf(document.searchRange != null) }
     val markdownPreviewScrollState = rememberScrollState()
-    var editorTextLayout by remember(document.chapterId) { mutableStateOf<TextLayoutResult?>(null) }
+    var editorTextLayout by remember(document.chapterId) { mutableStateOf<TextLayoutResult?>(value = null) }
     var editorTextLayoutSyncVersion by remember(document.chapterId) { mutableLongStateOf(-1L) }
     var editorTextLayoutLength by remember(document.chapterId) { mutableIntStateOf(-1) }
-    var markdownHighlightedStartY by remember(document.chapterId) { mutableStateOf<Float?>(null) }
+    var markdownHighlightedStartY by remember(document.chapterId) { mutableStateOf<Float?>(value = null) }
     var markdownHighlightedPositionSyncVersion by remember(document.chapterId) { mutableLongStateOf(-1L) }
     var markdownHighlightedPositionLength by remember(document.chapterId) { mutableIntStateOf(-1) }
     var shouldScrollToGeneratedRange by remember(document.chapterId) { mutableStateOf(false) }
@@ -162,11 +157,11 @@ internal fun StoryTextEditor(
     val returnToMarkdownPreview: () -> Unit = {
         // 离开原文编辑前发送最新内容快照，避免预览丢失尚未发布的修改。
         StoryEditorUiIntent.EditorSnapshotChanged(
-            StoryEditorSnapshot(
+            snapshot = StoryEditorSnapshot(
                 chapterId = document.chapterId,
                 content = editorState.text.toString(),
-                isComposing = editorState.composition != null
-            )
+                isComposing = editorState.composition != null,
+            ),
         ).emit()
         markdownController.preview = true
         focusManager.clearFocus(force = true)
@@ -175,15 +170,23 @@ internal fun StoryTextEditor(
     SideEffect {
         markdownController.onConfirm = returnToMarkdownPreview
     }
-    BackHandler(enabled = markdownEnabled && !markdownPreview) {
-        returnToMarkdownPreview()
-    }
-    SynchronizeMarkdownViewport(markdownPreview, markdownEnabled, editorScrollState, markdownPreviewScrollState)
+    BackHandler(
+        enabled = markdownEnabled && !markdownPreview,
+        onBack = {
+            returnToMarkdownPreview()
+        },
+    )
+    SynchronizeMarkdownViewport(
+        markdownPreview = markdownPreview,
+        markdownEnabled = markdownEnabled,
+        editorScrollState = editorScrollState,
+        markdownPreviewScrollState = markdownPreviewScrollState,
+    )
     val followStreamingOutput = generationState is StoryGenerationState.Streaming
     val generatedTextColor = MaterialTheme.colorScheme.primary
-    val isStreaming = generationState is StoryGenerationState.Streaming ||
-            generationState is StoryGenerationState.Preparing ||
-            generationState is StoryGenerationState.Applying
+    val isStreaming = generationState is StoryGenerationState.Streaming
+            || generationState is StoryGenerationState.Preparing
+            || generationState is StoryGenerationState.Applying
 
     // 流式生成中的呼吸光晕动效
     val infiniteTransition = rememberInfiniteTransition(label = "StoryStreamingGlow")
@@ -191,37 +194,37 @@ internal fun StoryTextEditor(
         initialValue = 0.25f,
         targetValue = 0.75f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
         ),
-        label = "GlowAlpha"
+        label = "GlowAlpha",
     )
 
     val displayedEditedRange = document.searchRange ?: document.latestEditedRange.takeUnless {
-        generationState is StoryGenerationState.Streaming ||
-                generationState is StoryGenerationState.Applying
+        generationState is StoryGenerationState.Streaming
+                || generationState is StoryGenerationState.Applying
     }
     val currentEditedRange by rememberUpdatedState(displayedEditedRange)
     val currentEditedStyle by rememberUpdatedState(
-        SpanStyle(
+        newValue = SpanStyle(
             color = generatedTextColor,
             background = generatedTextColor.copy(alpha = 0.12f),
-            fontWeight = FontWeight.Medium
-        )
+            fontWeight = FontWeight.Medium,
+        ),
     )
     // 转换实例必须跨流式分片保持稳定，否则 BasicTextField 会反复重建布局状态并闪烁。
     val latestEditedOutputTransformation = remember {
         OutputTransformation {
             val editedRange = currentEditedRange
             if (
-                editedRange != null &&
-                editedRange.start < editedRange.end &&
-                editedRange.end <= length
+                editedRange != null
+                && editedRange.start < editedRange.end
+                && editedRange.end <= length
             ) {
                 addStyle(
                     spanStyle = currentEditedStyle,
                     start = editedRange.start,
-                    end = editedRange.end
+                    end = editedRange.end,
                 )
             }
         }
@@ -243,7 +246,7 @@ internal fun StoryTextEditor(
             editorScrollState.scrollTo(bottom)
         }
     }
-    LaunchedEffect(followStreamingOutput, markdownPreview, markdownPreviewScrollState) {
+    LaunchedEffect(key1 = followStreamingOutput, key2 = markdownPreview, key3 = markdownPreviewScrollState) {
         if (!followStreamingOutput || !markdownPreview) return@LaunchedEffect
         var previousMax = markdownPreviewScrollState.maxValue
         snapshotFlow { markdownPreviewScrollState.value to markdownPreviewScrollState.maxValue }
@@ -273,12 +276,11 @@ internal fun StoryTextEditor(
         if (!shouldScrollToGeneratedRange) return@LaunchedEffect
 
         val range = document.latestEditedRange
-        if (
-            range == null ||
-            range.start < 0 ||
-            range.start >= range.end ||
-            range.end > document.content.length
-        ) {
+        val isGeneratedRangeInvalid = range == null
+            || range.start < 0
+            || range.start >= range.end
+            || range.end > document.content.length
+        if (isGeneratedRangeInvalid) {
             shouldScrollToGeneratedRange = false
             return@LaunchedEffect
         }
@@ -287,26 +289,29 @@ internal fun StoryTextEditor(
         val targetContentLength = targetContent.length
         val targetSyncVersion = document.syncVersion
         // 文档与 TextFieldState 异步同步，等待内容及相同修订、长度的布局后再定位。
-        snapshotFlow { editorState.text.toString() }.first { it == targetContent }
+        snapshotFlow { editorState.text.toString() }.first { text -> text == targetContent }
 
         if (markdownEnabled && markdownPreview) {
             val targetY = snapshotFlow {
                 Triple(
-                    markdownHighlightedPositionSyncVersion,
-                    markdownHighlightedPositionLength,
-                    markdownHighlightedStartY
+                    first = markdownHighlightedPositionSyncVersion,
+                    second = markdownHighlightedPositionLength,
+                    third = markdownHighlightedStartY,
                 )
             }.first { (version, length, _) ->
                 version == targetSyncVersion && length == targetContentLength
             }.third
             if (targetY != null) {
                 markdownPreviewScrollState.scrollTo(
-                    targetY.toInt().coerceIn(0, markdownPreviewScrollState.maxValue)
+                    value = targetY.toInt().coerceIn(
+                        minimumValue = 0,
+                        maximumValue = markdownPreviewScrollState.maxValue,
+                    ),
                 )
             }
         } else {
             val textLayout = snapshotFlow {
-                Triple(editorTextLayoutSyncVersion, editorTextLayoutLength, editorTextLayout)
+                Triple(first = editorTextLayoutSyncVersion, second = editorTextLayoutLength, third = editorTextLayout)
             }.first { (version, length, layoutResult) ->
                 version == targetSyncVersion && length == targetContentLength && layoutResult != null
             }.third
@@ -315,7 +320,7 @@ internal fun StoryTextEditor(
                 ?.top
                 ?.toInt()
             if (targetY != null) {
-                editorScrollState.scrollTo(targetY.coerceIn(0, editorScrollState.maxValue))
+                editorScrollState.scrollTo(targetY.coerceIn(minimumValue = 0, maximumValue = editorScrollState.maxValue))
             }
         }
         shouldScrollToGeneratedRange = false
@@ -325,21 +330,23 @@ internal fun StoryTextEditor(
             StoryEditorSnapshot(
                 chapterId = document.chapterId,
                 content = editorState.text.toString(),
-                isComposing = editorState.composition != null
+                isComposing = editorState.composition != null,
             )
         }.distinctUntilChanged().collect { snapshot ->
             StoryEditorUiIntent.EditorSnapshotChanged(snapshot).emit()
         }
     }
 
-    PageSurface(kind = PageSurfaceKind.Content,
+    PageSurface(
+        kind = PageSurfaceKind.Content,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         shadowElevation = if (isStreaming) 2.dp * LocalPageContentOpacity.current else 0.dp,
         border = if (isStreaming) BorderStroke(
-            1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha * LocalPageContentOpacity.current)
+            width = 1.5.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha * LocalPageContentOpacity.current),
         ) else null,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageContentOpacity.current)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageContentOpacity.current),
     ) {
         BasicTextField(
             state = editorState,
@@ -352,7 +359,8 @@ internal fun StoryTextEditor(
                     editorTextLayoutSyncVersion = document.syncVersion
                     editorTextLayoutLength = layout.layoutInput.text.length
                 }
-                if (pendingSearchScroll && range != null && layout != null && range.start < layout.layoutInput.text.length) {
+                val canScrollToSearchRange = pendingSearchScroll && range != null && layout != null && range.start < layout.layoutInput.text.length
+                if (canScrollToSearchRange) {
                     pendingSearchScroll = false
                     val top = layout.getBoundingBox(range.start).top.toInt()
                     searchScope.launch { editorScrollState.scrollTo(top) }
@@ -363,10 +371,10 @@ internal fun StoryTextEditor(
                 .draggableScrollIndicator(editorScrollState),
             enabled = editable && (!markdownEnabled || !markdownPreview),
             textStyle = MaterialTheme.typography.bodyLarge.merge(
-                TextStyle(
+                other = TextStyle(
                     color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 28.sp
-                )
+                    lineHeight = 28.sp,
+                ),
             ),
             scrollState = editorScrollState,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -375,7 +383,7 @@ internal fun StoryTextEditor(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
                 ) {
                     if (markdownEnabled && markdownPreview) {
                         val sourceText = editorState.text.toString()
@@ -391,7 +399,7 @@ internal fun StoryTextEditor(
                                     markdownHighlightedPositionSyncVersion = document.syncVersion
                                     markdownHighlightedPositionLength = sourceText.length
                                 }
-                            }
+                            },
                         )
                     } else if (markdownEnabled) {
                         // Markdown 模式下的原文编辑状态，提供右上方切回预览图标并避让留白
@@ -399,14 +407,18 @@ internal fun StoryTextEditor(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(end = 40.dp)
+                                    .padding(end = 40.dp),
                             ) {
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                Box(
+                                    modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                ) {
                                     if (editorState.text.isEmpty()) {
                                         Text(
                                             text = stringResource(R.string.story_editor_placeholder),
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f),
                                         )
                                     }
                                     innerTextField()
@@ -416,7 +428,7 @@ internal fun StoryTextEditor(
                                 icon = Icons.Rounded.Visibility,
                                 description = R.string.confirm,
                                 modifier = Modifier.align(Alignment.TopEnd),
-                                onClick = returnToMarkdownPreview
+                                onClick = returnToMarkdownPreview,
                             )
                         }
                     } else {
@@ -424,13 +436,13 @@ internal fun StoryTextEditor(
                             Text(
                                 text = stringResource(R.string.story_editor_placeholder),
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f),
                             )
                         }
                         innerTextField()
                     }
                 }
-            }
+            },
         )
     }
 }
@@ -442,7 +454,7 @@ private fun SynchronizeMarkdownViewport(
     markdownPreview: Boolean,
     markdownEnabled: Boolean,
     editorScrollState: ScrollState,
-    markdownPreviewScrollState: ScrollState
+    markdownPreviewScrollState: ScrollState,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val imeVisibleState = rememberUpdatedState(WindowInsets.isImeVisible)
@@ -456,7 +468,10 @@ private fun SynchronizeMarkdownViewport(
             markdownPreviewScrollState
         }
         val scrollFraction = if (sourceScrollState.maxValue > 0) {
-            (sourceScrollState.value.toFloat() / sourceScrollState.maxValue).coerceIn(0f, 1f)
+            (sourceScrollState.value.toFloat() / sourceScrollState.maxValue).coerceIn(
+                minimumValue = 0f,
+                maximumValue = 1f,
+            )
         } else {
             0f
         }
@@ -481,9 +496,9 @@ private fun SynchronizeMarkdownViewport(
             editorScrollState
         }
         targetScrollState.scrollTo(
-            (targetScrollState.maxValue * scrollFraction)
+            value = (targetScrollState.maxValue * scrollFraction)
                 .toInt()
-                .coerceIn(0, targetScrollState.maxValue)
+                .coerceIn(minimumValue = 0, maximumValue = targetScrollState.maxValue),
         )
     }
 }
@@ -507,23 +522,30 @@ private fun StoryMarkdownPreview(
     editedRange: StoryEditedTextRange?,
     scrollState: ScrollState,
     onEditClick: () -> Unit,
-    onHighlightedPosition: (Float?) -> Unit
+    onHighlightedPosition: (Float?) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val validRange = editedRange?.takeIf { it.start >= 0 && it.start < it.end && it.end <= sourceText.length }
     val highlightedText = validRange?.let { sourceText.substring(it.start, it.end) }
     // 用出现次数匹配同文片段，避免重复段落的高亮落在第一处。
     val occurrence = if (validRange != null && !highlightedText.isNullOrBlank()) {
-        MarkdownHighlightMapper.countOccurrencesBefore(sourceText.substring(0, validRange.start), highlightedText)
+        MarkdownHighlightMapper.countOccurrencesBefore(
+            prefix = sourceText.substring(startIndex = 0, endIndex = validRange.start),
+            highlightedText = highlightedText,
+        )
     } else 0
     Box(Modifier.fillMaxSize()) {
         // 正文滚动区域预留右侧留白，避免文字遮挡悬浮操作图标
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .draggableScrollIndicator(scrollState, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f), thumbThickness = 6.dp)
+                .draggableScrollIndicator(
+                    state = scrollState,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                    thumbThickness = 6.dp,
+                )
                 .verticalScroll(scrollState)
-                .padding(end = 40.dp)
+                .padding(end = 40.dp),
         ) {
             MarkdownMessageText(
                 content = sourceText,
@@ -532,36 +554,38 @@ private fun StoryMarkdownPreview(
                 blockSpacing = 16.dp,
                 highlightedText = highlightedText,
                 highlightedOccurrenceIndex = occurrence,
-                onHighlightedPosition = onHighlightedPosition
+                onHighlightedPosition = onHighlightedPosition,
             )
         }
         // 右侧浮动操作组，整合进入编辑与首尾跳转图标
         Column(
-            modifier = Modifier.align(Alignment.TopEnd).fillMaxHeight(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .fillMaxHeight(),
             verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // 顶部操作组：进入编辑模式与回到顶部
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 StoryPreviewScrollButton(
                     icon = Icons.Rounded.Edit,
                     description = R.string.story_markdown_edit,
-                    onClick = onEditClick
+                    onClick = onEditClick,
                 )
                 StoryPreviewScrollButton(
                     icon = Icons.Rounded.ArrowUpward,
                     description = R.string.scroll_to_top,
-                    onClick = { scope.launch { scrollState.animateScrollTo(0) } }
+                    onClick = { scope.launch { scrollState.animateScrollTo(value = 0) } },
                 )
             }
             // 底部操作：直达文末
             StoryPreviewScrollButton(
                 icon = Icons.Rounded.ArrowDownward,
                 description = R.string.scroll_to_bottom,
-                onClick = { scope.launch { scrollState.animateScrollTo(scrollState.maxValue) } }
+                onClick = { scope.launch { scrollState.animateScrollTo(scrollState.maxValue) } },
             )
         }
     }
@@ -580,16 +604,20 @@ private fun StoryPreviewScrollButton(
     icon: ImageVector,
     @StringRes description: Int,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = modifier,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shadowElevation = 3.dp
+        shadowElevation = 3.dp,
     ) {
         IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
-            Icon(icon, stringResource(description), tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                imageVector = icon,
+                contentDescription = stringResource(description),
+                tint = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

@@ -1,11 +1,11 @@
 package me.kafuuneko.rpclient.libs.search
 
-import java.text.BreakIterator
-import java.text.Normalizer
-import java.util.Locale
 import me.kafuuneko.rpclient.utils.MarkdownBlock
 import me.kafuuneko.rpclient.utils.MarkdownInline
 import me.kafuuneko.rpclient.utils.MarkdownParser
+import java.text.BreakIterator
+import java.text.Normalizer
+import java.util.Locale
 
 /**
  * 完整内容检索的字面编码器。
@@ -23,7 +23,8 @@ object SearchTextCodec {
 
     /** 生成本地检索副本，不改写用户输入或业务正文。 */
     fun normalize(text: String): String = mWhitespace.replace(
-        Normalizer.normalize(text, Normalizer.Form.NFKC).lowercase(Locale.ROOT), " "
+        input = Normalizer.normalize(text, Normalizer.Form.NFKC).lowercase(Locale.ROOT),
+        replacement = " ",
     ).trim()
 
     /** 把可见 Markdown 转成文字，保留代码和链接显示内容，排除思考块。 */
@@ -34,7 +35,7 @@ object SearchTextCodec {
                 is MarkdownBlock.Paragraph -> inlineText(block.content)
                 is MarkdownBlock.Heading -> inlineText(block.content)
                 is MarkdownBlock.Quote -> inlineText(block.content)
-                is MarkdownBlock.ListBlock -> block.items.joinToString("\n") { inlineText(it.content) }
+                is MarkdownBlock.ListBlock -> block.items.joinToString("\n") { markdownListItem -> inlineText(markdownListItem.content) }
                 MarkdownBlock.Divider -> "\n"
             }
         }
@@ -47,7 +48,7 @@ object SearchTextCodec {
             val point = normalized.codePointAt(offset)
             if (isNotEmpty()) append(' ')
             if (Character.isLetterOrDigit(point)) appendCodePoint(point)
-            else append('x').append(point.toString(16))
+            else append('x').append(point.toString(radix = 16))
             offset += Character.charCount(point)
         }
     }
@@ -62,7 +63,7 @@ object SearchTextCodec {
         var start = 0
         // 每个单码点 token 都是字母或数字；其它字符使用规范的小写十六进制转义。
         while (start < encoded.length) {
-            val end = encoded.indexOf(' ', start).let { if (it < 0) encoded.length else it }
+            val end = encoded.indexOf(' ', start).let { value -> if (value < 0) encoded.length else value }
             require(end > start) { "Empty search token" }
             val first = encoded.codePointAt(start)
             val point = if (start + Character.charCount(first) == end) {
@@ -96,7 +97,7 @@ object SearchTextCodec {
     /** 延迟生成有重叠的完整正文块，position 使用规范化文本 UTF-16 偏移。 */
     fun chunks(normalized: String): Sequence<Pair<Int, String>> = sequence {
         var start = 0
-        var remaining = normalized.codePointCount(0, normalized.length)
+        var remaining = normalized.codePointCount(beginIndex = 0, endIndex = normalized.length)
         // 每次只生成一块，避免同时分配整篇正文的 token 副本。
         while (start < normalized.length) {
             val end = normalized.offsetByCodePoints(start, minOf(BLOCK_POINTS, remaining))
@@ -159,14 +160,14 @@ object SearchTextCodec {
 
     private fun inlineText(text: String): String = flatten(MarkdownParser.parseInline(text))
 
-    private fun flatten(parts: List<MarkdownInline>): String = parts.joinToString("") {
-        when (it) {
-            is MarkdownInline.Text -> it.content
-            is MarkdownInline.Code -> it.content
-            is MarkdownInline.Strong -> flatten(it.content)
-            is MarkdownInline.Emphasis -> flatten(it.content)
-            is MarkdownInline.Strikethrough -> flatten(it.content)
-            is MarkdownInline.Link -> flatten(it.content)
+    private fun flatten(parts: List<MarkdownInline>): String = parts.joinToString("") { markdownInline ->
+        when (markdownInline) {
+            is MarkdownInline.Text -> markdownInline.content
+            is MarkdownInline.Code -> markdownInline.content
+            is MarkdownInline.Strong -> flatten(markdownInline.content)
+            is MarkdownInline.Emphasis -> flatten(markdownInline.content)
+            is MarkdownInline.Strikethrough -> flatten(markdownInline.content)
+            is MarkdownInline.Link -> flatten(markdownInline.content)
         }
     }
 }

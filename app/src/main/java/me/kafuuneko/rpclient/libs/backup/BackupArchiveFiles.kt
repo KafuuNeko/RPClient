@@ -2,16 +2,16 @@ package me.kafuuneko.rpclient.libs.backup
 
 import android.content.Context
 import android.net.Uri
-import java.io.File
-import java.io.FileInputStream
-import java.io.Writer
-import java.io.FileOutputStream
-import java.security.MessageDigest
-import java.util.zip.ZipInputStream
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BUFFER_SIZE
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.MAX_BYTES
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.MAX_ENTRIES
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.Writer
+import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 
 /** 归档路径与校验、流式 ZIP 读取及文件替换的公共操作。 */
 internal object BackupArchiveFiles {
@@ -29,7 +29,7 @@ internal object BackupArchiveFiles {
             }
             val info = files.getJSONObject(path)
             require(file.length() == info.getLong("size")) { "File size mismatch: " + path }
-            require(sha256(file).equals(info.getString("sha256"), ignoreCase = true)) {
+            require(sha256(file).equals(other = info.getString("sha256"), ignoreCase = true)) {
                 "Checksum mismatch: " + path
             }
         }
@@ -57,8 +57,10 @@ internal object BackupArchiveFiles {
                     // 规范化后的目标仍须位于暂存目录，不能只检查原始路径片段。
                     if (entry.isDirectory) {
                         val target = File(stage, entry.name).canonicalFile
-                        require(target.path == stage.canonicalPath ||
-                            target.path.startsWith(stage.canonicalPath + File.separator)) {
+                        require(
+                            value = target.path == stage.canonicalPath
+                            || target.path.startsWith(stage.canonicalPath + File.separator),
+                        ) {
                             "Unsafe archive path: " + entry.name
                         }
                         target.mkdirs()
@@ -87,7 +89,11 @@ internal object BackupArchiveFiles {
     }
 
     private fun isSafePath(name: String): Boolean {
-        if (name.isBlank() || name.startsWith("/") || name.startsWith("\\") || name.contains('\\')) return false
+        val hasUnsafePathSyntax = name.isBlank()
+            || name.startsWith("/")
+            || name.startsWith("\\")
+            || name.contains('\\')
+        if (hasUnsafePathSyntax) return false
         return name.removeSuffix("/").split('/').none { it.isBlank() || it == "." || it == ".." }
     }
 
@@ -121,7 +127,7 @@ internal object BackupArchiveFiles {
     fun copyFile(source: File, destination: File) {
         if (!source.isFile) return
         destination.parentFile?.mkdirs()
-        source.copyTo(destination, overwrite = true)
+        source.copyTo(target = destination, overwrite = true)
     }
 
     /** 复制目录树和空目录，供快照与回滚使用。 */
@@ -132,7 +138,7 @@ internal object BackupArchiveFiles {
             if (file.isDirectory) target.mkdirs()
             else {
                 target.parentFile?.mkdirs()
-                file.copyTo(target, overwrite = true)
+                file.copyTo(target = target, overwrite = true)
             }
         }
     }
@@ -142,7 +148,7 @@ internal object BackupArchiveFiles {
         require(source.isFile) { "Restore archive is missing " + source.name }
         destination.parentFile?.mkdirs()
         if (destination.exists() && !destination.delete()) error("Could not replace " + destination.name)
-        if (!source.renameTo(destination)) source.copyTo(destination, overwrite = true)
+        if (!source.renameTo(destination)) source.copyTo(target = destination, overwrite = true)
     }
 
     /** 完整替换目录，防止旧附件或设置残留。 */

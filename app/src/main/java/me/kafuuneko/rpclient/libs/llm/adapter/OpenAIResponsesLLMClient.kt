@@ -32,20 +32,29 @@ class OpenAIResponsesLLMClient(
     /** 发送完整请求并解析所有原生输出 Item。 */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
-        val http = buildRequest(request, model, stream = false)
+        val http = buildRequest(request = request, model = model, stream = false)
         var raw: String? = null
         try {
             // 在解析前保留响应，解析失败仍可通过受控日志定位服务端返回的结构。
             raw = mOkHttpClient.await(http.request)
             return OpenAIResponsesResponseCodec.decode(
-                raw, model, mProvider.providerType, request.includeReasoningInContent
+                raw = raw,
+                fallbackModel = model,
+                provider = mProvider.providerType,
+                includeReasoningInContent = request.includeReasoningInContent,
             )
         } catch (error: Throwable) {
             if (raw == null) raw = error.toErrorJson()
             throw recordImageFailure(request, model, error)
         } finally {
             try {
-                raw?.let { mLLMRequestLogRepository.trySaveLog(mProvider, model, false, http.payloadJson, it) }
+                raw?.let { text -> mLLMRequestLogRepository.trySaveLog(
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = false,
+                    requestJson = http.payloadJson,
+                    responseJson = text,
+                ) }
             } finally {
                 http.temporaryFile?.delete()
             }
@@ -55,7 +64,7 @@ class OpenAIResponsesLLMClient(
     /** 按 SSE 帧处理流，在终态立即关闭网络调用并保留停止生成语义。 */
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> = flow {
         val model = request.model ?: mProvider.model
-        val http = buildRequest(request, model, stream = true)
+        val http = buildRequest(request = request, model = model, stream = true)
         val frames = SseEventDecoder()
         val decoder = OpenAIResponsesStreamDecoder()
         val mapper = LLMStreamPartMapper(request.includeReasoningInContent, request.captureReasoning)
@@ -71,13 +80,13 @@ class OpenAIResponsesLLMClient(
                         loggedChars += safe.length + 1
                     }
                     frames.accept(line)?.let { event ->
-                        decoder.accept(event).forEach { part -> mapper.map(part).forEach { emit(it) } }
+                        decoder.accept(event).forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
                     }
                     !decoder.isFinished
                 }.collect {}
             // 尾帧可能缺少空行，但缺少响应终态始终是断流。
             frames.finish()?.let { event ->
-                decoder.accept(event).forEach { part -> mapper.map(part).forEach { emit(it) } }
+                decoder.accept(event).forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
             }
             decoder.requireFinished()
         } catch (error: Throwable) {
@@ -85,7 +94,13 @@ class OpenAIResponsesLLMClient(
             throw recordImageFailure(request, model, error)
         } finally {
             try {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, http.payloadJson, log.toString())
+                mLLMRequestLogRepository.trySaveLog(
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = true,
+                    requestJson = http.payloadJson,
+                    responseJson = log.toString(),
+                )
             } finally {
                 http.temporaryFile?.delete()
             }

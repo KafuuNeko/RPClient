@@ -17,7 +17,7 @@ class LLMRequestLogRepository(
     suspend fun getLogOverviews(
         previewLength: Int,
         limit: Int,
-        offset: Int
+        offset: Int,
     ): List<LLMRequestLogOverview> {
         return mLLMRequestLogDao.getLogOverviews(previewLength, limit, offset)
     }
@@ -38,19 +38,19 @@ class LLMRequestLogRepository(
         model: String,
         isStreaming: Boolean,
         requestJson: String,
-        responseJson: String
+        responseJson: String,
     ): Long {
         if (!AppModel.debugModeEnabled) return 0L
         return mLLMRequestLogDao.insertOrReplace(
-            LLMRequestLog(
+            data = LLMRequestLog(
                 providerName = provider.name,
                 providerType = provider.providerType,
                 protocol = provider.protocol,
                 model = model,
                 isStreaming = isStreaming,
                 requestJson = ImageLogSanitizer.sanitize(requestJson),
-                responseJson = ImageLogSanitizer.sanitize(responseJson)
-            )
+                responseJson = ImageLogSanitizer.sanitize(responseJson),
+            ),
         )
     }
 

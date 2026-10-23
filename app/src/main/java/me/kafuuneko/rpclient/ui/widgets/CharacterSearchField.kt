@@ -19,23 +19,25 @@ import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextFie
 fun CharacterSearchField(
     query: String,
     enabled: Boolean = true,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
 ) {
     // 沿用页面底板与输入边框，壁纸主题下保持相同对比度。
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .generalContentBackground(RoundedCornerShape(16.dp)),
         value = query,
         onValueChange = onQueryChange,
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
         placeholder = {
             Text(
                 text = stringResource(R.string.search_characters),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         },
         enabled = enabled,
         singleLine = true,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     )
 }

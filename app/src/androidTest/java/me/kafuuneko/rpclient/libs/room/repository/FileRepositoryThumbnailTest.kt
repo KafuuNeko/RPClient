@@ -39,7 +39,7 @@ class FileRepositoryThumbnailTest {
     fun largeSquareImage_isSampledAndScaledToRequestedBounds() = runBlocking {
         val uuid = saveBitmap(width = 2048, height = 2048)
 
-        val thumbnail = repository.loadSampledBitmap(uuid, 64, 64)
+        val thumbnail = repository.loadSampledBitmap(uuid = uuid, requestedWidthPx = 64, requestedHeightPx = 64)
 
         assertTrue(thumbnail != null)
         assertTrue(requireNotNull(thumbnail).width <= 64)
@@ -49,8 +49,16 @@ class FileRepositoryThumbnailTest {
 
     @Test
     fun wideAndTallImages_preserveAspectRatioWithinBounds() = runBlocking {
-        val wide = repository.loadSampledBitmap(saveBitmap(2048, 256), 80, 80)
-        val tall = repository.loadSampledBitmap(saveBitmap(256, 2048), 80, 80)
+        val wide = repository.loadSampledBitmap(
+            uuid = saveBitmap(width = 2048, height = 256),
+            requestedWidthPx = 80,
+            requestedHeightPx = 80,
+        )
+        val tall = repository.loadSampledBitmap(
+            uuid = saveBitmap(width = 256, height = 2048),
+            requestedWidthPx = 80,
+            requestedHeightPx = 80,
+        )
 
         assertTrue(requireNotNull(wide).width <= 80 && wide.height <= 80)
         assertTrue(wide.width > wide.height)
@@ -66,9 +74,9 @@ class FileRepositoryThumbnailTest {
             }
             val uuid = repository.saveFile(corrupt, "application/octet-stream")
 
-            assertNull(repository.loadSampledBitmap(uuid, 64, 64))
-            assertNull(repository.loadSampledBitmap(uuid, 0, 64))
-            assertNull(repository.loadSampledBitmap(uuid, 64, -1))
+            assertNull(repository.loadSampledBitmap(uuid = uuid, requestedWidthPx = 64, requestedHeightPx = 64))
+            assertNull(repository.loadSampledBitmap(uuid = uuid, requestedWidthPx = 0, requestedHeightPx = 64))
+            assertNull(repository.loadSampledBitmap(uuid = uuid, requestedWidthPx = 64, requestedHeightPx = -1))
             corrupt.delete()
         }
     }

@@ -31,7 +31,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /**
  * 现代流式标签/关键词胶囊输入组件。
@@ -72,12 +72,12 @@ fun RpChipInputField(
     placeholder: String = stringResource(R.string.tag_input_placeholder),
     editDialogTitle: String = stringResource(R.string.edit_tag_title),
     enabled: Boolean = true,
-    accentColor: Color = MaterialTheme.colorScheme.primary
+    accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
-    val cleanChips = remember(chips) { chips.filter { it.isNotBlank() } }
+    val cleanChips = remember(chips) { chips.filter { text -> text.isNotBlank() } }
     var isInputting by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
-    var editingChipIndex by remember { mutableStateOf<Int?>(null) }
+    var editingChipIndex by remember { mutableStateOf<Int?>(value = null) }
 
     fun commitCurrentInput() {
         val merged = mergeChips(cleanChips, inputText)
@@ -91,18 +91,24 @@ fun RpChipInputField(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ChipInputHeader(title, subtitle, icon, cleanChips.size, accentColor)
+            ChipInputHeader(
+                title = title,
+                subtitle = subtitle,
+                icon = icon,
+                count = cleanChips.size,
+                accentColor = accentColor,
+            )
             ChipFlow(
                 chips = cleanChips,
                 enabled = enabled,
                 inputVisible = isInputting,
                 addLabel = addLabel,
                 accentColor = accentColor,
-                onEdit = { editingChipIndex = it },
+                onEdit = { value -> editingChipIndex = value },
                 onRemove = { index -> onChipsChanged(cleanChips.filterIndexed { i, _ -> i != index }) },
-                onAdd = { isInputting = true }
+                onAdd = { isInputting = true },
             )
             InlineChipInput(
                 visible = isInputting,
@@ -117,7 +123,7 @@ fun RpChipInputField(
                         inputText = value
                     }
                 },
-                onDone = ::commitCurrentInput
+                onDone = ::commitCurrentInput,
             )
         }
     }
@@ -126,7 +132,7 @@ fun RpChipInputField(
         chips = cleanChips,
         title = editDialogTitle,
         onDismiss = { editingChipIndex = null },
-        onChipsChanged = onChipsChanged
+        onChipsChanged = onChipsChanged,
     )
 }
 
@@ -136,14 +142,14 @@ private fun ChipInputHeader(
     subtitle: String?,
     icon: ImageVector?,
     count: Int,
-    accentColor: Color
+    accentColor: Color,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
             RpIconBubble(
                 icon = icon,
                 containerColor = accentColor.copy(alpha = 0.12f),
-                contentColor = accentColor
+                contentColor = accentColor,
             )
             Spacer(modifier = Modifier.width(10.dp))
         }
@@ -152,27 +158,27 @@ private fun ChipInputHeader(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 )
             }
         }
         Surface(
             shape = RoundedCornerShape(8.dp),
             color = accentColor.copy(alpha = 0.10f),
-            border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.20f))
+            border = BorderStroke(width = 0.5.dp, color = accentColor.copy(alpha = 0.20f)),
         ) {
             Text(
                 text = stringResource(R.string.chip_count, count),
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = accentColor
+                color = accentColor,
             )
         }
     }
@@ -188,12 +194,12 @@ private fun ChipFlow(
     accentColor: Color,
     onEdit: (Int) -> Unit,
     onRemove: (Int) -> Unit,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         chips.forEachIndexed { index, chipText ->
             EditableInputChip(
@@ -201,7 +207,7 @@ private fun ChipFlow(
                 enabled = enabled,
                 accentColor = accentColor,
                 onEdit = { onEdit(index) },
-                onRemove = { onRemove(index) }
+                onRemove = { onRemove(index) },
             )
         }
         if (enabled && !inputVisible) {
@@ -216,7 +222,7 @@ private fun EditableInputChip(
     enabled: Boolean,
     accentColor: Color,
     onEdit: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     InputChip(
         selected = false,
@@ -226,7 +232,7 @@ private fun EditableInputChip(
                 text = text,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         },
         trailingIcon = if (enabled) {
@@ -234,21 +240,23 @@ private fun EditableInputChip(
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.delete),
-                    modifier = Modifier.size(16.dp).clickable(onClick = onRemove)
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable(onClick = onRemove),
                 )
             }
         } else null,
         shape = RoundedCornerShape(10.dp),
         colors = InputChipDefaults.inputChipColors(
             containerColor = accentColor.copy(alpha = 0.08f),
-            labelColor = MaterialTheme.colorScheme.onSurface
+            labelColor = MaterialTheme.colorScheme.onSurface,
         ),
         border = InputChipDefaults.inputChipBorder(
             enabled = enabled,
             selected = false,
             borderColor = accentColor.copy(alpha = 0.22f),
-            borderWidth = 0.5.dp
-        )
+            borderWidth = 0.5.dp,
+        ),
     )
 }
 
@@ -257,21 +265,21 @@ private fun AddInputChip(label: String, onClick: () -> Unit) {
     AssistChip(
         onClick = onClick,
         label = {
-            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+            Text(text = label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
         },
         leadingIcon = {
-            Icon(Icons.Rounded.Add, label, Modifier.size(16.dp))
+            Icon(imageVector = Icons.Rounded.Add, contentDescription = label, modifier = Modifier.size(16.dp))
         },
         shape = RoundedCornerShape(10.dp),
         colors = AssistChipDefaults.assistChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         border = AssistChipDefaults.assistChipBorder(
             enabled = true,
             borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-            borderWidth = 0.5.dp
-        )
+            borderWidth = 0.5.dp,
+        ),
     )
 }
 
@@ -282,19 +290,19 @@ private fun InlineChipInput(
     placeholder: String,
     accentColor: Color,
     onValueChange: (String) -> Unit,
-    onDone: () -> Unit
+    onDone: () -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn() + scaleIn(initialScale = 0.95f),
-        exit = fadeOut() + scaleOut(targetScale = 0.95f)
+        exit = fadeOut() + scaleOut(targetScale = 0.95f),
     ) {
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             OutlinedTextField(
                 value = value,
@@ -304,27 +312,33 @@ private fun InlineChipInput(
                         text = placeholder,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
                 singleLine = true,
-                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onDone() }),
                 trailingIcon = {
                     if (value.isNotBlank()) {
                         IconButton(onClick = onDone) {
-                            Icon(Icons.Rounded.Check, stringResource(R.string.confirm), tint = accentColor)
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = stringResource(R.string.confirm),
+                                tint = accentColor,
+                            )
                         }
                     }
-                }
+                },
             )
             IconButton(onClick = onDone) {
                 Icon(
-                    Icons.Rounded.Close,
-                    stringResource(R.string.cancel),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.cancel),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )
             }
         }
@@ -337,9 +351,9 @@ private fun ChipEditDialog(
     chips: List<String>,
     title: String,
     onDismiss: () -> Unit,
-    onChipsChanged: (List<String>) -> Unit
+    onChipsChanged: (List<String>) -> Unit,
 ) {
-    var draft by remember(index) { mutableStateOf(index?.let { chips.getOrNull(it) }.orEmpty()) }
+    var draft by remember(index) { mutableStateOf(index?.let { value -> chips.getOrNull(value) }.orEmpty()) }
     if (index == null || index !in chips.indices) return
     AppInputDialog(
         onDismissRequest = onDismiss,
@@ -354,12 +368,13 @@ private fun ChipEditDialog(
             if (draft.isBlank()) updated.removeAt(index) else updated[index] = draft.trim()
             onChipsChanged(updated)
             onDismiss()
-        }
+        },
     )
 }
 
 private fun mergeChips(existing: List<String>, input: String): List<String> {
-    val additions = input.split(Regex("[,，\\n]+"))
+    val additions = input
+        .split(Regex("[,，\\n]+"))
         .map(String::trim)
         .filter(String::isNotBlank)
     return (existing + additions).distinct()

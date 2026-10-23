@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
@@ -43,6 +42,7 @@ import me.kafuuneko.rpclient.libs.appearance.BackgroundBlur
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
+import kotlin.math.roundToInt
 
 /** 只记录覆盖栏下方的内容，避免将导航栏自身反复录入产生反馈残影。 */
 internal class PageOverlaySource(val layer: GraphicsLayer, val preview: GraphicsLayer) {
@@ -69,26 +69,36 @@ fun PageOverlayHost(content: @Composable () -> Unit, overlay: @Composable () -> 
     val background = LocalPageBackdropState.current
     val appearance = LocalGeneralPageSurfaces.current
     val settings = background.settings
-    val record = LocalGeneralPageSurfaces.current && settings != null &&
-        settings.surfaceOpacity(PageSurfaceKind.BottomBar) < 1f && settings.surfaceBlur(PageSurfaceKind.BottomBar) > 0
+    val record = LocalGeneralPageSurfaces.current && settings != null
+        && settings.surfaceOpacity(PageSurfaceKind.BottomBar) < 1f && settings.surfaceBlur(PageSurfaceKind.BottomBar) > 0
     // 无模糊时保留原始透明合成，不创建每帧快照。
     Box(Modifier.fillMaxSize()) {
-        val capture = if (!record) Modifier else Modifier.graphicsLayer().onGloballyPositioned { source.origin = it.positionInRoot() }
+        val capture = if (!record) Modifier else Modifier
+            .graphicsLayer()
+            .onGloballyPositioned(onGloballyPositioned = { layoutCoordinates -> source.origin = layoutCoordinates.positionInRoot() })
             .drawWithContent {
                 layer.record { this@drawWithContent.drawContent() }
                 drawLayer(layer)
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                    val ratio = minOf(1f, 360f / maxOf(size.width, size.height))
-                    preview.record(size = IntSize((size.width * ratio).roundToInt().coerceAtLeast(1),
-                        (size.height * ratio).roundToInt().coerceAtLeast(1))) {
+                    val ratio = minOf(a = 1f, b = 360f / maxOf(size.width, size.height))
+                    preview.record(
+                        size = IntSize(
+                            width = (size.width * ratio).roundToInt().coerceAtLeast(1),
+                            height = (size.height * ratio).roundToInt().coerceAtLeast(1),
+                        ),
+                    ) {
                         scale(ratio, ratio, Offset.Zero) { drawLayer(layer) }
                     }
                 }
                 source.changed()
             }
-        Box(Modifier.fillMaxSize().then(capture)) {
+        Box(
+            modifier = Modifier
+            .fillMaxSize()
+            .then(capture),
+        ) {
             // 记录完整后景，透明卡片下的壁纸也参与同一次合成。
-            PageBackdrop(background, useContainerAppearance = appearance, content = content)
+            PageBackdrop(state = background, useContainerAppearance = appearance, content = content)
         }
         CompositionLocalProvider(LocalPageOverlaySource provides if (record) source else null) { overlay() }
     }
@@ -106,7 +116,7 @@ internal fun Modifier.pageOverlayBlur(source: PageOverlaySource, amount: Int, sh
     var origin by remember { mutableStateOf(Offset.Zero) }
     val software = rememberOverlaySoftwareBlur(source, amount)
     // 新系统直接重放图层；旧系统使用有界小图与原有 CPU 模糊，避免在主线程卷积。
-    return onGloballyPositioned { origin = it.positionInRoot() }.drawWithContent {
+    return onGloballyPositioned(onGloballyPositioned = { origin = it.positionInRoot() }).drawWithContent {
         val revision = source.revision
         if (revision > 0 && source.layer.size.width > 0) {
             val path = when (val outline = shape.createOutline(size, layoutDirection, this)) {
@@ -118,16 +128,21 @@ internal fun Modifier.pageOverlayBlur(source: PageOverlaySource, amount: Int, sh
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val radius = maxOf(source.layer.size.width, source.layer.size.height) * amount / 100f * 0.018f
                 val margin = (radius * 3).roundToInt()
-                blurred.renderEffect = BlurEffect(radius, radius, TileMode.Clamp)
+                blurred.renderEffect = BlurEffect(radiusX = radius, radiusY = radius, edgeTreatment = TileMode.Clamp)
                 // 卷积仅覆盖底栏及边缘采样留白，避免每次滚动都模糊整个屏幕。
-                blurred.record(size = IntSize(size.width.roundToInt() + margin * 2, size.height.roundToInt() + margin * 2)) {
+                blurred.record(
+                    size = IntSize(
+                        width = size.width.roundToInt() + margin * 2,
+                        height = size.height.roundToInt() + margin * 2,
+                    ),
+                ) {
                     translate(relative.x + margin, relative.y + margin) { drawLayer(source.layer) }
                 }
                 clipPath(path) { translate(-margin.toFloat(), -margin.toFloat()) { drawLayer(blurred) } }
             } else {
                 clipPath(path) {
                     translate(relative.x, relative.y) {
-                        if (software != null) drawImage(software, dstSize = source.layer.size)
+                        if (software != null) drawImage(image = software, dstSize = source.layer.size)
                         else drawLayer(source.layer)
                     }
                 }
@@ -141,7 +156,7 @@ internal fun Modifier.pageOverlayBlur(source: PageOverlaySource, amount: Int, sh
 @Composable
 private fun rememberOverlaySoftwareBlur(source: PageOverlaySource, amount: Int): ImageBitmap? {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return null
-    var image by remember(source, amount) { mutableStateOf<ImageBitmap?>(null) }
+    var image by remember(source, amount) { mutableStateOf<ImageBitmap?>(value = null) }
     LaunchedEffect(source, amount) {
         // 合并滚动时的过期帧，限制分辨率和刷新频率，避免图片随帧排队。
         snapshotFlow { source.revision }.conflate().collect { revision ->
@@ -150,11 +165,11 @@ private fun rememberOverlaySoftwareBlur(source: PageOverlaySource, amount: Int):
             image = withContext(Dispatchers.Default) {
                 val pixels = IntArray(snapshot.width * snapshot.height)
                 snapshot.readPixels(pixels)
-                val radius = (maxOf(snapshot.width, snapshot.height) * amount / 100f * 0.018f).roundToInt().coerceAtLeast(1)
+                val radius = (maxOf(snapshot.width, snapshot.height) * amount / 100f * 0.018f).roundToInt().coerceAtLeast(minimumValue = 1)
                 val result = BackgroundBlur.apply(pixels, snapshot.width, snapshot.height, radius)
                 Bitmap.createBitmap(result, snapshot.width, snapshot.height, Bitmap.Config.ARGB_8888).asImageBitmap()
             }
-            delay(32)
+            delay(timeMillis = 32)
         }
     }
     return image
