@@ -38,7 +38,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 5. IO 通过 Repository/Codec/Builder/Runtime 执行，或明确切到 `Dispatchers.IO`。
 6. 导入导出、请求日志清理、摘要生成、批量保存等长任务使用 `enqueueAsyncTask` 或明确的协程任务，并提供进度/错误状态。
 7. 流式生成不要使用会回滚 partial 内容的任务模式；停止生成后要保留用户消息和已收到的 assistant partial 内容。
-8. 错误提示不要暴露 API Key、真实请求头、完整堆栈、私密对话和真实路径；用户可见提示必须以字符串资源提供，不直接展示内部异常原文，见 [文案与本地化](../coding-guidelines.md#6-文案与本地化)。
+8. 错误提示不要暴露 API Key、真实请求头、完整堆栈、私密对话和真实路径；用户可见提示必须以字符串资源提供，不直接展示内部异常原文，见 [文案与本地化](../coding-guidelines.md#7-文案与本地化)。
 9. 不在 ViewModel 持有 Activity、View、Compose state。
 
 对话框流程：
@@ -134,3 +134,4 @@ fun ChatLayout(
 6. 每个主要 Layout 写 Preview，并使用 `AppTheme(dynamicColor = false)`。
 7. UI 文案不要解释框架、快捷键或开发细节。
 8. 小屏下文本不能溢出或遮挡。
+9. 组件调用与排版遵循 [代码美观与可读性规范](./code-elegance-and-readability.md)，多行参数全量具名，严禁半裸传参，Modifier 链独立成行。

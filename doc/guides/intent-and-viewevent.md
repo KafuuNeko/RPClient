@@ -42,7 +42,7 @@ sealed class ChatUiIntent {
 1. 页面跳转。
 2. 系统文件选择器、图片选择器、导入导出 launcher。
 3. 复制到剪贴板、系统分享、打开外部链接。
-4. Toast 等一次性提示；提示文案使用资源 ID 事件（如 `PopupToastMessageByResId`），不带硬编码文案，见 [文案与本地化](../coding-guidelines.md#6-文案与本地化)。
+4. Toast 等一次性提示；提示文案使用资源 ID 事件（如 `PopupToastMessageByResId`），不带硬编码文案，见 [文案与本地化](../coding-guidelines.md#7-文案与本地化)。
 5. `setResult()`、`finish()` 之外需要宿主执行的动作。
 
 优先使用 `AppViewEvent`；无法覆盖时再建 `<Feature>ViewEvent`。
