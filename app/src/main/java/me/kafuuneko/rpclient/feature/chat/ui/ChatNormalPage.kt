@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ForkRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -1028,7 +1029,7 @@ private fun MessageActions(
                 modifier = Modifier.size(30.dp)
             ) {
                 Icon(
-                    Icons.Rounded.Tune,
+                    Icons.Rounded.ForkRight,
                     contentDescription = stringResource(R.string.branch_from_message),
                     modifier = Modifier.size(17.dp),
                     tint = iconColor
