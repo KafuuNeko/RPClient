@@ -9,7 +9,7 @@ class AnthropicModelCatalogClientTest {
     @Test
     fun responseExposesNextCursorOnlyWhenMorePagesExist() {
         val page = parseAnthropicModelCatalogPage(
-            """
+            raw = """
                 {
                   "data": [
                     {
@@ -20,7 +20,7 @@ class AnthropicModelCatalogClientTest {
                   "has_more": true,
                   "last_id": "cursor"
                 }
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertEquals("claude-model", page.models.single().id)
@@ -31,13 +31,13 @@ class AnthropicModelCatalogClientTest {
     @Test
     fun finalPageDoesNotReuseLastId() {
         val page = parseAnthropicModelCatalogPage(
-            """
+            raw = """
                 {
                   "data": [],
                   "has_more": false,
                   "last_id": "ignored"
                 }
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertNull(page.nextAfterId)
@@ -45,8 +45,6 @@ class AnthropicModelCatalogClientTest {
 
     @Test(expected = LLMModelCatalogInvalidResponseException::class)
     fun missingCursorOnNonFinalPageIsRejected() {
-        parseAnthropicModelCatalogPage(
-            """{"data":[],"has_more":true}"""
-        )
+        parseAnthropicModelCatalogPage("""{"data":[],"has_more":true}""")
     }
 }

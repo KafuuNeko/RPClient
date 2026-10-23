@@ -19,25 +19,28 @@ data class LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = false,
-                    defaultSendTopP = false
+                    defaultSendTopP = false,
                 )
+
                 LLMProviderProtocol.OpenAICompatible -> LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = true
+                    defaultSendTopP = true,
                 )
+
                 LLMProviderProtocol.Gemini -> LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = true
+                    defaultSendTopP = true,
                 )
+
                 LLMProviderProtocol.AnthropicMessages -> LLMProviderCapabilities(
                     temperatureRange = 0f..1f,
                     topPRange = 0f..1f,
                     defaultSendTemperature = true,
-                    defaultSendTopP = false
+                    defaultSendTopP = false,
                 )
             }
         }

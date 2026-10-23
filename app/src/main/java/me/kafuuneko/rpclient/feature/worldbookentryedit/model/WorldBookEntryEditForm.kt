@@ -3,8 +3,8 @@ package me.kafuuneko.rpclient.feature.worldbookentryedit.model
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.utils.orSingleBlank
-import me.kafuuneko.rpclient.utils.trimmedNotBlank
 import me.kafuuneko.rpclient.utils.toJsonString
+import me.kafuuneko.rpclient.utils.trimmedNotBlank
 
 /**
  * 世界书条目编辑表单。
@@ -134,7 +134,7 @@ data class WorldBookEntryEditForm(
                 matchScenario = entry.matchScenario,
                 matchCreatorNotes = entry.matchCreatorNotes,
                 extensionsJson = entry.extensionsJson,
-                rawJson = entry.rawJson
+                rawJson = entry.rawJson,
             )
         }
     }
@@ -161,7 +161,7 @@ data class WorldBookEntryEditForm(
             disabled = disabled,
             position = positionValue,
             role = roleValue,
-            probability = probabilityValue.coerceIn(0, 100),
+            probability = probabilityValue.coerceIn(minimumValue = 0, maximumValue = 100),
             ignoreBudget = ignoreBudget,
             scanDepth = scanDepth.trim().toIntOrNull(),
             selectiveLogic = selectiveLogicValue,
@@ -185,7 +185,7 @@ data class WorldBookEntryEditForm(
             matchScenario = matchScenario,
             matchCreatorNotes = matchCreatorNotes,
             extensionsJson = extensionsJson.trim().ifBlank { "{}" },
-            rawJson = rawJson
+            rawJson = rawJson,
         )
     }
 }
@@ -213,7 +213,7 @@ fun WorldBookEntryEditForm.toComparableForm(): WorldBookEntryEditForm {
         delay = delay.trim(),
         outletName = outletName.trim(),
         triggers = triggers.cleanList(),
-        extensionsJson = extensionsJson.trim().ifBlank { "{}" }
+        extensionsJson = extensionsJson.trim().ifBlank { "{}" },
     )
 }
 

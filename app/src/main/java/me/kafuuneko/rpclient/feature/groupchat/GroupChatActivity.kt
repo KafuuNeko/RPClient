@@ -30,14 +30,26 @@ import me.kafuuneko.rpclient.libs.search.SearchNavigation
 /** 群聊页面宿主，绑定群聊会话 ID 与 MVI 事件流。 */
 class GroupChatActivity : CoreActivityWithEvent() {
     private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
-    private val mBackgroundFlow by lazy { mBackgroundViewModel.observe(BackgroundPage.Group).flowWithLifecycle(lifecycle) }
+    private val mBackgroundFlow by lazy {
+        mBackgroundViewModel.observe(BackgroundPage.Group).flowWithLifecycle(lifecycle)
+    }
     private val mViewModel by viewModels<GroupChatViewModel>()
     private val mImagePicker = registerForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(4)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
     ) { uris -> mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Picked(uris))) }
     private val mImageSaver = registerForActivityResult(
-        CreateImageDocumentContract()
-    ) { uri -> uri?.let { mViewModel.emit(GroupChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) } }
+        contract = CreateImageDocumentContract(),
+    ) { uri ->
+        uri?.let { uri ->
+            mViewModel.emit(
+                GroupChatUiIntent.ImageAction(
+                    MessageImageAction.SaveResult(
+                        uri
+                    )
+                )
+            )
+        }
+    }
 
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -52,17 +64,18 @@ class GroupChatActivity : CoreActivityWithEvent() {
         GroupChatLayout(
             uiState = uiState,
             background = background,
-            emitIntent = mViewModel::emit
+            emitIntent = mViewModel::emit,
         )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mViewModel.emit(
-            GroupChatUiIntent.Init(
+            uiIntent = GroupChatUiIntent.Init(
                 sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
-                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 }
-            )
+                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0)
+                    .takeIf { it > 0 },
+            ),
         )
     }
 
@@ -78,8 +91,10 @@ class GroupChatActivity : CoreActivityWithEvent() {
      */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
-            GroupChatViewEvent.PickImages -> mImagePicker.launch(PickVisualMediaRequest(
-                ActivityResultContracts.PickVisualMedia.ImageOnly))
+            GroupChatViewEvent.PickImages -> mImagePicker.launch(
+                input = PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly),
+            )
+
             is GroupChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
             is GroupChatViewEvent.CopyText -> copyText(viewEvent.text)
             else -> super.onReceivedViewEvent(viewEvent)

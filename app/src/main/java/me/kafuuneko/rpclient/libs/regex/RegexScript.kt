@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.regex
 /** Regex 脚本的来源作用域；执行时按全局、角色卡的顺序依次应用。 */
 enum class RegexScriptScope {
     Global,
+
     Character
 }
 
@@ -14,10 +15,15 @@ enum class RegexScriptScope {
  */
 enum class RegexPlacement(val value: Int) {
     MarkdownDisplay(0),
+
     UserInput(1),
+
     AiResponse(2),
+
     SlashCommand(3),
+
     WorldInfo(5),
+
     Reasoning(6);
 
     companion object {
@@ -29,7 +35,9 @@ enum class RegexPlacement(val value: Int) {
 /** Find Regex 中宏展开的方式，与 SillyTavern `substituteRegex` 字段一致。 */
 enum class RegexFindMacroMode(val value: Int) {
     Disabled(0),
+
     Raw(1),
+
     Escaped(2);
 
     companion object {
@@ -42,7 +50,9 @@ enum class RegexFindMacroMode(val value: Int) {
 /** 脚本执行阶段；只有 Source 阶段的结果允许写回消息或业务数据。 */
 enum class RegexExecutionMode {
     Source,
+
     Markdown,
+
     Prompt
 }
 

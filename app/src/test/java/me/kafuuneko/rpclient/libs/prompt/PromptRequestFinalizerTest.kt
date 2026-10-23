@@ -33,25 +33,54 @@ class PromptRequestFinalizerTest {
     fun responsesKeepsInstructionOrderAndInspectorMatchesBothBudgetPaths() {
         // 原生协议允许 assistant 开头和中途 system，不应套用其他协议的严格重排。
         val drafts = listOf(
-            draft("Opening", 100, false).copy(role = LLMMessageRole.Assistant),
-            draft("Old".repeat(80), 1, true).copy(role = LLMMessageRole.User),
-            draft("World book", 100, false, PromptSourceKind.WorldInfo),
-            draft("Continue", 100, false).copy(role = LLMMessageRole.User)
+            draft(
+                content = "Opening",
+                priority = 100,
+                canDrop = false
+            ).copy(role = LLMMessageRole.Assistant),
+            draft(
+                content = "Old".repeat(80),
+                priority = 1,
+                canDrop = true
+            ).copy(role = LLMMessageRole.User),
+            draft(
+                content = "World book",
+                priority = 100,
+                canDrop = false,
+                sourceKind = PromptSourceKind.WorldInfo
+            ),
+            draft(
+                content = "Continue",
+                priority = 100,
+                canDrop = false
+            ).copy(role = LLMMessageRole.User),
         )
-        val provider = provider(LLMProviderType.ChatGPT, LLMProviderProtocol.OpenAIResponses, "gpt-6-luna")
+        val provider =
+            provider(LLMProviderType.ChatGPT, LLMProviderProtocol.OpenAIResponses, "gpt-6-luna")
         val results = listOf(true, false).map { incremental ->
             finalizer.finalize(
-                drafts, provider, provider.model, LLMGenerationOptions(maxTokens = 10), false,
-                maxContextTokens = 100, maxResponseTokens = 10,
-                postProcessingMode = PromptPostProcessingMode.None, strictPromptPlaceholder = "[Start]",
-                tokenizer = LengthPromptTokenizer(incremental)
+                drafts = drafts,
+                provider = provider,
+                model = provider.model,
+                options = LLMGenerationOptions(maxTokens = 10),
+                includeReasoningInContent = false,
+                maxContextTokens = 100,
+                maxResponseTokens = 10,
+                postProcessingMode = PromptPostProcessingMode.None,
+                strictPromptPlaceholder = "[Start]",
+                tokenizer = LengthPromptTokenizer(incremental),
             )
         }
         // 缓存路径和精确重算必须淘汰同一旧历史，检查器与实际请求保持一致。
         assertEquals(results[0], results[1])
         val result = results.first()
-        assertEquals(listOf(LLMMessageRole.Assistant, LLMMessageRole.System, LLMMessageRole.User), result.request.messages.map { it.role })
-        assertEquals(result.request.messages.map { it.content }, result.inspection.items.map { it.content })
+        assertEquals(
+            listOf(LLMMessageRole.Assistant, LLMMessageRole.System, LLMMessageRole.User),
+            result.request.messages.map { it.role },
+        )
+        assertEquals(
+            result.request.messages.map { it.content },
+            result.inspection.items.map { it.content })
         assertTrue(result.inspection.finalTokenCount <= result.inspection.promptBudget)
         assertEquals(1, result.inspection.omittedItems.size)
     }
@@ -60,19 +89,19 @@ class PromptRequestFinalizerTest {
     fun removesLowestPriorityWholeItemUntilFinalRequestFits() {
         val result = finalize(
             drafts = listOf(
-                draft("Required", priority = 1_000, canDrop = false),
-                draft("x".repeat(40), priority = 10, canDrop = true),
-                draft("Recent", priority = 100, canDrop = true)
+                draft(content = "Required", priority = 1_000, canDrop = false),
+                draft(content = "x".repeat(40), priority = 10, canDrop = true),
+                draft(content = "Recent", priority = 100, canDrop = true),
             ),
             contextTokens = 55,
-            responseTokens = 10
+            responseTokens = 10,
         )
 
         assertTrue(result.inspection.finalTokenCount <= result.inspection.promptBudget)
         assertFalse(result.request.messages.any { it.content == "x".repeat(40) })
         assertEquals(
             PromptOmissionReason.ContextBudget,
-            result.inspection.omittedItems.first().reason
+            result.inspection.omittedItems.first().reason,
         )
     }
 
@@ -80,21 +109,21 @@ class PromptRequestFinalizerTest {
     fun selectedWorldInfoIsNotDroppableWithHistory() {
         val result = finalize(
             drafts = listOf(
-                draft("Required", priority = 1_000, canDrop = false),
+                draft(content = "Required", priority = 1_000, canDrop = false),
                 draft(
-                    "H".repeat(30),
+                    content = "H".repeat(30),
                     priority = PromptRetentionPolicy.HISTORY,
-                    canDrop = true
+                    canDrop = true,
                 ),
                 draft(
-                    "W".repeat(30),
+                    content = "W".repeat(30),
                     priority = 1_000,
                     canDrop = false,
-                    sourceKind = PromptSourceKind.WorldInfo
-                )
+                    sourceKind = PromptSourceKind.WorldInfo,
+                ),
             ),
             contextTokens = 75,
-            responseTokens = 10
+            responseTokens = 10,
         )
 
         assertFalse(result.request.messages.any { it.content == "H".repeat(30) })
@@ -106,16 +135,16 @@ class PromptRequestFinalizerTest {
         assertThrows(PromptBudgetExceededException::class.java) {
             finalize(
                 drafts = listOf(
-                    draft("Required", priority = 1_000, canDrop = false),
+                    draft(content = "Required", priority = 1_000, canDrop = false),
                     draft(
-                        "W".repeat(80),
+                        content = "W".repeat(80),
                         priority = 1_000,
                         canDrop = false,
-                        sourceKind = PromptSourceKind.WorldInfo
-                    )
+                        sourceKind = PromptSourceKind.WorldInfo,
+                    ),
                 ),
                 contextTokens = 50,
-                responseTokens = 10
+                responseTokens = 10,
             )
         }
     }
@@ -124,12 +153,12 @@ class PromptRequestFinalizerTest {
     fun countsSingleUserPostProcessingBeforeApplyingBudget() {
         val result = finalize(
             drafts = listOf(
-                draft("Required", priority = 1_000, canDrop = false),
-                draft("Optional text", priority = 10, canDrop = true)
+                draft(content = "Required", priority = 1_000, canDrop = false),
+                draft(content = "Optional text", priority = 10, canDrop = true),
             ),
             contextTokens = 35,
             responseTokens = 10,
-            mode = PromptPostProcessingMode.SingleUserMessage
+            mode = PromptPostProcessingMode.SingleUserMessage,
         )
 
         assertEquals(1, result.request.messages.size)
@@ -142,30 +171,34 @@ class PromptRequestFinalizerTest {
         assertThrows(PromptBudgetExceededException::class.java) {
             finalize(
                 drafts = listOf(
-                    draft("x".repeat(80), priority = 1_000, canDrop = false)
+                    element = draft(
+                        content = "x".repeat(80),
+                        priority = 1_000,
+                        canDrop = false
+                    )
                 ),
                 contextTokens = 50,
-                responseTokens = 10
+                responseTokens = 10,
             )
         }
     }
 
     @Test
     fun longHistoryNeverOutranksUserNoteBecauseOfItsIndex() {
-        val history = List(250) { index ->
+        val history = List(size = 250) { index ->
             draft(
                 content = "h$index",
                 priority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != 249
+                canDrop = index != 249,
             )
         }
         val result = finalize(
             drafts = listOf(
-                draft("Required", priority = 1_000, canDrop = false),
-                draft("USER_NOTE", priority = 300, canDrop = true)
+                draft(content = "Required", priority = 1_000, canDrop = false),
+                draft(content = "USER_NOTE", priority = 300, canDrop = true),
             ) + history,
             contextTokens = 500,
-            responseTokens = 50
+            responseTokens = 50,
         )
 
         assertTrue(result.request.messages.any { it.content == "USER_NOTE" })
@@ -193,7 +226,7 @@ class PromptRequestFinalizerTest {
                 content = "x",
                 source = PromptSource(PromptSourceKind.ChatHistory, "item-$index"),
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != draftCount - 1
+                canDrop = index != draftCount - 1,
             )
         }
 
@@ -206,7 +239,7 @@ class PromptRequestFinalizerTest {
             maxContextTokens = 113,
             maxResponseTokens = 10,
             postProcessingMode = PromptPostProcessingMode.None,
-            strictPromptPlaceholder = "[Start]"
+            strictPromptPlaceholder = "[Start]",
         )
 
         assertEquals(10, result.request.messages.size)
@@ -218,17 +251,23 @@ class PromptRequestFinalizerTest {
 
     @Test
     fun noneModeIncrementalPathMatchesExactFallback() {
-        val drafts = List(80) { index ->
+        val drafts = List(size = 80) { index ->
+            val content = if (index % 13 == 0) {
+                ""
+            } else {
+                val suffix = "x".repeat(index % 7)
+                "message-$index-$suffix"
+            }
             PromptMessageDraft(
                 role = if (index % 2 == 0) {
                     LLMMessageRole.User
                 } else {
                     LLMMessageRole.Assistant
                 },
-                content = if (index % 13 == 0) "" else "message-$index-${"x".repeat(index % 7)}",
+                content = content,
                 source = PromptSource(PromptSourceKind.ChatHistory, "item-$index"),
                 retentionPriority = index % 5,
-                canDrop = index != 79
+                canDrop = index != 79,
             )
         }
 
@@ -236,12 +275,12 @@ class PromptRequestFinalizerTest {
             val incremental = finalizeWithTokenizer(
                 drafts = drafts,
                 contextTokens = contextTokens,
-                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = true)
+                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = true),
             )
             val exactFallback = finalizeWithTokenizer(
                 drafts = drafts,
                 contextTokens = contextTokens,
-                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = false)
+                tokenizer = LengthPromptTokenizer(supportsIncrementalMessageCounting = false),
             )
 
             assertEquals(exactFallback, incremental)
@@ -252,34 +291,34 @@ class PromptRequestFinalizerTest {
     fun tokenizerRegistryUsesExactOpenAiAndModelFamilyProxies() {
         val registry = PromptTokenizerRegistry()
         val openAi = registry.resolve(
-            LLMProvider(
+            provider = LLMProvider(
                 name = "OpenAI",
                 providerType = LLMProviderType.ChatGPT,
                 protocol = LLMProviderProtocol.OpenAICompatible,
                 baseUrl = "https://api.openai.com/v1",
-                model = "gpt-4o-mini"
-            )
+                model = "gpt-4o-mini",
+            ),
         )
         val claude = registry.resolve(
-            provider(
+            provider = provider(
                 type = LLMProviderType.Claude,
                 protocol = LLMProviderProtocol.AnthropicMessages,
-                model = "claude-sonnet-4"
-            )
+                model = "claude-sonnet-4",
+            ),
         )
         val gemini = registry.resolve(
-            provider(
+            provider = provider(
                 type = LLMProviderType.Gemini,
                 protocol = LLMProviderProtocol.Gemini,
-                model = "gemini-2.5-pro"
-            )
+                model = "gemini-2.5-pro",
+            ),
         )
         val fallback = registry.resolve(
-            provider(
+            provider = provider(
                 type = LLMProviderType.Custom,
                 protocol = LLMProviderProtocol.OpenAICompatible,
-                model = "unknown-local-model"
-            )
+                model = "unknown-local-model",
+            ),
         )
 
         assertEquals(PromptTokenizerStrategy.ModelAware, openAi.strategy)
@@ -299,18 +338,18 @@ class PromptRequestFinalizerTest {
         val openAi = provider(
             type = LLMProviderType.ChatGPT,
             protocol = LLMProviderProtocol.OpenAICompatible,
-            model = "gpt-4o-mini"
+            model = "gpt-4o-mini",
         ).copy(
             tokenEstimateReservePercent = 35,
-            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase
+            localTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
         )
         val unknown = provider(
             type = LLMProviderType.Custom,
             protocol = LLMProviderProtocol.OpenAICompatible,
-            model = "unknown-model-alias"
+            model = "unknown-model-alias",
         ).copy(
             tokenEstimateReservePercent = 35,
-            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
         )
 
         // 手动类型不能被已知 OpenAI 模型或未知模型的自动回退覆盖。
@@ -336,22 +375,19 @@ class PromptRequestFinalizerTest {
     fun proxyReserveUsesTrueBudgetRatioAndIsProviderScoped() {
         val registry = PromptTokenizerRegistry()
         val baseProvider = provider(
-            LLMProviderType.Claude,
-            LLMProviderProtocol.AnthropicMessages,
-            "claude"
+            type = LLMProviderType.Claude,
+            protocol = LLMProviderProtocol.AnthropicMessages,
+            model = "claude",
         )
         val text = "one two three four five six seven eight nine ten"
-        val baseTokens = registry.resolve(
-            baseProvider.copy(tokenEstimateReservePercent = 0)
-        ).countText(text)
+        val baseTokens =
+            registry.resolve(provider = baseProvider.copy(tokenEstimateReservePercent = 0))
+                .countText(text)
 
         listOf(0, 15, 35, 50).forEach { reservePercent ->
-            val tokenizer = registry.resolve(
-                baseProvider.copy(tokenEstimateReservePercent = reservePercent)
-            )
-            val expected = kotlin.math.ceil(
-                baseTokens * 100.0 / (100 - reservePercent)
-            ).toInt()
+            val tokenizer =
+                registry.resolve(provider = baseProvider.copy(tokenEstimateReservePercent = reservePercent))
+            val expected = kotlin.math.ceil(baseTokens * 100.0 / (100 - reservePercent)).toInt()
             assertEquals(expected, tokenizer.countText(text))
             assertEquals(reservePercent, tokenizer.reservePercent)
         }
@@ -361,30 +397,30 @@ class PromptRequestFinalizerTest {
     fun proxyReserveCoercesPersistedValuesToSupportedRange() {
         val registry = PromptTokenizerRegistry()
         val baseProvider = provider(
-            LLMProviderType.Claude,
-            LLMProviderProtocol.AnthropicMessages,
-            "claude"
+            type = LLMProviderType.Claude,
+            protocol = LLMProviderProtocol.AnthropicMessages,
+            model = "claude",
         )
 
         assertEquals(
             0,
-            registry.resolve(baseProvider.copy(tokenEstimateReservePercent = -1)).reservePercent
+            registry.resolve(baseProvider.copy(tokenEstimateReservePercent = -1)).reservePercent,
         )
         assertEquals(
             50,
-            registry.resolve(baseProvider.copy(tokenEstimateReservePercent = 99)).reservePercent
+            registry.resolve(baseProvider.copy(tokenEstimateReservePercent = 99)).reservePercent,
         )
     }
 
     @Test
     fun promptInspectionRecordsProxyReserve() {
         val provider = provider(
-            LLMProviderType.Claude,
-            LLMProviderProtocol.AnthropicMessages,
-            "claude"
+            type = LLMProviderType.Claude,
+            protocol = LLMProviderProtocol.AnthropicMessages,
+            model = "claude",
         ).copy(tokenEstimateReservePercent = 35)
         val result = PromptRequestFinalizer(PromptTokenizerRegistry()).finalize(
-            drafts = listOf(draft("Required", priority = 1_000, canDrop = false)),
+            drafts = listOf(draft(content = "Required", priority = 1_000, canDrop = false)),
             provider = provider,
             model = provider.model,
             options = LLMGenerationOptions(maxTokens = 10),
@@ -392,7 +428,7 @@ class PromptRequestFinalizerTest {
             maxContextTokens = 100,
             maxResponseTokens = 10,
             postProcessingMode = PromptPostProcessingMode.None,
-            strictPromptPlaceholder = "[Start]"
+            strictPromptPlaceholder = "[Start]",
         )
 
         assertEquals(PromptTokenizerStrategy.Estimated, result.inspection.tokenizerStrategy)
@@ -403,9 +439,9 @@ class PromptRequestFinalizerTest {
     fun exactOpenAiTokenizerIgnoresProviderReserve() {
         val registry = PromptTokenizerRegistry()
         val openAi = provider(
-            LLMProviderType.ChatGPT,
-            LLMProviderProtocol.OpenAICompatible,
-            "gpt-4o-mini"
+            type = LLMProviderType.ChatGPT,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            model = "gpt-4o-mini",
         )
         val withoutReserve = registry.resolve(openAi.copy(tokenEstimateReservePercent = 0))
         val withReserve = registry.resolve(openAi.copy(tokenEstimateReservePercent = 50))
@@ -418,11 +454,11 @@ class PromptRequestFinalizerTest {
     @Test
     fun unknownOpenAiModelUsesProviderReserveAsProxy() {
         val tokenizer = PromptTokenizerRegistry().resolve(
-            provider(
-                LLMProviderType.ChatGPT,
-                LLMProviderProtocol.OpenAICompatible,
-                "unknown-future-model"
-            ).copy(tokenEstimateReservePercent = 35)
+            provider = provider(
+                type = LLMProviderType.ChatGPT,
+                protocol = LLMProviderProtocol.OpenAICompatible,
+                model = "unknown-future-model",
+            ).copy(tokenEstimateReservePercent = 35),
         )
 
         assertEquals(PromptTokenizerStrategy.Estimated, tokenizer.strategy)
@@ -435,8 +471,16 @@ class PromptRequestFinalizerTest {
         val providers = listOf(
             provider(LLMProviderType.Claude, LLMProviderProtocol.AnthropicMessages, "claude"),
             provider(LLMProviderType.Gemini, LLMProviderProtocol.Gemini, "gemini"),
-            provider(LLMProviderType.DeepSeek, LLMProviderProtocol.OpenAICompatible, "deepseek-chat"),
-            provider(LLMProviderType.OpenRouter, LLMProviderProtocol.OpenAICompatible, "qwen/qwen3")
+            provider(
+                LLMProviderType.DeepSeek,
+                LLMProviderProtocol.OpenAICompatible,
+                "deepseek-chat"
+            ),
+            provider(
+                LLMProviderType.OpenRouter,
+                LLMProviderProtocol.OpenAICompatible,
+                "qwen/qwen3"
+            ),
         )
         val text = "你好，这是一段用于上下文预算的消息。"
         val utf8Bytes = text.toByteArray(Charsets.UTF_8).size
@@ -452,7 +496,7 @@ class PromptRequestFinalizerTest {
         drafts: List<PromptMessageDraft>,
         contextTokens: Int,
         responseTokens: Int,
-        mode: PromptPostProcessingMode = PromptPostProcessingMode.None
+        mode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     ): PromptFinalizationResult {
         return finalizer.finalize(
             drafts = drafts,
@@ -463,14 +507,14 @@ class PromptRequestFinalizerTest {
             maxContextTokens = contextTokens,
             maxResponseTokens = responseTokens,
             postProcessingMode = mode,
-            strictPromptPlaceholder = "[Start]"
+            strictPromptPlaceholder = "[Start]",
         )
     }
 
     private fun finalizeWithTokenizer(
         drafts: List<PromptMessageDraft>,
         contextTokens: Int,
-        tokenizer: PromptTokenizer
+        tokenizer: PromptTokenizer,
     ): PromptFinalizationResult {
         return PromptRequestFinalizer { tokenizer }.finalize(
             drafts = drafts,
@@ -481,7 +525,7 @@ class PromptRequestFinalizerTest {
             maxContextTokens = contextTokens,
             maxResponseTokens = 10,
             postProcessingMode = PromptPostProcessingMode.None,
-            strictPromptPlaceholder = "[Start]"
+            strictPromptPlaceholder = "[Start]",
         )
     }
 
@@ -489,28 +533,28 @@ class PromptRequestFinalizerTest {
         content: String,
         priority: Int,
         canDrop: Boolean,
-        sourceKind: PromptSourceKind = PromptSourceKind.Other
+        sourceKind: PromptSourceKind = PromptSourceKind.Other,
     ): PromptMessageDraft {
         return PromptMessageDraft(
             role = LLMMessageRole.System,
             content = content,
             source = PromptSource(sourceKind, content.take(8)),
             retentionPriority = priority,
-            canDrop = canDrop
+            canDrop = canDrop,
         )
     }
 
     private fun provider(
         type: LLMProviderType,
         protocol: LLMProviderProtocol,
-        model: String
+        model: String,
     ): LLMProvider {
         return LLMProvider(
             name = "Test",
             providerType = type,
             protocol = protocol,
             baseUrl = "https://example.invalid",
-            model = model
+            model = model,
         )
     }
 

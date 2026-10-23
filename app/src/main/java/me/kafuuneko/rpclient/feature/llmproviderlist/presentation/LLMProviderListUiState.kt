@@ -44,5 +44,6 @@ sealed class LLMProviderListDialogState {
 /** 模型配置加载或启停更新状态。 */
 sealed class LLMProviderListLoadState {
     data object None : LLMProviderListLoadState()
+
     data object Loading : LLMProviderListLoadState()
 }

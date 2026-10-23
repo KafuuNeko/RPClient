@@ -10,11 +10,11 @@ data class DialogAppearance(
 ) {
     /** 统一约束持久化和预览值，交互底板保留至少一成不透明度。 */
     fun normalized(): DialogAppearance = copy(
-        transparency = transparency.coerceIn(0, 100),
-        blur = blur.coerceIn(0, 100),
-        controlTransparency = controlTransparency.coerceIn(0, 90),
-        dim = dim.coerceIn(0, 80),
-        behindBlur = behindBlur.coerceIn(0, 100)
+        transparency = transparency.coerceIn(minimumValue = 0, maximumValue = 100),
+        blur = blur.coerceIn(minimumValue = 0, maximumValue = 100),
+        controlTransparency = controlTransparency.coerceIn(minimumValue = 0, maximumValue = 90),
+        dim = dim.coerceIn(minimumValue = 0, maximumValue = 80),
+        behindBlur = behindBlur.coerceIn(minimumValue = 0, maximumValue = 100),
     )
 
     /** 不支持窗口模糊时提高底色和遮罩可读性，不覆盖用户保存的目标参数。 */
@@ -25,7 +25,7 @@ data class DialogAppearance(
             transparency = if (settings.blur > 0) settings.transparency.coerceAtMost(15) else settings.transparency,
             dim = if (settings.behindBlur > 0) settings.dim.coerceAtLeast(50) else settings.dim,
             blur = 0,
-            behindBlur = 0
+            behindBlur = 0,
         )
     }
 }

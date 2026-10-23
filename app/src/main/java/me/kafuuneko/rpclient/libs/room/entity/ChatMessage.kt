@@ -18,7 +18,7 @@ import androidx.room.PrimaryKey
             entity = ChatSession::class,
             parentColumns = ["id"],
             childColumns = ["sessionId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [
@@ -42,5 +42,13 @@ data class ChatMessage(
     val coveredMessageId: Long? = null,
 ) {
     /** 数据层消息来源；Summary 不会直接作为普通聊天历史返回。 */
-    enum class Source { Char, User, System, Summary }
+    enum class Source {
+        Char,
+
+        User,
+
+        System,
+
+        Summary
+    }
 }

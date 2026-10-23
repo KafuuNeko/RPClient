@@ -3,16 +3,16 @@ package me.kafuuneko.rpclient.libs.chat
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.io.Writer
 import java.net.URI
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
 
 /**
  * 归档读写阶段的私有图片暂存及用户授权目录解析。
@@ -26,18 +26,22 @@ class ChatArchiveImageStore(private val mContext: Context) {
     /** 创建一次导入的独立目录，并清理旧进程留下的过期资源。 */
     fun createOwner(): String {
         mRoot.mkdirs()
-        mRoot.listFiles().orEmpty().filter {
-            it.name !in mActiveOwners && System.currentTimeMillis() - it.lastModified() > 86_400_000L
+        mRoot.listFiles().orEmpty().filter { file ->
+            file.name !in mActiveOwners && System.currentTimeMillis() - file.lastModified() > 86_400_000L
         }
             .forEach { it.deleteRecursively() }
-        return UUID.randomUUID().toString().also {
-            check(File(mRoot, it).mkdirs()) { "Cannot create archive image directory" }
-            mActiveOwners.add(it)
+        return UUID.randomUUID().toString().also { text ->
+            check(File(mRoot, text).mkdirs()) { "Cannot create archive image directory" }
+            mActiveOwners.add(text)
         }
     }
 
     /** 将内嵌数据解码到暂存，返回移除 Base64 后的描述；损坏数据使整个导入失败。 */
-    fun stage(owner: String, image: ChatArchiveImage, checkActive: () -> Unit = {}): ChatArchiveImage {
+    fun stage(
+        owner: String,
+        image: ChatArchiveImage,
+        checkActive: () -> Unit = {}
+    ): ChatArchiveImage {
         if (image.data == null) return image
         val key = UUID.randomUUID().toString()
         val target = file(owner, key)
@@ -57,14 +61,21 @@ class ChatArchiveImageStore(private val mContext: Context) {
 
     /** 尝试无损压缩后分块写出图片，只有原始字节参与 hash 校验。 */
     fun writeExportImage(
-        owner: String, source: File, hash: String, mimeType: String, writer: Writer,
-        checkActive: () -> Unit
+        owner: String,
+        source: File,
+        hash: String,
+        mimeType: String,
+        writer: Writer,
+        checkActive: () -> Unit,
     ) {
         val temporary = file(owner, UUID.randomUUID().toString())
         try {
             val useGzip = ChatArchiveImagePayload.compress(source, temporary, hash, checkActive)
-            val image = ChatArchiveImage(mimeType = mimeType, hash = hash,
-                compression = if (useGzip) "gzip" else "none")
+            val image = ChatArchiveImage(
+                mimeType = mimeType,
+                hash = hash,
+                compression = if (useGzip) "gzip" else "none",
+            )
             // 试压缩使用磁盘暂存；不把原图或压缩结果整体放入内存。
             ChatArchiveImageCodec.writeImage(image, writer) { output ->
                 (if (useGzip) temporary else source).inputStream().use { input ->
@@ -93,21 +104,36 @@ class ChatArchiveImageStore(private val mContext: Context) {
     }
 
     private fun file(owner: String, key: String): File {
-        require(UUID.fromString(owner).toString() == owner && UUID.fromString(key).toString() == key) {
+        require(
+            UUID.fromString(owner).toString() == owner && UUID.fromString(key).toString() == key
+        ) {
             "Invalid archive resource key"
         }
         return File(File(mRoot, owner), key)
     }
 
     /** 扫描用户选择的目录，按相对路径匹配酒馆资源；同名歧义不自动选取。 */
-    suspend fun resolveDirectory(archive: ChatArchive, tree: Uri): Map<String, Uri> = withContext(Dispatchers.IO) {
-        val documents = mutableMapOf<String, Uri?>()
-        val rootId = DocumentsContract.getTreeDocumentId(tree)
-        scan(tree, rootId, "", documents, mutableSetOf(), 0)
-        archive.messages.flatMap { it.images }.mapNotNull { it.sourceUrl }.distinct().mapNotNull { source ->
-            matchingPath(source, documents.keys)?.let { path -> documents[path]?.let { source to it } }
-        }.toMap()
-    }
+    suspend fun resolveDirectory(archive: ChatArchive, tree: Uri): Map<String, Uri> =
+        withContext(Dispatchers.IO) {
+            val documents = mutableMapOf<String, Uri?>()
+            val rootId = DocumentsContract.getTreeDocumentId(tree)
+            scan(
+                tree = tree,
+                parentId = rootId,
+                prefix = "",
+                result = documents,
+                visited = mutableSetOf(),
+                depth = 0
+            )
+            archive.messages.flatMap { chatArchiveMessage -> chatArchiveMessage.images }
+                .mapNotNull { chatArchiveImage -> chatArchiveImage.sourceUrl }.distinct()
+                .mapNotNull { source ->
+                    matchingPath(
+                        source,
+                        documents.keys
+                    )?.let { path -> documents[path]?.let { uri -> source to uri } }
+                }.toMap()
+        }
 
     /** 仅遍历 DocumentsProvider 授权的树，限制深度和条目数量并响应取消。 */
     private suspend fun scan(
@@ -116,14 +142,17 @@ class ChatArchiveImageStore(private val mContext: Context) {
         prefix: String,
         result: MutableMap<String, Uri?>,
         visited: MutableSet<String>,
-        depth: Int
+        depth: Int,
     ) {
         currentCoroutineContext().ensureActive()
         require(depth <= 32 && visited.size < 50_000) { "Image directory is too large" }
         if (!visited.add(parentId)) return
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId)
-        val columns = arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-            DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE)
+        val columns = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+        )
         val folders = mutableListOf<Pair<String, String>>()
         mContext.contentResolver.query(children, columns, null, null, null)?.use { cursor ->
             while (cursor.moveToNext()) {
@@ -135,7 +164,8 @@ class ChatArchiveImageStore(private val mContext: Context) {
                 else {
                     val uri = DocumentsContract.buildDocumentUriUsingTree(tree, id)
                     // 授权目录出现同名不同文件时保留歧义，不静默取最后一个。
-                    result[path] = if (result.containsKey(path) && result[path] != uri) null else uri
+                    result[path] =
+                        if (result.containsKey(path) && result[path] != uri) null else uri
                 }
             }
         } ?: throw IOException("Cannot read image directory")
@@ -148,7 +178,9 @@ class ChatArchiveImageStore(private val mContext: Context) {
             val path = runCatching {
                 val decoded = URI(source.replace(" ", "%20")).path ?: return null
                 val parts = decoded.trimStart('/').split('/')
-                if (parts.any { it == ".." || it == "." || '\\' in it || '\u0000' in it }) return null
+                val hasUnsafePathSegment =
+                    parts.any { text -> text == ".." || text == "." || '\\' in text || '\u0000' in text }
+                if (hasUnsafePathSegment) return null
                 parts.joinToString("/")
             }.getOrNull() ?: return null
             return paths.filter { path == it || path.endsWith("/$it") }.maxByOrNull { it.length }

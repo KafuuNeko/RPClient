@@ -11,13 +11,13 @@ class PromptTokenizerAndroidTest {
     @Test
     fun openAiVocabularyLoadsOnAndroidRuntime() {
         val tokenizer = PromptTokenizerRegistry().resolve(
-            LLMProvider(
+            provider = LLMProvider(
                 name = "OpenAI",
                 providerType = LLMProviderType.ChatGPT,
                 protocol = LLMProviderProtocol.OpenAICompatible,
                 baseUrl = "https://api.openai.com/v1",
-                model = "gpt-4o-mini"
-            )
+                model = "gpt-4o-mini",
+            ),
         )
 
         assertEquals(PromptTokenizerStrategy.ModelAware, tokenizer.strategy)

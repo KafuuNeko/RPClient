@@ -20,7 +20,7 @@ import me.kafuuneko.rpclient.utils.toStringList
             entity = Lorebook::class,
             parentColumns = ["id"],
             childColumns = ["lorebookId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [

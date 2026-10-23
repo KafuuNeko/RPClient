@@ -13,7 +13,8 @@ import me.kafuuneko.rpclient.libs.AppModel
 class AppThemeManager {
     private val mThemeModeFlow = MutableStateFlow(readThemeMode())
 
-    private val mPaletteFlow = MutableStateFlow(AppThemePalette.fromPersistedValue(AppModel.themePalette))
+    private val mPaletteFlow =
+        MutableStateFlow(AppThemePalette.fromPersistedValue(AppModel.themePalette))
 
     /** 当前配色与主题模式分别观察，保留旧设置入口兼容性。 */
     val paletteFlow = mPaletteFlow.asStateFlow()

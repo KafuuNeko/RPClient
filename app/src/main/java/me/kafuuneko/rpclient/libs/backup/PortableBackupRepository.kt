@@ -4,10 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import androidx.sqlite.db.SupportSQLiteDatabase
-import java.io.File
-import java.io.FileInputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.copyDirectory
@@ -35,6 +31,10 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /**
  * 按功能组织可移植备份，在 JSON/JSONL 中保存完整 Room 数据行，
@@ -61,8 +61,15 @@ class PortableBackupRepository(
             val primaryTables = tableNames(primaryDb)
             primaryDb.beginTransaction()
             try {
-                writeText(File(stage, "app-data/database-schema.json"), schemaJson(primaryDb).toString(2))
-                PortableBackupDocumentWriter(primaryDb, primaryTables, stage).writeAll()
+                writeText(
+                    File(stage, "app-data/database-schema.json"),
+                    schemaJson(primaryDb).toString(2)
+                )
+                PortableBackupDocumentWriter(
+                    mDatabase = primaryDb,
+                    mTables = primaryTables,
+                    mRoot = stage
+                ).writeAll()
                 exportAttachments(primaryDb, primaryTables, stage)
                 primaryDb.setTransactionSuccessful()
             } finally {
@@ -72,7 +79,10 @@ class PortableBackupRepository(
             val logsDb = mRequestLogDatabase.openHelper.writableDatabase
             logsDb.beginTransaction()
             try {
-                writeText(File(stage, "app-data/request-log-schema.json"), schemaJson(logsDb).toString(2))
+                writeText(
+                    File(stage, "app-data/request-log-schema.json"),
+                    schemaJson(logsDb).toString(2)
+                )
                 exportRequestLogs(logsDb, stage)
                 logsDb.setTransactionSuccessful()
             } finally {
@@ -95,8 +105,11 @@ class PortableBackupRepository(
     private fun writeManifest(stage: File) {
         val fileIndex = JSONObject()
         stage.walkTopDown().filter { it.isFile }.toList().forEach { file ->
-            fileIndex.put(file.relativeTo(stage).invariantSeparatorsPath, JSONObject()
-                .put("size", file.length()).put("sha256", sha256(file)))
+            fileIndex.put(
+                file.relativeTo(stage).invariantSeparatorsPath,
+                JSONObject()
+                    .put("size", file.length()).put("sha256", sha256(file)),
+            )
         }
         // manifest 不索引自身，避免摘要形成自引用。
         val manifest = JSONObject()
@@ -106,29 +119,45 @@ class PortableBackupRepository(
             .put("appPackage", mContext.packageName)
             .put("encrypted", false)
             .put("restoreMode", "full-replacement")
-            .put("structure", JSONArray()
-                .put("characters/character-<id>.json")
-                .put("stories/story-<id>.rpstory.json")
-                .put("chats/conversation-<id>.jsonl")
-                .put("group-chats/group-<id>.jsonl")
-                .put("worldbooks/worldbook-<id>.json")
-                .put("regex/global-scripts.json")
-                .put("regex/character-scripts/character-<id>.json")
-                .put("regex/character-authorizations.json")
-                .put("providers/provider-configurations.json")
-                .put("attachments/characters/")
-                .put("attachments/chat-images/")
-                .put("attachments/other-files/")
-                .put("app-data/token-usage.json"))
-            .put("components", JSONObject()
-                .put("characters", true).put("stories", true).put("chats", true)
-                .put("groupChats", true).put("worldbooks", true).put("regex", true)
-                .put("providersAndApiKeys", true).put("settingsAndPrompts", true)
-                .put("tokenUsage", true).put("requestLogs", true)
-                .put("attachments", true).put("privateAppFiles", true))
+            .put(
+                "structure",
+                JSONArray()
+                    .put("characters/character-<id>.json")
+                    .put("stories/story-<id>.rpstory.json")
+                    .put("chats/conversation-<id>.jsonl")
+                    .put("group-chats/group-<id>.jsonl")
+                    .put("worldbooks/worldbook-<id>.json")
+                    .put("regex/global-scripts.json")
+                    .put("regex/character-scripts/character-<id>.json")
+                    .put("regex/character-authorizations.json")
+                    .put("providers/provider-configurations.json")
+                    .put("attachments/characters/")
+                    .put("attachments/chat-images/")
+                    .put("attachments/other-files/")
+                    .put("app-data/token-usage.json"),
+            )
+            .put(
+                "components",
+                JSONObject()
+                    .put("characters", true)
+                    .put("stories", true)
+                    .put("chats", true)
+                    .put("groupChats", true)
+                    .put("worldbooks", true)
+                    .put("regex", true)
+                    .put("providersAndApiKeys", true)
+                    .put("settingsAndPrompts", true)
+                    .put("tokenUsage", true)
+                    .put("requestLogs", true)
+                    .put("attachments", true)
+                    .put("privateAppFiles", true),
+            )
             .put("recordCounts", countRecords(stage))
             .put("files", fileIndex)
-            .put("notes", "Feature-oriented JSON/JSONL with exact relational rows. Not encrypted; may contain API keys and raw request/response logs.")
+            .put(
+                "notes",
+                "Feature-oriented JSON/JSONL with exact relational rows. Not encrypted; may contain API keys and raw request/response logs.",
+            )
         writeText(File(stage, "manifest.json"), manifest.toString(2))
     }
 
@@ -146,7 +175,12 @@ class PortableBackupRepository(
                         zip.closeEntry()
                     } else {
                         zip.putNextEntry(ZipEntry(path))
-                        FileInputStream(file).use { it.copyTo(zip, BUFFER_SIZE) }
+                        FileInputStream(file).use { fileInputStream ->
+                            fileInputStream.copyTo(
+                                zip,
+                                BUFFER_SIZE
+                            )
+                        }
                         zip.closeEntry()
                     }
                 }
@@ -178,8 +212,11 @@ class PortableBackupRepository(
             require(version == VERSION || version == LEGACY_VERSION) {
                 "Unsupported portable backup version: " + version
             }
-            validateChecksums(stage, manifest.optJSONObject("files")
-                ?: error("The manifest does not list archive files."))
+            validateChecksums(
+                root = stage,
+                files = manifest.optJSONObject("files")
+                    ?: error("The manifest does not list archive files."),
+            )
 
             if (version == LEGACY_VERSION && File(stage, "database/primary/schema.json").isFile) {
                 val legacyPrimary = File(stage, "database/primary")
@@ -187,18 +224,27 @@ class PortableBackupRepository(
                 val stagedPrimary = File(stage, PRIMARY_DB)
                 val stagedLogs = File(stage, LOGS_DB)
                 reconstructDatabase(
-                    JSONObject(File(legacyPrimary, "schema.json").readText(Charsets.UTF_8)),
-                    readLegacyRows(legacyPrimary), stagedPrimary
+                    schema = JSONObject(
+                        File(
+                            legacyPrimary,
+                            "schema.json"
+                        ).readText(Charsets.UTF_8)
+                    ),
+                    tableRows = readLegacyRows(legacyPrimary),
+                    destination = stagedPrimary,
                 )
                 reconstructDatabase(
-                    JSONObject(File(legacyLogs, "schema.json").readText(Charsets.UTF_8)),
-                    readLegacyRows(legacyLogs), stagedLogs
+                    schema = JSONObject(File(legacyLogs, "schema.json").readText(Charsets.UTF_8)),
+                    tableRows = readLegacyRows(legacyLogs),
+                    destination = stagedLogs,
                 )
                 replaceLiveData(
-                    rollback, stagedPrimary, stagedLogs,
-                    File(stage, "settings/shared_prefs"),
-                    File(stage, "attachments/repository"),
-                    File(stage, "app-files")
+                    rollback = rollback,
+                    stagedPrimary = stagedPrimary,
+                    stagedLogs = stagedLogs,
+                    stagedPrefs = File(stage, "settings/shared_prefs"),
+                    stagedRepository = File(stage, "attachments/repository"),
+                    stagedFiles = File(stage, "app-files"),
                 )
                 return@withContext
             }
@@ -208,22 +254,30 @@ class PortableBackupRepository(
             val logsSchemaFile = File(stage, "app-data/request-log-schema.json")
             require(primarySchemaFile.isFile) { "The primary database schema is missing." }
             require(logsSchemaFile.isFile) { "The request-log database schema is missing." }
-            val primaryRows = collectTableRows(stage, excludePath = "app-data/request-logs.jsonl")
-            val requestRows = collectTableRows(stage, includePath = "app-data/request-logs.jsonl")
+            val primaryRows =
+                collectTableRows(root = stage, excludePath = "app-data/request-logs.jsonl")
+            val requestRows =
+                collectTableRows(root = stage, includePath = "app-data/request-logs.jsonl")
             val stagedPrimary = File(stage, PRIMARY_DB)
             val stagedLogs = File(stage, LOGS_DB)
             reconstructDatabase(
-                JSONObject(primarySchemaFile.readText(Charsets.UTF_8)), primaryRows, stagedPrimary
+                schema = JSONObject(primarySchemaFile.readText(Charsets.UTF_8)),
+                tableRows = primaryRows,
+                destination = stagedPrimary,
             )
             reconstructDatabase(
-                JSONObject(logsSchemaFile.readText(Charsets.UTF_8)), requestRows, stagedLogs
+                schema = JSONObject(logsSchemaFile.readText(Charsets.UTF_8)),
+                tableRows = requestRows,
+                destination = stagedLogs,
             )
 
             replaceLiveData(
-                rollback, stagedPrimary, stagedLogs,
-                File(stage, "app-data/shared-prefs"),
-                File(stage, "attachments/other-files"),
-                File(stage, "app-data/private-files")
+                rollback = rollback,
+                stagedPrimary = stagedPrimary,
+                stagedLogs = stagedLogs,
+                stagedPrefs = File(stage, "app-data/shared-prefs"),
+                stagedRepository = File(stage, "attachments/other-files"),
+                stagedFiles = File(stage, "app-data/private-files"),
             )
         } finally {
             stage.deleteRecursively()
@@ -233,10 +287,18 @@ class PortableBackupRepository(
     /** 显式写入必要空目录，使空设置或空附件也能完整恢复。 */
     private fun createArchiveDirectories(root: File) {
         listOf(
-            "characters", "stories", "chats", "group-chats", "worldbooks",
-            "regex/character-scripts", "providers", "attachments/characters",
-            "attachments/chat-images", "attachments/other-files", "app-data/shared-prefs",
-            "app-data/private-files"
+            "characters",
+            "stories",
+            "chats",
+            "group-chats",
+            "worldbooks",
+            "regex/character-scripts",
+            "providers",
+            "attachments/characters",
+            "attachments/chat-images",
+            "attachments/other-files",
+            "app-data/shared-prefs",
+            "app-data/private-files",
         ).forEach { File(root, it).mkdirs() }
     }
 
@@ -247,22 +309,34 @@ class PortableBackupRepository(
         copyDirectory(sourcePrefs, targetPrefs)
         // JSON 便于查看；XML 作为精确恢复的权威数据。
         val preferences = JSONObject()
-        targetPrefs.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".xml") }.forEach { xml ->
-            val prefsName = xml.name.removeSuffix(".xml")
-            preferences.put(prefsName, sharedPreferencesJson(
-                mContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-            ))
-        }
-        writeText(File(root, "settings.json"),
-            JSONObject()
+        targetPrefs.listFiles().orEmpty().filter { it.isFile && it.name.endsWith(".xml") }
+            .forEach { xml ->
+                val prefsName = xml.name.removeSuffix(".xml")
+                preferences.put(
+                    prefsName,
+                    sharedPreferencesJson(
+                        preferences = mContext.getSharedPreferences(
+                            prefsName,
+                            Context.MODE_PRIVATE
+                        )
+                    ),
+                )
+            }
+        writeText(
+            file = File(root, "settings.json"),
+            content = JSONObject()
                 .put("format", FORMAT)
                 .put("version", VERSION)
                 .put("preferences", preferences)
                 .put("providerCredentialsIncluded", true)
                 .put("encrypted", false)
                 .put("rawPreferenceXml", "app-data/shared-prefs/")
-                .put("note", "Preferences are provided as readable JSON and preserved as original XML for exact restoration.")
-                .toString(2))
+                .put(
+                    "note",
+                    "Preferences are provided as readable JSON and preserved as original XML for exact restoration.",
+                )
+                .toString(2),
+        )
     }
 
     /** 将 Android 偏好类型转为便于人工读取的 JSON。 */
@@ -277,9 +351,13 @@ class PortableBackupRepository(
                 is Int -> json.put(key, value)
                 is Long -> json.put(key, value)
                 is Float -> json.put(key, value.toDouble())
-                is Set<*> -> json.put(key, JSONArray().apply {
-                    value.filterIsInstance<String>().sorted().forEach { put(it) }
-                })
+                is Set<*> -> json.put(
+                    key,
+                    JSONArray().apply {
+                        value.filterIsInstance<String>().sorted().forEach { text -> put(text) }
+                    },
+                )
+
                 else -> json.put(key, value.toString())
             }
         }
@@ -303,8 +381,8 @@ class PortableBackupRepository(
             require(source.isFile) { "An attachment is missing from storage: " + hash }
             copyFile(source, File(otherFiles, hash))
         }
-        repository.listFiles().orEmpty().filter {
-            it.isFile && it.name.matches(Regex("[0-9a-fA-F]{64}"))
+        repository.listFiles().orEmpty().filter { file ->
+            file.isFile && file.name.matches(Regex("[0-9a-fA-F]{64}"))
         }.forEach { copyFile(it, File(otherFiles, it.name)) }
 
         if ("character" in tables) {
@@ -312,8 +390,13 @@ class PortableBackupRepository(
                 val fileRecord = fileByUuid[character.optString("avatar")] ?: return@forEach
                 val hash = fileRecord.optString("hash")
                 val asset = File(repository, hash)
-                if (asset.isFile) copyFile(asset,
-                    File(root, "attachments/characters/character-" + character.optLong("id") + "-avatar-" + hash))
+                if (asset.isFile) copyFile(
+                    source = asset,
+                    destination = File(
+                        root,
+                        "attachments/characters/character-" + character.optLong("id") + "-avatar-" + hash,
+                    ),
+                )
             }
         }
         if ("message_images" in tables) {
@@ -325,8 +408,13 @@ class PortableBackupRepository(
                     val type = image.optString("messageType")
                     val messageId = image.optLong("messageId")
                     val position = image.optInt("position")
-                    copyFile(asset, File(root,
-                        "attachments/chat-images/" + type + "-" + messageId + "-" + position + "-" + hash))
+                    copyFile(
+                        source = asset,
+                        destination = File(
+                            root,
+                            "attachments/chat-images/" + type + "-" + messageId + "-" + position + "-" + hash,
+                        ),
+                    )
                 }
             }
         }
@@ -338,11 +426,14 @@ class PortableBackupRepository(
             tableNames(db).forEach { table ->
                 readRows(db, table).objects().forEach { row ->
                     val isRequestLog = table == "llm_request_logs"
-                    writeJsonLine(JSONObject()
-                        .put("type", if (isRequestLog) "request-log" else "internal-table")
-                        .put("table", table)
-                        .put("record", row)
-                        .put(TABLE_ROWS_KEY, tableRows(table to JSONArray().put(row))), writer)
+                    writeJsonLine(
+                        json = JSONObject()
+                            .put("type", if (isRequestLog) "request-log" else "internal-table")
+                            .put("table", table)
+                            .put("record", row)
+                            .put(TABLE_ROWS_KEY, tableRows(table to JSONArray().put(row))),
+                        writer = writer,
+                    )
                 }
             }
         }
@@ -355,7 +446,7 @@ class PortableBackupRepository(
         stagedLogs: File,
         stagedPrefs: File,
         stagedRepository: File,
-        stagedFiles: File
+        stagedFiles: File,
     ) {
         require(stagedPrefs.isDirectory) { "Backup preference files are missing." }
         require(stagedRepository.isDirectory) { "Backup attachments are missing." }
@@ -363,13 +454,27 @@ class PortableBackupRepository(
         // 先在暂存库执行正常迁移；不兼容的新版本不能进入覆盖流程。
         BackupDatabaseValidator.validatePrimary(mContext, stagedPrimary)
         BackupDatabaseValidator.validateLogs(mContext, stagedLogs)
-        BackupDataReplacer.replace(rollback, listOf(
-            BackupReplacement(stagedPrimary, mContext.getDatabasePath(PRIMARY_DB), isDatabase = true),
-            BackupReplacement(stagedLogs, mContext.getDatabasePath(LOGS_DB), isDatabase = true),
-            BackupReplacement(stagedPrefs, File(mContext.dataDir, "shared_prefs")),
-            BackupReplacement(stagedRepository, mContext.getDir("repository", Context.MODE_PRIVATE)),
-            BackupReplacement(stagedFiles, mContext.filesDir)
-        )) {
+        BackupDataReplacer.replace(
+            rollback = rollback,
+            replacements = listOf(
+                BackupReplacement(
+                    source = stagedPrimary,
+                    target = mContext.getDatabasePath(PRIMARY_DB),
+                    isDatabase = true,
+                ),
+                BackupReplacement(
+                    source = stagedLogs,
+                    target = mContext.getDatabasePath(LOGS_DB),
+                    isDatabase = true
+                ),
+                BackupReplacement(stagedPrefs, File(mContext.dataDir, "shared_prefs")),
+                BackupReplacement(
+                    stagedRepository,
+                    mContext.getDir("repository", Context.MODE_PRIVATE)
+                ),
+                BackupReplacement(stagedFiles, mContext.filesDir),
+            ),
+        ) {
             mDatabase.close()
             mRequestLogDatabase.close()
         }
@@ -379,20 +484,27 @@ class PortableBackupRepository(
     private fun countRecords(root: File): JSONObject {
         val counts = JSONObject()
         val folders = listOf(
-            "characters" to "characters", "stories" to "stories",
-            "chats" to "chats", "groupChats" to "group-chats",
-            "worldbooks" to "worldbooks", "providers" to "providers"
+            "characters" to "characters",
+            "stories" to "stories",
+            "chats" to "chats",
+            "groupChats" to "group-chats",
+            "worldbooks" to "worldbooks",
+            "providers" to "providers",
         )
         folders.forEach { (key, path) ->
-            counts.put(key, File(root, path).walkTopDown().count { it.isFile })
+            counts.put(key, File(root, path).walkTopDown().count { file -> file.isFile })
         }
         // 请求日志文件也携带内部表，统计时只计业务日志条目。
         var requestLogs = 0
-        File(root, "app-data/request-logs.jsonl").takeIf { it.isFile }?.forEachLine(Charsets.UTF_8) { line ->
-            if (line.isNotBlank() && runCatching { JSONObject(line).optString("type") == "request-log" }.getOrDefault(false)) {
-                requestLogs++
+        File(root, "app-data/request-logs.jsonl").takeIf { it.isFile }
+            ?.forEachLine(Charsets.UTF_8) { line ->
+                if (line.isNotBlank() && runCatching { JSONObject(line).optString("type") == "request-log" }.getOrDefault(
+                        defaultValue = false
+                    )
+                ) {
+                    requestLogs++
+                }
             }
-        }
         counts.put("requestLogs", requestLogs)
         return counts
     }

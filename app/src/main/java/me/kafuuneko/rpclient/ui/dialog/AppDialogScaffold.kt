@@ -50,9 +50,13 @@ import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 /** Dialog 顶部状态徽标的色彩风格。 */
 enum class DialogBadgeTone {
     Primary,
+
     Danger,
+
     Warning,
+
     Secondary,
+
     Neutral
 }
 
@@ -80,28 +84,30 @@ fun AppDialogScaffold(
     onDismiss: (() -> Unit)? = onDismissRequest,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = true),
     scrollableContent: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit = {}
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
     AppDialogWindow(
         onDismissRequest = onDismissRequest,
-        properties = properties
+        properties = properties,
     ) {
         DialogPanelSurface(
-            modifier = modifier.fillMaxWidth().wrapContentHeight()
+            modifier = modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 AppDialogHeader(
                     title = title,
                     subtitle = subtitle,
                     badgeIcon = badgeIcon,
                     badgeTone = badgeTone,
-                    compact = compactHeader
+                    compact = compactHeader,
                 )
                 AppDialogContent(scrollableContent, content)
                 if (onConfirm != null || onDismiss != null) {
@@ -111,9 +117,12 @@ fun AppDialogScaffold(
                         confirmEnabled = confirmEnabled,
                         isConfirmLoading = isConfirmLoading,
                         confirmIsDestructive = confirmIsDestructive,
-                        stacked = stackButtons ?: shouldStackActionButtons(confirmText, dismissText),
+                        stacked = stackButtons ?: shouldStackActionButtons(
+                            confirmText,
+                            dismissText
+                        ),
                         onConfirm = onConfirm,
-                        onDismiss = onDismiss
+                        onDismiss = onDismiss,
                     )
                 }
             }
@@ -127,12 +136,22 @@ private fun AppDialogHeader(
     subtitle: String?,
     badgeIcon: ImageVector?,
     badgeTone: DialogBadgeTone,
-    compact: Boolean
+    compact: Boolean,
 ) {
     if (compact) {
-        CompactDialogHeader(title, subtitle, badgeIcon, badgeTone)
+        CompactDialogHeader(
+            title = title,
+            subtitle = subtitle,
+            badgeIcon = badgeIcon,
+            badgeTone = badgeTone
+        )
     } else {
-        HeroDialogHeader(title, subtitle, badgeIcon, badgeTone)
+        HeroDialogHeader(
+            title = title,
+            subtitle = subtitle,
+            badgeIcon = badgeIcon,
+            badgeTone = badgeTone
+        )
     }
 }
 
@@ -141,20 +160,27 @@ private fun CompactDialogHeader(
     title: String,
     subtitle: String?,
     badgeIcon: ImageVector?,
-    badgeTone: DialogBadgeTone
+    badgeTone: DialogBadgeTone,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (badgeIcon != null) {
             val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
             Box(
-                modifier = Modifier.size(42.dp).background(dialogControlColor(containerColor), CircleShape),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(dialogControlColor(containerColor), CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(badgeIcon, null, Modifier.size(22.dp), contentColor)
+                Icon(
+                    imageVector = badgeIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = contentColor,
+                )
             }
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -162,13 +188,13 @@ private fun CompactDialogHeader(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -180,7 +206,7 @@ private fun HeroDialogHeader(
     title: String,
     subtitle: String?,
     badgeIcon: ImageVector?,
-    badgeTone: DialogBadgeTone
+    badgeTone: DialogBadgeTone,
 ) {
     if (badgeIcon != null) {
         val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
@@ -190,29 +216,34 @@ private fun HeroDialogHeader(
                 .background(dialogControlColor(containerColor.copy(alpha = 0.35f)), CircleShape)
                 .padding(5.dp)
                 .background(dialogControlColor(containerColor), CircleShape),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(badgeIcon, null, Modifier.size(26.dp), contentColor)
+            Icon(
+                imageVector = badgeIcon,
+                contentDescription = null,
+                modifier = Modifier.size(26.dp),
+                tint = contentColor,
+            )
         }
     }
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         if (!subtitle.isNullOrBlank()) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -221,12 +252,13 @@ private fun HeroDialogHeader(
 @Composable
 private fun ColumnScope.AppDialogContent(
     scrollable: Boolean,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val modifier = if (scrollable) {
         // 优先为标题和操作按钮保留空间，小高度窗口只滚动正文。
-        Modifier.weight(1f, fill = false)
+        Modifier
+            .weight(weight = 1f, fill = false)
             .fillMaxWidth()
             .heightIn(max = 380.dp)
             .draggableScrollIndicator(scrollState)
@@ -246,53 +278,65 @@ private fun AppDialogActions(
     confirmIsDestructive: Boolean,
     stacked: Boolean,
     onConfirm: (() -> Unit)?,
-    onDismiss: (() -> Unit)?
+    onDismiss: (() -> Unit)?,
 ) {
     val haptic = LocalHapticFeedback.current
-    val confirmAction = onConfirm?.let {
+    val confirmAction = onConfirm?.let { confirmCallback ->
         {
             if (confirmIsDestructive) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-            it()
+            confirmCallback()
         }
     }
     if (stacked) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            confirmAction?.let {
+            confirmAction?.let { callback ->
                 DialogConfirmButton(
                     text = confirmText,
                     enabled = confirmEnabled,
                     loading = isConfirmLoading,
                     destructive = confirmIsDestructive,
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = it
+                    onClick = callback,
                 )
             }
             if (dismissText != null && onDismiss != null) {
-                DialogDismissButton(dismissText, Modifier.fillMaxWidth(), onDismiss)
+                DialogDismissButton(
+                    text = dismissText,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onDismiss
+                )
             }
         }
     } else {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (dismissText != null && onDismiss != null) {
-                DialogDismissButton(dismissText, Modifier.weight(1f), onDismiss)
+                DialogDismissButton(
+                    text = dismissText,
+                    modifier = Modifier.weight(1f),
+                    onClick = onDismiss
+                )
             }
-            confirmAction?.let {
+            confirmAction?.let { callback ->
                 DialogConfirmButton(
                     text = confirmText,
                     enabled = confirmEnabled,
                     loading = isConfirmLoading,
                     destructive = confirmIsDestructive,
                     modifier = Modifier.weight(1f),
-                    onClick = it
+                    onClick = callback,
                 )
             }
         }
@@ -306,31 +350,34 @@ private fun DialogConfirmButton(
     loading: Boolean,
     destructive: Boolean,
     modifier: Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val colors = if (destructive) {
         ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.error,
-            contentColor = MaterialTheme.colorScheme.onError
+            contentColor = MaterialTheme.colorScheme.onError,
         )
     } else {
         ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            contentColor = MaterialTheme.colorScheme.onPrimary,
         )
     }
     Button(
         onClick = onClick,
         enabled = enabled && !loading,
-        colors = dialogButtonColors(colors, if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary),
+        colors = dialogButtonColors(
+            colors = colors,
+            fadedContentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        ),
         modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     ) {
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
                 strokeWidth = 2.5.dp,
-                color = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary
+                color = if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -339,7 +386,7 @@ private fun DialogConfirmButton(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -350,22 +397,24 @@ private fun DialogDismissButton(text: String, modifier: Modifier, onClick: () ->
         colors = dialogButtonColors(ButtonDefaults.filledTonalButtonColors()),
         onClick = onClick,
         modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 /** 估算文本在移动端按钮中的视觉宽度（CJK 字符按 2.0 计算，西文字符按 1.0 计算）。 */
 private fun String.estimatedVisualWidth(): Float {
-    return fold(0f) { acc, char ->
-        if (char.code in 0x4E00..0x9FFF || char.code in 0x3400..0x4DBF || char.code in 0x3000..0x303F || char.code in 0xFF00..0xFFEF) {
+    return fold(initial = 0f) { acc, char ->
+        val isWideCharacter =
+            char.code in 0x4E00..0x9FFF || char.code in 0x3400..0x4DBF || char.code in 0x3000..0x303F || char.code in 0xFF00..0xFFEF
+        if (isWideCharacter) {
             acc + 2.0f
         } else {
             acc + 1.0f
@@ -376,7 +425,7 @@ private fun String.estimatedVisualWidth(): Float {
 /** 智能判定是否需要将按钮转为全宽纵向堆叠模式。 */
 private fun shouldStackActionButtons(
     confirmText: String?,
-    dismissText: String?
+    dismissText: String?,
 ): Boolean {
     if (confirmText == null || dismissText == null) return false
     val confirmWidth = confirmText.estimatedVisualWidth()
@@ -388,24 +437,28 @@ private fun shouldStackActionButtons(
 private fun resolveBadgeColors(tone: DialogBadgeTone): Pair<Color, Color> {
     return when (tone) {
         DialogBadgeTone.Primary -> Pair(
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.primary
+            first = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            second = MaterialTheme.colorScheme.primary,
         )
+
         DialogBadgeTone.Danger -> Pair(
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.error
+            first = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+            second = MaterialTheme.colorScheme.error,
         )
+
         DialogBadgeTone.Warning -> Pair(
-            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.tertiary
+            first = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
+            second = MaterialTheme.colorScheme.tertiary,
         )
+
         DialogBadgeTone.Secondary -> Pair(
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.secondary
+            first = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+            second = MaterialTheme.colorScheme.secondary,
         )
+
         DialogBadgeTone.Neutral -> Pair(
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.onSurfaceVariant
+            first = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            second = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -422,7 +475,7 @@ private fun AppDialogScaffoldPrimaryPreview() {
             subtitle = "所有变更将立即生效并同步至本地数据库。",
             confirmText = "保存",
             dismissText = "取消",
-            onConfirm = {}
+            onConfirm = {},
         )
     }
 }
@@ -441,7 +494,7 @@ private fun AppDialogScaffoldDangerPreview() {
                 confirmText = "确认删除",
                 dismissText = "取消",
                 confirmIsDestructive = true,
-                onConfirm = {}
+                onConfirm = {},
             )
         }
     }
@@ -459,7 +512,7 @@ private fun AppDialogScaffoldStackedPreview() {
                 subtitle = "该世界书的固定预算为 25 Token，可能不足。是否改为跟随全局预算？",
                 confirmText = "跟随全局",
                 dismissText = "保留导入预算",
-                onConfirm = {}
+                onConfirm = {},
             )
         }
     }

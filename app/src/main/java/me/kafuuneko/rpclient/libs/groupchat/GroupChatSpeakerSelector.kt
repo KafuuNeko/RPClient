@@ -1,11 +1,11 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import com.google.gson.JsonParser
-import kotlin.random.Random
 import me.kafuuneko.rpclient.libs.prompt.matchesPlainTextKey
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
+import kotlin.random.Random
 
 /**
  * 发言者选择算法使用的历史投影。
@@ -38,7 +38,7 @@ class GroupChatSpeakerSelector {
         activationText: String,
         isUserInput: Boolean,
         manualCharacterId: Long?,
-        random: Random = Random.Default
+        random: Random = Random.Default,
     ): List<GroupChatMemberData> {
         return select(
             session = session,
@@ -47,7 +47,7 @@ class GroupChatSpeakerSelector {
             activationText = activationText,
             isUserInput = isUserInput,
             manualCharacterId = manualCharacterId,
-            random = random
+            random = random,
         )
     }
 
@@ -63,7 +63,7 @@ class GroupChatSpeakerSelector {
         activationText: String,
         isUserInput: Boolean,
         manualCharacterId: Long?,
-        random: Random = Random.Default
+        random: Random = Random.Default,
     ): List<GroupChatMemberData> {
         // 过滤已被静音的成员
         val available = members.filterNot { it.relation.muted }
@@ -72,17 +72,19 @@ class GroupChatSpeakerSelector {
         // 根据会话配置的激活策略分别派发
         return when (session.activationStrategy) {
             GroupChatSession.ActivationStrategy.Manual -> {
-                val selected = available.firstOrNull {
-                    it.character.id == manualCharacterId
-                }
-                listOfNotNull(selected ?: available.randomOrNull(random).takeIf {
-                    !isUserInput
-                })
+                val selected = available.firstOrNull { it.character.id == manualCharacterId }
+                listOfNotNull(
+                    element = selected ?: available.randomOrNull(random).takeIf {
+                        !isUserInput
+                    },
+                )
             }
+
             GroupChatSession.ActivationStrategy.List -> available
             GroupChatSession.ActivationStrategy.Pooled -> {
                 listOf(selectPooled(available, history, isUserInput, random))
             }
+
             GroupChatSession.ActivationStrategy.Natural -> {
                 selectNatural(
                     session = session,
@@ -90,7 +92,7 @@ class GroupChatSpeakerSelector {
                     history = history,
                     activationText = activationText,
                     isUserInput = isUserInput,
-                    random = random
+                    random = random,
                 )
             }
         }
@@ -108,7 +110,7 @@ class GroupChatSpeakerSelector {
         members: List<GroupChatMemberData>,
         history: GroupChatSpeakerHistory,
         isUserInput: Boolean,
-        random: Random
+        random: Random,
     ): GroupChatMemberData {
         // 统计自上一条用户消息以来已发言的角色 ID 集合
         val spokenSinceUser = if (isUserInput) {
@@ -120,8 +122,8 @@ class GroupChatSpeakerSelector {
         val candidates = members.filterNot { it.character.id in spokenSinceUser }
             .ifEmpty {
                 val lastSpeakerId = history.lastCharacterSpeakerId
-                members.filterNot {
-                    members.size > 1 && it.character.id == lastSpeakerId
+                members.filterNot { member ->
+                    members.size > 1 && member.character.id == lastSpeakerId
                 }.ifEmpty { members }
             }
         return candidates.random(random)
@@ -142,7 +144,7 @@ class GroupChatSpeakerSelector {
         history: GroupChatSpeakerHistory,
         activationText: String,
         isUserInput: Boolean,
-        random: Random
+        random: Random,
     ): List<GroupChatMemberData> {
         // 判定自回复限制
         val lastSpeakerId = history.lastCharacterSpeakerId
@@ -156,8 +158,8 @@ class GroupChatSpeakerSelector {
         val mentioned = candidates.filter { member ->
             member.character.name
                 .split(Regex("""[\s_-]+"""))
-                .filter { it.isNotBlank() }
-                .any { activationText.containsWholeToken(it) }
+                .filter { text -> text.isNotBlank() }
+                .any { text -> activationText.containsWholeToken(text) }
         }
 
         // 对剩余角色按活跃度概率抽取激活
@@ -177,9 +179,7 @@ class GroupChatSpeakerSelector {
                 .takeWhile { it.source != GroupChatMessage.Source.User }
                 .mapNotNull { it.speakerCharacterId }
                 .toSet(),
-            lastCharacterSpeakerId = lastOrNull {
-                it.source == GroupChatMessage.Source.Character
-            }?.speakerCharacterId
+            lastCharacterSpeakerId = lastOrNull { it.source == GroupChatMessage.Source.Character }?.speakerCharacterId,
         )
     }
 
@@ -192,12 +192,12 @@ class GroupChatSpeakerSelector {
                 root.has("group_chat_talkativeness") -> root.get("group_chat_talkativeness").asDouble
                 else -> DEFAULT_TALKATIVENESS
             }
-        }.getOrDefault(DEFAULT_TALKATIVENESS).coerceIn(0.0, 1.0)
+        }.getOrDefault(DEFAULT_TALKATIVENESS).coerceIn(minimumValue = 0.0, maximumValue = 1.0)
     }
 
     /** 按完整词边界判断用户是否点名，避免命中名称子串。 */
     private fun String.containsWholeToken(token: String): Boolean {
-        return matchesPlainTextKey(token, ignoreCase = true, matchWholeWords = true)
+        return matchesPlainTextKey(key = token, ignoreCase = true, matchWholeWords = true)
     }
 
     private companion object {

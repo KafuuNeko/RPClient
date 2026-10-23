@@ -11,7 +11,7 @@ class FormattedHistoryBuilder {
         messages: List<ChatMessage>,
         userName: String,
         characterName: String,
-        imageCounts: Map<Long, Int> = emptyMap()
+        imageCounts: Map<Long, Int> = emptyMap(),
     ): String {
         return messages.joinToString("\n") { message ->
             val speaker = when (message.source) {
@@ -20,7 +20,8 @@ class FormattedHistoryBuilder {
                 ChatMessage.Source.System -> "System"
                 ChatMessage.Source.Summary -> error("Summary snapshots must not be formatted as chat history")
             }
-            "$speaker: ${message.content}" + imageCounts[message.id]?.takeIf { it > 0 }?.let { " [Images: $it]" }.orEmpty()
+            "$speaker: ${message.content}" + imageCounts[message.id]?.takeIf { value -> value > 0 }
+                ?.let { value -> " [Images: $value]" }.orEmpty()
         }
     }
 }

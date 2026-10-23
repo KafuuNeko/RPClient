@@ -50,12 +50,12 @@ class LLMRequestLogRepositoryTest {
                 providerType = LLMProviderType.Custom,
                 protocol = LLMProviderProtocol.OpenAICompatible,
                 baseUrl = "https://example.invalid",
-                model = "model"
+                model = "model",
             ),
             model = "model",
             isStreaming = false,
             requestJson = requestJson,
-            responseJson = responseJson
+            responseJson = responseJson,
         )
 
         val logs = repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0)
@@ -82,12 +82,12 @@ class LLMRequestLogRepositoryTest {
                 providerType = LLMProviderType.Custom,
                 protocol = LLMProviderProtocol.OpenAICompatible,
                 baseUrl = "https://example.invalid",
-                model = "model"
+                model = "model",
             ),
             model = "model",
             isStreaming = false,
             requestJson = "raw request",
-            responseJson = "raw response"
+            responseJson = "raw response",
         )
 
         assertEquals(0L, id)

@@ -100,6 +100,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 abstract class AppDatabase : RoomDatabase() {
     /** 提供独立内容搜索的数据访问入口。 */
     abstract fun getContentSearchDao(): ContentSearchDao
+
     /** 提供原始业务数据的搜索投影，普通扫描不依赖 FTS 派生表。 */
     abstract fun getSearchSourceDao(): SearchSourceDao
     abstract fun getPageBackgroundDao(): PageBackgroundDao

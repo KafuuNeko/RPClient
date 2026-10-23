@@ -49,17 +49,29 @@ class LLMProviderRequestException(
 /** 不依赖 Android 资源且只包含安全字段的生成失败分类。 */
 sealed class GenerationFailure {
     data class Image(val kind: ImageRequestFailure) : GenerationFailure()
+
     data object NoProvider : GenerationFailure()
+
     data object CharacterProviderUnavailable : GenerationFailure()
+
     data object SummaryProviderUnavailable : GenerationFailure()
+
     data class PromptBudget(val requiredTokens: Int, val promptBudget: Int) : GenerationFailure()
+
     data object Unauthorized : GenerationFailure()
+
     data object Forbidden : GenerationFailure()
+
     data object RateLimited : GenerationFailure()
+
     data class HttpFailure(val statusCode: Int) : GenerationFailure()
+
     data object RequestFailure : GenerationFailure()
+
     data object Network : GenerationFailure()
+
     data class EmptyResponse(val outputTokenLimitReached: Boolean = false) : GenerationFailure()
+
     data object Unknown : GenerationFailure()
 }
 
@@ -76,23 +88,36 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
             LLMProviderSelectionScope.Character -> GenerationFailure.CharacterProviderUnavailable
             LLMProviderSelectionScope.Summary -> GenerationFailure.SummaryProviderUnavailable
         }
+
         is PromptBudgetExceededException -> GenerationFailure.PromptBudget(
-            requiredTokens = throwable.requiredTokens.coerceIn(0, MaxReportedTokenCount),
-            promptBudget = throwable.promptBudget.coerceIn(0, MaxReportedTokenCount)
+            requiredTokens = throwable.requiredTokens.coerceIn(
+                minimumValue = 0,
+                maximumValue = MaxReportedTokenCount
+            ),
+            promptBudget = throwable.promptBudget.coerceIn(
+                minimumValue = 0,
+                maximumValue = MaxReportedTokenCount
+            ),
         )
+
         is LLMHttpStatusException -> when (throwable.statusCode) {
             401 -> GenerationFailure.Unauthorized
             403 -> GenerationFailure.Forbidden
             429 -> GenerationFailure.RateLimited
             else -> GenerationFailure.HttpFailure(throwable.statusCode)
         }
+
         is LLMResponseException -> when (throwable.code) {
             "invalid_api_key", "authentication_error" -> GenerationFailure.Unauthorized
             "permission_denied" -> GenerationFailure.Forbidden
             "rate_limit_exceeded", "insufficient_quota" -> GenerationFailure.RateLimited
             else -> GenerationFailure.RequestFailure
         }
-        is LLMRequestException -> if (throwable.cause is ImageRequestException) classifyGenerationFailure(throwable.cause!!) else GenerationFailure.RequestFailure
+
+        is LLMRequestException -> if (throwable.cause is ImageRequestException) classifyGenerationFailure(
+            throwable.cause!!
+        ) else GenerationFailure.RequestFailure
+
         is IOException -> GenerationFailure.Network
         is LLMEmptyResponseException -> GenerationFailure.EmptyResponse(throwable.outputTokenLimitReached)
         else -> GenerationFailure.Unknown

@@ -93,6 +93,7 @@ data class RpChartDataPoint(
 enum class RpChartMode {
     /** 分段柱状图。 */
     Bar,
+
     /** 平滑面积折线图。 */
     Line
 }
@@ -110,7 +111,10 @@ fun formatCompactChartValue(value: Float): String {
         longVal >= 1_000_000L -> (value / 1_000_000.0) to "M"
         else -> (value / 1_000.0) to "K"
     }
-    val formattedNumber = "%.2f".format(Locale.US, num).trimEnd('0').trimEnd('.')
+    val formattedNumber = "%.2f"
+        .format(Locale.US, num)
+        .trimEnd('0')
+        .trimEnd('.')
     return "$formattedNumber$unit"
 }
 
@@ -125,13 +129,13 @@ fun formatCompactChartValue(value: Float): String {
 fun RpStackedRatioBar(
     segments: List<RpChartSegment>,
     modifier: Modifier = Modifier,
-    barHeight: Dp = 10.dp
+    barHeight: Dp = 10.dp,
 ) {
     val total = segments.sumOf { it.value.toDouble() }.toFloat().coerceAtLeast(0.0001f)
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // 分段进度条主体
         Box(
@@ -139,22 +143,23 @@ fun RpStackedRatioBar(
                 .fillMaxWidth()
                 .height(barHeight)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Row(modifier = Modifier.fillMaxSize()) {
                 segments.forEach { segment ->
-                    val ratio = (segment.value / total).coerceIn(0f, 1f)
+                    val ratio =
+                        (segment.value / total).coerceIn(minimumValue = 0f, maximumValue = 1f)
                     val animatedRatio by animateFloatAsState(
                         targetValue = ratio,
                         animationSpec = tween(durationMillis = 400),
-                        label = "segmentRatio"
+                        label = "segmentRatio",
                     )
                     if (animatedRatio > 0f) {
                         Box(
                             modifier = Modifier
                                 .weight(animatedRatio.coerceAtLeast(0.005f))
                                 .fillMaxHeight()
-                                .background(segment.color)
+                                .background(segment.color),
                         )
                     }
                 }
@@ -162,22 +167,28 @@ fun RpStackedRatioBar(
         }
 
         // 图例文案行（仅在存在标签时展示）
-        val labeledSegments = segments.filter { !it.label.isNullOrBlank() }
+        val labeledSegments =
+            segments.filter { rpChartSegment -> !rpChartSegment.label.isNullOrBlank() }
         if (labeledSegments.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 labeledSegments.forEach { segment ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(segment.color))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(segment.color),
+                        )
                         Text(
                             text = segment.label.orEmpty(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -209,7 +220,7 @@ fun RpChartCoordinateGrid(
     chartHeight: Dp = 100.dp,
     axisRailWidth: Dp = 32.dp,
     formatter: (Float) -> String = ::formatCompactChartValue,
-    labelContent: (@Composable BoxScope.(value: Float, formattedText: String, alignment: Alignment) -> Unit)? = null
+    labelContent: (@Composable BoxScope.(value: Float, formattedText: String, alignment: Alignment) -> Unit)? = null,
 ) {
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
     val baselineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
@@ -223,63 +234,67 @@ fun RpChartCoordinateGrid(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(chartHeight)
-        ) {
-            val width = size.width
-            val height = size.height
-            val railPx = axisRailWidth.toPx()
-            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 6.dp.toPx()), 0f)
+                .height(chartHeight),
+            onDraw = {
+                val width = size.width
+                val height = size.height
+                val railPx = axisRailWidth.toPx()
+                val dashEffect = PathEffect.dashPathEffect(
+                    intervals = floatArrayOf(6.dp.toPx(), 6.dp.toPx()),
+                    phase = 0f,
+                )
 
-            // 顶部上限水平虚线 (y = 0)
-            drawLine(
-                color = gridColor,
-                start = Offset(railPx, 0f),
-                end = Offset(width, 0f),
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = dashEffect
-            )
+                // 顶部上限水平虚线 (y = 0)
+                drawLine(
+                    color = gridColor,
+                    start = Offset(x = railPx, y = 0f),
+                    end = Offset(x = width, y = 0f),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = dashEffect,
+                )
 
-            // 中部平分水平虚线 (y = height / 2)
-            drawLine(
-                color = gridColor,
-                start = Offset(railPx, height / 2f),
-                end = Offset(width, height / 2f),
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = dashEffect
-            )
+                // 中部平分水平虚线 (y = height / 2)
+                drawLine(
+                    color = gridColor,
+                    start = Offset(railPx, height / 2f),
+                    end = Offset(width, height / 2f),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = dashEffect,
+                )
 
-            // 贯穿式底部基准实线 (y = height，从 x = 0 贯穿至 x = width)
-            drawLine(
-                color = baselineColor,
-                start = Offset(0f, height),
-                end = Offset(width, height),
-                strokeWidth = 1.dp.toPx()
-            )
+                // 贯穿式底部基准实线 (y = height，从 x = 0 贯穿至 x = width)
+                drawLine(
+                    color = baselineColor,
+                    start = Offset(x = 0f, y = height),
+                    end = Offset(width, height),
+                    strokeWidth = 1.dp.toPx(),
+                )
 
-            // Y 轴微型刻度引导短线 (Ticks ┤)
-            val tickLength = 4.dp.toPx()
-            // 顶部刻度短线
-            drawLine(
-                color = baselineColor,
-                start = Offset(railPx - tickLength, 0f),
-                end = Offset(railPx, 0f),
-                strokeWidth = 1.dp.toPx()
-            )
-            // 中部刻度短线
-            drawLine(
-                color = baselineColor,
-                start = Offset(railPx - tickLength, height / 2f),
-                end = Offset(railPx, height / 2f),
-                strokeWidth = 1.dp.toPx()
-            )
-        }
+                // Y 轴微型刻度引导短线 (Ticks ┤)
+                val tickLength = 4.dp.toPx()
+                // 顶部刻度短线
+                drawLine(
+                    color = baselineColor,
+                    start = Offset(x = railPx - tickLength, y = 0f),
+                    end = Offset(x = railPx, y = 0f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+                // 中部刻度短线
+                drawLine(
+                    color = baselineColor,
+                    start = Offset(railPx - tickLength, height / 2f),
+                    end = Offset(railPx, height / 2f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            },
+        )
 
         // 左侧 Y 轴刻度标签列
         Box(
             modifier = Modifier
                 .width(axisRailWidth)
                 .height(chartHeight)
-                .padding(end = 6.dp)
+                .padding(end = 6.dp),
         ) {
             if (labelContent != null) {
                 labelContent(maxValue, maxText, Alignment.TopEnd)
@@ -295,7 +310,7 @@ fun RpChartCoordinateGrid(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.End,
                     maxLines = 1,
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    modifier = Modifier.align(Alignment.TopEnd),
                 )
 
                 // 中部刻度值
@@ -307,7 +322,7 @@ fun RpChartCoordinateGrid(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.End,
                     maxLines = 1,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 )
 
                 // 底部原点刻度值 0（稳稳落在基线上方）
@@ -319,7 +334,7 @@ fun RpChartCoordinateGrid(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.End,
                     maxLines = 1,
-                    modifier = Modifier.align(Alignment.BottomEnd)
+                    modifier = Modifier.align(Alignment.BottomEnd),
                 )
             }
         }
@@ -335,26 +350,26 @@ fun RpChartModeToggle(
     onModeSelected: (RpChartMode) -> Unit,
     barLabel: String,
     lineLabel: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f))
             .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         RpChartToggleChip(
             selected = currentMode == RpChartMode.Bar,
             icon = Icons.Rounded.BarChart,
             text = barLabel,
-            onClick = { onModeSelected(RpChartMode.Bar) }
+            onClick = { onModeSelected(RpChartMode.Bar) },
         )
         RpChartToggleChip(
             selected = currentMode == RpChartMode.Line,
             icon = Icons.AutoMirrored.Rounded.ShowChart,
             text = lineLabel,
-            onClick = { onModeSelected(RpChartMode.Line) }
+            onClick = { onModeSelected(RpChartMode.Line) },
         )
     }
 }
@@ -364,30 +379,33 @@ private fun RpChartToggleChip(
     selected: Boolean,
     icon: ImageVector,
     text: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         shape = CircleShape,
         color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-        border = if (selected) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)) else null,
-        modifier = Modifier.clickable(onClick = onClick)
+        border = if (selected) BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+        ) else null,
+        modifier = Modifier.clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(
-                icon,
+                imageVector = icon,
                 contentDescription = null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(14.dp),
             )
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -430,10 +448,10 @@ fun RpScrollableBarChart(
                 maxValue = maxValue,
                 chartHeight = 100.dp,
                 axisRailWidth = axisRailWidth,
-                formatter = yAxisFormatter
+                formatter = yAxisFormatter,
             )
         }
-    }
+    },
 ) {
     val isScrollable = points.size > 7
     val scrollState = rememberScrollState()
@@ -466,11 +484,12 @@ fun RpScrollableBarChart(
         Row(
             modifier = chartContentModifier,
             horizontalArrangement = if (isScrollable) Arrangement.spacedBy(6.dp) else Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+            verticalAlignment = Alignment.Bottom,
         ) {
             points.forEach { point ->
                 val isSelected = point.key == selectedKey
-                val heightRatio = (point.value / maxValue).coerceIn(0.04f, 1.0f)
+                val heightRatio =
+                    (point.value / maxValue).coerceIn(minimumValue = 0.04f, maximumValue = 1.0f)
                 val columnModifier = if (isScrollable) {
                     Modifier.width(barSlotWidth)
                 } else {
@@ -483,41 +502,43 @@ fun RpScrollableBarChart(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { onSelectPoint(point.key) }
+                            onClick = { onSelectPoint(point.key) },
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom
+                    verticalArrangement = Arrangement.Bottom,
                 ) {
                     // 柱体
+                    val pointBackgroundColor = if (point.value == 0f) {
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        }
+                    } else if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Transparent
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(if (isScrollable) 0.50f else 0.55f)
                             .height((100 * heightRatio).dp)
                             .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-                            .background(
-                                if (point.value == 0f) {
-                                    if (isSelected) {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                    }
-                                } else if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    Color.Transparent
-                                }
-                            )
+                            .background(color = pointBackgroundColor),
                     ) {
                         if (point.value > 0f && point.segments.isNotEmpty()) {
-                            val segmentTotal = point.segments.sumOf { it.value.toDouble() }.toFloat().coerceAtLeast(0.0001f)
+                            val segmentTotal =
+                                point.segments.sumOf { rpChartSegment -> rpChartSegment.value.toDouble() }
+                                    .toFloat().coerceAtLeast(minimumValue = 0.0001f)
                             Column(modifier = Modifier.fillMaxSize()) {
                                 point.segments.forEach { segment ->
-                                    val segRatio = (segment.value / segmentTotal).coerceAtLeast(0.001f)
+                                    val segRatio =
+                                        (segment.value / segmentTotal).coerceAtLeast(0.001f)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .weight(segRatio)
-                                            .background(segment.color.copy(alpha = if (isSelected) 1f else 0.85f))
+                                            .background(segment.color.copy(alpha = if (isSelected) 1f else 0.85f)),
                                     )
                                 }
                             }
@@ -527,20 +548,21 @@ fun RpScrollableBarChart(
                     Spacer(Modifier.height(6.dp))
 
                     // X 轴日期刻度
+                    val pointLabelColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else if (point.isCurrent) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                    }
                     Text(
                         text = point.label,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else if (point.isCurrent) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
-                        },
+                        color = pointLabelColor,
                         fontWeight = if (isSelected || point.isCurrent) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
+                        maxLines = 1,
                     )
                 }
             }
@@ -583,10 +605,10 @@ fun RpScrollableLineChart(
                 maxValue = maxValue,
                 chartHeight = 100.dp,
                 axisRailWidth = axisRailWidth,
-                formatter = yAxisFormatter
+                formatter = yAxisFormatter,
             )
         }
-    }
+    },
 ) {
     val isScrollable = points.size > 7
     val scrollState = rememberScrollState()
@@ -623,91 +645,97 @@ fun RpScrollableLineChart(
             Box(
                 modifier = Modifier
                     .width(totalWidth)
-                    .height(100.dp)
+                    .height(100.dp),
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    if (points.isEmpty()) return@Canvas
+                Canvas(
+                    modifier = Modifier.fillMaxSize(),
+                    onDraw = {
+                        if (points.isEmpty()) return@Canvas
 
-                    val width = size.width
-                    val height = size.height
-                    val stepX = width / (points.size.coerceAtLeast(2) - 1).toFloat()
-                    val topPadding = 6f
-                    val availableHeight = height - topPadding
+                        val width = size.width
+                        val height = size.height
+                        val stepX = width / (points.size.coerceAtLeast(2) - 1).toFloat()
+                        val topPadding = 6f
+                        val availableHeight = height - topPadding
 
-                    val coords = points.mapIndexed { index, point ->
-                        val x = index * stepX
-                        val ratio = (point.value / maxValue).coerceIn(0f, 1f)
-                        val y = topPadding + (1f - ratio) * availableHeight
-                        Offset(x, y)
-                    }
-
-                    // 构建平滑贝塞尔曲线路径
-                    val strokePath = Path().apply {
-                        moveTo(coords.first().x, coords.first().y)
-                        for (i in 0 until coords.size - 1) {
-                            val p0 = coords[i]
-                            val p1 = coords[i + 1]
-                            val cx = (p0.x + p1.x) / 2f
-                            cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+                        val coords = points.mapIndexed { index, point ->
+                            val x = index * stepX
+                            val ratio = (point.value / maxValue).coerceIn(
+                                minimumValue = 0f,
+                                maximumValue = 1f
+                            )
+                            val y = topPadding + (1f - ratio) * availableHeight
+                            Offset(x, y)
                         }
-                    }
 
-                    // 构建渐变闭合填充路径
-                    val fillPath = Path().apply {
-                        addPath(strokePath)
-                        lineTo(coords.last().x, height)
-                        lineTo(coords.first().x, height)
-                        close()
-                    }
+                        // 构建平滑贝塞尔曲线路径
+                        val strokePath = Path().apply {
+                            moveTo(coords.first().x, coords.first().y)
+                            for (i in 0 until coords.size - 1) {
+                                val p0 = coords[i]
+                                val p1 = coords[i + 1]
+                                val cx = (p0.x + p1.x) / 2f
+                                cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+                            }
+                        }
 
-                    // 绘制渐变面积背景
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                lineColor.copy(alpha = 0.28f),
-                                lineColor.copy(alpha = 0.02f)
+                        // 构建渐变闭合填充路径
+                        val fillPath = Path().apply {
+                            addPath(strokePath)
+                            lineTo(coords.last().x, height)
+                            lineTo(coords.first().x, height)
+                            close()
+                        }
+
+                        // 绘制渐变面积背景
+                        drawPath(
+                            path = fillPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    lineColor.copy(alpha = 0.28f),
+                                    lineColor.copy(alpha = 0.02f),
+                                ),
+                                startY = 0f,
+                                endY = height,
                             ),
-                            startY = 0f,
-                            endY = height
                         )
-                    )
 
-                    // 绘制主走势折线
-                    drawPath(
-                        path = strokePath,
-                        color = lineColor,
-                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
-                    )
+                        // 绘制主走势折线
+                        drawPath(
+                            path = strokePath,
+                            color = lineColor,
+                            style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
+                        )
 
-                    // 绘制各数据节点微光圆点
-                    coords.forEachIndexed { index, offset ->
-                        val isSelected = points[index].key == selectedKey
-                        if (isSelected) {
-                            drawCircle(
-                                color = lineColor.copy(alpha = 0.25f),
-                                radius = 9.dp.toPx(),
-                                center = offset
-                            )
-                            drawCircle(
-                                color = lineColor,
-                                radius = 5.dp.toPx(),
-                                center = offset
-                            )
-                            drawCircle(
-                                color = Color.White,
-                                radius = 2.dp.toPx(),
-                                center = offset
-                            )
-                        } else if (points[index].value > 0f) {
-                            drawCircle(
-                                color = lineColor,
-                                radius = 3.dp.toPx(),
-                                center = offset
-                            )
+                        // 绘制各数据节点微光圆点
+                        coords.forEachIndexed { index, offset ->
+                            val isSelected = points[index].key == selectedKey
+                            if (isSelected) {
+                                drawCircle(
+                                    color = lineColor.copy(alpha = 0.25f),
+                                    radius = 9.dp.toPx(),
+                                    center = offset,
+                                )
+                                drawCircle(
+                                    color = lineColor,
+                                    radius = 5.dp.toPx(),
+                                    center = offset,
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = 2.dp.toPx(),
+                                    center = offset,
+                                )
+                            } else if (points[index].value > 0f) {
+                                drawCircle(
+                                    color = lineColor,
+                                    radius = 3.dp.toPx(),
+                                    center = offset,
+                                )
+                            }
                         }
-                    }
-                }
+                    },
+                )
             }
 
             Spacer(Modifier.height(6.dp))
@@ -715,10 +743,17 @@ fun RpScrollableLineChart(
             // 折线图底部 X 轴标签
             Row(
                 modifier = Modifier.width(totalWidth),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 points.forEach { point ->
                     val isSelected = point.key == selectedKey
+                    val pointLabelColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else if (point.isCurrent) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                    }
                     Text(
                         text = point.label,
                         modifier = Modifier
@@ -726,20 +761,14 @@ fun RpScrollableLineChart(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { onSelectPoint(point.key) }
+                                onClick = { onSelectPoint(point.key) },
                             ),
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else if (point.isCurrent) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
-                        },
+                        color = pointLabelColor,
                         fontWeight = if (isSelected || point.isCurrent) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
+                        maxLines = 1,
                     )
                 }
             }
@@ -790,10 +819,10 @@ fun RpTrendChartCard(
                 maxValue = maxValue,
                 chartHeight = 100.dp,
                 axisRailWidth = axisRailWidth,
-                formatter = yAxisFormatter
+                formatter = yAxisFormatter,
             )
         }
-    }
+    },
 ) {
     val selectedPoint = points.firstOrNull { it.key == selectedKey }
 
@@ -802,34 +831,34 @@ fun RpTrendChartCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // 卡片头部
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
-                        if (chartMode == RpChartMode.Bar) Icons.Rounded.BarChart else Icons.AutoMirrored.Rounded.ShowChart,
+                        imageVector = if (chartMode == RpChartMode.Bar) Icons.Rounded.BarChart else Icons.AutoMirrored.Rounded.ShowChart,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -837,7 +866,7 @@ fun RpTrendChartCard(
                     currentMode = chartMode,
                     onModeSelected = onSelectChartMode,
                     barLabel = barLabel,
-                    lineLabel = lineLabel
+                    lineLabel = lineLabel,
                 )
             }
 
@@ -846,7 +875,7 @@ fun RpTrendChartCard(
                 Text(
                     text = peakText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -854,7 +883,7 @@ fun RpTrendChartCard(
             AnimatedVisibility(
                 visible = selectedPoint != null && tooltipContent != null,
                 enter = fadeIn(),
-                exit = fadeOut() + shrinkVertically()
+                exit = fadeOut() + shrinkVertically(),
             ) {
                 if (selectedPoint != null && tooltipContent != null) {
                     tooltipContent(selectedPoint)
@@ -862,9 +891,10 @@ fun RpTrendChartCard(
             }
 
             // 图表渲染区域（闭合直角坐标系标尺 + 横向滑动图表）
-            val delegatedYAxisContent: (@Composable BoxScope.(maxValue: Float) -> Unit)? = if (yAxisContent != null) {
-                { maxValue -> yAxisContent(maxValue, chartMode) }
-            } else null
+            val delegatedYAxisContent: (@Composable BoxScope.(maxValue: Float) -> Unit)? =
+                if (yAxisContent != null) {
+                    { maxValue -> yAxisContent(maxValue, chartMode) }
+                } else null
 
             if (chartMode == RpChartMode.Bar) {
                 RpScrollableBarChart(
@@ -874,7 +904,7 @@ fun RpTrendChartCard(
                     autoScrollToEndKey = autoScrollKey,
                     axisRailWidth = axisRailWidth,
                     yAxisFormatter = yAxisFormatter,
-                    yAxisContent = delegatedYAxisContent
+                    yAxisContent = delegatedYAxisContent,
                 )
             } else {
                 RpScrollableLineChart(
@@ -884,7 +914,7 @@ fun RpTrendChartCard(
                     autoScrollToEndKey = autoScrollKey,
                     axisRailWidth = axisRailWidth,
                     yAxisFormatter = yAxisFormatter,
-                    yAxisContent = delegatedYAxisContent
+                    yAxisContent = delegatedYAxisContent,
                 )
             }
         }

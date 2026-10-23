@@ -26,11 +26,9 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,11 +48,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import java.util.Locale
 import kotlin.math.roundToInt
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 数值编辑对话框的可选快捷输入项。 */
 data class NumericEditQuickOption(
@@ -93,7 +93,7 @@ fun NumericEditDialog(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     sliderConfig: SliderConfig? = null,
-    quickOptions: List<NumericEditQuickOption> = emptyList()
+    quickOptions: List<NumericEditQuickOption> = emptyList(),
 ) {
     val haptic = LocalHapticFeedback.current
     val focusRequester = remember { FocusRequester() }
@@ -116,17 +116,18 @@ fun NumericEditDialog(
         dismissText = stringResource(R.string.cancel),
         confirmEnabled = value.isNotBlank(),
         onConfirm = onConfirm,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (sliderConfig != null) {
                 // 连续范围使用滑动条与步进按钮共同调整
                 val currentFloat = value.toFloatOrNull() ?: sliderConfig.range.start
-                val clampedFloat = currentFloat.coerceIn(sliderConfig.range.start, sliderConfig.range.endInclusive)
+                val clampedFloat =
+                    currentFloat.coerceIn(sliderConfig.range.start, sliderConfig.range.endInclusive)
 
                 // 顶部突出显示当前值，并提供精确的单步增减操作
                 Row(
@@ -134,40 +135,45 @@ fun NumericEditDialog(
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // 减少操作会在最小值处截断，避免生成越界输入
                     FilledTonalIconButton(
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = dialogControlColor(MaterialTheme.colorScheme.secondaryContainer),
-                            disabledContainerColor = dialogControlColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                            disabledContainerColor = dialogControlColor(
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.12f
+                                )
+                            ),
                         ),
                         onClick = {
-                            val nextVal = (clampedFloat - sliderConfig.step).coerceAtLeast(sliderConfig.range.start)
+                            val nextVal =
+                                (clampedFloat - sliderConfig.step).coerceAtLeast(sliderConfig.range.start)
                             onValueChange(String.format(Locale.US, "%.2f", nextVal))
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                         shape = CircleShape,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(44.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Remove,
-                            contentDescription = stringResource(R.string.decrease)
+                            contentDescription = stringResource(R.string.decrease),
                         )
                     }
 
                     // 平滑切换格式化后的当前数值
                     AnimatedContent(
                         targetState = String.format(Locale.US, "%.2f", clampedFloat),
-                        label = "numericIndicator"
+                        label = "numericIndicator",
                     ) { formatted ->
                         Text(
                             text = formatted,
                             style = MaterialTheme.typography.displaySmall.copy(
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                                color = MaterialTheme.colorScheme.primary,
+                            ),
                         )
                     }
 
@@ -175,19 +181,24 @@ fun NumericEditDialog(
                     FilledTonalIconButton(
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = dialogControlColor(MaterialTheme.colorScheme.secondaryContainer),
-                            disabledContainerColor = dialogControlColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                            disabledContainerColor = dialogControlColor(
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.12f
+                                )
+                            ),
                         ),
                         onClick = {
-                            val nextVal = (clampedFloat + sliderConfig.step).coerceAtMost(sliderConfig.range.endInclusive)
+                            val nextVal =
+                                (clampedFloat + sliderConfig.step).coerceAtMost(sliderConfig.range.endInclusive)
                             onValueChange(String.format(Locale.US, "%.2f", nextVal))
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                         shape = CircleShape,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(44.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Add,
-                            contentDescription = stringResource(R.string.increase)
+                            contentDescription = stringResource(R.string.increase),
                         )
                     }
                 }
@@ -198,7 +209,8 @@ fun NumericEditDialog(
                         colors = pageSliderColors(),
                         value = clampedFloat,
                         onValueChange = { newVal ->
-                            val snapped = (newVal / sliderConfig.step).roundToInt() * sliderConfig.step
+                            val snapped =
+                                (newVal / sliderConfig.step).roundToInt() * sliderConfig.step
                             val formatted = String.format(Locale.US, "%.2f", snapped)
                             if (formatted != value) {
                                 onValueChange(formatted)
@@ -206,7 +218,7 @@ fun NumericEditDialog(
                             }
                         },
                         valueRange = sliderConfig.range,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     if (!sliderConfig.minLabel.isNullOrBlank() || !sliderConfig.maxLabel.isNullOrBlank()) {
@@ -214,17 +226,17 @@ fun NumericEditDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
                                 text = sliderConfig.minLabel.orEmpty(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = sliderConfig.maxLabel.orEmpty(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -246,12 +258,12 @@ fun NumericEditDialog(
                         } else {
                             KeyboardType.Number
                         },
-                        imeAction = ImeAction.Done
+                        imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (value.isNotBlank()) onConfirm()
-                        }
+                        },
                     ),
                     trailingIcon = {
                         if (value.isNotEmpty()) {
@@ -259,11 +271,11 @@ fun NumericEditDialog(
                                 Icon(
                                     imageVector = Icons.Rounded.Clear,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
-                    }
+                    },
                 )
             }
 
@@ -274,7 +286,7 @@ fun NumericEditDialog(
                 onValueChange = { selectedValue ->
                     onValueChange(selectedValue)
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                }
+                },
             )
         }
     }
@@ -285,23 +297,23 @@ fun NumericEditDialog(
 private fun QuickOptionChips(
     value: String,
     options: List<NumericEditQuickOption>,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ) {
     if (options.isEmpty()) return
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = stringResource(R.string.quick_select),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             options.forEach { option ->
                 val isSelected = value == option.value
@@ -311,7 +323,7 @@ private fun QuickOptionChips(
                     } else {
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     },
-                    label = "chipBackground"
+                    label = "chipBackground",
                 )
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) {
@@ -319,30 +331,30 @@ private fun QuickOptionChips(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    label = "chipContent"
+                    label = "chipContent",
                 )
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = backgroundColor,
                     border = BorderStroke(
-                        1.dp,
-                        if (isSelected) {
+                        width = 1.dp,
+                        color = if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         } else {
                             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                        }
+                        },
                     ),
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .clickable { onValueChange(option.value) }
+                        .clickable(onClick = { onValueChange(option.value) }),
                 ) {
                     Text(
                         text = option.label,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = contentColor,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                     )
                 }
             }
@@ -366,13 +378,13 @@ private fun NumericEditDialogSliderPreview() {
                 range = 0.00f..2.00f,
                 step = 0.05f,
                 minLabel = "0.0 严谨",
-                maxLabel = "2.0 发散"
+                maxLabel = "2.0 发散",
             ),
             quickOptions = listOf(
                 NumericEditQuickOption("0.2 精准", "0.20"),
                 NumericEditQuickOption("0.7 均衡", "0.70"),
-                NumericEditQuickOption("1.2 创意", "1.20")
-            )
+                NumericEditQuickOption("1.2 创意", "1.20"),
+            ),
         )
     }
 }
@@ -393,8 +405,8 @@ private fun NumericEditDialogInputPreview() {
                 quickOptions = listOf(
                     NumericEditQuickOption("2K", "2000"),
                     NumericEditQuickOption("4K", "4000"),
-                    NumericEditQuickOption("8K", "8000")
-                )
+                    NumericEditQuickOption("8K", "8000"),
+                ),
             )
         }
     }

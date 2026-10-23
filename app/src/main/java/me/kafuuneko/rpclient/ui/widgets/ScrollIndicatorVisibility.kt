@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 internal fun rememberScrollIndicatorAlpha(
     state: ScrollableState,
-    thumbDraggedState: State<Boolean>
+    thumbDraggedState: State<Boolean>,
 ): State<Float> {
     val alpha = remember(state) { Animatable(0f) }
 
@@ -32,13 +32,13 @@ internal fun rememberScrollIndicatorAlpha(
             if (active) {
                 alpha.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(SCROLL_INDICATOR_FADE_IN_DURATION_MILLIS)
+                    animationSpec = tween(SCROLL_INDICATOR_FADE_IN_DURATION_MILLIS),
                 )
             } else {
                 delay(SCROLL_INDICATOR_HIDE_DELAY_MILLIS)
                 alpha.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(SCROLL_INDICATOR_FADE_OUT_DURATION_MILLIS)
+                    animationSpec = tween(SCROLL_INDICATOR_FADE_OUT_DURATION_MILLIS),
                 )
             }
         }

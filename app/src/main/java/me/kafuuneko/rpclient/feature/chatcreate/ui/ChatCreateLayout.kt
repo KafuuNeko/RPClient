@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,14 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.AddComment
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,9 +57,9 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
-import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
+import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -76,12 +74,14 @@ import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextFie
 @Composable
 fun ChatCreateLayout(
     uiState: ChatCreateUiState,
-    emit: ChatCreateUiIntent.() -> Unit
+    emit: ChatCreateUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is ChatCreateUiState.Normal) { ChatCreateUiIntent.Back.emit() }
+    BackHandler(
+        enabled = uiState is ChatCreateUiState.Normal,
+        onBack = { ChatCreateUiIntent.Back.emit() })
     when (uiState) {
         ChatCreateUiState.None -> Unit
-        is ChatCreateUiState.Finished -> ChatCreateLayout(uiState.previous) {}
+        is ChatCreateUiState.Finished -> ChatCreateLayout(uiState = uiState.previous, emit = {})
         is ChatCreateUiState.Normal -> ChatCreateNormal(uiState, emit)
     }
 }
@@ -89,7 +89,7 @@ fun ChatCreateLayout(
 @Composable
 private fun ChatCreateNormal(
     state: ChatCreateUiState.Normal,
-    emit: ChatCreateUiIntent.() -> Unit
+    emit: ChatCreateUiIntent.() -> Unit,
 ) {
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
     val filteredLorebookGroups = state.visibleLorebookGroups
@@ -101,143 +101,176 @@ private fun ChatCreateNormal(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.create_chat_title),
-                onBack = { ChatCreateUiIntent.Back.emit() }
+                onBack = { ChatCreateUiIntent.Back.emit() },
             )
         },
         bottomBar = {
             CreateBottomBar(
                 loadState = state.loadState,
-                characterName = state.characters.firstOrNull { it.id == state.form.selectedCharacterId }?.name,
+                characterName = state.characters.firstOrNull { chatCreateCharacterItem -> chatCreateCharacterItem.id == state.form.selectedCharacterId }?.name,
                 selectedEntryCount = state.form.selectedLorebookEntryIds.size,
-                emit = emit
+                emit = emit,
             )
-        }
-    ) { padding ->
-        RpLazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 14.dp,
-                end = 18.dp,
-                bottom = 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            if (state.loadState == ChatCreateLoadState.Loading) {
-                item { LoadingRow() }
-            } else {
-                item { BasicForm(state.form, emit) }
-                item {
-                    RpSectionHeader(title = stringResource(R.string.bind_character))
-                }
-                if (state.characters.isEmpty()) {
-                    item { EmptyCard(Icons.Rounded.Person, stringResource(R.string.no_characters_for_chat)) }
-                }
-                if (state.characters.isNotEmpty()) {
+        },
+        content = { padding ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 14.dp,
+                    end = 18.dp,
+                    bottom = 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (state.loadState == ChatCreateLoadState.Loading) {
+                    item { LoadingRow() }
+                } else {
+                    item { BasicForm(state.form, emit) }
                     item {
-                        CharacterSearchField(
-                            query = state.characterQuery,
-                            onQueryChange = { ChatCreateUiIntent.ChangeCharacterQuery(it).emit() }
+                        RpSectionHeader(title = stringResource(R.string.bind_character))
+                    }
+                    if (state.characters.isEmpty()) {
+                        item {
+                            EmptyCard(
+                                Icons.Rounded.Person,
+                                stringResource(R.string.no_characters_for_chat)
+                            )
+                        }
+                    }
+                    if (state.characters.isNotEmpty()) {
+                        item {
+                            CharacterSearchField(
+                                query = state.characterQuery,
+                                onQueryChange = { text ->
+                                    ChatCreateUiIntent.ChangeCharacterQuery(
+                                        text
+                                    ).emit()
+                                },
+                            )
+                        }
+                        if (state.visibleCharacters.isEmpty()) {
+                            item {
+                                EmptyCard(
+                                    Icons.Rounded.Search,
+                                    stringResource(R.string.no_matching_characters)
+                                )
+                            }
+                        }
+                    }
+                    items(
+                        items = state.visibleCharacters,
+                        key = { chatCreateCharacterItem -> "character-${chatCreateCharacterItem.id}" },
+                    ) { character ->
+                        CharacterOption(
+                            character = character,
+                            selected = character.id == state.form.selectedCharacterId,
+                            onClick = { ChatCreateUiIntent.SelectCharacter(character.id).emit() },
                         )
                     }
-                    if (state.visibleCharacters.isEmpty()) {
-                        item { EmptyCard(Icons.Rounded.Search, stringResource(R.string.no_matching_characters)) }
+                    if (state.selectedCharacterFirstMessages.isNotEmpty()) {
+                        item {
+                            RpSectionHeader(title = stringResource(R.string.first_messages))
+                        }
+                        itemsIndexed(state.selectedCharacterFirstMessages) { index, message ->
+                            FirstMessageOption(
+                                message = message,
+                                selected = state.form.selectedFirstMessageIndex == index,
+                                onClick = { ChatCreateUiIntent.SelectFirstMessage(index).emit() },
+                            )
+                        }
                     }
-                }
-                items(state.visibleCharacters, key = { "character-${it.id}" }) { character ->
-                    CharacterOption(
-                        character = character,
-                        selected = character.id == state.form.selectedCharacterId,
-                        onClick = { ChatCreateUiIntent.SelectCharacter(character.id).emit() }
-                    )
-                }
-                if (state.selectedCharacterFirstMessages.isNotEmpty()) {
                     item {
-                        RpSectionHeader(title = stringResource(R.string.first_messages))
+                        RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
                     }
-                    itemsIndexed(state.selectedCharacterFirstMessages) { index, message ->
-                        FirstMessageOption(
-                            message = message,
-                            selected = state.form.selectedFirstMessageIndex == index,
-                            onClick = { ChatCreateUiIntent.SelectFirstMessage(index).emit() }
+                    if (state.lorebookGroups.isNotEmpty()) {
+                        item {
+                            LorebookSearchField(
+                                query = state.lorebookQuery,
+                                onQueryChange = { text ->
+                                    ChatCreateUiIntent.ChangeLorebookQuery(
+                                        text
+                                    ).emit()
+                                },
+                            )
+                        }
+                    }
+                    if (state.lorebookGroups.isEmpty()) {
+                        item {
+                            EmptyCard(
+                                icon = Icons.AutoMirrored.Rounded.MenuBook,
+                                text = stringResource(R.string.no_world_book_entries_selectable),
+                            )
+                        }
+                    }
+                    if (state.lorebookGroups.isNotEmpty() && filteredLorebookGroups.isEmpty()) {
+                        item {
+                            EmptyCard(
+                                icon = Icons.Rounded.Search,
+                                text = stringResource(R.string.no_world_book_search_results),
+                            )
+                        }
+                    }
+                    items(
+                        items = filteredLorebookGroups,
+                        key = { chatCreateLorebookGroupItem -> chatCreateLorebookGroupItem.lorebookId },
+                    ) { group ->
+                        val expanded =
+                            isSearchingLorebooks || group.lorebookId in expandedLorebookIds
+                        val selectedCount = state.lorebookGroups
+                            .firstOrNull { chatCreateLorebookGroupItem -> chatCreateLorebookGroupItem.lorebookId == group.lorebookId }
+                            ?.entries
+                            ?.count { chatCreateLorebookEntryItem -> chatCreateLorebookEntryItem.id in state.form.selectedLorebookEntryIds }
+                            ?: 0
+                        LorebookGroupOption(
+                            group = group,
+                            selectedEntryIds = state.form.selectedLorebookEntryIds,
+                            selectedCount = selectedCount,
+                            expanded = expanded,
+                            onExpandedChange = {
+                                expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
+                            },
+                            emit = emit,
                         )
                     }
-                }
-                item {
-                    RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
-                }
-                if (state.lorebookGroups.isNotEmpty()) {
-                    item {
-                        LorebookSearchField(
-                            query = state.lorebookQuery,
-                            onQueryChange = { ChatCreateUiIntent.ChangeLorebookQuery(it).emit() }
-                        )
-                    }
-                }
-                if (state.lorebookGroups.isEmpty()) {
-                    item {
-                        EmptyCard(
-                            icon = Icons.AutoMirrored.Rounded.MenuBook,
-                            text = stringResource(R.string.no_world_book_entries_selectable)
-                        )
-                    }
-                }
-                if (state.lorebookGroups.isNotEmpty() && filteredLorebookGroups.isEmpty()) {
-                    item {
-                        EmptyCard(
-                            icon = Icons.Rounded.Search,
-                            text = stringResource(R.string.no_world_book_search_results)
-                        )
-                    }
-                }
-                items(filteredLorebookGroups, key = { it.lorebookId }) { group ->
-                    val expanded = isSearchingLorebooks || group.lorebookId in expandedLorebookIds
-                    val selectedCount = state.lorebookGroups
-                        .firstOrNull { it.lorebookId == group.lorebookId }
-                        ?.entries
-                        ?.count { it.id in state.form.selectedLorebookEntryIds }
-                        ?: 0
-                    LorebookGroupOption(
-                        group = group,
-                        selectedEntryIds = state.form.selectedLorebookEntryIds,
-                        selectedCount = selectedCount,
-                        expanded = expanded,
-                        onExpandedChange = {
-                            expandedLorebookIds = expandedLorebookIds.toggle(group.lorebookId)
-                        },
-                        emit = emit
-                    )
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun BasicForm(
     form: ChatCreateForm,
-    emit: ChatCreateUiIntent.() -> Unit
+    emit: ChatCreateUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
             value = form.title,
-            onValueChange = { ChatCreateUiIntent.ChangeTitle(it).emit() },
+            onValueChange = { text -> ChatCreateUiIntent.ChangeTitle(text).emit() },
             label = { Text(stringResource(R.string.chat_title)) },
-            leadingIcon = { Icon(Icons.Rounded.AddComment, contentDescription = null) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.AddComment,
+                    contentDescription = null
+                )
+            },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = form.userNote,
-            onValueChange = { ChatCreateUiIntent.ChangeUserNote(it).emit() },
+            onValueChange = { text -> ChatCreateUiIntent.ChangeUserNote(text).emit() },
             label = { Text(stringResource(R.string.default_user_note)) },
             minLines = 3,
             maxLines = 8,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
     }
 }
@@ -246,22 +279,24 @@ private fun BasicForm(
 private fun CharacterOption(
     character: ChatCreateCharacterItem,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = if (selected) 2.dp else 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
+                alpha = 0.4f
+            ),
         ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = onClick)
             Spacer(modifier = Modifier.width(8.dp))
@@ -269,22 +304,22 @@ private fun CharacterOption(
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = character.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = character.description.ifBlank { stringResource(R.string.no_description) },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
-                RpTagRow(character.tags, maxCount = 4)
+                RpTagRow(tags = character.tags, maxCount = 4)
             }
         }
     }
@@ -294,22 +329,24 @@ private fun CharacterOption(
 private fun FirstMessageOption(
     message: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = if (selected) 2.dp else 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
+                alpha = 0.4f
+            ),
         ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = onClick)
             Spacer(modifier = Modifier.width(8.dp))
@@ -321,7 +358,7 @@ private fun FirstMessageOption(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -334,31 +371,34 @@ private fun LorebookGroupOption(
     selectedCount: Int,
     expanded: Boolean,
     onExpandedChange: () -> Unit,
-    emit: ChatCreateUiIntent.() -> Unit
+    emit: ChatCreateUiIntent.() -> Unit,
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (!expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = if (expanded) 14.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(
+                horizontal = 14.dp,
+                vertical = if (expanded) 14.dp else 12.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 44.dp)
                     .then(if (expanded) Modifier.clickable(onClick = onExpandedChange) else Modifier),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RpIconBubble(
                     icon = Icons.AutoMirrored.Rounded.MenuBook,
                     size = 32.dp,
                     iconSize = 17.dp,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -366,12 +406,16 @@ private fun LorebookGroupOption(
                         text = group.lorebookName,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = stringResource(R.string.enabled_entries_count, selectedCount, group.entryCount),
+                        text = stringResource(
+                            R.string.enabled_entries_count,
+                            selectedCount,
+                            group.entryCount
+                        ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                     )
                 }
                 val allSelected = group.entryCount > 0 && selectedCount == group.entryCount
@@ -379,13 +423,13 @@ private fun LorebookGroupOption(
                 RpCheckBadge(
                     selected = allSelected,
                     indeterminate = indeterminate,
-                    onClick = { ChatCreateUiIntent.ToggleLorebook(group.lorebookId).emit() }
+                    onClick = { ChatCreateUiIntent.ToggleLorebook(group.lorebookId).emit() },
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Icon(
                     imageVector = if (expanded) Icons.Rounded.KeyboardArrowDown else Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
             }
             if (expanded) {
@@ -393,7 +437,7 @@ private fun LorebookGroupOption(
                     LorebookEntryOption(
                         item = item,
                         selected = item.id in selectedEntryIds,
-                        onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.id).emit() }
+                        onClick = { ChatCreateUiIntent.ToggleLorebookEntry(item.id).emit() },
                     )
                 }
             }
@@ -405,49 +449,55 @@ private fun LorebookGroupOption(
 private fun LorebookEntryOption(
     item: ChatCreateLorebookEntryItem,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
+                alpha = 0.4f
+            ),
         ),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        }
+        },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = item.content,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 RpTagRow(
                     tags = item.displayTags(
                         constantLabel = stringResource(R.string.entry_constant),
-                        orderDepthLabel = stringResource(R.string.entry_order_depth, item.order, item.depth)
-                    )
+                        orderDepthLabel = stringResource(
+                            R.string.entry_order_depth,
+                            item.order,
+                            item.depth
+                        ),
+                    ),
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -458,7 +508,7 @@ private fun LorebookEntryOption(
 
 private fun ChatCreateLorebookEntryItem.displayTags(
     constantLabel: String,
-    orderDepthLabel: String
+    orderDepthLabel: String,
 ): List<String> {
     return buildList {
         add(lorebookName)
@@ -472,14 +522,14 @@ private fun CreateBottomBar(
     loadState: ChatCreateLoadState,
     characterName: String?,
     selectedEntryCount: Int,
-    emit: ChatCreateUiIntent.() -> Unit
+    emit: ChatCreateUiIntent.() -> Unit,
 ) {
     RpCreationBottomBar(
         title = characterName ?: stringResource(R.string.character_editor_empty),
         subtitle = stringResource(R.string.world_books_enabled, selectedEntryCount),
         enabled = characterName != null && loadState == ChatCreateLoadState.None,
         creating = loadState == ChatCreateLoadState.Creating,
-        onCreate = { ChatCreateUiIntent.CreateChat.emit() }
+        onCreate = { ChatCreateUiIntent.CreateChat.emit() },
     )
 }
 
@@ -487,7 +537,7 @@ private fun CreateBottomBar(
 private fun LoadingRow() {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
+        horizontalArrangement = Arrangement.Center,
     ) {
         CircularProgressIndicator()
     }
@@ -496,10 +546,12 @@ private fun LoadingRow() {
 @Composable
 private fun LorebookSearchField(
     query: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
@@ -507,46 +559,46 @@ private fun LorebookSearchField(
                 text = stringResource(R.string.search_world_books),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         },
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+        leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.clear_search)
+                        contentDescription = stringResource(R.string.clear_search),
                     )
                 }
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
 @Composable
 private fun EmptyCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String
+    icon: ImageVector,
+    text: String,
 ) {
     AppCard(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpIconBubble(icon)
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
         }
     }
@@ -560,23 +612,23 @@ private fun ChatCreateLayoutPreview() {
             uiState = ChatCreateUiState.Normal(
                 selectedCharacterFirstMessages = listOf(
                     "The rain taps gently against the window as Lyra opens the case file.",
-                    "You arrive at the archive just before midnight."
+                    "You arrive at the archive just before midnight.",
                 ),
                 characters = listOf(
-                    ChatCreateCharacterItem(
+                    element = ChatCreateCharacterItem(
                         id = 1L,
                         name = "Lyra",
                         tags = listOf("Mystery"),
                         description = "Archivist",
-                    )
+                    ),
                 ),
                 lorebookGroups = listOf(
-                    ChatCreateLorebookGroupItem(
+                    element = ChatCreateLorebookGroupItem(
                         lorebookId = 1L,
                         lorebookName = "Fog Harbor",
                         entryCount = 1,
                         entries = listOf(
-                            ChatCreateLorebookEntryItem(
+                            element = ChatCreateLorebookEntryItem(
                                 id = 1L,
                                 lorebookName = "Fog Harbor",
                                 name = "Old Town",
@@ -586,13 +638,13 @@ private fun ChatCreateLayoutPreview() {
                                 depth = 0,
                                 category = emptyList(),
                                 content = "Persistent lore content.",
-                                constant = false
-                            )
-                        )
-                    )
-                )
+                                constant = false,
+                            ),
+                        ),
+                    ),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

@@ -10,9 +10,13 @@ sealed class GroupChatUiIntent {
     data object OpenSummarySettings : GroupChatUiIntent()
 
     data object RetryImageReply : GroupChatUiIntent()
+
     data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
+
     data class Init(val sessionId: String?, val searchMessageId: Long? = null) : GroupChatUiIntent()
+
     data object Resume : GroupChatUiIntent()
+
     data object LoadOlderMessages : GroupChatUiIntent()
 
     data object LoadNewerMessages : GroupChatUiIntent()
@@ -21,67 +25,121 @@ sealed class GroupChatUiIntent {
 
     /** 列表已经到达真实末尾，携带尾消息 ID 防止过期滚动事件误清除定位。 */
     data class ReachLatestMessage(val messageId: Long) : GroupChatUiIntent()
+
     data object Back : GroupChatUiIntent()
+
     data object OpenSettings : GroupChatUiIntent()
+
     data object ShowSessionLoreDialog : GroupChatUiIntent()
+
     data object OpenWorldBookManager : GroupChatUiIntent()
+
     data class ChangeSessionLorebookDialogQuery(val value: String) : GroupChatUiIntent()
+
     data class ToggleSessionLorebookDialogEntry(val entryId: Long) : GroupChatUiIntent()
+
     data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : GroupChatUiIntent()
+
     data object ConfirmSessionLorebookSelection : GroupChatUiIntent()
+
     data object OpenPromptInspector : GroupChatUiIntent()
 
     data class CopyPromptItem(val text: String) : GroupChatUiIntent()
+
     data object CloseSettings : GroupChatUiIntent()
+
     data class ChangeInputDraft(val value: String) : GroupChatUiIntent()
+
     data class SelectSpeaker(val characterId: Long) : GroupChatUiIntent()
+
     data class ToggleMemberMuted(val characterId: Long) : GroupChatUiIntent()
+
     data object SendMessage : GroupChatUiIntent()
+
     data object StopGeneration : GroupChatUiIntent()
+
     data object SummarizeNow : GroupChatUiIntent()
+
     data object RestorePreviousSummary : GroupChatUiIntent()
+
     data class ChangeTitle(val value: String) : GroupChatUiIntent()
+
     data class ChangeScenario(val value: String) : GroupChatUiIntent()
+
     data class ChangeUserNote(val value: String) : GroupChatUiIntent()
+
     data class ChangeSummary(val value: String) : GroupChatUiIntent()
+
     data class ToggleAutoSummaryPaused(val paused: Boolean) : GroupChatUiIntent()
+
     data class ChangeSystemPrompt(val value: String) : GroupChatUiIntent()
+
     data class ChangeGroupNudgePrompt(val value: String) : GroupChatUiIntent()
+
     data class ChangeNewGroupChatPrompt(val value: String) : GroupChatUiIntent()
+
     data object SaveSettings : GroupChatUiIntent()
+
     data class SelectActivationStrategy(
         val strategy: GroupChatActivationStrategy
     ) : GroupChatUiIntent()
+
     data class SelectCharacterCardMode(
         val mode: GroupChatCharacterCardMode
     ) : GroupChatUiIntent()
+
     data class ToggleIncludeMutedCards(val enabled: Boolean) : GroupChatUiIntent()
+
     data class ToggleAutoMode(val enabled: Boolean) : GroupChatUiIntent()
+
     data class ToggleTrimOtherSpeakers(val enabled: Boolean) : GroupChatUiIntent()
+
     data class ToggleAllowSelfResponses(val enabled: Boolean) : GroupChatUiIntent()
+
     data class ChangeLorebookQuery(val value: String) : GroupChatUiIntent()
+
     data class ToggleLorebook(val lorebookId: Long) : GroupChatUiIntent()
+
     data class ToggleLorebookEntry(val entryId: Long) : GroupChatUiIntent()
+
     data class AddMember(val characterId: Long) : GroupChatUiIntent()
+
     data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
+
     data class MoveMember(val characterId: Long, val offset: Int) : GroupChatUiIntent()
+
     data class ReorderMember(
         val fromCharacterId: Long,
         val toCharacterId: Long
     ) : GroupChatUiIntent()
+
     data object CommitMemberOrder : GroupChatUiIntent()
+
     data class CopyMessage(val messageId: Long) : GroupChatUiIntent()
+
     data class ToggleThinkBlock(val blockId: String) : GroupChatUiIntent()
+
     data class StartEditMessage(val messageId: Long) : GroupChatUiIntent()
+
     data class ChangeEditingMessageDraft(val value: String) : GroupChatUiIntent()
+
     data object SaveEditingMessage : GroupChatUiIntent()
+
     data object CancelEditingMessage : GroupChatUiIntent()
+
     data class DeleteMessageClick(val messageId: Long) : GroupChatUiIntent()
+
     data object ConfirmDeleteMessage : GroupChatUiIntent()
+
     data class RegenerateMessage(val messageId: Long) : GroupChatUiIntent()
+
     data object ContinueLast : GroupChatUiIntent()
+
     data object DeleteSessionClick : GroupChatUiIntent()
+
     data object ConfirmDeleteSession : GroupChatUiIntent()
+
     data object OpenProviderSettings : GroupChatUiIntent()
+
     data object DismissDialog : GroupChatUiIntent()
 }

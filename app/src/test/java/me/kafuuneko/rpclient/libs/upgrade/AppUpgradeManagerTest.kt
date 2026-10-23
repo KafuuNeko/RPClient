@@ -14,11 +14,11 @@ class AppUpgradeManagerTest {
         val manager = manager(
             store = store,
             upgrades = listOf(
-                FakeUpgrade(30, events),
-                FakeUpgrade(10, events),
-                FakeUpgrade(20, events)
+                FakeUpgrade(targetVersionCode = 30, events = events),
+                FakeUpgrade(targetVersionCode = 10, events = events),
+                FakeUpgrade(targetVersionCode = 20, events = events),
             ),
-            currentVersionCode = 30
+            currentVersionCode = 30,
         )
 
         manager.upgrade()
@@ -36,9 +36,9 @@ class AppUpgradeManagerTest {
                 "cleanup-20",
                 "cleanup-checkpoint-20",
                 "cleanup-30",
-                "cleanup-checkpoint-30"
+                "cleanup-checkpoint-30",
             ),
-            events
+            events,
         )
         assertEquals(30, store.lastCompletedVersionCode)
         assertEquals(30, store.lastCleanedVersionCode)
@@ -52,16 +52,16 @@ class AppUpgradeManagerTest {
     @Test
     fun completedStepsAreSkippedFutureStepsAreDeferredAndCleanupIsRetried() = runBlocking {
         val events = mutableListOf<String>()
-        val store = RecordingVersionStore(events, initialVersionCode = 20)
+        val store = RecordingVersionStore(events = events, initialVersionCode = 20)
         val manager = manager(
             store = store,
             upgrades = listOf(
-                FakeUpgrade(10, events),
-                FakeUpgrade(20, events),
-                FakeUpgrade(30, events),
-                FakeUpgrade(40, events)
+                FakeUpgrade(targetVersionCode = 10, events = events),
+                FakeUpgrade(targetVersionCode = 20, events = events),
+                FakeUpgrade(targetVersionCode = 30, events = events),
+                FakeUpgrade(targetVersionCode = 40, events = events),
             ),
-            currentVersionCode = 30
+            currentVersionCode = 30,
         )
 
         manager.upgrade()
@@ -75,9 +75,9 @@ class AppUpgradeManagerTest {
                 "cleanup-20",
                 "cleanup-checkpoint-20",
                 "cleanup-30",
-                "cleanup-checkpoint-30"
+                "cleanup-checkpoint-30",
             ),
-            events
+            events,
         )
         assertEquals(30, store.lastCompletedVersionCode)
         assertEquals(30, store.lastCleanedVersionCode)
@@ -87,15 +87,15 @@ class AppUpgradeManagerTest {
     fun failureStopsTheChainAndNextRunContinuesFromLastCheckpoint() = runBlocking {
         val events = mutableListOf<String>()
         val store = RecordingVersionStore(events)
-        val failingUpgrade = FakeUpgrade(20, events, shouldFail = true)
+        val failingUpgrade = FakeUpgrade(targetVersionCode = 20, events = events, shouldFail = true)
         val manager = manager(
             store = store,
             upgrades = listOf(
-                FakeUpgrade(10, events),
+                FakeUpgrade(targetVersionCode = 10, events = events),
                 failingUpgrade,
-                FakeUpgrade(30, events)
+                FakeUpgrade(targetVersionCode = 30, events = events),
             ),
-            currentVersionCode = 30
+            currentVersionCode = 30,
         )
 
         val failure = runCatching { manager.upgrade() }.exceptionOrNull()
@@ -105,9 +105,9 @@ class AppUpgradeManagerTest {
             listOf(
                 "migrate-10",
                 "checkpoint-10",
-                "migrate-20"
+                "migrate-20",
             ),
-            events
+            events,
         )
         assertEquals(10, store.lastCompletedVersionCode)
 
@@ -126,9 +126,9 @@ class AppUpgradeManagerTest {
                 "cleanup-20",
                 "cleanup-checkpoint-20",
                 "cleanup-30",
-                "cleanup-checkpoint-30"
+                "cleanup-checkpoint-30",
             ),
-            events
+            events,
         )
         assertEquals(30, store.lastCompletedVersionCode)
         assertEquals(30, store.lastCleanedVersionCode)
@@ -140,20 +140,20 @@ class AppUpgradeManagerTest {
         val store = RecordingVersionStore(
             events = events,
             initialVersionCode = 20,
-            initialCleanedVersionCode = 10
+            initialCleanedVersionCode = 10,
         )
         val cleanupFailure = FakeUpgrade(
             targetVersionCode = 20,
             events = events,
-            cleanupShouldFail = true
+            cleanupShouldFail = true,
         )
         val manager = manager(
             store = store,
             upgrades = listOf(
-                FakeUpgrade(10, events),
-                cleanupFailure
+                FakeUpgrade(targetVersionCode = 10, events = events),
+                cleanupFailure,
             ),
-            currentVersionCode = 20
+            currentVersionCode = 20,
         )
 
         val failure = runCatching { manager.upgrade() }.exceptionOrNull()
@@ -169,7 +169,7 @@ class AppUpgradeManagerTest {
 
         assertEquals(
             listOf("cleanup-20", "cleanup-checkpoint-20"),
-            events
+            events,
         )
         assertEquals(20, store.lastCleanedVersionCode)
     }
@@ -182,10 +182,10 @@ class AppUpgradeManagerTest {
             manager(
                 store = store,
                 upgrades = listOf(
-                    FakeUpgrade(10, mutableListOf()),
-                    FakeUpgrade(10, mutableListOf())
+                    FakeUpgrade(targetVersionCode = 10, events = mutableListOf()),
+                    FakeUpgrade(targetVersionCode = 10, events = mutableListOf()),
                 ),
-                currentVersionCode = 10
+                currentVersionCode = 10,
             )
         }
     }
@@ -193,12 +193,12 @@ class AppUpgradeManagerTest {
     private fun manager(
         store: AppUpgradeVersionStore,
         upgrades: List<AppUpgrade>,
-        currentVersionCode: Int
+        currentVersionCode: Int,
     ): AppUpgradeManager {
         return AppUpgradeManager(
             versionCodeProvider = AppVersionCodeProvider { currentVersionCode },
             versionStore = store,
-            upgrades = upgrades
+            upgrades = upgrades,
         )
     }
 

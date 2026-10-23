@@ -30,15 +30,26 @@ data class ImagePreviewState(
 /** 两类聊天共用的图片用户行为，由页面 Intent 包装后交给 ViewModel。 */
 sealed interface MessageImageAction {
     data class Choose(val editing: Boolean = false) : MessageImageAction
+
     data class Picked(val uris: List<Uri>) : MessageImageAction
+
     data class Remove(val uuid: String, val editing: Boolean = false) : MessageImageAction
+
     data class Move(val uuid: String, val editing: Boolean = false) : MessageImageAction
+
     data class Load(val uuid: String) : MessageImageAction
+
     data class RegisterDisplay(val uuid: String) : MessageImageAction
+
     data class ReleaseDisplay(val uuid: String) : MessageImageAction
+
     data class Preview(val ids: List<String>, val index: Int) : MessageImageAction
+
     data object CancelProcessing : MessageImageAction
+
     data object ClosePreview : MessageImageAction
+
     data object Save : MessageImageAction
+
     data class SaveResult(val uri: Uri) : MessageImageAction
 }

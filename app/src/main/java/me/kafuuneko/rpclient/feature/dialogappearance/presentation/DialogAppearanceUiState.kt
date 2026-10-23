@@ -8,8 +8,15 @@ sealed interface DialogAppearanceUiState {
         val settings: DialogAppearance = DialogAppearance(),
         val dialog: DialogAppearanceDialog = DialogAppearanceDialog.None
     ) : DialogAppearanceUiState
+
     data class Finished(val previous: Normal) : DialogAppearanceUiState
 }
 
 /** 预览与未保存确认互斥，避免窗口遮罩重复叠加。 */
-enum class DialogAppearanceDialog { None, Preview, UnsavedChanges }
+enum class DialogAppearanceDialog {
+    None,
+
+    Preview,
+
+    UnsavedChanges
+}

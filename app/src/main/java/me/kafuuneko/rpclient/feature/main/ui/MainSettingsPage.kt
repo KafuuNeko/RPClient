@@ -30,9 +30,8 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.DataObject
-import androidx.compose.material.icons.rounded.Image as ImageIcon
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -41,7 +40,6 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material.icons.rounded.Thermostat
@@ -55,7 +53,6 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -76,6 +73,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -125,7 +123,6 @@ import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
@@ -140,6 +137,9 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
+import androidx.compose.material.icons.rounded.Image as ImageIcon
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 设置输入区与全屏人设编辑弹窗共用的宏入口。 */
 internal val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
@@ -148,7 +148,7 @@ internal val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
 @Composable
 internal fun MainSettingsPage(
     state: MainSettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpLazyColumn(
         modifier = Modifier
@@ -158,9 +158,9 @@ internal fun MainSettingsPage(
             start = 18.dp,
             top = 8.dp,
             end = 18.dp,
-            bottom = 110.dp
+            bottom = 110.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
             Spacer(modifier = Modifier.statusBarsPadding())
@@ -182,12 +182,13 @@ internal fun MainSettingsPage(
         item {
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
-                action = stringResource(R.string.manage)
-            ) { MainUiIntent.OpenProviderManager.emit() }
+                action = stringResource(R.string.manage),
+                onAction = { MainUiIntent.OpenProviderManager.emit() },
+            )
         }
         when (val providerState = state.providerState) {
             MainProviderSettingsState.Empty -> {
-                item { EmptyProviderCard { MainUiIntent.OpenProviderManager.emit() } }
+                item { EmptyProviderCard(onClick = { MainUiIntent.OpenProviderManager.emit() }) }
             }
 
             is MainProviderSettingsState.Available -> {
@@ -195,7 +196,7 @@ internal fun MainSettingsPage(
                     ProviderCard(
                         provider = provider,
                         selected = provider.id == providerState.selectedProviderId,
-                        onClick = { MainUiIntent.SelectProvider(provider.id).emit() }
+                        onClick = { MainUiIntent.SelectProvider(provider.id).emit() },
                     )
                 }
                 item { ParameterPanel(providerState.generationParametersState, emit) }
@@ -206,7 +207,7 @@ internal fun MainSettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }
-        item { PromptPresetEntryCard { MainUiIntent.OpenPromptPreset.emit() } }
+        item { PromptPresetEntryCard(onClick = { MainUiIntent.OpenPromptPreset.emit() }) }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { SummaryPanel(state.summaryState, emit) }
@@ -219,18 +220,18 @@ internal fun MainSettingsPage(
         item { MessageEditingPanel(state.separateThinkWhenEditing, emit) }
         item { StoryMarkdownRenderingPanel(state.appearanceState, emit) }
         item { ChatDataManagementPanel(state.chatDataManagementState, emit) }
-        item { BackupRestoreEntryCard { MainUiIntent.OpenBackupRestore.emit() } }
+        item { BackupRestoreEntryCard(onClick = { MainUiIntent.OpenBackupRestore.emit() }) }
         item { SearchAccelerationPanel(state.searchIndexState, emit) }
-        item { TokenUsageEntryCard { emit(MainUiIntent.OpenTokenUsage) } }
+        item { TokenUsageEntryCard(onClick = { emit(MainUiIntent.OpenTokenUsage) }) }
         item { DebugPanel(state.debugState, emit) }
-        item { AboutEntryCard { emit(MainUiIntent.OpenAbout) } }
+        item { AboutEntryCard(onClick = { emit(MainUiIntent.OpenAbout) }) }
     }
 }
 
 @Composable
 private fun AppearancePanel(
     state: MainAppearanceSettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsTile(
@@ -245,9 +246,9 @@ private fun AppearancePanel(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-            }
+            },
         )
         RpSettingsDivider(startIndent = false)
         // 使用可换行选项，避免较长译文在小屏设备上被截断。
@@ -256,14 +257,14 @@ private fun AppearancePanel(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AppThemeMode.entries.forEach { themeMode ->
                 FilterChip(
                     selected = themeMode == state.themeMode,
                     onClick = { MainUiIntent.SelectThemeMode(themeMode).emit() },
                     label = { Text(stringResource(themeMode.titleRes())) },
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 )
             }
         }
@@ -273,7 +274,7 @@ private fun AppearancePanel(
 @Composable
 private fun MessageEditingPanel(
     separateThinkWhenEditing: Boolean,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsSwitchTile(
@@ -283,7 +284,9 @@ private fun MessageEditingPanel(
             title = stringResource(R.string.message_edit_separate_think),
             subtitle = stringResource(R.string.message_edit_separate_think_desc),
             checked = separateThinkWhenEditing,
-            onCheckedChange = { MainUiIntent.ToggleSeparateThinkWhenEditing(it).emit() }
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleSeparateThinkWhenEditing(enabled).emit()
+            },
         )
     }
 }
@@ -291,7 +294,7 @@ private fun MessageEditingPanel(
 @Composable
 private fun StoryMarkdownRenderingPanel(
     state: MainAppearanceSettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsSwitchTile(
@@ -301,7 +304,9 @@ private fun StoryMarkdownRenderingPanel(
             title = stringResource(R.string.story_markdown_rendering),
             subtitle = stringResource(R.string.story_markdown_rendering_desc),
             checked = state.storyMarkdownRenderingEnabled,
-            onCheckedChange = { MainUiIntent.ToggleStoryMarkdownRendering(it).emit() }
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleStoryMarkdownRendering(enabled).emit()
+            },
         )
     }
 }
@@ -316,7 +321,7 @@ private fun BackupRestoreEntryCard(onClick: () -> Unit) {
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.backup_restore_title),
             subtitle = stringResource(R.string.backup_restore_entry_desc),
-            onClick = onClick
+            onClick = onClick,
         )
     }
 }
@@ -326,7 +331,11 @@ private fun BackupRestoreEntryCard(onClick: () -> Unit) {
 private fun SearchAccelerationPanel(index: SearchIndexState, emit: MainUiIntent.() -> Unit) {
     // 忙碌和失败状态使用现有本地化说明，避免把尚未完成的构建显示为已开启。
     val subtitle = when (index) {
-        is SearchIndexState.Building -> stringResource(R.string.content_search_index_building, index.processed)
+        is SearchIndexState.Building -> stringResource(
+            R.string.content_search_index_building,
+            index.processed
+        )
+
         SearchIndexState.Preparing -> stringResource(R.string.loading)
         SearchIndexState.Cleaning -> stringResource(R.string.content_search_index_cleaning)
         SearchIndexState.CleanupFailed -> stringResource(R.string.content_search_index_cleanup_failed)
@@ -343,7 +352,7 @@ private fun SearchAccelerationPanel(index: SearchIndexState, emit: MainUiIntent.
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             checked = index.enabled,
             enabled = !index.busy,
-            onCheckedChange = { MainUiIntent.ToggleSearchAcceleration(it).emit() }
+            onCheckedChange = { enabled -> MainUiIntent.ToggleSearchAcceleration(enabled).emit() },
         )
     }
 }
@@ -364,9 +373,9 @@ private fun TokenUsageEntryCard(onClick: () -> Unit) {
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-            }
+            },
         )
     }
 }
@@ -374,34 +383,36 @@ private fun TokenUsageEntryCard(onClick: () -> Unit) {
 @Composable
 private fun WorldInfoBudgetPanel(
     state: MainWorldInfoBudgetState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
                 text = stringResource(R.string.world_info_budget_section),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = stringResource(R.string.world_info_budget_description),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             )
             RpPercentageSlider(
                 title = stringResource(R.string.world_info_context_percent),
                 value = state.budgetPercent,
                 helper = stringResource(R.string.world_info_context_percent_helper),
-                onValueChange = { MainUiIntent.ChangeWorldInfoBudgetPercent(it).emit() }
+                onValueChange = { value ->
+                    MainUiIntent.ChangeWorldInfoBudgetPercent(value).emit()
+                },
             )
             NumberSettingRow(
                 title = stringResource(R.string.world_info_budget_cap),
                 value = state.budgetCap.toString(),
                 helper = stringResource(R.string.world_info_budget_cap_helper),
-                onValueChange = { MainUiIntent.ChangeWorldInfoBudgetCap(it).emit() }
+                onValueChange = { text -> MainUiIntent.ChangeWorldInfoBudgetCap(text).emit() },
             )
         }
         RpSettingsDivider(startIndent = false)
@@ -412,7 +423,9 @@ private fun WorldInfoBudgetPanel(
             title = stringResource(R.string.world_info_overflow_alert),
             subtitle = stringResource(R.string.world_info_overflow_alert_desc),
             checked = state.overflowAlert,
-            onCheckedChange = { MainUiIntent.ToggleWorldInfoOverflowAlert(it).emit() }
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleWorldInfoOverflowAlert(enabled).emit()
+            },
         )
     }
 }
@@ -420,33 +433,33 @@ private fun WorldInfoBudgetPanel(
 @Composable
 private fun UserIdentityPanel(
     state: MainUserIdentityState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 UserAvatarPicker(
                     state = state,
-                    emit = emit
+                    emit = emit,
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = state.userName.ifBlank { stringResource(R.string.user_display_name) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = state.userDescriptionPreview.ifBlank {
@@ -455,7 +468,7 @@ private fun UserIdentityPanel(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -463,44 +476,50 @@ private fun UserIdentityPanel(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = state.userName,
-                    onValueChange = { MainUiIntent.ChangeUserName(it).emit() },
+                    onValueChange = { text -> MainUiIntent.ChangeUserName(text).emit() },
                     label = { Text(stringResource(R.string.user_display_name)) },
                     leadingIcon = {
                         Icon(
-                            Icons.Rounded.Person,
+                            imageVector = Icons.Rounded.Person,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(14.dp), hasLabel = true))
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .generalContentBackground(
+                            shape = RoundedCornerShape(14.dp),
+                            hasLabel = true
+                        ),
+                )
                 UserPersonaDescriptionField(
                     value = state.userDescription,
-                    onValueChange = { MainUiIntent.ChangeUserDescription(it).emit() },
+                    onValueChange = { text -> MainUiIntent.ChangeUserDescription(text).emit() },
                     onExpandFullscreen = {
                         MainUiIntent.ShowUserDescriptionEditor.emit()
-                    }
+                    },
                 )
                 if (state.avatarState is MainUserAvatarState.Configured) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
                     ) {
                         TextButton(
                             onClick = { MainUiIntent.ClearUserAvatar.emit() },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Icon(
-                                Icons.Rounded.Close,
+                                imageVector = Icons.Rounded.Close,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                stringResource(R.string.clear_user_avatar),
-                                style = MaterialTheme.typography.labelMedium
+                                text = stringResource(R.string.clear_user_avatar),
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         }
                     }
@@ -515,7 +534,7 @@ private fun UserIdentityPanel(
 private fun UserPersonaDescriptionField(
     value: String,
     onValueChange: (String) -> Unit,
-    onExpandFullscreen: () -> Unit
+    onExpandFullscreen: () -> Unit,
 ) {
     val textFieldState = rememberBoundTextFieldState(value, onValueChange)
 
@@ -527,17 +546,17 @@ private fun UserPersonaDescriptionField(
             maxLines = 4,
             shape = RoundedCornerShape(14.dp),
             outputTransformation = rememberPromptMacroOutputTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         RpMacroActionBar(
             onInsertMacro = { macro ->
                 val start = minOf(
-                    textFieldState.selection.start,
-                    textFieldState.selection.end
+                    a = textFieldState.selection.start,
+                    b = textFieldState.selection.end,
                 )
                 val end = maxOf(
-                    textFieldState.selection.start,
-                    textFieldState.selection.end
+                    a = textFieldState.selection.start,
+                    b = textFieldState.selection.end,
                 )
                 textFieldState.edit {
                     replace(start, end, macro)
@@ -545,7 +564,7 @@ private fun UserPersonaDescriptionField(
                 }
             },
             onFullscreenClick = onExpandFullscreen,
-            macros = USER_PERSONA_MACROS
+            macros = USER_PERSONA_MACROS,
         )
     }
 }
@@ -553,7 +572,7 @@ private fun UserPersonaDescriptionField(
 @Composable
 private fun UserAvatarPicker(
     state: MainUserIdentityState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     val avatarText = state.userName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     val avatarColor = remember(state.userName) {
@@ -563,8 +582,8 @@ private fun UserAvatarPicker(
     Box(
         modifier = Modifier
             .size(78.dp)
-            .clickable { MainUiIntent.PickUserAvatarClick.emit() },
-        contentAlignment = Alignment.Center
+            .clickable(onClick = { MainUiIntent.PickUserAvatarClick.emit() }),
+        contentAlignment = Alignment.Center,
     ) {
         val avatarState = state.avatarState
         val avatarImage = (avatarState as? MainUserAvatarState.Configured)?.image
@@ -573,17 +592,17 @@ private fun UserAvatarPicker(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
             border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             ),
-            shadowElevation = 2.dp
+            shadowElevation = 2.dp,
         ) {
             if (avatarImage == null) {
                 RpAvatar(
                     text = avatarText,
                     color = avatarColor,
                     modifier = Modifier.fillMaxSize(),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(20.dp),
                 )
             } else {
                 Image(
@@ -592,7 +611,7 @@ private fun UserAvatarPicker(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(20.dp)),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             }
         }
@@ -602,15 +621,15 @@ private fun UserAvatarPicker(
                 .size(26.dp),
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface),
-            shadowElevation = 3.dp
+            border = BorderStroke(width = 2.dp, color = MaterialTheme.colorScheme.surface),
+            shadowElevation = 3.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    Icons.Rounded.ImageIcon,
+                    imageVector = Icons.Rounded.ImageIcon,
                     contentDescription = stringResource(R.string.choose_user_avatar),
                     modifier = Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }
@@ -620,22 +639,22 @@ private fun UserAvatarPicker(
 @Composable
 private fun PromptBehaviorPanel(
     state: MainPromptBehaviorState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = stringResource(R.string.prompt_behavior_section),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = stringResource(R.string.prompt_post_processing_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             )
             val postProcessingState = state.providerPostProcessingState
             val selectedMode =
@@ -643,14 +662,14 @@ private fun PromptBehaviorPanel(
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 PromptPostProcessingMode.entries.forEach { mode ->
                     PromptPostProcessingModeRow(
                         mode = mode,
                         selected = mode == selectedMode,
                         enabled = postProcessingState is MainProviderPostProcessingState.Available,
-                        onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() }
+                        onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() },
                     )
                 }
             }
@@ -659,16 +678,16 @@ private fun PromptBehaviorPanel(
             Text(
                 text = stringResource(R.string.prompt_example_behavior_title),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = stringResource(R.string.prompt_example_behavior_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             )
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ExampleDialogueBehavior.entries.forEach { behavior ->
                     FilterChip(
@@ -677,7 +696,7 @@ private fun PromptBehaviorPanel(
                             MainUiIntent.SelectExampleDialogueBehavior(behavior).emit()
                         },
                         label = { Text(stringResource(behavior.titleRes())) },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
                     )
                 }
             }
@@ -685,7 +704,9 @@ private fun PromptBehaviorPanel(
                 title = stringResource(R.string.prompt_max_history_messages),
                 value = state.maxHistoryMessages.toString(),
                 helper = stringResource(R.string.prompt_max_history_messages_helper),
-                onValueChange = { MainUiIntent.ChangeMaxPromptHistoryMessages(it).emit() }
+                onValueChange = { text ->
+                    MainUiIntent.ChangeMaxPromptHistoryMessages(text).emit()
+                },
             )
         }
         RpSettingsDivider(startIndent = false)
@@ -696,7 +717,9 @@ private fun PromptBehaviorPanel(
             title = stringResource(R.string.prompt_include_think_context_title),
             subtitle = stringResource(R.string.prompt_include_think_context_desc),
             checked = state.includeThinkInContext,
-            onCheckedChange = { MainUiIntent.ToggleIncludeThinkInContext(it).emit() }
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleIncludeThinkInContext(enabled).emit()
+            },
         )
         RpSettingsDivider()
         RpSettingsSwitchTile(
@@ -706,7 +729,9 @@ private fun PromptBehaviorPanel(
             title = stringResource(R.string.context_trimming_alert),
             subtitle = stringResource(R.string.context_trimming_alert_desc),
             checked = state.contextTrimmingAlert,
-            onCheckedChange = { MainUiIntent.ToggleContextTrimmingAlert(it).emit() }
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleContextTrimmingAlert(enabled).emit()
+            },
         )
         RpSettingsDivider()
         RpSettingsSwitchTile(
@@ -716,7 +741,7 @@ private fun PromptBehaviorPanel(
             title = stringResource(R.string.streaming_response),
             subtitle = stringResource(R.string.streaming_response_desc),
             checked = state.streamEnabled,
-            onCheckedChange = { MainUiIntent.ToggleStreamEnabled(it).emit() }
+            onCheckedChange = { enabled -> MainUiIntent.ToggleStreamEnabled(enabled).emit() },
         )
     }
 }
@@ -726,13 +751,13 @@ private fun PromptPostProcessingModeRow(
     mode: PromptPostProcessingMode,
     selected: Boolean,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled) { onClick() },
+            .clickable(enabled = enabled, onClick = { onClick() }),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 0.5.dp,
@@ -740,29 +765,29 @@ private fun PromptPostProcessingModeRow(
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
-            }
+            },
         ),
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        }
+        },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(mode.titleRes()),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(mode.descriptionRes()),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (selected) {
@@ -770,7 +795,7 @@ private fun PromptPostProcessingModeRow(
                     imageVector = Icons.Rounded.Check,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
@@ -779,7 +804,7 @@ private fun PromptPostProcessingModeRow(
 
 @Composable
 private fun EmptyProviderCard(
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsTile(
@@ -794,9 +819,9 @@ private fun EmptyProviderCard(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-            }
+            },
         )
     }
 }
@@ -805,7 +830,7 @@ private fun EmptyProviderCard(
 private fun ProviderCard(
     provider: MainProviderItem,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppCard(
         onClick = onClick,
@@ -816,8 +841,8 @@ private fun ProviderCard(
         border = BorderStroke(
             width = if (selected) 1.5.dp else 0.5.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
-                alpha = 0.22f
-            )
+                alpha = 0.22f,
+            ),
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
@@ -825,41 +850,39 @@ private fun ProviderCard(
                 else MaterialTheme.colorScheme.surfaceContainerHighest
             } else {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-            }
-        )
+            },
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(
                 selected = selected,
                 onClick = null,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(38.dp),
             )
             Spacer(modifier = Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    provider.name,
+                    text = provider.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    provider.model,
+                    text = provider.model,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    provider.baseUrl,
+                    text = provider.baseUrl,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.48f
-                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.48f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -876,23 +899,23 @@ private fun ProviderCard(
             AppSurface(
                 shape = RoundedCornerShape(8.dp),
                 color = dotColor.copy(alpha = 0.12f),
-                border = BorderStroke(0.5.dp, dotColor.copy(alpha = 0.28f))
+                border = BorderStroke(width = 0.5.dp, color = dotColor.copy(alpha = 0.28f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
-                            .background(dotColor, CircleShape)
+                            .background(dotColor, CircleShape),
                     )
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
-                        color = dotColor
+                        color = dotColor,
                     )
                 }
             }
@@ -903,30 +926,30 @@ private fun ProviderCard(
 @Composable
 private fun ParameterPanel(
     state: MainGenerationParametersState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.generation_parameters),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             TextButton(
                 onClick = { MainUiIntent.OpenSelectedProviderEdit.emit() },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
-                    stringResource(R.string.preset),
+                    text = stringResource(R.string.preset),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -940,7 +963,7 @@ private fun ParameterPanel(
             onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.Temperature)
                     .emit()
-            }
+            },
         )
         RpSettingsDivider()
         RpSettingsValueTile(
@@ -951,7 +974,7 @@ private fun ParameterPanel(
             value = state.topP.toString(),
             onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit()
-            }
+            },
         )
         RpSettingsDivider()
         RpSettingsValueTile(
@@ -962,7 +985,7 @@ private fun ParameterPanel(
             value = state.maxTokens.toString(),
             onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.MaxTokens).emit()
-            }
+            },
         )
         RpSettingsDivider()
         RpSettingsValueTile(
@@ -974,7 +997,7 @@ private fun ParameterPanel(
             onClick = {
                 MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.ContextTokens)
                     .emit()
-            }
+            },
         )
     }
 }
@@ -994,9 +1017,9 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-            }
+            },
         )
     }
 }
@@ -1004,18 +1027,18 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
 @Composable
 private fun SummaryPanel(
     state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     // 分段栏和设置内容共用区域外观，切换时只替换对应的表单。
     RpSettingsGroup {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
                 text = stringResource(R.string.summary_memory),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             SummarySectionTabs(state.selectedTab, emit)
             when (state.selectedTab) {
@@ -1029,23 +1052,40 @@ private fun SummaryPanel(
 /** 分段选择与设置卡片使用同一层次，轻量底板和选中标记适应透明背景。 */
 @Composable
 private fun SummarySectionTabs(selectedTab: MainSummarySettingsTab, emit: MainUiIntent.() -> Unit) {
-    AppSurface(shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
-        Row(Modifier.fillMaxWidth().selectableGroup().padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    AppSurface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableGroup()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             // 选中状态通过强调色与字重表达，完全透明时仍能辨认。
             MainSummarySettingsTab.entries.forEach { tab ->
                 val isSelected = tab == selectedTab
                 AppSurface(
-                    modifier = Modifier.weight(1f).semantics { selected = isSelected; role = Role.Tab },
+                    modifier = Modifier.weight(1f)
+                        .semantics { selected = isSelected; role = Role.Tab },
                     onClick = { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 ) {
-                    Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        val color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        Text(stringResource(tab.titleRes()), style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = color)
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val color =
+                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = stringResource(tab.titleRes()),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = color,
+                        )
                     }
                 }
             }
@@ -1056,23 +1096,23 @@ private fun SummarySectionTabs(selectedTab: MainSummarySettingsTab, emit: MainUi
 @Composable
 private fun GeneralSummarySettings(
     state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SummaryProviderSelector(
             selectedProviderId = state.selectedProviderId,
             providers = state.providers,
-            onSelect = { MainUiIntent.SelectSummaryProvider(it).emit() }
+            onSelect = { id -> MainUiIntent.SelectSummaryProvider(id).emit() },
         )
         NumberSettingRow(
             title = stringResource(R.string.summary_target_words),
             value = state.wordsLimit.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryWordsLimit(it).emit() }
+            onValueChange = { text -> MainUiIntent.ChangeSummaryWordsLimit(text).emit() },
         )
         NumberSettingRow(
             title = stringResource(R.string.summary_response_tokens),
             value = state.responseTokens.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryResponseTokens(it).emit() }
+            onValueChange = { text -> MainUiIntent.ChangeSummaryResponseTokens(text).emit() },
         )
     }
 }
@@ -1082,7 +1122,7 @@ private fun GeneralSummarySettings(
 private fun SummaryProviderSelector(
     selectedProviderId: Long,
     providers: List<MainProviderItem>,
-    onSelect: (Long) -> Unit
+    onSelect: (Long) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedProvider = providers.firstOrNull { it.id == selectedProviderId }
@@ -1092,7 +1132,7 @@ private fun SummaryProviderSelector(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
             value = selectedName,
@@ -1103,19 +1143,20 @@ private fun SummaryProviderSelector(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
-            shape = RoundedCornerShape(12.dp)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
+            shape = RoundedCornerShape(12.dp),
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.follow_global_model)) },
                 onClick = {
                     onSelect(0L)
                     expanded = false
-                }
+                },
             )
             providers.forEach { provider ->
                 DropdownMenuItem(
@@ -1123,7 +1164,7 @@ private fun SummaryProviderSelector(
                     onClick = {
                         onSelect(provider.id)
                         expanded = false
-                    }
+                    },
                 )
             }
         }
@@ -1143,37 +1184,39 @@ private fun MainProviderItem.summaryDisplayName(): String {
 @Composable
 private fun ConversationSummarySettings(
     state: MainSummarySettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         SettingSwitchRow(
-            Icons.Rounded.AutoAwesome,
-            stringResource(R.string.auto_summarize),
-            stringResource(R.string.auto_summarize_desc),
-            state.autoSummaryEnabled,
-            onCheckedChange = { MainUiIntent.ToggleAutoSummaryEnabled(it).emit() }
+            icon = Icons.Rounded.AutoAwesome,
+            title = stringResource(R.string.auto_summarize),
+            subtitle = stringResource(R.string.auto_summarize_desc),
+            checked = state.autoSummaryEnabled,
+            onCheckedChange = { enabled -> MainUiIntent.ToggleAutoSummaryEnabled(enabled).emit() },
         )
         NumberSettingRow(
             title = stringResource(R.string.summary_update_every_messages),
             value = state.triggerMessageCount.toString(),
-            onValueChange = { MainUiIntent.ChangeSummaryTriggerMessageCount(it).emit() }
+            onValueChange = { text -> MainUiIntent.ChangeSummaryTriggerMessageCount(text).emit() },
         )
         NumberSettingRow(
             title = stringResource(R.string.summary_max_messages_per_request),
             value = state.maxMessagesPerRequest.toString(),
             helper = stringResource(R.string.summary_max_messages_helper),
-            onValueChange = { MainUiIntent.ChangeSummaryMaxMessagesPerRequest(it).emit() }
+            onValueChange = { text ->
+                MainUiIntent.ChangeSummaryMaxMessagesPerRequest(text).emit()
+            },
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = stringResource(R.string.summary_injection_position),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
 
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SummaryInjectionPosition.entries.forEach { position ->
                     FilterChip(
@@ -1182,7 +1225,7 @@ private fun ConversationSummarySettings(
                             MainUiIntent.SelectSummaryInjectionPosition(position).emit()
                         },
                         label = { Text(stringResource(position.titleRes())) },
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
                     )
                 }
             }
@@ -1193,27 +1236,27 @@ private fun ConversationSummarySettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                        RoundedCornerShape(14.dp)
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(14.dp),
                     )
                     .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 NumberSettingRow(
                     title = stringResource(R.string.summary_injection_depth),
                     value = injectionState.depth.toString(),
-                    onValueChange = {
-                        MainUiIntent.ChangeSummaryInjectionDepth(it).emit()
-                    }
+                    onValueChange = { text ->
+                        MainUiIntent.ChangeSummaryInjectionDepth(text).emit()
+                    },
                 )
                 Text(
                     text = stringResource(R.string.summary_injection_role),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SummaryInjectionRole.entries.forEach { role ->
                         FilterChip(
@@ -1222,7 +1265,7 @@ private fun ConversationSummarySettings(
                                 MainUiIntent.SelectSummaryInjectionRole(role).emit()
                             },
                             label = { Text(stringResource(role.titleRes())) },
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(10.dp),
                         )
                     }
                 }
@@ -1243,30 +1286,30 @@ private fun NumberSettingRow(
     title: String,
     value: String,
     helper: String? = null,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                title,
+                text = title,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
             if (!helper.isNullOrBlank()) {
                 Text(
-                    helper,
+                    text = helper,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
                 )
             }
         }
@@ -1274,12 +1317,14 @@ private fun NumberSettingRow(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            modifier = Modifier.width(100.dp).generalContentBackground(RoundedCornerShape(12.dp)),
+            modifier = Modifier
+                .width(100.dp)
+                .generalContentBackground(RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                fontWeight = FontWeight.SemiBold
-            )
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.SemiBold,
+            ),
         )
     }
 }
@@ -1287,7 +1332,7 @@ private fun NumberSettingRow(
 @Composable
 private fun DebugPanel(
     state: MainDebugSettingsState,
-    emit: MainUiIntent.() -> Unit
+    emit: MainUiIntent.() -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsSwitchTile(
@@ -1297,7 +1342,7 @@ private fun DebugPanel(
             title = stringResource(R.string.debug_mode),
             subtitle = stringResource(R.string.debug_mode_desc),
             checked = state.enabled,
-            onCheckedChange = { MainUiIntent.ToggleDebugModeEnabled(it).emit() }
+            onCheckedChange = { enabled -> MainUiIntent.ToggleDebugModeEnabled(enabled).emit() },
         )
         if (state.enabled) {
             RpSettingsDivider()
@@ -1313,9 +1358,9 @@ private fun DebugPanel(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
-                }
+                },
             )
         }
     }
@@ -1323,7 +1368,7 @@ private fun DebugPanel(
 
 @Composable
 private fun AboutEntryCard(
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     RpSettingsGroup {
         RpSettingsTile(
@@ -1338,9 +1383,9 @@ private fun AboutEntryCard(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
-            }
+            },
         )
     }
 }
@@ -1351,14 +1396,14 @@ private fun SettingSwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     RpSettingsSwitchTile(
         icon = icon,
         title = title,
         subtitle = subtitle,
         checked = checked,
-        onCheckedChange = onCheckedChange
+        onCheckedChange = onCheckedChange,
     )
 }
 
@@ -1425,54 +1470,52 @@ private fun MainSettingsLayoutPreview() {
                 homeState = MainHomeState(
                     resourceState = MainHomeResourceState(
                         totalCharacters = 24,
-                        totalWorldBooks = 7
+                        totalWorldBooks = 7,
                     ),
                     recentChatsState = MainRecentChatsState.Empty,
                     recentGroupChatsState = MainRecentGroupChatsState.Empty,
-                    recentStoriesState = MainRecentStoriesState.Empty
+                    recentStoriesState = MainRecentStoriesState.Empty,
                 ),
                 settingsState = MainSettingsState(
-                    appearanceState = MainAppearanceSettingsState(
-                        themeMode = AppThemeMode.FollowSystem
-                    ),
+                    appearanceState = MainAppearanceSettingsState(themeMode = AppThemeMode.FollowSystem),
                     identityState = MainUserIdentityState(
                         userName = "KafuuNeko",
                         userDescription = "A traveler exploring AI worlds.",
                         userDescriptionPreview = "A traveler exploring AI worlds.",
-                        avatarState = MainUserAvatarState.None
+                        avatarState = MainUserAvatarState.None,
                     ),
                     providerState = MainProviderSettingsState.Available(
                         selectedProviderId = 1L,
                         providers = listOf(
-                            MainProviderItem(
+                            element = MainProviderItem(
                                 id = 1L,
                                 name = "DeepSeek V3",
                                 model = "deepseek-chat",
                                 baseUrl = "https://api.deepseek.com/v1",
-                                isEnabled = true
-                            )
+                                isEnabled = true,
+                            ),
                         ),
                         generationParametersState = MainGenerationParametersState(
                             temperature = 0.8f,
                             topP = 0.95f,
                             maxTokens = 4096,
-                            contextTokens = 32768
-                        )
+                            contextTokens = 32768,
+                        ),
                     ),
                     promptBehaviorState = MainPromptBehaviorState(
                         providerPostProcessingState = MainProviderPostProcessingState.Available(
-                            mode = PromptPostProcessingMode.Strict
+                            mode = PromptPostProcessingMode.Strict,
                         ),
                         exampleDialogueBehavior = ExampleDialogueBehavior.Normal,
                         includeThinkInContext = true,
                         maxHistoryMessages = 500,
                         contextTrimmingAlert = true,
-                        streamEnabled = true
+                        streamEnabled = true,
                     ),
                     worldInfoBudgetState = MainWorldInfoBudgetState(
                         budgetPercent = 25,
                         budgetCap = 2048,
-                        overflowAlert = true
+                        overflowAlert = true,
                     ),
                     summaryState = MainSummarySettingsState(
                         autoSummaryEnabled = true,
@@ -1482,13 +1525,13 @@ private fun MainSettingsLayoutPreview() {
                         responseTokens = 800,
                         injectionState = MainSummaryInjectionState.InChat(
                             depth = 4,
-                            role = SummaryInjectionRole.System
-                        )
+                            role = SummaryInjectionRole.System,
+                        ),
                     ),
-                    debugState = MainDebugSettingsState(enabled = true)
-                )
+                    debugState = MainDebugSettingsState(enabled = true),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

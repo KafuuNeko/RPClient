@@ -59,7 +59,7 @@ data class WorldBookEditForm(
                     .orEmpty(),
                 recursiveScanning = lorebook.recursiveScanning,
                 extensionsJson = lorebook.extensionsJson,
-                entries = entries.map { WorldBookEntryListItem.from(it) }
+                entries = entries.map { WorldBookEntryListItem.from(it) },
             )
         }
     }
@@ -76,7 +76,7 @@ data class WorldBookEditForm(
             scanDepth = scanDepth,
             tokenBudget = tokenBudget,
             recursiveScanning = recursiveScanning,
-            extensionsJson = extensionsJson
+            extensionsJson = extensionsJson,
         )
     }
 }
@@ -84,6 +84,7 @@ data class WorldBookEditForm(
 /** 单本世界书预算的编辑模式。 */
 enum class WorldBookBudgetMode {
     FollowGlobal,
+
     FixedTokens
 }
 
@@ -113,7 +114,7 @@ data class WorldBookEntryListItem(
                 constant = entry.constant,
                 disabled = entry.disabled,
                 order = entry.order,
-                depth = entry.depth
+                depth = entry.depth,
             )
         }
     }
@@ -126,7 +127,7 @@ fun WorldBookEditForm.withEntryDisabled(entryId: Long, disabled: Boolean): World
     return copy(
         entries = entries.toMutableList().apply {
             this[index] = this[index].copy(disabled = disabled)
-        }
+        },
     )
 }
 
@@ -139,7 +140,7 @@ fun WorldBookEditForm.toComparableForm(): WorldBookEditForm {
             WorldBookBudgetMode.FixedTokens -> resolvedTokenBudget
                 ?.toString()
                 ?: tokenBudgetInput.trim()
-        }
+        },
     )
 }
 

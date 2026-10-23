@@ -6,9 +6,11 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /** 正文索引的持久源代次；删除标记由工作器在无旧任务的安全点回收。 */
-@Entity(tableName = "search_sources", primaryKeys = ["kind", "sourceId"], indices = [
-    Index(value = ["dirty", "changedTime"]), Index(value = ["deleted", "dirty", "kind", "sourceId"])
-])
+@Entity(
+    tableName = "search_sources", primaryKeys = ["kind", "sourceId"], indices = [
+        Index(value = ["dirty", "changedTime"]), Index(value = ["deleted", "dirty", "kind", "sourceId"])
+    ]
+)
 data class SearchSource(
     val kind: Int,
     val sourceId: Long,
@@ -21,7 +23,10 @@ data class SearchSource(
 )
 
 /** 可重建的正文块；只持久化可逆字符 token，当前页展示时解码，避免重复保存正文。 */
-@Entity(tableName = "search_chunks", indices = [Index(value = ["kind", "sourceId"]), Index(value = ["kind", "parentId"])])
+@Entity(
+    tableName = "search_chunks",
+    indices = [Index(value = ["kind", "sourceId"]), Index(value = ["kind", "parentId"])]
+)
 data class SearchChunk(
     @PrimaryKey(autoGenerate = true) val rowid: Long = 0,
     val kind: Int,

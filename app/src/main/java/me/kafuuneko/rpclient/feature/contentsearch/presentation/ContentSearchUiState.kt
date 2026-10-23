@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.search.SearchScope
 /** 独立搜索页状态树，输入、范围、准备状态和结果分别对应页面区域。 */
 sealed class ContentSearchUiState {
     data object None : ContentSearchUiState()
+
     data class Normal(
         val inputState: ContentSearchInputState = ContentSearchInputState(),
         val scopeState: ContentSearchScopeState = ContentSearchScopeState(),
@@ -32,6 +33,7 @@ data class ContentSearchScopeState(
 /** 未完成、已停止和失败都不能显示确定的“无结果”。 */
 sealed class ContentSearchResultState {
     data object Idle : ContentSearchResultState()
+
     data class Searching(val items: List<SearchHit> = emptyList()) : ContentSearchResultState()
 
     data class Content(

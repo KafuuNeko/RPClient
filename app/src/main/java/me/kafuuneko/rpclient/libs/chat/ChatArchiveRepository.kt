@@ -3,11 +3,6 @@ package me.kafuuneko.rpclient.libs.chat
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import java.io.FilterInputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.Writer
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -24,6 +19,11 @@ import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import java.io.FilterInputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.Writer
+import java.util.UUID
 
 /**
  * 单聊归档文件的应用层协调器。
@@ -77,7 +77,10 @@ class ChatArchiveRepository(
      * 因此内存峰值不再随整份导出文件额外复制。
      */
     private suspend fun writeArchive(
-        sessionId: Long, writer: Writer, snapshot: FileRepository.ReadSnapshot, owner: String
+        sessionId: Long,
+        writer: Writer,
+        snapshot: FileRepository.ReadSnapshot,
+        owner: String,
     ): Int {
         var skipped = 0
         val writtenHashes = mutableSetOf<String>()
@@ -90,15 +93,21 @@ class ChatArchiveRepository(
                 sessionId = sessionId,
                 afterCreateTime = afterCreateTime,
                 afterMessageId = afterMessageId,
-                limit = EXPORT_PAGE_SIZE
+                limit = EXPORT_PAGE_SIZE,
             )
             if (messages.isEmpty()) return skipped
             val images = mAppDatabase.getMessageImageDao().getByMessages(
-                MessageType.Single, messages.map { it.id }).groupBy { it.messageId }
+                messageType = MessageType.Single,
+                messageIds = messages.map { it.id },
+            ).groupBy { it.messageId }
             // 每条消息直接写出图片字节，既不改正文，也不把整批 Base64 留在内存。
             for (message in messages) {
                 val attachments = images[message.id].orEmpty()
-                if (attachments.isEmpty()) mCodec.encodeMessage(archive, message.toArchiveMessage(), writer)
+                if (attachments.isEmpty()) mCodec.encodeMessage(
+                    archive,
+                    message.toArchiveMessage(),
+                    writer
+                )
                 else mCodec.encodeMessageWithImages(archive, message.toArchiveMessage(), writer) {
                     skipped += writeAttachments(attachments, snapshot, writer, owner, writtenHashes)
                 }
@@ -116,7 +125,7 @@ class ChatArchiveRepository(
         snapshot: FileRepository.ReadSnapshot,
         writer: Writer,
         owner: String,
-        writtenHashes: MutableSet<String>
+        writtenHashes: MutableSet<String>,
     ): Int {
         val context = currentCoroutineContext()
         var written = false
@@ -131,7 +140,13 @@ class ChatArchiveRepository(
                     if (hash in writtenHashes) {
                         ChatArchiveImageCodec.writeImage(ChatArchiveImage(hash = hash), writer)
                     } else {
-                        mImageStore.writeExportImage(owner, file, hash, mImages.archiveMimeType(file), writer) {
+                        mImageStore.writeExportImage(
+                            owner,
+                            file,
+                            hash,
+                            mImages.archiveMimeType(file),
+                            writer
+                        ) {
                             context.ensureActive()
                         }
                         writtenHashes.add(hash)
@@ -146,21 +161,26 @@ class ChatArchiveRepository(
     /** 从 URI 读取并解析对话，但不创建会话或消息；来源缺少用户名时使用调用方身份。 */
     suspend fun readImportFromUri(
         uri: Uri,
-        fallbackUserName: String = DefaultNames.USER
+        fallbackUserName: String = DefaultNames.USER,
     ): ChatArchive {
         var owner: String? = null
         try {
             return withContext(Dispatchers.IO) {
-                val activeOwner = mImageStore.createOwner().also { owner = it }
+                val activeOwner = mImageStore.createOwner().also { text -> owner = text }
                 val context = currentCoroutineContext()
                 val fallbackTitle = resolveDisplayTitle(uri)
                 mContext.contentResolver.openInputStream(uri)?.use { input ->
-                    SizeLimitedInputStream(input, MAX_IMPORT_BYTES).reader(Charsets.UTF_8).use { reader ->
-                        mCodec.decode(reader, fallbackTitle, fallbackUserName = fallbackUserName,
-                            transformImage = { image ->
-                                mImageStore.stage(activeOwner, image) { context.ensureActive() }
-                            }).copy(importOwner = activeOwner)
-                    }
+                    SizeLimitedInputStream(input, MAX_IMPORT_BYTES).reader(Charsets.UTF_8)
+                        .use { reader ->
+                            mCodec.decode(
+                                reader = reader,
+                                fallbackTitle = fallbackTitle,
+                                fallbackUserName = fallbackUserName,
+                                transformImage = { image ->
+                                    mImageStore.stage(activeOwner, image) { context.ensureActive() }
+                                },
+                            ).copy(importOwner = activeOwner)
+                        }
                 } ?: error("Cannot read chat archive")
             }
         } catch (error: Throwable) {
@@ -189,7 +209,7 @@ class ChatArchiveRepository(
     suspend fun saveImport(
         archive: ChatArchive,
         characterId: Long,
-        imageSources: Map<String, Uri> = emptyMap()
+        imageSources: Map<String, Uri> = emptyMap(),
     ): ChatArchiveImportResult = withContext(Dispatchers.IO) {
         val owner = UUID.randomUUID().toString()
         val preparation = ImportImagePreparation()
@@ -199,7 +219,10 @@ class ChatArchiveRepository(
             val attachments = archive.messages.map { message ->
                 message.images.mapNotNull { image ->
                     prepareUniqueImage(archive, owner, image, imageSources, preparation)
-                        ?: run { skipped++; null }
+                        ?: run {
+                            skipped++
+                            null
+                        }
                 }
             }
             mFiles.mutate(preparation.byHash.values.toList()) {
@@ -208,7 +231,7 @@ class ChatArchiveRepository(
                 ChatArchiveImportResult(sessionId, skipped)
             }
         } finally {
-            preparation.all.forEach { mFiles.releasePrepared(it) }
+            preparation.all.forEach { preparedFile -> mFiles.releasePrepared(preparedFile) }
         }
     }
 
@@ -221,10 +244,13 @@ class ChatArchiveRepository(
 
     /** 按消息和附件顺序准备唯一文件；未命中的纯 hash 引用不会被后续数据回填。 */
     private suspend fun prepareUniqueImage(
-        archive: ChatArchive, owner: String, image: ChatArchiveImage,
-        sources: Map<String, Uri>, preparation: ImportImagePreparation
+        archive: ChatArchive,
+        owner: String,
+        image: ChatArchiveImage,
+        sources: Map<String, Uri>,
+        preparation: ImportImagePreparation,
     ): PreparedFile? {
-        image.resourceKey?.let { key -> preparation.byResource[key]?.let { return it } }
+        image.resourceKey?.let { key -> preparation.byResource[key]?.let { preparedFile -> return preparedFile } }
         if (image.data == null && image.resourceKey == null && image.sourceUrl == null) {
             return preparation.byHash[image.hash]
         }
@@ -242,10 +268,13 @@ class ChatArchiveRepository(
         archive: ChatArchive,
         owner: String,
         image: ChatArchiveImage,
-        sources: Map<String, Uri>
+        sources: Map<String, Uri>,
     ): PreparedFile? {
         image.resourceKey?.let { key ->
-            return mImages.prepareArchive(owner, mImageStore.open(requireNotNull(archive.importOwner), key))
+            return mImages.prepareArchive(
+                owner,
+                mImageStore.open(requireNotNull(archive.importOwner), key)
+            )
         }
         // 小型程序化导入也支持直接提供 Base64，不经过页面暂存。
         if (image.data != null) {
@@ -270,49 +299,69 @@ class ChatArchiveRepository(
     private suspend fun insertSession(archive: ChatArchive, characterId: Long): Long {
         requireNotNull(mCharacterDao.getCharacterById(characterId)) { "Selected character no longer exists" }
         // 只恢复可移植设置；外部数据库的世界书主键及运行状态必须重新建立。
-        return mChatSessionDao.insertOrReplace(ChatSession(
-            characterId = characterId,
-            createTime = archive.createTime,
-            latestTime = maxOf(archive.latestTime, archive.messages.lastOrNull()?.createTime ?: archive.createTime),
-            lorebookEntrySet = "[]",
-            title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
-            userNote = archive.userNote,
-            userName = archive.userName.normalizedUserName(),
-            userDescription = archive.userDescription,
-            creatorNotes = archive.creatorNotes,
-            worldInfoStateJson = "{}",
-            autoSummaryPaused = archive.autoSummaryPaused
-        ).withNormalizedCreatorNotes())
+        return mChatSessionDao.insertOrReplace(
+            data = ChatSession(
+                characterId = characterId,
+                createTime = archive.createTime,
+                latestTime = maxOf(
+                    archive.latestTime,
+                    archive.messages.lastOrNull()?.createTime ?: archive.createTime
+                ),
+                lorebookEntrySet = "[]",
+                title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
+                userNote = archive.userNote,
+                userName = archive.userName.normalizedUserName(),
+                userDescription = archive.userDescription,
+                creatorNotes = archive.creatorNotes,
+                worldInfoStateJson = "{}",
+                autoSummaryPaused = archive.autoSummaryPaused,
+            ).withNormalizedCreatorNotes(),
+        )
     }
 
     /** 在文件事务内恢复普通消息及有序附件；导入允许酒馆角色消息携带图片。 */
     private suspend fun FileRepository.Mutation.insertMessages(
         archive: ChatArchive,
         sessionId: Long,
-        images: List<List<PreparedFile>>
+        images: List<List<PreparedFile>>,
     ) {
         val ids = mutableListOf<Long>()
         val usedUuids = mutableSetOf<String>()
         for ((index, message) in archive.messages.withIndex()) {
-            val id = mChatMessageDao.insertOrReplace(ChatMessage(
-                sessionId = sessionId, createTime = message.createTime,
-                source = message.role.toEntitySource(), content = message.content
-            ))
+            val id = mChatMessageDao.insertOrReplace(
+                data = ChatMessage(
+                    sessionId = sessionId,
+                    createTime = message.createTime,
+                    source = message.role.toEntitySource(),
+                    content = message.content,
+                ),
+            )
             ids += id
             // 所有 UUID 均来自同一文件事务已提交的凭据，不信任归档提供的本地主键。
-            mAppDatabase.getMessageImageDao().insertAll(images[index].mapIndexed { position, image ->
-                // 每个附件持独立 UUID，重复图片只共享 hash 对应的物理文件。
-                val uuid = if (usedUuids.add(image.file.uuid)) image.file.uuid
+            mAppDatabase.getMessageImageDao().insertAll(
+                images = images[index].mapIndexed { position, image ->
+                    // 每个附件持独立 UUID，重复图片只共享 hash 对应的物理文件。
+                    val uuid = if (usedUuids.add(image.file.uuid)) image.file.uuid
                     else copyReference(image.file.uuid).uuid
-                MessageImageEntity(MessageType.Single, id, position, uuid)
-            })
+                    MessageImageEntity(
+                        messageType = MessageType.Single,
+                        messageId = id,
+                        position = position,
+                        imageUuid = uuid,
+                    )
+                },
+            )
         }
         archive.summary?.let { summary ->
-            mChatMessageDao.insertOrReplace(ChatMessage(
-                sessionId = sessionId, createTime = summary.createTime,
-                source = ChatMessage.Source.Summary, content = summary.content,
-                coveredMessageId = ids.getOrNull(summary.coveredMessageIndex) ?: 0L
-            ))
+            mChatMessageDao.insertOrReplace(
+                data = ChatMessage(
+                    sessionId = sessionId,
+                    createTime = summary.createTime,
+                    source = ChatMessage.Source.Summary,
+                    content = summary.content,
+                    coveredMessageId = ids.getOrNull(summary.coveredMessageIndex) ?: 0L,
+                ),
+            )
         }
     }
 
@@ -344,13 +393,13 @@ class ChatArchiveRepository(
             characterNameHint = character.name,
             characterFingerprint = ChatCharacterMatcher.fingerprintOf(character),
             messages = emptyList(),
-            summary = summary?.let {
+            summary = summary?.let { message ->
                 ChatArchiveSummary(
-                    content = it.content,
-                    createTime = it.createTime,
-                    coveredMessageIndex = coveredMessageIndex
+                    content = message.content,
+                    createTime = message.createTime,
+                    coveredMessageIndex = coveredMessageIndex,
                 )
-            }
+            },
         )
     }
 
@@ -358,7 +407,7 @@ class ChatArchiveRepository(
         return ChatArchiveMessage(
             createTime = createTime,
             role = source.toArchiveRole(),
-            content = content
+            content = content,
         )
     }
 
@@ -369,7 +418,7 @@ class ChatArchiveRepository(
                 arrayOf(OpenableColumns.DISPLAY_NAME),
                 null,
                 null,
-                null
+                null,
             )?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use null
                 cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
@@ -407,7 +456,7 @@ class ChatArchiveRepository(
 
         override fun read(): Int {
             return super.read().also { value ->
-                if (value >= 0) recordBytes(1)
+                if (value >= 0) recordBytes(count = 1)
             }
         }
 

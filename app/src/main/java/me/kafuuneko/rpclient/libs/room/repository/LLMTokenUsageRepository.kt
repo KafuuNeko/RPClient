@@ -30,13 +30,13 @@ class LLMTokenUsageRepository(
      */
     suspend fun getDashboard(
         startTime: Long,
-        recentLimit: Int = DEFAULT_RECENT_LIMIT
+        recentLimit: Int = DEFAULT_RECENT_LIMIT,
     ): LLMTokenUsageDashboard {
         return LLMTokenUsageDashboard(
             summary = mLLMTokenUsageDao.getSummary(startTime),
             dailyStats = mLLMTokenUsageDao.getDailyStats(startTime),
             groups = mLLMTokenUsageDao.getGroups(startTime),
-            recentRecords = mLLMTokenUsageDao.getRecentRecords(startTime, recentLimit)
+            recentRecords = mLLMTokenUsageDao.getRecentRecords(startTime, recentLimit),
         )
     }
 

@@ -8,9 +8,8 @@ class StoryOutputSanitizerTest {
 
     @Test
     fun removesReasoningFenceAndKnownPreambleConservatively() {
-        val result = mSanitizer.sanitize(
-            "<think>hidden</think>\n```markdown\n续写如下：\n雨落在长街上。\n```"
-        )
+        val result =
+            mSanitizer.sanitize("<think>hidden</think>\n```markdown\n续写如下：\n雨落在长街上。\n```")
 
         assertEquals("雨落在长街上。", result)
     }

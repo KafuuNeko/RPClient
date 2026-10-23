@@ -28,7 +28,7 @@ class MessageImageRepository(
     /** 先持文件锁，再由文件仓库开启短事务；仅供业务仓库调用，禁止在已有事务内重新加锁。 */
     internal suspend fun <T> mutate(
         prepared: List<PreparedFile> = emptyList(),
-        block: suspend FileRepository.Mutation.() -> T
+        block: suspend FileRepository.Mutation.() -> T,
     ): T = mFiles.mutate(prepared, block)
 
     /** 在所属消息事务内替换有序附件；既有 UUID 不允许跨消息挪用。 */
@@ -36,26 +36,34 @@ class MessageImageRepository(
         mutation: FileRepository.Mutation,
         key: MessageKey,
         sessionId: Long,
-        inputs: List<MessageImageInput>
+        inputs: List<MessageImageInput>,
     ) {
         require(inputs.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         validateOwner(key, sessionId)
         val old = mImages.getByMessage(key.messageType, key.messageId)
         val oldUuids = old.map { it.imageUuid }.toSet()
         // 新附件必须来自本事务已提交索引的草稿；保留附件必须属于原消息。
-        val uuids = inputs.map {
-            when (it) {
-                is MessageImageInput.Existing -> it.uuid.also { uuid ->
+        val uuids = inputs.map { messageImageInput ->
+            when (messageImageInput) {
+                is MessageImageInput.Existing -> messageImageInput.uuid.also { uuid ->
                     require(uuid in oldUuids) { "The image does not belong to the message being edited" }
                 }
-                is MessageImageInput.Prepared -> it.value.file.uuid
+
+                is MessageImageInput.Prepared -> messageImageInput.value.file.uuid
             }
         }
         require(uuids.distinct().size == uuids.size) { "The same image reference cannot be used twice" }
         mImages.deleteByMessage(key.messageType, key.messageId)
-        mImages.insertAll(uuids.mapIndexed { position, uuid ->
-            MessageImageEntity(key.messageType, key.messageId, position, uuid)
-        })
+        mImages.insertAll(
+            images = uuids.mapIndexed { position, uuid ->
+                MessageImageEntity(
+                    messageType = key.messageType,
+                    messageId = key.messageId,
+                    position = position,
+                    imageUuid = uuid,
+                )
+            },
+        )
         mutation.removeFiles((oldUuids - uuids.toSet()).toList())
     }
 
@@ -63,7 +71,7 @@ class MessageImageRepository(
     internal suspend fun deleteInTransaction(
         mutation: FileRepository.Mutation,
         type: MessageType,
-        ids: List<Long>
+        ids: List<Long>,
     ) {
         ids.distinct().chunked(BATCH_SIZE).forEach { batch ->
             val uuids = mImages.getImageUuidsByMessages(type, batch)
@@ -76,18 +84,24 @@ class MessageImageRepository(
     internal suspend fun copyInTransaction(
         mutation: FileRepository.Mutation,
         idMap: Map<Long, Long>,
-        targetSessionId: Long
+        targetSessionId: Long,
     ) {
         // 分支复制已有关系，保留导入消息的来源；每个附件仍创建独立引用。
         idMap.keys.toList().chunked(BATCH_SIZE).forEach { batch ->
             val images = mImages.getByMessages(MessageType.Single, batch)
-            images.groupBy { it.messageId }.forEach { (sourceId, attachments) ->
-                val targetId = idMap.getValue(sourceId)
-                validateOwner(MessageKey(MessageType.Single, targetId), targetSessionId)
-                mImages.insertAll(attachments.map {
-                    it.copy(messageId = targetId, imageUuid = mutation.copyReference(it.imageUuid).uuid)
-                })
-            }
+            images.groupBy { messageImageEntity -> messageImageEntity.messageId }
+                .forEach { (sourceId, attachments) ->
+                    val targetId = idMap.getValue(sourceId)
+                    validateOwner(MessageKey(MessageType.Single, targetId), targetSessionId)
+                    mImages.insertAll(
+                        images = attachments.map { messageImageEntity ->
+                            messageImageEntity.copy(
+                                messageId = targetId,
+                                imageUuid = mutation.copyReference(messageImageEntity.imageUuid).uuid,
+                            )
+                        },
+                    )
+                }
         }
     }
 
@@ -96,16 +110,20 @@ class MessageImageRepository(
         // 单聊与群聊使用独立 ID 空间，不能跨类型匹配父消息。
         when (key.messageType) {
             MessageType.Single -> {
-                val message = requireNotNull(mDatabase.getChatMessageDao().getMessageById(key.messageId)) {
-                    "The message owning the image does not exist"
-                }
+                val message =
+                    requireNotNull(mDatabase.getChatMessageDao().getMessageById(key.messageId)) {
+                        "The message owning the image does not exist"
+                    }
                 require(message.sessionId == sessionId) { "The image owner belongs to a different session" }
                 require(message.source != ChatMessage.Source.Summary) {
                     "Summary records cannot own message images"
                 }
             }
+
             MessageType.Group -> {
-                val message = requireNotNull(mDatabase.getGroupChatMessageDao().getMessageById(key.messageId)) {
+                val message = requireNotNull(
+                    mDatabase.getGroupChatMessageDao().getMessageById(key.messageId)
+                ) {
                     "The message owning the image does not exist"
                 }
                 require(message.sessionId == sessionId) { "The image owner belongs to a different session" }
@@ -114,35 +132,63 @@ class MessageImageRepository(
     }
 
     /** 在一致事务内按调用方消息顺序批量返回正文与附件；已删除消息不返回。 */
-    suspend fun getMessages(keys: List<MessageKey>): List<MessageWithImages> = mDatabase.withTransaction {
-        // 两种消息使用独立 ID 空间，不能合并为只有 Long 的映射。
-        val result = mutableMapOf<MessageKey, MessageWithImages>()
-        keys.distinct().groupBy { it.messageType }.forEach { (type, typedKeys) ->
-            typedKeys.chunked(BATCH_SIZE).forEach { batch ->
-                val ids = batch.map { it.messageId }
-                val images = mImages.getByMessages(type, ids)
-                val files = images.map { it.imageUuid }.chunked(BATCH_SIZE)
-                    .flatMap { mFileDao.getByUuids(it) }.associateBy { it.uuid }
-                val byMessage = images.groupBy { it.messageId }.mapValues { (_, attachments) ->
-                    attachments.map { MessageImageWithFile(it, files[it.imageUuid]) }
-                }
-                // 正文也批量读取，避免长历史退化成逐消息／逐图片查库。
-                when (type) {
-                    MessageType.Single -> mDatabase.getChatMessageDao().getByIds(ids).forEach {
-                        val key = MessageKey(type, it.id)
-                        result[key] = MessageWithImages(key, it.content, it.source.name, it.createTime,
-                            byMessage[it.id].orEmpty(), coveredMessageId = it.coveredMessageId)
+    suspend fun getMessages(keys: List<MessageKey>): List<MessageWithImages> =
+        mDatabase.withTransaction {
+            // 两种消息使用独立 ID 空间，不能合并为只有 Long 的映射。
+            val result = mutableMapOf<MessageKey, MessageWithImages>()
+            keys.distinct().groupBy { messageKey -> messageKey.messageType }
+                .forEach { (type, typedKeys) ->
+                    typedKeys.chunked(BATCH_SIZE).forEach { batch ->
+                        val ids = batch.map { messageKey -> messageKey.messageId }
+                        val images = mImages.getByMessages(type, ids)
+                        val files =
+                            images.map { messageImageEntity -> messageImageEntity.imageUuid }
+                                .chunked(BATCH_SIZE)
+                                .flatMap { items -> mFileDao.getByUuids(items) }
+                                .associateBy { fileEntity -> fileEntity.uuid }
+                        val byMessage =
+                            images.groupBy { messageImageEntity -> messageImageEntity.messageId }
+                                .mapValues { (_, attachments) ->
+                                    attachments.map { messageImageEntity ->
+                                        MessageImageWithFile(
+                                            image = messageImageEntity,
+                                            file = files[messageImageEntity.imageUuid],
+                                        )
+                                    }
+                                }
+                        // 正文也批量读取，避免长历史退化成逐消息／逐图片查库。
+                        when (type) {
+                            MessageType.Single -> mDatabase.getChatMessageDao().getByIds(ids)
+                                .forEach { message ->
+                                    val key = MessageKey(type, message.id)
+                                    result[key] = MessageWithImages(
+                                        key = key,
+                                        content = message.content,
+                                        source = message.source.name,
+                                        createTime = message.createTime,
+                                        images = byMessage[message.id].orEmpty(),
+                                        coveredMessageId = message.coveredMessageId,
+                                    )
+                                }
+
+                            MessageType.Group -> mDatabase.getGroupChatMessageDao().getByIds(ids)
+                                .forEach { message ->
+                                    val key = MessageKey(type, message.id)
+                                    result[key] = MessageWithImages(
+                                        key = key,
+                                        content = message.content,
+                                        source = message.source.name,
+                                        createTime = message.createTime,
+                                        images = byMessage[message.id].orEmpty(),
+                                        speakerCharacterId = message.speakerCharacterId,
+                                        speakerNameSnapshot = message.speakerNameSnapshot,
+                                    )
+                                }
+                        }
                     }
-                    MessageType.Group -> mDatabase.getGroupChatMessageDao().getByIds(ids).forEach {
-                        val key = MessageKey(type, it.id)
-                        result[key] = MessageWithImages(key, it.content, it.source.name, it.createTime,
-                            byMessage[it.id].orEmpty(), it.speakerCharacterId, it.speakerNameSnapshot)
-                    }
                 }
-            }
+            keys.mapNotNull { messageKey -> result[messageKey] }
         }
-        keys.mapNotNull { result[it] }
-    }
 
     private companion object {
         const val BATCH_SIZE = 900

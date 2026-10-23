@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,16 +28,26 @@ class GroupChatRepositorySummaryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = GroupChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
+        repository = GroupChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
         sessionId = runBlocking {
             database.getGroupChatSessionDao().insertOrReplace(
-                GroupChatSession(
+                data = GroupChatSession(
                     title = "Test group",
                     createTime = 1L,
                     latestTime = 1L,
                     userName = "Alice",
-                    userDescription = ""
-                )
+                    userDescription = "",
+                ),
             )
         }
     }
@@ -62,17 +70,17 @@ class GroupChatRepositorySummaryTest {
                 content = "message-$index",
                 speakerCharacterId = null,
                 speakerNameSnapshot = if (index % 2 == 0) "Character" else "Alice",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
         repository.saveSummary(
             sessionId = sessionId,
             content = "summary-through-3",
-            coveredMessageId = messageIds.last()
+            coveredMessageId = messageIds.last(),
         )
         assertTrue(repository.getMessagesAfterLatestSummary(sessionId).isEmpty())
 
-        repository.updateCurrentSummary(sessionId, "", createTime = 100L)
+        repository.updateCurrentSummary(sessionId = sessionId, content = "", createTime = 100L)
 
         val dataAfterClear = repository.getGroupChatData(sessionId)
             ?: error("Group chat should exist")
@@ -80,10 +88,14 @@ class GroupChatRepositorySummaryTest {
         assertEquals(0L, dataAfterClear.summary?.coveredMessageId)
         assertEquals(
             listOf("message-1", "message-2", "message-3"),
-            repository.getMessagesAfterLatestSummary(sessionId).map { it.content }
+            repository.getMessagesAfterLatestSummary(sessionId).map { message -> message.content },
         )
 
-        repository.updateCurrentSummary(sessionId, "manual-summary", createTime = 101L)
+        repository.updateCurrentSummary(
+            sessionId = sessionId,
+            content = "manual-summary",
+            createTime = 101L
+        )
 
         val dataAfterManualSummary = repository.getGroupChatData(sessionId)
             ?: error("Group chat should exist")
@@ -107,23 +119,23 @@ class GroupChatRepositorySummaryTest {
                 content = "message-$index",
                 speakerCharacterId = null,
                 speakerNameSnapshot = "Alice",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
 
         val limited = repository.getGroupChatPromptData(
             sessionId = sessionId,
-            maxHistoryMessages = 2
+            maxHistoryMessages = 2,
         ) ?: error("Group chat should exist")
         assertEquals(
             listOf("message-4", "message-5"),
-            limited.data.messages.map { it.content }
+            limited.data.messages.map { message -> message.content },
         )
         assertEquals(5, limited.totalMessageCount)
 
         val unlimited = repository.getGroupChatPromptData(
             sessionId = sessionId,
-            maxHistoryMessages = 0
+            maxHistoryMessages = 0,
         ) ?: error("Group chat should exist")
         assertEquals(5, unlimited.data.messages.size)
         assertEquals(5, unlimited.totalMessageCount)
@@ -134,23 +146,24 @@ class GroupChatRepositorySummaryTest {
         val session = repository.getSessionById(sessionId)
             ?: error("Group chat should exist")
         repository.updateSession(
-            session.copy(activationStrategy = GroupChatSession.ActivationStrategy.Pooled)
+            session = session.copy(activationStrategy = GroupChatSession.ActivationStrategy.Pooled),
         )
         val messages = listOf(
-            Triple(GroupChatMessage.Source.Character, 1L, "Character 1"),
-            Triple(GroupChatMessage.Source.User, null, "Alice"),
-            Triple(GroupChatMessage.Source.Character, 2L, "Character 2"),
-            Triple(GroupChatMessage.Source.System, null, "System"),
-            Triple(GroupChatMessage.Source.Character, 1L, "Character 1")
+            Triple(first = GroupChatMessage.Source.Character, second = 1L, third = "Character 1"),
+            Triple(first = GroupChatMessage.Source.User, second = null, third = "Alice"),
+            Triple(first = GroupChatMessage.Source.Character, second = 2L, third = "Character 2"),
+            Triple(first = GroupChatMessage.Source.System, second = null, third = "System"),
+            Triple(first = GroupChatMessage.Source.Character, second = 1L, third = "Character 1"),
         )
         messages.forEachIndexed { index, (source, speakerId, speakerName) ->
+            val messageNumber = index + 1
             repository.createMessage(
                 sessionId = sessionId,
                 source = source,
-                content = "message-${index + 1}",
+                content = "message-$messageNumber",
                 speakerCharacterId = speakerId,
                 speakerNameSnapshot = speakerName,
-                createTime = (index + 1).toLong()
+                createTime = (index + 1).toLong(),
             )
         }
 
@@ -171,28 +184,28 @@ class GroupChatRepositorySummaryTest {
                 content = "message-$index",
                 speakerCharacterId = null,
                 speakerNameSnapshot = "Alice",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
 
         val limited = repository.getGroupChatSummaryData(
             sessionId = sessionId,
-            maxCandidateMessages = 2
+            maxCandidateMessages = 2,
         ) ?: error("Group chat should exist")
         assertEquals(
             listOf("message-1", "message-2", "message-5"),
-            limited.data.messages.map { it.content }
+            limited.data.messages.map { message -> message.content },
         )
         assertTrue(limited.hasMoreCandidateMessages)
         assertEquals(5, repository.getUnsummarizedMessageCount(sessionId))
 
         val expanded = repository.getGroupChatSummaryData(
             sessionId = sessionId,
-            maxCandidateMessages = 10
+            maxCandidateMessages = 10,
         ) ?: error("Group chat should exist")
         assertEquals(
             listOf("message-1", "message-2", "message-3", "message-4", "message-5"),
-            expanded.data.messages.map { it.content }
+            expanded.data.messages.map { message -> message.content },
         )
         assertFalse(expanded.hasMoreCandidateMessages)
     }

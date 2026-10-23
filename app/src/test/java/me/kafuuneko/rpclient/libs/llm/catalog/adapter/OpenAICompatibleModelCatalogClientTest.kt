@@ -18,7 +18,7 @@ class OpenAICompatibleModelCatalogClientTest {
                   ]
                 }
             """.trimIndent(),
-            includeExtendedMetadata = false
+            includeExtendedMetadata = false,
         )
 
         assertEquals(listOf("chat-model", "embedding-model"), models.map { it.id })
@@ -43,7 +43,7 @@ class OpenAICompatibleModelCatalogClientTest {
                   ]
                 }
             """.trimIndent(),
-            includeExtendedMetadata = true
+            includeExtendedMetadata = true,
         ).single()
 
         assertEquals("Readable Model", model.displayName)
@@ -54,6 +54,6 @@ class OpenAICompatibleModelCatalogClientTest {
 
     @Test(expected = LLMModelCatalogInvalidResponseException::class)
     fun missingDataArrayIsRejected() {
-        parseOpenAIModelCatalog("{}", includeExtendedMetadata = false)
+        parseOpenAIModelCatalog(raw = "{}", includeExtendedMetadata = false)
     }
 }

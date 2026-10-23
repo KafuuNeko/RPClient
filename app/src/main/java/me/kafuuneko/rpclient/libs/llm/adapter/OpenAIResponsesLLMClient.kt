@@ -32,20 +32,31 @@ class OpenAIResponsesLLMClient(
     /** 发送完整请求并解析所有原生输出 Item。 */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
-        val http = buildRequest(request, model, stream = false)
+        val http = buildRequest(request = request, model = model, stream = false)
         var raw: String? = null
         try {
             // 在解析前保留响应，解析失败仍可通过受控日志定位服务端返回的结构。
             raw = mOkHttpClient.await(http.request)
             return OpenAIResponsesResponseCodec.decode(
-                raw, model, mProvider.providerType, request.includeReasoningInContent
+                raw = raw,
+                fallbackModel = model,
+                provider = mProvider.providerType,
+                includeReasoningInContent = request.includeReasoningInContent,
             )
         } catch (error: Throwable) {
             if (raw == null) raw = error.toErrorJson()
             throw recordImageFailure(request, model, error)
         } finally {
             try {
-                raw?.let { mLLMRequestLogRepository.trySaveLog(mProvider, model, false, http.payloadJson, it) }
+                raw?.let { text ->
+                    mLLMRequestLogRepository.trySaveLog(
+                        provider = mProvider,
+                        model = model,
+                        isStreaming = false,
+                        requestJson = http.payloadJson,
+                        responseJson = text,
+                    )
+                }
             } finally {
                 http.temporaryFile?.delete()
             }
@@ -55,10 +66,11 @@ class OpenAIResponsesLLMClient(
     /** 按 SSE 帧处理流，在终态立即关闭网络调用并保留停止生成语义。 */
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> = flow {
         val model = request.model ?: mProvider.model
-        val http = buildRequest(request, model, stream = true)
+        val http = buildRequest(request = request, model = model, stream = true)
         val frames = SseEventDecoder()
         val decoder = OpenAIResponsesStreamDecoder()
-        val mapper = LLMStreamPartMapper(request.includeReasoningInContent, request.captureReasoning)
+        val mapper =
+            LLMStreamPartMapper(request.includeReasoningInContent, request.captureReasoning)
         val log = JsonArray()
         var loggedChars = 0
         try {
@@ -66,18 +78,21 @@ class OpenAIResponsesLLMClient(
             mOkHttpClient.streamLines(http.request) { emit(LLMStreamEvent.Connected) }
                 .takeWhile { line ->
                     if (loggedChars < MAX_LOG_CHARACTERS) {
-                        val safe = ImageLogSanitizer.sanitize(line).take(MAX_LOG_CHARACTERS - loggedChars)
+                        val safe =
+                            ImageLogSanitizer.sanitize(line).take(MAX_LOG_CHARACTERS - loggedChars)
                         log.add(safe)
                         loggedChars += safe.length + 1
                     }
                     frames.accept(line)?.let { event ->
-                        decoder.accept(event).forEach { part -> mapper.map(part).forEach { emit(it) } }
+                        decoder.accept(event)
+                            .forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
                     }
                     !decoder.isFinished
                 }.collect {}
             // 尾帧可能缺少空行，但缺少响应终态始终是断流。
             frames.finish()?.let { event ->
-                decoder.accept(event).forEach { part -> mapper.map(part).forEach { emit(it) } }
+                decoder.accept(event)
+                    .forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
             }
             decoder.requireFinished()
         } catch (error: Throwable) {
@@ -85,7 +100,13 @@ class OpenAIResponsesLLMClient(
             throw recordImageFailure(request, model, error)
         } finally {
             try {
-                mLLMRequestLogRepository.trySaveLog(mProvider, model, true, http.payloadJson, log.toString())
+                mLLMRequestLogRepository.trySaveLog(
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = true,
+                    requestJson = http.payloadJson,
+                    responseJson = log.toString(),
+                )
             } finally {
                 http.temporaryFile?.delete()
             }
@@ -93,11 +114,23 @@ class OpenAIResponsesLLMClient(
     }
 
     /** 按最终配置生成原生请求，图像数据在 HTTP 生命周期内持有临时文件。 */
-    private suspend fun buildRequest(request: LLMGenerationRequest, model: String, stream: Boolean): LLMHttpRequest {
+    private suspend fun buildRequest(
+        request: LLMGenerationRequest,
+        model: String,
+        stream: Boolean
+    ): LLMHttpRequest {
         val provider = mProvider.copy(model = model)
-        if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(provider)
+        if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
+            provider
+        )
         val images = MultimodalWireCodec(provider)
-        val payload = OpenAIResponsesRequestCodec.encode(provider, request, model, stream, images::registerImage)
+        val payload = OpenAIResponsesRequestCodec.encode(
+            provider,
+            request,
+            model,
+            stream,
+            images::registerImage
+        )
         val prepared = images.prepare(payload, request, mImageRuntime)
         // 请求头或地址不合法时，toHttpRequest 同样负责释放已准备的图片文件。
         return prepared.toHttpRequest {
@@ -112,7 +145,11 @@ class OpenAIResponsesLLMClient(
         }
     }
 
-    private fun recordImageFailure(request: LLMGenerationRequest, model: String, error: Throwable): Throwable {
+    private fun recordImageFailure(
+        request: LLMGenerationRequest,
+        model: String,
+        error: Throwable
+    ): Throwable {
         return if (request.messages.any { it.images.isNotEmpty() }) {
             mImageCapabilities.recordFailure(mProvider.copy(model = model), error)
         } else error

@@ -9,8 +9,10 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 @Dao
 interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     /** 统计定位窗口之后的消息数，保持 Display Regex 的全历史深度语义。 */
-    @Query("""SELECT COUNT(*) FROM group_chat_messages WHERE sessionId = :sessionId
-        AND (createTime > :time OR (createTime = :time AND id > :id))""")
+    @Query(
+        """SELECT COUNT(*) FROM group_chat_messages WHERE sessionId = :sessionId
+        AND (createTime > :time OR (createTime = :time AND id > :id))"""
+    )
     suspend fun countAfter(sessionId: Long, time: Long, id: Long): Int
 
     /** 清理附件时只读取父消息 ID，避免将整个会话正文加载到内存。 */
@@ -42,7 +44,7 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getLatestMessagePage(
         sessionId: Long,
-        limit: Int
+        limit: Int,
     ): List<GroupChatMessage>
 
     /** 使用创建时间和消息 ID 组成的稳定游标向前读取一页群聊消息。 */
@@ -62,14 +64,21 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
         sessionId: Long,
         beforeCreateTime: Long,
         beforeMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<GroupChatMessage>
 
     /** 搜索定位后按稳定时间和 ID 向较新消息分页。 */
-    @Query("""SELECT * FROM group_chat_messages WHERE sessionId = :sessionId
+    @Query(
+        """SELECT * FROM group_chat_messages WHERE sessionId = :sessionId
         AND (createTime > :time OR (createTime = :time AND id > :id))
-        ORDER BY createTime, id LIMIT :limit""")
-    suspend fun getMessagePageAfter(sessionId: Long, time: Long, id: Long, limit: Int): List<GroupChatMessage>
+        ORDER BY createTime, id LIMIT :limit"""
+    )
+    suspend fun getMessagePageAfter(
+        sessionId: Long,
+        time: Long,
+        id: Long,
+        limit: Int,
+    ): List<GroupChatMessage>
 
     /** 读取指定消息边界之后的内容，供增量摘要使用。 */
     @Query(
@@ -81,7 +90,7 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getMessagesAfterId(
         sessionId: Long,
-        messageId: Long
+        messageId: Long,
     ): List<GroupChatMessage>
 
     /** 统计摘要边界之后尚未覆盖的群聊消息数量。 */
@@ -104,7 +113,7 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getLatestMessageAfterId(
         sessionId: Long,
-        messageId: Long
+        messageId: Long,
     ): GroupChatMessage?
 
     /**
@@ -130,7 +139,7 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
         messageId: Long,
         latestCreateTime: Long,
         latestMessageId: Long,
-        limit: Int
+        limit: Int,
     ): List<GroupChatMessage>
 
     /** 根据主键读取单条群聊消息。 */
@@ -222,7 +231,7 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     suspend fun getSpeakerIdsAfter(
         sessionId: Long,
         afterCreateTime: Long,
-        afterMessageId: Long
+        afterMessageId: Long,
     ): List<Long>
 
     /** 统计会话消息数量。 */

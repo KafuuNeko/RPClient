@@ -8,6 +8,8 @@ import com.google.gson.JsonPrimitive
 import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import java.io.Reader
 import java.io.StringWriter
 import java.io.Writer
@@ -17,8 +19,6 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.CancellationException
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 
 /**
  * RPClient 与 SillyTavern JSONL 单聊文件之间的编解码器。
@@ -55,7 +55,7 @@ class ChatArchiveCodec(
         archive: ChatArchive,
         message: ChatArchiveMessage,
         writer: Writer,
-        writtenHashes: MutableSet<String> = mutableSetOf()
+        writtenHashes: MutableSet<String> = mutableSetOf(),
     ) {
         writeJsonLine(buildMessage(archive, message, writtenHashes), writer)
     }
@@ -65,7 +65,7 @@ class ChatArchiveCodec(
         archive: ChatArchive,
         message: ChatArchiveMessage,
         writer: Writer,
-        writeImages: suspend () -> Unit
+        writeImages: suspend () -> Unit,
     ) {
         val json = buildMessage(archive, message.copy(images = emptyList()))
         val extra = json.remove(KEY_EXTRA).asJsonObject
@@ -94,13 +94,13 @@ class ChatArchiveCodec(
         jsonl: String,
         fallbackTitle: String,
         fallbackTime: Long = System.currentTimeMillis(),
-        fallbackUserName: String = DefaultNames.USER
+        fallbackUserName: String = DefaultNames.USER,
     ): ChatArchive {
         return decode(
             reader = jsonl.reader(),
             fallbackTitle = fallbackTitle,
             fallbackTime = fallbackTime,
-            fallbackUserName = fallbackUserName
+            fallbackUserName = fallbackUserName,
         )
     }
 
@@ -110,7 +110,7 @@ class ChatArchiveCodec(
         fallbackTitle: String,
         fallbackTime: Long = System.currentTimeMillis(),
         fallbackUserName: String = DefaultNames.USER,
-        transformImage: (ChatArchiveImage) -> ChatArchiveImage = { it }
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage = { it },
     ): ChatArchive {
         // 对外保持归档格式错误类型稳定；协程取消必须继续交给资源所有者处理。
         val parsed = try {
@@ -156,7 +156,10 @@ class ChatArchiveCodec(
                 ?.takeIf { it.isNotBlank() }
                 ?: fallbackTitle.ifBlank { DefaultNames.IMPORTED_CHAT },
             createTime = createTime,
-            latestTime = maxOf(latestTime, decodedMessages.lastOrNull()?.message?.createTime ?: createTime),
+            latestTime = maxOf(
+                latestTime,
+                decodedMessages.lastOrNull()?.message?.createTime ?: createTime
+            ),
             userName = userName,
             userDescription = rpclient?.stringOrNull(KEY_USER_DESCRIPTION).orEmpty(),
             userNote = rpclient?.stringOrNull(KEY_USER_NOTE).orEmpty(),
@@ -170,7 +173,7 @@ class ChatArchiveCodec(
             summary = rpclient
                 ?.objectOrNull(KEY_SUMMARY)
                 ?.toSummary(createTime)
-                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) }
+                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) },
         )
     }
 
@@ -183,7 +186,7 @@ class ChatArchiveCodec(
             addProperty(KEY_USER_NAME, archive.userName)
             addProperty(KEY_USER_DESCRIPTION, archive.userDescription)
             addProperty(KEY_USER_NOTE, archive.userNote)
-            archive.creatorNotes?.let { addProperty(KEY_CREATOR_NOTES, it) }
+            archive.creatorNotes?.let { text -> addProperty(KEY_CREATOR_NOTES, text) }
             addProperty(KEY_LOREBOOK_ENTRY_SET, archive.lorebookEntrySet)
             addProperty(KEY_WORLD_INFO_STATE, archive.worldInfoStateJson)
             addProperty(KEY_AUTO_SUMMARY_PAUSED, archive.autoSummaryPaused)
@@ -191,8 +194,8 @@ class ChatArchiveCodec(
                 KEY_CHARACTER,
                 JsonObject().apply {
                     addProperty(KEY_NAME, archive.characterNameHint)
-                    archive.characterFingerprint?.let { addProperty(KEY_FINGERPRINT, it) }
-                }
+                    archive.characterFingerprint?.let { text -> addProperty(KEY_FINGERPRINT, text) }
+                },
             )
             archive.summary?.let { summary ->
                 add(
@@ -201,7 +204,7 @@ class ChatArchiveCodec(
                         addProperty(KEY_CONTENT, summary.content)
                         addProperty(KEY_CREATE_TIME, summary.createTime)
                         addProperty(KEY_COVERED_MESSAGE_INDEX, summary.coveredMessageIndex)
-                    }
+                    },
                 )
             }
         }
@@ -212,7 +215,7 @@ class ChatArchiveCodec(
                 KEY_CHAT_METADATA,
                 JsonObject().apply {
                     add(KEY_RPCLIENT, rpclient)
-                }
+                },
             )
         }
     }
@@ -220,7 +223,7 @@ class ChatArchiveCodec(
     private fun buildMessage(
         archive: ChatArchive,
         message: ChatArchiveMessage,
-        writtenHashes: MutableSet<String> = mutableSetOf()
+        writtenHashes: MutableSet<String> = mutableSetOf(),
     ): JsonObject {
         val isUser = message.role == ChatArchiveMessageRole.User
         val isNarrator = message.role == ChatArchiveMessageRole.Narrator
@@ -231,7 +234,7 @@ class ChatArchiveCodec(
                     isUser -> archive.userName
                     isNarrator -> NARRATOR_NAME
                     else -> archive.characterNameHint
-                }
+                },
             )
             addProperty(KEY_IS_USER, isUser)
             // SillyTavern 的 is_system 表示 UI 系统消息；旁白使用 extra.type 表达。
@@ -242,8 +245,14 @@ class ChatArchiveCodec(
                 KEY_EXTRA,
                 JsonObject().apply {
                     if (isNarrator) addProperty(KEY_TYPE, NARRATOR_TYPE)
-                    if (message.images.isNotEmpty()) add(KEY_RPCLIENT, ChatArchiveImageCodec.encode(message.images, writtenHashes))
-                }
+                    if (message.images.isNotEmpty()) add(
+                        KEY_RPCLIENT,
+                        ChatArchiveImageCodec.encode(
+                            images = message.images,
+                            writtenHashes = writtenHashes,
+                        ),
+                    )
+                },
             )
         }
     }
@@ -251,7 +260,7 @@ class ChatArchiveCodec(
     private fun parseLines(
         reader: Reader,
         fallbackTime: Long,
-        transformImage: (ChatArchiveImage) -> ChatArchiveImage
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage,
     ): ParsedArchiveLines {
         var header: JsonObject? = null
         val messages = mutableListOf<DecodedMessage>()
@@ -267,24 +276,29 @@ class ChatArchiveCodec(
             require(messageObjectCount < MAX_MESSAGE_COUNT) { "Chat archive has too many messages" }
             val (json, images) = readMessage(input, resolver::resolve)
             decodeMessage(json, fallbackTime + messageObjectCount)?.let { decoded ->
-                messages.add(decoded.copy(message = decoded.message.copy(
-                    images = images ?: decoded.message.images.map(resolver::resolve)
-                )))
+                messages.add(
+                    element = decoded.copy(
+                        message = decoded.message.copy(
+                            images = images ?: decoded.message.images.map(resolver::resolve),
+                        ),
+                    ),
+                )
             }
             messageObjectCount += 1
         }
         return ParsedArchiveLines(
             header = requireNotNull(header) { "Chat archive is empty" },
-            messages = messages
+            messages = messages,
         )
     }
 
     /** 流式提取自有扩展图片，其他酒馆消息字段仍交给原有解码逻辑。 */
     private fun readMessage(
         reader: JsonReader,
-        transformImage: (ChatArchiveImage) -> ChatArchiveImage
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage,
     ): Pair<JsonObject, List<ChatArchiveImage>?> {
         var images: List<ChatArchiveImage>? = null
+
         // 仅遍历已知两层扩展；任意正文和未知扩展不被当作图片协议解释。
         fun readObject(isExtra: Boolean): JsonObject {
             val result = JsonObject()
@@ -295,12 +309,13 @@ class ChatArchiveCodec(
                 require(!result.has(name)) { "Duplicate archive message field" }
                 val objectValue = reader.peek() == JsonToken.BEGIN_OBJECT
                 val value = when {
-                    !isExtra && name == KEY_EXTRA && objectValue -> readObject(true)
+                    !isExtra && name == KEY_EXTRA && objectValue -> readObject(isExtra = true)
                     isExtra && name == KEY_RPCLIENT && objectValue -> {
                         val extension = ChatArchiveImageCodec.readExtension(reader, transformImage)
                         images = extension.second
                         extension.first
                     }
+
                     else -> JsonParser.parseReader(reader)
                 }
                 result.add(name, value)
@@ -308,14 +323,18 @@ class ChatArchiveCodec(
             reader.endObject()
             return result
         }
-        return readObject(false) to images
+        return readObject(isExtra = false) to images
     }
 
     private fun decodeMessage(json: JsonObject, fallbackTime: Long): DecodedMessage? {
         val content = json.stringOrNull(KEY_MESSAGE) ?: return null
         val extraType = json.objectOrNull(KEY_EXTRA)?.stringOrNull(KEY_TYPE)
         val role = when {
-            extraType.equals(NARRATOR_TYPE, ignoreCase = true) -> ChatArchiveMessageRole.Narrator
+            extraType.equals(
+                other = NARRATOR_TYPE,
+                ignoreCase = true
+            ) -> ChatArchiveMessageRole.Narrator
+
             json.booleanOrNull(KEY_IS_USER) == true -> ChatArchiveMessageRole.User
             json.booleanOrNull(KEY_IS_SYSTEM) == true -> return null
             else -> ChatArchiveMessageRole.Character
@@ -325,9 +344,9 @@ class ChatArchiveCodec(
                 createTime = json.elementOrNull(KEY_SEND_DATE).toTimestampOrNull() ?: fallbackTime,
                 role = role,
                 content = content,
-                images = ChatArchiveImageCodec.decode(json.objectOrNull(KEY_EXTRA))
+                images = ChatArchiveImageCodec.decode(json.objectOrNull(KEY_EXTRA)),
             ),
-            speakerName = json.stringOrNull(KEY_NAME).orEmpty()
+            speakerName = json.stringOrNull(KEY_NAME).orEmpty(),
         )
     }
 
@@ -351,7 +370,7 @@ class ChatArchiveCodec(
         return asSequence()
             .filter { it.message.role == ChatArchiveMessageRole.Character }
             .map { it.speakerName.trim() }
-            .filter { it.isNotBlank() && !it.equals(UNUSED_NAME, ignoreCase = true) }
+            .filter { it.isNotBlank() && !it.equals(other = UNUSED_NAME, ignoreCase = true) }
             .groupingBy { it }
             .eachCount()
             .maxByOrNull { it.value }
@@ -368,7 +387,7 @@ class ChatArchiveCodec(
         return ChatArchiveSummary(
             content = stringOrNull(KEY_CONTENT).orEmpty(),
             createTime = longOrNull(KEY_CREATE_TIME) ?: defaultTime,
-            coveredMessageIndex = intOrNull(KEY_COVERED_MESSAGE_INDEX) ?: -1
+            coveredMessageIndex = intOrNull(KEY_COVERED_MESSAGE_INDEX) ?: -1,
         )
     }
 
@@ -399,14 +418,14 @@ class ChatArchiveCodec(
     }
 
     private fun JsonObject.longOrNull(key: String): Long? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asLong }.getOrNull()
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let { element ->
+            runCatching { element.asLong }.getOrNull()
         }
     }
 
     private fun JsonObject.intOrNull(key: String): Int? {
-        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let {
-            runCatching { it.asInt }.getOrNull()
+        return elementOrNull(key)?.takeIf { it.isJsonPrimitive }?.let { element ->
+            runCatching { element.asInt }.getOrNull()
         }
     }
 
@@ -422,7 +441,11 @@ class ChatArchiveCodec(
         val value = primitive.asString.trim()
         value.toLongOrNull()?.let { return it.normalizeEpoch() }
         runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()?.let { return it }
-        runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
+        runCatching {
+            OffsetDateTime.parse(value)
+                .toInstant()
+                .toEpochMilli()
+        }
             .getOrNull()
             ?.let { return it }
         runCatching {
@@ -431,8 +454,8 @@ class ChatArchiveCodec(
                 .toInstant()
                 .toEpochMilli()
         }.getOrNull()?.let { return it }
-        return LegacyTimestampRegex.matchEntire(value)?.destructured?.let {
-            val (year, month, day, hour, minute, second, millis) = it
+        return LegacyTimestampRegex.matchEntire(value)?.destructured?.let { destructured ->
+            val (year, month, day, hour, minute, second, millis) = destructured
             runCatching {
                 LocalDateTime.of(
                     year.toInt(),
@@ -441,8 +464,11 @@ class ChatArchiveCodec(
                     hour.toInt(),
                     minute.toInt(),
                     second.toInt(),
-                    millis.toInt() * 1_000_000
-                ).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    millis.toInt() * 1_000_000,
+                )
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
             }.getOrNull()
         }
     }
@@ -456,8 +482,8 @@ class ChatArchiveCodec(
     }
 
     private fun String?.takeUnlessUnused(): String? {
-        return this?.trim()?.takeIf {
-            it.isNotBlank() && !it.equals(UNUSED_NAME, ignoreCase = true)
+        return this?.trim()?.takeIf { text ->
+            text.isNotBlank() && !text.equals(other = UNUSED_NAME, ignoreCase = true)
         }
     }
 
@@ -507,7 +533,7 @@ class ChatArchiveCodec(
         const val KEY_TYPE = "type"
 
         val LegacyTimestampRegex = Regex(
-            """^(\d{4})-(\d{1,2})-(\d{1,2})\s*@?(\d{1,2})h\s+(\d{1,2})m\s+(\d{1,2})s\s+(\d{1,3})ms$"""
+            pattern = """^(\d{4})-(\d{1,2})-(\d{1,2})\s*@?(\d{1,2})h\s+(\d{1,2})m\s+(\d{1,2})s\s+(\d{1,3})ms$""",
         )
     }
 }

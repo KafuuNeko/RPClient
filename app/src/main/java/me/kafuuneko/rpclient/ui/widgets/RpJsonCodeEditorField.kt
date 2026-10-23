@@ -46,27 +46,27 @@ fun RpJsonCodeEditorField(
     minHeight: Dp = 120.dp,
     maxHeight: Dp = 220.dp,
     enabled: Boolean = true,
-    visualTransformation: VisualTransformation = rememberJsonSyntaxVisualTransformation()
+    visualTransformation: VisualTransformation = rememberJsonSyntaxVisualTransformation(),
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (!label.isNullOrBlank()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = stringResource(R.string.extensions_json_size, value.length),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
             }
         }
@@ -83,8 +83,8 @@ fun RpJsonCodeEditorField(
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                    shape = RoundedCornerShape(12.dp),
+                ),
         ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val horizontalPadding = 24.dp
@@ -98,7 +98,7 @@ fun RpJsonCodeEditorField(
                         .draggableScrollIndicator(verticalScrollState)
                         .horizontalScroll(horizontalScrollState)
                         .verticalScroll(verticalScrollState)
-                        .padding(12.dp)
+                        .padding(12.dp),
                 ) {
                     BasicTextField(
                         value = value,
@@ -109,10 +109,10 @@ fun RpJsonCodeEditorField(
                             .heightIn(min = minimumContentHeight),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         ),
                         visualTransformation = visualTransformation,
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     )
                 }
             }

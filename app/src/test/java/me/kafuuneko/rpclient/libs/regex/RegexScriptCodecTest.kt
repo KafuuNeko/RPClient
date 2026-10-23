@@ -30,7 +30,8 @@ class RegexScriptCodecTest {
             }]
         """.trimIndent()
 
-        val output = JsonParser.parseString(codec.toJson(codec.parseList(json))).asJsonArray[0].asJsonObject
+        val output =
+            JsonParser.parseString(codec.toJson(codec.parseList(json))).asJsonArray[0].asJsonObject
 
         assertEquals("one", output["id"].asString)
         assertEquals(2, output["substituteRegex"].asInt)

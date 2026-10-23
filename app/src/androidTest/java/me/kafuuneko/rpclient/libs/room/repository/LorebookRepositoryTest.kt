@@ -26,7 +26,7 @@ class LorebookRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = LorebookRepository(database, Gson(), context)
+        repository = LorebookRepository(mAppDatabase = database, mGson = Gson(), mContext = context)
     }
 
     @After
@@ -38,7 +38,7 @@ class LorebookRepositoryTest {
     fun deletingLorebookClearsCharacterAssociations() = runBlocking {
         val lorebookId = repository.createLorebook("Linked lorebook")
         val characterId = database.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -48,15 +48,15 @@ class LorebookRepositoryTest {
                 firstMessages = "",
                 examplesOfDialogue = "",
                 postHistoryInstructions = "",
-                characterLorebookId = lorebookId
-            )
+                characterLorebookId = lorebookId,
+            ),
         )
 
         repository.deleteLorebook(lorebookId)
 
         assertEquals(
             0L,
-            database.getCharacterDao().getCharacterById(characterId)?.characterLorebookId
+            database.getCharacterDao().getCharacterById(characterId)?.characterLorebookId,
         )
     }
 
@@ -68,7 +68,7 @@ class LorebookRepositoryTest {
             scanDepth = 8,
             tokenBudget = 320,
             recursiveScanning = true,
-            extensionsJson = """{"custom":true}"""
+            extensionsJson = """{"custom":true}""",
         )
         val lorebookId = repository.saveLorebook(original)
         val stored = repository.getLorebookById(lorebookId)

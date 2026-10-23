@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,9 +28,19 @@ class ChatRepositoryGenerationCommitTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
+        repository = ChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
         val characterId = database.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -41,11 +49,11 @@ class ChatRepositoryGenerationCommitTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
-            )
+                postHistoryInstructions = "",
+            ),
         )
         sessionId = database.getChatSessionDao().insertOrReplace(
-            ChatSession(
+            data = ChatSession(
                 characterId = characterId,
                 createTime = 1L,
                 latestTime = 10L,
@@ -54,8 +62,8 @@ class ChatRepositoryGenerationCommitTest {
                 userNote = "",
                 userName = "User",
                 userDescription = "",
-                worldInfoStateJson = "{\"turn\":0}"
-            )
+                worldInfoStateJson = "{\"turn\":0}",
+            ),
         )
     }
 
@@ -67,12 +75,17 @@ class ChatRepositoryGenerationCommitTest {
     @Test
     fun acceptedPartial_updatesMessageSummaryTimeAndWorldInfoTogether() = runBlocking {
         val messageId = repository.createMessage(
-            sessionId,
-            ChatMessage.Source.Char,
-            "old",
-            createTime = 20L
+            sessionId = sessionId,
+            source = ChatMessage.Source.Char,
+            content = "old",
+            createTime = 20L,
         )
-        repository.saveSummary(sessionId, "stale summary", messageId, createTime = 21L)
+        repository.saveSummary(
+            sessionId = sessionId,
+            content = "stale summary",
+            coveredMessageId = messageId,
+            createTime = 21L,
+        )
 
         repository.commitGenerationResult(
             sessionId = sessionId,
@@ -81,7 +94,7 @@ class ChatRepositoryGenerationCommitTest {
             content = "accepted partial",
             deleteEmptyPlaceholder = false,
             worldInfoStateJson = "{\"turn\":1}",
-            commitTime = 30L
+            commitTime = 30L,
         )
 
         assertEquals("accepted partial", repository.getMessageById(messageId)?.content)
@@ -94,9 +107,9 @@ class ChatRepositoryGenerationCommitTest {
     @Test
     fun emptyPlaceholder_isDeletedWithoutAdvancingSessionMetadata() = runBlocking {
         val placeholderId = repository.createGenerationPlaceholder(
-            sessionId,
-            ChatMessage.Source.Char,
-            createTime = 20L
+            sessionId = sessionId,
+            source = ChatMessage.Source.Char,
+            createTime = 20L,
         )
         assertEquals(10L, repository.getSessionById(sessionId)?.latestTime)
 
@@ -107,7 +120,7 @@ class ChatRepositoryGenerationCommitTest {
             content = "",
             deleteEmptyPlaceholder = true,
             worldInfoStateJson = "{\"turn\":1}",
-            commitTime = 30L
+            commitTime = 30L,
         )
 
         assertNull(committedId)

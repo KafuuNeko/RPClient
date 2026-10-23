@@ -7,12 +7,6 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.RandomAccessFile
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -30,6 +24,12 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageWithFile
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.RandomAccessFile
+import kotlin.math.roundToInt
 
 /**
  * 共享图片处理服务。
@@ -48,7 +48,8 @@ class MessageImageRuntime(
      */
     fun createRequestFile(): File {
         val directory = File(mContext.cacheDir, "image-requests").apply { mkdirs() }
-        directory.listFiles().orEmpty().filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }
+        directory.listFiles().orEmpty()
+            .filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }
             .forEach { it.delete() }
         return File.createTempFile("request-", ".json", directory)
     }
@@ -86,25 +87,26 @@ class MessageImageRuntime(
      * @param input 调用方提供的资源流，由本方法关闭。
      * @return 可在消息导入事务中提交的最终图片凭据。
      */
-    suspend fun prepareArchive(owner: String, input: InputStream): PreparedFile = input.use { source ->
-        mFiles.prepareGenerated(owner) { target ->
-            // 边复制边检查资源上限，避免先写完超大文件再校验。
-            target.outputStream().use { output ->
-                val buffer = ByteArray(8192)
-                var total = 0L
-                while (true) {
-                    currentCoroutineContext().ensureActive()
-                    val count = source.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    requireValidImage(total <= MessageImagePolicy.MAX_ORIGINAL_BYTES)
-                    output.write(buffer, 0, count)
+    suspend fun prepareArchive(owner: String, input: InputStream): PreparedFile =
+        input.use { source ->
+            mFiles.prepareGenerated(owner) { target ->
+                // 边复制边检查资源上限，避免先写完超大文件再校验。
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        requireValidImage(total <= MessageImagePolicy.MAX_ORIGINAL_BYTES)
+                        output.write(buffer, 0, count)
+                    }
                 }
+                validate(target)
+                requireNotNull(bounds(target).outMimeType)
             }
-            validate(target)
-            requireNotNull(bounds(target).outMimeType)
         }
-    }
 
     /**
      * 为候选历史收集资源与受控失败，错误是否阻断发送由最终选择决定。
@@ -125,10 +127,19 @@ class MessageImageRuntime(
                         images += prepareAttachment(attachment)
                     } catch (error: ImageRequestException) {
                         // 超限或原图格式错误同样延迟至最终保留，旧历史被裁剪后不阻断发送。
-                        if (error.failure !in setOf(ImageRequestFailure.Missing, ImageRequestFailure.InvalidImage,
-                                ImageRequestFailure.OriginalUnsupported, ImageRequestFailure.OriginalTooLarge)) throw error
-                        failures += UnavailablePromptImage(message.key.messageId,
-                            attachment.image.imageUuid, attachment.image.position, error.failure)
+                        if (error.failure !in setOf(
+                                ImageRequestFailure.Missing,
+                                ImageRequestFailure.InvalidImage,
+                                ImageRequestFailure.OriginalUnsupported,
+                                ImageRequestFailure.OriginalTooLarge,
+                            )
+                        ) throw error
+                        failures += UnavailablePromptImage(
+                            messageId = message.key.messageId,
+                            uuid = attachment.image.imageUuid,
+                            position = attachment.image.position,
+                            failure = error.failure,
+                        )
                     }
                 }
                 if (images.isNotEmpty()) ready[message.key.messageId] = images
@@ -139,7 +150,7 @@ class MessageImageRuntime(
 
     /** 只归类明确资源 IO 错误；协程取消和未知程序错误继续传播。 */
     private suspend fun prepareAttachment(
-        attachment: MessageImageWithFile
+        attachment: MessageImageWithFile,
     ): LLMImageReference {
         val index = attachment.file ?: throw ImageRequestException(ImageRequestFailure.Missing)
         return try {
@@ -161,9 +172,10 @@ class MessageImageRuntime(
      */
     suspend fun references(messages: List<MessageWithImages>): Map<Long, List<LLMImageReference>> {
         val prepared = prepareCandidates(messages)
-        prepared.unavailable.values.firstOrNull { it.isNotEmpty() }?.first()?.let {
-            throw ImageRequestException(it.failure)
-        }
+        prepared.unavailable.values.firstOrNull { it.isNotEmpty() }?.first()
+            ?.let { unavailablePromptImage ->
+                throw ImageRequestException(unavailablePromptImage.failure)
+            }
         return prepared.references
     }
 
@@ -188,7 +200,7 @@ class MessageImageRuntime(
      */
     suspend fun <T> submit(
         inputs: List<MessageImageInput>,
-        commit: suspend (List<MessageImageInput>) -> T
+        commit: suspend (List<MessageImageInput>) -> T,
     ): T {
         val originals = inputs.filterIsInstance<MessageImageInput.Prepared>().map { it.value }
         require(originals.map { it.handle }.distinct().size == originals.size) {
@@ -204,7 +216,13 @@ class MessageImageRuntime(
             }
             currentCoroutineContext().ensureActive()
             return withContext(NonCancellable) {
-                commit(finalInputs).also { originals.forEach { mFiles.releasePrepared(it) } }
+                commit(finalInputs).also {
+                    originals.forEach { preparedFile ->
+                        mFiles.releasePrepared(
+                            preparedFile
+                        )
+                    }
+                }
             }
         } finally {
             generated.forEach { mFiles.releasePrepared(it) }
@@ -220,7 +238,9 @@ class MessageImageRuntime(
                 // 原图模式只复制已校验的字节，其他模式只在此次入库前执行一次压缩。
                 if (settings.mode == ImageSendMode.Original) {
                     validateSendable(source)
-                    source.inputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+                    source.inputStream().use { input ->
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
                 } else {
                     encodeCompressed(source, target, settings)
                 }
@@ -240,8 +260,13 @@ class MessageImageRuntime(
     suspend fun load(uuid: String, prepared: PreparedFile? = null, longEdge: Int = 384): Bitmap? =
         withContext(Dispatchers.IO) {
             try {
-                if (prepared != null) mFiles.withPreparedFile(prepared) { decode(it, longEdge) }
-                else mFiles.withFileLease(uuid) { decode(it, longEdge) }
+                if (prepared != null) mFiles.withPreparedFile(prepared) { file ->
+                    decode(
+                        file,
+                        longEdge
+                    )
+                }
+                else mFiles.withFileLease(uuid) { file -> decode(file, longEdge) }
             } catch (error: Exception) {
                 currentCoroutineContext().ensureActive()
                 null
@@ -287,7 +312,9 @@ class MessageImageRuntime(
         val copy: suspend (File) -> Unit = { original ->
             val output = mContext.contentResolver.openOutputStream(destination)
                 ?: error("Could not save the image")
-            output.use { target -> original.inputStream().use { it.copyTo(target) } }
+            output.use { target ->
+                original.inputStream().use { fileInputStream -> fileInputStream.copyTo(target) }
+            }
         }
         if (prepared != null) mFiles.withPreparedFile(prepared, copy)
         else mFiles.withFileLease(uuid, copy)
@@ -300,11 +327,16 @@ class MessageImageRuntime(
             throw ImageRequestException(ImageRequestFailure.InvalidImage)
         }
         validateSendable(file)
-        val rotation = runCatching { ExifInterface(file).rotationDegrees }.getOrDefault(0)
+        val rotation =
+            runCatching { ExifInterface(file).rotationDegrees }.getOrDefault(defaultValue = 0)
         val swap = rotation == 90 || rotation == 270
-        return LLMImageReference(uuid, bounds.outMimeType,
-            if (swap) bounds.outHeight else bounds.outWidth,
-            if (swap) bounds.outWidth else bounds.outHeight, file.length())
+        return LLMImageReference(
+            uuid = uuid,
+            mimeType = bounds.outMimeType,
+            width = if (swap) bounds.outHeight else bounds.outWidth,
+            height = if (swap) bounds.outWidth else bounds.outHeight,
+            byteCount = file.length(),
+        )
     }
 
     /** 原图模式与历史读取共用协议支持范围，禁止发送不支持或超过硬上限的文件。 */
@@ -313,18 +345,25 @@ class MessageImageRuntime(
         if (bounds.outMimeType !in setOf("image/jpeg", "image/png", "image/webp")) {
             throw ImageRequestException(ImageRequestFailure.OriginalUnsupported)
         }
-        if (file.length() > MessageImagePolicy.MAX_SEND_BYTES ||
-            maxOf(bounds.outWidth, bounds.outHeight) > 8000) {
+        if (file.length() > MessageImagePolicy.MAX_SEND_BYTES
+            || maxOf(bounds.outWidth, bounds.outHeight) > 8000
+        ) {
             throw ImageRequestException(ImageRequestFailure.OriginalTooLarge)
         }
     }
 
     /** 透明图片保留 Alpha；逐步缩小高噪声图片，直到实际文件满足用户上限。 */
-    private suspend fun encodeCompressed(original: File, target: File, settings: ImageSendSettings) {
+    private suspend fun encodeCompressed(
+        original: File,
+        target: File,
+        settings: ImageSendSettings
+    ) {
         // 自动模式保留既有采样和质量，自定义模式额外施加宽高包围框。
-        val edge = if (settings.mode == ImageSendMode.Custom) maxOf(settings.maxWidth, settings.maxHeight)
+        val edge =
+            if (settings.mode == ImageSendMode.Custom) maxOf(settings.maxWidth, settings.maxHeight)
             else MessageImagePolicy.SEND_LONG_EDGE
-        var bitmap = decode(original, edge) ?: throw ImageRequestException(ImageRequestFailure.InvalidImage)
+        var bitmap =
+            decode(original, edge) ?: throw ImageRequestException(ImageRequestFailure.InvalidImage)
         try {
             val (width, height) = settings.fitDimensions(bitmap.width, bitmap.height)
             if (width != bitmap.width || height != bitmap.height) {
@@ -336,14 +375,19 @@ class MessageImageRuntime(
             while (true) {
                 currentCoroutineContext().ensureActive()
                 FileOutputStream(target).use { output ->
-                    val format = if (bitmap.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-                    if (!bitmap.compress(format, 85, output)) throw ImageRequestException(ImageRequestFailure.InvalidImage)
+                    val format =
+                        if (bitmap.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+                    if (!bitmap.compress(format, 85, output)) throw ImageRequestException(
+                        ImageRequestFailure.InvalidImage
+                    )
                 }
                 if (target.length() <= settings.maxBytes) break
-                if (maxOf(bitmap.width, bitmap.height) <= 128) throw ImageRequestException(ImageRequestFailure.InvalidImage)
+                if (maxOf(bitmap.width, bitmap.height) <= 128) throw ImageRequestException(
+                    ImageRequestFailure.InvalidImage
+                )
                 val scaled = bitmap.scale(
-                    (bitmap.width * 0.75).roundToInt().coerceAtLeast(1),
-                    (bitmap.height * 0.75).roundToInt().coerceAtLeast(1)
+                    width = (bitmap.width * 0.75).roundToInt().coerceAtLeast(1),
+                    height = (bitmap.height * 0.75).roundToInt().coerceAtLeast(1),
                 )
                 bitmap.recycle()
                 bitmap = scaled
@@ -359,16 +403,30 @@ class MessageImageRuntime(
         val bounds = bounds(file)
         requireValidImage(bounds.outWidth > 0 && bounds.outHeight > 0)
         requireValidImage(bounds.outWidth.toLong() * bounds.outHeight <= MessageImagePolicy.MAX_ORIGINAL_PIXELS)
-        requireValidImage(bounds.outMimeType in setOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"))
+        requireValidImage(
+            valid = bounds.outMimeType in setOf(
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/heic",
+                "image/heif",
+            ),
+        )
         // PNG / WebP 按容器块跳转检查动画标记，不将压缩像素误识别成块头。
         RandomAccessFile(file, "r").use { input ->
             var offset = if (bounds.outMimeType == "image/png") 8L else 12L
-            while (bounds.outMimeType in setOf("image/png", "image/webp") && offset + 8 <= input.length()) {
+            while (bounds.outMimeType in setOf(
+                    "image/png",
+                    "image/webp"
+                ) && offset + 8 <= input.length()
+            ) {
                 input.seek(offset)
                 val png = bounds.outMimeType == "image/png"
                 val size = if (png) input.readInt().toLong() and 0xffffffffL else 0L
-                val name = ByteArray(4).also { input.readFully(it) }.toString(Charsets.US_ASCII)
-                val length = if (png) size else Integer.reverseBytes(input.readInt()).toLong() and 0xffffffffL
+                val name = ByteArray(4).also { byteArray -> input.readFully(byteArray) }
+                    .toString(Charsets.US_ASCII)
+                val length = if (png) size else Integer.reverseBytes(input.readInt())
+                    .toLong() and 0xffffffffL
                 requireValidImage(name !in setOf("acTL", "ANIM", "ANMF"))
                 offset += 8 + length + if (png) 4 else length % 2
             }
@@ -392,13 +450,17 @@ class MessageImageRuntime(
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         var sample = 1
         // 自定义上限可达 4096 px，额外约束采样像素，避免原图及旋转副本同时撑满堆内存。
-        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > edge * 2 ||
-            bounds.outWidth.toLong() * bounds.outHeight / sample / sample > 4096L * 4096) {
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > edge * 2
+            || bounds.outWidth.toLong() * bounds.outHeight / sample / sample > 4096L * 4096
+        ) {
             sample *= 2
         }
-        var bitmap = BitmapFactory.decodeFile(file.absolutePath, BitmapFactory.Options().apply {
-            inSampleSize = sample
-        }) ?: return null
+        var bitmap = BitmapFactory.decodeFile(
+            file.absolutePath,
+            BitmapFactory.Options().apply {
+                inSampleSize = sample
+            },
+        ) ?: return null
         // ExifInterface 统一表示旋转和水平翻转，涵盖八种方向。
         val exif = runCatching { ExifInterface(file) }.getOrNull()
         val matrix = Matrix().apply {
@@ -411,8 +473,8 @@ class MessageImageRuntime(
         val ratio = edge.toFloat() / maxOf(bitmap.width, bitmap.height)
         if (ratio >= 1f) return bitmap
         val scaled = bitmap.scale(
-            (bitmap.width * ratio).roundToInt().coerceAtLeast(1),
-            (bitmap.height * ratio).roundToInt().coerceAtLeast(1)
+            width = (bitmap.width * ratio).roundToInt().coerceAtLeast(1),
+            height = (bitmap.height * ratio).roundToInt().coerceAtLeast(1),
         )
         if (scaled !== bitmap) bitmap.recycle()
         return scaled

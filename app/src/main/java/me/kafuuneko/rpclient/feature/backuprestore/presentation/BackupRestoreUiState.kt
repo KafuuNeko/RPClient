@@ -16,7 +16,19 @@ sealed interface BackupRestoreUiState {
 }
 
 /** 数据库关闭后保持重启状态，不能继续发起读写。 */
-enum class BackupOperation { Idle, Exporting, Restoring, Restarting }
+enum class BackupOperation {
+    Idle,
+
+    Exporting,
+
+    Restoring,
+
+    Restarting
+}
 
 /** 页面互斥弹窗状态，覆盖恢复必须先明确确认。 */
-enum class BackupDialogState { None, ConfirmRestore }
+enum class BackupDialogState {
+    None,
+
+    ConfirmRestore
+}

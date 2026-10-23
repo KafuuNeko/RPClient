@@ -47,12 +47,21 @@ class PageBackgroundViewModel : ViewModel(), KoinComponent {
         settingsFlow.mapLatest { settings ->
             try {
                 PageBackgroundUiState(
-                    settings, mRuntime.render(settings)?.asImageBitmap(),
-                    mRuntime.renderSurfaces(settings).mapValues { it.value.asImageBitmap() }
+                    settings = settings,
+                    image = mRuntime.render(settings)?.asImageBitmap(),
+                    surfaceImages = mRuntime.renderSurfaces(settings)
+                        .mapValues { entry -> entry.value.asImageBitmap() },
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                PageBackgroundUiState(settings)
+            } catch (_: OutOfMemoryError) {
+                PageBackgroundUiState(settings)
             }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { PageBackgroundUiState(settings) }
-            catch (_: OutOfMemoryError) { PageBackgroundUiState(settings) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(0), PageBackgroundUiState())
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(stopTimeoutMillis = 0),
+            PageBackgroundUiState()
+        )
 }

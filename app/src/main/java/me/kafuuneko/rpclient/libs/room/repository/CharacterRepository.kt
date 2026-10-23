@@ -70,7 +70,7 @@ class CharacterRepository(
      */
     suspend fun saveCharacterWithLLMProvider(
         character: Character,
-        llmProviderId: Long
+        llmProviderId: Long,
     ): Long {
         return mAppDatabase.withTransaction {
             val characterId = saveCharacterInTransaction(character)
@@ -78,10 +78,10 @@ class CharacterRepository(
                 mCharacterLLMProviderAssociationDao.deleteByCharacterId(characterId)
             } else {
                 mCharacterLLMProviderAssociationDao.insertOrReplace(
-                    CharacterLLMProviderAssociation(
+                    data = CharacterLLMProviderAssociation(
                         characterId = characterId,
-                        llmProviderId = llmProviderId
-                    )
+                        llmProviderId = llmProviderId,
+                    ),
                 )
             }
             characterId
@@ -101,7 +101,7 @@ class CharacterRepository(
         character: Character,
         llmProviderId: Long,
         backgroundUuid: String?,
-        prepared: PreparedFile?
+        prepared: PreparedFile?,
     ): Long = mImages.mutate(listOfNotNull(prepared)) {
         // 已有角色被删除后不得创建孤立背景，也不允许挪用其他所有者的索引。
         val previous = mCharacterDao.getCharacterById(character.id)
@@ -110,8 +110,10 @@ class CharacterRepository(
         require(uuid == null || prepared != null || previous?.backgroundFileUuid == uuid) {
             "Stale character background reference"
         }
-        val id = saveCharacterWithLLMProvider(character.copy(backgroundFileUuid = uuid), llmProviderId)
-        previous?.backgroundFileUuid?.takeIf { it != uuid }?.let { removeFiles(listOf(it)) }
+        val id =
+            saveCharacterWithLLMProvider(character.copy(backgroundFileUuid = uuid), llmProviderId)
+        previous?.backgroundFileUuid?.takeIf { text -> text != uuid }
+            ?.let { text -> removeFiles(listOf(text)) }
         id
     }
 
@@ -141,7 +143,7 @@ class CharacterRepository(
      */
     suspend fun updateCharacterExtensions(
         id: Long,
-        transform: (String) -> String
+        transform: (String) -> String,
     ): Character? {
         return mAppDatabase.withTransaction {
             val current = mCharacterDao.getCharacterById(id) ?: return@withTransaction null
@@ -160,13 +162,16 @@ class CharacterRepository(
         mImages.mutate {
             // 角色删除会级联单聊，群聊用户图片不属于该角色，必须保留。
             mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
-                mImages.deleteInTransaction(this, MessageType.Single,
-                    mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id))
+                mImages.deleteInTransaction(
+                    mutation = this,
+                    type = MessageType.Single,
+                    ids = mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id),
+                )
             }
             val backgroundUuid = mCharacterDao.getCharacterById(id)?.backgroundFileUuid
             mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
             mCharacterDao.deleteCharacterById(id)
-            backgroundUuid?.let { removeFiles(listOf(it)) }
+            backgroundUuid?.let { text -> removeFiles(listOf(text)) }
         }
     }
 
@@ -245,9 +250,9 @@ class CharacterRepository(
             val scripts = extraction.scripts.normalizeRegexScriptIds()
             if (scripts.isNotEmpty()) {
                 mRegexDao.insertScripts(
-                    scripts.mapIndexed { index, script ->
+                    scripts = scripts.mapIndexed { index, script ->
                         script.toEntity(characterId, index, mGson)
-                    }
+                    },
                 )
             }
         }

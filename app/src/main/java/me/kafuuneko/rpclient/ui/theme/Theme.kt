@@ -32,7 +32,7 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = SecondaryContainerDarkColor,
     onSecondaryContainer = OnSecondaryContainerDarkColor,
     outline = OutlineDarkColor,
-    outlineVariant = OutlineVariantDarkColor
+    outlineVariant = OutlineVariantDarkColor,
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -58,7 +58,7 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerLow = BackgroundColor,
     surfaceContainerHigh = SecondaryContainerColor,
     surfaceContainerHighest = SecondaryContainerColor,
-    surfaceDim = OutlineVariantColor
+    surfaceDim = OutlineVariantColor,
 )
 
 /** 页面遮罩使用实际应用的明暗模式，包括用户强制指定的模式。 */
@@ -71,7 +71,7 @@ fun AppTheme(
     // Android 12 起系统才提供动态配色 API。
     dynamicColor: Boolean = false,
     palette: AppThemePalette = AppThemePalette.Classic,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
         (dynamicColor || palette == AppThemePalette.Dynamic) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -79,7 +79,13 @@ fun AppTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        presetColorScheme(palette, darkTheme) != null -> requireNotNull(presetColorScheme(palette, darkTheme))
+        presetColorScheme(palette, darkTheme) != null -> requireNotNull(
+            presetColorScheme(
+                palette,
+                darkTheme
+            )
+        )
+
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -88,14 +94,14 @@ fun AppTheme(
     val pageColors = if (darkTheme) colorScheme else colorScheme.copy(
         background = colorScheme.surfaceContainerLow,
         surface = colorScheme.surfaceContainer,
-        surfaceBright = colorScheme.surfaceContainer
+        surfaceBright = colorScheme.surfaceContainer,
     )
     CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
         MaterialTheme(colorScheme = pageColors, typography = Typography) {
             Surface(
                 color = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onBackground,
-                content = content
+                content = content,
             )
         }
     }

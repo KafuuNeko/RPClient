@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
@@ -51,7 +50,7 @@ fun RpNumberStepper(
     max: Int = 999999,
     step: Int = 1,
     enabled: Boolean = true,
-    accentColor: Color = MaterialTheme.colorScheme.primary
+    accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     var showDialog by remember { mutableStateOf(false) }
     val currentValue = value.toIntOrNull() ?: min
@@ -60,29 +59,34 @@ fun RpNumberStepper(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+        ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.38f
+                    ),
                 )
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -90,7 +94,7 @@ fun RpNumberStepper(
             // 步进操作区 [-] [ 数值 ] [+]
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 IconButton(
                     onClick = {
@@ -98,23 +102,28 @@ fun RpNumberStepper(
                         onValueChange(next.toString())
                     },
                     enabled = enabled && currentValue > min,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(34.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Remove,
                         contentDescription = stringResource(R.string.decrease),
-                        tint = if (enabled && currentValue > min) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.size(18.dp)
+                        tint = if (enabled && currentValue > min) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = 0.3f
+                        ),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
 
                 Surface(
                     modifier = Modifier
                         .widthIn(min = 52.dp)
-                        .clickable(enabled = enabled) { showDialog = true },
+                        .clickable(enabled = enabled, onClick = { showDialog = true }),
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    border = BorderStroke(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                    ),
                 ) {
                     Text(
                         text = value.ifBlank { "0" },
@@ -122,7 +131,9 @@ fun RpNumberStepper(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.38f
+                        ),
                     )
                 }
 
@@ -132,13 +143,15 @@ fun RpNumberStepper(
                         onValueChange(next.toString())
                     },
                     enabled = enabled && currentValue < max,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(34.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = stringResource(R.string.increase),
-                        tint = if (enabled && currentValue < max) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.size(18.dp)
+                        tint = if (enabled && currentValue < max) accentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = 0.3f
+                        ),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -165,7 +178,7 @@ fun RpNumberStepper(
                     onValueChange(min.toString())
                 }
                 showDialog = false
-            }
+            },
         )
     }
 }

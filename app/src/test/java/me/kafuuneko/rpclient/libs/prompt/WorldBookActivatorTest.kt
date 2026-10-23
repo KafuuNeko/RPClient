@@ -20,11 +20,11 @@ class WorldBookActivatorTest {
         val keywordEntry = lorebookEntry(id = 2L, constant = false, keywords = """["harbor"]""")
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = emptyList(),
                 currentUserMessage = null,
-                entries = listOf(constantEntry, keywordEntry)
-            )
+                entries = listOf(constantEntry, keywordEntry),
+            ),
         )
 
         assertEquals(listOf(constantEntry), activated)
@@ -35,11 +35,11 @@ class WorldBookActivatorTest {
         val keywordEntry = lorebookEntry(id = 1L, keywords = """["harbor"]""")
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("The harbor bell rang.")),
                 currentUserMessage = null,
-                entries = listOf(keywordEntry)
-            )
+                entries = listOf(keywordEntry),
+            ),
         )
 
         assertEquals(listOf(keywordEntry), activated)
@@ -50,11 +50,11 @@ class WorldBookActivatorTest {
         val emptyRegexEntry = lorebookEntry(id = 1L, keywords = """["//"]""")
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("Any text would match an empty regex.")),
                 currentUserMessage = null,
-                entries = listOf(emptyRegexEntry)
-            )
+                entries = listOf(emptyRegexEntry),
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), activated)
@@ -66,11 +66,23 @@ class WorldBookActivatorTest {
             id = 1L,
             keywords = """["harbor"]""",
             secondaryKeywords = """["bell","fog"]""",
-            selectiveLogic = LorebookEntry.LOGIC_AND_ALL
+            selectiveLogic = LorebookEntry.LOGIC_AND_ALL,
         )
 
-        val missing = activator.activate(context(listOf(chatMessage("The harbor bell rang.")), null, listOf(entry)))
-        val matched = activator.activate(context(listOf(chatMessage("The harbor bell rang in fog.")), null, listOf(entry)))
+        val missing = activator.activate(
+            context = context(
+                messages = listOf(chatMessage("The harbor bell rang.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
+        )
+        val matched = activator.activate(
+            context = context(
+                messages = listOf(chatMessage("The harbor bell rang in fog.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
+        )
 
         assertEquals(emptyList<LorebookEntry>(), missing)
         assertEquals(listOf(entry), matched)
@@ -78,16 +90,18 @@ class WorldBookActivatorTest {
 
     @Test
     fun recursiveScanCanActivateEntriesFromEntryContent() {
-        val first = lorebookEntry(id = 1L, keywords = """["harbor"]""", content = "The moon gate opens.")
-        val second = lorebookEntry(id = 2L, keywords = """["moon gate"]""", content = "Recursive lore")
+        val first =
+            lorebookEntry(id = 1L, keywords = """["harbor"]""", content = "The moon gate opens.")
+        val second =
+            lorebookEntry(id = 2L, keywords = """["moon gate"]""", content = "Recursive lore")
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("We reached the harbor.")),
                 currentUserMessage = null,
                 entries = listOf(first, second),
-                recursiveScanningLorebookIds = setOf(1L)
-            )
+                recursiveScanningLorebookIds = setOf(1L),
+            ),
         )
 
         assertEquals(setOf(first, second), activated.toSet())
@@ -95,15 +109,17 @@ class WorldBookActivatorTest {
 
     @Test
     fun recursiveScanIsNotEnabledByDefault() {
-        val first = lorebookEntry(id = 1L, keywords = """["harbor"]""", content = "The moon gate opens.")
-        val second = lorebookEntry(id = 2L, keywords = """["moon gate"]""", content = "Recursive lore")
+        val first =
+            lorebookEntry(id = 1L, keywords = """["harbor"]""", content = "The moon gate opens.")
+        val second =
+            lorebookEntry(id = 2L, keywords = """["moon gate"]""", content = "Recursive lore")
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("We reached the harbor.")),
                 currentUserMessage = null,
-                entries = listOf(first, second)
-            )
+                entries = listOf(first, second),
+            ),
         )
 
         assertEquals(listOf(first), activated)
@@ -116,33 +132,46 @@ class WorldBookActivatorTest {
             keywords = """["harbor"]""",
             sticky = 1,
             cooldown = 1,
-            delay = 2
+            delay = 2,
         )
         val delayed = activator.activateStructured(
-            context(messages = listOf(chatMessage("harbor")), currentUserMessage = null, entries = listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("harbor")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
         val activated = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("setup"), chatMessage("harbor")),
                 currentUserMessage = null,
-                entries = listOf(entry)
-            )
+                entries = listOf(entry),
+            ),
         )
         val cooldown = activator.activateStructured(
-            context(
-                messages = listOf(chatMessage("setup"), chatMessage("harbor"), chatMessage("no key")),
+            context = context(
+                messages = listOf(
+                    chatMessage("setup"),
+                    chatMessage("harbor"),
+                    chatMessage("no key")
+                ),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                worldInfoStateJson = activated.nextStateJson
-            )
+                worldInfoStateJson = activated.nextStateJson,
+            ),
         )
         val availableAgain = activator.activateStructured(
-            context(
-                messages = listOf(chatMessage("setup"), chatMessage("harbor"), chatMessage("no key"), chatMessage("harbor")),
+            context = context(
+                messages = listOf(
+                    chatMessage("setup"),
+                    chatMessage("harbor"),
+                    chatMessage("no key"),
+                    chatMessage("harbor"),
+                ),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                worldInfoStateJson = cooldown.nextStateJson
-            )
+                worldInfoStateJson = cooldown.nextStateJson,
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), delayed.activatedEntries)
@@ -156,25 +185,25 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["harbor"]""",
-            sticky = 2
+            sticky = 2,
         )
         val activated = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("harbor")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                totalMessageCount = 20
-            )
+                totalMessageCount = 20,
+            ),
         )
 
         val afterSummary = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("no key")),
                 currentUserMessage = null,
                 entries = listOf(entry),
                 worldInfoStateJson = activated.nextStateJson,
-                totalMessageCount = 21
-            )
+                totalMessageCount = 21,
+            ),
         )
 
         assertEquals(listOf(entry), afterSummary.activatedEntries)
@@ -185,37 +214,37 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["harbor"]""",
-            sticky = 3
+            sticky = 3,
         ).copy(
             position = LorebookEntry.POSITION_OUTLET,
-            outletName = "first"
+            outletName = "first",
         )
         val activated = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("harbor")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                totalMessageCount = 1
-            )
+                totalMessageCount = 1,
+            ),
         )
 
         val disabled = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("no key")),
                 currentUserMessage = null,
                 entries = listOf(entry.copy(disabled = true)),
                 worldInfoStateJson = activated.nextStateJson,
-                totalMessageCount = 2
-            )
+                totalMessageCount = 2,
+            ),
         )
         val movedOutlet = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("no key")),
                 currentUserMessage = null,
                 entries = listOf(entry.copy(outletName = "second")),
                 worldInfoStateJson = activated.nextStateJson,
-                totalMessageCount = 2
-            )
+                totalMessageCount = 2,
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), disabled.activatedEntries)
@@ -224,10 +253,31 @@ class WorldBookActivatorTest {
 
     @Test
     fun inclusionGroupKeepsOnlyPrioritizedEntry() {
-        val low = lorebookEntry(id = 1L, constant = true, order = 10, group = "weather", groupOverride = true)
-        val high = lorebookEntry(id = 2L, constant = true, order = 30, group = "weather", groupOverride = true)
+        val low = lorebookEntry(
+            id = 1L,
+            constant = true,
+            order = 10,
+            group = "weather",
+            groupOverride = true
+        )
+        val high = lorebookEntry(
+            id = 2L,
+            constant = true,
+            order = 30,
+            group = "weather",
+            groupOverride = true
+        )
 
-        val activated = activator.activate(context(emptyList(), null, listOf(low, high)))
+        val activated = activator.activate(
+            context = context(
+                messages = emptyList(),
+                currentUserMessage = null,
+                entries = listOf(
+                    low,
+                    high,
+                ),
+            ),
+        )
 
         assertEquals(listOf(high), activated)
     }
@@ -237,31 +287,31 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["harbor"]""",
-            triggers = """["continue"]"""
+            triggers = """["continue"]""",
         )
 
         val normal = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("harbor")),
                 currentUserMessage = null,
-                entries = listOf(entry)
-            )
+                entries = listOf(entry),
+            ),
         )
         val continueWithoutKeyword = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("continue")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                generationMode = PromptGenerationMode.Continue
-            )
+                generationMode = PromptGenerationMode.Continue,
+            ),
         )
         val continued = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("harbor")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                generationMode = PromptGenerationMode.Continue
-            )
+                generationMode = PromptGenerationMode.Continue,
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), normal)
@@ -274,7 +324,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(id = 1L, keywords = """["king"]""")
 
         val substring = activator.activate(
-            context(listOf(chatMessage("This is not to my liking.")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("This is not to my liking.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
 
         assertEquals(listOf(entry), substring)
@@ -285,14 +339,22 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["king"]""",
-            matchWholeWords = true
+            matchWholeWords = true,
         )
 
         val substring = activator.activate(
-            context(listOf(chatMessage("This is not to my liking.")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("This is not to my liking.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
         val wholeWord = activator.activate(
-            context(listOf(chatMessage("Long live the king.")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("Long live the king.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), substring)
@@ -304,12 +366,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["学校"]""",
-            matchWholeWords = true
+            matchWholeWords = true,
         )
 
-        val activated = activator.activate(
-            context(emptyList(), "回学校了吗", listOf(entry))
-        )
+        val activated =
+            activator.activate(context = context(emptyList(), "回学校了吗", listOf(entry)))
 
         assertEquals(listOf(entry), activated)
     }
@@ -318,9 +379,8 @@ class WorldBookActivatorTest {
     fun unsetCaseSensitiveMatchingUsesIgnoreCaseToMatchEditorState() {
         val entry = lorebookEntry(id = 1L, keywords = """["School"]""")
 
-        val activated = activator.activate(
-            context(emptyList(), "Back to school.", listOf(entry))
-        )
+        val activated =
+            activator.activate(context = context(emptyList(), "Back to school.", listOf(entry)))
 
         assertEquals(listOf(entry), activated)
     }
@@ -330,12 +390,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(
             id = 1L,
             keywords = """["School"]""",
-            caseSensitive = true
+            caseSensitive = true,
         )
 
-        val activated = activator.activate(
-            context(emptyList(), "Back to school.", listOf(entry))
-        )
+        val activated =
+            activator.activate(context = context(emptyList(), "Back to school.", listOf(entry)))
 
         assertEquals(emptyList<LorebookEntry>(), activated)
     }
@@ -345,7 +404,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(id = 1L, keywords = """["User"]""")
 
         val activated = activator.activate(
-            context(listOf(chatMessage("Hello there.")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("Hello there.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
 
         assertEquals(listOf(entry), activated)
@@ -356,7 +419,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(id = 1L, keywords = """["/HARBOR/i"]""")
 
         val activated = activator.activate(
-            context(listOf(chatMessage("The harbor bell rang.")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("The harbor bell rang.")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
 
         assertEquals(listOf(entry), activated)
@@ -369,7 +436,14 @@ class WorldBookActivatorTest {
         val message = chatMessage("The HARBOR/bell rang.\nbell again.")
 
         val activated = activator.activate(
-            context(listOf(message), null, listOf(slashEntry, multilineEntry))
+            context = context(
+                messages = listOf(message),
+                currentUserMessage = null,
+                entries = listOf(
+                    slashEntry,
+                    multilineEntry,
+                ),
+            ),
         )
 
         assertEquals(listOf(multilineEntry, slashEntry), activated)
@@ -381,11 +455,11 @@ class WorldBookActivatorTest {
         val unicodeEntry = lorebookEntry(id = 2L, keywords = """["/\\u{1F600}/u"]""")
 
         val activated = activator.activate(
-            context(
-                listOf(chatMessage("The harbor sign is 😀.")),
-                null,
-                listOf(globalEntry, unicodeEntry)
-            )
+            context = context(
+                messages = listOf(chatMessage("The harbor sign is 😀.")),
+                currentUserMessage = null,
+                entries = listOf(globalEntry, unicodeEntry),
+            ),
         )
 
         assertEquals(setOf(globalEntry, unicodeEntry), activated.toSet())
@@ -397,7 +471,14 @@ class WorldBookActivatorTest {
         val laterEntry = lorebookEntry(id = 2L, keywords = """["/Hello/y"]""")
 
         val activated = activator.activate(
-            context(listOf(chatMessage("Hello there.")), null, listOf(stickyEntry, laterEntry))
+            context = context(
+                messages = listOf(chatMessage("Hello there.")),
+                currentUserMessage = null,
+                entries = listOf(
+                    stickyEntry,
+                    laterEntry,
+                ),
+            ),
         )
 
         assertEquals(listOf(stickyEntry), activated)
@@ -409,20 +490,20 @@ class WorldBookActivatorTest {
         val book = Lorebook(id = 1L, name = "Book", scanDepth = 1)
 
         val fromHistory = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("older"), chatMessage("newest")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                lorebooks = mapOf(1L to book)
-            )
+                lorebooks = mapOf(1L to book),
+            ),
         )
         val fromCurrentUser = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("older")),
                 currentUserMessage = "newest",
                 entries = listOf(entry),
-                lorebooks = mapOf(1L to book)
-            )
+                lorebooks = mapOf(1L to book),
+            ),
         )
 
         assertEquals(listOf(entry), fromHistory)
@@ -436,11 +517,11 @@ class WorldBookActivatorTest {
         val unescapedDelimiter = lorebookEntry(id = 3L, keywords = """["/harbor/bell/i"]""")
 
         val activated = activator.activate(
-            context(
-                listOf(chatMessage("The harbor bell rang.")),
-                null,
-                listOf(duplicateFlag, unsupportedFlag, unescapedDelimiter)
-            )
+            context = context(
+                messages = listOf(chatMessage("The harbor bell rang.")),
+                currentUserMessage = null,
+                entries = listOf(duplicateFlag, unsupportedFlag, unescapedDelimiter),
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), activated)
@@ -451,7 +532,11 @@ class WorldBookActivatorTest {
         val entry = lorebookEntry(id = 1L, keywords = """["/ +/"]""")
 
         val activated = activator.activate(
-            context(listOf(chatMessage("two words")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("two words")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
 
         assertEquals(listOf(entry), activated)
@@ -465,20 +550,20 @@ class WorldBookActivatorTest {
         val messages = listOf(chatMessage("harbor"), chatMessage("latest"))
 
         val shallow = activator.activate(
-            context(
+            context = context(
                 messages = messages,
                 currentUserMessage = null,
                 entries = listOf(entry),
-                lorebooks = mapOf(1L to shallowBook)
-            )
+                lorebooks = mapOf(1L to shallowBook),
+            ),
         )
         val deep = activator.activate(
-            context(
+            context = context(
                 messages = messages,
                 currentUserMessage = null,
                 entries = listOf(entry),
-                lorebooks = mapOf(1L to deepBook)
-            )
+                lorebooks = mapOf(1L to deepBook),
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), shallow)
@@ -492,13 +577,21 @@ class WorldBookActivatorTest {
             constant = true,
             order = 30,
             group = "weather, scene",
-            groupOverride = true
+            groupOverride = true,
         )
         val weather = lorebookEntry(id = 2L, constant = true, group = "weather")
         val scene = lorebookEntry(id = 3L, constant = true, group = "scene")
 
         val activated = activator.activate(
-            context(emptyList(), null, listOf(winner, weather, scene))
+            context = context(
+                messages = emptyList(),
+                currentUserMessage = null,
+                entries = listOf(
+                    winner,
+                    weather,
+                    scene,
+                ),
+            ),
         )
 
         assertEquals(listOf(winner), activated)
@@ -510,21 +603,21 @@ class WorldBookActivatorTest {
             id = 1L,
             keywords = """["song","sing"]""",
             group = "songs",
-            useGroupScoring = true
+            useGroupScoring = true,
         )
         val specific = lorebookEntry(
             id = 2L,
             keywords = """["song","sing","Ghosts"]""",
             group = "songs",
-            useGroupScoring = true
+            useGroupScoring = true,
         )
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("Sing me a song about Ghosts.")),
                 currentUserMessage = null,
-                entries = listOf(general, specific)
-            )
+                entries = listOf(general, specific),
+            ),
         )
 
         assertEquals(listOf(specific), activated)
@@ -538,28 +631,28 @@ class WorldBookActivatorTest {
             content = "Winner content",
             order = 20,
             group = "scene",
-            groupOverride = true
+            groupOverride = true,
         )
         val loser = lorebookEntry(
             id = 2L,
             keywords = """["harbor"]""",
             content = "secret recursion key",
             order = 10,
-            group = "scene"
+            group = "scene",
         )
         val recursive = lorebookEntry(
             id = 3L,
             keywords = """["secret recursion key"]""",
-            content = "Must stay inactive"
+            content = "Must stay inactive",
         )
 
         val activated = activator.activate(
-            context(
+            context = context(
                 messages = listOf(chatMessage("harbor")),
                 currentUserMessage = null,
                 entries = listOf(winner, loser, recursive),
-                recursiveScanningLorebookIds = setOf(1L)
-            )
+                recursiveScanningLorebookIds = setOf(1L),
+            ),
         )
 
         assertEquals(listOf(winner), activated)
@@ -573,18 +666,22 @@ class WorldBookActivatorTest {
             order = 20,
             probability = 0,
             group = "scene",
-            groupOverride = true
+            groupOverride = true,
         )
         val fallback = lorebookEntry(
             id = 2L,
             constant = true,
             order = 10,
             probability = 100,
-            group = "scene"
+            group = "scene",
         )
 
         val activated = activator.activate(
-            context(emptyList(), null, listOf(winner, fallback))
+            context = context(
+                messages = emptyList(),
+                currentUserMessage = null,
+                entries = listOf(winner, fallback)
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), activated)
@@ -596,10 +693,14 @@ class WorldBookActivatorTest {
             id = 1L,
             keywords = """["harbor"]""",
             content = "Too large",
-            sticky = 2
+            sticky = 2,
         )
         val activated = activator.activateStructured(
-            context(listOf(chatMessage("harbor")), null, listOf(entry))
+            context = context(
+                messages = listOf(chatMessage("harbor")),
+                currentUserMessage = null,
+                entries = listOf(entry),
+            ),
         )
         val budgeted = fitWorldInfoToBudget(
             result = activated,
@@ -611,16 +712,16 @@ class WorldBookActivatorTest {
                     PromptTokenizerStrategy.ModelAware
 
                 override fun countText(text: String): Int = text.length
-            }
+            },
         )
         val resolved = activator.resolveNextState(budgeted.result)
         val nextTurn = activator.activateStructured(
-            context(
+            context = context(
                 messages = listOf(chatMessage("No matching key")),
                 currentUserMessage = null,
                 entries = listOf(entry),
-                worldInfoStateJson = resolved.nextStateJson
-            )
+                worldInfoStateJson = resolved.nextStateJson,
+            ),
         )
 
         assertEquals(emptyList<LorebookEntry>(), resolved.activatedEntries)
@@ -635,7 +736,7 @@ class WorldBookActivatorTest {
         recursiveScanningLorebookIds: Set<Long> = emptySet(),
         totalMessageCount: Int = messages.size + if (currentUserMessage.isNullOrBlank()) 0 else 1,
         lorebooks: Map<Long, Lorebook> = emptyMap(),
-        generationMode: PromptGenerationMode = PromptGenerationMode.Normal
+        generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
     ): PromptBuildContext {
         return PromptBuildContext(
             userName = "User",
@@ -651,7 +752,7 @@ class WorldBookActivatorTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
+                postHistoryInstructions = "",
             ),
             session = ChatSession(
                 id = 1L,
@@ -662,7 +763,7 @@ class WorldBookActivatorTest {
                 title = "",
                 userNote = "",
                 creatorNotes = null,
-                worldInfoStateJson = worldInfoStateJson
+                worldInfoStateJson = worldInfoStateJson,
             ),
             summary = "",
             messages = messages,
@@ -674,7 +775,7 @@ class WorldBookActivatorTest {
             provider = null,
             maxContextTokens = 4096,
             maxResponseTokens = 512,
-            generationMode = generationMode
+            generationMode = generationMode,
         )
     }
 
@@ -684,7 +785,7 @@ class WorldBookActivatorTest {
             sessionId = 1L,
             createTime = 0L,
             source = ChatMessage.Source.User,
-            content = content
+            content = content,
         )
     }
 
@@ -705,7 +806,7 @@ class WorldBookActivatorTest {
         useGroupScoring: Boolean = false,
         triggers: String = "[]",
         matchWholeWords: Boolean? = null,
-        caseSensitive: Boolean? = null
+        caseSensitive: Boolean? = null,
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -728,7 +829,7 @@ class WorldBookActivatorTest {
             useGroupScoring = useGroupScoring,
             triggers = triggers,
             matchWholeWords = matchWholeWords,
-            caseSensitive = caseSensitive
+            caseSensitive = caseSensitive,
         )
     }
 }

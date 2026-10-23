@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,20 +39,20 @@ fun LoadingDialog(
     title: String,
     description: String,
     onCancel: (() -> Unit)? = null,
-    cancelOnBackPress: Boolean = false
+    cancelOnBackPress: Boolean = false,
 ) {
     AppDialogWindow(
         onDismissRequest = { if (cancelOnBackPress) onCancel?.invoke() },
         properties = DialogProperties(
             dismissOnBackPress = cancelOnBackPress && onCancel != null,
-            dismissOnClickOutside = false
-        )
+            dismissOnClickOutside = false,
+        ),
     ) {
         DialogPanelSurface(modifier = Modifier.width(310.dp)) {
             Column(
                 modifier = Modifier.padding(vertical = 32.dp, horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 // 加载环外层双层柔光光斑容器
                 Box(
@@ -61,43 +61,47 @@ fun LoadingDialog(
                         .size(76.dp)
                         .background(
                             color = dialogControlColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                            shape = CircleShape
-                        )
+                            shape = CircleShape,
+                        ),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .size(56.dp)
                             .background(
-                                color = dialogControlColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                                shape = CircleShape
-                            )
+                                color = dialogControlColor(
+                                    MaterialTheme.colorScheme.primary.copy(
+                                        alpha = 0.12f
+                                    )
+                                ),
+                                shape = CircleShape,
+                            ),
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(40.dp),
                             color = MaterialTheme.colorScheme.primary,
                             strokeWidth = 3.5.dp,
-                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                         )
                     }
                 }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
                     Text(
                         text = description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
                 }
 
@@ -109,12 +113,12 @@ fun LoadingDialog(
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(48.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.cancel),
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -131,7 +135,7 @@ private fun LoadingDialogPreview() {
             LoadingDialog(
                 title = "正在导出聊天记录",
                 description = "正在格式化消息并在后台打包为 JSON 文件...",
-                onCancel = {}
+                onCancel = {},
             )
         }
     }

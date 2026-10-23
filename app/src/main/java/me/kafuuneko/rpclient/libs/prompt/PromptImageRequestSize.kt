@@ -10,12 +10,13 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 internal fun estimateImageRequestBytes(
     messages: List<LLMMessage>,
     unavailableCount: Int,
-    patchJson: String = ""
+    patchJson: String = "",
 ): Long {
     val imageBytes = messages.sumOf { message ->
-        message.images.sumOf { estimatedEncodedImageBytes(it.byteCount) }
+        message.images.sumOf { image -> estimatedEncodedImageBytes(image.byteCount) }
     }
-    val unavailableBytes = unavailableCount * estimatedEncodedImageBytes(MessageImagePolicy.MAX_SEND_BYTES)
+    val unavailableBytes =
+        unavailableCount * estimatedEncodedImageBytes(MessageImagePolicy.MAX_SEND_BYTES)
     // JSON 转义最坏为每个字节六个字符，预留协议结构的既有固定开销。
     val textBytes = messages.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() * 6 }
     return imageBytes + unavailableBytes + textBytes + patchJson.toByteArray(Charsets.UTF_8).size + 4096
@@ -23,4 +24,7 @@ internal fun estimateImageRequestBytes(
 
 /** 大于请求上限的异常元数据只需返回超限近似，避免 Base64 长度换算溢出。 */
 private fun estimatedEncodedImageBytes(bytes: Long): Long =
-    ((bytes.coerceIn(0, MessageImagePolicy.MAX_REQUEST_BYTES) + 2) / 3) * 4 + 256
+    ((bytes.coerceIn(
+        minimumValue = 0,
+        maximumValue = MessageImagePolicy.MAX_REQUEST_BYTES
+    ) + 2) / 3) * 4 + 256

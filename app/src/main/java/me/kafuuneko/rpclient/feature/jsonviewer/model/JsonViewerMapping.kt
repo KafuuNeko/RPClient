@@ -26,7 +26,7 @@ internal fun Any?.toEntries(): List<JsonViewerEntry> {
                 id = index,
                 name = key,
                 sourceKey = key,
-                sourceIndex = null
+                sourceIndex = null,
             )
         }
 
@@ -36,7 +36,7 @@ internal fun Any?.toEntries(): List<JsonViewerEntry> {
                 id = index,
                 name = "[$index]",
                 sourceKey = null,
-                sourceIndex = index
+                sourceIndex = index,
             )
         }
 
@@ -49,7 +49,7 @@ private fun Any?.toEntry(
     id: Int,
     name: String,
     sourceKey: String?,
-    sourceIndex: Int?
+    sourceIndex: Int?,
 ): JsonViewerEntry {
     return JsonViewerEntry(
         id = id,
@@ -58,7 +58,7 @@ private fun Any?.toEntry(
         preview = valuePreview(),
         childCount = childCount(),
         sourceKey = sourceKey,
-        sourceIndex = sourceIndex
+        sourceIndex = sourceIndex,
     )
 }
 

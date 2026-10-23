@@ -18,18 +18,41 @@ class ImageTokenEstimatorRegistry(
     /** 解析实际模型配置，返回包含能力门禁的统一图片计数器。 */
     fun resolve(provider: LLMProviderConfig?): ImageTokenCounter {
         if (provider != null && mCapabilities.resolve(provider) == ImageInputSetting.Unsupported) {
-            return ImageTokenCounter(null)
+            return ImageTokenCounter(mEstimator = null)
         }
         val selected = provider?.imageTokenEstimatorType ?: ImageTokenEstimatorType.Generic
-        val type = if (selected == ImageTokenEstimatorType.Automatic) automaticType(provider?.model.orEmpty()) else selected
+        val type =
+            if (selected == ImageTokenEstimatorType.Automatic) automaticType(provider?.model.orEmpty()) else selected
         // 参数快照来自 2026-09-14 官方 sizing 表；当前请求省略 detail，使用各模型 auto 行为。
         val estimator = when (type) {
-            ImageTokenEstimatorType.OpenAiTile4o -> TileImageTokenEstimator(85, 170)
-            ImageTokenEstimatorType.OpenAiTile4oMini -> TileImageTokenEstimator(2833, 5667)
-            ImageTokenEstimatorType.OpenAiPatch41Mini -> OpenAiPatchImageTokenEstimator(2048, 6144, 1.62)
-            ImageTokenEstimatorType.OpenAiPatch54 -> OpenAiPatchImageTokenEstimator(2048, 2500, 1.2)
-            ImageTokenEstimatorType.ClaudeStandard -> ClaudeImageTokenEstimator(1568, 1568)
-            ImageTokenEstimatorType.ClaudeHighResolution -> ClaudeImageTokenEstimator(2576, 4784)
+            ImageTokenEstimatorType.OpenAiTile4o -> TileImageTokenEstimator(mBase = 85, mTile = 170)
+            ImageTokenEstimatorType.OpenAiTile4oMini -> TileImageTokenEstimator(
+                mBase = 2833,
+                mTile = 5667
+            )
+
+            ImageTokenEstimatorType.OpenAiPatch41Mini -> OpenAiPatchImageTokenEstimator(
+                mMaxEdge = 2048,
+                mPatchBudget = 6144,
+                mMultiplier = 1.62,
+            )
+
+            ImageTokenEstimatorType.OpenAiPatch54 -> OpenAiPatchImageTokenEstimator(
+                mMaxEdge = 2048,
+                mPatchBudget = 2500,
+                mMultiplier = 1.2,
+            )
+
+            ImageTokenEstimatorType.ClaudeStandard -> ClaudeImageTokenEstimator(
+                mMaxEdge = 1568,
+                mMaxTokens = 1568
+            )
+
+            ImageTokenEstimatorType.ClaudeHighResolution -> ClaudeImageTokenEstimator(
+                mMaxEdge = 2576,
+                mMaxTokens = 4784,
+            )
+
             ImageTokenEstimatorType.Gemini3 -> geminiEstimator(provider?.requestBodyPatchJson.orEmpty())
             ImageTokenEstimatorType.Generic, ImageTokenEstimatorType.Automatic -> ImageTokenEstimator { GENERIC_IMAGE_TOKENS }
         }
@@ -72,10 +95,34 @@ class ImageTokenEstimatorRegistry(
         aliases(ImageTokenEstimatorType.OpenAiTile4o, "openai", "gpt-4o", "gpt-4.1")
         aliases(ImageTokenEstimatorType.OpenAiTile4oMini, "openai", "gpt-4o-mini")
         aliases(ImageTokenEstimatorType.OpenAiPatch41Mini, "openai", "gpt-4.1-mini")
-        aliases(ImageTokenEstimatorType.OpenAiPatch54, "openai", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano")
-        aliases(ImageTokenEstimatorType.ClaudeStandard, "anthropic", "claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5", "claude-sonnet-4-5")
-        aliases(ImageTokenEstimatorType.ClaudeHighResolution, "anthropic", "claude-opus-4-7", "claude-opus-5")
-        aliases(ImageTokenEstimatorType.Gemini3, "google", "gemini-3-pro-preview", "gemini-3-flash-preview", "gemini-3.1-pro-preview")
+        aliases(
+            ImageTokenEstimatorType.OpenAiPatch54,
+            "openai",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.4-nano"
+        )
+        aliases(
+            ImageTokenEstimatorType.ClaudeStandard,
+            "anthropic",
+            "claude-sonnet-4-6",
+            "claude-opus-4-6",
+            "claude-haiku-4-5",
+            "claude-sonnet-4-5",
+        )
+        aliases(
+            ImageTokenEstimatorType.ClaudeHighResolution,
+            "anthropic",
+            "claude-opus-4-7",
+            "claude-opus-5"
+        )
+        aliases(
+            ImageTokenEstimatorType.Gemini3,
+            "google",
+            "gemini-3-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-3.1-pro-preview",
+        )
     }
 }
 
@@ -83,10 +130,13 @@ class ImageTokenEstimatorRegistry(
 class ImageTokenCounter internal constructor(private val mEstimator: ImageTokenEstimator?) {
     /** 每次出现都计数，不按资源 hash 去重。 */
     fun count(images: List<LLMImageReference>): Long =
-        if (mEstimator == null) 0L else images.sumOf {
-            if (it.width <= 0 || it.height <= 0) GENERIC_IMAGE_TOKENS else mEstimator.estimate(it)
+        if (mEstimator == null) 0L else images.sumOf { image ->
+            if (image.width <= 0 || image.height <= 0) GENERIC_IMAGE_TOKENS else mEstimator.estimate(
+                image
+            )
         }
 
     /** 不可用候选没有实际尺寸，使用通用近似且不调用模型公式。 */
-    fun countUnavailable(count: Int): Long = if (mEstimator == null) 0L else count.toLong() * GENERIC_IMAGE_TOKENS
+    fun countUnavailable(count: Int): Long =
+        if (mEstimator == null) 0L else count.toLong() * GENERIC_IMAGE_TOKENS
 }

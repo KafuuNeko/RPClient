@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.utils
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
@@ -33,7 +33,7 @@ data class PromptHighlightColors(
  */
 @Composable
 fun rememberPromptMacroVisualTransformation(
-    colors: PromptHighlightColors = rememberDefaultPromptHighlightColors()
+    colors: PromptHighlightColors = rememberDefaultPromptHighlightColors(),
 ): VisualTransformation {
     return remember(colors) {
         PromptMacroVisualTransformation(colors)
@@ -43,7 +43,7 @@ fun rememberPromptMacroVisualTransformation(
 /** 记住供状态式文本框使用的 Prompt 宏与标签语法高亮转换器。 */
 @Composable
 fun rememberPromptMacroOutputTransformation(
-    colors: PromptHighlightColors = rememberDefaultPromptHighlightColors()
+    colors: PromptHighlightColors = rememberDefaultPromptHighlightColors(),
 ): OutputTransformation = remember(colors) {
     OutputTransformation {
         val raw = asCharSequence().toString()
@@ -53,20 +53,20 @@ fun rememberPromptMacroOutputTransformation(
                 spanStyle = SpanStyle(
                     color = colors.tagForeground,
                     background = colors.tagBackground,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 ),
                 start = match.range.first,
-                end = match.range.last + 1
+                end = match.range.last + 1,
             )
         }
         PROMPT_SECTION_REGEX.findAll(raw).forEach { match ->
             addStyle(
                 spanStyle = SpanStyle(
                     color = colors.sectionForeground,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 ),
                 start = match.range.first,
-                end = match.range.last + 1
+                end = match.range.last + 1,
             )
         }
         PROMPT_MACRO_REGEX.findAll(raw).forEach { match ->
@@ -75,10 +75,10 @@ fun rememberPromptMacroOutputTransformation(
                     color = colors.macroForeground,
                     background = colors.macroBackground,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 ),
                 start = match.range.first,
-                end = match.range.last + 1
+                end = match.range.last + 1,
             )
         }
     }
@@ -93,14 +93,14 @@ fun rememberDefaultPromptHighlightColors(): PromptHighlightColors {
     return remember(
         colorScheme.primary,
         colorScheme.tertiary,
-        colorScheme.secondary
+        colorScheme.secondary,
     ) {
         PromptHighlightColors(
             macroForeground = colorScheme.primary,
             macroBackground = colorScheme.primary.copy(alpha = 0.12f),
             tagForeground = colorScheme.tertiary,
             tagBackground = colorScheme.tertiary.copy(alpha = 0.10f),
-            sectionForeground = colorScheme.secondary
+            sectionForeground = colorScheme.secondary,
         )
     }
 }
@@ -122,10 +122,10 @@ class PromptMacroVisualTransformation(
                     style = SpanStyle(
                         color = mColors.tagForeground,
                         background = mColors.tagBackground,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     ),
                     start = match.range.first,
-                    end = match.range.last + 1
+                    end = match.range.last + 1,
                 )
             }
 
@@ -133,10 +133,10 @@ class PromptMacroVisualTransformation(
                 addStyle(
                     style = SpanStyle(
                         color = mColors.sectionForeground,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     ),
                     start = match.range.first,
-                    end = match.range.last + 1
+                    end = match.range.last + 1,
                 )
             }
 
@@ -146,10 +146,10 @@ class PromptMacroVisualTransformation(
                         color = mColors.macroForeground,
                         background = mColors.macroBackground,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
                     ),
                     start = match.range.first,
-                    end = match.range.last + 1
+                    end = match.range.last + 1,
                 )
             }
         }

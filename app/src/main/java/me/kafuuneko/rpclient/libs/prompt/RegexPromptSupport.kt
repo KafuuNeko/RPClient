@@ -9,11 +9,12 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
  * 中得到完全相同的 Regex 处理结果。
  */
 internal fun WorldBookActivationResult.mapEntryContent(
-    transform: (LorebookEntry) -> LorebookEntry
+    transform: (LorebookEntry) -> LorebookEntry,
 ): WorldBookActivationResult {
     val transformed = activatedEntries.associate { entry ->
         entry.id to transform(entry)
     }
+
     fun List<LorebookEntry>.mapped(): List<LorebookEntry> =
         map { transformed[it.id] ?: it }
 
@@ -28,6 +29,6 @@ internal fun WorldBookActivationResult.mapEntryContent(
         depthEntries = depthEntries.map { group ->
             group.copy(entries = group.entries.mapped().toMutableList())
         },
-        outletEntries = outletEntries.mapValues { (_, entries) -> entries.mapped() }
+        outletEntries = outletEntries.mapValues { (_, entries) -> entries.mapped() },
     )
 }

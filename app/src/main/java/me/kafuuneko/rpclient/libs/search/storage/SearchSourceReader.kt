@@ -14,9 +14,15 @@ internal suspend fun SearchSourceDao.readSearchText(source: SearchSource): Strin
         // SQLite substr 的偏移按码点计数，不能用 Kotlin UTF-16 长度推进。
         while (true) {
             currentCoroutineContext().ensureActive()
-            val part = contentPart(source.kind, source.sourceId, source.parentId, offset, CONTENT_PART_POINTS) ?: break
+            val part = contentPart(
+                source.kind,
+                source.sourceId,
+                source.parentId,
+                offset,
+                CONTENT_PART_POINTS
+            ) ?: break
             append(part)
-            val points = part.codePointCount(0, part.length)
+            val points = part.codePointCount(beginIndex = 0, endIndex = part.length)
             if (points < CONTENT_PART_POINTS) break
             offset += points
         }

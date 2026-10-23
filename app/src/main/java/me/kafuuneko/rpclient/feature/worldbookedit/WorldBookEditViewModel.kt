@@ -4,17 +4,16 @@ import android.os.Bundle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookBudgetMode
 import me.kafuuneko.rpclient.feature.worldbookedit.model.WorldBookEditForm
 import me.kafuuneko.rpclient.feature.worldbookedit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.worldbookedit.model.toComparableForm
-import me.kafuuneko.rpclient.feature.worldbookentryedit.WorldBookEntryEditActivity
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditDialogState
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditLoadState
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditMode
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEditUiState
 import me.kafuuneko.rpclient.feature.worldbookedit.presentation.withPersistedEntryDisabled
+import me.kafuuneko.rpclient.feature.worldbookentryedit.WorldBookEntryEditActivity
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -45,12 +44,13 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         WorldBookEditUiState.Normal(
             mode = if (intent.lorebookId == null) WorldBookEditMode.Create else WorldBookEditMode.Edit,
             form = WorldBookEditForm(),
-            loadState = WorldBookEditLoadState.Loading
+            loadState = WorldBookEditLoadState.Loading,
         ).setup()
         // 在 IO 线程拉取指定世界书及其所有条目
         val form = intent.lorebookId?.let { lorebookId ->
             withContext(Dispatchers.IO) {
-                val lorebook = mLorebookRepository.getLorebookById(lorebookId) ?: return@withContext null
+                val lorebook =
+                    mLorebookRepository.getLorebookById(lorebookId) ?: return@withContext null
                 val entries = mLorebookRepository.getEntriesByLorebookId(lorebookId)
                 WorldBookEditForm.from(lorebook, entries)
             }
@@ -58,7 +58,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         // 构建正常编辑态并记录初始对比基准
         WorldBookEditUiState.Normal(
             mode = if (form.isNew) WorldBookEditMode.Create else WorldBookEditMode.Edit,
-            form = form
+            form = form,
         ).setup()
     }
 
@@ -97,14 +97,14 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
                 tokenBudgetMode = intent.mode,
                 tokenBudgetInput = tokenBudgetInput.ifBlank {
                     DEFAULT_FIXED_TOKEN_BUDGET.toString()
-                }
+                },
             )
         }
 
     /** 修改固定模式下的 Token 预算数值（过滤非数字字符）。 */
     @UiIntentObserver(WorldBookEditUiIntent.ChangeTokenBudgetTokens::class)
     private fun onChangeTokenBudgetTokens(intent: WorldBookEditUiIntent.ChangeTokenBudgetTokens) {
-        updateForm { copy(tokenBudgetInput = intent.value.filter { it in '0'..'9' }) }
+        updateForm { copy(tokenBudgetInput = intent.value.filter { char -> char in '0'..'9' }) }
     }
 
     /** 更改条目搜索关键词并触发条目列表就地重构。 */
@@ -114,7 +114,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         uiState.copy(
             entryListState = uiState.entryListState
                 .copy(query = intent.value)
-                .rebuild(uiState.form.entries)
+                .rebuild(uiState.form.entries),
         ).setup()
     }
 
@@ -125,7 +125,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         uiState.copy(
             entryListState = uiState.entryListState
                 .copy(filter = intent.filter)
-                .rebuild(uiState.form.entries)
+                .rebuild(uiState.form.entries),
         ).setup()
     }
 
@@ -137,7 +137,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
             activity = WorldBookEntryEditActivity::class.java,
             extras = Bundle().apply {
                 putLong(WorldBookEntryEditActivity.EXTRA_LOREBOOK_ID, lorebookId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -150,7 +150,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
             extras = Bundle().apply {
                 putLong(WorldBookEntryEditActivity.EXTRA_LOREBOOK_ID, lorebookId)
                 putLong(WorldBookEntryEditActivity.EXTRA_ENTRY_ID, intent.entryId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -166,7 +166,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
             withContext(Dispatchers.IO) {
                 mLorebookRepository.updateEntryDisabled(intent.entryId, intent.disabled)
             }
-        }.getOrDefault(false)
+        }.getOrDefault(defaultValue = false)
         if (!persisted) {
             AppViewEvent.PopupToastMessageByResId(R.string.world_book_entry_update_failed).tryEmit()
             return
@@ -189,9 +189,8 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         }
         // 校验 Token 预算数值合法性
         if (form.resolvedTokenBudget == null) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.world_book_budget_tokens_helper
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.world_book_budget_tokens_helper)
+                .tryEmit()
             return
         }
         // 进入保存中状态并在 IO 线程执行持久化
@@ -201,7 +200,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         }
         // 弹出成功提示并结束页面
         AppViewEvent.PopupToastMessageByResId(
-            if (uiState.mode == WorldBookEditMode.Create) R.string.world_book_created else R.string.world_book_saved
+            message = if (uiState.mode == WorldBookEditMode.Create) R.string.world_book_created else R.string.world_book_saved,
         ).tryEmit()
         WorldBookEditUiState.finished(uiStateFlow.value).setup()
     }
@@ -214,11 +213,8 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
             WorldBookEditUiState.finished(uiStateFlow.value).setup()
             return
         }
-        uiState.copy(
-            dialogState = WorldBookEditDialogState.DeleteConfirm(
-                worldBookName = uiState.form.name
-            )
-        ).setup()
+        uiState.copy(dialogState = WorldBookEditDialogState.DeleteConfirm(worldBookName = uiState.form.name))
+            .setup()
     }
 
     /** 用户确认删除世界书，级联删除所有条目并结束页面。 */
@@ -228,7 +224,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         if (uiState.form.isNew) return
         uiState.copy(
             loadState = WorldBookEditLoadState.Deleting,
-            dialogState = WorldBookEditDialogState.None
+            dialogState = WorldBookEditDialogState.None,
         ).setup()
         withContext(Dispatchers.IO) {
             mLorebookRepository.deleteLorebook(uiState.form.id)
@@ -266,9 +262,8 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         }
         // 校验 Token 预算数值合法性
         if (uiState.form.resolvedTokenBudget == null) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.world_book_budget_tokens_helper
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.world_book_budget_tokens_helper)
+                .tryEmit()
             return null
         }
         // 持久化世界书实体并获取最新主键 ID
@@ -280,7 +275,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         uiState.copy(
             mode = WorldBookEditMode.Edit,
             form = latestForm,
-            initialForm = latestForm.toComparableForm()
+            initialForm = latestForm.toComparableForm(),
         ).setup()
         return lorebookId
     }
@@ -288,14 +283,15 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
     /** 重新拉取世界书最新数据及其条目列表，并重构搜索过滤结果。 */
     private suspend fun refreshEntries(uiState: WorldBookEditUiState.Normal) {
         val form = withContext(Dispatchers.IO) {
-            val lorebook = mLorebookRepository.getLorebookById(uiState.form.id) ?: return@withContext null
+            val lorebook =
+                mLorebookRepository.getLorebookById(uiState.form.id) ?: return@withContext null
             val entries = mLorebookRepository.getEntriesByLorebookId(uiState.form.id)
             WorldBookEditForm.from(lorebook, entries)
         } ?: return
         getOrNull<WorldBookEditUiState.Normal>()?.copy(
             form = form,
             initialForm = form,
-            entryListState = uiState.entryListState.rebuild(form.entries)
+            entryListState = uiState.entryListState.rebuild(form.entries),
         )?.setup()
     }
 

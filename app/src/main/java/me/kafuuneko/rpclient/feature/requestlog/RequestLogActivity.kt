@@ -35,7 +35,7 @@ class RequestLogActivity : CoreActivityWithEvent() {
 
         RequestLogLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

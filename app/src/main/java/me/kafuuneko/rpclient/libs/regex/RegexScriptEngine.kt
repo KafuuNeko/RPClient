@@ -11,7 +11,7 @@ class RegexScriptEngine {
     fun execute(
         input: String,
         scripts: List<ScopedRegexScript>,
-        context: RegexExecutionContext
+        context: RegexExecutionContext,
     ): RegexExecutionResult {
         if (input.isEmpty()) return RegexExecutionResult(input)
         var output = input
@@ -20,8 +20,8 @@ class RegexScriptEngine {
 
         // 按作用域优先级（全局优先、角色次之）及自定义序号排序
         scripts.sortedWith(
-            compareBy<ScopedRegexScript> { it.scope.priority() }
-                .thenBy { it.order }
+            comparator = compareBy<ScopedRegexScript> { it.scope.priority() }
+                .thenBy { it.order },
         ).forEach { scoped ->
             val script = scoped.script
             // 校验当前脚本是否满足启停状态、Placement、编辑标记及深度限制
@@ -42,19 +42,19 @@ class RegexScriptEngine {
                         ownerName = scoped.ownerName,
                         placement = context.placement,
                         mode = context.mode,
-                        changed = application.text != before
+                        changed = application.text != before,
                     )
                 }
             }.onFailure { throwable ->
                 // 捕获语法或替换异常，隔离错误以确保后续脚本继续执行
                 errors += RegexExecutionError(
                     scriptId = script.id,
-                    scriptName = script.scriptName
+                    scriptName = script.scriptName,
                 )
             }
         }
 
-        return RegexExecutionResult(output, hits, errors)
+        return RegexExecutionResult(text = output, hits = hits, errors = errors)
     }
 
     /** 仅编译 Find Regex，用于编辑器即时校验而不修改任何文本。 */
@@ -84,13 +84,13 @@ class RegexScriptEngine {
     private fun applyScript(
         input: String,
         script: RegexScript,
-        macros: Map<String, String>
+        macros: Map<String, String>,
     ): ScriptApplication {
         val compiled = compile(script, macros)
-        val firstMatch = compiled.regex.find(input)
-            ?: return ScriptApplication(input, matched = false)
+        val firstMatch =
+            compiled.regex.find(input) ?: return ScriptApplication(text = input, matched = false)
         if (compiled.sticky && firstMatch.range.first != 0) {
-            return ScriptApplication(input, matched = false)
+            return ScriptApplication(text = input, matched = false)
         }
         val transform: (MatchResult) -> CharSequence = { match ->
             buildReplacement(script, match, macros)
@@ -102,7 +102,7 @@ class RegexScriptEngine {
         } else {
             input.replaceRange(firstMatch.range, transform(firstMatch))
         }
-        return ScriptApplication(output, matched = true)
+        return ScriptApplication(text = output, matched = true)
     }
 
     /**
@@ -113,7 +113,7 @@ class RegexScriptEngine {
     private fun replaceSticky(
         input: String,
         regex: Regex,
-        transform: (MatchResult) -> CharSequence
+        transform: (MatchResult) -> CharSequence,
     ): String = buildString {
         var cursor = 0
         while (cursor <= input.length) {
@@ -136,18 +136,22 @@ class RegexScriptEngine {
     /** 按 Find Regex 宏模式展开表达式并生成 Kotlin Regex。 */
     private fun compile(
         script: RegexScript,
-        macros: Map<String, String>
+        macros: Map<String, String>,
     ): CompiledRegex {
         val find = when (RegexFindMacroMode.fromValue(script.substituteRegex)) {
             RegexFindMacroMode.Disabled -> script.findRegex
             RegexFindMacroMode.Raw -> resolveMacros(script.findRegex, macros)
-            RegexFindMacroMode.Escaped -> resolveMacros(script.findRegex, macros, ::escapeRegexMacro)
+            RegexFindMacroMode.Escaped -> resolveMacros(
+                script.findRegex,
+                macros,
+                ::escapeRegexMacro
+            )
         }
         val parsed = parseRegex(find)
         return CompiledRegex(
             regex = JavaScriptRegexCompiler.compile(parsed.pattern, parsed.flags),
             global = 'g' in parsed.flags,
-            sticky = 'y' in parsed.flags
+            sticky = 'y' in parsed.flags,
         )
     }
 
@@ -158,13 +162,15 @@ class RegexScriptEngine {
         }
         val delimiter = value.lastUnescapedSlash()
         require(delimiter > 0) { "Find Regex must use /pattern/flags syntax" }
-        val pattern = value.substring(1, delimiter).replace("\\/", "/")
+        val pattern = value.substring(startIndex = 1, endIndex = delimiter).replace("\\/", "/")
         val flags = value.substring(delimiter + 1).toSet()
         require(flags.size == value.substring(delimiter + 1).length) {
             "Regex flags cannot be duplicated"
         }
         require(flags.all { it in SUPPORTED_FLAGS }) {
-            "Unsupported regex flags: ${flags.filterNot { it in SUPPORTED_FLAGS }.joinToString("")}"
+            val unsupportedFlags =
+                flags.filterNot { char -> char in SUPPORTED_FLAGS }.joinToString("")
+            "Unsupported regex flags: $unsupportedFlags"
         }
         return ParsedRegex(pattern, flags)
     }
@@ -173,7 +179,7 @@ class RegexScriptEngine {
     private fun buildReplacement(
         script: RegexScript,
         match: MatchResult,
-        macros: Map<String, String>
+        macros: Map<String, String>,
     ): String {
         val normalized = MATCH_MACRO.replace(script.replaceString) { "\$0" }
         val withGroups = GROUP_REFERENCE.replace(normalized) { reference ->
@@ -186,6 +192,7 @@ class RegexScriptEngine {
                         null
                     }
                 }
+
                 else -> runCatching {
                     match.groups[reference.groupValues[2]]?.value
                 }.getOrNull()
@@ -201,11 +208,11 @@ class RegexScriptEngine {
     private fun resolveMacros(
         text: String,
         macros: Map<String, String>,
-        transform: (String) -> String = { it }
+        transform: (String) -> String = { it },
     ): String {
         return MACRO.replace(text) { match ->
             val key = match.groupValues[1].lowercase()
-            macros.entries.firstOrNull { it.key.lowercase() == key }
+            macros.entries.firstOrNull { entry -> entry.key.lowercase() == key }
                 ?.value
                 ?.let(transform)
                 ?: match.value
@@ -226,8 +233,9 @@ class RegexScriptEngine {
                         '\u0000' -> "\\0"
                         '.', '^', '$', '*', '+', '?', '{', '}', '[', ']', '\\', '/', '|', '(', ')' ->
                             "\\$character"
+
                         else -> character
-                    }
+                    },
                 )
             }
         }

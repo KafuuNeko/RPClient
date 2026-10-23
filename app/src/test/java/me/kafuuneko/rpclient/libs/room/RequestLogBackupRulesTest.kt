@@ -22,8 +22,20 @@ class RequestLogBackupRulesTest {
         val cloud = root.getElementsByTagName("cloud-backup").item(0) as Element
         val transfer = root.getElementsByTagName("device-transfer").item(0) as Element
 
-        assertEquals(ExpectedPaths, cloud.getElementsByTagName("exclude").asElements().databasePaths())
-        assertEquals(ExpectedPaths, transfer.getElementsByTagName("exclude").asElements().databasePaths())
+        assertEquals(
+            ExpectedPaths,
+            cloud
+                .getElementsByTagName("exclude")
+                .asElements()
+                .databasePaths(),
+        )
+        assertEquals(
+            ExpectedPaths,
+            transfer
+                .getElementsByTagName("exclude")
+                .asElements()
+                .databasePaths(),
+        )
         assertTrue(root.getElementsByTagName("include").length == 0)
     }
 
@@ -31,11 +43,14 @@ class RequestLogBackupRulesTest {
         val workingDirectory = File(requireNotNull(System.getProperty("user.dir")))
         val candidates = listOf(
             workingDirectory.resolve("src/main/res/xml/$name"),
-            workingDirectory.resolve("app/src/main/res/xml/$name")
+            workingDirectory.resolve("app/src/main/res/xml/$name"),
         )
         val source = candidates.firstOrNull(File::isFile)
             ?: error("Cannot locate $name from $workingDirectory")
-        return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(source).documentElement
+        return DocumentBuilderFactory.newInstance()
+            .newDocumentBuilder()
+            .parse(source)
+            .documentElement
     }
 
     private fun org.w3c.dom.NodeList.asElements(): List<Element> {
@@ -44,8 +59,15 @@ class RequestLogBackupRulesTest {
 
     private fun List<Element>.databasePaths(): Set<String> {
         val temporary = filter { it.getAttribute("domain") == "root" }
-        assertEquals(setOf("app_repository/staging/"), temporary.map { it.getAttribute("path") }.toSet())
-        return filter { it.getAttribute("domain") == "database" }.mapTo(mutableSetOf()) { it.getAttribute("path") }
+        assertEquals(
+            setOf("app_repository/staging/"),
+            temporary.map { it.getAttribute("path") }.toSet()
+        )
+        return filter { it.getAttribute("domain") == "database" }.mapTo(mutableSetOf()) {
+            it.getAttribute(
+                "path"
+            )
+        }
     }
 
     private companion object {
@@ -53,7 +75,7 @@ class RequestLogBackupRulesTest {
             "request_logs.sqlite",
             "request_logs.sqlite-journal",
             "request_logs.sqlite-shm",
-            "request_logs.sqlite-wal"
+            "request_logs.sqlite-wal",
         )
     }
 }

@@ -87,14 +87,14 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 .selectCharacter(
                     characterId = selectedCharacter?.id,
                     hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
-                    linkedLorebookEntryIds = selectedLorebookEntryIds
+                    linkedLorebookEntryIds = selectedLorebookEntryIds,
                 ),
             characters = data.first.map { character ->
                 character.toChatCreateCharacterItem(userName)
             },
             selectedCharacterFirstMessages = selectedCharacterFirstMessages,
             lorebookGroups = data.second,
-            visibleLorebookGroups = data.second
+            visibleLorebookGroups = data.second,
         ).setup()
     }
 
@@ -108,14 +108,20 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         mCharacterSearchJob = viewModelScope.launch {
             val visibleIds = withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
-                uiState.characters.filter {
+                uiState.characters.filter { chatCreateCharacterItem ->
                     context.ensureActive()
-                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
-                }.mapTo(HashSet()) { it.id }
+                    matchesCharacterQuery(
+                        name = chatCreateCharacterItem.name,
+                        description = chatCreateCharacterItem.description,
+                        tags = chatCreateCharacterItem.tags,
+                        query = intent.value,
+                    )
+                }.mapTo(HashSet()) { chatCreateCharacterItem -> chatCreateCharacterItem.id }
             }
             val current = getOrNull<ChatCreateUiState.Normal>() ?: return@launch
             if (current.characterQuery == intent.value) {
-                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+                current.copy(visibleCharacters = current.characters.filter { chatCreateCharacterItem -> chatCreateCharacterItem.id in visibleIds })
+                    .setup()
             }
         }
     }
@@ -148,9 +154,9 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 characterId = character.id,
                 hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
                 previousLinkedLorebookEntryIds = previousLinkedLorebookEntryIds,
-                linkedLorebookEntryIds = character.defaultLorebookEntryIds(uiState.lorebookGroups)
+                linkedLorebookEntryIds = character.defaultLorebookEntryIds(uiState.lorebookGroups),
             ),
-            selectedCharacterFirstMessages = selectedCharacterFirstMessages
+            selectedCharacterFirstMessages = selectedCharacterFirstMessages,
         ).setup()
     }
 
@@ -182,7 +188,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         uiState.copy(
             lorebookQuery = intent.value,
-            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value)
+            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value),
         ).setup()
     }
 
@@ -190,12 +196,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: ChatCreateUiIntent.ToggleLorebookEntry) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
-        if (uiState.lorebookGroups.none { group -> group.entries.any { it.id == intent.entryId } }) return
+        if (uiState.lorebookGroups.none { group -> group.entries.any { chatCreateLorebookEntryItem -> chatCreateLorebookEntryItem.id == intent.entryId } }) return
         val selectedIds = uiState.form.selectedLorebookEntryIds
         updateForm {
-            copy(
-                selectedLorebookEntryIds = selectedIds.toggle(intent.entryId)
-            )
+            copy(selectedLorebookEntryIds = selectedIds.toggle(intent.entryId))
         }
     }
 
@@ -203,14 +207,13 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: ChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
-        val group = uiState.lorebookGroups.firstOrNull { it.lorebookId == intent.lorebookId } ?: return
+        val group =
+            uiState.lorebookGroups.firstOrNull { it.lorebookId == intent.lorebookId } ?: return
         val entryIds = group.entries.map { it.id }.toSet()
         if (entryIds.isEmpty()) return
         val selectedIds = uiState.form.selectedLorebookEntryIds
         updateForm {
-            copy(
-                selectedLorebookEntryIds = selectedIds.toggleAll(entryIds)
-            )
+            copy(selectedLorebookEntryIds = selectedIds.toggleAll(entryIds))
         }
     }
 
@@ -249,7 +252,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 userNote = uiState.form.userNote.trim(),
                 userName = userName,
                 userDescription = userDescription,
-                creatorNotes = null
+                creatorNotes = null,
             )
             val context = PromptBuildContext(
                 userName = userName,
@@ -262,7 +265,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 candidateLorebookEntries = emptyList(),
                 provider = mProviderSelectionResolver.getCharacterProviderOrNull(character),
                 maxContextTokens = 0,
-                maxResponseTokens = 0
+                maxResponseTokens = 0,
             )
             mMacroResolver.resolve(rawFirstMessage, context)
         }
@@ -277,7 +280,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 userDescription = userDescription,
                 lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
                 firstMessageContent = firstMessageContent,
-                createTime = createTime
+                createTime = createTime,
             )
         }
         // 导航至聊天页并等待返回
@@ -285,7 +288,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             activity = ChatActivity::class.java,
             extras = Bundle().apply {
                 putString(ChatActivity.EXTRA_SESSION_ID, sessionId.toString())
-            }
+            },
         ).emitAndAwait()
         ChatCreateUiState.finished(uiStateFlow.value).setup()
     }
@@ -304,7 +307,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
 
     /** 解析当前开场白选择；若角色提供开场白但用户未选则给出 Toast 提示。 */
     private fun ChatCreateUiState.Normal.resolveFirstMessageSelection(): FirstMessageSelection? {
-        if (selectedCharacterFirstMessages.isEmpty()) return FirstMessageSelection(null)
+        if (selectedCharacterFirstMessages.isEmpty()) return FirstMessageSelection(value = null)
         val selectedIndex = form.selectedFirstMessageIndex
         if (selectedIndex == null || selectedIndex !in selectedCharacterFirstMessages.indices) {
             AppViewEvent.PopupToastMessageByResId(R.string.first_message_required).tryEmit()

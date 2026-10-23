@@ -14,7 +14,7 @@ class CharacterCardMapperTest {
     @Test
     fun localBackgroundIsNotExportedOrImported() {
         val imported = mapper.parseCharacter(
-            """{"spec":"chara_card_v2","data":{"name":"Iris","backgroundFileUuid":"external-local-id"}}"""
+            json = """{"spec":"chara_card_v2","data":{"name":"Iris","backgroundFileUuid":"external-local-id"}}""",
         ).character
         assertEquals(null, imported.backgroundFileUuid)
         val exported = mapper.toV2Json(imported.copy(backgroundFileUuid = "local-only-background"))
@@ -26,16 +26,15 @@ class CharacterCardMapperTest {
     @Test
     fun localProviderAssociationIsNotExportedOrImported() {
         val imported = mapper.parseCharacter(
-            """
+            json = """
             {
               "spec": "chara_card_v2",
               "data": {"name": "Iris", "llmProviderId": 99}
             }
-            """.trimIndent()
+            """.trimIndent(),
         ).character
-        val exported = JsonParser.parseString(
-            mapper.toV2Json(imported)
-        ).asJsonObject.getAsJsonObject("data")
+        val exported =
+            JsonParser.parseString(mapper.toV2Json(imported)).asJsonObject.getAsJsonObject("data")
 
         assertEquals("Iris", imported.name)
         assertEquals(false, exported.has("llmProviderId"))
@@ -44,7 +43,7 @@ class CharacterCardMapperTest {
     @Test
     fun characterBookWithoutBudgetFollowsGlobal() {
         val parsed = mapper.parseCharacter(
-            """
+            json = """
             {
               "spec": "chara_card_v2",
               "data": {
@@ -55,7 +54,7 @@ class CharacterCardMapperTest {
                 }
               }
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
 
         assertEquals(0, parsed.embeddedLorebook?.lorebook?.tokenBudget)
@@ -146,25 +145,28 @@ class CharacterCardMapperTest {
         assertEquals(80, entry.probability)
         assertEquals(true, entry.useGroupScoring)
         assertEquals(25, parsed.embeddedLorebook.lorebook.tokenBudget)
-        assertEquals(true, JsonParser.parseString(parsed.character.extensionsJson).asJsonObject.has("third_party"))
+        assertEquals(
+            true,
+            JsonParser.parseString(parsed.character.extensionsJson).asJsonObject.has("third_party")
+        )
         assertEquals(
             false,
             JsonParser.parseString(parsed.character.extensionsJson)
                 .asJsonObject
-                .has("regex_scripts")
+                .has("regex_scripts"),
         )
         assertEquals(
             "Hide metadata",
-            parsed.regexScripts.single().scriptName
+            parsed.regexScripts.single().scriptName,
         )
 
         val exported = JsonParser.parseString(
             mapper.toV2Json(
-                parsed.character,
-                parsed.embeddedLorebook.lorebook,
-                parsed.embeddedLorebook.entries,
-                parsed.regexScripts
-            )
+                character = parsed.character,
+                lorebook = parsed.embeddedLorebook.lorebook,
+                entries = parsed.embeddedLorebook.entries,
+                regexScripts = parsed.regexScripts,
+            ),
         ).asJsonObject
         val data = exported.getAsJsonObject("data")
 
@@ -176,12 +178,18 @@ class CharacterCardMapperTest {
                 .getAsJsonArray("regex_scripts")[0]
                 .asJsonObject
                 .get("findRegex")
-                .asString
+                .asString,
         )
-        assertEquals(true, data.getAsJsonObject("character_book").getAsJsonArray("entries").size() == 1)
+        assertEquals(
+            true,
+            data
+                .getAsJsonObject("character_book")
+                .getAsJsonArray("entries")
+                .size() == 1,
+        )
         assertEquals(
             25,
-            data.getAsJsonObject("character_book").get("token_budget").asInt
+            data.getAsJsonObject("character_book").get("token_budget").asInt,
         )
         assertEquals(
             true,
@@ -190,7 +198,7 @@ class CharacterCardMapperTest {
                 .asJsonObject
                 .getAsJsonObject("extensions")
                 .get("use_group_scoring")
-                .asBoolean
+                .asBoolean,
         )
     }
 
@@ -237,14 +245,73 @@ class CharacterCardMapperTest {
 
     private companion object {
         val OnePixelPng = byteArrayOf(
-            0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-            0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4.toByte(), 0x89.toByte(),
-            0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54,
-            0x78, 0x9C.toByte(), 0x63, 0x00, 0x01, 0x00, 0x00, 0x05,
-            0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4.toByte(), 0x00, 0x00,
-            0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE.toByte(), 0x42, 0x60, 0x82.toByte()
+            0x89.toByte(),
+            0x50,
+            0x4E,
+            0x47,
+            0x0D,
+            0x0A,
+            0x1A,
+            0x0A,
+            0x00,
+            0x00,
+            0x00,
+            0x0D,
+            0x49,
+            0x48,
+            0x44,
+            0x52,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x08,
+            0x06,
+            0x00,
+            0x00,
+            0x00,
+            0x1F,
+            0x15,
+            0xC4.toByte(),
+            0x89.toByte(),
+            0x00,
+            0x00,
+            0x00,
+            0x0A,
+            0x49,
+            0x44,
+            0x41,
+            0x54,
+            0x78,
+            0x9C.toByte(),
+            0x63,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x05,
+            0x00,
+            0x01,
+            0x0D,
+            0x0A,
+            0x2D,
+            0xB4.toByte(),
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x49,
+            0x45,
+            0x4E,
+            0x44,
+            0xAE.toByte(),
+            0x42,
+            0x60,
+            0x82.toByte(),
         )
     }
 }

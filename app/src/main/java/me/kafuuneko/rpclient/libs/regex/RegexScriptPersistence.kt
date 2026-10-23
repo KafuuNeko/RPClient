@@ -9,7 +9,7 @@ import java.util.UUID
 internal fun RegexScript.toEntity(
     characterId: Long?,
     sortOrder: Int,
-    gson: Gson
+    gson: Gson,
 ): RegexScriptEntity {
     return RegexScriptEntity(
         characterId = characterId,
@@ -27,7 +27,7 @@ internal fun RegexScript.toEntity(
         substituteRegex = substituteRegex,
         minDepth = minDepth,
         maxDepth = maxDepth,
-        rawJson = rawJson
+        rawJson = rawJson,
     )
 }
 
@@ -47,7 +47,7 @@ internal fun RegexScriptEntity.toDomain(): RegexScript {
         substituteRegex = substituteRegex,
         minDepth = minDepth,
         maxDepth = maxDepth,
-        rawJson = rawJson
+        rawJson = rawJson,
     )
 }
 
@@ -58,7 +58,7 @@ internal fun RegexScriptEntity.toDomain(): RegexScript {
  */
 internal fun List<RegexScript>.normalizeRegexScriptIds(
     reservedIds: MutableSet<String> = mutableSetOf(),
-    createId: () -> String = { UUID.randomUUID().toString() }
+    createId: () -> String = { UUID.randomUUID().toString() },
 ): List<RegexScript> {
     return map { script ->
         if (script.id.isBlank() || !reservedIds.add(script.id)) {
@@ -76,7 +76,7 @@ internal fun List<RegexScript>.normalizeRegexScriptIds(
 private fun String.parseStringList(): List<String> {
     return runCatching {
         JsonParser.parseString(this).asJsonArray.mapNotNull { element ->
-            element.takeIf { !it.isJsonNull }?.asString
+            element.takeIf { element -> !element.isJsonNull }?.asString
         }
     }.getOrDefault(emptyList())
 }
@@ -84,7 +84,7 @@ private fun String.parseStringList(): List<String> {
 private fun String.parseIntList(): List<Int> {
     return runCatching {
         JsonParser.parseString(this).asJsonArray.mapNotNull { element ->
-            runCatching { element.takeIf { !it.isJsonNull }?.asInt }.getOrNull()
+            runCatching { element.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull()
         }
     }.getOrDefault(emptyList())
 }

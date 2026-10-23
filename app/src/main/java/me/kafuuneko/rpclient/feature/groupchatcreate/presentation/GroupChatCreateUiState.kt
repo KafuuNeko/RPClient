@@ -59,6 +59,8 @@ sealed class GroupChatCreateUiState {
 /** 新建群聊页面的数据加载与创建状态。 */
 sealed class GroupChatCreateLoadState {
     data object None : GroupChatCreateLoadState()
+
     data object Loading : GroupChatCreateLoadState()
+
     data object Creating : GroupChatCreateLoadState()
 }

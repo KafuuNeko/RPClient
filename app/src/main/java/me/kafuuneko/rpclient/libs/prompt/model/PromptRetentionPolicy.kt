@@ -4,8 +4,10 @@ package me.kafuuneko.rpclient.libs.prompt.model
 internal object PromptRetentionPolicy {
     /** 普通示例对话（Example Dialogue）的保留优先级（低于聊天历史）。 */
     const val EXAMPLE = 10
+
     /** 聊天历史消息（Chat History）的标准保留优先级。 */
     const val HISTORY = 100
+
     /** 固定置顶示例对话（Pinned Example）的保留优先级（高于聊天历史）。 */
     const val PINNED_EXAMPLE = 200
 

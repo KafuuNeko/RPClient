@@ -38,7 +38,7 @@ fun AppConfirmDialog(
     stackButtons: Boolean? = null,
     onConfirm: () -> Unit,
     properties: DialogProperties = DialogProperties(),
-    content: @Composable ColumnScope.() -> Unit = {}
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
     AppDialogScaffold(
         modifier = modifier,
@@ -55,7 +55,7 @@ fun AppConfirmDialog(
         stackButtons = stackButtons,
         onConfirm = onConfirm,
         properties = properties,
-        content = content
+        content = content,
     )
 }
 
@@ -77,7 +77,7 @@ fun AppDangerDialog(
     isConfirmLoading: Boolean = false,
     stackButtons: Boolean? = null,
     onConfirm: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit = {}
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
     AppConfirmDialog(
         modifier = modifier,
@@ -93,7 +93,7 @@ fun AppDangerDialog(
         confirmIsDestructive = true,
         stackButtons = stackButtons,
         onConfirm = onConfirm,
-        content = content
+        content = content,
     )
 }
 
@@ -113,7 +113,7 @@ fun AppWarningDialog(
     isConfirmLoading: Boolean = false,
     stackButtons: Boolean? = null,
     onConfirm: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit = {}
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
     AppConfirmDialog(
         modifier = modifier,
@@ -129,7 +129,7 @@ fun AppWarningDialog(
         confirmIsDestructive = false,
         stackButtons = stackButtons,
         onConfirm = onConfirm,
-        content = content
+        content = content,
     )
 }
 
@@ -141,7 +141,7 @@ private fun AppConfirmDialogPreview() {
             onDismissRequest = {},
             title = "同步云端预设",
             message = "是否确认下载并覆盖当前本地同名预设？",
-            onConfirm = {}
+            onConfirm = {},
         )
     }
 }
@@ -155,7 +155,7 @@ private fun AppDangerDialogPreview() {
                 onDismissRequest = {},
                 title = "删除世界书词条",
                 message = "确定要删除词条「艾尔登法环」吗？此操作无法撤销。",
-                onConfirm = {}
+                onConfirm = {},
             )
         }
     }

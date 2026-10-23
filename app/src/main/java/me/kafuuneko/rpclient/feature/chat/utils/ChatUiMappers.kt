@@ -22,7 +22,7 @@ fun ChatSession.toChatSessionItem(
     summary: String,
     creatorNotes: String,
     messageCount: Int,
-    enabledIds: Set<Long>
+    enabledIds: Set<Long>,
 ): ChatSessionItem {
     return ChatSessionItem(
         id = id,
@@ -34,14 +34,14 @@ fun ChatSession.toChatSessionItem(
         creatorNotes = creatorNotes,
         autoSummaryPaused = autoSummaryPaused,
         messageCount = messageCount,
-        enabledLorebookEntryIds = enabledIds
+        enabledLorebookEntryIds = enabledIds,
     )
 }
 
 /** 将角色实体转换为聊天页展示模型。 */
 fun Character.toChatCharacterItem(
     userName: String,
-    avatarImage: ImageBitmap? = null
+    avatarImage: ImageBitmap? = null,
 ): ChatCharacterItem {
     return ChatCharacterItem(
         id = id,
@@ -49,7 +49,7 @@ fun Character.toChatCharacterItem(
         description = resolveCharacterUserMacros(
             template = description,
             characterName = name,
-            userName = userName
+            userName = userName,
         ),
         personality = personality,
         scenario = scenario,
@@ -58,7 +58,7 @@ fun Character.toChatCharacterItem(
         creatorNotes = creatorNotes,
         avatarText = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?",
         accentColor = DefaultCharacterAccentColor,
-        avatarImage = avatarImage
+        avatarImage = avatarImage,
     )
 }
 
@@ -67,7 +67,7 @@ fun List<ChatMessage>.toChatMessageItems(
     characterName: String,
     userName: String,
     systemSpeaker: String,
-    streamingMessageId: Long?
+    streamingMessageId: Long?,
 ): List<ChatMessageUiModel> {
     return map { message ->
         val role = when (message.source) {
@@ -89,7 +89,7 @@ fun List<ChatMessage>.toChatMessageItems(
             parts = message.content.toMessageContentParts(message.id.toString()),
             time = message.createTime.formatTimestamp("HH:mm"),
             tokenCount = (message.content.length / 3).coerceAtLeast(1),
-            isStreaming = message.id == streamingMessageId
+            isStreaming = message.id == streamingMessageId,
         )
     }
 }
@@ -97,16 +97,16 @@ fun List<ChatMessage>.toChatMessageItems(
 /** 按世界书分组构造聊天设置页的条目选择模型。 */
 fun ChatLorebookEntryData.toChatLorebookGroupItems(
     enabledIds: Set<Long>,
-    unknownLorebookName: String
+    unknownLorebookName: String,
 ): List<ChatLorebookGroupItem> {
     return entries.groupBy { it.lorebookId }
         .toList()
-        .sortedWith(compareBy<Pair<Long, List<LorebookEntry>>> { lorebooks[it.first]?.name.orEmpty() }.thenBy { it.first })
+        .sortedWith(comparator = compareBy<Pair<Long, List<LorebookEntry>>> { lorebooks[it.first]?.name.orEmpty() }.thenBy { it.first })
         .map { (lorebookId, entries) ->
             val lorebookName = lorebooks[lorebookId]?.name.orEmpty().ifBlank {
                 unknownLorebookName
             }
-            val entryItems = entries.sortedBy { it.order }.map { entry ->
+            val entryItems = entries.sortedBy { entry -> entry.order }.map { entry ->
                 ChatLorebookEntryItem(
                     id = entry.id,
                     lorebookId = entry.lorebookId,
@@ -118,15 +118,15 @@ fun ChatLorebookEntryData.toChatLorebookGroupItems(
                     order = entry.order,
                     depth = entry.depth,
                     content = entry.content,
-                    enabled = entry.id in enabledIds
+                    enabled = entry.id in enabledIds,
                 )
             }
             ChatLorebookGroupItem(
                 lorebookId = lorebookId,
                 lorebookName = lorebookName,
-                enabledCount = entryItems.count { it.enabled },
+                enabledCount = entryItems.count { chatLorebookEntryItem -> chatLorebookEntryItem.enabled },
                 totalCount = entryItems.size,
-                entries = entryItems
+                entries = entryItems,
             )
         }
 }
@@ -134,18 +134,18 @@ fun ChatLorebookEntryData.toChatLorebookGroupItems(
 /** 用尚未落库的流式文本替换对应消息的展示内容。 */
 fun List<ChatMessageUiModel>.replaceStreamingMessage(
     messageId: Long?,
-    content: String
+    content: String,
 ): List<ChatMessageUiModel> {
     if (messageId == null) return this
-    return map {
-        if (it.id == messageId.toString()) {
-            it.copy(
+    return map { chatMessageUiModel ->
+        if (chatMessageUiModel.id == messageId.toString()) {
+            chatMessageUiModel.copy(
                 content = content,
-                parts = content.toMessageContentParts(it.id),
-                isStreaming = true
+                parts = content.toMessageContentParts(chatMessageUiModel.id),
+                isStreaming = true,
             )
         } else {
-            it
+            chatMessageUiModel
         }
     }
 }

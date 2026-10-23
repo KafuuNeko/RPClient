@@ -61,14 +61,12 @@ class GroupChatCreateViewModel :
     @UiIntentObserver(GroupChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<GroupChatCreateUiState.None>()) return
-        GroupChatCreateUiState.Normal(
-            loadState = GroupChatCreateLoadState.Loading
-        ).setup()
+        GroupChatCreateUiState.Normal(loadState = GroupChatCreateLoadState.Loading).setup()
         val userName = AppModel.resolvedUserName
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
-            val characters = mCharacterRepository.getAllCharacters().map {
-                it.toGroupChatCreateCharacterItem(userName)
+            val characters = mCharacterRepository.getAllCharacters().map { character ->
+                character.toGroupChatCreateCharacterItem(userName)
             }
             val lorebookGroups = mLorebookRepository.getAllLorebooksWithEntries()
                 .toGroupChatCreateLorebookGroups()
@@ -79,7 +77,7 @@ class GroupChatCreateViewModel :
             characters = data.first,
             visibleCharacters = data.first,
             lorebookGroups = data.second,
-            visibleLorebookGroups = data.second
+            visibleLorebookGroups = data.second,
         ).setup()
     }
 
@@ -107,14 +105,21 @@ class GroupChatCreateViewModel :
         mCharacterSearchJob = viewModelScope.launch {
             val visibleIds = withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
-                uiState.characters.filter {
+                uiState.characters.filter { groupChatCreateCharacterItem ->
                     context.ensureActive()
-                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
-                }.mapTo(HashSet()) { it.id }
+                    matchesCharacterQuery(
+                        name = groupChatCreateCharacterItem.name,
+                        description = groupChatCreateCharacterItem.description,
+                        tags = groupChatCreateCharacterItem.tags,
+                        query = intent.value,
+                    )
+                }
+                    .mapTo(HashSet()) { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.id }
             }
             val current = getOrNull<GroupChatCreateUiState.Normal>() ?: return@launch
             if (current.searchQuery == intent.value) {
-                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+                current.copy(visibleCharacters = current.characters.filter { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.id in visibleIds })
+                    .setup()
             }
         }
     }
@@ -125,7 +130,7 @@ class GroupChatCreateViewModel :
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(
             lorebookQuery = intent.value,
-            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value)
+            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value),
         ).setup()
     }
 
@@ -138,8 +143,10 @@ class GroupChatCreateViewModel :
     private fun onToggleCharacter(intent: GroupChatCreateUiIntent.ToggleCharacter) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         // 切换目标角色选中态
-        val characters = uiState.characters.map {
-            if (it.id == intent.characterId) it.copy(selected = !it.selected) else it
+        val characters = uiState.characters.map { groupChatCreateCharacterItem ->
+            if (groupChatCreateCharacterItem.id == intent.characterId) groupChatCreateCharacterItem.copy(
+                selected = !groupChatCreateCharacterItem.selected
+            ) else groupChatCreateCharacterItem
         }
         val selectedCharacter = characters.firstOrNull { it.id == intent.characterId }
         // 提取角色专属绑定的世界书条目
@@ -149,9 +156,9 @@ class GroupChatCreateViewModel :
             ?.takeIf { it > 0L }
             ?.let { lorebookId ->
                 uiState.lorebookGroups
-                    .firstOrNull { it.lorebookId == lorebookId }
+                    .firstOrNull { groupChatLorebookGroupItem -> groupChatLorebookGroupItem.lorebookId == lorebookId }
                     ?.entries
-                    ?.mapTo(mutableSetOf()) { it.id }
+                    ?.mapTo(mutableSetOf()) { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.id }
             }
             .orEmpty()
         val selectedEntryIds = uiState.selectedLorebookEntryIds + defaultEntryIds
@@ -163,7 +170,7 @@ class GroupChatCreateViewModel :
             selectedLorebookEntryIds = selectedEntryIds,
             lorebookGroups = lorebookGroups,
             visibleLorebookGroups = lorebookGroups.filterForQuery(uiState.lorebookQuery),
-            greetingState = uiState.greetingState.reconcile(characters)
+            greetingState = uiState.greetingState.reconcile(characters),
         ).setup()
     }
 
@@ -177,7 +184,7 @@ class GroupChatCreateViewModel :
     /** 切换是否允许同一个角色连续发言。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleAllowSelfResponses::class)
     private fun onToggleAllowSelfResponses(
-        intent: GroupChatCreateUiIntent.ToggleAllowSelfResponses
+        intent: GroupChatCreateUiIntent.ToggleAllowSelfResponses,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(allowSelfResponses = intent.enabled).setup()
@@ -186,28 +193,28 @@ class GroupChatCreateViewModel :
     /** 选择群聊开场白模式。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingMode::class)
     private fun onSelectGreetingMode(
-        intent: GroupChatCreateUiIntent.SelectGreetingMode
+        intent: GroupChatCreateUiIntent.SelectGreetingMode,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(
             greetingState = uiState.greetingState
                 .copy(mode = intent.mode)
-                .reconcile(uiState.characters)
+                .reconcile(uiState.characters),
         ).setup()
     }
 
     /** 选择指定发言的开场白角色。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectGreetingCharacter::class)
     private fun onSelectGreetingCharacter(
-        intent: GroupChatCreateUiIntent.SelectGreetingCharacter
+        intent: GroupChatCreateUiIntent.SelectGreetingCharacter,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         if (uiState.greetingState.characters.none { it.id == intent.characterId }) return
         uiState.copy(
             greetingState = uiState.greetingState.copy(
                 selectedCharacterId = intent.characterId,
-                selectedGreetingIndex = 0
-            )
+                selectedGreetingIndex = 0,
+            ),
         ).setup()
     }
 
@@ -217,22 +224,18 @@ class GroupChatCreateViewModel :
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         val greetings = uiState.greetingState.selectedCharacter?.greetings.orEmpty()
         if (intent.greetingIndex !in greetings.indices) return
-        uiState.copy(
-            greetingState = uiState.greetingState.copy(
-                selectedGreetingIndex = intent.greetingIndex
-            )
-        ).setup()
+        uiState.copy(greetingState = uiState.greetingState.copy(selectedGreetingIndex = intent.greetingIndex))
+            .setup()
     }
 
     /** 修改自定义开场白文本内容。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeCustomGreeting::class)
     private fun onChangeCustomGreeting(
-        intent: GroupChatCreateUiIntent.ChangeCustomGreeting
+        intent: GroupChatCreateUiIntent.ChangeCustomGreeting,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
-        uiState.copy(
-            greetingState = uiState.greetingState.copy(customGreeting = intent.value)
-        ).setup()
+        uiState.copy(greetingState = uiState.greetingState.copy(customGreeting = intent.value))
+            .setup()
     }
 
     /** 批量切换某一本世界书下所有条目的选中状态。 */
@@ -252,18 +255,18 @@ class GroupChatCreateViewModel :
         uiState.copy(
             selectedLorebookEntryIds = selectedIds,
             lorebookGroups = groups,
-            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery)
+            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery),
         ).setup()
     }
 
     /** 切换单个世界书条目的选中状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(
-        intent: GroupChatCreateUiIntent.ToggleLorebookEntry
+        intent: GroupChatCreateUiIntent.ToggleLorebookEntry,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         if (uiState.lorebookGroups.none { group ->
-                group.entries.any { it.id == intent.entryId }
+                group.entries.any { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.id == intent.entryId }
             }
         ) return
         val selectedIds = uiState.selectedLorebookEntryIds.toggle(intent.entryId)
@@ -271,7 +274,7 @@ class GroupChatCreateViewModel :
         uiState.copy(
             selectedLorebookEntryIds = selectedIds,
             lorebookGroups = groups,
-            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery)
+            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery),
         ).setup()
     }
 
@@ -288,34 +291,32 @@ class GroupChatCreateViewModel :
         // 校验参演成员数量至少为 2 人
         val characterIds = uiState.characters.filter { it.selected }.map { it.id }
         if (characterIds.size < 2) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.group_chat_select_two_characters
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.group_chat_select_two_characters)
+                .tryEmit()
             return
         }
         // 校验开场白配置完整度
         if (!uiState.greetingState.canCreate) {
-            AppViewEvent.PopupToastMessageByResId(
-                R.string.group_chat_greeting_incomplete
-            ).tryEmit()
+            AppViewEvent.PopupToastMessageByResId(R.string.group_chat_greeting_incomplete).tryEmit()
             return
         }
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
         val userName = AppModel.resolvedUserName
         // 提取候选成员与开场白列表
-        val greetingCandidates = uiState.greetingState.characters.map {
-            GroupChatGreetingCandidate(
-                characterId = it.id,
-                characterName = it.name,
-                greetings = it.greetings
-            )
-        }
+        val greetingCandidates =
+            uiState.greetingState.characters.map { groupChatGreetingCharacterItem ->
+                GroupChatGreetingCandidate(
+                    characterId = groupChatGreetingCharacterItem.id,
+                    characterName = groupChatGreetingCharacterItem.name,
+                    greetings = groupChatGreetingCharacterItem.greetings,
+                )
+            }
         // 生成确定的初始开场消息序列
         val openingMessages = mGreetingPlanner.plan(
             candidates = greetingCandidates,
             selection = uiState.greetingState.toSelection(),
-            userName = userName
+            userName = userName,
         )
         // 在 IO 线程原子创建群聊会话、成员关联与初始开场消息
         val sessionId = withContext(Dispatchers.IO) {
@@ -328,7 +329,7 @@ class GroupChatCreateViewModel :
                 activationStrategy = uiState.activationStrategy.toEntity(),
                 allowSelfResponses = uiState.allowSelfResponses,
                 openingMessages = openingMessages,
-                createTime = createTime
+                createTime = createTime,
             )
         }
         // 启动群聊页面并等待返回
@@ -336,7 +337,7 @@ class GroupChatCreateViewModel :
             activity = GroupChatActivity::class.java,
             extras = Bundle().apply {
                 putString(GroupChatActivity.EXTRA_SESSION_ID, sessionId.toString())
-            }
+            },
         ).emitAndAwait()
         GroupChatCreateUiState.finished(uiStateFlow.value).setup()
     }

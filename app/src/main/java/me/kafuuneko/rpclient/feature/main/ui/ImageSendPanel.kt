@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,9 +22,11 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /**
  * 渲染图片发送高级设置；业务草稿、保存和校验全部交给 ViewModel。
@@ -36,15 +36,18 @@ import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 @Composable
 internal fun ImageSendPanel(state: MainImageSendState, emit: MainUiIntent.() -> Unit) {
     RpSettingsGroup {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
-                stringResource(R.string.image_send_title),
-                style = MaterialTheme.typography.titleMedium
+                text = stringResource(R.string.image_send_title),
+                style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                stringResource(R.string.image_send_description),
+                text = stringResource(R.string.image_send_description),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             // 窄屏与较长译文允许换行，避免模式按钮挤压参数输入。
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -52,13 +55,14 @@ internal fun ImageSendPanel(state: MainImageSendState, emit: MainUiIntent.() -> 
                     FilterChip(
                         selected = state.mode == mode,
                         onClick = { MainUiIntent.SelectImageSendMode(mode).emit() },
-                        label = { Text(stringResource(mode.titleRes())) })
+                        label = { Text(stringResource(mode.titleRes())) },
+                    )
                 }
             }
             Text(
-                stringResource(state.mode.descriptionRes()),
+                text = stringResource(state.mode.descriptionRes()),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (state.mode == ImageSendMode.Custom) ImageSendLimits(state, emit)
         }
@@ -69,16 +73,27 @@ internal fun ImageSendPanel(state: MainImageSendState, emit: MainUiIntent.() -> 
 @Composable
 private fun ImageSendLimits(state: MainImageSendState, emit: MainUiIntent.() -> Unit) {
     // 参数只在点击保存后生效，输入过程不改变后台请求。
-    ImageLimitField(state.maxFileKiB, R.string.image_send_max_file) {
-        MainUiIntent.ChangeImageSendLimit(ImageSendField.FileKiB, it).emit()
+    ImageLimitField(
+        value = state.maxFileKiB,
+        label = R.string.image_send_max_file,
+        onChange = { MainUiIntent.ChangeImageSendLimit(ImageSendField.FileKiB, it).emit() },
+    )
+    ImageLimitField(
+        value = state.maxWidth,
+        label = R.string.image_send_max_width,
+        onChange = { MainUiIntent.ChangeImageSendLimit(ImageSendField.Width, it).emit() },
+    )
+    ImageLimitField(
+        value = state.maxHeight,
+        label = R.string.image_send_max_height,
+        onChange = { MainUiIntent.ChangeImageSendLimit(ImageSendField.Height, it).emit() },
+    )
+    state.errorResId?.let {
+        Text(
+            text = stringResource(it),
+            color = MaterialTheme.colorScheme.error
+        )
     }
-    ImageLimitField(state.maxWidth, R.string.image_send_max_width) {
-        MainUiIntent.ChangeImageSendLimit(ImageSendField.Width, it).emit()
-    }
-    ImageLimitField(state.maxHeight, R.string.image_send_max_height) {
-        MainUiIntent.ChangeImageSendLimit(ImageSendField.Height, it).emit()
-    }
-    state.errorResId?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
     Button(onClick = { MainUiIntent.SaveImageSendLimits.emit() }, enabled = state.hasChanges) {
         Text(stringResource(R.string.save))
     }
@@ -88,9 +103,15 @@ private fun ImageSendLimits(state: MainImageSendState, emit: MainUiIntent.() -> 
 @Composable
 private fun ImageLimitField(value: String, @StringRes label: Int, onChange: (String) -> Unit) {
     OutlinedTextField(
-        value = value, onValueChange = onChange, label = { Text(stringResource(label)) },
+        value = value,
+        onValueChange = onChange,
+        label = { Text(stringResource(label)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true, modifier = Modifier.fillMaxWidth().generalContentBackground(OutlinedTextFieldDefaults.shape, hasLabel = true))
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .generalContentBackground(shape = OutlinedTextFieldDefaults.shape, hasLabel = true),
+    )
 }
 
 /** @return 发送模式对应的本地化名称。 */
@@ -112,5 +133,9 @@ private fun ImageSendMode.descriptionRes(): Int = when (this) {
 @Preview(widthDp = 360, locale = "zh")
 @Composable
 private fun ImageSendPanelPreview() {
-    AppTheme(dynamicColor = false) { ImageSendPanel(MainImageSendState(mode = ImageSendMode.Custom)) {} }
+    AppTheme(dynamicColor = false) {
+        ImageSendPanel(
+            state = MainImageSendState(mode = ImageSendMode.Custom),
+            emit = {})
+    }
 }

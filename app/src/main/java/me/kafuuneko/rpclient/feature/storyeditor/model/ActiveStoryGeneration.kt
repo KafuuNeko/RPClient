@@ -37,7 +37,7 @@ internal data class ActiveStoryGeneration(
                 StoryGenerationPhase.Writing
             } else {
                 StoryGenerationPhase.Reasoning
-            }
+            },
         )
     }
 
@@ -45,7 +45,7 @@ internal data class ActiveStoryGeneration(
     fun appendGeneratedText(content: String): ActiveStoryGeneration {
         return copy(
             partialText = partialText + content,
-            phase = StoryGenerationPhase.Writing
+            phase = StoryGenerationPhase.Writing,
         )
     }
 
@@ -68,7 +68,7 @@ internal data class ActiveStoryGeneration(
             startedAtElapsedRealtime = startedAtElapsedRealtime,
             reasoningPreview = reasoningText.toReasoningPreview(),
             reasoningDetail = reasoningDetail,
-            isReasoningExpanded = isReasoningExpanded
+            isReasoningExpanded = isReasoningExpanded,
         )
     }
 
@@ -76,7 +76,7 @@ internal data class ActiveStoryGeneration(
     fun withoutReasoning(): ActiveStoryGeneration {
         return copy(
             reasoningText = "",
-            isReasoningExpanded = false
+            isReasoningExpanded = false,
         )
     }
 
@@ -91,7 +91,7 @@ internal data class ActiveStoryGeneration(
         if (text.isEmpty()) return null
         return StoryEditedTextRange(
             start = target.start,
-            end = target.start + text.length
+            end = target.start + text.length,
         )
     }
 

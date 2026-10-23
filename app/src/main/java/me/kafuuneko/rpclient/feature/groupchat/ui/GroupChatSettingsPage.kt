@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,7 +45,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -89,13 +86,13 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 internal fun GroupChatSettingsPage(
     state: GroupChatSettingsState,
     members: List<GroupChatMemberItem>,
-    emitIntent: (GroupChatUiIntent) -> Unit
+    emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     // 设置草稿仍由页面状态持有，保存按钮和各字段沿用原有意图。
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
             title = stringResource(R.string.group_chat_settings),
@@ -104,57 +101,57 @@ internal fun GroupChatSettingsPage(
                 TextButton(onClick = { emitIntent(GroupChatUiIntent.SaveSettings) }) {
                     Text(stringResource(R.string.save))
                 }
-            }
+            },
         )
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                    insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                 ),
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 GroupSettingsSection(
-                    title = stringResource(R.string.group_chat_basic_settings)
+                    title = stringResource(R.string.group_chat_basic_settings),
                 ) {
                     RpScrollableOutlinedTextField(
                         value = state.titleDraft,
-                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeTitle(it)) },
+                        onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeTitle(text)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.group_chat_title_label)) },
-                        singleLine = true
+                        singleLine = true,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.scenarioDraft,
-                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeScenario(it)) },
+                        onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeScenario(text)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.group_chat_scenario)) },
                         minLines = 3,
-                        maxLines = 8
+                        maxLines = 8,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.userNoteDraft,
-                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserNote(it)) },
+                        onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeUserNote(text)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.group_chat_author_note)) },
                         minLines = 3,
-                        maxLines = 8
+                        maxLines = 8,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.summaryDraft,
-                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeSummary(it)) },
+                        onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeSummary(text)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.summary_memory)) },
                         minLines = 4,
-                        maxLines = 10
+                        maxLines = 10,
                     )
                     SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.summarize_now),
                         subtitle = stringResource(R.string.summarize_now_desc),
-                        onClick = { emitIntent(GroupChatUiIntent.SummarizeNow) }
+                        onClick = { emitIntent(GroupChatUiIntent.SummarizeNow) },
                     )
                     SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
@@ -162,51 +159,49 @@ internal fun GroupChatSettingsPage(
                         subtitle = stringResource(R.string.restore_previous_summary_desc),
                         onClick = {
                             emitIntent(GroupChatUiIntent.RestorePreviousSummary)
-                        }
+                        },
                     )
                     SettingsSwitchRow(
                         title = stringResource(R.string.pause_auto_summary),
                         subtitle = stringResource(R.string.pause_auto_summary_desc),
                         checked = state.autoSummaryPaused,
-                        onCheckedChange = {
-                            emitIntent(GroupChatUiIntent.ToggleAutoSummaryPaused(it))
-                        }
+                        onCheckedChange = { enabled ->
+                            emitIntent(GroupChatUiIntent.ToggleAutoSummaryPaused(enabled))
+                        },
                     )
                 }
             }
             item {
                 GroupSettingsSection(
-                    title = stringResource(R.string.group_chat_turn_strategy)
+                    title = stringResource(R.string.group_chat_turn_strategy),
                 ) {
                     Text(
                         text = stringResource(R.string.group_chat_turn_strategy),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         GroupChatActivationStrategy.entries.forEach { strategy ->
                             FilterChip(
                                 selected = state.activationStrategy == strategy,
                                 onClick = {
-                                    emitIntent(
-                                        GroupChatUiIntent.SelectActivationStrategy(strategy)
-                                    )
+                                    emitIntent(GroupChatUiIntent.SelectActivationStrategy(strategy))
                                 },
-                                label = { Text(stringResource(strategy.titleRes())) }
+                                label = { Text(stringResource(strategy.titleRes())) },
                             )
                         }
                     }
                     Text(
                         text = stringResource(R.string.group_chat_character_cards),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         GroupChatCharacterCardMode.entries.forEach { mode ->
                             FilterChip(
@@ -216,88 +211,88 @@ internal fun GroupChatSettingsPage(
                                 },
                                 label = {
                                     Text(
-                                        stringResource(
-                                            if (mode == GroupChatCharacterCardMode.Swap) {
+                                        text = stringResource(
+                                            id = if (mode == GroupChatCharacterCardMode.Swap) {
                                                 R.string.group_chat_card_mode_swap
                                             } else {
                                                 R.string.group_chat_card_mode_join
-                                            }
-                                        )
+                                            },
+                                        ),
                                     )
-                                }
+                                },
                             )
                         }
                     }
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_include_muted_cards),
                         checked = state.includeMutedCards,
-                        onCheckedChange = {
-                            emitIntent(GroupChatUiIntent.ToggleIncludeMutedCards(it))
-                        }
+                        onCheckedChange = { enabled ->
+                            emitIntent(GroupChatUiIntent.ToggleIncludeMutedCards(enabled))
+                        },
                     )
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_allow_consecutive),
                         checked = state.allowSelfResponses,
-                        onCheckedChange = {
-                            emitIntent(GroupChatUiIntent.ToggleAllowSelfResponses(it))
-                        }
+                        onCheckedChange = { enabled ->
+                            emitIntent(GroupChatUiIntent.ToggleAllowSelfResponses(enabled))
+                        },
                     )
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_auto_mode),
                         checked = state.autoModeEnabled,
-                        onCheckedChange = {
-                            emitIntent(GroupChatUiIntent.ToggleAutoMode(it))
-                        }
+                        onCheckedChange = { enabled ->
+                            emitIntent(GroupChatUiIntent.ToggleAutoMode(enabled))
+                        },
                     )
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_trim_other_speakers),
                         checked = state.trimOtherSpeakers,
-                        onCheckedChange = {
-                            emitIntent(GroupChatUiIntent.ToggleTrimOtherSpeakers(it))
-                        }
+                        onCheckedChange = { enabled ->
+                            emitIntent(GroupChatUiIntent.ToggleTrimOtherSpeakers(enabled))
+                        },
                     )
                 }
             }
             item {
                 GroupSettingsSection(
-                    title = stringResource(R.string.group_chat_prompt_overrides)
+                    title = stringResource(R.string.group_chat_prompt_overrides),
                 ) {
                     Text(
                         text = stringResource(R.string.group_chat_prompt_overrides_desc),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.systemPromptDraft,
-                        onValueChange = {
-                            emitIntent(GroupChatUiIntent.ChangeSystemPrompt(it))
+                        onValueChange = { text ->
+                            emitIntent(GroupChatUiIntent.ChangeSystemPrompt(text))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.prompt_main_title)) },
                         minLines = 3,
-                        maxLines = 10
+                        maxLines = 10,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.groupNudgePromptDraft,
-                        onValueChange = {
-                            emitIntent(GroupChatUiIntent.ChangeGroupNudgePrompt(it))
+                        onValueChange = { text ->
+                            emitIntent(GroupChatUiIntent.ChangeGroupNudgePrompt(text))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.prompt_group_nudge_title)) },
                         minLines = 3,
-                        maxLines = 10
+                        maxLines = 10,
                     )
                     RpScrollableOutlinedTextField(
                         value = state.newGroupChatPromptDraft,
-                        onValueChange = {
-                            emitIntent(GroupChatUiIntent.ChangeNewGroupChatPrompt(it))
+                        onValueChange = { text ->
+                            emitIntent(GroupChatUiIntent.ChangeNewGroupChatPrompt(text))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         label = {
                             Text(stringResource(R.string.prompt_new_group_chat_title))
                         },
                         minLines = 2,
-                        maxLines = 8
+                        maxLines = 8,
                     )
                 }
             }
@@ -305,17 +300,17 @@ internal fun GroupChatSettingsPage(
                 GroupSettingsSection(title = stringResource(R.string.group_chat_members)) {
                     GroupMemberSettingsList(members, emitIntent)
                     state.availableCharacters
-                        .filterNot { it.alreadyMember }
+                        .filterNot { groupChatAvailableCharacterItem -> groupChatAvailableCharacterItem.alreadyMember }
                         .forEach { character ->
                             SettingsActionRow(
                                 icon = Icons.Rounded.Groups,
                                 title = stringResource(
                                     R.string.group_chat_add_member,
-                                    character.name
+                                    character.name,
                                 ),
                                 onClick = {
                                     emitIntent(GroupChatUiIntent.AddMember(character.id))
-                                }
+                                },
                             )
                         }
                 }
@@ -325,21 +320,21 @@ internal fun GroupChatSettingsPage(
                     Text(
                         text = stringResource(R.string.session_lore_note),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     GroupChatLorebookSelector(
                         groups = state.lorebookGroups,
                         visibleGroups = state.visibleLorebookGroups,
                         query = state.lorebookQuery,
-                        onQueryChange = {
-                            emitIntent(GroupChatUiIntent.ChangeLorebookQuery(it))
+                        onQueryChange = { text ->
+                            emitIntent(GroupChatUiIntent.ChangeLorebookQuery(text))
                         },
-                        onToggleLorebook = {
-                            emitIntent(GroupChatUiIntent.ToggleLorebook(it))
+                        onToggleLorebook = { id ->
+                            emitIntent(GroupChatUiIntent.ToggleLorebook(id))
                         },
-                        onToggleEntry = {
-                            emitIntent(GroupChatUiIntent.ToggleLorebookEntry(it))
-                        }
+                        onToggleEntry = { id ->
+                            emitIntent(GroupChatUiIntent.ToggleLorebookEntry(id))
+                        },
                     )
                 }
             }
@@ -350,14 +345,14 @@ internal fun GroupChatSettingsPage(
                         title = stringResource(R.string.group_chat_delete_content_description),
                         subtitle = stringResource(R.string.delete_chat_desc),
                         iconTint = MaterialTheme.colorScheme.error,
-                        onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) }
+                        onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) },
                     )
                 }
             }
             item {
                 Button(
                     onClick = { emitIntent(GroupChatUiIntent.SaveSettings) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.save))
                 }
@@ -370,7 +365,7 @@ internal fun GroupChatSettingsPage(
 @Composable
 private fun GroupSettingsSection(
     title: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     // 各设置分区沿用统一表面，内容由调用方提供。
     AppSurface(
@@ -378,13 +373,13 @@ private fun GroupSettingsSection(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         ),
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             RpSectionHeader(title = title)
             content()
@@ -399,7 +394,7 @@ private fun SettingsActionRow(
     title: String,
     subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     // 整行点击与图标颜色共享可用状态。
     AppSurface(
@@ -407,17 +402,17 @@ private fun SettingsActionRow(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = iconTint
+                tint = iconTint,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleSmall)
@@ -425,7 +420,7 @@ private fun SettingsActionRow(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -438,7 +433,7 @@ private fun SettingsSwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     // 开关状态由设置草稿提供，交互只回传修改意图。
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -447,7 +442,7 @@ private fun SettingsSwitchRow(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
@@ -458,24 +453,23 @@ private fun SettingsSwitchRow(
 @Composable
 private fun GroupMemberSettingsList(
     members: List<GroupChatMemberItem>,
-    emitIntent: (GroupChatUiIntent) -> Unit
+    emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     val currentMembers = rememberUpdatedState(members)
     val dragDropState = rememberGroupMemberDragDropState(
         onMove = { fromCharacterId, toCharacterId ->
             val current = currentMembers.value
-            if (current.any { it.id == fromCharacterId } &&
-                current.any { it.id == toCharacterId }
+            if (current.any { groupChatMemberItem -> groupChatMemberItem.id == fromCharacterId }
+                && current.any { groupChatMemberItem -> groupChatMemberItem.id == toCharacterId }
             ) {
-                emitIntent(
-                    GroupChatUiIntent.ReorderMember(fromCharacterId, toCharacterId)
-                )
+                emitIntent(GroupChatUiIntent.ReorderMember(fromCharacterId, toCharacterId))
             }
         },
-        onDragEnd = { emitIntent(GroupChatUiIntent.CommitMemberOrder) }
+        onDragEnd = { emitIntent(GroupChatUiIntent.CommitMemberOrder) },
     )
     LaunchedEffect(members.map { it.id }) {
-        dragDropState.retainCharacters(members.map { it.id }.toSet())
+        dragDropState.retainCharacters(members.map { groupChatMemberItem -> groupChatMemberItem.id }
+            .toSet())
     }
     // 稳定组合键保证成员换位后，手势仍持续追踪同一角色
     members.forEachIndexed { index, member ->
@@ -487,14 +481,14 @@ private fun GroupMemberSettingsList(
                 canMoveDown = index < members.lastIndex,
                 canRemove = members.size > 2,
                 onMoveUp = {
-                    emitIntent(GroupChatUiIntent.MoveMember(member.id, -1))
+                    emitIntent(GroupChatUiIntent.MoveMember(characterId = member.id, offset = -1))
                 },
                 onMoveDown = {
-                    emitIntent(GroupChatUiIntent.MoveMember(member.id, 1))
+                    emitIntent(GroupChatUiIntent.MoveMember(characterId = member.id, offset = 1))
                 },
                 onRemove = {
                     emitIntent(GroupChatUiIntent.RemoveMember(member.id))
-                }
+                },
             )
         }
     }
@@ -510,20 +504,22 @@ private fun DraggableGroupMemberSettingsRow(
     canRemove: Boolean,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     // 拖动偏移和层级沿用当前拖动状态，成员操作继续交由原回调。
     val dragging = dragDropState.draggingCharacterId == member.id
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned { coordinates ->
-                dragDropState.updateBounds(
-                    characterId = member.id,
-                    top = coordinates.positionInParent().y,
-                    height = coordinates.size.height.toFloat()
-                )
-            }
+            .onGloballyPositioned(
+                onGloballyPositioned = { coordinates ->
+                    dragDropState.updateBounds(
+                        characterId = member.id,
+                        top = coordinates.positionInParent().y,
+                        height = coordinates.size.height.toFloat(),
+                    )
+                },
+            )
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer {
                 translationY = dragDropState.dragOffset(member.id)
@@ -536,9 +532,9 @@ private fun DraggableGroupMemberSettingsRow(
                         dragDropState.onDrag(member.id, dragAmount.y)
                     },
                     onDragEnd = dragDropState::onDragEnd,
-                    onDragCancel = dragDropState::onDragEnd
+                    onDragCancel = dragDropState::onDragEnd,
                 )
-            }
+            },
     ) {
         GroupMemberSettingsRow(
             member = member,
@@ -547,7 +543,7 @@ private fun DraggableGroupMemberSettingsRow(
             canRemove = canRemove,
             onMoveUp = onMoveUp,
             onMoveDown = onMoveDown,
-            onRemove = onRemove
+            onRemove = onRemove,
         )
     }
 }
@@ -556,14 +552,14 @@ private fun DraggableGroupMemberSettingsRow(
 @Composable
 private fun rememberGroupMemberDragDropState(
     onMove: (fromCharacterId: Long, toCharacterId: Long) -> Unit,
-    onDragEnd: () -> Unit
+    onDragEnd: () -> Unit,
 ): GroupMemberDragDropState {
     val currentOnMove = rememberUpdatedState(onMove)
     val currentOnDragEnd = rememberUpdatedState(onDragEnd)
     return remember {
         GroupMemberDragDropState(
             mOnMove = { from, to -> currentOnMove.value(from, to) },
-            mOnDragEnd = { currentOnDragEnd.value() }
+            mOnDragEnd = { currentOnDragEnd.value() },
         )
     }
 }
@@ -573,7 +569,7 @@ private class GroupMemberDragDropState(
     private val mOnMove: (fromCharacterId: Long, toCharacterId: Long) -> Unit,
     private val mOnDragEnd: () -> Unit
 ) {
-    var draggingCharacterId by mutableStateOf<Long?>(null)
+    var draggingCharacterId by mutableStateOf<Long?>(value = null)
         private set
 
     private val mBounds = mutableMapOf<Long, GroupMemberBounds>()
@@ -658,23 +654,23 @@ private fun GroupMemberSettingsRow(
     canRemove: Boolean,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     // 成员静音与移除沿用原有意图及可用条件。
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpAvatar(
                 text = member.name.take(1),
                 color = getMacaronColor(member.name),
                 modifier = Modifier.size(38.dp),
-                image = member.avatarImage
+                image = member.avatarImage,
             )
             Text(
                 text = member.name,
@@ -683,23 +679,23 @@ private fun GroupMemberSettingsRow(
                     .padding(horizontal = 10.dp),
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                Icon(Icons.Rounded.ArrowUpward, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.ArrowUpward, contentDescription = null)
             }
             IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                Icon(Icons.Rounded.ArrowDownward, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.ArrowDownward, contentDescription = null)
             }
             IconButton(onClick = onRemove, enabled = canRemove) {
                 Icon(
-                    Icons.Rounded.Delete,
+                    imageVector = Icons.Rounded.Delete,
                     contentDescription = stringResource(R.string.delete),
                     tint = if (canRemove) {
                         MaterialTheme.colorScheme.error
                     } else {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                    }
+                    },
                 )
             }
         }
@@ -710,20 +706,20 @@ private fun GroupMemberSettingsRow(
 private fun SettingsSwitch(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     // 整行点击与开关点击使用同一状态修改回调。
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .clickable(onClick = { onCheckedChange(!checked) })
             .padding(horizontal = 2.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }

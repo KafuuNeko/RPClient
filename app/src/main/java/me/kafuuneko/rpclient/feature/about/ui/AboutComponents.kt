@@ -42,20 +42,25 @@ internal fun AboutSection(title: String, content: @Composable ColumnScope.() -> 
             modifier = Modifier.padding(horizontal = 2.dp),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().background(
-                    Brush.linearGradient(
-                        listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.035f), Color.Transparent)
-                    )
-                ),
-                content = content
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.035f),
+                                Color.Transparent
+                            ),
+                        ),
+                    ),
+                content = content,
             )
         }
     }
@@ -67,7 +72,7 @@ internal fun AboutDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 16.dp),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant
+        color = MaterialTheme.colorScheme.outlineVariant,
     )
 }
 
@@ -81,30 +86,38 @@ internal fun AboutActionRow(
     action: String,
     onClick: () -> Unit,
     actionIcon: ImageVector? = null,
-    pillAction: Boolean = false
+    pillAction: Boolean = false,
 ) {
     BoxWithConstraints(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
         // 以有效文字宽度判断布局，避免翻译和系统字号放大后互相挤压。
         val stacked = maxWidth / LocalDensity.current.fontScale < 300.dp
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             AboutIconBubble(icon, accent)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
                 )
-                if (stacked) AboutActionLabel(action, actionIcon, pillAction)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (stacked) AboutActionLabel(text = action, icon = actionIcon, pill = pillAction)
             }
-            if (!stacked) AboutActionLabel(action, actionIcon, pillAction)
+            if (!stacked) AboutActionLabel(text = action, icon = actionIcon, pill = pillAction)
         }
     }
 }
@@ -115,27 +128,30 @@ private fun AboutActionLabel(text: String, icon: ImageVector?, pill: Boolean) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (pill) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-        border = if (pill) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant) else null
+        border = if (pill) BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        ) else null,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = if (pill) 10.dp else 0.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (pill && icon != null) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(16.dp))
             }
             Text(
-                text,
+                text = text,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (pill) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
+                color = if (pill) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
             )
             if (!pill) {
                 Icon(
                     imageVector = icon ?: Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -145,23 +161,39 @@ private fun AboutActionLabel(text: String, icon: ImageVector?, pill: Boolean) {
 /** 版本与构建号作为只读信息显示，大字体下改为上下排布。 */
 @Composable
 internal fun AboutInfoRow(icon: ImageVector, label: String, value: String) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
         // 长版本号允许换行，不截断用于反馈问题的安装包标识。
         val stacked = maxWidth / LocalDensity.current.fontScale < 300.dp
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            AboutIconBubble(icon, MaterialTheme.colorScheme.secondary, compact = true)
+            AboutIconBubble(
+                icon = icon,
+                accent = MaterialTheme.colorScheme.secondary,
+                compact = true
+            )
             if (stacked) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(label, style = MaterialTheme.typography.bodySmall)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = label, style = MaterialTheme.typography.bodySmall)
+                    Text(text = value, style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                Text(value, modifier = Modifier.weight(1.5f), style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.End)
+                Text(
+                    text = label,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = value,
+                    modifier = Modifier.weight(1.5f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.End,
+                )
             }
         }
     }
@@ -174,15 +206,27 @@ internal fun AboutIconBubble(icon: ImageVector, accent: Color, compact: Boolean 
     Surface(
         shape = RoundedCornerShape(if (compact) 10.dp else 12.dp),
         color = accent.copy(alpha = 0.12f),
-        border = BorderStroke(0.5.dp, accent.copy(alpha = 0.25f))
+        border = BorderStroke(width = 0.5.dp, color = accent.copy(alpha = 0.25f)),
     ) {
         Box(
-            modifier = Modifier.size(if (compact) 30.dp else 42.dp)
-                .background(Brush.linearGradient(listOf(accent.copy(alpha = 0.1f), Color.Transparent))),
-            contentAlignment = Alignment.Center
+            modifier = Modifier
+                .size(if (compact) 30.dp else 42.dp)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            accent.copy(alpha = 0.1f),
+                            Color.Transparent
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = accent,
-                modifier = Modifier.size(if (compact) 19.dp else 24.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(if (compact) 19.dp else 24.dp),
+            )
         }
     }
 }

@@ -1,13 +1,31 @@
 package me.kafuuneko.rpclient.libs.groupchat.model
 
 /** 群聊发言人选择策略。 */
-enum class GroupChatActivationStrategy { Manual, Natural, List, Pooled }
+enum class GroupChatActivationStrategy {
+    Manual,
+
+    Natural,
+
+    List,
+
+    Pooled
+}
 
 /** 多角色卡进入 Prompt 时采用的组合模式。 */
-enum class GroupChatCharacterCardMode { Swap, Join }
+enum class GroupChatCharacterCardMode {
+    Swap,
+
+    Join
+}
 
 /** 群聊消息在展示层中的来源。 */
-enum class GroupChatMessageSource { User, Character, System }
+enum class GroupChatMessageSource {
+    User,
+
+    Character,
+
+    System
+}
 
 /** 群聊页面共享的世界书分组及其会话启用状态。 */
 data class GroupChatLorebookGroupItem(

@@ -24,7 +24,7 @@ interface LLMProviderDao : MutableDao<LLMProvider> {
     @Query("UPDATE llm_providers SET isEnabled = :isEnabled WHERE id = :id")
     suspend fun updateProviderEnabled(
         id: Long,
-        isEnabled: Boolean
+        isEnabled: Boolean,
     )
 
     /** 根据主键删除模型配置。 */

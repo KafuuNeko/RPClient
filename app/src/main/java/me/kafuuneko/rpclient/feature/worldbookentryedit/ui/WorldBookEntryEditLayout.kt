@@ -47,7 +47,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -80,19 +79,15 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
 import me.kafuuneko.rpclient.ui.widgets.RpNumberStepper
-import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -103,11 +98,18 @@ import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 世界书条目编辑导航分段选项卡。 */
 private enum class WorldBookEntryEditTab {
     Content,
+
     Trigger,
+
     Advanced
 }
 
@@ -122,12 +124,18 @@ private enum class WorldBookEntryEditTab {
 @Composable
 fun WorldBookEntryEditLayout(
     uiState: WorldBookEntryEditUiState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is WorldBookEntryEditUiState.Normal) { WorldBookEntryEditUiIntent.Back.emit() }
+    BackHandler(
+        enabled = uiState is WorldBookEntryEditUiState.Normal,
+        onBack = { WorldBookEntryEditUiIntent.Back.emit() },
+    )
     when (uiState) {
         WorldBookEntryEditUiState.None -> Unit
-        is WorldBookEntryEditUiState.Finished -> WorldBookEntryEditLayout(uiState.previous) {}
+        is WorldBookEntryEditUiState.Finished -> WorldBookEntryEditLayout(
+            uiState = uiState.previous,
+            emit = {})
+
         is WorldBookEntryEditUiState.Normal -> {
             WorldBookEntryEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -146,7 +154,7 @@ fun WorldBookEntryEditLayout(
 @Composable
 private fun WorldBookEntryEditNormal(
     state: WorldBookEntryEditUiState.Normal,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(WorldBookEntryEditTab.Content) }
 
@@ -154,7 +162,7 @@ private fun WorldBookEntryEditNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
             title = if (state.mode == WorldBookEntryEditMode.Create) {
@@ -163,21 +171,19 @@ private fun WorldBookEntryEditNormal(
                 stringResource(R.string.edit_world_book_entry)
             },
             onBack = { WorldBookEntryEditUiIntent.Back.emit() },
-            actions = { TopBarSaveButton(state, emit) }
+            actions = { TopBarSaveButton(state, emit) },
         )
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                ),
+                .windowInsetsPadding(insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 14.dp,
                 end = 18.dp,
-                bottom = 24.dp
+                bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (state.loadState == WorldBookEntryEditLoadState.Loading) {
                 item { LoadingPanel() }
@@ -186,23 +192,31 @@ private fun WorldBookEntryEditNormal(
                     HeroHeaderPanel(
                         form = state.form,
                         loadState = state.loadState,
-                        emit = emit
+                        emit = emit,
                     )
                 }
                 item {
                     WorldBookEntryEditTabBar(
                         selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it }
+                        onTabSelected = { worldBookEntryEditTab ->
+                            selectedTab = worldBookEntryEditTab
+                        },
                     )
                 }
 
                 when (selectedTab) {
                     WorldBookEntryEditTab.Content -> {
-                        item { BasicInfoPanel(state.form, state.loadState, emit) }
+                        item {
+                            BasicInfoPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
                         item {
                             ContentWorkbenchPanel(
                                 form = state.form,
-                                emit = emit
+                                emit = emit,
                             )
                         }
                         item { CategoriesPanel(state.form, emit) }
@@ -217,19 +231,61 @@ private fun WorldBookEntryEditNormal(
                             SecondaryKeywordsAndLogicPanel(
                                 form = state.form,
                                 loadState = state.loadState,
+                                emit = emit,
+                            )
+                        }
+                        item {
+                            ProbabilityPanel(
+                                form = state.form,
+                                loadState = state.loadState,
                                 emit = emit
                             )
                         }
-                        item { ProbabilityPanel(state.form, state.loadState, emit) }
-                        item { ScanDepthAndScopePanel(state.form, state.loadState, emit) }
+                        item {
+                            ScanDepthAndScopePanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
                     }
 
                     WorldBookEntryEditTab.Advanced -> {
-                        item { PlacementPanel(state.form, state.loadState, emit) }
-                        item { InclusionGroupPanel(state.form, state.loadState, emit) }
-                        item { TimingPanel(state.form, state.loadState, emit) }
-                        item { RecursionAndMatchingPanel(state.form, state.loadState, emit) }
-                        item { ExtensionsJsonPanel(state.form, state.loadState, emit) }
+                        item {
+                            PlacementPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
+                        item {
+                            InclusionGroupPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
+                        item {
+                            TimingPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
+                        item {
+                            RecursionAndMatchingPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
+                        item {
+                            ExtensionsJsonPanel(
+                                form = state.form,
+                                loadState = state.loadState,
+                                emit = emit
+                            )
+                        }
                     }
                 }
 
@@ -246,7 +302,7 @@ private fun LoadingPanel() {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             CircularProgressIndicator()
             Text(stringResource(R.string.loading))
@@ -265,7 +321,7 @@ private fun LoadingPanel() {
 private fun HeroHeaderPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
     val roleLabel = when (form.role.trim().toIntOrNull() ?: LorebookEntry.ROLE_SYSTEM) {
@@ -285,22 +341,22 @@ private fun HeroHeaderPanel(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
             } else {
                 MaterialTheme.colorScheme.surface
-            }
+            },
         ),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-        )
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+        ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 RpIconBubble(
                     icon = Icons.AutoMirrored.Rounded.MenuBook,
@@ -313,42 +369,49 @@ private fun HeroHeaderPanel(
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.secondary
-                    }
+                    },
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
                         text = form.name.ifBlank { stringResource(R.string.unnamed_entry) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = if (probability < 100) {
-                            stringResource(R.string.entry_order_depth_prob, orderVal, depthVal, probability)
+                            stringResource(
+                                R.string.entry_order_depth_prob,
+                                orderVal,
+                                depthVal,
+                                probability
+                            )
                         } else {
                             stringResource(R.string.entry_order_depth, orderVal, depthVal)
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     )
                 }
                 Switch(
                     checked = !form.disabled,
                     enabled = enabled,
-                    onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDisabled(!it).emit() }
+                    onCheckedChange = { enabled ->
+                        WorldBookEntryEditUiIntent.ChangeDisabled(!enabled).emit()
+                    },
                 )
                 IconButton(
                     enabled = enabled,
-                    onClick = { WorldBookEntryEditUiIntent.DeleteEntryClick.emit() }
+                    onClick = { WorldBookEntryEditUiIntent.DeleteEntryClick.emit() },
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Delete,
                         contentDescription = stringResource(R.string.delete),
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                     )
                 }
             }
@@ -357,24 +420,28 @@ private fun HeroHeaderPanel(
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 StatusBadge(
-                    text = if (form.constant) stringResource(R.string.entry_status_constant) else stringResource(R.string.entry_status_conditional),
-                    color = if (form.constant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                    text = if (form.constant) stringResource(R.string.entry_status_constant) else stringResource(
+                        R.string.entry_status_conditional
+                    ),
+                    color = if (form.constant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                 )
                 StatusBadge(
-                    text = if (form.disabled) stringResource(R.string.entry_status_disabled) else stringResource(R.string.entry_status_enabled),
-                    color = if (form.disabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.tertiary
+                    text = if (form.disabled) stringResource(R.string.entry_status_disabled) else stringResource(
+                        R.string.entry_status_enabled
+                    ),
+                    color = if (form.disabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.tertiary,
                 )
                 StatusBadge(
                     text = roleLabel,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (form.group.isNotBlank()) {
                     StatusBadge(
                         text = stringResource(R.string.entry_group_badge, form.group),
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -388,14 +455,14 @@ private fun StatusBadge(text: String, color: Color) {
     AppSurface(
         shape = RoundedCornerShape(8.dp),
         color = color.copy(alpha = 0.12f),
-        border = BorderStroke(0.5.dp, color.copy(alpha = 0.25f))
+        border = BorderStroke(width = 0.5.dp, color = color.copy(alpha = 0.25f)),
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            color = color
+            color = color,
         )
     }
 }
@@ -405,24 +472,24 @@ private fun StatusBadge(text: String, color: Color) {
 private fun WorldBookEntryEditTabBar(
     selectedTab: WorldBookEntryEditTab,
     onTabSelected: (WorldBookEntryEditTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     AppSurface(
         kind = PageSurfaceKind.TopBar,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             val tabs = listOf(
                 WorldBookEntryEditTab.Content to stringResource(R.string.tab_entry_content),
                 WorldBookEntryEditTab.Trigger to stringResource(R.string.tab_entry_trigger),
-                WorldBookEntryEditTab.Advanced to stringResource(R.string.tab_entry_advanced)
+                WorldBookEntryEditTab.Advanced to stringResource(R.string.tab_entry_advanced),
             )
             tabs.forEach { (tab, title) ->
                 val selected = selectedTab == tab
@@ -431,11 +498,11 @@ private fun WorldBookEntryEditTabBar(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    shadowElevation = if (selected) 2.dp else 0.dp
+                    shadowElevation = if (selected) 2.dp else 0.dp,
                 ) {
                     Box(
                         modifier = Modifier.padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = title,
@@ -444,7 +511,7 @@ private fun WorldBookEntryEditTabBar(
                             color = if (selected)
                                 MaterialTheme.colorScheme.primary
                             else
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -460,7 +527,7 @@ private fun WorldBookEntryEditTabBar(
 private fun BasicInfoPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
     Panel {
@@ -468,7 +535,7 @@ private fun BasicInfoPanel(
         FormTextField(
             label = stringResource(R.string.entry_name),
             value = form.name,
-            onChange = { WorldBookEntryEditUiIntent.ChangeName(it).emit() }
+            onChange = { text -> WorldBookEntryEditUiIntent.ChangeName(text).emit() },
         )
 
         RpSettingsGroup {
@@ -477,7 +544,9 @@ private fun BasicInfoPanel(
                 subtitle = stringResource(R.string.entry_constant_desc),
                 checked = form.constant,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeConstant(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeConstant(enabled).emit()
+                },
             )
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
@@ -485,7 +554,9 @@ private fun BasicInfoPanel(
                 subtitle = stringResource(R.string.entry_disabled_desc),
                 checked = form.disabled,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDisabled(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeDisabled(enabled).emit()
+                },
             )
         }
     }
@@ -501,7 +572,7 @@ private fun BasicInfoPanel(
 @Composable
 private fun ContentWorkbenchPanel(
     form: WorldBookEntryEditForm,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val charCount = form.content.length
     val estimatedTokens = (charCount / 3.5).toInt()
@@ -512,23 +583,27 @@ private fun ContentWorkbenchPanel(
                 .fillMaxWidth()
                 .padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = stringResource(R.string.entry_content),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
             )
             AppSurface(
                 shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.50f)
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.50f),
             ) {
                 Text(
-                    text = stringResource(R.string.entry_char_token_count, charCount, estimatedTokens),
+                    text = stringResource(
+                        R.string.entry_char_token_count,
+                        charCount,
+                        estimatedTokens
+                    ),
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -540,7 +615,7 @@ private fun ContentWorkbenchPanel(
             maxLines = 18,
             showMacroBar = true,
             onExpandFullscreen = { WorldBookEntryEditUiIntent.OpenPromptEditor.emit() },
-            onChange = { WorldBookEntryEditUiIntent.ChangeContent(it).emit() }
+            onChange = { text -> WorldBookEntryEditUiIntent.ChangeContent(text).emit() },
         )
     }
 }
@@ -549,7 +624,7 @@ private fun ContentWorkbenchPanel(
 @Composable
 private fun CategoriesPanel(
     form: WorldBookEntryEditForm,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     RpChipInputField(
         title = stringResource(R.string.categories),
@@ -559,7 +634,7 @@ private fun CategoriesPanel(
         addLabel = stringResource(R.string.add_category),
         placeholder = stringResource(R.string.category_input_placeholder),
         editDialogTitle = stringResource(R.string.edit_category_title),
-        accentColor = MaterialTheme.colorScheme.tertiary
+        accentColor = MaterialTheme.colorScheme.tertiary,
     )
 }
 
@@ -572,23 +647,26 @@ private fun ConstantNoticeBanner() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
+        border = BorderStroke(
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
+        ),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
                 imageVector = Icons.Rounded.Lightbulb,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
             )
             Text(
                 text = stringResource(R.string.entry_constant_notice),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -598,7 +676,7 @@ private fun ConstantNoticeBanner() {
 @Composable
 private fun PrimaryKeywordsPanel(
     form: WorldBookEntryEditForm,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = !form.constant
     RpChipInputField(
@@ -615,7 +693,7 @@ private fun PrimaryKeywordsPanel(
         addLabel = stringResource(R.string.add_keyword),
         placeholder = stringResource(R.string.keyword_input_placeholder),
         editDialogTitle = stringResource(R.string.edit_keyword_title),
-        accentColor = MaterialTheme.colorScheme.primary
+        accentColor = MaterialTheme.colorScheme.primary,
     )
 }
 
@@ -624,7 +702,7 @@ private fun PrimaryKeywordsPanel(
 private fun SecondaryKeywordsAndLogicPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None && !form.constant
 
@@ -636,11 +714,13 @@ private fun SecondaryKeywordsAndLogicPanel(
             chips = form.secondaryKeywords,
             icon = Icons.Rounded.FilterList,
             enabled = enabled,
-            onChipsChanged = { WorldBookEntryEditUiIntent.SetSecondaryKeywords(it).emit() },
+            onChipsChanged = { items ->
+                WorldBookEntryEditUiIntent.SetSecondaryKeywords(items).emit()
+            },
             addLabel = stringResource(R.string.add_keyword),
             placeholder = stringResource(R.string.keyword_input_placeholder),
             editDialogTitle = stringResource(R.string.edit_keyword_title),
-            accentColor = MaterialTheme.colorScheme.secondary
+            accentColor = MaterialTheme.colorScheme.secondary,
         )
 
         // 判定逻辑选择器
@@ -648,12 +728,14 @@ private fun SecondaryKeywordsAndLogicPanel(
             Text(
                 text = stringResource(R.string.entry_logic),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             SelectiveLogicSelector(
                 logicValue = form.selectiveLogic,
                 enabled = enabled,
-                onLogicSelected = { WorldBookEntryEditUiIntent.ChangeSelectiveLogic(it).emit() }
+                onLogicSelected = { text ->
+                    WorldBookEntryEditUiIntent.ChangeSelectiveLogic(text).emit()
+                },
             )
         }
     }
@@ -664,7 +746,7 @@ private fun SecondaryKeywordsAndLogicPanel(
 private fun ProbabilityPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     Panel {
         RpPercentageSlider(
@@ -672,7 +754,9 @@ private fun ProbabilityPanel(
             value = form.probability.toIntOrNull() ?: 100,
             helper = stringResource(R.string.entry_probability_helper),
             enabled = loadState == WorldBookEntryEditLoadState.None,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeProbability(it.toString()).emit() }
+            onValueChange = { value ->
+                WorldBookEntryEditUiIntent.ChangeProbability(value.toString()).emit()
+            },
         )
     }
 }
@@ -682,7 +766,7 @@ private fun ProbabilityPanel(
 private fun ScanDepthAndScopePanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
 
@@ -696,20 +780,20 @@ private fun ScanDepthAndScopePanel(
             max = 200,
             step = 1,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeScanDepth(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeScanDepth(text).emit() },
         )
 
         RpSectionHeader(
             title = stringResource(R.string.entry_matching_scope),
             action = stringResource(R.string.entry_matching_scope_select_all),
             onAction = {
-                WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(true).emit()
-                WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(true).emit()
-                WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(true).emit()
-                WorldBookEntryEditUiIntent.ChangeMatchScenario(true).emit()
-                WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(true).emit()
-                WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes(true).emit()
-            }
+                WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(value = true).emit()
+                WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(value = true).emit()
+                WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(value = true).emit()
+                WorldBookEntryEditUiIntent.ChangeMatchScenario(value = true).emit()
+                WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(value = true).emit()
+                WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes(value = true).emit()
+            },
         )
 
         MatchingScopeMatrix(form = form, enabled = enabled, emit = emit)
@@ -721,33 +805,45 @@ private fun ScanDepthAndScopePanel(
 private fun MatchingScopeMatrix(
     form: WorldBookEntryEditForm,
     enabled: Boolean,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val scopes = listOf(
-        ScopeChipItem(stringResource(R.string.entry_match_description), form.matchCharacterDescription) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit()
-        },
-        ScopeChipItem(stringResource(R.string.entry_match_personality), form.matchCharacterPersonality) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(it).emit()
-        },
-        ScopeChipItem(stringResource(R.string.entry_match_character_note), form.matchCharacterDepthPrompt) {
-            WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(it).emit()
-        },
-        ScopeChipItem(stringResource(R.string.entry_match_scenario), form.matchScenario) {
-            WorldBookEntryEditUiIntent.ChangeMatchScenario(it).emit()
-        },
-        ScopeChipItem(stringResource(R.string.entry_match_persona_description), form.matchPersonaDescription) {
-            WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit()
-        },
-        ScopeChipItem(stringResource(R.string.entry_match_creator_notes), form.matchCreatorNotes) {
-            WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes(it).emit()
-        }
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_description),
+            selected = form.matchCharacterDescription,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchCharacterDescription(it).emit() },
+        ),
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_personality),
+            selected = form.matchCharacterPersonality,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchCharacterPersonality(it).emit() },
+        ),
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_character_note),
+            selected = form.matchCharacterDepthPrompt,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchCharacterDepthPrompt(it).emit() },
+        ),
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_scenario),
+            selected = form.matchScenario,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchScenario(it).emit() },
+        ),
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_persona_description),
+            selected = form.matchPersonaDescription,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchPersonaDescription(it).emit() },
+        ),
+        ScopeChipItem(
+            label = stringResource(R.string.entry_match_creator_notes),
+            selected = form.matchCreatorNotes,
+            onToggle = { WorldBookEntryEditUiIntent.ChangeMatchCreatorNotes(it).emit() },
+        ),
     )
 
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         scopes.forEach { item ->
             FilterChip(
@@ -760,16 +856,16 @@ private fun MatchingScopeMatrix(
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            modifier = Modifier.size(FilterChipDefaults.IconSize),
                         )
                     }
                 } else null,
                 label = {
                     Text(
                         text = item.label,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
-                }
+                },
             )
         }
     }
@@ -789,7 +885,7 @@ private data class ScopeChipItem(
 private fun PlacementPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
 
@@ -799,31 +895,31 @@ private fun PlacementPanel(
         PositionSelector(
             positionValue = form.position,
             enabled = enabled,
-            onPositionSelected = { WorldBookEntryEditUiIntent.ChangePosition(it).emit() }
+            onPositionSelected = { text -> WorldBookEntryEditUiIntent.ChangePosition(text).emit() },
         )
 
         AnimatedVisibility(
             visible = form.position.trim() == LorebookEntry.POSITION_OUTLET.toString(),
             enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FormTextField(
                     label = stringResource(R.string.entry_outlet),
                     value = form.outletName,
-                    onChange = { WorldBookEntryEditUiIntent.ChangeOutletName(it).emit() }
+                    onChange = { text -> WorldBookEntryEditUiIntent.ChangeOutletName(text).emit() },
                 )
                 val macroPreview = "{{outlet::" + form.outletName.ifBlank { "name" } + "}}"
                 AppSurface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
                 ) {
                     Text(
                         text = stringResource(R.string.entry_outlet_preview, macroPreview),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.secondary,
                     )
                 }
             }
@@ -834,12 +930,12 @@ private fun PlacementPanel(
             Text(
                 text = stringResource(R.string.entry_role),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             RoleSelector(
                 roleValue = form.role,
                 enabled = enabled,
-                onRoleSelected = { WorldBookEntryEditUiIntent.ChangeRole(it).emit() }
+                onRoleSelected = { text -> WorldBookEntryEditUiIntent.ChangeRole(text).emit() },
             )
         }
 
@@ -852,7 +948,7 @@ private fun PlacementPanel(
             max = 99999,
             step = 10,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeOrder(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeOrder(text).emit() },
         )
 
         RpNumberStepper(
@@ -863,7 +959,7 @@ private fun PlacementPanel(
             max = 999,
             step = 1,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeDepth(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeDepth(text).emit() },
         )
     }
 }
@@ -873,7 +969,7 @@ private fun PlacementPanel(
 private fun InclusionGroupPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
     val hasGroup = form.group.isNotBlank()
@@ -883,19 +979,19 @@ private fun InclusionGroupPanel(
         Text(
             text = stringResource(R.string.entry_inclusion_group_desc),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
         )
 
         FormTextField(
             label = stringResource(R.string.entry_group_name),
             value = form.group,
-            onChange = { WorldBookEntryEditUiIntent.ChangeGroup(it).emit() }
+            onChange = { text -> WorldBookEntryEditUiIntent.ChangeGroup(text).emit() },
         )
 
         AnimatedVisibility(
             visible = hasGroup,
             enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 RpNumberStepper(
@@ -906,7 +1002,9 @@ private fun InclusionGroupPanel(
                     max = 9999,
                     step = 1,
                     enabled = enabled,
-                    onValueChange = { WorldBookEntryEditUiIntent.ChangeGroupWeight(it).emit() }
+                    onValueChange = { text ->
+                        WorldBookEntryEditUiIntent.ChangeGroupWeight(text).emit()
+                    },
                 )
 
                 RpSettingsGroup {
@@ -915,7 +1013,11 @@ private fun InclusionGroupPanel(
                         subtitle = stringResource(R.string.entry_use_group_scoring_desc),
                         checked = form.useGroupScoring,
                         enabled = enabled,
-                        onCheckedChange = { WorldBookEntryEditUiIntent.ChangeUseGroupScoring(it).emit() }
+                        onCheckedChange = { enabled ->
+                            WorldBookEntryEditUiIntent.ChangeUseGroupScoring(
+                                enabled
+                            ).emit()
+                        },
                     )
                     RpSettingsDivider(startIndent = false)
                     RpSettingsSwitchTile(
@@ -923,7 +1025,11 @@ private fun InclusionGroupPanel(
                         subtitle = stringResource(R.string.entry_group_override_desc),
                         checked = form.groupOverride,
                         enabled = enabled,
-                        onCheckedChange = { WorldBookEntryEditUiIntent.ChangeGroupOverride(it).emit() }
+                        onCheckedChange = { enabled ->
+                            WorldBookEntryEditUiIntent.ChangeGroupOverride(
+                                enabled
+                            ).emit()
+                        },
                     )
                 }
             }
@@ -936,7 +1042,7 @@ private fun InclusionGroupPanel(
 private fun TimingPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
 
@@ -945,7 +1051,7 @@ private fun TimingPanel(
         Text(
             text = stringResource(R.string.entry_timing_desc),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
         )
 
         RpNumberStepper(
@@ -956,7 +1062,7 @@ private fun TimingPanel(
             max = 100,
             step = 1,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeSticky(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeSticky(text).emit() },
         )
 
         RpNumberStepper(
@@ -967,7 +1073,7 @@ private fun TimingPanel(
             max = 100,
             step = 1,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeCooldown(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeCooldown(text).emit() },
         )
 
         RpNumberStepper(
@@ -978,7 +1084,7 @@ private fun TimingPanel(
             max = 100,
             step = 1,
             enabled = enabled,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeDelay(it).emit() }
+            onValueChange = { text -> WorldBookEntryEditUiIntent.ChangeDelay(text).emit() },
         )
     }
 }
@@ -988,7 +1094,7 @@ private fun TimingPanel(
 private fun RecursionAndMatchingPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
 
@@ -1000,35 +1106,53 @@ private fun RecursionAndMatchingPanel(
                 title = stringResource(R.string.entry_whole_words),
                 checked = form.matchWholeWords == true,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeMatchWholeWords(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeMatchWholeWords(
+                        enabled
+                    ).emit()
+                },
             )
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_case_sensitive),
                 checked = form.caseSensitive == true,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeCaseSensitive(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeCaseSensitive(
+                        enabled
+                    ).emit()
+                },
             )
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_ignore_budget),
                 checked = form.ignoreBudget,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeIgnoreBudget(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeIgnoreBudget(enabled).emit()
+                },
             )
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_prevent_recursion),
                 checked = form.preventRecursion,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangePreventRecursion(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangePreventRecursion(
+                        enabled
+                    ).emit()
+                },
             )
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_delay_until_recursion),
                 checked = form.delayUntilRecursion,
                 enabled = enabled,
-                onCheckedChange = { WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(it).emit() }
+                onCheckedChange = { enabled ->
+                    WorldBookEntryEditUiIntent.ChangeDelayUntilRecursion(
+                        enabled
+                    ).emit()
+                },
             )
         }
     }
@@ -1039,7 +1163,7 @@ private fun RecursionAndMatchingPanel(
 private fun ExtensionsJsonPanel(
     form: WorldBookEntryEditForm,
     loadState: WorldBookEntryEditLoadState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     val enabled = loadState == WorldBookEntryEditLoadState.None
     Panel {
@@ -1049,7 +1173,9 @@ private fun ExtensionsJsonPanel(
             enabled = enabled,
             minHeight = 120.dp,
             maxHeight = 220.dp,
-            onValueChange = { WorldBookEntryEditUiIntent.ChangeExtensionsJson(it).emit() }
+            onValueChange = { text ->
+                WorldBookEntryEditUiIntent.ChangeExtensionsJson(text).emit()
+            },
         )
     }
 }
@@ -1061,19 +1187,19 @@ private fun ExtensionsJsonPanel(
 private fun RoleSelector(
     roleValue: String,
     enabled: Boolean,
-    onRoleSelected: (String) -> Unit
+    onRoleSelected: (String) -> Unit,
 ) {
     val currentRole = roleValue.trim().toIntOrNull() ?: LorebookEntry.ROLE_SYSTEM
     val roles = listOf(
         LorebookEntry.ROLE_SYSTEM to stringResource(R.string.role_system),
         LorebookEntry.ROLE_USER to stringResource(R.string.role_user),
-        LorebookEntry.ROLE_ASSISTANT to stringResource(R.string.role_assistant)
+        LorebookEntry.ROLE_ASSISTANT to stringResource(R.string.role_assistant),
     )
 
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         roles.forEach { (roleId, label) ->
             FilterChip(
@@ -1086,16 +1212,16 @@ private fun RoleSelector(
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            modifier = Modifier.size(FilterChipDefaults.IconSize),
                         )
                     }
                 } else null,
                 label = {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
-                }
+                },
             )
         }
     }
@@ -1106,21 +1232,21 @@ private fun RoleSelector(
 private fun SelectiveLogicSelector(
     logicValue: String,
     enabled: Boolean,
-    onLogicSelected: (String) -> Unit
+    onLogicSelected: (String) -> Unit,
 ) {
     val currentLogic = logicValue.trim().toIntOrNull() ?: LorebookEntry.LOGIC_AND_ANY
     val logicOptions = listOf(
         LorebookEntry.LOGIC_AND_ANY to stringResource(R.string.logic_and_any),
         LorebookEntry.LOGIC_AND_ALL to stringResource(R.string.logic_and_all),
         LorebookEntry.LOGIC_NOT_ANY to stringResource(R.string.logic_not_any),
-        LorebookEntry.LOGIC_NOT_ALL to stringResource(R.string.logic_not_all)
+        LorebookEntry.LOGIC_NOT_ALL to stringResource(R.string.logic_not_all),
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             logicOptions.forEach { (logicId, label) ->
                 FilterChip(
@@ -1133,29 +1259,30 @@ private fun SelectiveLogicSelector(
                             Icon(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
                             )
                         }
                     } else null,
                     label = {
                         Text(
                             text = label,
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
                         )
-                    }
+                    },
                 )
             }
         }
 
+        val logicHelperText = when (currentLogic) {
+            LorebookEntry.LOGIC_AND_ALL -> stringResource(R.string.logic_and_all_helper)
+            LorebookEntry.LOGIC_NOT_ANY -> stringResource(R.string.logic_not_any_helper)
+            LorebookEntry.LOGIC_NOT_ALL -> stringResource(R.string.logic_not_all_helper)
+            else -> stringResource(R.string.logic_and_any_helper)
+        }
         Text(
-            text = when (currentLogic) {
-                LorebookEntry.LOGIC_AND_ALL -> stringResource(R.string.logic_and_all_helper)
-                LorebookEntry.LOGIC_NOT_ANY -> stringResource(R.string.logic_not_any_helper)
-                LorebookEntry.LOGIC_NOT_ALL -> stringResource(R.string.logic_not_all_helper)
-                else -> stringResource(R.string.logic_and_any_helper)
-            },
+            text = logicHelperText,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
         )
     }
 }
@@ -1166,7 +1293,7 @@ private fun SelectiveLogicSelector(
 private fun PositionSelector(
     positionValue: String,
     enabled: Boolean,
-    onPositionSelected: (String) -> Unit
+    onPositionSelected: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val currentPosition = positionValue.trim().toIntOrNull() ?: LorebookEntry.POSITION_AT_DEPTH
@@ -1179,7 +1306,7 @@ private fun PositionSelector(
         LorebookEntry.POSITION_AN_BOTTOM to stringResource(R.string.position_an_bottom),
         LorebookEntry.POSITION_EXAMPLE_TOP to stringResource(R.string.position_example_top),
         LorebookEntry.POSITION_EXAMPLE_BOTTOM to stringResource(R.string.position_example_bottom),
-        LorebookEntry.POSITION_OUTLET to stringResource(R.string.position_outlet)
+        LorebookEntry.POSITION_OUTLET to stringResource(R.string.position_outlet),
     )
 
     val currentLabel = positions.firstOrNull { it.first == currentPosition }?.second
@@ -1188,7 +1315,7 @@ private fun PositionSelector(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { if (enabled) expanded = it },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
             value = currentLabel,
@@ -1199,12 +1326,13 @@ private fun PositionSelector(
             enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
-            shape = RoundedCornerShape(12.dp)
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
+            shape = RoundedCornerShape(12.dp),
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
         ) {
             positions.forEach { (posId, label) ->
                 DropdownMenuItem(
@@ -1212,7 +1340,7 @@ private fun PositionSelector(
                     onClick = {
                         onPositionSelected(posId.toString())
                         expanded = false
-                    }
+                    },
                 )
             }
         }
@@ -1223,7 +1351,7 @@ private fun PositionSelector(
 @Composable
 private fun ActionPanel(
     state: WorldBookEntryEditUiState.Normal,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     // 次操作保留次级填充，透明度较高时仍与页面上的普通文字区分。
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1232,7 +1360,7 @@ private fun ActionPanel(
             colors = ButtonDefaults.filledTonalButtonColors(),
             shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEntryEditLoadState.None,
-            onClick = { WorldBookEntryEditUiIntent.Back.emit() }
+            onClick = { WorldBookEntryEditUiIntent.Back.emit() },
         ) {
             Text(stringResource(R.string.cancel))
         }
@@ -1240,16 +1368,15 @@ private fun ActionPanel(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEntryEditLoadState.None,
-            onClick = { WorldBookEntryEditUiIntent.SaveEntry.emit() }
+            onClick = { WorldBookEntryEditUiIntent.SaveEntry.emit() },
         ) {
-            Icon(Icons.Rounded.Check, contentDescription = null)
-            Text(
-                when {
-                    state.loadState == WorldBookEntryEditLoadState.Saving -> stringResource(R.string.saving)
-                    state.mode == WorldBookEntryEditMode.Create -> stringResource(R.string.create)
-                    else -> stringResource(R.string.save)
-                }
-            )
+            Icon(imageVector = Icons.Rounded.Check, contentDescription = null)
+            val saveButtonText = when {
+                state.loadState == WorldBookEntryEditLoadState.Saving -> stringResource(R.string.saving)
+                state.mode == WorldBookEntryEditMode.Create -> stringResource(R.string.create)
+                else -> stringResource(R.string.save)
+            }
+            Text(text = saveButtonText)
         }
     }
 }
@@ -1258,20 +1385,19 @@ private fun ActionPanel(
 @Composable
 private fun TopBarSaveButton(
     state: WorldBookEntryEditUiState.Normal,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     TextButton(
         enabled = state.loadState == WorldBookEntryEditLoadState.None,
-        onClick = { WorldBookEntryEditUiIntent.SaveEntry.emit() }
+        onClick = { WorldBookEntryEditUiIntent.SaveEntry.emit() },
     ) {
-        Icon(Icons.Rounded.Check, contentDescription = null)
-        Text(
-            when {
-                state.loadState == WorldBookEntryEditLoadState.Saving -> stringResource(R.string.saving)
-                state.mode == WorldBookEntryEditMode.Create -> stringResource(R.string.create)
-                else -> stringResource(R.string.save)
-            }
-        )
+        Icon(imageVector = Icons.Rounded.Check, contentDescription = null)
+        val saveButtonText = when {
+            state.loadState == WorldBookEntryEditLoadState.Saving -> stringResource(R.string.saving)
+            state.mode == WorldBookEntryEditMode.Create -> stringResource(R.string.create)
+            else -> stringResource(R.string.save)
+        }
+        Text(text = saveButtonText)
     }
 }
 
@@ -1279,33 +1405,38 @@ private fun TopBarSaveButton(
 @Composable
 private fun DialogSwitch(
     dialogState: WorldBookEntryEditDialogState,
-    emit: WorldBookEntryEditUiIntent.() -> Unit
+    emit: WorldBookEntryEditUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         WorldBookEntryEditDialogState.None -> Unit
         is WorldBookEntryEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEntryEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_world_book_entry_title),
-            message = stringResource(R.string.delete_world_book_entry_message, dialogState.entryName),
+            message = stringResource(
+                R.string.delete_world_book_entry_message,
+                dialogState.entryName
+            ),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDeleteEntry.emit() }
+            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDeleteEntry.emit() },
         )
+
         WorldBookEntryEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEntryEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.unsaved_changes_title),
             message = stringResource(R.string.unsaved_changes_message),
             confirmText = stringResource(R.string.discard_changes),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDiscardChanges.emit() }
+            onConfirm = { WorldBookEntryEditUiIntent.ConfirmDiscardChanges.emit() },
         )
+
         is WorldBookEntryEditDialogState.PromptEditor -> AppPromptEditorDialog(
             onDismissRequest = { WorldBookEntryEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.entry_content),
             value = dialogState.draftText,
             availableMacros = DEFAULT_PROMPT_MACROS,
             onValueChange = { WorldBookEntryEditUiIntent.ChangePromptEditorDraft(it).emit() },
-            onConfirm = { WorldBookEntryEditUiIntent.ConfirmPromptEditor.emit() }
+            onConfirm = { WorldBookEntryEditUiIntent.ConfirmPromptEditor.emit() },
         )
     }
 }
@@ -1324,26 +1455,26 @@ private fun FormTextField(
     showMacroBar: Boolean = false,
     macros: List<String> = DEFAULT_PROMPT_MACROS,
     onExpandFullscreen: (() -> Unit)? = null,
-    onChange: (String) -> Unit
+    onChange: (String) -> Unit,
 ) {
     val textFieldState = rememberBoundTextFieldState(value, onChange)
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         RpScrollableOutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (maxLines > 1) Modifier.heightIn(max = 240.dp) else Modifier),
             state = textFieldState,
-            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            label = { Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             minLines = minLines,
             maxLines = maxLines.coerceAtLeast(minLines),
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             outputTransformation = outputTransformation,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         if (showMacroBar) {
             RpMacroActionBar(
@@ -1351,9 +1482,11 @@ private fun FormTextField(
                 onInsertMacro = { macro ->
                     val currentText = textFieldState.text.toString()
                     val selection = textFieldState.selection
-                    val start = selection.min.coerceIn(0, currentText.length)
-                    val end = selection.max.coerceIn(0, currentText.length)
-                    val before = currentText.substring(0, start)
+                    val start =
+                        selection.min.coerceIn(minimumValue = 0, maximumValue = currentText.length)
+                    val end =
+                        selection.max.coerceIn(minimumValue = 0, maximumValue = currentText.length)
+                    val before = currentText.substring(startIndex = 0, endIndex = start)
                     val insertContent = if (macro == "<START>") {
                         if (before.isNotEmpty() && !before.endsWith("\n")) "\n<START>\n" else "<START>\n"
                     } else {
@@ -1365,7 +1498,7 @@ private fun FormTextField(
                         this.selection = TextRange(newCursorPos)
                     }
                 },
-                onFullscreenClick = onExpandFullscreen
+                onFullscreenClick = onExpandFullscreen,
             )
         }
     }
@@ -1385,10 +1518,10 @@ private fun WorldBookEntryEditLayoutPreview() {
                     keywords = listOf("district", "railway"),
                     secondaryKeywords = listOf("archive"),
                     category = listOf("location"),
-                    content = "The old district is divided by three elevated railways."
-                )
+                    content = "The old district is divided by three elevated railways.",
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

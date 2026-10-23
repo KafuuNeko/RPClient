@@ -100,7 +100,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         uiState.copy(
             searchText = intent.value,
-            characters = renderCharacters(intent.value)
+            characters = renderCharacters(intent.value),
         ).setup()
     }
 
@@ -114,7 +114,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
      */
     @UiIntentObserver(CharacterListUiIntent.VisibleCharactersChanged::class)
     private fun onVisibleCharactersChanged(
-        intent: CharacterListUiIntent.VisibleCharactersChanged
+        intent: CharacterListUiIntent.VisibleCharactersChanged,
     ) {
         if (!isStateOf<CharacterListUiState.Normal>()) return
         if (intent.targetSizePx !in 1..MAX_THUMBNAIL_DIMENSION) return
@@ -129,12 +129,16 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         // 取消已滑出可视区或尺寸过期的加载协程
         mAvatarLoadJobs.keys.toList().forEach { characterId ->
             val uuid = mAvatarUuids[characterId]
-            val expectedKey = uuid?.let {
-                AvatarCacheKey(it, intent.targetSizePx, intent.targetSizePx)
+            val expectedKey = uuid?.let { text ->
+                AvatarCacheKey(
+                    avatarUuid = text,
+                    widthPx = intent.targetSizePx,
+                    heightPx = intent.targetSizePx
+                )
             }
-            val shouldCancel = characterId !in visibleIds ||
-                mVisibleAvatars[characterId]?.key?.let { it != expectedKey } == true ||
-                sizeChanged
+            val shouldCancel = characterId !in visibleIds
+                || mVisibleAvatars[characterId]?.key?.let { avatarCacheKey -> avatarCacheKey != expectedKey } == true
+                || sizeChanged
             if (shouldCancel) cancelAvatarLoad(characterId)
         }
         // 调度当前可见项的异步缩略图加载并刷新列表
@@ -156,7 +160,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             activity = CharacterEditActivity::class.java,
             extras = Bundle().apply {
                 putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, intent.characterId)
-            }
+            },
         ).tryEmit()
     }
 
@@ -197,26 +201,26 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             loadState = CharacterListLoadState.Importing(
                 stage = CharacterImportStage.Reading,
                 completedCount = 0,
-                totalCount = uris.size
-            )
+                totalCount = uris.size,
+            ),
         ).setup()
         mTransferJob = viewModelScope.launch {
             try {
                 // 解析阶段只创建内存草稿，避免确认前产生半成品数据
                 val batch = readImportBatch(uris)
-                val lowBudgetDrafts = batch.drafts.filter {
-                    LorebookImportPolicy.requiresLowBudgetConfirmation(it.card)
+                val lowBudgetDrafts = batch.drafts.filter { characterCardImportDraft ->
+                    LorebookImportPolicy.requiresLowBudgetConfirmation(characterCardImportDraft.card)
                 }
                 if (lowBudgetDrafts.isNotEmpty()) {
                     mPendingImport = batch
                     getOrNull<CharacterListUiState.Normal>()?.copy(
                         loadState = CharacterListLoadState.None,
                         dialogState = CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm(
-                            importedTokenBudget = lowBudgetDrafts.minOf {
-                                requireNotNull(it.card.embeddedLorebook).lorebook.tokenBudget
+                            importedTokenBudget = lowBudgetDrafts.minOf { characterCardImportDraft ->
+                                requireNotNull(characterCardImportDraft.card.embeddedLorebook).lorebook.tokenBudget
                             },
-                            affectedCharacterCount = lowBudgetDrafts.size
-                        )
+                            affectedCharacterCount = lowBudgetDrafts.size,
+                        ),
                     )?.setup()
                 } else {
                     saveImportBatch(batch)
@@ -261,28 +265,28 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             loadState = CharacterListLoadState.Importing(
                 stage = CharacterImportStage.Saving,
                 completedCount = 0,
-                totalCount = batch.drafts.size
+                totalCount = batch.drafts.size,
             ),
-            dialogState = CharacterListDialogState.None
+            dialogState = CharacterListDialogState.None,
         ).setup()
         mTransferJob = viewModelScope.launch {
             try {
                 // 预算策略只改变命中低预算规则的卡片，其余草稿保持原样
                 saveImportBatch(
-                    batch.copy(
+                    batch = batch.copy(
                         drafts = batch.drafts.map { draft ->
                             if (LorebookImportPolicy.requiresLowBudgetConfirmation(draft.card)) {
                                 draft.copy(
                                     card = LorebookImportPolicy.resolveBudget(
-                                        draft.card,
-                                        followGlobal
-                                    )
+                                        import = draft.card,
+                                        followGlobal = followGlobal,
+                                    ),
                                 )
                             } else {
                                 draft
                             }
-                        }
-                    )
+                        },
+                    ),
                 )
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -320,13 +324,13 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             updateImportProgress(
                 stage = CharacterImportStage.Reading,
                 completedCount = index + 1,
-                totalCount = uris.size
+                totalCount = uris.size,
             )
         }
         return CharacterCardImportBatch(
             drafts = drafts,
             parseFailureCount = failureCount,
-            totalCount = uris.size
+            totalCount = uris.size,
         )
     }
 
@@ -342,7 +346,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         updateImportProgress(
             stage = CharacterImportStage.Saving,
             completedCount = 0,
-            totalCount = batch.drafts.size
+            totalCount = batch.drafts.size,
         )
         // 逐卡提交可控制头像解码峰值，并保留部分成功结果
         batch.drafts.forEachIndexed { index, draft ->
@@ -357,7 +361,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             updateImportProgress(
                 stage = CharacterImportStage.Saving,
                 completedCount = index + 1,
-                totalCount = batch.drafts.size
+                totalCount = batch.drafts.size,
             )
         }
         // 列表只在整批完成后查询一次，避免导入数量放大数据库读取与头像失效开销
@@ -365,7 +369,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         publishImportResult(
             totalCount = batch.totalCount,
             successCount = successCount,
-            failureCount = failureCount
+            failureCount = failureCount,
         )
     }
 
@@ -386,8 +390,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         uiState.copy(
             dialogState = CharacterListDialogState.BatchImportResult(
                 successCount = successCount,
-                failureCount = failureCount
-            )
+                failureCount = failureCount,
+            ),
         ).setup()
     }
 
@@ -395,15 +399,15 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private fun updateImportProgress(
         stage: CharacterImportStage,
         completedCount: Int,
-        totalCount: Int
+        totalCount: Int,
     ) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         uiState.copy(
             loadState = CharacterListLoadState.Importing(
                 stage = stage,
                 completedCount = completedCount,
-                totalCount = totalCount
-            )
+                totalCount = totalCount,
+            ),
         ).setup()
     }
 
@@ -414,7 +418,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
         CharacterListViewEvent.OpenCharacterCardJsonExporter(
             characterId = intent.characterId,
-            fileName = "${character.name.ifBlank { "character" }}.json"
+            fileName = "${character.name.ifBlank { "character" }}.json",
         ).tryEmit()
     }
 
@@ -501,7 +505,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         current.copy(
             loadState = CharacterListLoadState.None,
             selectedCharacterId = characters.firstOrNull { it.id == selectedCharacterId }?.id,
-            characters = renderCharacters(current.searchText)
+            characters = renderCharacters(current.searchText),
         ).setup()
         scheduleVisibleAvatarLoads()
     }
@@ -533,7 +537,11 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 cancelAvatarLoad(characterId)
                 return@forEach
             }
-            val key = AvatarCacheKey(avatarUuid, targetSizePx, targetSizePx)
+            val key = AvatarCacheKey(
+                avatarUuid = avatarUuid,
+                widthPx = targetSizePx,
+                heightPx = targetSizePx
+            )
             if (mVisibleAvatars[characterId]?.key == key) return@forEach
             // 命中内存 LRU 缓存则直接复用
             mAvatarCache.get(key)?.let { cached ->
@@ -554,17 +562,17 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                     // 在 IO 线程按目标尺寸下采样解码头像位图
                     val bitmap = withContext(Dispatchers.IO) {
                         mFileRepository.loadSampledBitmap(
-                            avatarUuid,
-                            targetSizePx,
-                            targetSizePx
+                            uuid = avatarUuid,
+                            requestedWidthPx = targetSizePx,
+                            requestedHeightPx = targetSizePx,
                         )
                     } ?: return@launch
                     // 校验响应时效性与视口状态
-                    val isCurrentRequest = mAvatarLoadTokens[characterId] === token &&
-                        characterId in mVisibleCharacterIds &&
-                        mAvatarUuids[characterId] == avatarUuid &&
-                        mThumbnailTargetSizePx == targetSizePx &&
-                        isStateOf<CharacterListUiState.Normal>()
+                    val isCurrentRequest = mAvatarLoadTokens[characterId] === token
+                        && characterId in mVisibleCharacterIds
+                        && mAvatarUuids[characterId] == avatarUuid
+                        && mThumbnailTargetSizePx == targetSizePx
+                        && isStateOf<CharacterListUiState.Normal>()
                     if (!isCurrentRequest) return@launch
                     // 写入缓存并更新视口位图
                     mAvatarCache.put(key, bitmap)
@@ -614,7 +622,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val keyword = query.trim()
         if (keyword.isEmpty()) return mAllCharacterItems
         return mAllCharacterItems.filter { item ->
-            mSearchCorpus[item.id].orEmpty().contains(keyword, ignoreCase = true)
+            mSearchCorpus[item.id].orEmpty().contains(other = keyword, ignoreCase = true)
         }
     }
 
@@ -662,7 +670,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         fun removeAvatar(avatarUuid: String) {
             val matchingKeys = mEntries.keys.filter { it.avatarUuid == avatarUuid }
             matchingKeys.forEach { key ->
-                mEntries.remove(key)?.let { mSizeBytes -= it.byteCount.toLong() }
+                mEntries.remove(key)?.let { bitmap -> mSizeBytes -= bitmap.byteCount.toLong() }
             }
         }
 
@@ -686,6 +694,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private companion object {
         /** 缩略图最大支持的目标像素尺寸（4096px）。 */
         const val MAX_THUMBNAIL_DIMENSION = 4_096
+
         /** 头像内存缓存最大字节容量（16MB）。 */
         const val MAX_AVATAR_CACHE_BYTES = 16L * 1024L * 1024L
     }

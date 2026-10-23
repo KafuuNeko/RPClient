@@ -23,6 +23,7 @@ data class StoryArchive(
     companion object {
         /** 故事归档标识字符串。 */
         const val FORMAT = "rpclient_story"
+
         /** 故事归档协议版本号。 */
         const val VERSION = 2
     }
@@ -57,7 +58,7 @@ data class ArchivedStory(
 
     val totalCharacterCount: Int
         get() = ungroupedChapters.sumOf { it.content.length } +
-            volumes.sumOf { volume -> volume.chapters.sumOf { it.content.length } }
+            volumes.sumOf { volume -> volume.chapters.sumOf { archivedChapter -> archivedChapter.content.length } }
 }
 
 /** 归档中的一个分卷；数组顺序就是分卷和卷内章节顺序。 */
@@ -112,6 +113,7 @@ data class StoryLorebookHint(
 /** 故事导入来源类型。 */
 enum class StoryImportType {
     Text,
+
     Archive
 }
 
@@ -147,5 +149,5 @@ data class StoryImportDraft(
 
     val totalCharacterCount: Int
         get() = ungroupedChapters.sumOf { it.content.length } +
-            volumes.sumOf { volume -> volume.chapters.sumOf { it.content.length } }
+            volumes.sumOf { volume -> volume.chapters.sumOf { archivedChapter -> archivedChapter.content.length } }
 }

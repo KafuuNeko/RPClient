@@ -10,8 +10,10 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "page_backgrounds",
     foreignKeys = [ForeignKey(
-        entity = FileEntity::class, parentColumns = ["uuid"], childColumns = ["fileUuid"],
-        onDelete = ForeignKey.RESTRICT
+        entity = FileEntity::class,
+        parentColumns = ["uuid"],
+        childColumns = ["fileUuid"],
+        onDelete = ForeignKey.RESTRICT,
     )],
     indices = [Index(value = ["fileUuid"], unique = true)]
 )

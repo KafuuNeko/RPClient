@@ -27,7 +27,7 @@ class LLMProviderListActivity : CoreActivityWithEvent() {
 
         LLMProviderListLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

@@ -10,8 +10,8 @@ class RegexStorageMigrationTest {
     fun authorizedPresetScriptsAppendAfterGlobalAndKeepEnabledState() {
         val result = mergeLegacyGlobalAndPreset(
             globalScripts = listOf(script("global")),
-            presetScripts = listOf(script("preset"), script("disabled", disabled = true)),
-            presetAuthorized = true
+            presetScripts = listOf(script("preset"), script(id = "disabled", disabled = true)),
+            presetAuthorized = true,
         )
 
         assertEquals(listOf("global", "preset", "disabled"), result.map { it.id })
@@ -24,7 +24,7 @@ class RegexStorageMigrationTest {
         val result = mergeLegacyGlobalAndPreset(
             globalScripts = emptyList(),
             presetScripts = listOf(script("preset")),
-            presetAuthorized = false
+            presetAuthorized = false,
         )
 
         assertEquals("preset", result.single().id)
@@ -38,12 +38,12 @@ class RegexStorageMigrationTest {
             globalScripts = listOf(script("global")),
             presetScripts = listOf(script("global"), script("")),
             presetAuthorized = true,
-            createId = { generatedIds.removeFirst() }
+            createId = { generatedIds.removeFirst() },
         )
 
         assertEquals(
             listOf("global", "migrated-one", "migrated-two"),
-            result.map { it.id }
+            result.map { it.id },
         )
     }
 
@@ -53,6 +53,6 @@ class RegexStorageMigrationTest {
         findRegex = "/x/g",
         replaceString = "y",
         placement = listOf(RegexPlacement.UserInput.value),
-        disabled = disabled
+        disabled = disabled,
     )
 }

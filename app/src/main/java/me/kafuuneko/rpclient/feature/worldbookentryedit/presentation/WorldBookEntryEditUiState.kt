@@ -32,14 +32,18 @@ sealed class WorldBookEntryEditUiState {
 /** 世界书条目编辑页的创建或编辑模式。 */
 enum class WorldBookEntryEditMode {
     Create,
+
     Edit
 }
 
 /** 条目读取、保存和删除操作的互斥状态。 */
 sealed class WorldBookEntryEditLoadState {
     data object None : WorldBookEntryEditLoadState()
+
     data object Loading : WorldBookEntryEditLoadState()
+
     data object Saving : WorldBookEntryEditLoadState()
+
     data object Deleting : WorldBookEntryEditLoadState()
 }
 

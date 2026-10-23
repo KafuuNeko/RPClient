@@ -32,28 +32,30 @@ import me.kafuuneko.rpclient.libs.search.SearchNavigation
 class ChatActivity : CoreActivityWithEvent() {
     private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
     private val mBackgroundFlow by lazy {
-        mBackgroundViewModel.observeChat(mViewModel.uiStateFlow.mapNotNull {
-            (it as? ChatUiState.Normal)?.character?.id
-        }).flowWithLifecycle(lifecycle)
+        mBackgroundViewModel.observeChat(
+            characterIds = mViewModel.uiStateFlow.mapNotNull { chatUiState ->
+                (chatUiState as? ChatUiState.Normal)?.character?.id
+            },
+        ).flowWithLifecycle(lifecycle)
     }
     private val mViewModel by viewModels<ChatViewModel>()
     private val mImagePicker = registerForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(4)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
     ) { uris ->
         mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.Picked(uris)))
     }
     private val mImageSaver = registerForActivityResult(
-        CreateImageDocumentContract()
+        contract = CreateImageDocumentContract(),
     ) { uri ->
-        uri?.let { mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.SaveResult(it))) }
+        uri?.let { uri -> mViewModel.emit(ChatUiIntent.ImageAction(MessageImageAction.SaveResult(uri))) }
     }
 
 
     /** 导出目标由系统文档选择器创建，Activity 只回传 URI。 */
     private val mChatExporterLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/x-ndjson")
+        contract = ActivityResultContracts.CreateDocument("application/x-ndjson"),
     ) { uri ->
-        uri?.let { mViewModel.emit(ChatUiIntent.ExportChatResult(it)) }
+        uri?.let { uri -> mViewModel.emit(ChatUiIntent.ExportChatResult(uri)) }
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -70,17 +72,18 @@ class ChatActivity : CoreActivityWithEvent() {
         ChatLayout(
             uiState = uiState,
             background = background,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mViewModel.emit(
-            ChatUiIntent.Init(
+            uiIntent = ChatUiIntent.Init(
                 sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
-                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 }
-            )
+                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0)
+                    .takeIf { it > 0 },
+            ),
         )
     }
 
@@ -98,9 +101,7 @@ class ChatActivity : CoreActivityWithEvent() {
         // 图片保存使用本次原图的格式元数据，其他导出沿用各自的文档合约。
         when (viewEvent) {
             ChatViewEvent.PickImages -> mImagePicker.launch(
-                PickVisualMediaRequest(
-                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                )
+                input = PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly),
             )
 
             is ChatViewEvent.SaveImage -> mImageSaver.launch(viewEvent.metadata)
@@ -124,7 +125,7 @@ class ChatActivity : CoreActivityWithEvent() {
         startActivity(
             Intent(this, ChatActivity::class.java).apply {
                 putExtra(EXTRA_SESSION_ID, sessionId)
-            }
+            },
         )
         finish()
     }

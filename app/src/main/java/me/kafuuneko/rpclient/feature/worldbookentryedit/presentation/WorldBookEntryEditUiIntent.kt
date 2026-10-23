@@ -14,7 +14,8 @@ sealed class WorldBookEntryEditUiIntent {
 
     data class SetKeywords(val keywords: List<String>) : WorldBookEntryEditUiIntent()
 
-    data class SetSecondaryKeywords(val secondaryKeywords: List<String>) : WorldBookEntryEditUiIntent()
+    data class SetSecondaryKeywords(val secondaryKeywords: List<String>) :
+        WorldBookEntryEditUiIntent()
 
     data class ChangeConstant(val value: Boolean) : WorldBookEntryEditUiIntent()
 
@@ -77,7 +78,7 @@ sealed class WorldBookEntryEditUiIntent {
     data class ChangeExtensionsJson(val value: String) : WorldBookEntryEditUiIntent()
 
     data class ChangeContent(val value: String) : WorldBookEntryEditUiIntent()
-    
+
     data object OpenPromptEditor : WorldBookEntryEditUiIntent()
 
     data class ChangePromptEditorDraft(val text: String) : WorldBookEntryEditUiIntent()

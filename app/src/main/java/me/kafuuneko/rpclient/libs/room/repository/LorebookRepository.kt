@@ -63,11 +63,11 @@ class LorebookRepository(
         return mAppDatabase.withTransaction {
             val lorebooks = mLorebookDao.getAllLorebooks()
             val entriesByLorebookId = mLorebookEntryDao.getAllEntries()
-                .groupBy { it.lorebookId }
+                .groupBy { entry -> entry.lorebookId }
             lorebooks.map { lorebook ->
                 LorebookWithEntries(
                     lorebook = lorebook,
-                    entries = entriesByLorebookId[lorebook.id].orEmpty()
+                    entries = entriesByLorebookId[lorebook.id].orEmpty(),
                 )
             }
         }
@@ -254,8 +254,9 @@ class LorebookRepository(
 
     /** 从用户选择的文档读取并解析世界书，但不写入数据库。 */
     suspend fun readImportFromUri(uri: Uri): CharacterBookImport = withContext(Dispatchers.IO) {
-        val bytes = mContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: error("Cannot read world book file")
+        val bytes =
+            mContext.contentResolver.openInputStream(uri)?.use { input -> input.readBytes() }
+                ?: error("Cannot read world book file")
         val json = bytes.toString(Charsets.UTF_8)
         val codec = LorebookCodec(mGson)
         codec.parseLorebook(json)
@@ -265,9 +266,7 @@ class LorebookRepository(
     suspend fun saveImport(parsed: CharacterBookImport): Long = withContext(Dispatchers.IO) {
         mAppDatabase.withTransaction {
             val bookId = mLorebookDao.insertOrReplace(parsed.lorebook)
-            mLorebookEntryDao.insertOrReplaceAll(
-                parsed.entries.map { entry -> entry.copy(lorebookId = bookId) }
-            )
+            mLorebookEntryDao.insertOrReplaceAll(parsed.entries.map { entry -> entry.copy(lorebookId = bookId) })
             bookId
         }
     }

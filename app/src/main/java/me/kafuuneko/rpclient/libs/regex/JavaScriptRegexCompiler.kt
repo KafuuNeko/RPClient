@@ -32,12 +32,12 @@ internal object JavaScriptRegexCompiler {
                 }
                 val closingBrace = this@translateUnicodeCodePointEscapes.indexOf(
                     char = '}',
-                    startIndex = index + CODE_POINT_ESCAPE_PREFIX_LENGTH
+                    startIndex = index + CODE_POINT_ESCAPE_PREFIX_LENGTH,
                 )
                 require(closingBrace >= 0) { "Invalid Unicode code point escape" }
                 val digits = this@translateUnicodeCodePointEscapes.substring(
                     startIndex = index + CODE_POINT_ESCAPE_PREFIX_LENGTH,
-                    endIndex = closingBrace
+                    endIndex = closingBrace,
                 )
                 val normalizedDigits = digits.normalizeCodePointDigits()
                 append("\\x{")
@@ -50,9 +50,9 @@ internal object JavaScriptRegexCompiler {
 
     private fun String.isCodePointEscapeAt(index: Int): Boolean {
         if (
-            getOrNull(index) != '\\' ||
-            getOrNull(index + 1) != 'u' ||
-            getOrNull(index + 2) != '{'
+            getOrNull(index) != '\\'
+            || getOrNull(index + 1) != 'u'
+            || getOrNull(index + 2) != '{'
         ) {
             return false
         }

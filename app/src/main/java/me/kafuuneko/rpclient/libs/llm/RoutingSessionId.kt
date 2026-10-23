@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.libs.llm
 
+import me.kafuuneko.rpclient.libs.AppModel
 import java.security.MessageDigest
 import java.util.UUID
-import me.kafuuneko.rpclient.libs.AppModel
 
 /** 为网关生成匿名、跨重启稳定且按业务会话隔离的路由会话 ID。 */
 object RoutingSessionId {
@@ -10,7 +10,8 @@ object RoutingSessionId {
     fun forConversation(conversationKey: String): String {
         val installationId = synchronized(AppModel) {
             AppModel.llmRoutingInstallationId.ifBlank {
-                UUID.randomUUID().toString().also { AppModel.llmRoutingInstallationId = it }
+                UUID.randomUUID().toString()
+                    .also { text -> AppModel.llmRoutingInstallationId = text }
             }
         }
         return hashRoutingSessionId(installationId, conversationKey)

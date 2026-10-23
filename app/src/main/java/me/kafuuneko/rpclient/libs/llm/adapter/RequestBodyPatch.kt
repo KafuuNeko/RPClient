@@ -5,8 +5,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 
 /** 用户请求体扩展无效、引用未知系统变量，或试图修改协议结构字段。 */
 internal class LLMRequestBodyPatchException(message: String) : IllegalArgumentException(message)
@@ -24,19 +24,19 @@ internal fun mergeRequestBodyJson(
     baseJson: String,
     patchJson: String,
     protectedPaths: Set<String>,
-    systemVariables: Map<String, JsonElement> = emptyMap()
+    systemVariables: Map<String, JsonElement> = emptyMap(),
 ): String {
     val base = JsonParser.parseString(baseJson)
     val userPatch = parseAndValidatePatch(
-        patchJson.ifBlank { "{}" },
-        protectedPaths
+        patchJson = patchJson.ifBlank { "{}" },
+        protectedPaths = protectedPaths,
     ).resolveSystemVariables(systemVariables)
     return mergePatch(base, userPatch).toString()
 }
 
 private fun parseAndValidatePatch(
     patchJson: String,
-    protectedPaths: Set<String>
+    protectedPaths: Set<String>,
 ): JsonObject {
     val patch = runCatching { JsonParser.parseString(patchJson) }
         .getOrElse { throw LLMRequestBodyPatchException("Request body patch is not valid JSON.") }
@@ -47,9 +47,7 @@ private fun parseAndValidatePatch(
     patchObject.validateSystemVariableReferences()
     val protectedPath = protectedPaths.firstOrNull { patchObject.containsPath(it) }
     if (protectedPath != null) {
-        throw LLMRequestBodyPatchException(
-            "Request body patch cannot modify protected field: $protectedPath"
-        )
+        throw LLMRequestBodyPatchException(message = "Request body patch cannot modify protected field: $protectedPath")
     }
     return patchObject
 }
@@ -62,11 +60,12 @@ private fun JsonElement.validateSystemVariableReferences() {
                 child.validateSystemVariableReferences()
             }
         }
+
         isJsonArray -> asJsonArray.forEach { it.validateSystemVariableReferences() }
         isJsonPrimitive && asJsonPrimitive.isString -> {
             val value = asString
-            if (value.startsWith(SYSTEM_VARIABLE_PREFIX) &&
-                value !in SUPPORTED_SYSTEM_VARIABLES
+            if (value.startsWith(SYSTEM_VARIABLE_PREFIX)
+                && value !in SUPPORTED_SYSTEM_VARIABLES
             ) {
                 throw LLMRequestBodyPatchException("Unsupported system variable: $value")
             }
@@ -75,7 +74,7 @@ private fun JsonElement.validateSystemVariableReferences() {
 }
 
 private fun JsonElement.resolveSystemVariables(
-    variables: Map<String, JsonElement>
+    variables: Map<String, JsonElement>,
 ): JsonElement {
     if (isJsonObject) {
         val value = asJsonObject
@@ -101,7 +100,7 @@ private fun JsonElement.resolveSystemVariables(
 /** 校验 Patch 的根类型、系统变量引用和保护字段，供保存前表单校验复用。 */
 internal fun validateRequestBodyPatch(
     patchJson: String,
-    protectedPaths: Set<String>
+    protectedPaths: Set<String>,
 ): Result<Unit> = runCatching {
     parseAndValidatePatch(patchJson.ifBlank { "{}" }, protectedPaths)
     Unit
@@ -109,7 +108,7 @@ internal fun validateRequestBodyPatch(
 
 /** 返回当前协议由 RPClient 自己维护、扩展 Patch 不得覆盖的 JSON 路径。 */
 internal fun protectedRequestBodyPaths(
-    protocol: LLMProviderProtocol
+    protocol: LLMProviderProtocol,
 ): Set<String> {
     val protocolPaths = when (protocol) {
         LLMProviderProtocol.OpenAIResponses -> OPEN_AI_RESPONSES_PROTECTED_REQUEST_FIELDS
@@ -159,15 +158,31 @@ private val OPEN_AI_PROTECTED_REQUEST_FIELDS = setOf(
     "max_completion_tokens",
     "temperature",
     "top_p",
-    "stop"
+    "stop",
 )
 
 /** 本地完整上下文是唯一来源，禁止 Patch 引入额外服务端历史或改变生成生命周期。 */
 private val OPEN_AI_RESPONSES_PROTECTED_REQUEST_FIELDS = setOf(
-    "model", "input", "instructions", "stream", "max_output_tokens", "temperature", "top_p",
-    "store", "background", "conversation", "previous_response_id", "prompt", "truncation",
-    "messages", "max_tokens", "max_completion_tokens", "stop", "response_format", "reasoning_effort",
-    "stream_options.include_usage"
+    "model",
+    "input",
+    "instructions",
+    "stream",
+    "max_output_tokens",
+    "temperature",
+    "top_p",
+    "store",
+    "background",
+    "conversation",
+    "previous_response_id",
+    "prompt",
+    "truncation",
+    "messages",
+    "max_tokens",
+    "max_completion_tokens",
+    "stop",
+    "response_format",
+    "reasoning_effort",
+    "stream_options.include_usage",
 )
 
 private val ANTHROPIC_PROTECTED_REQUEST_FIELDS = setOf(
@@ -178,7 +193,7 @@ private val ANTHROPIC_PROTECTED_REQUEST_FIELDS = setOf(
     "max_tokens",
     "temperature",
     "top_p",
-    "stop_sequences"
+    "stop_sequences",
 )
 
 private val GEMINI_PROTECTED_REQUEST_FIELDS = setOf(
@@ -187,5 +202,5 @@ private val GEMINI_PROTECTED_REQUEST_FIELDS = setOf(
     "generationConfig.maxOutputTokens",
     "generationConfig.temperature",
     "generationConfig.topP",
-    "generationConfig.stopSequences"
+    "generationConfig.stopSequences",
 )

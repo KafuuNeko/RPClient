@@ -14,7 +14,7 @@ data class WorldBookListItem(
             return WorldBookListItem(
                 id = lorebook.id,
                 name = lorebook.name,
-                entryCount = entryCount
+                entryCount = entryCount,
             )
         }
     }

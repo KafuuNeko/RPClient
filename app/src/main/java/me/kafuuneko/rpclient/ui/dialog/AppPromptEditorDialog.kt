@@ -27,7 +27,6 @@ import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,9 +52,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 
 /**
  * 通用提示词 / 结构化文本编辑器对话框。
@@ -84,7 +84,7 @@ fun AppPromptEditorDialog(
     confirmText: String = stringResource(R.string.save),
     dismissText: String? = stringResource(R.string.cancel),
     confirmEnabled: Boolean = true,
-    isConfirmLoading: Boolean = false
+    isConfirmLoading: Boolean = false,
 ) {
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
@@ -95,9 +95,15 @@ fun AppPromptEditorDialog(
             textFieldValue = textFieldValue.copy(
                 text = value,
                 selection = TextRange(
-                    textFieldValue.selection.start.coerceIn(0, value.length),
-                    textFieldValue.selection.end.coerceIn(0, value.length)
-                )
+                    start = textFieldValue.selection.start.coerceIn(
+                        minimumValue = 0,
+                        maximumValue = value.length
+                    ),
+                    end = textFieldValue.selection.end.coerceIn(
+                        minimumValue = 0,
+                        maximumValue = value.length
+                    ),
+                ),
             )
         }
     }
@@ -118,11 +124,11 @@ fun AppPromptEditorDialog(
         confirmEnabled = confirmEnabled,
         isConfirmLoading = isConfirmLoading,
         onConfirm = onConfirm,
-        onDismiss = onDismissRequest
+        onDismiss = onDismissRequest,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             PromptEditorToolbar(
                 value = value,
@@ -137,7 +143,7 @@ fun AppPromptEditorDialog(
                 onRestoreDefault = { restored ->
                     textFieldValue = TextFieldValue(restored, TextRange(restored.length))
                     onValueChange(restored)
-                }
+                },
             )
             PromptEditorViewport(
                 value = value,
@@ -149,12 +155,15 @@ fun AppPromptEditorDialog(
                 placeholder = placeholder,
                 visualTransformation = visualTransformation,
                 editorHeightMin = editorHeightMin,
-                editorHeightMax = editorHeightMax
+                editorHeightMax = editorHeightMax,
             )
-            PromptMacroChips(availableMacros) { macro ->
-                textFieldValue = textFieldValue.insertMacro(macro)
-                onValueChange(textFieldValue.text)
-            }
+            PromptMacroChips(
+                macros = availableMacros,
+                onInsert = { macro ->
+                    textFieldValue = textFieldValue.insertMacro(macro)
+                    onValueChange(textFieldValue.text)
+                },
+            )
         }
     }
 }
@@ -167,26 +176,36 @@ private fun PromptEditorToolbar(
     defaultValue: String?,
     onClear: () -> Unit,
     onCopyRequest: ((String) -> Unit)?,
-    onRestoreDefault: (String) -> Unit
+    onRestoreDefault: (String) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
             shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
         ) {
             Text(
-                text = stringResource(R.string.prompt_editor_char_count, charCount, estimatedTokens),
+                text = stringResource(
+                    R.string.prompt_editor_char_count,
+                    charCount,
+                    estimatedTokens
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             )
         }
-        PromptEditorActions(value, defaultValue, onClear, onCopyRequest, onRestoreDefault)
+        PromptEditorActions(
+            value = value,
+            defaultValue = defaultValue,
+            onClear = onClear,
+            onCopyRequest = onCopyRequest,
+            onRestoreDefault = onRestoreDefault,
+        )
     }
 }
 
@@ -196,12 +215,12 @@ private fun PromptEditorActions(
     defaultValue: String?,
     onClear: () -> Unit,
     onCopyRequest: ((String) -> Unit)?,
-    onRestoreDefault: (String) -> Unit
+    onRestoreDefault: (String) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (value.isNotEmpty()) {
             IconButton(
@@ -209,12 +228,12 @@ private fun PromptEditorActions(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onClear()
                 },
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(30.dp),
             ) {
                 Icon(
-                    Icons.Rounded.DeleteOutline,
+                    imageVector = Icons.Rounded.DeleteOutline,
                     contentDescription = stringResource(R.string.prompt_editor_clear),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
             if (onCopyRequest != null) {
@@ -223,21 +242,23 @@ private fun PromptEditorActions(
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onCopyRequest(value)
                     },
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(30.dp),
                 ) {
                     Icon(
-                        Icons.Rounded.ContentCopy,
+                        imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = stringResource(R.string.copy),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
         }
         if (!defaultValue.isNullOrBlank() && value != defaultValue) {
-            RestoreDefaultAction {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onRestoreDefault(defaultValue)
-            }
+            RestoreDefaultAction(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onRestoreDefault(defaultValue)
+                },
+            )
         }
     }
 }
@@ -247,18 +268,24 @@ private fun RestoreDefaultAction(onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick)
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(
+                imageVector = Icons.Rounded.RestartAlt,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+            )
             Text(
                 text = stringResource(R.string.prompt_editor_restore_default),
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
         }
     }
@@ -272,7 +299,7 @@ private fun PromptEditorViewport(
     placeholder: String,
     visualTransformation: VisualTransformation,
     editorHeightMin: Dp,
-    editorHeightMax: Dp
+    editorHeightMax: Dp,
 ) {
     val scrollState = rememberScrollState()
     Box(
@@ -284,15 +311,15 @@ private fun PromptEditorViewport(
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
             )
-            .padding(14.dp)
+            .padding(14.dp),
     ) {
         if (value.isEmpty()) {
             Text(
                 text = placeholder,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
             )
         }
         BasicTextField(
@@ -304,10 +331,10 @@ private fun PromptEditorViewport(
                 .verticalScroll(scrollState),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 22.sp
+                lineHeight = 22.sp,
             ),
             visualTransformation = visualTransformation,
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         )
     }
 }
@@ -316,7 +343,7 @@ private fun PromptEditorViewport(
 @Composable
 private fun PromptMacroChips(
     macros: List<String>,
-    onInsert: (String) -> Unit
+    onInsert: (String) -> Unit,
 ) {
     if (macros.isEmpty()) return
     val haptic = LocalHapticFeedback.current
@@ -325,28 +352,35 @@ private fun PromptMacroChips(
             text = stringResource(R.string.prompt_editor_macro_title),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             macros.forEach { macro ->
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onInsert(macro)
-                    }
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onInsert(macro)
+                            },
+                        ),
                 ) {
                     Text(
                         text = macro,
                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
             }
@@ -355,9 +389,9 @@ private fun PromptMacroChips(
 }
 
 private fun TextFieldValue.insertMacro(macro: String): TextFieldValue {
-    val start = selection.min.coerceIn(0, text.length)
-    val end = selection.max.coerceIn(0, text.length)
-    val before = text.substring(0, start)
+    val start = selection.min.coerceIn(minimumValue = 0, maximumValue = text.length)
+    val end = selection.max.coerceIn(minimumValue = 0, maximumValue = text.length)
+    val before = text.substring(startIndex = 0, endIndex = start)
     val insertion = if (macro == "<START>" && before.isNotEmpty() && !before.endsWith("\n")) {
         "\n<START>\n"
     } else if (macro == "<START>") {
@@ -382,7 +416,7 @@ private fun AppPromptEditorDialogPreview() {
                 defaultValue = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.\nWrite one reply only.",
                 availableMacros = listOf("{{char}}", "{{user}}"),
                 onValueChange = {},
-                onConfirm = {}
+                onConfirm = {},
             )
         }
     }

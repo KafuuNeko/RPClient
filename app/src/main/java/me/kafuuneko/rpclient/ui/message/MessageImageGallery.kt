@@ -62,7 +62,7 @@ fun MessageImageGallery(
     ids: List<String>,
     state: MessageImageState,
     editing: Boolean,
-    emit: (MessageImageAction) -> Unit
+    emit: (MessageImageAction) -> Unit,
 ) {
     if (ids.isEmpty()) return
     var expanded by remember(editing) { mutableStateOf(false) }
@@ -74,7 +74,7 @@ fun MessageImageGallery(
         visibleIds.chunked(columns).forEachIndexed { rowIndex, rowIds ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 rowIds.forEachIndexed { columnIndex, uuid ->
                     val index = rowIndex * columns + columnIndex
@@ -86,12 +86,14 @@ fun MessageImageGallery(
                             editing = editing,
                             canMove = index > 0,
                             remaining = remaining,
-                            modifier = Modifier.weight(1f).aspectRatio(aspectRatio),
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(aspectRatio),
                             onOpen = {
                                 if (editing && remaining > 0) expanded = true
                                 else emit(MessageImageAction.Preview(ids, index))
                             },
-                            emit = emit
+                            emit = emit,
                         )
                     }
                 }
@@ -111,7 +113,7 @@ private fun MessageImageTile(
     remaining: Int,
     modifier: Modifier,
     onOpen: () -> Unit,
-    emit: (MessageImageAction) -> Unit
+    emit: (MessageImageAction) -> Unit,
 ) {
     val currentEmit by rememberUpdatedState(emit)
     var showMenu by remember(editing) { mutableStateOf(false) }
@@ -120,17 +122,19 @@ private fun MessageImageTile(
         currentEmit(MessageImageAction.RegisterDisplay(uuid))
         onDispose { currentEmit(MessageImageAction.ReleaseDisplay(uuid)) }
     }
+    val canMoveImageEarlier = editing && canMove && !state.processing && remaining == 0
     Box(
-        modifier = modifier.clip(RoundedCornerShape(8.dp))
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
             .background(LocalContentColor.current.copy(alpha = 0.10f))
             .combinedClickable(
                 onClick = onOpen,
                 onLongClickLabel = stringResource(R.string.image_move_earlier),
-                onLongClick = if (editing && canMove && !state.processing && remaining == 0) {
+                onLongClick = if (canMoveImageEarlier) {
                     { showMenu = true }
-                } else null
+                } else null,
             ),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         val bitmap = state.thumbnails[uuid]
         if (bitmap != null) {
@@ -138,22 +142,22 @@ private fun MessageImageTile(
                 bitmap = bitmap,
                 contentDescription = stringResource(R.string.message_image),
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
             )
         } else {
             Text(
                 text = stringResource(
-                    if (state.thumbnails.containsKey(uuid)) R.string.image_missing else R.string.image_loading
+                    id = if (state.thumbnails.containsKey(uuid)) R.string.image_missing else R.string.image_loading,
                 ),
                 modifier = Modifier.padding(6.dp),
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelSmall,
             )
         }
         MessageImageOverlay(
             remaining = remaining,
             editable = editing,
             processing = state.processing,
-            onRemove = { emit(MessageImageAction.Remove(uuid, editing = true)) }
+            onRemove = { emit(MessageImageAction.Remove(uuid = uuid, editing = true)) },
         )
         // 将原有前移操作收进长按菜单，避免每张图下方的文字按钮撑高编辑区。
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -162,8 +166,8 @@ private fun MessageImageTile(
                 enabled = !state.processing,
                 onClick = {
                     showMenu = false
-                    emit(MessageImageAction.Move(uuid, editing = true))
-                }
+                    emit(MessageImageAction.Move(uuid = uuid, editing = true))
+                },
             )
         }
     }
@@ -174,30 +178,47 @@ private fun MessageImageOverlay(
     remaining: Int,
     editable: Boolean,
     processing: Boolean,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     // 编辑控件覆盖在图片内，不参与网格测量，切换状态时图片位置保持不变。
     Box(Modifier.fillMaxSize()) {
         if (remaining > 0) {
             val description = stringResource(R.string.image_more_count, remaining)
             Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f))
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.65f))
                     .semantics { contentDescription = description },
-                contentAlignment = Alignment.Center
-            ) { Text("+$remaining", color = Color.White, style = MaterialTheme.typography.titleMedium) }
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "+$remaining",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
         } else if (editable) {
             IconButton(
                 onClick = onRemove,
                 enabled = !processing,
-                modifier = Modifier.align(Alignment.TopEnd).size(40.dp)
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(40.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.delete),
                     tint = Color.White.copy(alpha = if (processing) 0.38f else 1f),
-                    modifier = Modifier.size(24.dp).clip(CircleShape)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.58f))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.45f), CircleShape).padding(3.dp)
+                        .border(
+                            width = 0.5.dp,
+                            color = Color.White.copy(alpha = 0.45f),
+                            shape = CircleShape
+                        )
+                        .padding(3.dp),
                 )
             }
         }
@@ -216,23 +237,42 @@ fun MessageImageEditButton(state: MessageImageState, emit: (MessageImageAction) 
     // 处理进度替换添加图标，不额外插入整行控件，以保持标题和图片的位置稳定。
     IconButton(
         onClick = {
-            emit(if (state.processing) MessageImageAction.CancelProcessing else MessageImageAction.Choose(editing = true))
+            emit(
+                if (state.processing) MessageImageAction.CancelProcessing else MessageImageAction.Choose(
+                    editing = true
+                )
+            )
         },
         enabled = !state.submitting && (state.processing || state.canAddEditing),
-        modifier = Modifier.size(32.dp)
+        modifier = Modifier.size(32.dp),
     ) {
         if (state.processing) {
             Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(26.dp), color = contentColor, strokeWidth = 1.5.dp)
-                Icon(Icons.Rounded.Close, stringResource(R.string.cancel), modifier = Modifier.size(16.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(26.dp),
+                    color = contentColor,
+                    strokeWidth = 1.5.dp,
+                )
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.cancel),
+                    modifier = Modifier.size(16.dp),
+                )
             }
         } else {
             Icon(
                 imageVector = Icons.Rounded.Add,
                 contentDescription = stringResource(R.string.attach_images),
-                modifier = Modifier.size(24.dp)
-                    .border(BorderStroke(1.dp, LocalContentColor.current.copy(alpha = 0.72f)), CircleShape)
-                    .padding(2.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .border(
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = LocalContentColor.current.copy(alpha = 0.72f)
+                        ),
+                        shape = CircleShape,
+                    )
+                    .padding(2.dp),
             )
         }
     }

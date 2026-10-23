@@ -94,7 +94,8 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
         // 从数据库拉取指定时间范围的聚合数据与明细记录
         val dashboard = mRepository.getDashboard(period.startTimeMillis())
         val totalTokens = dashboard.summary.inputTokens + dashboard.summary.outputTokens
-        val previousChartMode = getOrNull<TokenUsageUiState.Normal>()?.chartMode ?: TokenUsageChartMode.Bar
+        val previousChartMode =
+            getOrNull<TokenUsageUiState.Normal>()?.chartMode ?: TokenUsageChartMode.Bar
 
         // 构建连续的时序趋势点，补齐无使用记录的空白日期以形成完整柱形图
         val trendPoints = buildTrendPoints(period, dashboard.dailyStats)
@@ -103,7 +104,7 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
         val groupItems = dashboard.groups.map { group ->
             val groupTotal = group.inputTokens + group.outputTokens
             val ratio = if (totalTokens > 0L) {
-                (groupTotal.toFloat() / totalTokens).coerceIn(0f, 1f)
+                (groupTotal.toFloat() / totalTokens).coerceIn(minimumValue = 0f, maximumValue = 1f)
             } else {
                 0f
             }
@@ -118,13 +119,13 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
                 inputTokens = dashboard.summary.inputTokens,
                 outputTokens = dashboard.summary.outputTokens,
                 cachedInputTokens = dashboard.summary.cachedInputTokens,
-                reasoningTokens = dashboard.summary.reasoningTokens
+                reasoningTokens = dashboard.summary.reasoningTokens,
             ),
             trendPoints = trendPoints,
             selectedPointKey = null,
             chartMode = previousChartMode,
             groups = groupItems,
-            recentRecords = dashboard.recentRecords.map { it.toUiModel() }
+            recentRecords = dashboard.recentRecords.map { it.toUiModel() },
         ).setup()
     }
 

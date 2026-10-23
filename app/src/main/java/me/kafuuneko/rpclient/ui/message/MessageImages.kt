@@ -63,23 +63,31 @@ fun DraftAttachmentTray(
     state: MessageImageState,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
-    emit: (MessageImageAction) -> Unit
+    emit: (MessageImageAction) -> Unit,
 ) {
-    if (state.draft.isEmpty() && (state.submitting || !state.processing) && state.errorResId == null) return
+    val shouldHideImageDraft = state.draft.isEmpty()
+        && (state.submitting
+        || !state.processing)
+        && state.errorResId == null
+    if (shouldHideImageDraft) return
     val currentEmit by rememberUpdatedState(emit)
-    var moveMenuUuid by remember(state.draft, enabled, state.processing) { mutableStateOf<String?>(null) }
+    var moveMenuUuid by remember(state.draft, enabled, state.processing) {
+        mutableStateOf<String?>(
+            value = null
+        )
+    }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             state.draft.forEachIndexed { index, uuid ->
                 DisposableEffect(uuid) {
@@ -93,11 +101,11 @@ fun DraftAttachmentTray(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .border(
-                            BorderStroke(
-                                0.8.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            border = BorderStroke(
+                                width = 0.8.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                             ),
-                            RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
                         )
                         .combinedClickable(
                             enabled = !state.processing,
@@ -107,9 +115,9 @@ fun DraftAttachmentTray(
                             onLongClickLabel = stringResource(R.string.image_move_earlier),
                             onLongClick = if (enabled && index > 0) {
                                 { moveMenuUuid = uuid }
-                            } else null
+                            } else null,
                         ),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     val bitmap = state.thumbnails[uuid]
                     if (bitmap != null) {
@@ -117,13 +125,13 @@ fun DraftAttachmentTray(
                             bitmap = bitmap,
                             contentDescription = stringResource(R.string.message_image),
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
                         )
                     } else {
                         Text(
                             text = stringResource(if (state.thumbnails.containsKey(uuid)) R.string.image_missing else R.string.image_loading),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -132,12 +140,12 @@ fun DraftAttachmentTray(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.38f)),
-                            contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = Color.White
+                                color = Color.White,
                             )
                         }
                     } else if (enabled) {
@@ -148,31 +156,38 @@ fun DraftAttachmentTray(
                                 .size(20.dp)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.58f))
-                                .clickable {
-                                    currentEmit(MessageImageAction.Remove(uuid, editing = false))
-                                },
-                            contentAlignment = Alignment.Center
+                                .clickable(
+                                    onClick = {
+                                        currentEmit(
+                                            MessageImageAction.Remove(
+                                                uuid = uuid,
+                                                editing = false
+                                            )
+                                        )
+                                    },
+                                ),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = stringResource(R.string.delete),
                                 tint = Color.White,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(12.dp),
                             )
                         }
                     }
                     // 菜单绑定图片 UUID，重排后仍操作同一附件，沿用历史编辑的前移交互。
                     DropdownMenu(
                         expanded = moveMenuUuid == uuid && enabled && !state.processing && index > 0,
-                        onDismissRequest = { moveMenuUuid = null }
+                        onDismissRequest = { moveMenuUuid = null },
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.image_move_earlier)) },
                             enabled = enabled && !state.processing && index > 0,
                             onClick = {
                                 moveMenuUuid = null
-                                currentEmit(MessageImageAction.Move(uuid, editing = false))
-                            }
+                                currentEmit(MessageImageAction.Move(uuid = uuid, editing = false))
+                            },
                         )
                     }
                 }
@@ -186,22 +201,24 @@ fun DraftAttachmentTray(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                         .border(
-                            BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                             ),
-                            RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
                         )
-                        .clickable {
-                            currentEmit(MessageImageAction.Choose(editing = false))
-                        },
-                    contentAlignment = Alignment.Center
+                        .clickable(
+                            onClick = {
+                                currentEmit(MessageImageAction.Choose(editing = false))
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Add,
                         contentDescription = stringResource(R.string.attach_images),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
@@ -210,22 +227,22 @@ fun DraftAttachmentTray(
         if (state.processing) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 4.dp),
             ) {
                 Text(
                     text = stringResource(R.string.image_loading),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 TextButton(
                     onClick = { currentEmit(MessageImageAction.CancelProcessing) },
                     enabled = !state.submitting,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.cancel),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
@@ -236,7 +253,7 @@ fun DraftAttachmentTray(
                 text = stringResource(errorId),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp, start = 2.dp)
+                modifier = Modifier.padding(top = 4.dp, start = 2.dp),
             )
         }
     }

@@ -1,9 +1,10 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderRequestException
@@ -15,17 +16,16 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
-import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.requireNonEmptyContent
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.withPostProcessedMessages
@@ -92,8 +92,8 @@ class LLMRepository(
         ensureDefaultProviders()
         val currentId = AppModel.currentLLMProvider
         if (currentId != 0L) {
-            mLLMProviderDao.getProviderById(currentId)?.let {
-                return it.takeIf { it.isEnabled }
+            mLLMProviderDao.getProviderById(currentId)?.let { provider ->
+                return provider.takeIf { providerValue -> providerValue.isEnabled }
             }
         }
         // 读取阶段不自动回退；新增、删除和启停配置时才由 syncCurrentProvider 修正选择。
@@ -127,10 +127,10 @@ class LLMRepository(
     suspend fun cloneProvider(id: Long): Long? {
         val source = getProviderById(id) ?: return null
         return saveProvider(
-            source.copy(
+            provider = source.copy(
                 id = 0L,
-                name = "${source.name} Copy"
-            )
+                name = "${source.name} Copy",
+            ),
         )
     }
 
@@ -184,9 +184,9 @@ class LLMRepository(
             ?.takeIf { it.isEnabled }
             ?.let { preferredProvider ->
                 val currentProvider = AppModel.currentLLMProvider
-                    .takeIf { it != 0L }
-                    ?.let { mLLMProviderDao.getProviderById(it) }
-                    ?.takeIf { it.isEnabled }
+                    .takeIf { id -> id != 0L }
+                    ?.let { id -> mLLMProviderDao.getProviderById(id) }
+                    ?.takeIf { provider -> provider.isEnabled }
                 if (currentProvider == null) {
                     AppModel.currentLLMProvider = preferredProvider.id
                     return
@@ -208,9 +208,10 @@ class LLMRepository(
     suspend fun generate(providerId: Long, request: LLMGenerationRequest): LLMGenerationResponse {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider)
-        ).requireNonEmptyContent()
+        return mLLMClientFactory
+            .create(provider.toConfig())
+            .generate(request = request.postProcessPrompt(provider))
+            .requireNonEmptyContent()
     }
 
     /**
@@ -218,24 +219,31 @@ class LLMRepository(
      */
     suspend fun generateWithSelectedProvider(
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
     ): LLMGenerationResponse {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
-        return mLLMClientFactory.create(provider.toConfig()).generate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        return mLLMClientFactory
+            .create(provider.toConfig())
+            .generate(
+                request = request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            )
+            .requireNonEmptyContent()
     }
 
     /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
     suspend fun generateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
     ): LLMGenerationResponse {
         return try {
-            mLLMClientFactory.create(provider.toConfig()).generate(
-                request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-            ).requireNonEmptyContent()
+            mLLMClientFactory
+                .create(provider.toConfig())
+                .generate(
+                    request = request.postProcessPrompt(provider)
+                        .withRoutingSession(routingSessionKey)
+                )
+                .requireNonEmptyContent()
         } catch (error: Exception) {
             throw error.withProviderRequestContext(provider.name)
         }
@@ -244,12 +252,16 @@ class LLMRepository(
     /**
      * 使用指定模型配置进行流式生成。
      */
-    suspend fun streamGenerate(providerId: Long, request: LLMGenerationRequest): Flow<LLMStreamEvent> {
+    suspend fun streamGenerate(
+        providerId: Long,
+        request: LLMGenerationRequest
+    ): Flow<LLMStreamEvent> {
         val provider = mLLMProviderDao.getProviderById(providerId)
             ?: error("LLM provider not found: $providerId")
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider)
-        ).requireNonEmptyContent()
+        return mLLMClientFactory
+            .create(provider.toConfig())
+            .streamGenerate(request = request.postProcessPrompt(provider))
+            .requireNonEmptyContent()
     }
 
     /**
@@ -257,12 +269,15 @@ class LLMRepository(
      */
     suspend fun streamGenerateWithSelectedProvider(
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
     ): Flow<LLMStreamEvent> {
         val provider = getSelectedProvider() ?: throw NoEnabledLLMProviderException()
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent()
+        return mLLMClientFactory
+            .create(provider.toConfig())
+            .streamGenerate(
+                request = request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            )
+            .requireNonEmptyContent()
     }
 
     /**
@@ -271,36 +286,38 @@ class LLMRepository(
     fun streamGenerateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
-        routingSessionKey: String? = null
+        routingSessionKey: String? = null,
     ): Flow<LLMStreamEvent> {
-        return mLLMClientFactory.create(provider.toConfig()).streamGenerate(
-            request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
-        ).requireNonEmptyContent().catch { error ->
-            if (error is Exception) {
-                throw error.withProviderRequestContext(provider.name)
+        return mLLMClientFactory
+            .create(provider.toConfig())
+            .streamGenerate(
+                request = request.postProcessPrompt(provider).withRoutingSession(routingSessionKey)
+            )
+            .requireNonEmptyContent()
+            .catch { error ->
+                if (error is Exception) {
+                    throw error.withProviderRequestContext(provider.name)
+                }
+                throw error
             }
-            throw error
-        }
     }
 
     /**
      * 在所有协议适配器之前统一执行 Prompt Post-Processing。
      */
     private fun LLMGenerationRequest.postProcessPrompt(
-        provider: LLMProvider
+        provider: LLMProvider,
     ): LLMGenerationRequest {
         if (isPromptFinalized) return this
         return withPostProcessedMessages(
-            mode = PromptPostProcessingMode.fromOrdinal(
-                provider.promptPostProcessingMode
-            ),
+            mode = PromptPostProcessingMode.fromOrdinal(provider.promptPostProcessingMode),
             strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
-            protocol = provider.protocol
+            protocol = provider.protocol,
         )
     }
 
     private fun LLMGenerationRequest.withRoutingSession(
-        routingSessionKey: String?
+        routingSessionKey: String?,
     ): LLMGenerationRequest {
         if (routingSessionKey == null) return this
         return copy(routingSessionId = RoutingSessionId.forConversation(routingSessionKey))
@@ -337,7 +354,7 @@ private fun Exception.withProviderRequestContext(providerName: String): Exceptio
     if (this is CancellationException || this is LLMProviderRequestException) return this
     return LLMProviderRequestException(
         providerName = providerName,
-        requestCause = asModelRequestException()
+        requestCause = asModelRequestException(),
     )
 }
 
@@ -345,7 +362,7 @@ private fun Exception.withProviderRequestContext(providerName: String): Exceptio
  * 默认模型配置列表。API Key 留空，用户配置后即可启用真实请求。
  */
 internal fun createDefaultLLMProviders(
-    now: Long = System.currentTimeMillis()
+    now: Long = System.currentTimeMillis(),
 ): List<LLMProvider> {
     return listOf(
         LLMProvider(
@@ -360,7 +377,7 @@ internal fun createDefaultLLMProviders(
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
-            isEnabled = false
+            isEnabled = false,
         ),
         LLMProvider(
             name = "Gemini",
@@ -373,7 +390,7 @@ internal fun createDefaultLLMProviders(
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
-            isEnabled = false
+            isEnabled = false,
         ),
         LLMProvider(
             name = "Claude",
@@ -387,7 +404,7 @@ internal fun createDefaultLLMProviders(
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
-            isEnabled = false
+            isEnabled = false,
         ),
         LLMProvider(
             name = "DeepSeek",
@@ -400,7 +417,7 @@ internal fun createDefaultLLMProviders(
             useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
-            isEnabled = false
+            isEnabled = false,
         ),
         LLMProvider(
             name = "Grok",
@@ -412,7 +429,7 @@ internal fun createDefaultLLMProviders(
             localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
             createTime = now,
             updateTime = now,
-            isEnabled = false
+            isEnabled = false,
         ),
         LLMProvider(
             name = "OpenRouter",
@@ -423,7 +440,7 @@ internal fun createDefaultLLMProviders(
             requestBodyPatchJson = DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
             createTime = now,
             updateTime = now,
-            isEnabled = false
-        )
+            isEnabled = false,
+        ),
     )
 }

@@ -32,7 +32,7 @@ data class MainChatSessionItem(
  */
 internal fun ChatSessionOverview.toUiModel(
     characterName: String,
-    preview: String
+    preview: String,
 ): MainChatSessionItem {
     return MainChatSessionItem(
         id = id.toString(),
@@ -42,6 +42,6 @@ internal fun ChatSessionOverview.toUiModel(
         preview = preview,
         messageCount = messageCount,
         updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
-        latestTime = latestTime
+        latestTime = latestTime,
     )
 }

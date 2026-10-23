@@ -29,14 +29,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
+import kotlin.math.roundToInt
 
 /** 页面画布的坐标和尺寸，用于将各栏位的模糊背景对齐到同一张图片。 */
-internal data class PageBackdropFrame(val origin: Offset = Offset.Zero, val size: IntSize = IntSize.Zero)
+internal data class PageBackdropFrame(
+    val origin: Offset = Offset.Zero,
+    val size: IntSize = IntSize.Zero
+)
 
 /** 背景图与画布边界由外层一次提供，子表面仅承担绘制。 */
 internal val LocalPageBackdropState = staticCompositionLocalOf { PageBackgroundUiState() }
@@ -56,15 +59,22 @@ fun PageSurface(
     tonalElevation: Dp = 0.dp,
     shadowElevation: Dp = 0.dp,
     border: BorderStroke? = null,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val opacity = LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f
     // 半透明背景不投影，避免外侧阴影在圆角形成描边；不透明表面保留原有层次。
     val elevation = if (opacity < 1f) 0.dp else shadowElevation
     Surface(
-        modifier = modifier.shadow(elevation, shape, clip = false).pageSurfaceBlur(kind, shape),
-        shape = shape, color = color, contentColor = contentColor, tonalElevation = tonalElevation,
-        shadowElevation = 0.dp, border = border, content = content
+        modifier = modifier
+            .shadow(elevation = elevation, shape = shape, clip = false)
+            .pageSurfaceBlur(kind, shape),
+        shape = shape,
+        color = color,
+        contentColor = contentColor,
+        tonalElevation = tonalElevation,
+        shadowElevation = 0.dp,
+        border = border,
+        content = content,
     )
 }
 
@@ -86,20 +96,29 @@ fun Modifier.pageSurfaceBlur(kind: PageSurfaceKind, shape: Shape = RectangleShap
     val scrimColor = pageBackdropScrimColor()
     var origin by remember { mutableStateOf(Offset.Zero) }
     // 只记录布局边界；图片始终相对于外层画布裁切，不能在每个气泡中重新居中。
-    return onGloballyPositioned { origin = it.positionInRoot() }.drawWithCache {
+    return onGloballyPositioned(onGloballyPositioned = {
+        origin = it.positionInRoot()
+    }).drawWithCache {
         val path = when (val outline = shape.createOutline(size, layoutDirection, this)) {
             is Outline.Rectangle -> Path().apply { addRect(outline.rect) }
             is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
             is Outline.Generic -> outline.path
         }
-        val scale = maxOf(frame.size.width.toFloat() / image.width, frame.size.height.toFloat() / image.height)
+        val scale = maxOf(
+            frame.size.width.toFloat() / image.width,
+            frame.size.height.toFloat() / image.height
+        )
         val width = image.width * scale
         val height = image.height * scale
         val relative = origin - frame.origin
-        val scaledSize = IntSize(width.roundToInt().coerceAtLeast(1), height.roundToInt().coerceAtLeast(1))
+        val scaledSize = IntSize(
+            width = width.roundToInt().coerceAtLeast(1),
+            height = height.roundToInt().coerceAtLeast(1),
+        )
         val crop = BiasAlignment(settings.focalX * 2 - 1, settings.focalY * 2 - 1)
             .align(scaledSize, frame.size, layoutDirection)
-        val destination = IntOffset(crop.x - relative.x.roundToInt(), crop.y - relative.y.roundToInt())
+        val destination =
+            IntOffset(crop.x - relative.x.roundToInt(), crop.y - relative.y.roundToInt())
         val layerBounds = Rect(Offset.Zero, size)
         val layerPaint = Paint()
         // 先合成底色、壁纸和遮罩，再统一应用圆角覆盖率，避免底色在抗锯齿边缘渗出。
@@ -108,7 +127,7 @@ fun Modifier.pageSurfaceBlur(kind: PageSurfaceKind, shape: Shape = RectangleShap
                 drawContext.canvas.saveLayer(layerBounds, layerPaint)
                 try {
                     drawRect(background)
-                    drawImage(image, dstOffset = destination, dstSize = scaledSize)
+                    drawImage(image = image, dstOffset = destination, dstSize = scaledSize)
                     drawRect(scrimColor.copy(alpha = settings.scrim))
                 } finally {
                     drawContext.canvas.restore()

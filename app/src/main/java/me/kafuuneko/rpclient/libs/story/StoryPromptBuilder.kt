@@ -6,26 +6,26 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
-import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
+import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
+import me.kafuuneko.rpclient.libs.prompt.WorldInfoEntryRuntimeState
+import me.kafuuneko.rpclient.libs.prompt.WorldInfoRuntimeState
+import me.kafuuneko.rpclient.libs.prompt.filterEntries
+import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
-import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
-import me.kafuuneko.rpclient.libs.prompt.WorldInfoEntryRuntimeState
-import me.kafuuneko.rpclient.libs.prompt.WorldInfoRuntimeState
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
-import me.kafuuneko.rpclient.libs.prompt.filterEntries
-import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -122,20 +122,18 @@ class StoryPromptBuilder(
             authorNote = context.story.authorNote,
             tokenizer = tokenizer,
             promptBudget = promptBudget,
-            continuationGuidance = context.continuationGuidance
+            continuationGuidance = context.continuationGuidance,
         )
         // 扫描激活当前正文涉及的故事角色卡
         val activeCharacters = mCharacterActivator.activate(
             candidates = context.characterCandidates,
-            scanText = selection.activationScanText
+            scanText = selection.activationScanText,
         )
         val resolvedCharacters = activeCharacters.map { active ->
             active.resolveForPrompt(context.userName)
         }
         val primaryCharacterName = context.characterCandidates
-            .singleOrNull {
-                it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY
-            }
+            .singleOrNull { it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY }
             ?.character
             ?.name
         val lorebookCharacterNames = context.characterCandidates.lorebookCharacterNames()
@@ -144,33 +142,33 @@ class StoryPromptBuilder(
                 characterName = lorebookCharacterNames[candidate.entry.lorebookId]
                     ?: primaryCharacterName,
                 userName = context.userName,
-                gson = mGson
+                gson = mGson,
             )
         }
         // 扫描并激活世界书条目
         val rawWorldInfo = mWorldBookActivator.activateStructured(
-            context.toWorldBookScanContext(
+            context = context.toWorldBookScanContext(
                 scanText = selection.worldBookScanText,
                 activeCharacters = resolvedCharacters,
-                resolvedLorebookEntries = resolvedLorebookEntries
-            )
+                resolvedLorebookEntries = resolvedLorebookEntries,
+            ),
         )
         // 解析世界书 Token 预算并执行裁剪
         val worldBudget = resolveWorldInfoBudget(
             promptTokenBudget = promptBudget,
             contextPercent = AppModel.worldInfoBudgetPercent,
-            tokenBudgetCap = AppModel.worldInfoBudgetCap
+            tokenBudgetCap = AppModel.worldInfoBudgetCap,
         )
         val worldSelection = fitWorldInfoToBudget(
             result = rawWorldInfo,
             globalTokenBudget = worldBudget,
             lorebooks = context.candidateLorebooks,
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
         val worldInfo = worldSelection.result
         // 提取 Outlet 占位字典
         val outlets = worldInfo.outletEntries.mapValues { (_, entries) ->
-            entries.joinToString("\n") { formatWorldInfo(it) }
+            entries.joinToString("\n") { entry -> formatWorldInfo(entry) }
         }
         // 组装全部分区消息草稿列表
         val drafts = buildDrafts(context, selection, resolvedCharacters, worldInfo, outlets)
@@ -183,17 +181,15 @@ class StoryPromptBuilder(
                 options = LLMGenerationOptions(
                     temperature = context.provider.temperature,
                     maxTokens = context.provider.maxTokens,
-                    topP = context.provider.topP
+                    topP = context.provider.topP,
                 ),
                 includeReasoningInContent = false,
                 captureReasoning = true,
                 maxContextTokens = context.provider.contextTokens,
                 maxResponseTokens = context.provider.maxTokens,
-                postProcessingMode = PromptPostProcessingMode.fromOrdinal(
-                    context.provider.promptPostProcessingMode
-                ),
+                postProcessingMode = PromptPostProcessingMode.fromOrdinal(context.provider.promptPostProcessingMode),
                 strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
-                preOmittedItems = worldSelection.omittedItems + selection.documentOmission()
+                preOmittedItems = worldSelection.omittedItems + selection.documentOmission(),
             )
         } catch (error: PromptBudgetExceededException) {
             // 捕获预算超限异常并提取占用最大的角色卡以供诊断
@@ -204,23 +200,21 @@ class StoryPromptBuilder(
             throw StoryPromptBudgetException(
                 requiredTokens = error.requiredTokens,
                 promptBudget = error.promptBudget,
-                largestCharacterNames = largestCharacters
+                largestCharacterNames = largestCharacters,
             )
         }
         val retainedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         // 解析世界书时序推进状态并组装构建结果
         val nextState = mWorldBookActivator.resolveNextState(
-            rawWorldInfo
+            result = rawWorldInfo
                 .filterEntries(retainedWorldInfoIds)
-                .retainStateEntries(finalized.inspection)
+                .retainStateEntries(finalized.inspection),
         )
         return StoryPromptBuildResult(
             request = finalized.request,
             inspection = finalized.inspection,
-            nextWorldInfoStates = context.candidateLorebookEntries.toRuntimeStates(
-                nextState.nextState
-            ),
-            activeCharacters = activeCharacters
+            nextWorldInfoStates = context.candidateLorebookEntries.toRuntimeStates(state = nextState.nextState),
+            activeCharacters = activeCharacters,
         )
     }
 
@@ -239,45 +233,45 @@ class StoryPromptBuilder(
         selection: StoryContextSelection,
         activeCharacters: List<ResolvedStoryCharacter>,
         worldInfo: WorldBookActivationResult,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): List<PromptMessageDraft> = buildList {
         // 注入故事主提示词
         addRequired(
-            LLMMessageRole.System,
-            renderStoryInstructionTemplate(
+            role = LLMMessageRole.System,
+            content = renderStoryInstructionTemplate(
                 template = resolveOutlets(AppModel.storyMainPrompt, outlets),
                 userName = context.userName,
-                primaryCharacterName = context.characterCandidates.primaryCharacterName()
+                primaryCharacterName = context.characterCandidates.primaryCharacterName(),
             ),
-            PromptSourceKind.StoryMainPrompt
+            sourceKind = PromptSourceKind.StoryMainPrompt,
         )
         // 注入设定记忆与摘要
         addRequired(
-            LLMMessageRole.System,
-            renderStoryMemoryTemplate(
+            role = LLMMessageRole.System,
+            content = renderStoryMemoryTemplate(
                 template = AppModel.storyMemoryTemplate,
-                memory = context.story.memory
+                memory = context.story.memory,
             ),
-            PromptSourceKind.StoryMemory
+            sourceKind = PromptSourceKind.StoryMemory,
         )
         addRequired(
-            LLMMessageRole.System,
-            renderStorySummaryTemplate(
+            role = LLMMessageRole.System,
+            content = renderStorySummaryTemplate(
                 template = AppModel.storySummaryTemplate,
-                summary = context.story.summary
+                summary = context.story.summary,
             ),
-            PromptSourceKind.StorySummary
+            sourceKind = PromptSourceKind.StorySummary,
         )
         if (context.story.includeUserPersona) {
             addRequired(
-                LLMMessageRole.System,
-                renderUserPersonaTemplate(
+                role = LLMMessageRole.System,
+                content = renderUserPersonaTemplate(
                     template = AppModel.userPersonaFormat,
                     userName = context.userName,
                     userDescription = context.userDescription,
-                    characterName = null
+                    characterName = null,
                 ),
-                PromptSourceKind.UserPersona
+                sourceKind = PromptSourceKind.UserPersona,
             )
         }
         // 注入 beforeCharacter 世界书条目
@@ -290,7 +284,7 @@ class StoryPromptBuilder(
                 content = formatCharacterReference(active),
                 sourceKind = PromptSourceKind.StoryCharacter,
                 detail = buildCharacterDetail(active.active),
-                referenceId = character.id
+                referenceId = character.id,
             )
         }
         // 注入 afterCharacter 与 AN Top 世界书条目
@@ -298,9 +292,9 @@ class StoryPromptBuilder(
         addWorldInfo(worldInfo.anTop)
         // 注入作者注释与 AN Bottom
         addRequired(
-            LLMMessageRole.System,
-            context.story.authorNote,
-            PromptSourceKind.StoryAuthorNote
+            role = LLMMessageRole.System,
+            content = context.story.authorNote,
+            sourceKind = PromptSourceKind.StoryAuthorNote,
         )
         addWorldInfo(worldInfo.anBottom)
         // 注入示例对话位置世界书
@@ -314,12 +308,12 @@ class StoryPromptBuilder(
                 source = PromptSource(
                     kind = PromptSourceKind.StoryDocumentContext,
                     detail = "${chunk.start}-${chunk.end}",
-                    referenceId = index.toLong()
+                    referenceId = index.toLong(),
                 ),
                 retentionPriority = PRIORITY_DOCUMENT_MAX - chunk.distance.coerceAtMost(
-                    PRIORITY_DOCUMENT_DISTANCE_LIMIT
+                    maximumValue = PRIORITY_DOCUMENT_DISTANCE_LIMIT,
                 ),
-                canDrop = !chunk.required
+                canDrop = !chunk.required,
             )
         }
         // 转换并按 Depth 插入世界书条目
@@ -328,22 +322,26 @@ class StoryPromptBuilder(
             if (entries.isEmpty()) {
                 null
             } else {
-                val sources = entries.map {
-                    PromptSource(PromptSourceKind.WorldInfo, it.name, it.id)
+                val sources = entries.map { entry ->
+                    PromptSource(
+                        kind = PromptSourceKind.WorldInfo,
+                        detail = entry.name,
+                        referenceId = entry.id
+                    )
                 }
                 val draft = PromptMessageDraft(
                     role = group.role,
-                    content = entries.joinToString("\n") { formatWorldInfo(it) },
+                    content = entries.joinToString("\n") { entry -> formatWorldInfo(entry) },
                     source = sources.first(),
                     sources = sources,
                     retentionPriority = PRIORITY_WORLD_INFO,
-                    canDrop = entries.none { it.ignoreBudget }
+                    canDrop = entries.none { entry -> entry.ignoreBudget },
                 )
                 StoryDepthPromptDraft(
                     draft = draft,
                     depth = group.depth,
                     order = entries.first().order,
-                    tieBreaker = entries.first().id
+                    tieBreaker = entries.first().id,
                 )
             }
         }
@@ -351,21 +349,21 @@ class StoryPromptBuilder(
 
         // 注入续写引导词与最终续写触发指令
         addRequired(
-            LLMMessageRole.System,
-            resolveOutlets(
-                renderContinuationGuidancePrompt(
+            role = LLMMessageRole.System,
+            content = resolveOutlets(
+                content = renderContinuationGuidancePrompt(
                     template = AppModel.storyContinuationGuidancePrompt,
-                    guidance = context.continuationGuidance
+                    guidance = context.continuationGuidance,
                 ),
-                outlets
+                outlets = outlets,
             ),
-            PromptSourceKind.StoryContinuationGuidance
+            sourceKind = PromptSourceKind.StoryContinuationGuidance,
         )
         addRequired(
-            LLMMessageRole.User,
-            resolveOutlets(AppModel.storyContinuePrompt, outlets),
-            PromptSourceKind.StoryTask,
-            detail = "Continue"
+            role = LLMMessageRole.User,
+            content = resolveOutlets(AppModel.storyContinuePrompt, outlets),
+            sourceKind = PromptSourceKind.StoryTask,
+            detail = "Continue",
         )
     }.filter { it.content.isNotBlank() }
 
@@ -373,14 +371,14 @@ class StoryPromptBuilder(
     private fun StoryContextSelection.documentOmission(): List<PromptOmittedItem> {
         if (omittedChunkCount == 0) return emptyList()
         return listOf(
-            PromptOmittedItem(
+            element = PromptOmittedItem(
                 source = PromptSource(
-                    PromptSourceKind.StoryDocumentContext,
-                    "$omittedChunkCount remote chunks"
+                    kind = PromptSourceKind.StoryDocumentContext,
+                    detail = "$omittedChunkCount remote chunks",
                 ),
                 tokenCount = omittedTokenCount,
-                reason = PromptOmissionReason.ContextBudget
-            )
+                reason = PromptOmissionReason.ContextBudget,
+            ),
         )
     }
 
@@ -390,17 +388,21 @@ class StoryPromptBuilder(
         content: String,
         sourceKind: PromptSourceKind,
         detail: String = "",
-        referenceId: Long? = null
+        referenceId: Long? = null,
     ) {
         if (content.isBlank()) return
         add(
-            PromptMessageDraft(
+            element = PromptMessageDraft(
                 role = role,
                 content = content,
-                source = PromptSource(sourceKind, detail, referenceId),
+                source = PromptSource(
+                    kind = sourceKind,
+                    detail = detail,
+                    referenceId = referenceId
+                ),
                 retentionPriority = PRIORITY_REQUIRED,
-                canDrop = false
-            )
+                canDrop = false,
+            ),
         )
     }
 
@@ -408,13 +410,17 @@ class StoryPromptBuilder(
     private fun MutableList<PromptMessageDraft>.addWorldInfo(entries: List<LorebookEntry>) {
         entries.forEach { entry ->
             add(
-                PromptMessageDraft(
+                element = PromptMessageDraft(
                     role = LLMMessageRole.System,
                     content = formatWorldInfo(entry),
-                    source = PromptSource(PromptSourceKind.WorldInfo, entry.name, entry.id),
+                    source = PromptSource(
+                        kind = PromptSourceKind.WorldInfo,
+                        detail = entry.name,
+                        referenceId = entry.id,
+                    ),
                     retentionPriority = PRIORITY_WORLD_INFO,
-                    canDrop = !entry.ignoreBudget
-                )
+                    canDrop = !entry.ignoreBudget,
+                ),
             )
         }
     }
@@ -423,7 +429,7 @@ class StoryPromptBuilder(
     private fun StoryPromptContext.toWorldBookScanContext(
         scanText: String,
         activeCharacters: List<ResolvedStoryCharacter>,
-        resolvedLorebookEntries: List<LorebookEntry>
+        resolvedLorebookEntries: List<LorebookEntry>,
     ): WorldBookScanContext {
         return WorldBookScanContext(
             messages = listOf(WorldBookScanMessage("", scanText)),
@@ -435,18 +441,12 @@ class StoryPromptBuilder(
             recursiveScanningLorebookIds = recursiveScanningLorebookIds,
             generationType = WorldBookGenerationType.Continue,
             includeNames = false,
-            characterDescription = activeCharacters.joinToString("\n") {
-                it.description
-            },
-            characterPersonality = activeCharacters.joinToString("\n") {
-                it.personality
-            },
-            scenario = activeCharacters.joinToString("\n") {
-                it.scenario
-            },
+            characterDescription = activeCharacters.joinToString("\n") { it.description },
+            characterPersonality = activeCharacters.joinToString("\n") { it.personality },
+            scenario = activeCharacters.joinToString("\n") { it.scenario },
             worldInfoState = candidateLorebookEntries.toWorldInfoRuntimeState(
-                story.worldInfoGenerationStep
-            )
+                generationStep = story.worldInfoGenerationStep,
+            ),
         )
     }
 
@@ -493,15 +493,19 @@ class StoryPromptBuilder(
     private companion object {
         /** 匹配 `{{outlet::name}}` 格式自定义世界书插槽的正则表达式。 */
         val OUTLET_PATTERN = Regex(
-            """\{\{\s*outlet::([^}]+)\s*\}\}""",
-            RegexOption.IGNORE_CASE
+            pattern = """\{\{\s*outlet::([^}]+)\s*\}\}""",
+            option = RegexOption.IGNORE_CASE,
         )
+
         /** 紧贴光标位置正文片段的最大保留优先级。 */
         const val PRIORITY_DOCUMENT_MAX = 2_000
+
         /** 正文片段随距离衰减的最大优先级衰减距离跨度。 */
         const val PRIORITY_DOCUMENT_DISTANCE_LIMIT = 1_500
+
         /** 激活世界书条目的上下文保留优先级。 */
         const val PRIORITY_WORLD_INFO = 4_000
+
         /** 不可裁剪的必需核心内容（主提示词、设定、角色卡等）的最高保留优先级。 */
         const val PRIORITY_REQUIRED = 10_000
     }
@@ -511,19 +515,17 @@ class StoryPromptBuilder(
 internal fun renderStoryInstructionTemplate(
     template: String,
     userName: String,
-    primaryCharacterName: String?
+    primaryCharacterName: String?,
 ): String {
     return resolveCharacterUserMacros(
         template = template,
         characterName = primaryCharacterName,
-        userName = userName
+        userName = userName,
     )
 }
 
 private fun List<StoryCharacterCandidate>.primaryCharacterName(): String? {
-    return singleOrNull {
-        it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY
-    }?.character?.name
+    return singleOrNull { it.relation.activationMode == StoryCharacter.ACTIVATION_PRIMARY }?.character?.name
 }
 
 /** 按 Story 角色顺序为角色关联世界书建立唯一、稳定的名称作用域。 */
@@ -540,7 +542,7 @@ internal fun List<StoryCharacterCandidate>.lorebookCharacterNames(): Map<Long, S
 internal fun StoryLorebookEntryCandidate.resolveForPrompt(
     characterName: String?,
     userName: String,
-    gson: Gson
+    gson: Gson,
 ): LorebookEntry {
     fun String.resolve(): String {
         return resolveCharacterUserMacros(this, characterName, userName)
@@ -548,13 +550,13 @@ internal fun StoryLorebookEntryCandidate.resolveForPrompt(
     return entry.copy(
         content = entry.content.resolve(),
         keywords = gson.toJson(entry.getKeywordList().map { it.resolve() }),
-        secondaryKeywords = gson.toJson(entry.getSecondaryKeywordList().map { it.resolve() })
+        secondaryKeywords = gson.toJson(entry.getSecondaryKeywordList().map { it.resolve() }),
     )
 }
 
 /** 将 Room 关联行上的可空状态还原为世界书激活器的结构化状态。 */
 private fun List<StoryLorebookEntryCandidate>.toWorldInfoRuntimeState(
-    generationStep: Int
+    generationStep: Int,
 ): WorldInfoRuntimeState {
     val entries = mapNotNull { candidate ->
         val relation = candidate.relation
@@ -566,7 +568,7 @@ private fun List<StoryLorebookEntryCandidate>.toWorldInfoRuntimeState(
             activatedAt = activatedAt,
             stickyUntil = stickyUntil,
             cooldownUntil = cooldownUntil,
-            signature = signature
+            signature = signature,
         )
     }.toMap()
     return WorldInfoRuntimeState(lastMessageCount = generationStep, entries = entries)
@@ -574,7 +576,7 @@ private fun List<StoryLorebookEntryCandidate>.toWorldInfoRuntimeState(
 
 /** 将激活器下一状态映射回每一条 Story 关联，缺失项显式清空旧状态。 */
 private fun List<StoryLorebookEntryCandidate>.toRuntimeStates(
-    state: WorldInfoRuntimeState
+    state: WorldInfoRuntimeState,
 ): List<StoryLorebookRuntimeState> {
     return map { candidate ->
         val runtime = state.entries[candidate.relation.lorebookEntryId.toString()]
@@ -583,7 +585,7 @@ private fun List<StoryLorebookEntryCandidate>.toRuntimeStates(
             activatedAtStep = runtime?.activatedAt,
             stickyUntilStep = runtime?.stickyUntil,
             cooldownUntilStep = runtime?.cooldownUntil,
-            stateSignature = runtime?.signature
+            stateSignature = runtime?.signature,
         )
     }
 }
@@ -592,14 +594,18 @@ private fun List<StoryLorebookEntryCandidate>.toRuntimeStates(
 internal fun ActiveStoryCharacter.resolveForPrompt(userName: String): ResolvedStoryCharacter {
     val name = candidate.character.name
     fun String.resolve(): String {
-        return resolveCharacterUserMacros(this, characterName = name, userName = userName)
+        return resolveCharacterUserMacros(
+            template = this,
+            characterName = name,
+            userName = userName
+        )
     }
     return ResolvedStoryCharacter(
         active = this,
         name = name,
         description = candidate.character.description.resolve(),
         personality = candidate.character.personality.resolve(),
-        scenario = candidate.character.scenario.resolve()
+        scenario = candidate.character.scenario.resolve(),
     )
 }
 
@@ -624,25 +630,25 @@ internal data class StoryDepthPromptDraft(
  */
 internal fun insertStoryDepthPromptDrafts(
     documentDrafts: List<PromptMessageDraft>,
-    depthDrafts: List<StoryDepthPromptDraft>
+    depthDrafts: List<StoryDepthPromptDraft>,
 ): List<PromptMessageDraft> {
     if (depthDrafts.isEmpty()) return documentDrafts
     // 按相对深度对注入项进行分组与次级排序
     val injections = depthDrafts
         .groupBy { depthDraft ->
             (documentDrafts.size - depthDraft.depth.coerceAtLeast(0))
-                .coerceIn(0, documentDrafts.size)
+                .coerceIn(minimumValue = 0, maximumValue = documentDrafts.size)
         }
         .mapValues { (_, drafts) ->
             drafts.sortedWith(
-                compareBy<StoryDepthPromptDraft> { it.order }
-                    .thenBy { it.tieBreaker }
+                comparator = compareBy<StoryDepthPromptDraft> { storyDepthPromptDraft -> storyDepthPromptDraft.order }
+                    .thenBy { storyDepthPromptDraft -> storyDepthPromptDraft.tieBreaker },
             )
         }
     // 遍历正文片段流式插入对应的深度条目
     return buildList {
         for (index in 0..documentDrafts.size) {
-            injections[index]?.forEach { add(it.draft) }
+            injections[index]?.forEach { storyDepthPromptDraft -> add(storyDepthPromptDraft.draft) }
             if (index < documentDrafts.size) add(documentDrafts[index])
         }
     }
@@ -658,11 +664,11 @@ internal fun renderContinuationGuidancePrompt(template: String, guidance: String
 /** 渲染故事设定记忆（Memory）模板。 */
 internal fun renderStoryMemoryTemplate(template: String, memory: String): String {
     if (memory.isBlank()) return ""
-    return template.replace("{{memory}}", memory, ignoreCase = true)
+    return template.replace(oldValue = "{{memory}}", newValue = memory, ignoreCase = true)
 }
 
 /** 渲染故事摘要（Summary）模板。 */
 internal fun renderStorySummaryTemplate(template: String, summary: String): String {
     if (summary.isBlank()) return ""
-    return template.replace("{{summary}}", summary, ignoreCase = true)
+    return template.replace(oldValue = "{{summary}}", newValue = summary, ignoreCase = true)
 }

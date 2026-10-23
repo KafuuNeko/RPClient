@@ -30,12 +30,12 @@ class AppDatabaseAutoMigration1To2Spec : AutoMigrationSpec {
 class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL(
-            """
+            sql = """
             UPDATE llm_providers
             SET requestBodyPatchJson = ?
             WHERE providerType = 'OpenRouter' AND requestBodyPatchJson = '{}'
             """.trimIndent(),
-            arrayOf(OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON)
+            bindArgs = arrayOf(OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON),
         )
     }
 }
@@ -50,11 +50,11 @@ class AppDatabaseAutoMigration2To3Spec : AutoMigrationSpec {
 class AppDatabaseAutoMigration3To4Spec : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL(
-            """
+            sql = """
             UPDATE llm_providers
             SET useServerReportedUsage = 1
             WHERE protocol IN ('Gemini', 'AnthropicMessages')
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 }

@@ -18,13 +18,13 @@ import androidx.room.Index
             entity = GroupChatSession::class,
             parentColumns = ["id"],
             childColumns = ["sessionId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [

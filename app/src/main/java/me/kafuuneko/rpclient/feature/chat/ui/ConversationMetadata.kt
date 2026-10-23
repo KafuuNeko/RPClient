@@ -20,11 +20,15 @@ import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 /** 角色介绍卡的状态标签；底板跟随内容区透明度，窄屏自动换行。 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ConversationMetadata(messageCount: Int, enabledLorebookCount: Int, streamEnabled: Boolean) {
+internal fun ConversationMetadata(
+    messageCount: Int,
+    enabledLorebookCount: Int,
+    streamEnabled: Boolean
+) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         MetadataLabel(stringResource(R.string.messages_count, messageCount))
         MetadataLabel(stringResource(R.string.world_books_enabled, enabledLorebookCount))
@@ -38,13 +42,13 @@ private fun MetadataLabel(text: String) {
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = LocalPageBubbleOpacity.current),
-        contentColor = MaterialTheme.colorScheme.onSurface
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
     }
 }

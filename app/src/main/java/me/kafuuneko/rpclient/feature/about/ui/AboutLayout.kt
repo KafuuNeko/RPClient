@@ -10,13 +10,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Numbers
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,24 +45,25 @@ fun AboutLayout(
     onCopyDeveloperEmail: () -> Unit,
     onOpenRepository: () -> Unit,
     onRateApp: () -> Unit,
-    onOpenFeedback: () -> Unit
+    onOpenFeedback: () -> Unit,
 ) {
     // 装饰与正文共享背景，系统栏和内容避让仍由 Scaffold 处理。
     Box(modifier = Modifier.fillMaxSize()) {
         AboutBackdrop()
         Scaffold(
             containerColor = Color.Transparent,
-            topBar = { AboutTopBar(onBack) }
-        ) { paddingValues ->
-            AboutViewContent(
-                uiState = uiState,
-                onCopyDeveloperEmail = onCopyDeveloperEmail,
-                onOpenRepository = onOpenRepository,
-                onRateApp = onRateApp,
-                onOpenFeedback = onOpenFeedback,
-                modifier = Modifier.padding(paddingValues)
-            )
-        }
+            topBar = { AboutTopBar(onBack) },
+            content = { paddingValues ->
+                AboutViewContent(
+                    uiState = uiState,
+                    onCopyDeveloperEmail = onCopyDeveloperEmail,
+                    onOpenRepository = onOpenRepository,
+                    onRateApp = onRateApp,
+                    onOpenFeedback = onOpenFeedback,
+                    modifier = Modifier.padding(paddingValues),
+                )
+            },
+        )
     }
 }
 
@@ -73,7 +74,7 @@ private fun AboutViewContent(
     onOpenRepository: () -> Unit,
     onRateApp: () -> Unit,
     onOpenFeedback: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
     // 限制平板上的阅读宽度；整个页面滚动以容纳大字体和横屏。
@@ -86,12 +87,20 @@ private fun AboutViewContent(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AboutHeroHeader(uiState.appInfo.isDevelopmentBuild)
             AboutRatingCard(onRateApp)
-            AboutCommunitySection(uiState.githubRepoName, onOpenFeedback, onOpenRepository)
-            AboutSupportSection(uiState.developerEmail, onCopyDeveloperEmail, onOpenRepository)
+            AboutCommunitySection(
+                repoName = uiState.githubRepoName,
+                onOpenFeedback = onOpenFeedback,
+                onOpenRepository = onOpenRepository,
+            )
+            AboutSupportSection(
+                developerEmail = uiState.developerEmail,
+                onCopyDeveloperEmail = onCopyDeveloperEmail,
+                onOpenRepository = onOpenRepository,
+            )
             AboutAppInfoSection(uiState.appInfo)
             AboutFooter()
         }
@@ -102,7 +111,7 @@ private fun AboutViewContent(
 private fun AboutCommunitySection(
     repoName: String,
     onOpenFeedback: () -> Unit,
-    onOpenRepository: () -> Unit
+    onOpenRepository: () -> Unit,
 ) {
     // 统一外链尾标，保留现有反馈与仓库跳转行为。
     AboutSection(stringResource(R.string.section_community)) {
@@ -113,7 +122,7 @@ private fun AboutCommunitySection(
             subtitle = stringResource(R.string.feedback_desc),
             action = stringResource(R.string.about_github),
             actionIcon = Icons.AutoMirrored.Rounded.OpenInNew,
-            onClick = onOpenFeedback
+            onClick = onOpenFeedback,
         )
         AboutDivider()
         AboutActionRow(
@@ -123,7 +132,7 @@ private fun AboutCommunitySection(
             subtitle = repoName,
             action = stringResource(R.string.about_github),
             actionIcon = Icons.AutoMirrored.Rounded.OpenInNew,
-            onClick = onOpenRepository
+            onClick = onOpenRepository,
         )
     }
 }
@@ -132,7 +141,7 @@ private fun AboutCommunitySection(
 private fun AboutSupportSection(
     developerEmail: String,
     onCopyDeveloperEmail: () -> Unit,
-    onOpenRepository: () -> Unit
+    onOpenRepository: () -> Unit,
 ) {
     // 邮箱置于副标题，尾部仅保留短操作标签，避免小屏被长地址挤压。
     AboutSection(stringResource(R.string.section_about)) {
@@ -144,7 +153,7 @@ private fun AboutSupportSection(
             action = stringResource(R.string.copy),
             actionIcon = Icons.Rounded.ContentCopy,
             pillAction = true,
-            onClick = onCopyDeveloperEmail
+            onClick = onCopyDeveloperEmail,
         )
         AboutDivider()
         AboutActionRow(
@@ -153,7 +162,7 @@ private fun AboutSupportSection(
             title = stringResource(R.string.open_source_license),
             subtitle = stringResource(R.string.open_source_license_desc),
             action = stringResource(R.string.visit_repo),
-            onClick = onOpenRepository
+            onClick = onOpenRepository,
         )
     }
 }
@@ -161,9 +170,17 @@ private fun AboutSupportSection(
 @Composable
 private fun AboutAppInfoSection(state: AboutAppInfoState) {
     AboutSection(stringResource(R.string.about_app_information)) {
-        AboutInfoRow(Icons.Rounded.ViewInAr, stringResource(R.string.about_version), state.versionName)
+        AboutInfoRow(
+            icon = Icons.Rounded.ViewInAr,
+            label = stringResource(R.string.about_version),
+            value = state.versionName,
+        )
         AboutDivider()
-        AboutInfoRow(Icons.Rounded.Numbers, stringResource(R.string.about_build_number), state.buildNumber)
+        AboutInfoRow(
+            icon = Icons.Rounded.Numbers,
+            label = stringResource(R.string.about_build_number),
+            value = state.buildNumber,
+        )
     }
 }
 
@@ -171,15 +188,17 @@ private fun AboutAppInfoSection(state: AboutAppInfoState) {
 private fun AboutFooter() {
     // 尚无独立法律页面，沿用已有开源声明，避免出现无法打开的入口。
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             text = stringResource(R.string.about_copyright),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -205,15 +224,19 @@ private fun AboutPreviewContent() {
     // 示例元数据只用于预览，运行时由宿主读取安装包信息。
     AboutLayout(
         uiState = AboutUiState(
-            appInfo = AboutAppInfoState("2026.2.3-dev", "20260203", true),
+            appInfo = AboutAppInfoState(
+                versionName = "2026.2.3-dev",
+                buildNumber = "20260203",
+                isDevelopmentBuild = true,
+            ),
             githubRepoUrl = "https://github.com/KafuuNeko/RPClient",
             githubRepoName = "KafuuNeko/RPClient",
-            developerEmail = "developer@example.com"
+            developerEmail = "developer@example.com",
         ),
         onBack = {},
         onCopyDeveloperEmail = {},
         onOpenRepository = {},
         onRateApp = {},
-        onOpenFeedback = {}
+        onOpenFeedback = {},
     )
 }

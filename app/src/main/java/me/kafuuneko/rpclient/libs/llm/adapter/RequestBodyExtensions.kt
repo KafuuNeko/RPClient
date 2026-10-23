@@ -14,15 +14,15 @@ import org.json.JSONObject
  */
 internal fun JSONObject.withRequestBodyExtensions(
     provider: LLMProviderConfig,
-    request: LLMGenerationRequest
+    request: LLMGenerationRequest,
 ): JSONObject {
     return JSONObject(
         mergeRequestBodyExtensionsJson(
             baseJson = toString(),
             patchJson = provider.requestBodyPatchJson,
             protectedPaths = protectedRequestBodyPaths(provider.protocol),
-            routingSessionId = request.routingSessionId
-        )
+            routingSessionId = request.routingSessionId,
+        ),
     )
 }
 
@@ -31,13 +31,13 @@ internal fun mergeRequestBodyExtensionsJson(
     baseJson: String,
     patchJson: String,
     protectedPaths: Set<String>,
-    routingSessionId: String?
+    routingSessionId: String?,
 ): String {
     return mergeRequestBodyJson(
         baseJson = baseJson,
         patchJson = patchJson,
         protectedPaths = protectedPaths,
-        systemVariables = systemVariables(routingSessionId)
+        systemVariables = systemVariables(routingSessionId),
     )
 }
 

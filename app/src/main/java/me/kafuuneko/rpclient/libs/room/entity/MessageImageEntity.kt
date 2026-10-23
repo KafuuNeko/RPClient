@@ -25,7 +25,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
             entity = FileEntity::class,
             parentColumns = ["uuid"],
             childColumns = ["imageUuid"],
-            onDelete = ForeignKey.NO_ACTION
+            onDelete = ForeignKey.NO_ACTION,
         )
     ],
     indices = [

@@ -34,6 +34,6 @@ internal fun LLMProvider.toUiModel(): LLMProviderListItem {
         protocol = protocol,
         baseUrl = baseUrl,
         model = model,
-        isEnabled = isEnabled
+        isEnabled = isEnabled,
     )
 }

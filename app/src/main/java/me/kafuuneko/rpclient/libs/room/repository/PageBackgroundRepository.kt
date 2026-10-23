@@ -23,15 +23,24 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
     /** 观察页面设置，不存在记录时使用主题底色。 */
     fun observe(page: BackgroundPage): Flow<PageBackground> = mDao.observe(page.key).map { row ->
         // 原始值与显式继承开关一起恢复，派生配置只用于渲染。
-        row?.let {
+        row?.let { pageBackgroundEntity ->
             PageBackground(
-                page = page, fileUuid = it.fileUuid, blur = it.blur, scrim = it.scrim,
-                opacity = it.opacity, topBarOpacity = it.topBarOpacity,
-                bottomBarOpacity = it.bottomBarOpacity, bubbleOpacity = it.bubbleOpacity,
-                focalX = it.focalX, focalY = it.focalY,
-                topBarBlur = it.topBarBlur, bottomBarBlur = it.bottomBarBlur,
-                bubbleBlur = it.bubbleBlur, contentBlur = it.contentBlur,
-                followGeneral = it.followGeneral, useCharacterBackground = it.useCharacterBackground
+                page = page,
+                fileUuid = pageBackgroundEntity.fileUuid,
+                blur = pageBackgroundEntity.blur,
+                scrim = pageBackgroundEntity.scrim,
+                opacity = pageBackgroundEntity.opacity,
+                topBarOpacity = pageBackgroundEntity.topBarOpacity,
+                bottomBarOpacity = pageBackgroundEntity.bottomBarOpacity,
+                bubbleOpacity = pageBackgroundEntity.bubbleOpacity,
+                focalX = pageBackgroundEntity.focalX,
+                focalY = pageBackgroundEntity.focalY,
+                topBarBlur = pageBackgroundEntity.topBarBlur,
+                bottomBarBlur = pageBackgroundEntity.bottomBarBlur,
+                bubbleBlur = pageBackgroundEntity.bubbleBlur,
+                contentBlur = pageBackgroundEntity.contentBlur,
+                followGeneral = pageBackgroundEntity.followGeneral,
+                useCharacterBackground = pageBackgroundEntity.useCharacterBackground,
             ).normalized()
         } ?: PageBackground(page)
     }
@@ -50,7 +59,10 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
 
     /** 聊天优先采用开启选项后的角色图片，缺省按对话、通用顺序回退。 */
     fun observeChat(characterId: Long): Flow<PageBackground> =
-        combine(observeEffective(BackgroundPage.Chat), observeCharacterImage(characterId)) { settings, characterImage ->
+        combine(
+            observeEffective(BackgroundPage.Chat),
+            observeCharacterImage(characterId)
+        ) { settings, characterImage ->
             if (settings.useCharacterBackground && characterImage != null) settings.copy(fileUuid = characterImage) else settings
         }.distinctUntilChanged()
 
@@ -64,17 +76,28 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
             require(uuid == null || prepared != null || previous?.fileUuid == uuid) {
                 "Stale background reference"
             }
-            mDao.put(PageBackgroundEntity(
-                page = settings.page.key, fileUuid = uuid, blur = settings.blur,
-                scrim = settings.scrim, opacity = settings.opacity,
-                focalX = settings.focalX, focalY = settings.focalY,
-                topBarOpacity = settings.topBarOpacity, bottomBarOpacity = settings.bottomBarOpacity,
-                bubbleOpacity = settings.bubbleOpacity,
-                topBarBlur = settings.topBarBlur, bottomBarBlur = settings.bottomBarBlur,
-                bubbleBlur = settings.bubbleBlur, contentBlur = settings.contentBlur,
-                followGeneral = settings.followGeneral, useCharacterBackground = settings.useCharacterBackground
-            ))
-            previous?.fileUuid?.takeIf { it != uuid }?.let { removeFiles(listOf(it)) }
+            mDao.put(
+                value = PageBackgroundEntity(
+                    page = settings.page.key,
+                    fileUuid = uuid,
+                    blur = settings.blur,
+                    scrim = settings.scrim,
+                    opacity = settings.opacity,
+                    focalX = settings.focalX,
+                    focalY = settings.focalY,
+                    topBarOpacity = settings.topBarOpacity,
+                    bottomBarOpacity = settings.bottomBarOpacity,
+                    bubbleOpacity = settings.bubbleOpacity,
+                    topBarBlur = settings.topBarBlur,
+                    bottomBarBlur = settings.bottomBarBlur,
+                    bubbleBlur = settings.bubbleBlur,
+                    contentBlur = settings.contentBlur,
+                    followGeneral = settings.followGeneral,
+                    useCharacterBackground = settings.useCharacterBackground,
+                ),
+            )
+            previous?.fileUuid?.takeIf { text -> text != uuid }
+                ?.let { text -> removeFiles(listOf(text)) }
         }
     }
 }

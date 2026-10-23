@@ -17,7 +17,7 @@ internal data class ParsedExampleMessage(
 internal fun parseExampleMessages(
     block: String,
     userName: String,
-    characterName: String
+    characterName: String,
 ): List<ParsedExampleMessage> {
     val userLabels = setOf(userName, "{{user}}", "<USER>")
     val characterLabels = setOf(characterName, "{{char}}", "<CHAR>", "<BOT>")
@@ -25,23 +25,30 @@ internal fun parseExampleMessages(
 
     block.lineSequence()
         .map { it.trim() }
-        .filter { it.isNotBlank() && !it.equals("<START>", ignoreCase = true) }
+        .filter { it.isNotBlank() && !it.equals(other = "<START>", ignoreCase = true) }
         .forEach { line ->
             val separator = line.indexOf(':')
-            val label = if (separator >= 0) line.substring(0, separator).trim() else ""
+            val label = if (separator >= 0) line.substring(startIndex = 0, endIndex = separator)
+                .trim() else ""
             val role = when {
-                userLabels.any { it.equals(label, ignoreCase = true) } -> LLMMessageRole.User
-                characterLabels.any { it.equals(label, ignoreCase = true) } ->
+                userLabels.any { text ->
+                    text.equals(
+                        other = label,
+                        ignoreCase = true
+                    )
+                } -> LLMMessageRole.User
+
+                characterLabels.any { text -> text.equals(other = label, ignoreCase = true) } ->
                     LLMMessageRole.Assistant
+
                 else -> null
             }
             if (role != null) {
                 parsed += ParsedExampleMessage(role, line.substring(separator + 1).trim())
             } else if (parsed.isNotEmpty()) {
                 val previous = parsed.last()
-                parsed[parsed.lastIndex] = previous.copy(
-                    content = listOf(previous.content, line).joinToString("\n")
-                )
+                parsed[parsed.lastIndex] =
+                    previous.copy(content = listOf(previous.content, line).joinToString("\n"))
             }
         }
     return parsed.filter { it.content.isNotBlank() }

@@ -46,7 +46,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
             JsonViewerUiState.Error(
                 title = "",
                 reason = JsonViewerErrorReason.PayloadUnavailable,
-                rawPreview = ""
+                rawPreview = "",
             ).setup()
             return
         }
@@ -62,7 +62,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
                 JsonViewerUiState.Error(
                     title = mTitle,
                     reason = JsonViewerErrorReason.InvalidJson,
-                    rawPreview = payload.json.toPreview(RAW_PREVIEW_LENGTH)
+                    rawPreview = payload.json.toPreview(RAW_PREVIEW_LENGTH),
                 ).setup()
                 return@launch
             }
@@ -95,7 +95,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
         mPath = mPath + JsonPathStep(
             label = entry.name,
             objectKey = entry.sourceKey,
-            arrayIndex = entry.sourceIndex
+            arrayIndex = entry.sourceIndex,
         )
         withContext(Dispatchers.Default) { buildNormalState() }.setup()
     }
@@ -109,7 +109,7 @@ class JsonViewerViewModel : CoreViewModel<JsonViewerUiIntent, JsonViewerUiState>
             currentType = current.nodeType(),
             childCount = current.childCount(),
             entries = current.toEntries(),
-            canNavigateUp = mPath.isNotEmpty()
+            canNavigateUp = mPath.isNotEmpty(),
         )
     }
 

@@ -67,7 +67,7 @@ interface MessageImageDao {
     )
     suspend fun getByMessages(
         messageType: MessageType,
-        messageIds: List<Long>
+        messageIds: List<Long>,
     ): List<MessageImageEntity>
 
     /**
@@ -159,6 +159,6 @@ interface MessageImageDao {
     )
     suspend fun getImageUuidsByMessages(
         messageType: MessageType,
-        messageIds: List<Long>
+        messageIds: List<Long>,
     ): List<String>
 }

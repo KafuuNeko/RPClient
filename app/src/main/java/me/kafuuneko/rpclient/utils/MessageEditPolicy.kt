@@ -40,7 +40,7 @@ class MessageEditPolicy(private val mSeparateThinkBlocks: Boolean = true) {
             val close = result.indexOf(CLOSE_TAG, start)
             if (close < 0) {
                 // 没闭合：从标记到末尾都是没写完的思考
-                result = result.substring(0, start)
+                result = result.substring(startIndex = 0, endIndex = start)
                 break
             }
             result = result.removeRange(start, close + CLOSE_TAG.length)

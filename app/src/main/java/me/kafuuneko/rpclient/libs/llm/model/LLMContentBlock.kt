@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.model
 /** 请求中的有序内容；图片仅持不可变资源描述，不持有 Bitmap、路径或 Base64。 */
 sealed interface LLMContentBlock {
     data class Text(val text: String) : LLMContentBlock
+
     data class Image(val reference: LLMImageReference) : LLMContentBlock
 }
 
@@ -21,8 +22,12 @@ fun mergeContentBlocks(blocks: List<LLMContentBlock>): List<LLMContentBlock> = b
         val previous = lastOrNull()
         if (previous is LLMContentBlock.Text && block is LLMContentBlock.Text) {
             removeAt(lastIndex)
-            add(LLMContentBlock.Text(listOf(previous.text, block.text)
-                .filter { it.isNotBlank() }.joinToString("\n\n")))
+            add(
+                element = LLMContentBlock.Text(
+                    text = listOf(previous.text, block.text)
+                        .filter { text -> text.isNotBlank() }.joinToString("\n\n"),
+                ),
+            )
         } else if (block !is LLMContentBlock.Text || block.text.isNotBlank()) {
             add(block)
         }
@@ -31,5 +36,9 @@ fun mergeContentBlocks(blocks: List<LLMContentBlock>): List<LLMContentBlock> = b
 
 /** 从有序内容创建保留文本投影的消息，供既有纯文本工具读取。 */
 fun messageWithBlocks(role: LLMMessageRole, blocks: List<LLMContentBlock>): LLMMessage =
-    LLMMessage(role, blocks.filterIsInstance<LLMContentBlock.Text>().joinToString("\n\n") { it.text },
-        blocks.takeIf { items -> items.any { it is LLMContentBlock.Image } }.orEmpty())
+    LLMMessage(
+        role = role,
+        content = blocks.filterIsInstance<LLMContentBlock.Text>().joinToString("\n\n") { it.text },
+        blocks = blocks.takeIf { items -> items.any { block -> block is LLMContentBlock.Image } }
+            .orEmpty(),
+    )

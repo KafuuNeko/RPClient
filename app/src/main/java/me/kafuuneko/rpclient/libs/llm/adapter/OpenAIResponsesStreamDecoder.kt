@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonObject
-import java.io.IOException
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMResponseException
+import java.io.IOException
 
 /**
  * Responses 流式状态机。
@@ -21,7 +21,8 @@ internal class OpenAIResponsesStreamDecoder {
     fun accept(event: SseEvent): List<LLMProviderStreamPart> {
         if (isFinished) return emptyList()
         if (event.data.isBlank()) return emptyList()
-        val json = parseStreamJsonObject(event.data) ?: throw LLMResponseException("invalid_stream_event")
+        val json =
+            parseStreamJsonObject(event.data) ?: throw LLMResponseException("invalid_stream_event")
         val type = json.cleanString("type").ifBlank { event.event }
         // 每种文本分支使用独立内容位置，避免正文、拒绝和摘要互相覆盖。
         return when (type) {
@@ -29,6 +30,7 @@ internal class OpenAIResponsesStreamDecoder {
                 registerPhase(json)
                 emptyList()
             }
+
             "response.output_text.delta" -> delta(json, "output_text", event.data)
             "response.refusal.delta" -> delta(json, "refusal", event.data)
             "response.reasoning_summary_text.delta" -> delta(json, "summary_text", event.data)
@@ -40,8 +42,9 @@ internal class OpenAIResponsesStreamDecoder {
             "response.output_item.done" -> itemDone(json, event.data)
             "response.completed", "response.incomplete" -> terminal(json, event.data)
             "response.failed" -> throw OpenAIResponsesResponseCodec.error(
-                json.objectOrNull("response") ?: json
+                payload = json.objectOrNull("response") ?: json,
             )
+
             "error" -> throw OpenAIResponsesResponseCodec.error(json)
             else -> emptyList()
         }
@@ -73,14 +76,16 @@ internal class OpenAIResponsesStreamDecoder {
     private fun itemDone(json: JsonObject, raw: String): List<LLMProviderStreamPart> {
         registerPhase(json)
         val item = json.objectOrNull("item") ?: throw LLMResponseException("invalid_output_item")
-        val index = json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
+        val index =
+            json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
         return OpenAIResponsesResponseCodec.itemContents(item, index).flatMap { snapshot(it, raw) }
     }
 
     /** 在增量到达前登记 assistant 阶段，进度消息不进入聊天正文或后续历史。 */
     private fun registerPhase(json: JsonObject) {
         val item = json.objectOrNull("item") ?: throw LLMResponseException("invalid_output_item")
-        val index = json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
+        val index =
+            json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
         if (item.cleanString("type") != "message" || item.cleanString("phase") != "commentary") return
         if (mContents.any { (key, text) -> key.outputIndex == index && text.isNotEmpty() }) {
             throw LLMResponseException("inconsistent_stream_phase")
@@ -90,7 +95,8 @@ internal class OpenAIResponsesStreamDecoder {
 
     /** 终态带有完整输出与用量；缺失过增量时补齐，已有增量保持恰好输出一次。 */
     private fun terminal(json: JsonObject, raw: String): List<LLMProviderStreamPart> {
-        val response = json.objectOrNull("response") ?: throw LLMResponseException("invalid_response")
+        val response =
+            json.objectOrNull("response") ?: throw LLMResponseException("invalid_response")
         val finishReason = OpenAIResponsesResponseCodec.finishReason(response)
         val contents = OpenAIResponsesResponseCodec.contents(response)
         val keys = contents.mapTo(mutableSetOf()) { it.key }
@@ -100,8 +106,8 @@ internal class OpenAIResponsesStreamDecoder {
         val parts = contents.flatMap { snapshot(it, raw) }
         // 推理摘要不能替代实际回复，空正文时继续携带长度截断信息。
         if (mContents.none { (key, text) ->
-            key.type in setOf("output_text", "refusal") && text.isNotBlank()
-        }) {
+                key.type in setOf("output_text", "refusal") && text.isNotBlank()
+            }) {
             throw LLMEmptyResponseException(finishReason == "max_output_tokens")
         }
         isFinished = true
@@ -109,7 +115,7 @@ internal class OpenAIResponsesStreamDecoder {
             rawChunk = raw,
             finishReason = finishReason,
             model = response.cleanString("model").takeIf { it.isNotEmpty() },
-            usage = OpenAIResponsesResponseCodec.usage(response)
+            usage = OpenAIResponsesResponseCodec.usage(response),
         )
     }
 
@@ -123,18 +129,25 @@ internal class OpenAIResponsesStreamDecoder {
     }
 
     private fun key(json: JsonObject, type: String): ResponsesContentKey {
-        val output = json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
+        val output =
+            json.intOrNull("output_index") ?: throw LLMResponseException("invalid_output_index")
         val field = if (type == "summary_text") "summary_index" else "content_index"
         val content = json.intOrNull(field) ?: throw LLMResponseException("invalid_content_index")
-        return ResponsesContentKey(output, content, type)
+        return ResponsesContentKey(outputIndex = output, contentIndex = content, type = type)
     }
 
     private fun part(content: ResponsesContent, raw: String): List<LLMProviderStreamPart> {
         if (content.text.isEmpty()) return emptyList()
-        return listOf(if (content.isReasoning) {
-            LLMProviderStreamPart.Reasoning(content.text, raw, content.reasoningKind)
-        } else {
-            LLMProviderStreamPart.Text(content.text, raw)
-        })
+        return listOf(
+            element = if (content.isReasoning) {
+                LLMProviderStreamPart.Reasoning(
+                    content = content.text,
+                    rawChunk = raw,
+                    kind = content.reasoningKind
+                )
+            } else {
+                LLMProviderStreamPart.Text(content.text, raw)
+            },
+        )
     }
 }

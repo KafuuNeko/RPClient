@@ -25,7 +25,7 @@ class GroupChatCreateActivity : CoreActivityWithEvent() {
         }
         GroupChatCreateLayout(
             uiState = uiState,
-            emitIntent = mViewModel::emit
+            emitIntent = mViewModel::emit,
         )
     }
 

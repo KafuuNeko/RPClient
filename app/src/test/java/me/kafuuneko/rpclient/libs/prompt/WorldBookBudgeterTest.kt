@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.prompt
 
-import me.kafuuneko.rpclient.libs.room.entity.Lorebook
-import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -11,6 +9,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
+import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,15 +27,27 @@ class WorldBookBudgeterTest {
     fun globalBudgetAppliesCapAfterContextPercentage() {
         assertEquals(
             1_200,
-            resolveWorldInfoBudget(10_000, 25, 1_200)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 25,
+                tokenBudgetCap = 1_200
+            ),
         )
         assertEquals(
             2_500,
-            resolveWorldInfoBudget(10_000, 25, 0)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 25,
+                tokenBudgetCap = 0
+            ),
         )
         assertEquals(
             2_500,
-            resolveWorldInfoBudget(10_000, 25, 4_000)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 25,
+                tokenBudgetCap = 4_000
+            ),
         )
     }
 
@@ -43,15 +55,19 @@ class WorldBookBudgeterTest {
     fun globalBudgetMatchesSillyTavernRoundingAndMinimum() {
         assertEquals(
             1,
-            resolveWorldInfoBudget(1, 50, 0)
+            resolveWorldInfoBudget(promptTokenBudget = 1, contextPercent = 50, tokenBudgetCap = 0),
         )
         assertEquals(
             1,
-            resolveWorldInfoBudget(10_000, 0, 0)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 0,
+                tokenBudgetCap = 0
+            ),
         )
         assertEquals(
             2,
-            resolveWorldInfoBudget(5, 30, 0)
+            resolveWorldInfoBudget(promptTokenBudget = 5, contextPercent = 30, tokenBudgetCap = 0),
         )
     }
 
@@ -60,23 +76,43 @@ class WorldBookBudgeterTest {
         // 百分比归一化后，即使输入预算达到 Int 上限，结果也不会溢出。
         assertEquals(
             Int.MAX_VALUE,
-            resolveWorldInfoBudget(Int.MAX_VALUE, Int.MAX_VALUE, 0)
+            resolveWorldInfoBudget(
+                promptTokenBudget = Int.MAX_VALUE,
+                contextPercent = Int.MAX_VALUE,
+                tokenBudgetCap = 0,
+            ),
         )
         assertEquals(
             10_000,
-            resolveWorldInfoBudget(10_000, 120, 0)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 120,
+                tokenBudgetCap = 0
+            ),
         )
         assertEquals(
             1,
-            resolveWorldInfoBudget(10_000, -5, 0)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = -5,
+                tokenBudgetCap = 0
+            ),
         )
         assertEquals(
             2_500,
-            resolveWorldInfoBudget(10_000, 25, 12_000)
+            resolveWorldInfoBudget(
+                promptTokenBudget = 10_000,
+                contextPercent = 25,
+                tokenBudgetCap = 12_000
+            ),
         )
         assertEquals(
             1,
-            resolveWorldInfoBudget(-1, 25, -1)
+            resolveWorldInfoBudget(
+                promptTokenBudget = -1,
+                contextPercent = 25,
+                tokenBudgetCap = -1
+            ),
         )
     }
 
@@ -88,7 +124,7 @@ class WorldBookBudgeterTest {
             result = WorldBookActivationResult(listOf(entry)),
             globalTokenBudget = 10,
             lorebooks = emptyMap(),
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
 
         assertTrue(selection.result.activatedEntries.isEmpty())
@@ -104,7 +140,7 @@ class WorldBookBudgeterTest {
             result = WorldBookActivationResult(listOf(normal, constant)),
             globalTokenBudget = 6,
             lorebooks = emptyMap(),
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
 
         assertEquals(listOf(constant), selection.result.activatedEntries)
@@ -119,10 +155,8 @@ class WorldBookBudgeterTest {
         val selection = fitWorldInfoToBudget(
             result = WorldBookActivationResult(listOf(first, second)),
             globalTokenBudget = 100,
-            lorebooks = mapOf(
-                1L to Lorebook(id = 1L, name = "Book", tokenBudget = 10)
-            ),
-            tokenizer = tokenizer
+            lorebooks = mapOf(1L to Lorebook(id = 1L, name = "Book", tokenBudget = 10)),
+            tokenizer = tokenizer,
         )
 
         assertEquals(listOf(first), selection.result.activatedEntries)
@@ -137,14 +171,18 @@ class WorldBookBudgeterTest {
             val selection = fitWorldInfoToBudget(
                 result = WorldBookActivationResult(listOf(entry)),
                 globalTokenBudget = 1_000,
-                lorebooks = mapOf(
-                    1L to Lorebook(id = 1L, name = "Book", tokenBudget = budget)
-                ),
-                tokenizer = tokenizer
+                lorebooks = mapOf(1L to Lorebook(id = 1L, name = "Book", tokenBudget = budget)),
+                tokenizer = tokenizer,
             )
 
-            assertTrue("Budget $budget must be an absolute Token limit", selection.result.activatedEntries.isEmpty())
-            assertEquals(PromptOmissionReason.WorldInfoBudget, selection.omittedItems.single().reason)
+            assertTrue(
+                "Budget $budget must be an absolute Token limit",
+                selection.result.activatedEntries.isEmpty()
+            )
+            assertEquals(
+                PromptOmissionReason.WorldInfoBudget,
+                selection.omittedItems.single().reason
+            )
         }
     }
 
@@ -156,7 +194,7 @@ class WorldBookBudgeterTest {
             result = WorldBookActivationResult(listOf(entry)),
             globalTokenBudget = 40,
             lorebooks = mapOf(1L to Lorebook(id = 1L, name = "Book")),
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
 
         assertEquals(listOf(entry), selection.result.activatedEntries)
@@ -170,14 +208,14 @@ class WorldBookBudgeterTest {
         val activated = WorldBookActivationResult(
             activatedEntries = listOf(example, normal),
             beforeCharacter = listOf(normal),
-            exampleBefore = listOf(example)
+            exampleBefore = listOf(example),
         ).filterForExampleBehavior(ExampleDialogueBehavior.Disabled)
 
         val selection = fitWorldInfoToBudget(
             result = activated,
             globalTokenBudget = 100,
             lorebooks = emptyMap(),
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
 
         assertEquals(listOf(normal), selection.result.activatedEntries)
@@ -190,11 +228,11 @@ class WorldBookBudgeterTest {
         val omitted = entry(id = 2L, content = "omitted", order = 20)
         val outlet = entry(id = 3L, content = "outlet", order = 10).copy(
             position = LorebookEntry.POSITION_OUTLET,
-            outletName = "rules"
+            outletName = "rules",
         )
         val result = WorldBookActivationResult(
             activatedEntries = listOf(retained, omitted, outlet),
-            outletEntries = mapOf("rules" to listOf(outlet))
+            outletEntries = mapOf("rules" to listOf(outlet)),
         )
         val inspection = PromptInspection(
             model = "test",
@@ -206,21 +244,21 @@ class WorldBookBudgeterTest {
             promptBudget = 90,
             finalTokenCount = 10,
             items = listOf(
-                PromptInspectionItem(
+                element = PromptInspectionItem(
                     index = 1,
                     role = LLMMessageRole.System,
                     sources = listOf(
-                        PromptSource(
+                        element = PromptSource(
                             kind = PromptSourceKind.WorldInfo,
                             detail = retained.name,
-                            referenceId = retained.id
-                        )
+                            referenceId = retained.id,
+                        ),
                     ),
                     tokenCount = 10,
-                    content = retained.content
-                )
+                    content = retained.content,
+                ),
             ),
-            omittedItems = emptyList()
+            omittedItems = emptyList(),
         )
 
         val stateEntries = result.retainStateEntries(inspection).activatedEntries
@@ -232,7 +270,7 @@ class WorldBookBudgeterTest {
         id: Long,
         content: String,
         constant: Boolean = false,
-        order: Int
+        order: Int,
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -244,7 +282,7 @@ class WorldBookBudgeterTest {
             order = order,
             depth = 0,
             category = "[]",
-            content = content
+            content = content,
         )
     }
 }

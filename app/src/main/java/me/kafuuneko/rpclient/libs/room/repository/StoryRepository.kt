@@ -147,17 +147,22 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     /** 加载轻量大纲，并只读取一个用户将要编辑的完整章节。 */
     suspend fun getStoryEditorData(
         storyId: Long,
-        preferredChapterId: Long? = null
+        preferredChapterId: Long? = null,
     ): StoryEditorData? = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction null
         val volumes = mStoryVolumeDao.getByStoryId(storyId)
         val chapters = mStoryChapterDao.getOverviewsByStoryId(storyId)
         val preferred = preferredChapterId
-            ?.let { mStoryChapterDao.getById(it) }
-            ?.takeIf { it.storyId == storyId }
-        val current = preferred ?: mStoryChapterDao.getLatestByStoryId(storyId)
-            ?: return@withTransaction null
-        StoryEditorData(story, volumes, chapters, current)
+            ?.let { id -> mStoryChapterDao.getById(id) }
+            ?.takeIf { chapter -> chapter.storyId == storyId }
+        val current =
+            preferred ?: mStoryChapterDao.getLatestByStoryId(storyId) ?: return@withTransaction null
+        StoryEditorData(
+            story = story,
+            volumes = volumes,
+            chapters = chapters,
+            currentChapter = current
+        )
     }
 
     suspend fun getChapter(storyId: Long, chapterId: Long): StoryChapter? {
@@ -165,7 +170,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     }
 
     suspend fun getStoryCharacterCandidates(
-        storyId: Long
+        storyId: Long,
     ): List<StoryCharacterCandidate> = mAppDatabase.withTransaction {
         mStoryCharacterDao.getByStoryId(storyId).mapNotNull { relation ->
             mCharacterDao.getCharacterById(relation.characterId)?.let { character ->
@@ -175,14 +180,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     }
 
     suspend fun getStoryLorebookEntryCandidates(
-        storyId: Long
+        storyId: Long,
     ): List<StoryLorebookEntryCandidate> = mAppDatabase.withTransaction {
         val relations = mStoryLorebookEntryDao.getByStoryId(storyId)
         if (relations.isEmpty()) return@withTransaction emptyList()
         // 批量读取条目，避免按故事关联关系逐条访问世界书表。
         val entriesById = mLorebookEntryDao
-            .getEntriesByIdsChunked(relations.map { it.lorebookEntryId })
-            .associateBy { it.id }
+            .getEntriesByIdsChunked(relations.map { storyLorebookEntry -> storyLorebookEntry.lorebookEntryId })
+            .associateBy { entry -> entry.id }
         // 按关联表原有顺序重建候选项，避免批量查询改变 Prompt 顺序。
         relations.mapNotNull { relation ->
             entriesById[relation.lorebookEntryId]?.let { entry ->
@@ -192,19 +197,19 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     }
 
     suspend fun getStoryLorebookRuntimeStates(
-        storyId: Long
+        storyId: Long,
     ): List<StoryLorebookRuntimeState> {
         return mStoryLorebookEntryDao.getByStoryId(storyId).map { it.toRuntimeState() }
     }
 
     suspend fun createStory(
         title: String,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
     ): Long = createStoryWithConfiguration(
         title = title,
         lorebookSelections = emptyList(),
         characterSelections = emptyList(),
-        createTime = createTime
+        createTime = createTime,
     )
 
     /** 创建 Story 时在同一事务中建立唯一默认章节和引用配置。 */
@@ -214,33 +219,33 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         characterSelections: List<StoryCharacterSelection>,
         includeUserPersona: Boolean = false,
         initialChapterTitle: String = DefaultNames.STORY_CHAPTER,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
         val normalizedTitle = requireTitle(title, "Story title cannot be blank")
         val normalizedChapterTitle = requireTitle(
-            initialChapterTitle,
-            "Story chapter title cannot be blank"
+            value = initialChapterTitle,
+            message = "Story chapter title cannot be blank",
         )
         val configuration = normalizeAndValidateConfiguration(
-            lorebookSelections,
-            characterSelections
+            lorebookSelections = lorebookSelections,
+            characterSelections = characterSelections,
         )
         val storyId = mStoryDao.insertOrReplace(
-            Story(
+            data = Story(
                 title = normalizedTitle,
                 includeUserPersona = includeUserPersona,
                 createTime = createTime,
-                latestTime = createTime
-            )
+                latestTime = createTime,
+            ),
         )
         mStoryChapterDao.insert(
-            StoryChapter(
+            data = StoryChapter(
                 storyId = storyId,
                 title = normalizedChapterTitle,
                 sortOrder = 0,
                 createTime = createTime,
-                latestTime = createTime
-            )
+                latestTime = createTime,
+            ),
         )
         insertStoryCharacters(storyId, configuration.characterSelections)
         insertStoryLorebookEntries(storyId, configuration.lorebookSelections)
@@ -251,7 +256,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun renameStory(
         id: Long,
         title: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(id) ?: return@withTransaction false
         val normalizedTitle = requireTitle(title, "Story title cannot be blank")
@@ -262,17 +267,17 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun createVolume(
         storyId: Long,
         title: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
         // 校验所属故事存在性
         val story = requireStory(storyId)
         // 插入分卷记录并设置顺序号
         val id = mStoryVolumeDao.insert(
-            StoryVolume(
+            data = StoryVolume(
                 storyId = storyId,
                 title = requireTitle(title, "Story volume title cannot be blank"),
-                sortOrder = mStoryVolumeDao.getByStoryId(storyId).size
-            )
+                sortOrder = mStoryVolumeDao.getByStoryId(storyId).size,
+            ),
         )
         // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
@@ -284,19 +289,19 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         volumeId: Long,
         title: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val volume = mStoryVolumeDao.getById(volumeId)
-            ?.takeIf { it.storyId == storyId }
+            ?.takeIf { storyVolume -> storyVolume.storyId == storyId }
             ?: return@withTransaction false
         // 更新分卷标题
         check(
-            mStoryVolumeDao.rename(
-                volume.id,
-                storyId,
-                requireTitle(title, "Story volume title cannot be blank")
-            ) == 1
+            value = mStoryVolumeDao.rename(
+                id = volume.id,
+                storyId = storyId,
+                title = requireTitle(title, "Story volume title cannot be blank"),
+            ) == 1,
         )
         // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
@@ -308,11 +313,11 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         volumeId: Long,
         offset: Int,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val volumes = mStoryVolumeDao.getByStoryId(storyId)
-        val from = volumes.indexOfFirst { it.id == volumeId }
+        val from = volumes.indexOfFirst { storyVolume -> storyVolume.id == volumeId }
         val to = from + offset
         if (from < 0 || to !in volumes.indices) return@withTransaction false
         // 交换两分卷的序号
@@ -326,23 +331,24 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun deleteVolume(
         storyId: Long,
         volumeId: Long,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val volume = mStoryVolumeDao.getById(volumeId)
-            ?.takeIf { it.storyId == storyId }
+            ?.takeIf { storyVolume -> storyVolume.storyId == storyId }
             ?: return@withTransaction false
         // 获取未分卷区域已有章节数量
-        val ungroupedCount = mStoryChapterDao.getByContainer(storyId, null).size
+        val ungroupedCount =
+            mStoryChapterDao.getByContainer(storyId = storyId, volumeId = null).size
         // 将原卷内章节依次移出分卷并追加至未分卷末尾
         mStoryChapterDao.getByContainer(storyId, volumeId).forEachIndexed { index, chapter ->
             check(
-                mStoryChapterDao.updateLocation(
-                    chapter.id,
-                    storyId,
-                    null,
-                    ungroupedCount + index
-                ) == 1
+                value = mStoryChapterDao.updateLocation(
+                    id = chapter.id,
+                    storyId = storyId,
+                    volumeId = null,
+                    sortOrder = ungroupedCount + index,
+                ) == 1,
             )
         }
         // 删除分卷记录并重排其余分卷
@@ -357,20 +363,20 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         volumeId: Long?,
         title: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
         val story = requireStory(storyId)
         validateVolume(storyId, volumeId)
         // 插入章节记录并计算同组末尾序号
         val id = mStoryChapterDao.insert(
-            StoryChapter(
+            data = StoryChapter(
                 storyId = storyId,
                 volumeId = volumeId,
                 title = requireTitle(title, "Story chapter title cannot be blank"),
                 sortOrder = mStoryChapterDao.getByContainer(storyId, volumeId).size,
                 createTime = latestTime,
-                latestTime = latestTime
-            )
+                latestTime = latestTime,
+            ),
         )
         // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
@@ -382,20 +388,20 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         chapterId: Long,
         title: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId }
+            ?.takeIf { chapter -> chapter.storyId == storyId }
             ?: return@withTransaction false
         // 更新章节标题
         check(
-            mStoryChapterDao.rename(
-                chapter.id,
-                storyId,
-                requireTitle(title, "Story chapter title cannot be blank"),
-                latestTime
-            ) == 1
+            value = mStoryChapterDao.rename(
+                id = chapter.id,
+                storyId = storyId,
+                title = requireTitle(title, "Story chapter title cannot be blank"),
+                latestTime = latestTime,
+            ) == 1,
         )
         // 推进故事整体修订版本与活跃时间
         advanceStory(story, latestTime)
@@ -407,14 +413,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         chapterId: Long,
         offset: Int,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId }
+            ?.takeIf { chapter -> chapter.storyId == storyId }
             ?: return@withTransaction false
         val siblings = mStoryChapterDao.getByContainer(storyId, chapter.volumeId)
-        val from = siblings.indexOfFirst { it.id == chapterId }
+        val from = siblings.indexOfFirst { chapter -> chapter.id == chapterId }
         val to = from + offset
         if (from < 0 || to !in siblings.indices) return@withTransaction false
         // 交换同组内两章节的顺序号
@@ -437,7 +443,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         volumeId: Long?,
         orderedChapterIds: List<Long>,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val siblings = mStoryChapterDao.getByContainer(storyId, volumeId)
@@ -445,11 +451,11 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         if (orderedChapterIds.distinct().size != orderedChapterIds.size) {
             return@withTransaction false
         }
-        if (siblings.map { it.id }.toSet() != orderedChapterIds.toSet()) {
+        if (siblings.map { chapter -> chapter.id }.toSet() != orderedChapterIds.toSet()) {
             return@withTransaction false
         }
         // 仅写入实际变化的序号，并以一次 Story 修订推进提交整次拖动结果
-        val chapterById = siblings.associateBy { it.id }
+        val chapterById = siblings.associateBy { chapter -> chapter.id }
         orderedChapterIds.forEachIndexed { index, chapterId ->
             val chapter = chapterById.getValue(chapterId)
             if (chapter.sortOrder != index) {
@@ -475,17 +481,18 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun reorderAllChapters(
         storyId: Long,
         placements: List<StoryChapterPlacement>,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val allChapters = mStoryChapterDao.getByStoryId(storyId)
-        val existingIds = allChapters.map { it.id }.toSet()
-        val availableVolumeIds = mStoryVolumeDao.getByStoryId(storyId).map { it.id }.toSet()
+        val existingIds = allChapters.map { chapter -> chapter.id }.toSet()
+        val availableVolumeIds =
+            mStoryVolumeDao.getByStoryId(storyId).map { storyVolume -> storyVolume.id }.toSet()
         // 完整快照必须精确覆盖现有章节，并且只能引用当前故事的分卷。
         if (!placements.isValidChapterPlacementSnapshot(existingIds, availableVolumeIds)) {
             return@withTransaction false
         }
-        val chapterById = allChapters.associateBy { it.id }
+        val chapterById = allChapters.associateBy { chapter -> chapter.id }
         val changedPlacements = placements.filter { placement ->
             val current = chapterById.getValue(placement.chapterId)
             current.volumeId != placement.volumeId || current.sortOrder != placement.sortOrder
@@ -494,12 +501,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         // 只写入发生变化的位置，全部成功后再推进故事修订号。
         changedPlacements.forEach { placement ->
             check(
-                mStoryChapterDao.updateLocation(
+                value = mStoryChapterDao.updateLocation(
                     id = placement.chapterId,
                     storyId = storyId,
                     volumeId = placement.volumeId,
-                    sortOrder = placement.sortOrder
-                ) == 1
+                    sortOrder = placement.sortOrder,
+                ) == 1,
             )
         }
         advanceStory(story, latestTime)
@@ -511,11 +518,11 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         storyId: Long,
         chapterId: Long,
         volumeId: Long?,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Boolean = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction false
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId }
+            ?.takeIf { chapter -> chapter.storyId == storyId }
             ?: return@withTransaction false
         validateVolume(storyId, volumeId)
         if (chapter.volumeId == volumeId) return@withTransaction true
@@ -532,12 +539,13 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     suspend fun deleteChapter(
         storyId: Long,
         chapterId: Long,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): StoryChapterDeleteResult? = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction null
         val ordered = mStoryChapterDao.getOverviewsByStoryId(storyId)
         require(ordered.size > 1) { "Story must retain at least one chapter" }
-        val index = ordered.indexOfFirst { it.id == chapterId }
+        val index =
+            ordered.indexOfFirst { storyChapterOverview -> storyChapterOverview.id == chapterId }
         if (index < 0) return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId) ?: return@withTransaction null
         // 确定删除后回退激活的相邻章节
@@ -555,21 +563,21 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         expectedChapterRevision: Long,
         content: String,
         continuationGuidance: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): StoryChapterWriteResult? = mAppDatabase.withTransaction {
         val story = mStoryDao.getStory(storyId) ?: return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
+            ?.takeIf { chapter -> chapter.storyId == storyId && chapter.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
         // 乐观锁原子更新章节可编辑内容与版本号
         if (
             mStoryChapterDao.updateDraft(
-                chapter.id,
-                storyId,
-                expectedChapterRevision,
-                content,
-                continuationGuidance,
-                latestTime
+                id = chapter.id,
+                storyId = storyId,
+                expectedRevision = expectedChapterRevision,
+                content = content,
+                continuationGuidance = continuationGuidance,
+                latestTime = latestTime,
             ) != 1
         ) return@withTransaction null
         // 推进故事整体修订版本与活跃时间
@@ -590,21 +598,21 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 ?: (story.worldInfoGenerationStep + 1)
             // 乐观锁原子更新章节正文与故事生成步数
             check(
-                mStoryChapterDao.updateContent(
-                    chapter.id,
-                    story.id,
-                    chapter.contentRevision,
-                    content,
-                    System.currentTimeMillis()
-                ) == 1
+                value = mStoryChapterDao.updateContent(
+                    id = chapter.id,
+                    storyId = story.id,
+                    expectedRevision = chapter.contentRevision,
+                    content = content,
+                    latestTime = System.currentTimeMillis(),
+                ) == 1,
             )
             check(
-                mStoryDao.updateGenerationState(
-                    story.id,
-                    story.revision,
-                    nextStep,
-                    System.currentTimeMillis()
-                ) == 1
+                value = mStoryDao.updateGenerationState(
+                    storyId = story.id,
+                    expectedRevision = story.revision,
+                    worldInfoGenerationStep = nextStep,
+                    latestTime = System.currentTimeMillis(),
+                ) == 1,
             )
             // 更新关联世界书条目的时序状态
             val currentRelations = mStoryLorebookEntryDao.getByStoryId(story.id)
@@ -615,7 +623,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 storyRevision = story.revision + 1L,
                 chapterRevision = chapter.contentRevision + 1L,
                 worldInfoGenerationStep = nextStep,
-                worldInfoStates = nextRelations.map { it.toRuntimeState() }
+                worldInfoStates = nextRelations.map { storyLorebookEntry -> storyLorebookEntry.toRuntimeState() },
             )
         }
     }
@@ -630,14 +638,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         insertedText: String,
         replacedText: String,
         previousWorldInfoStates: List<StoryLorebookRuntimeState>,
-        previousWorldInfoGenerationStep: Int
+        previousWorldInfoGenerationStep: Int,
     ): StoryAppliedEdit? = mAppDatabase.withTransaction {
         // 校验故事与章节版本号
         val story = mStoryDao.getStory(storyId)
-            ?.takeIf { it.revision == expectedStoryRevision }
+            ?.takeIf { story -> story.revision == expectedStoryRevision }
             ?: return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
+            ?.takeIf { chapter -> chapter.storyId == storyId && chapter.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
         // 校验待回滚文本区间有效性与哈希一致性
         val end = start + insertedText.length
@@ -650,21 +658,21 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         // 恢复原文正文并写库
         val content = chapter.content.replaceRange(start, end, replacedText)
         check(
-            mStoryChapterDao.updateContent(
-                chapter.id,
-                storyId,
-                chapter.contentRevision,
-                content,
-                System.currentTimeMillis()
-            ) == 1
+            value = mStoryChapterDao.updateContent(
+                id = chapter.id,
+                storyId = storyId,
+                expectedRevision = chapter.contentRevision,
+                content = content,
+                latestTime = System.currentTimeMillis(),
+            ) == 1,
         )
         check(
-            mStoryDao.updateGenerationState(
-                storyId,
-                story.revision,
-                previousWorldInfoGenerationStep,
-                System.currentTimeMillis()
-            ) == 1
+            value = mStoryDao.updateGenerationState(
+                storyId = storyId,
+                expectedRevision = story.revision,
+                worldInfoGenerationStep = previousWorldInfoGenerationStep,
+                latestTime = System.currentTimeMillis(),
+            ) == 1,
         )
         // 恢复应用前的世界书条目时序状态
         val previousRelations = relations.withRuntimeStates(previousWorldInfoStates)
@@ -674,7 +682,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
             storyRevision = story.revision + 1L,
             chapterRevision = chapter.contentRevision + 1L,
             worldInfoGenerationStep = previousWorldInfoGenerationStep,
-            worldInfoStates = previousRelations.map { it.toRuntimeState() }
+            worldInfoStates = previousRelations.map { storyLorebookEntry -> storyLorebookEntry.toRuntimeState() },
         )
     }
 
@@ -687,28 +695,28 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         includeUserPersona: Boolean = false,
         lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
         val story = requireStory(storyId)
         val configuration = normalizeAndValidateConfiguration(
-            lorebookSelections,
-            characterSelections
+            lorebookSelections = lorebookSelections,
+            characterSelections = characterSelections,
         )
         // 更新故事基础设定
         check(
-            mStoryDao.updateStorySettings(
+            value = mStoryDao.updateStorySettings(
                 id = storyId,
                 expectedRevision = story.revision,
                 memory = memory,
                 summary = summary,
                 authorNote = authorNote,
                 includeUserPersona = includeUserPersona,
-                latestTime = latestTime
-            ) == 1
+                latestTime = latestTime,
+            ) == 1,
         ) { "Story settings update failed" }
         // 重新写入故事关联角色列表
         val previousEntries = mStoryLorebookEntryDao.getByStoryId(storyId)
-            .associateBy { it.lorebookEntryId }
+            .associateBy { storyLorebookEntry -> storyLorebookEntry.lorebookEntryId }
         mStoryCharacterDao.deleteByStoryId(storyId)
         insertStoryCharacters(storyId, configuration.characterSelections)
         // 重新写入故事关联世界书条目并保留原有条目的时序状态
@@ -716,7 +724,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         val nextEntries = configuration.lorebookSelections.map { selection ->
             previousEntries[selection.lorebookEntryId] ?: StoryLorebookEntry(
                 storyId = storyId,
-                lorebookEntryId = selection.lorebookEntryId
+                lorebookEntryId = selection.lorebookEntryId,
             )
         }
         if (nextEntries.isNotEmpty()) mStoryLorebookEntryDao.insertAll(nextEntries)
@@ -730,21 +738,21 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         expectedStoryRevision: Long,
         expectedChapterRevision: Long,
         content: String,
-        latestTime: Long = System.currentTimeMillis()
+        latestTime: Long = System.currentTimeMillis(),
     ): Long? = mAppDatabase.withTransaction {
         if (content.isBlank()) return@withTransaction null
         val story = mStoryDao.getStory(storyId)
-            ?.takeIf { it.revision == expectedStoryRevision }
+            ?.takeIf { story -> story.revision == expectedStoryRevision }
             ?: return@withTransaction null
         val chapter = mStoryChapterDao.getById(chapterId)
-            ?.takeIf { it.storyId == storyId && it.contentRevision == expectedChapterRevision }
+            ?.takeIf { chapter -> chapter.storyId == storyId && chapter.contentRevision == expectedChapterRevision }
             ?: return@withTransaction null
         if (
             mStoryDao.updateSummary(
-                storyId,
-                story.revision,
-                content,
-                latestTime
+                storyId = storyId,
+                expectedStoryRevision = story.revision,
+                summary = content,
+                latestTime = latestTime,
             ) != 1
         ) return@withTransaction null
         story.revision + 1L
@@ -755,14 +763,14 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
     }
 
     private suspend fun validateGeneratedEdit(
-        edit: StoryGeneratedEdit
+        edit: StoryGeneratedEdit,
     ): Pair<Story, StoryChapter>? {
         val story = mStoryDao.getStory(edit.storyId)
             ?.takeIf { it.revision == edit.baseStoryRevision }
             ?: return null
         val chapter = mStoryChapterDao.getById(edit.chapterId)
-            ?.takeIf {
-                it.storyId == edit.storyId && it.contentRevision == edit.baseChapterRevision
+            ?.takeIf { chapter ->
+                chapter.storyId == edit.storyId && chapter.contentRevision == edit.baseChapterRevision
             }
             ?: return null
         if (edit.start !in 0..edit.end || edit.end > chapter.content.length) return null
@@ -776,15 +784,13 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
 
     private suspend fun normalizeAndValidateConfiguration(
         lorebookSelections: List<StoryLorebookEntrySelection>,
-        characterSelections: List<StoryCharacterSelection>
+        characterSelections: List<StoryCharacterSelection>,
     ): NormalizedStoryConfiguration {
         require(characterSelections.distinctBy { it.characterId }.size == characterSelections.size) {
             "Story character selections must be unique"
         }
         require(
-            characterSelections.count {
-                it.activationMode == StoryCharacter.ACTIVATION_PRIMARY
-            } <= 1
+            value = characterSelections.count { it.activationMode == StoryCharacter.ACTIVATION_PRIMARY } <= 1,
         ) { "Story can only have one primary character" }
         characterSelections.forEach { selection ->
             require(StoryCharacter.isValidActivationMode(selection.activationMode)) {
@@ -812,30 +818,30 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
 
     private suspend fun insertStoryCharacters(
         storyId: Long,
-        selections: List<StoryCharacterSelection>
+        selections: List<StoryCharacterSelection>,
     ) {
         if (selections.isEmpty()) return
         mStoryCharacterDao.insertAll(
-            selections.mapIndexed { index, selection ->
+            data = selections.mapIndexed { index, selection ->
                 StoryCharacter(
                     storyId = storyId,
                     characterId = selection.characterId,
                     sortOrder = index,
-                    activationMode = selection.activationMode
+                    activationMode = selection.activationMode,
                 )
-            }
+            },
         )
     }
 
     private suspend fun insertStoryLorebookEntries(
         storyId: Long,
-        selections: List<StoryLorebookEntrySelection>
+        selections: List<StoryLorebookEntrySelection>,
     ) {
         if (selections.isEmpty()) return
         mStoryLorebookEntryDao.insertAll(
-            selections.map { selection ->
+            data = selections.map { selection ->
                 StoryLorebookEntry(storyId, selection.lorebookEntryId)
-            }
+            },
         )
     }
 
@@ -898,12 +904,12 @@ private fun StoryLorebookEntry.toRuntimeState(): StoryLorebookRuntimeState {
         activatedAtStep = activatedAtStep,
         stickyUntilStep = stickyUntilStep,
         cooldownUntilStep = cooldownUntilStep,
-        stateSignature = stateSignature
+        stateSignature = stateSignature,
     )
 }
 
 private fun List<StoryLorebookEntry>.matches(
-    states: List<StoryLorebookRuntimeState>
+    states: List<StoryLorebookRuntimeState>,
 ): Boolean {
     if (size != states.size) return false
     val stateById = states.associateBy { it.lorebookEntryId }
@@ -911,7 +917,7 @@ private fun List<StoryLorebookEntry>.matches(
 }
 
 private fun List<StoryLorebookEntry>.withRuntimeStates(
-    states: List<StoryLorebookRuntimeState>
+    states: List<StoryLorebookRuntimeState>,
 ): List<StoryLorebookEntry> {
     val stateById = states.associateBy { it.lorebookEntryId }
     return map { relation ->
@@ -920,7 +926,7 @@ private fun List<StoryLorebookEntry>.withRuntimeStates(
             activatedAtStep = state.activatedAtStep,
             stickyUntilStep = state.stickyUntilStep,
             cooldownUntilStep = state.cooldownUntilStep,
-            stateSignature = state.stateSignature
+            stateSignature = state.stateSignature,
         )
     }
 }
@@ -938,12 +944,13 @@ data class StoryChapterPlacement(
 /** 验证完整章节位置快照的成员、分卷归属与容器内连续顺序。 */
 private fun List<StoryChapterPlacement>.isValidChapterPlacementSnapshot(
     existingChapterIds: Set<Long>,
-    availableVolumeIds: Set<Long>
+    availableVolumeIds: Set<Long>,
 ): Boolean {
     if (size != existingChapterIds.size) return false
     if (map { it.chapterId }.toSet() != existingChapterIds) return false
     if (any { it.volumeId != null && it.volumeId !in availableVolumeIds }) return false
     return groupBy { it.volumeId }.values.all { placements ->
-        placements.map { it.sortOrder }.sorted() == placements.indices.toList()
+        placements.map { storyChapterPlacement -> storyChapterPlacement.sortOrder }
+            .sorted() == placements.indices.toList()
     }
 }

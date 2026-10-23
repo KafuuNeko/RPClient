@@ -14,7 +14,7 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 fun DeleteSelectedSessionsDialog(
     count: Int,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AppDangerDialog(
         onDismissRequest = onDismiss,
@@ -22,7 +22,7 @@ fun DeleteSelectedSessionsDialog(
         message = stringResource(R.string.delete_selected_sessions_message, count),
         confirmText = stringResource(R.string.delete),
         dismissText = stringResource(R.string.cancel),
-        onConfirm = onConfirm
+        onConfirm = onConfirm,
     )
 }
 
@@ -34,7 +34,7 @@ private fun DeleteSelectedSessionsDialogPreview() {
             DeleteSelectedSessionsDialog(
                 count = 3,
                 onConfirm = {},
-                onDismiss = {}
+                onDismiss = {},
             )
         }
     }

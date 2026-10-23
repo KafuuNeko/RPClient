@@ -28,20 +28,21 @@ class MainActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<MainViewModel>()
 
     /** 用户头像选择结果只用于打开裁剪页，Activity 不直接持久化 URI 或位图。 */
-    private val mUserAvatarPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { mImageCropLauncher.launch(ImageCropActivity.createIntent(this, it)) }
-    }
+    private val mUserAvatarPickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let { uri -> mImageCropLauncher.launch(ImageCropActivity.createIntent(this, uri)) }
+        }
 
     /** 裁剪页完成文件保存后，将方形头像 UUID 交回设置状态。 */
     private val mImageCropLauncher = registerForActivityResult(StartActivityForResult()) { result ->
-        ImageCropActivity.getResultFileUuid(result.data)?.let {
-            mViewModel.emit(MainUiIntent.UserAvatarCropped(it))
+        ImageCropActivity.getResultFileUuid(result.data)?.let { text ->
+            mViewModel.emit(MainUiIntent.UserAvatarCropped(text))
         }
     }
 
     /** 对话文件只在 ViewModel 完成解析并由用户选择角色后才会写入数据库。 */
     private val mChatImportLauncher = registerForActivityResult(
-        GetContentWithMimeTypes()
+        contract = GetContentWithMimeTypes(),
     ) { uri ->
         uri ?: return@registerForActivityResult
         mViewModel.emit(MainUiIntent.ImportChatResult(uri))
@@ -49,7 +50,7 @@ class MainActivity : CoreActivityWithEvent() {
 
     /** 只将本次授权目录回传 ViewModel，不自动保存长期 URI 授权。 */
     private val mChatImageDirectoryLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
+        contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri -> mViewModel.emit(MainUiIntent.ChatImageDirectoryResult(uri)) }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -64,7 +65,7 @@ class MainActivity : CoreActivityWithEvent() {
 
         MainLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 
@@ -84,14 +85,14 @@ class MainActivity : CoreActivityWithEvent() {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
             MainViewEvent.OpenUserAvatarPicker -> mUserAvatarPickerLauncher.launch("image/*")
-            MainViewEvent.OpenChatImageDirectory -> mChatImageDirectoryLauncher.launch(null)
+            MainViewEvent.OpenChatImageDirectory -> mChatImageDirectoryLauncher.launch(input = null)
             MainViewEvent.OpenChatImporter -> mChatImportLauncher.launch(
-                arrayOf(
+                input = arrayOf(
                     "application/x-ndjson",
                     "application/json",
                     "text/plain",
-                    "application/octet-stream"
-                )
+                    "application/octet-stream",
+                ),
             )
         }
     }

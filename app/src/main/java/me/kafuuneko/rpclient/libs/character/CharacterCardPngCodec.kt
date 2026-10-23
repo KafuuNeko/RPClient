@@ -14,7 +14,14 @@ import java.util.zip.CRC32
  */
 object CharacterCardPngCodec {
     private val PngSignature = byteArrayOf(
-        0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+        0x89.toByte(),
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
     )
 
     /**
@@ -27,9 +34,9 @@ object CharacterCardPngCodec {
         val textChunks = chunks
             .filter { it.name == "tEXt" }
             .mapNotNull { it.decodeTextChunk() }
-        val ccv3 = textChunks.firstOrNull { it.keyword.equals("ccv3", ignoreCase = true) }
+        val ccv3 = textChunks.firstOrNull { it.keyword.equals(other = "ccv3", ignoreCase = true) }
         if (ccv3 != null) return decodeBase64Text(ccv3.text)
-        val chara = textChunks.firstOrNull { it.keyword.equals("chara", ignoreCase = true) }
+        val chara = textChunks.firstOrNull { it.keyword.equals(other = "chara", ignoreCase = true) }
         if (chara != null) return decodeBase64Text(chara.text)
         error("PNG metadata does not contain character card data")
     }
@@ -42,13 +49,18 @@ object CharacterCardPngCodec {
     fun writeCharacterJson(bytes: ByteArray, json: String): ByteArray {
         val chunks = readChunks(bytes)
             .filterNot { chunk ->
-                chunk.name == "tEXt" && chunk.decodeTextChunk()?.keyword?.lowercase() in setOf("chara", "ccv3")
+                chunk.name == "tEXt" && chunk.decodeTextChunk()?.keyword?.lowercase() in setOf(
+                    "chara",
+                    "ccv3"
+                )
             }
             .toMutableList()
         val insertIndex = chunks.indexOfLast { it.name == "IEND" }.takeIf { it >= 0 } ?: chunks.size
         chunks.add(insertIndex, textChunk("chara", encodeBase64Text(json)))
         val ccv3Json = runCatching {
-            val v3 = org.json.JSONObject(json)
+            val v3 = org
+                .json
+                .JSONObject(json)
                 .put("spec", "chara_card_v3")
                 .put("spec_version", "3.0")
             v3.toString()
@@ -96,13 +108,19 @@ object CharacterCardPngCodec {
     }
 
     private fun textChunk(keyword: String, text: String): PngChunk {
-        return PngChunk("tEXt", keyword.toByteArray(Charsets.ISO_8859_1) + byteArrayOf(0) + text.toByteArray(Charsets.ISO_8859_1))
+        return PngChunk(
+            name = "tEXt",
+            data = keyword.toByteArray(Charsets.ISO_8859_1) + byteArrayOf(0) + text.toByteArray(
+                Charsets.ISO_8859_1
+            ),
+        )
     }
 
     private fun PngChunk.decodeTextChunk(): PngTextChunk? {
         val separator = data.indexOf(0)
         if (separator <= 0) return null
-        val keyword = data.copyOfRange(0, separator).toString(Charsets.ISO_8859_1)
+        val keyword =
+            data.copyOfRange(fromIndex = 0, toIndex = separator).toString(Charsets.ISO_8859_1)
         val text = data.copyOfRange(separator + 1, data.size).toString(Charsets.ISO_8859_1)
         return PngTextChunk(keyword, text)
     }
@@ -112,11 +130,16 @@ object CharacterCardPngCodec {
     }
 
     private fun decodeBase64Text(text: String): String {
-        return Base64.getDecoder().decode(text).toString(Charsets.UTF_8)
+        return Base64.getDecoder()
+            .decode(text)
+            .toString(Charsets.UTF_8)
     }
 
     private fun intBytes(value: Int): ByteArray {
-        return ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN).putInt(value).array()
+        return ByteBuffer.allocate(4)
+            .order(ByteOrder.BIG_ENDIAN)
+            .putInt(value)
+            .array()
     }
 
     private fun crc(name: ByteArray, data: ByteArray): Long {
@@ -127,5 +150,6 @@ object CharacterCardPngCodec {
     }
 
     private data class PngChunk(val name: String, val data: ByteArray)
+
     private data class PngTextChunk(val keyword: String, val text: String)
 }

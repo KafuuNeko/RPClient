@@ -12,18 +12,25 @@ class LLMModelCatalogInvalidResponseException : IllegalStateException(
 /** 不包含响应正文、凭据或请求头的模型目录失败分类。 */
 sealed class LLMModelCatalogFailure {
     data object Unauthorized : LLMModelCatalogFailure()
+
     data object Forbidden : LLMModelCatalogFailure()
+
     data object RateLimited : LLMModelCatalogFailure()
+
     data object UnsupportedEndpoint : LLMModelCatalogFailure()
+
     data object Network : LLMModelCatalogFailure()
+
     data object InvalidResponse : LLMModelCatalogFailure()
+
     data class HttpFailure(val statusCode: Int) : LLMModelCatalogFailure()
+
     data object Unknown : LLMModelCatalogFailure()
 }
 
 /** 将模型目录异常转换为可安全进入 UiState 的失败原因；取消操作返回 null。 */
 fun classifyModelCatalogFailure(
-    throwable: Throwable
+    throwable: Throwable,
 ): LLMModelCatalogFailure? {
     if (throwable is CancellationException) return null
     return when (throwable) {

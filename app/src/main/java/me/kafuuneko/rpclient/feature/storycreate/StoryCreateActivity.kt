@@ -27,7 +27,7 @@ class StoryCreateActivity : CoreActivityWithEvent() {
 
         StoryCreateLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

@@ -14,6 +14,7 @@ class LLMModelCatalogRepository(
     private val mImageCapabilities: ImageInputCapabilityResolver
 ) {
     suspend fun listModels(provider: LLMProviderConfig): List<LLMAvailableModel> {
-        return mClientFactory.create(provider).listModels().also { mImageCapabilities.record(provider, it) }
+        return mClientFactory.create(provider).listModels()
+            .also { mImageCapabilities.record(provider, it) }
     }
 }

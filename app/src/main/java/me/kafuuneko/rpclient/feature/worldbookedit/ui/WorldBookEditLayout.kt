@@ -19,14 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Delete
@@ -38,7 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,29 +60,35 @@ import me.kafuuneko.rpclient.feature.worldbookedit.presentation.WorldBookEntryFi
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 世界书元数据与条目列表编辑页 Compose 入口。 */
 @Composable
 fun WorldBookEditLayout(
     uiState: WorldBookEditUiState,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is WorldBookEditUiState.Normal) { WorldBookEditUiIntent.Back.emit() }
+    BackHandler(
+        enabled = uiState is WorldBookEditUiState.Normal,
+        onBack = { WorldBookEditUiIntent.Back.emit() })
     when (uiState) {
         WorldBookEditUiState.None -> Unit
-        is WorldBookEditUiState.Finished -> WorldBookEditLayout(uiState.previous) {}
+        is WorldBookEditUiState.Finished -> WorldBookEditLayout(
+            uiState = uiState.previous,
+            emit = {})
+
         is WorldBookEditUiState.Normal -> {
             WorldBookEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -96,46 +99,61 @@ fun WorldBookEditLayout(
 @Composable
 private fun WorldBookEditNormal(
     state: WorldBookEditUiState.Normal,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
-            title = if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(R.string.edit_world_book_title),
+            title = if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(
+                R.string.edit_world_book_title
+            ),
             onBack = { WorldBookEditUiIntent.Back.emit() },
             actions = {
                 TopBarSaveButton(state, emit)
-            }
+            },
         )
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                ),
+                .windowInsetsPadding(insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 14.dp,
                 end = 18.dp,
-                bottom = 24.dp
+                bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (state.loadState == WorldBookEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
-                item { BasicPanel(state.form, state.entryListState.activeCount, state.loadState, emit) }
+                item {
+                    BasicPanel(
+                        form = state.form,
+                        activeCount = state.entryListState.activeCount,
+                        loadState = state.loadState,
+                        emit = emit,
+                    )
+                }
                 item { EntryHeader(state.entryListState.totalCount, emit) }
                 if (state.entryListState.totalCount > 0) {
                     item {
                         EntrySearchBar(
                             query = state.entryListState.query,
-                            onQueryChange = { WorldBookEditUiIntent.ChangeEntrySearchQuery(it).emit() },
+                            onQueryChange = { text ->
+                                WorldBookEditUiIntent.ChangeEntrySearchQuery(
+                                    text
+                                ).emit()
+                            },
                             filterMode = state.entryListState.filter,
-                            onFilterChange = { WorldBookEditUiIntent.SelectEntryFilter(it).emit() }
+                            onFilterChange = { worldBookEntryFilter ->
+                                WorldBookEditUiIntent.SelectEntryFilter(
+                                    worldBookEntryFilter
+                                ).emit()
+                            },
                         )
                     }
                 }
@@ -147,7 +165,12 @@ private fun WorldBookEditNormal(
                         EntryCard(
                             entry = entry,
                             onClick = { WorldBookEditUiIntent.EditEntry(entry.id).emit() },
-                            onToggleDisabled = { WorldBookEditUiIntent.ToggleEntryDisabled(entry.id, it).emit() }
+                            onToggleDisabled = { enabled ->
+                                WorldBookEditUiIntent.ToggleEntryDisabled(
+                                    entry.id,
+                                    enabled
+                                ).emit()
+                            },
                         )
                     }
                 }
@@ -163,7 +186,7 @@ private fun LoadingPanel() {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             CircularProgressIndicator()
             Text(stringResource(R.string.loading))
@@ -176,7 +199,7 @@ private fun BasicPanel(
     form: WorldBookEditForm,
     activeCount: Int,
     loadState: WorldBookEditLoadState,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -184,41 +207,46 @@ private fun BasicPanel(
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = form.name.ifBlank { stringResource(R.string.world_book_title) },
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
                     text = stringResource(
                         R.string.world_book_stats_format,
                         stringResource(R.string.entry_count, form.entries.size),
-                        stringResource(R.string.active_entries_count, activeCount)
+                        stringResource(R.string.active_entries_count, activeCount),
                     ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
             }
             IconButton(
                 enabled = loadState == WorldBookEditLoadState.None,
-                onClick = { WorldBookEditUiIntent.DeleteWorldBookClick.emit() }
+                onClick = { WorldBookEditUiIntent.DeleteWorldBookClick.emit() },
             ) {
-                Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.delete))
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = stringResource(R.string.delete)
+                )
             }
         }
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
             value = form.name,
-            onValueChange = { WorldBookEditUiIntent.ChangeName(it).emit() },
+            onValueChange = { text -> WorldBookEditUiIntent.ChangeName(text).emit() },
             label = { Text(stringResource(R.string.name)) },
             enabled = loadState == WorldBookEditLoadState.None,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         WorldBookBudgetEditor(
             form = form,
             enabled = loadState == WorldBookEditLoadState.None,
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -227,17 +255,17 @@ private fun BasicPanel(
 private fun WorldBookBudgetEditor(
     form: WorldBookEditForm,
     enabled: Boolean,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.world_book_token_budget),
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleSmall,
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             WorldBookBudgetMode.entries.forEach { mode ->
                 FilterChip(
@@ -246,7 +274,7 @@ private fun WorldBookBudgetEditor(
                     enabled = enabled,
                     label = {
                         Text(stringResource(mode.titleRes()))
-                    }
+                    },
                 )
             }
         }
@@ -254,20 +282,24 @@ private fun WorldBookBudgetEditor(
             WorldBookBudgetMode.FollowGlobal -> Text(
                 text = stringResource(R.string.world_book_budget_follow_global_helper),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             WorldBookBudgetMode.FixedTokens -> OutlinedTextField(
-                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
                 value = form.tokenBudgetInput,
-                onValueChange = { WorldBookEditUiIntent.ChangeTokenBudgetTokens(it).emit() },
+                onValueChange = { text ->
+                    WorldBookEditUiIntent.ChangeTokenBudgetTokens(text).emit()
+                },
                 label = { Text(stringResource(R.string.world_book_budget_fixed_tokens)) },
                 supportingText = { Text(stringResource(R.string.world_book_budget_tokens_helper)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 enabled = enabled,
                 isError = form.resolvedTokenBudget == null,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
             )
         }
     }
@@ -283,12 +315,12 @@ private fun WorldBookBudgetMode.titleRes(): Int {
 @Composable
 private fun EntryHeader(
     totalCount: Int,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     RpSectionHeader(
         title = stringResource(R.string.entries_with_count, totalCount),
         action = stringResource(R.string.add),
-        onAction = { WorldBookEditUiIntent.AddEntry.emit() }
+        onAction = { WorldBookEditUiIntent.AddEntry.emit() },
     )
 }
 
@@ -297,55 +329,57 @@ private fun EntrySearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     filterMode: WorldBookEntryFilter,
-    onFilterChange: (WorldBookEntryFilter) -> Unit
+    onFilterChange: (WorldBookEntryFilter) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(RoundedCornerShape(12.dp)),
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_entries_placeholder),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             },
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null) },
             trailingIcon = if (query.isNotEmpty()) {
                 {
                     IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Rounded.Clear, contentDescription = null)
+                        Icon(imageVector = Icons.Rounded.Clear, contentDescription = null)
                     }
                 }
             } else null,
             singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             FilterChip(
                 selected = filterMode == WorldBookEntryFilter.All,
                 onClick = { onFilterChange(WorldBookEntryFilter.All) },
-                label = { Text(stringResource(R.string.filter_all)) }
+                label = { Text(stringResource(R.string.filter_all)) },
             )
             FilterChip(
                 selected = filterMode == WorldBookEntryFilter.Constant,
                 onClick = { onFilterChange(WorldBookEntryFilter.Constant) },
-                label = { Text(stringResource(R.string.filter_constant)) }
+                label = { Text(stringResource(R.string.filter_constant)) },
             )
             FilterChip(
                 selected = filterMode == WorldBookEntryFilter.Enabled,
                 onClick = { onFilterChange(WorldBookEntryFilter.Enabled) },
-                label = { Text(stringResource(R.string.filter_enabled)) }
+                label = { Text(stringResource(R.string.filter_enabled)) },
             )
             FilterChip(
                 selected = filterMode == WorldBookEntryFilter.Disabled,
                 onClick = { onFilterChange(WorldBookEntryFilter.Disabled) },
-                label = { Text(stringResource(R.string.filter_disabled)) }
+                label = { Text(stringResource(R.string.filter_disabled)) },
             )
         }
     }
@@ -364,7 +398,7 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
                     } else {
                         stringResource(R.string.no_world_book_entries)
                     },
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
                     text = if (hasEntries) {
@@ -373,7 +407,7 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
                         stringResource(R.string.no_world_book_entries_desc)
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
             }
         }
@@ -384,7 +418,7 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
 private fun EntryCard(
     entry: WorldBookEntryListItem,
     onClick: () -> Unit,
-    onToggleDisabled: (Boolean) -> Unit
+    onToggleDisabled: (Boolean) -> Unit,
 ) {
     val alpha = if (entry.disabled) 0.55f else 1f
     val borderColor = when {
@@ -396,84 +430,83 @@ private fun EntryCard(
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable(onClick = { onClick() }),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(width = 1.dp, color = borderColor),
         colors = CardDefaults.cardColors(
             containerColor = if (entry.disabled)
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             else
-                MaterialTheme.colorScheme.surface
-        )
+                MaterialTheme.colorScheme.surface,
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            val entryIndicatorColor = when {
+                entry.disabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                entry.constant -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.secondary
+            }
             Box(
                 modifier = Modifier
                     .width(4.dp)
                     .height(36.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(
-                        when {
-                            entry.disabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                            entry.constant -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.secondary
-                        }
-                    )
+                    .background(color = entryIndicatorColor),
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
                         text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (entry.constant) {
                         AppSurface(
                             shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
                         ) {
                             Text(
                                 text = stringResource(R.string.entry_constant),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
                 }
                 RpTagRow(
                     tags = entry.displayTags(stringResource(R.string.no_keywords)),
-                    maxCount = 3
+                    maxCount = 3,
                 )
                 Text(
                     text = stringResource(R.string.entry_order_depth, entry.order, entry.depth),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Switch(
                 checked = !entry.disabled,
-                onCheckedChange = { onToggleDisabled(!it) }
+                onCheckedChange = { enabled -> onToggleDisabled(!enabled) },
             )
         }
     }
 }
 
 private fun WorldBookEntryListItem.displayTags(
-    noKeywordsLabel: String
+    noKeywordsLabel: String,
 ): List<String> {
     return buildList {
         addAll(keywords)
@@ -484,7 +517,7 @@ private fun WorldBookEntryListItem.displayTags(
 @Composable
 private fun ActionPanel(
     state: WorldBookEditUiState.Normal,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     // 次操作保留次级填充，透明度较高时仍与页面上的普通文字区分。
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -493,7 +526,7 @@ private fun ActionPanel(
             colors = ButtonDefaults.filledTonalButtonColors(),
             shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEditLoadState.None,
-            onClick = { WorldBookEditUiIntent.Back.emit() }
+            onClick = { WorldBookEditUiIntent.Back.emit() },
         ) {
             Text(stringResource(R.string.cancel))
         }
@@ -501,16 +534,15 @@ private fun ActionPanel(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEditLoadState.None,
-            onClick = { WorldBookEditUiIntent.SaveWorldBook.emit() }
+            onClick = { WorldBookEditUiIntent.SaveWorldBook.emit() },
         ) {
-            Icon(Icons.Rounded.Check, contentDescription = null)
-            Text(
-                when {
-                    state.loadState == WorldBookEditLoadState.Saving -> stringResource(R.string.saving)
-                    state.mode == WorldBookEditMode.Create -> stringResource(R.string.create)
-                    else -> stringResource(R.string.save)
-                }
-            )
+            Icon(imageVector = Icons.Rounded.Check, contentDescription = null)
+            val saveButtonText = when {
+                state.loadState == WorldBookEditLoadState.Saving -> stringResource(R.string.saving)
+                state.mode == WorldBookEditMode.Create -> stringResource(R.string.create)
+                else -> stringResource(R.string.save)
+            }
+            Text(text = saveButtonText)
         }
     }
 }
@@ -518,27 +550,26 @@ private fun ActionPanel(
 @Composable
 private fun TopBarSaveButton(
     state: WorldBookEditUiState.Normal,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     TextButton(
         enabled = state.loadState == WorldBookEditLoadState.None,
-        onClick = { WorldBookEditUiIntent.SaveWorldBook.emit() }
+        onClick = { WorldBookEditUiIntent.SaveWorldBook.emit() },
     ) {
-        Icon(Icons.Rounded.Check, contentDescription = null)
-        Text(
-            when {
-                state.loadState == WorldBookEditLoadState.Saving -> stringResource(R.string.saving)
-                state.mode == WorldBookEditMode.Create -> stringResource(R.string.create)
-                else -> stringResource(R.string.save)
-            }
-        )
+        Icon(imageVector = Icons.Rounded.Check, contentDescription = null)
+        val saveButtonText = when {
+            state.loadState == WorldBookEditLoadState.Saving -> stringResource(R.string.saving)
+            state.mode == WorldBookEditMode.Create -> stringResource(R.string.create)
+            else -> stringResource(R.string.save)
+        }
+        Text(text = saveButtonText)
     }
 }
 
 @Composable
 private fun DialogSwitch(
     dialogState: WorldBookEditDialogState,
-    emit: WorldBookEditUiIntent.() -> Unit
+    emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         WorldBookEditDialogState.None -> Unit
@@ -548,15 +579,16 @@ private fun DialogSwitch(
             message = stringResource(R.string.delete_world_book_message, dialogState.worldBookName),
             confirmText = stringResource(R.string.delete),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { WorldBookEditUiIntent.ConfirmDeleteWorldBook.emit() }
+            onConfirm = { WorldBookEditUiIntent.ConfirmDeleteWorldBook.emit() },
         )
+
         WorldBookEditDialogState.UnsavedChangesConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.unsaved_changes_title),
             message = stringResource(R.string.unsaved_changes_message),
             confirmText = stringResource(R.string.discard_changes),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { WorldBookEditUiIntent.ConfirmDiscardChanges.emit() }
+            onConfirm = { WorldBookEditUiIntent.ConfirmDiscardChanges.emit() },
         )
     }
 }
@@ -572,19 +604,19 @@ private fun WorldBookEditLayoutPreview() {
                     id = 1L,
                     name = "World Setting",
                     entries = listOf(
-                        WorldBookEntryListItem(
+                        element = WorldBookEntryListItem(
                             id = 1L,
                             name = "Old District",
                             keywords = listOf("district", "railway"),
                             constant = false,
                             disabled = false,
                             order = 100,
-                            depth = 0
-                        )
-                    )
-                )
+                            depth = 0,
+                        ),
+                    ),
+                ),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

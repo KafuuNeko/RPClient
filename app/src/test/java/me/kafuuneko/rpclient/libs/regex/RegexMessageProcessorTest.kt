@@ -10,7 +10,7 @@ class RegexMessageProcessorTest {
     fun userInputRunsSlashCommandBeforeUserPlacement() {
         val scripts = listOf(
             scoped(script("slash", "/\\/wave/g", "hello", RegexPlacement.SlashCommand)),
-            scoped(script("user", "/hello/g", "hi"))
+            scoped(script("user", "/hello/g", "hi")),
         )
 
         val result = mProcessor.applyUserInput("/wave", scripts, emptyMap())
@@ -29,8 +29,8 @@ class RegexMessageProcessorTest {
                 input = "raw",
                 source = RegexMessageSource.User,
                 scripts = listOf(userScript),
-                macros = emptyMap()
-            )
+                macros = emptyMap(),
+            ),
         )
         assertEquals(
             "ai",
@@ -38,8 +38,8 @@ class RegexMessageProcessorTest {
                 input = "raw",
                 source = RegexMessageSource.Character,
                 scripts = listOf(aiScript),
-                macros = emptyMap()
-            )
+                macros = emptyMap(),
+            ),
         )
     }
 
@@ -47,21 +47,21 @@ class RegexMessageProcessorTest {
     fun displayKeepsReasoningAndBodyPlacementsSeparate() {
         val scripts = listOf(
             scoped(
-                script("body", "/answer/g", "shown", RegexPlacement.AiResponse)
-                    .copy(markdownOnly = true)
+                script = script("body", "/answer/g", "shown", RegexPlacement.AiResponse)
+                    .copy(markdownOnly = true),
             ),
             scoped(
-                script("reasoning", "/secret/g", "hidden", RegexPlacement.Reasoning)
+                script = script("reasoning", "/secret/g", "hidden", RegexPlacement.Reasoning)
                     .copy(markdownOnly = true),
-                order = 1
-            )
+                order = 1,
+            ),
         )
 
         val result = mProcessor.applyDisplay(
             input = "<think>secret</think>answer",
             source = RegexMessageSource.Character,
             scripts = scripts,
-            macros = emptyMap()
+            macros = emptyMap(),
         )
 
         assertEquals("<think>hidden</think>shown", result)
@@ -71,21 +71,21 @@ class RegexMessageProcessorTest {
         id: String,
         find: String,
         replacement: String,
-        placement: RegexPlacement = RegexPlacement.UserInput
+        placement: RegexPlacement = RegexPlacement.UserInput,
     ) = RegexScript(
         id = id,
         scriptName = id,
         findRegex = find,
         replaceString = replacement,
-        placement = listOf(placement.value)
+        placement = listOf(placement.value),
     )
 
     private fun scoped(
         script: RegexScript,
-        order: Int = 0
+        order: Int = 0,
     ) = ScopedRegexScript(
         script = script,
         scope = RegexScriptScope.Global,
-        order = order
+        order = order,
     )
 }

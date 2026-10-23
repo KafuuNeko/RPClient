@@ -78,7 +78,13 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
     /** 初始化时缓存 Intent 观察者，并启动 Intent 收集和串行任务循环。 */
     init {
         doCacheUiIntentObservers()
-        viewModelScope.launch { mUiIntentFlow.collect { onReceivedUiIntent(it) } }
+        viewModelScope.launch {
+            mUiIntentFlow.collect { coreViewModel ->
+                onReceivedUiIntent(
+                    coreViewModel
+                )
+            }
+        }
         startLoopAsyncTask()
     }
 
@@ -150,9 +156,15 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
     suspend fun enqueueAsyncTask(
         context: CoroutineContext = Dispatchers.Default,
         restoreState: S = uiStateFlow.value,
-        block: CoroutineBlock
+        block: CoroutineBlock,
     ) {
-        mAsyncTaskChannel.send(AsyncTask(context, restoreState, block))
+        mAsyncTaskChannel.send(
+            AsyncTask(
+                context = context,
+                restoreState = restoreState,
+                block = block
+            )
+        )
     }
 
     /** 非阻塞发送 UI 意图；缓冲区已满时返回前会丢弃本次发送结果。 */
@@ -177,7 +189,11 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
 
     /** 在 viewModelScope 中将冷 Flow 懒启动为可观察 StateFlow。 */
     protected fun <T> Flow<T>.stateInThis(): StateFlow<T?> {
-        return this.stateIn(viewModelScope, SharingStarted.Lazily, null)
+        return this.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Lazily,
+            initialValue = null
+        )
     }
 
     /** 当前状态类型匹配时返回该状态，否则返回 null。 */
@@ -197,9 +213,12 @@ abstract class CoreViewModel<I, S>(initStatus: S) : ViewModel() {
      * 等待uiState变更为指定状态类型且满足自定义条件后返回
      */
     protected suspend inline fun <reified T> awaitStateOf(
-        crossinline predicate: suspend (T) -> Boolean
+        crossinline predicate: suspend (T) -> Boolean,
     ): T {
-        return uiStateFlow.filterIsInstance<T>().filter(predicate).first()
+        return uiStateFlow
+            .filterIsInstance<T>()
+            .filter(predicate)
+            .first()
     }
 
     /** 发布新的完整 UI 状态。 */

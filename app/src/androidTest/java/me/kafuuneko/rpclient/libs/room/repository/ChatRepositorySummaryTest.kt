@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -31,10 +29,20 @@ class ChatRepositorySummaryTest {
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ChatRepository(database, Gson(), MessageImageRepository(database, FileRepository(context, database)))
+        repository = ChatRepository(
+            mAppDatabase = database,
+            mGson = Gson(),
+            mImages = MessageImageRepository(
+                mDatabase = database,
+                mFiles = FileRepository(
+                    mContext = context,
+                    mAppDatabase = database,
+                ),
+            ),
+        )
 
         val characterId = database.getCharacterDao().insertOrReplace(
-            Character(
+            data = Character(
                 name = "Character",
                 avatar = "",
                 characterTags = "[]",
@@ -43,11 +51,11 @@ class ChatRepositorySummaryTest {
                 scenario = "",
                 firstMessages = "",
                 examplesOfDialogue = "",
-                postHistoryInstructions = ""
-            )
+                postHistoryInstructions = "",
+            ),
         )
         sessionId = database.getChatSessionDao().insertOrReplace(
-            ChatSession(
+            data = ChatSession(
                 characterId = characterId,
                 createTime = 1L,
                 latestTime = 1L,
@@ -55,8 +63,8 @@ class ChatRepositorySummaryTest {
                 title = "Test",
                 userNote = "",
                 userName = "Alice",
-                userDescription = "An investigator"
-            )
+                userDescription = "An investigator",
+            ),
         )
     }
 
@@ -72,7 +80,7 @@ class ChatRepositorySummaryTest {
                 sessionId = sessionId,
                 source = ChatMessage.Source.User,
                 content = "message-$index",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
         repository.saveSummary(sessionId, "summary-through-5", firstMessages[4])
@@ -82,7 +90,7 @@ class ChatRepositorySummaryTest {
                 sessionId = sessionId,
                 source = ChatMessage.Source.Char,
                 content = "message-$index",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
         repository.saveSummary(sessionId, "summary-through-10", laterMessages.last())
@@ -94,25 +102,28 @@ class ChatRepositorySummaryTest {
 
         val refreshContext = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = true
+            allowRefreshLatest = true,
         )
         assertEquals("summary-through-5", refreshContext.existingSummary)
         assertEquals(
             listOf("message-6", "message-7", "message-8", "message-9", "message-10"),
-            refreshContext.messages.map { it.content }
+            refreshContext.messages.map { message -> message.content },
         )
         val refreshedSummaryId = repository.saveSummary(
             sessionId = sessionId,
             content = "refreshed-summary-through-10",
             coveredMessageId = laterMessages.last(),
-            summaryIdToUpdate = refreshContext.summaryToUpdate?.id
+            summaryIdToUpdate = refreshContext.summaryToUpdate?.id,
         )
         assertEquals(refreshContext.summaryToUpdate?.id, refreshedSummaryId)
-        assertEquals("refreshed-summary-through-10", repository.getLatestSummary(sessionId)?.content)
+        assertEquals(
+            "refreshed-summary-through-10",
+            repository.getLatestSummary(sessionId)?.content
+        )
 
         val automaticContext = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = false
+            allowRefreshLatest = false,
         )
         assertTrue(automaticContext.messages.isEmpty())
         assertEquals(null, automaticContext.summaryToUpdate)
@@ -121,14 +132,16 @@ class ChatRepositorySummaryTest {
             sourceSessionId = sessionId,
             throughMessageId = firstMessages[5],
             title = "Branch",
-            createTime = 100L
+            createTime = 100L,
         )
         val branchContext = repository.getSummaryContext(branchId)
         val branchSession = repository.getSessionById(branchId)
         assertEquals("Alice", branchSession?.userName)
         assertEquals("An investigator", branchSession?.userDescription)
         assertEquals("summary-through-5", branchContext.summary?.content)
-        assertEquals(listOf("message-6"), branchContext.messagesAfterSummary.map { it.content })
+        assertEquals(
+            listOf("message-6"),
+            branchContext.messagesAfterSummary.map { message -> message.content })
         assertEquals(6, repository.getMessageCountBySessionId(branchId))
 
         repository.updateMessageContent(firstMessages[5], "edited-message-6")
@@ -137,9 +150,9 @@ class ChatRepositorySummaryTest {
         assertEquals("summary-through-5", contextAfterEdit.summary?.content)
         assertEquals(
             listOf("edited-message-6", "message-7", "message-8", "message-9", "message-10"),
-            contextAfterEdit.messagesAfterSummary.map { it.content }
+            contextAfterEdit.messagesAfterSummary.map { message -> message.content },
         )
-        assertTrue(contextAfterEdit.messagesAfterSummary.none { it.source == ChatMessage.Source.Summary })
+        assertTrue(contextAfterEdit.messagesAfterSummary.none { message -> message.source == ChatMessage.Source.Summary })
 
         repository.updateCurrentSummary(sessionId, "manual-summary-with-new-messages")
         val contextAfterManualInsert = repository.getSummaryContext(sessionId)
@@ -168,7 +181,7 @@ class ChatRepositorySummaryTest {
         assertEquals("", contextAfterRestore.summary?.content)
         assertEquals(10, contextAfterRestore.messagesAfterSummary.size)
 
-        repository.updateAutoSummaryPaused(sessionId, true)
+        repository.updateAutoSummaryPaused(id = sessionId, paused = true)
         assertEquals(true, repository.getSessionById(sessionId)?.autoSummaryPaused)
     }
 
@@ -183,7 +196,7 @@ class ChatRepositorySummaryTest {
                     ChatMessage.Source.User
                 },
                 content = "message-$index",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
         repository.saveSummary(sessionId, "summary-through-2", messageIds[1])
@@ -191,23 +204,23 @@ class ChatRepositorySummaryTest {
         val limited = repository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = null,
-            maxHistoryMessages = 3
+            maxHistoryMessages = 3,
         )
         assertEquals("summary-through-2", limited.summary)
         assertEquals(
             listOf("message-4", "message-5", "message-6"),
-            limited.messages.map { it.content }
+            limited.messages.map { messageWithImages -> messageWithImages.content },
         )
         assertEquals(6, limited.totalMessageCount)
 
         val excludingLatest = repository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = messageIds.last(),
-            maxHistoryMessages = 3
+            maxHistoryMessages = 3,
         )
         assertEquals(
             listOf("message-3", "message-4", "message-5"),
-            excludingLatest.messages.map { it.content }
+            excludingLatest.messages.map { messageWithImages -> messageWithImages.content },
         )
         assertEquals(5, excludingLatest.totalMessageCount)
 
@@ -215,19 +228,19 @@ class ChatRepositorySummaryTest {
         val rollback = repository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = messageIds.last(),
-            maxHistoryMessages = 2
+            maxHistoryMessages = 2,
         )
         assertEquals("summary-through-2", rollback.summary)
         assertEquals(
             listOf("message-4", "message-5"),
-            rollback.messages.map { it.content }
+            rollback.messages.map { messageWithImages -> messageWithImages.content },
         )
         assertEquals(5, rollback.totalMessageCount)
 
         val unlimited = repository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = null,
-            maxHistoryMessages = 0
+            maxHistoryMessages = 0,
         )
         assertEquals("summary-through-6", unlimited.summary)
         assertTrue(unlimited.messages.isEmpty())
@@ -241,18 +254,18 @@ class ChatRepositorySummaryTest {
                 sessionId = sessionId,
                 source = ChatMessage.Source.User,
                 content = "message-$index",
-                createTime = index.toLong()
+                createTime = index.toLong(),
             )
         }
 
         val limited = repository.getSummaryGenerationContext(
             sessionId = sessionId,
             allowRefreshLatest = false,
-            maxCandidateMessages = 2
+            maxCandidateMessages = 2,
         )
         assertEquals(
             listOf("message-1", "message-2", "message-6"),
-            limited.messages.map { it.content }
+            limited.messages.map { message -> message.content },
         )
         assertTrue(limited.hasMoreCandidateMessages)
 
@@ -260,11 +273,11 @@ class ChatRepositorySummaryTest {
         val afterSummary = repository.getSummaryGenerationContext(
             sessionId = sessionId,
             allowRefreshLatest = false,
-            maxCandidateMessages = 2
+            maxCandidateMessages = 2,
         )
         assertEquals(
             listOf("message-3", "message-4", "message-6"),
-            afterSummary.messages.map { it.content }
+            afterSummary.messages.map { message -> message.content },
         )
         assertTrue(afterSummary.hasMoreCandidateMessages)
         assertEquals(4, repository.getUnsummarizedMessageCount(sessionId))
@@ -272,11 +285,11 @@ class ChatRepositorySummaryTest {
         val expanded = repository.getSummaryGenerationContext(
             sessionId = sessionId,
             allowRefreshLatest = false,
-            maxCandidateMessages = 10
+            maxCandidateMessages = 10,
         )
         assertEquals(
             listOf("message-3", "message-4", "message-5", "message-6"),
-            expanded.messages.map { it.content }
+            expanded.messages.map { message -> message.content },
         )
         assertFalse(expanded.hasMoreCandidateMessages)
     }

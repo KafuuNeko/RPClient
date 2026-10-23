@@ -27,7 +27,7 @@ class WorldBookEntryEditActivity : CoreActivityWithEvent() {
 
         WorldBookEntryEditLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

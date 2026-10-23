@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.appearance
 
 import android.content.Intent
-import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -13,6 +12,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
+import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -22,9 +22,10 @@ class AppearanceActivity : CoreActivityWithEvent() {
     override fun usesGeneralBackground(): Boolean = false
 
     private val mViewModel by viewModels<AppearanceViewModel>()
-    private val mPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { mViewModel.emit(AppearanceUiIntent.ImageSelected(it)) }
-    }
+    private val mPicker =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            uri?.let { uri -> mViewModel.emit(AppearanceUiIntent.ImageSelected(uri)) }
+        }
 
     /** 提供外观页面的一次性宿主事件。 */
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -40,8 +41,19 @@ class AppearanceActivity : CoreActivityWithEvent() {
     /** 使用系统 Photo Picker，旧系统由 Activity 库自动回退文档选择器。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
-            AppearanceViewEvent.OpenDialogAppearance -> startActivity(Intent(this, DialogAppearanceActivity::class.java))
-            AppearanceViewEvent.PickImage -> mPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            AppearanceViewEvent.OpenDialogAppearance -> startActivity(
+                Intent(
+                    this,
+                    DialogAppearanceActivity::class.java
+                )
+            )
+
+            AppearanceViewEvent.PickImage -> mPicker.launch(
+                PickVisualMediaRequest(
+                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
+
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }

@@ -9,7 +9,11 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 
 /** 输出内容的原生位置，用于对流式增量、内容快照和最终响应去重。 */
-internal data class ResponsesContentKey(val outputIndex: Int, val contentIndex: Int, val type: String)
+internal data class ResponsesContentKey(
+    val outputIndex: Int,
+    val contentIndex: Int,
+    val type: String
+)
 
 /** Responses 可展示片段，保留推理摘要与正文的语义边界。 */
 internal data class ResponsesContent(val key: ResponsesContentKey, val text: String) {
@@ -29,7 +33,7 @@ internal object OpenAIResponsesResponseCodec {
         raw: String,
         fallbackModel: String,
         provider: LLMProviderType,
-        includeReasoningInContent: Boolean
+        includeReasoningInContent: Boolean,
     ): LLMGenerationResponse {
         val response = parseStreamJsonObject(raw) ?: throw LLMResponseException("invalid_response")
         val finishReason = finishReason(response)
@@ -47,7 +51,7 @@ internal object OpenAIResponsesResponseCodec {
             usage = usage(response),
             reasoningContent = reasoning,
             finishReason = finishReason,
-            rawResponse = raw
+            rawResponse = raw,
         )
     }
 
@@ -59,6 +63,7 @@ internal object OpenAIResponsesResponseCodec {
             "incomplete" -> response.objectOrNull("incomplete_details")?.cleanString("reason")
                 ?.takeIf { it == "max_output_tokens" || it == "content_filter" }
                 ?: throw LLMResponseException("incomplete_response")
+
             "failed", "cancelled" -> throw LLMResponseException("response_failed")
             else -> throw LLMResponseException("invalid_response_status")
         }
@@ -66,7 +71,8 @@ internal object OpenAIResponsesResponseCodec {
 
     /** 收集完整输出数组；未知的服务端工具 Item 不影响已知文本类型的解析。 */
     fun contents(response: JsonObject): List<ResponsesContent> {
-        val output = response.arrayOrNull("output") ?: throw LLMResponseException("invalid_response")
+        val output =
+            response.arrayOrNull("output") ?: throw LLMResponseException("invalid_response")
         return output.flatMapIndexed { index, value ->
             if (!value.isJsonObject) throw LLMResponseException("invalid_output_item")
             itemContents(value.asJsonObject, index)
@@ -84,6 +90,7 @@ internal object OpenAIResponsesResponseCodec {
             "message" -> contentArray(item, "content", outputIndex, setOf("output_text", "refusal"))
             "reasoning" -> contentArray(item, "summary", outputIndex, setOf("summary_text")) +
                 contentArray(item, "content", outputIndex, setOf("reasoning_text"))
+
             else -> emptyList()
         }
     }
@@ -95,8 +102,10 @@ internal object OpenAIResponsesResponseCodec {
             promptTokens = usage.intOrNull("input_tokens"),
             completionTokens = usage.intOrNull("output_tokens"),
             totalTokens = usage.intOrNull("total_tokens"),
-            cachedPromptTokens = usage.objectOrNull("input_tokens_details")?.intOrNull("cached_tokens"),
-            reasoningTokens = usage.objectOrNull("output_tokens_details")?.intOrNull("reasoning_tokens")
+            cachedPromptTokens = usage.objectOrNull("input_tokens_details")
+                ?.intOrNull("cached_tokens"),
+            reasoningTokens = usage.objectOrNull("output_tokens_details")
+                ?.intOrNull("reasoning_tokens"),
         )
     }
 
@@ -111,19 +120,26 @@ internal object OpenAIResponsesResponseCodec {
         item: JsonObject,
         field: String,
         outputIndex: Int,
-        types: Set<String>
+        types: Set<String>,
     ): List<ResponsesContent> = item.arrayOrNull(field)?.mapIndexedNotNull { index, value ->
-        val part = value.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
-        val type = part.cleanString("type").takeIf { it in types } ?: return@mapIndexedNotNull null
+        val part = value.takeIf { element -> element.isJsonObject }?.asJsonObject
+            ?: return@mapIndexedNotNull null
+        val type = part.cleanString("type").takeIf { text -> text in types }
+            ?: return@mapIndexedNotNull null
         ResponsesContent(
-            ResponsesContentKey(outputIndex, index, type),
-            part.responsesText(if (type == "refusal") "refusal" else "text")
+            key = ResponsesContentKey(outputIndex = outputIndex, contentIndex = index, type = type),
+            text = part.responsesText(if (type == "refusal") "refusal" else "text"),
         )
     }.orEmpty()
 
     private val CLIENT_TOOL_ITEMS = setOf(
-        "function_call", "custom_tool_call", "computer_call", "local_shell_call", "shell_call",
-        "apply_patch_call", "mcp_approval_request"
+        "function_call",
+        "custom_tool_call",
+        "computer_call",
+        "local_shell_call",
+        "shell_call",
+        "apply_patch_call",
+        "mcp_approval_request",
     )
 }
 

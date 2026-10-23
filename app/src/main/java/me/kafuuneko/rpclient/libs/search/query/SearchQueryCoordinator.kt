@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.search.query
 
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -22,6 +20,8 @@ import me.kafuuneko.rpclient.libs.search.engine.ContentSearchEngine
 import me.kafuuneko.rpclient.libs.search.engine.DatabaseScanSearchEngine
 import me.kafuuneko.rpclient.libs.search.engine.FtsSearchEngine
 import me.kafuuneko.rpclient.libs.search.storage.SearchDataRevision
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 仓库私有持有的查询协调器，负责策略路由与查询会话。
@@ -30,10 +30,18 @@ import me.kafuuneko.rpclient.libs.search.storage.SearchDataRevision
  */
 internal class SearchQueryCoordinator(private val mDatabase: AppDatabase) {
     private val mSupport = SearchQuerySupport(mDatabase)
-    private val mScan by lazy { DatabaseScanSearchEngine(mDatabase, mSupport, SearchDataRevision(mDatabase)) }
+    private val mScan by lazy {
+        DatabaseScanSearchEngine(
+            database = mDatabase,
+            support = mSupport,
+            mRevision = SearchDataRevision(mDatabase),
+        )
+    }
     private val mFts = FtsSearchEngine(mDatabase, mSupport)
     private val mJobs = ConcurrentHashMap.newKeySet<Job>()
-    @Volatile private var mSession = UUID.randomUUID().toString()
+
+    @Volatile
+    private var mSession = UUID.randomUUID().toString()
 
     /** 切换或清理前同步作废所有旧请求；只取消本协调器创建的查询子协程。 */
     fun invalidate() {
@@ -43,8 +51,9 @@ internal class SearchQueryCoordinator(private val mDatabase: AppDatabase) {
 
     /** 接收仓库已校验、规范化的查询；两种策略共享部分结果与取消语义。 */
     suspend fun search(
-        request: SearchRequest, cursor: SearchCursor? = null,
-        onPartial: suspend (List<SearchHit>) -> Unit = {}
+        request: SearchRequest,
+        cursor: SearchCursor? = null,
+        onPartial: suspend (List<SearchHit>) -> Unit = {},
     ): SearchPage = withContext(Dispatchers.IO) {
         coroutineScope {
             val job = coroutineContext.job
@@ -53,14 +62,17 @@ internal class SearchQueryCoordinator(private val mDatabase: AppDatabase) {
             try {
                 val phase = SearchDatabaseCallback.phase(mDatabase.openHelper.readableDatabase)
                 if (phase == SearchIndexPhase.Building || phase == SearchIndexPhase.Cleaning) throw SearchChangedException()
-                val kind = if (phase == SearchIndexPhase.Enabled && !request.directScan) SearchEngineKind.Fts else SearchEngineKind.Scan
-                if (session != mSession || cursor != null && (cursor.session != session || cursor.engine != kind)) throw SearchChangedException()
+                val kind =
+                    if (phase == SearchIndexPhase.Enabled && !request.directScan) SearchEngineKind.Fts else SearchEngineKind.Scan
+                val hasSearchSessionChanged =
+                    session != mSession || cursor != null && (cursor.session != session || cursor.engine != kind)
+                if (hasSearchSessionChanged) throw SearchChangedException()
                 val engine: ContentSearchEngine = if (kind == SearchEngineKind.Fts) mFts else mScan
                 // 回调和最终返回都检查管理会话，避免切换后旧结果回写。
-                val page = engine.search(request, cursor) {
+                val page = engine.search(request, cursor) { items ->
                     currentCoroutineContext().ensureActive()
                     if (session != mSession) throw SearchChangedException()
-                    onPartial(it)
+                    onPartial(items)
                 }
                 currentCoroutineContext().ensureActive()
                 if (session != mSession) throw SearchChangedException()

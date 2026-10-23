@@ -34,7 +34,13 @@ fun formatJsonPretty(raw: String): String {
     if (trimmed.isBlank()) return ""
     return runCatching {
         val jsonElement = com.google.gson.JsonParser.parseString(trimmed)
-        val gson = com.google.gson.GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
+        val gson = com
+            .google
+            .gson
+            .GsonBuilder()
+            .setPrettyPrinting()
+            .disableHtmlEscaping()
+            .create()
         gson.toJson(jsonElement)
     }.getOrDefault(trimmed)
 }

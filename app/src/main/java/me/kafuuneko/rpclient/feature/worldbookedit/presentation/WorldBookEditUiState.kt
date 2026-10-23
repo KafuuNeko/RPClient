@@ -50,14 +50,14 @@ data class WorldBookEntryListState(
         return copy(
             visibleEntries = entries.filter(::matches),
             totalCount = entries.size,
-            activeCount = entries.count { !it.disabled }
+            activeCount = entries.count { !it.disabled },
         )
     }
 
     private fun matches(entry: WorldBookEntryListItem): Boolean {
-        val matchesQuery = query.isBlank() ||
-            entry.name.contains(query, ignoreCase = true) ||
-            entry.keywords.any { it.contains(query, ignoreCase = true) }
+        val matchesQuery = query.isBlank()
+            || entry.name.contains(other = query, ignoreCase = true)
+            || entry.keywords.any { it.contains(other = query, ignoreCase = true) }
         val matchesFilter = when (filter) {
             WorldBookEntryFilter.All -> true
             WorldBookEntryFilter.Constant -> entry.constant
@@ -77,35 +77,42 @@ data class WorldBookEntryListState(
 /** 世界书条目列表支持的互斥过滤条件。 */
 enum class WorldBookEntryFilter {
     All,
+
     Constant,
+
     Enabled,
+
     Disabled
 }
 
 /** 将已持久化的条目状态同步到表单、基线和列表派生状态。 */
 fun WorldBookEditUiState.Normal.withPersistedEntryDisabled(
     entryId: Long,
-    disabled: Boolean
+    disabled: Boolean,
 ): WorldBookEditUiState.Normal {
     val updatedForm = form.withEntryDisabled(entryId, disabled)
     return copy(
         form = updatedForm,
         initialForm = initialForm.withEntryDisabled(entryId, disabled),
-        entryListState = entryListState.rebuild(updatedForm.entries)
+        entryListState = entryListState.rebuild(updatedForm.entries),
     )
 }
 
 /** 世界书编辑页的创建或编辑模式。 */
 enum class WorldBookEditMode {
     Create,
+
     Edit
 }
 
 /** 世界书编辑页当前执行的持久化操作。 */
 sealed class WorldBookEditLoadState {
     data object None : WorldBookEditLoadState()
+
     data object Loading : WorldBookEditLoadState()
+
     data object Saving : WorldBookEditLoadState()
+
     data object Deleting : WorldBookEditLoadState()
 }
 

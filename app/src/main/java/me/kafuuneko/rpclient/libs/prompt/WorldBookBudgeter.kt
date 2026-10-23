@@ -26,10 +26,10 @@ internal data class WorldInfoSelection(
 internal fun resolveWorldInfoBudget(
     promptTokenBudget: Int,
     contextPercent: Int,
-    tokenBudgetCap: Int
+    tokenBudgetCap: Int,
 ): Int {
     val normalizedPromptBudget = promptTokenBudget.coerceAtLeast(0)
-    val normalizedPercent = contextPercent.coerceIn(0, 100)
+    val normalizedPercent = contextPercent.coerceIn(minimumValue = 0, maximumValue = 100)
     val percentageBudget = (
         (normalizedPromptBudget.toLong() * normalizedPercent + 50L) / 100L
         ).toInt().coerceAtLeast(1)
@@ -51,7 +51,7 @@ internal fun fitWorldInfoToBudget(
     result: WorldBookActivationResult,
     globalTokenBudget: Int,
     lorebooks: Map<Long, Lorebook>,
-    tokenizer: PromptTokenizer
+    tokenizer: PromptTokenizer,
 ): WorldInfoSelection {
     val selected = mutableListOf<LorebookEntry>()
     val omitted = mutableListOf<PromptOmittedItem>()
@@ -61,9 +61,9 @@ internal fun fitWorldInfoToBudget(
     // 按常驻优先、Order 降序、ID 升序进行预算分配
     result.activatedEntries
         .sortedWith(
-            compareByDescending<LorebookEntry> { it.constant }
+            comparator = compareByDescending<LorebookEntry> { it.constant }
                 .thenByDescending { it.order }
-                .thenBy { it.id }
+                .thenBy { it.id },
         )
         .forEach { entry ->
             val nextTokens = tokenizer.countText(entry.content)
@@ -72,8 +72,8 @@ internal fun fitWorldInfoToBudget(
             val lorebookUsedTokens = usedByLorebook[entry.lorebookId] ?: 0
             // 校验是否超出全局预算或单本世界书预算
             val exceedsGlobalBudget = globalUsedTokens + nextTokens >= globalTokenBudget
-            val exceedsLorebookBudget = lorebookBudget != null &&
-                lorebookUsedTokens + nextTokens > lorebookBudget
+            val exceedsLorebookBudget = lorebookBudget != null
+                && lorebookUsedTokens + nextTokens > lorebookBudget
 
             // 超出预算且未忽略预算时记录遗漏并跳过
             if (!entry.ignoreBudget && (exceedsGlobalBudget || exceedsLorebookBudget)) {
@@ -81,10 +81,10 @@ internal fun fitWorldInfoToBudget(
                     source = PromptSource(
                         kind = PromptSourceKind.WorldInfo,
                         detail = entry.name,
-                        referenceId = entry.id
+                        referenceId = entry.id,
                     ),
                     tokenCount = nextTokens,
-                    reason = PromptOmissionReason.WorldInfoBudget
+                    reason = PromptOmissionReason.WorldInfoBudget,
                 )
                 return@forEach
             }
@@ -101,7 +101,7 @@ internal fun fitWorldInfoToBudget(
     val selectedIds = selected.map { it.id }.toSet()
     return WorldInfoSelection(
         result = result.filterEntries(selectedIds),
-        omittedItems = omitted
+        omittedItems = omitted,
     )
 }
 
@@ -118,7 +118,7 @@ private fun Lorebook.resolveTokenBudget(): Int? {
  * Outlet 内容会通过其他 Prompt 的宏展开注入，无法从最终消息来源反推，因此沿用其激活结果。
  */
 internal fun WorldBookActivationResult.retainStateEntries(
-    inspection: PromptInspection
+    inspection: PromptInspection,
 ): WorldBookActivationResult {
     val retainedIds = inspection.items
         .flatMap { it.sources }
@@ -126,9 +126,7 @@ internal fun WorldBookActivationResult.retainStateEntries(
         .mapNotNull { it.referenceId }
         .toMutableSet()
     outletEntries.values.flatten().forEach { retainedIds += it.id }
-    return copy(
-        activatedEntries = activatedEntries.filter { it.id in retainedIds }
-    )
+    return copy(activatedEntries = activatedEntries.filter { it.id in retainedIds })
 }
 
 /**
@@ -138,7 +136,7 @@ internal fun WorldBookActivationResult.retainStateEntries(
  * 从 depth、示例或 outlet 分组注入最终 Prompt。
  */
 internal fun WorldBookActivationResult.filterEntries(
-    selectedIds: Set<Long>
+    selectedIds: Set<Long>,
 ): WorldBookActivationResult {
     return copy(
         activatedEntries = activatedEntries.filter { it.id in selectedIds },
@@ -149,12 +147,12 @@ internal fun WorldBookActivationResult.filterEntries(
         anTop = anTop.filter { it.id in selectedIds },
         anBottom = anBottom.filter { it.id in selectedIds },
         depthEntries = depthEntries.mapNotNull { group ->
-            val entries = group.entries.filter { it.id in selectedIds }.toMutableList()
+            val entries = group.entries.filter { entry -> entry.id in selectedIds }.toMutableList()
             if (entries.isEmpty()) null else group.copy(entries = entries)
         },
         outletEntries = outletEntries.mapValues { (_, entries) ->
-            entries.filter { it.id in selectedIds }
-        }.filterValues { it.isNotEmpty() }
+            entries.filter { entry -> entry.id in selectedIds }
+        }.filterValues { it.isNotEmpty() },
     )
 }
 
@@ -164,7 +162,7 @@ internal fun WorldBookActivationResult.filterEntries(
  * 这些条目并非因预算不足而遗漏，因此不能进入遗漏记录，也不能推进世界书时序状态。
  */
 internal fun WorldBookActivationResult.filterForExampleBehavior(
-    behavior: ExampleDialogueBehavior
+    behavior: ExampleDialogueBehavior,
 ): WorldBookActivationResult {
     if (behavior != ExampleDialogueBehavior.Disabled) return this
     val disabledIds = (exampleBefore + exampleAfter).mapTo(mutableSetOf()) { it.id }

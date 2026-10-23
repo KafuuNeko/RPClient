@@ -1,13 +1,13 @@
 package me.kafuuneko.rpclient.libs.llm.catalog.adapter
 
+import me.kafuuneko.rpclient.libs.llm.adapter.applyProviderHeaders
+import me.kafuuneko.rpclient.libs.llm.adapter.await
+import me.kafuuneko.rpclient.libs.llm.adapter.normalizedBaseUrl
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClient
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogInvalidResponseException
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
-import me.kafuuneko.rpclient.libs.llm.adapter.applyProviderHeaders
-import me.kafuuneko.rpclient.libs.llm.adapter.await
-import me.kafuuneko.rpclient.libs.llm.adapter.normalizedBaseUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -32,7 +32,7 @@ class OpenAICompatibleModelCatalogClient(
             .build()
         return parseOpenAIModelCatalog(
             raw = mOkHttpClient.await(request),
-            includeExtendedMetadata = mProvider.providerType == LLMProviderType.OpenRouter
+            includeExtendedMetadata = mProvider.providerType == LLMProviderType.OpenRouter,
         )
     }
 }
@@ -45,17 +45,17 @@ class OpenAICompatibleModelCatalogClient(
  */
 internal fun parseOpenAIModelCatalog(
     raw: String,
-    includeExtendedMetadata: Boolean
+    includeExtendedMetadata: Boolean,
 ): List<LLMAvailableModel> {
     val data = parseCatalogJsonObject(raw).arrayOrNull("data")
         ?: throw LLMModelCatalogInvalidResponseException()
     return buildList {
         data.forEach { element ->
-            val item = element.takeIf { it.isJsonObject }?.asJsonObject
+            val item = element.takeIf { element -> element.isJsonObject }?.asJsonObject
                 ?: return@forEach
             val id = item.stringOrNull("id") ?: return@forEach
             add(
-                LLMAvailableModel(
+                element = LLMAvailableModel(
                     id = id,
                     displayName = item.stringOrNull("name") ?: id,
                     description = item.stringOrNull("description"),
@@ -70,15 +70,16 @@ internal fun parseOpenAIModelCatalog(
                     } else {
                         null
                     },
-                    inputModalities = if (includeExtendedMetadata) item.objectOrNull("architecture")?.arrayOrNull("input_modalities")?.toStringSet() else null,
+                    inputModalities = if (includeExtendedMetadata) item.objectOrNull("architecture")
+                        ?.arrayOrNull("input_modalities")?.toStringSet() else null,
                     supportedParameters = if (includeExtendedMetadata) {
                         item.arrayOrNull("supported_parameters")
                             ?.toStringSet()
                             .orEmpty()
                     } else {
                         emptySet()
-                    }
-                )
+                    },
+                ),
             )
         }
     }

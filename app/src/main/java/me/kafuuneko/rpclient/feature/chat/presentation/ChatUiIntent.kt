@@ -71,7 +71,6 @@ sealed class ChatUiIntent {
 
     data object CloseChatSettings : ChatUiIntent()
 
-
     data object ExportChatClick : ChatUiIntent()
 
     data class ExportChatResult(val uri: Uri) : ChatUiIntent()

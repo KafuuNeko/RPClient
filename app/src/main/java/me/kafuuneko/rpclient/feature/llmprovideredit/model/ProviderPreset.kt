@@ -4,9 +4,9 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
-import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -34,6 +34,7 @@ enum class ProviderPreset(
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
         defaultUseServerReportedUsage = true
     ),
+
     Gemini(
         displayName = "Google Gemini",
         providerType = LLMProviderType.Gemini,
@@ -44,6 +45,7 @@ enum class ProviderPreset(
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
         defaultUseServerReportedUsage = true
     ),
+
     Claude(
         displayName = "Anthropic Claude",
         providerType = LLMProviderType.Claude,
@@ -54,6 +56,7 @@ enum class ProviderPreset(
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
         defaultUseServerReportedUsage = true
     ),
+
     ChatGPT(
         displayName = "OpenAI",
         providerType = LLMProviderType.ChatGPT,
@@ -63,6 +66,7 @@ enum class ProviderPreset(
         defaultRequestBodyPatchJson = DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON,
         defaultUseServerReportedUsage = true
     ),
+
     OpenRouter(
         displayName = "OpenRouter",
         providerType = LLMProviderType.OpenRouter,
@@ -71,6 +75,7 @@ enum class ProviderPreset(
         defaultModel = "openrouter/auto",
         defaultRequestBodyPatchJson = DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
     ),
+
     Grok(
         displayName = "xAI Grok",
         providerType = LLMProviderType.Grok,
@@ -80,6 +85,7 @@ enum class ProviderPreset(
         defaultRequestBodyPatchJson = DEFAULT_GROK_REQUEST_BODY_PATCH_JSON,
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase
     ),
+
     Custom(
         displayName = "Custom",
         providerType = LLMProviderType.Custom,

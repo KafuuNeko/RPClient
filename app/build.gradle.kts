@@ -19,7 +19,7 @@ val hasReleaseSigning = listOf(
     releaseStoreFile,
     releaseStorePassword,
     releaseKeyAlias,
-    releaseKeyPassword
+    releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
 android {
@@ -31,7 +31,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = if (isForkRelease) "me.kafuuneko.rpclient.third" else "me.kafuuneko.rpclient"
+        applicationId =
+            if (isForkRelease) "me.kafuuneko.rpclient.third" else "me.kafuuneko.rpclient"
 
         minSdk = 26
         targetSdk = 36
@@ -73,7 +74,7 @@ android {
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
         create("demo") {

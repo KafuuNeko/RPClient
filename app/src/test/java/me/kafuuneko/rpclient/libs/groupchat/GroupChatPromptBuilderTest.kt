@@ -1,7 +1,22 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
+import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
+import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
+import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
+import me.kafuuneko.rpclient.libs.prompt.TestPromptPreferences
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
+import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
@@ -9,21 +24,6 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
-import me.kafuuneko.rpclient.libs.regex.RegexPlacement
-import me.kafuuneko.rpclient.libs.regex.RegexScript
-import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
-import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
-import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
-import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
-import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
-import me.kafuuneko.rpclient.libs.prompt.TestPromptPreferences
-import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
-import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -33,60 +33,54 @@ import org.junit.Test
 class GroupChatPromptBuilderTest {
     @Test
     fun userPersonaUsesSharedFormatAndCurrentSpeakerMacros() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val request = GroupChatPromptBuilder(
-            mPreferences = TestPromptPreferences(
-                userPersonaFormat = "Profile of {{user}}: {{persona}}"
-            )
+            mPreferences = TestPromptPreferences(userPersonaFormat = "Profile of {{user}}: {{persona}}"),
         ).build(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
                     createTime = 1,
                     latestTime = 1,
                     userName = "Alex",
-                    userDescription = "{{user}} trusts {{char}}."
+                    userDescription = "{{user}} trusts {{char}}.",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = emptyList(),
-                provider = provider()
-            )
+                provider = provider(),
+            ),
         )
 
-        assertTrue(
-            request.messages.any {
-                it.content == "Profile of Alex: Alex trusts Lyra."
-            }
-        )
+        assertTrue(request.messages.any { it.content == "Profile of Alex: Alex trusts Lyra." })
     }
 
     @Test
     fun disabledExampleBehaviorOmitsAllMemberExamples() {
-        val lyra = character(1, "Lyra").copy(
-            examplesOfDialogue = "<START>\nUser: Example question\nLyra: Example answer"
+        val lyra = character(id = 1, name = "Lyra").copy(
+            examplesOfDialogue = "<START>\nUser: Example question\nLyra: Example answer",
         )
         val request = GroupChatPromptBuilder(
             mPreferences = TestPromptPreferences(),
             mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
                 ExampleDialogueBehavior.Disabled
-            }
+            },
         ).build(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
                     createTime = 1,
                     latestTime = 1,
                     userName = "Alex",
-                    userDescription = ""
+                    userDescription = "",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(message(GroupChatMessage.Source.User, "Alex", "Actual question")),
-                provider = provider()
-            )
+                provider = provider(),
+            ),
         )
 
         assertFalse(request.messages.any { it.content.contains("Example question") })
@@ -96,18 +90,18 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun disabledWorldInfoExamplesDoNotConsumeGroupBudgetOrAdvanceState() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val example = worldEntry(
             id = 91L,
             order = 100,
             content = "EXAMPLE_" + "e".repeat(72),
-            position = LorebookEntry.POSITION_EXAMPLE_TOP
+            position = LorebookEntry.POSITION_EXAMPLE_TOP,
         ).copy(sticky = 2)
         val normal = worldEntry(
             id = 92L,
             order = 10,
             content = "NORMAL_" + "n".repeat(43),
-            position = LorebookEntry.POSITION_BEFORE
+            position = LorebookEntry.POSITION_BEFORE,
         )
         var providerReads = 0
         val tokenizer = object : PromptTokenizer {
@@ -121,23 +115,23 @@ class GroupChatPromptBuilderTest {
             mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
                 providerReads += 1
                 ExampleDialogueBehavior.Disabled
-            }
+            },
         ).buildWithMetadata(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
                     createTime = 1,
                     latestTime = 1,
                     userName = "Alex",
-                    userDescription = ""
+                    userDescription = "",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(message(GroupChatMessage.Source.User, "Alex", "Actual")),
                 provider = provider(contextTokens = 500, maxTokens = 100),
-                candidateLorebookEntries = listOf(example, normal)
-            )
+                candidateLorebookEntries = listOf(example, normal),
+            ),
         )
 
         assertEquals(1, providerReads)
@@ -149,38 +143,43 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun groupPromptUsesSamePromptOnlyRegexPipeline() {
-        val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
-            GroupChatPromptContext(
-                session = GroupChatSession(
-                    id = 1,
-                    title = "Crew",
-                    createTime = 1,
-                    latestTime = 1,
-                    userName = "Alex",
-                    userDescription = ""
-                ),
-                members = listOf(member(lyra, 0)),
-                speaker = lyra,
-                messages = listOf(
-                    message(GroupChatMessage.Source.Character, "Lyra", "secret answer")
-                ),
-                provider = provider(),
-                regexScripts = listOf(
-                    ScopedRegexScript(
-                        RegexScript(
-                            id = "reasoning",
-                            scriptName = "AI rewrite",
-                            findRegex = "/secret/g",
-                            replaceString = "hidden",
-                            placement = listOf(RegexPlacement.AiResponse.value),
-                            promptOnly = true
+        val lyra = character(id = 1, name = "Lyra")
+        val result =
+            GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
+                context = GroupChatPromptContext(
+                    session = GroupChatSession(
+                        id = 1,
+                        title = "Crew",
+                        createTime = 1,
+                        latestTime = 1,
+                        userName = "Alex",
+                        userDescription = "",
+                    ),
+                    members = listOf(member(character = lyra, order = 0)),
+                    speaker = lyra,
+                    messages = listOf(
+                        message(
+                            GroupChatMessage.Source.Character,
+                            "Lyra",
+                            "secret answer"
+                        )
+                    ),
+                    provider = provider(),
+                    regexScripts = listOf(
+                        element = ScopedRegexScript(
+                            script = RegexScript(
+                                id = "reasoning",
+                                scriptName = "AI rewrite",
+                                findRegex = "/secret/g",
+                                replaceString = "hidden",
+                                placement = listOf(RegexPlacement.AiResponse.value),
+                                promptOnly = true,
+                            ),
+                            scope = RegexScriptScope.Global,
                         ),
-                        RegexScriptScope.Global
-                    )
-                )
+                    ),
+                ),
             )
-        )
 
         assertTrue(result.request.messages.any { it.content.contains("hidden answer") })
         assertTrue(result.inspection.regexExecutions.any { it.scriptId == "reasoning" })
@@ -188,27 +187,30 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun promptKeepsHistoricalSpeakersAndEndsHistoryWithGroupNudge() {
-        val lyra = character(1, "Lyra")
-        val mina = character(2, "Mina")
+        val lyra = character(id = 1, name = "Lyra")
+        val mina = character(id = 2, name = "Mina")
         val session = GroupChatSession(
             id = 1,
             title = "Crew",
             createTime = 1,
             latestTime = 1,
             userName = "Alex",
-            userDescription = ""
+            userDescription = "",
         )
         val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = session,
-                members = listOf(member(lyra, 0), member(mina, 1)),
+                members = listOf(
+                    member(character = lyra, order = 0),
+                    member(character = mina, order = 1)
+                ),
                 speaker = mina,
                 messages = listOf(
                     message(GroupChatMessage.Source.User, "Alex", "Look outside."),
-                    message(GroupChatMessage.Source.Character, "Lyra", "I see a station.")
+                    message(GroupChatMessage.Source.Character, "Lyra", "I see a station."),
                 ),
-                provider = provider()
-            )
+                provider = provider(),
+            ),
         )
 
         val content = request.messages.joinToString("\n") { it.content }
@@ -220,27 +222,69 @@ class GroupChatPromptBuilderTest {
         assertTrue(content.contains("Write only Mina's next reply"))
         assertEquals(
             LLMMessageRole.User,
-            request.messages.first { it.content.contains("Write only Mina's next reply") }.role
+            request.messages.first { it.content.contains("Write only Mina's next reply") }.role,
         )
     }
 
     @Test
     fun joinedCardsAreGroupedByFieldAndDepthPromptsStayInChat() {
-        val lyra = character(1, "Lyra").copy(
+        val lyra = character(id = 1, name = "Lyra").copy(
             personality = "Calm",
             scenario = "Bridge",
             depthPromptPrompt = "Lyra depth",
             depthPromptDepth = 0,
-            depthPromptRole = LorebookEntry.ROLE_ASSISTANT
+            depthPromptRole = LorebookEntry.ROLE_ASSISTANT,
         )
-        val mina = character(2, "Mina").copy(
+        val mina = character(id = 2, name = "Mina").copy(
             personality = "Bold",
             scenario = "Dock",
             depthPromptPrompt = "Mina depth",
-            depthPromptDepth = 1
+            depthPromptDepth = 1,
         )
-        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
-            GroupChatPromptContext(
+        val result =
+            GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
+                context = GroupChatPromptContext(
+                    session = GroupChatSession(
+                        id = 1,
+                        title = "Crew",
+                        createTime = 1,
+                        latestTime = 1,
+                        userName = "Alex",
+                        userDescription = "",
+                        characterCardMode = GroupChatSession.CharacterCardMode.Join,
+                    ),
+                    members = listOf(
+                        member(character = lyra, order = 0),
+                        member(character = mina, order = 1)
+                    ),
+                    speaker = mina,
+                    messages = listOf(message(GroupChatMessage.Source.User, "Alex", "Ready?")),
+                    provider = provider(),
+                ),
+            )
+
+        val descriptions = result.inspection.items.first { promptInspectionItem ->
+            promptInspectionItem.sources.any { source -> source.kind == PromptSourceKind.CharacterDescription }
+        }.content
+        assertTrue(descriptions.contains("Lyra:\nLyra description"))
+        assertTrue(descriptions.contains("Mina:\nMina description"))
+        assertEquals(
+            LLMMessageRole.Assistant,
+            result.request.messages.first { it.content == "Lyra depth" }.role,
+        )
+        assertTrue(result.request.messages.any { it.content == "Mina depth" })
+    }
+
+    @Test
+    fun continueFallbackOmitsCharacterReplyTasksAndEndsWithUserControl() {
+        val lyra = character(id = 1, name = "Lyra").copy(
+            postHistoryInstructions = "Group PHI",
+            systemPrompt = "Write Lyra's next reply.",
+            depthPromptPrompt = "Always write as Lyra.",
+            depthPromptDepth = 0,
+        )
+        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
@@ -248,74 +292,33 @@ class GroupChatPromptBuilderTest {
                     latestTime = 1,
                     userName = "Alex",
                     userDescription = "",
-                    characterCardMode = GroupChatSession.CharacterCardMode.Join
                 ),
-                members = listOf(member(lyra, 0), member(mina, 1)),
-                speaker = mina,
-                messages = listOf(
-                    message(GroupChatMessage.Source.User, "Alex", "Ready?")
-                ),
-                provider = provider()
-            )
-        )
-
-        val descriptions = result.inspection.items.first {
-            it.sources.any { source -> source.kind == PromptSourceKind.CharacterDescription }
-        }.content
-        assertTrue(descriptions.contains("Lyra:\nLyra description"))
-        assertTrue(descriptions.contains("Mina:\nMina description"))
-        assertEquals(
-            LLMMessageRole.Assistant,
-            result.request.messages.first { it.content == "Lyra depth" }.role
-        )
-        assertTrue(result.request.messages.any { it.content == "Mina depth" })
-    }
-
-    @Test
-    fun continueFallbackOmitsCharacterReplyTasksAndEndsWithUserControl() {
-        val lyra = character(1, "Lyra").copy(
-            postHistoryInstructions = "Group PHI",
-            systemPrompt = "Write Lyra's next reply.",
-            depthPromptPrompt = "Always write as Lyra.",
-            depthPromptDepth = 0
-        )
-        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
-            GroupChatPromptContext(
-                session = GroupChatSession(
-                    id = 1,
-                    title = "Crew",
-                    createTime = 1,
-                    latestTime = 1,
-                    userName = "Alex",
-                    userDescription = ""
-                ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(
                     message(GroupChatMessage.Source.User, "Alex", "Question"),
-                    message(GroupChatMessage.Source.Character, "Lyra", "Partial")
+                    message(GroupChatMessage.Source.Character, "Lyra", "Partial"),
                 ),
                 provider = provider(),
-                generationMode = GroupChatGenerationMode.Continue
-            )
+                generationMode = GroupChatGenerationMode.Continue,
+            ),
         )
 
-        val continueNudge = request.messages.first {
-            it.content.contains("Continue your last message")
-        }
-        val relevant = request.messages.filter {
-            it.content.contains("Write only Lyra") ||
-                it.content == "Group PHI" ||
-                it.content == "Write Lyra's next reply." ||
-                it.content == "Lyra: Partial" ||
-                it === continueNudge
+        val continueNudge =
+            request.messages.first { it.content.contains("Continue your last message") }
+        val relevant = request.messages.filter { message ->
+            message.content.contains("Write only Lyra")
+                || message.content == "Group PHI"
+                || message.content == "Write Lyra's next reply."
+                || message.content == "Lyra: Partial"
+                || message === continueNudge
         }
         assertEquals(
             listOf(
                 "Lyra: Partial",
-                continueNudge.content
+                continueNudge.content,
             ),
-            relevant.map { it.content }
+            relevant.map { it.content },
         )
         assertEquals(LLMMessageRole.User, continueNudge.role)
         assertEquals(continueNudge, request.messages.last())
@@ -323,28 +326,26 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun impersonateOmitsGroupNudgeAndPlacesControlPromptLast() {
-        val lyra = character(1, "Lyra").copy(
+        val lyra = character(id = 1, name = "Lyra").copy(
             postHistoryInstructions = "Group PHI",
-            systemPrompt = "Write Lyra's next reply."
+            systemPrompt = "Write Lyra's next reply.",
         )
         val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
                     createTime = 1,
                     latestTime = 1,
                     userName = "Alex",
-                    userDescription = ""
+                    userDescription = "",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
-                messages = listOf(
-                    message(GroupChatMessage.Source.Character, "Lyra", "Your turn.")
-                ),
+                messages = listOf(message(GroupChatMessage.Source.Character, "Lyra", "Your turn.")),
                 provider = provider(),
-                generationMode = GroupChatGenerationMode.Impersonate
-            )
+                generationMode = GroupChatGenerationMode.Impersonate,
+            ),
         )
 
         assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
@@ -357,67 +358,68 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun groupContinueAlwaysEndsWithUserNudge() {
-        val lyra = character(1, "Lyra")
-        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
-            GroupChatPromptContext(
-                session = GroupChatSession(
-                    id = 1,
-                    title = "Crew",
-                    createTime = 1,
-                    latestTime = 1,
-                    userName = "Alex",
-                    userDescription = ""
+        val lyra = character(id = 1, name = "Lyra")
+        val result =
+            GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
+                context = GroupChatPromptContext(
+                    session = GroupChatSession(
+                        id = 1,
+                        title = "Crew",
+                        createTime = 1,
+                        latestTime = 1,
+                        userName = "Alex",
+                        userDescription = "",
+                    ),
+                    members = listOf(member(character = lyra, order = 0)),
+                    speaker = lyra,
+                    messages = listOf(
+                        message(GroupChatMessage.Source.User, "Alex", "Question"),
+                        message(GroupChatMessage.Source.Character, "Lyra", "Partial"),
+                    ),
+                    provider = provider(),
+                    generationMode = GroupChatGenerationMode.Continue,
                 ),
-                members = listOf(member(lyra, 0)),
-                speaker = lyra,
-                messages = listOf(
-                    message(GroupChatMessage.Source.User, "Alex", "Question"),
-                    message(GroupChatMessage.Source.Character, "Lyra", "Partial")
-                ),
-                provider = provider(),
-                generationMode = GroupChatGenerationMode.Continue
             )
-        )
         val request = result.request
 
         assertTrue(request.messages.last().content.contains("Continue your last message"))
-        assertTrue(
-            result.inspection.items.last().sources.any {
-                it.kind == PromptSourceKind.ContinueNudge
-            }
-        )
+        assertTrue(result.inspection.items.last().sources.any { it.kind == PromptSourceKind.ContinueNudge })
         assertFalse(request.messages.any { it.content.contains("Write only Lyra") })
         assertEquals(LLMMessageRole.User, request.messages.last().role)
         assertEquals(
             "Lyra: Partial",
-            request.messages[request.messages.lastIndex - 1].content
+            request.messages[request.messages.lastIndex - 1].content,
         )
     }
 
     @Test
     fun finalGroupPromptStaysWithinBudgetAndExplainsRemovedHistory() {
-        val lyra = character(1, "Lyra")
-        val mina = character(2, "Mina")
-        val result = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
-            GroupChatPromptContext(
-                session = GroupChatSession(
-                    id = 1,
-                    title = "Crew",
-                    createTime = 1,
-                    latestTime = 1,
-                    userName = "Alex",
-                    userDescription = ""
+        val lyra = character(id = 1, name = "Lyra")
+        val mina = character(id = 2, name = "Mina")
+        val result =
+            GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).buildWithMetadata(
+                context = GroupChatPromptContext(
+                    session = GroupChatSession(
+                        id = 1,
+                        title = "Crew",
+                        createTime = 1,
+                        latestTime = 1,
+                        userName = "Alex",
+                        userDescription = "",
+                    ),
+                    members = listOf(
+                        member(character = lyra, order = 0),
+                        member(character = mina, order = 1)
+                    ),
+                    speaker = mina,
+                    messages = listOf(
+                        message(GroupChatMessage.Source.User, "Alex", "旧".repeat(300)),
+                        message(GroupChatMessage.Source.Character, "Lyra", "早".repeat(300)),
+                        message(GroupChatMessage.Source.User, "Alex", "Latest"),
+                    ),
+                    provider = provider(contextTokens = 1_000, maxTokens = 100),
                 ),
-                members = listOf(member(lyra, 0), member(mina, 1)),
-                speaker = mina,
-                messages = listOf(
-                    message(GroupChatMessage.Source.User, "Alex", "旧".repeat(300)),
-                    message(GroupChatMessage.Source.Character, "Lyra", "早".repeat(300)),
-                    message(GroupChatMessage.Source.User, "Alex", "Latest")
-                ),
-                provider = provider(contextTokens = 1_000, maxTokens = 100)
             )
-        )
 
         assertTrue(result.inspection.finalTokenCount <= 900)
         assertTrue(result.request.messages.any { it.content.contains("Alex: Latest") })
@@ -426,7 +428,7 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun selectedGroupWorldInfoIsReservedBeforeOlderHistory() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val worldContent = "WORLD_" + "w".repeat(94)
         val tokenizer = object : PromptTokenizer {
             override val name = "Character count"
@@ -435,55 +437,53 @@ class GroupChatPromptBuilderTest {
         }
         val result = GroupChatPromptBuilder(
             mPreferences = TestPromptPreferences(),
-            mRequestFinalizer = PromptRequestFinalizer { tokenizer }
+            mRequestFinalizer = PromptRequestFinalizer { tokenizer },
         ).buildWithMetadata(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
                     createTime = 1,
                     latestTime = 1,
                     userName = "Alex",
-                    userDescription = ""
+                    userDescription = "",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(
                     message(
-                        GroupChatMessage.Source.Character,
-                        "Lyra",
-                        "OLD_HISTORY_" + "o".repeat(388)
+                        source = GroupChatMessage.Source.Character,
+                        speaker = "Lyra",
+                        content = "OLD_HISTORY_" + "o".repeat(388),
                     ),
-                    message(GroupChatMessage.Source.User, "Alex", "LATEST")
+                    message(GroupChatMessage.Source.User, "Alex", "LATEST"),
                 ),
                 provider = provider(contextTokens = 700, maxTokens = 100),
                 candidateLorebookEntries = listOf(
-                    worldEntry(
+                    element = worldEntry(
                         id = 93L,
                         order = 100,
                         content = worldContent,
-                        position = LorebookEntry.POSITION_BEFORE
-                    )
-                )
-            )
+                        position = LorebookEntry.POSITION_BEFORE,
+                    ),
+                ),
+            ),
         )
 
         assertTrue(result.request.messages.any { it.content.contains(worldContent) })
         assertTrue(result.request.messages.any { it.content.contains("LATEST") })
         assertFalse(result.request.messages.any { it.content.contains("OLD_HISTORY_") })
         assertTrue(
-            result.inspection.omittedItems.any {
-                it.source.kind == PromptSourceKind.ChatHistory &&
-                    it.reason == PromptOmissionReason.ContextBudget
-            }
+            result.inspection.omittedItems.any { omittedItem ->
+                omittedItem.source.kind == PromptSourceKind.ChatHistory
+                    && omittedItem.reason == PromptOmissionReason.ContextBudget
+            },
         )
     }
 
     @Test
     fun regularGroupWorldInfoCanBeDroppedWhenRequiredPromptStillOverflows() {
-        val lyra = character(1, "Lyra").copy(
-            description = "d".repeat(40)
-        )
+        val lyra = character(id = 1, name = "Lyra").copy(description = "d".repeat(40))
         val worldContent = "WORLD_" + "w".repeat(54)
         val tokenizer = object : PromptTokenizer {
             override val name = "Character count"
@@ -492,9 +492,9 @@ class GroupChatPromptBuilderTest {
         }
         val result = GroupChatPromptBuilder(
             mPreferences = TestPromptPreferences(),
-            mRequestFinalizer = PromptRequestFinalizer { tokenizer }
+            mRequestFinalizer = PromptRequestFinalizer { tokenizer },
         ).buildWithMetadata(
-            GroupChatPromptContext(
+            context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
                     title = "Crew",
@@ -502,38 +502,36 @@ class GroupChatPromptBuilderTest {
                     latestTime = 1,
                     userName = "Alex",
                     userDescription = "",
-                    systemPromptOverride = "R"
+                    systemPromptOverride = "R",
                 ),
-                members = listOf(member(lyra, 0)),
+                members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
-                messages = listOf(
-                    message(GroupChatMessage.Source.User, "Alex", "LATEST")
-                ),
+                messages = listOf(message(GroupChatMessage.Source.User, "Alex", "LATEST")),
                 provider = provider(contextTokens = 310, maxTokens = 50),
                 candidateLorebookEntries = listOf(
-                    worldEntry(
+                    element = worldEntry(
                         id = 95L,
                         order = 100,
                         content = worldContent,
-                        position = LorebookEntry.POSITION_BEFORE
-                    )
-                )
-            )
+                        position = LorebookEntry.POSITION_BEFORE,
+                    ),
+                ),
+            ),
         )
 
         assertTrue(result.request.messages.any { it.content.contains("LATEST") })
         assertFalse(result.request.messages.any { it.content.contains(worldContent) })
         assertTrue(
-            result.inspection.omittedItems.any {
-                it.source.referenceId == 95L &&
-                    it.reason == PromptOmissionReason.ContextBudget
-            }
+            result.inspection.omittedItems.any { omittedItem ->
+                omittedItem.source.referenceId == 95L
+                    && omittedItem.reason == PromptOmissionReason.ContextBudget
+            },
         )
     }
 
     @Test
     fun oversizedIgnoredBudgetGroupWorldInfoIsNotSilentlyTrimmed() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val worldContent = "OVERSIZED_WORLD_" + "w".repeat(800)
         val tokenizer = object : PromptTokenizer {
             override val name = "Character count"
@@ -543,46 +541,44 @@ class GroupChatPromptBuilderTest {
         assertThrows(PromptBudgetExceededException::class.java) {
             GroupChatPromptBuilder(
                 mPreferences = TestPromptPreferences(),
-                mRequestFinalizer = PromptRequestFinalizer { tokenizer }
+                mRequestFinalizer = PromptRequestFinalizer { tokenizer },
             ).buildWithMetadata(
-                GroupChatPromptContext(
+                context = GroupChatPromptContext(
                     session = GroupChatSession(
                         id = 1,
                         title = "Crew",
                         createTime = 1,
                         latestTime = 1,
                         userName = "Alex",
-                        userDescription = ""
+                        userDescription = "",
                     ),
-                    members = listOf(member(lyra, 0)),
+                    members = listOf(member(character = lyra, order = 0)),
                     speaker = lyra,
-                    messages = listOf(
-                        message(GroupChatMessage.Source.User, "Alex", "LATEST")
-                    ),
+                    messages = listOf(message(GroupChatMessage.Source.User, "Alex", "LATEST")),
                     provider = provider(contextTokens = 700, maxTokens = 100),
                     candidateLorebookEntries = listOf(
-                        worldEntry(
+                        element = worldEntry(
                             id = 94L,
                             order = 100,
                             content = worldContent,
-                            position = LorebookEntry.POSITION_BEFORE
-                        ).copy(ignoreBudget = true)
-                    )
-                )
+                            position = LorebookEntry.POSITION_BEFORE,
+                        ).copy(ignoreBudget = true),
+                    ),
+                ),
             )
         }
     }
 
     @Test
     fun regenerateGenerationModeActivatesMatchingWorldInfoTrigger() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val session = GroupChatSession(
             id = 1,
             title = "Crew",
             createTime = 1,
             latestTime = 1,
             userName = "Alex",
-            userDescription = ""
+            userDescription = "",
         )
         val entry = LorebookEntry(
             id = 1,
@@ -596,22 +592,27 @@ class GroupChatPromptBuilderTest {
             category = "[]",
             content = "Regenerate-only lore",
             position = LorebookEntry.POSITION_BEFORE,
-            triggers = """["regenerate"]"""
+            triggers = """["regenerate"]""",
         )
         val baseContext = GroupChatPromptContext(
             session = session,
-            members = listOf(member(lyra, 0)),
+            members = listOf(member(character = lyra, order = 0)),
             speaker = lyra,
             messages = listOf(
-                message(GroupChatMessage.Source.User, "Alex", "Approach the station.")
+                message(
+                    GroupChatMessage.Source.User,
+                    "Alex",
+                    "Approach the station."
+                )
             ),
             provider = provider(),
-            candidateLorebookEntries = listOf(entry)
+            candidateLorebookEntries = listOf(entry),
         )
 
-        val normal = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(baseContext)
+        val normal =
+            GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(baseContext)
         val regenerated = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
-            baseContext.copy(generationMode = GroupChatGenerationMode.Regenerate)
+            context = baseContext.copy(generationMode = GroupChatGenerationMode.Regenerate),
         )
 
         assertFalse(normal.messages.any { it.content.contains(entry.content) })
@@ -620,7 +621,7 @@ class GroupChatPromptBuilderTest {
 
     @Test
     fun groupMessageActivatesUnsetWholeWordCjkWorldInfo() {
-        val lyra = character(1, "Lyra")
+        val lyra = character(id = 1, name = "Lyra")
         val entry = LorebookEntry(
             id = 2,
             lorebookId = 1,
@@ -633,7 +634,7 @@ class GroupChatPromptBuilderTest {
             category = "[]",
             content = "School lore",
             position = LorebookEntry.POSITION_BEFORE,
-            matchWholeWords = null
+            matchWholeWords = null,
         )
         val context = GroupChatPromptContext(
             session = GroupChatSession(
@@ -642,15 +643,13 @@ class GroupChatPromptBuilderTest {
                 createTime = 1,
                 latestTime = 1,
                 userName = "Alex",
-                userDescription = ""
+                userDescription = "",
             ),
-            members = listOf(member(lyra, 0)),
+            members = listOf(member(character = lyra, order = 0)),
             speaker = lyra,
-            messages = listOf(
-                message(GroupChatMessage.Source.User, "Alex", "我们回学校吧。")
-            ),
+            messages = listOf(message(GroupChatMessage.Source.User, "Alex", "我们回学校吧。")),
             provider = provider(),
-            candidateLorebookEntries = listOf(entry)
+            candidateLorebookEntries = listOf(entry),
         )
 
         val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(context)
@@ -661,10 +660,18 @@ class GroupChatPromptBuilderTest {
     /** 当前批次保护触发图文，后续无新输入批次必须允许按预算整条裁剪。 */
     @Test
     fun onlyExplicitBatchTriggerProtectsOldUserImagesFromBudgetTrimming() {
-        val lyra = character(1, "Lyra")
-        val image = LLMImageReference("image", "image/png", 640, 480, 1000)
-        val userMessage = message(GroupChatMessage.Source.User, "Alex", "Compare this image").copy(id = 1)
-        val reply = message(GroupChatMessage.Source.Character, "Lyra", "A blue square.").copy(id = 2)
+        val lyra = character(id = 1, name = "Lyra")
+        val image = LLMImageReference(
+            uuid = "image",
+            mimeType = "image/png",
+            width = 640,
+            height = 480,
+            byteCount = 1000,
+        )
+        val userMessage =
+            message(GroupChatMessage.Source.User, "Alex", "Compare this image").copy(id = 1)
+        val reply =
+            message(GroupChatMessage.Source.Character, "Lyra", "A blue square.").copy(id = 2)
         val tokenizer = object : PromptTokenizer {
             override val name = "test"
             override val strategy = PromptTokenizerStrategy.Estimated
@@ -672,30 +679,38 @@ class GroupChatPromptBuilderTest {
         }
         val builder = GroupChatPromptBuilder(
             mPreferences = TestPromptPreferences(),
-            mRequestFinalizer = PromptRequestFinalizer { tokenizer }
+            mRequestFinalizer = PromptRequestFinalizer { tokenizer },
         )
         val context = GroupChatPromptContext(
-            session = GroupChatSession(title = "Crew", createTime = 1, latestTime = 1,
-                userName = "Alex", userDescription = ""),
-            members = listOf(member(lyra, 0)),
+            session = GroupChatSession(
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex",
+                userDescription = "",
+            ),
+            members = listOf(member(character = lyra, order = 0)),
             speaker = lyra,
             messages = listOf(userMessage, reply),
             messageImages = mapOf(userMessage.id to listOf(image)),
-            provider = provider(contextTokens = 100_000)
+            provider = provider(contextTokens = 100_000),
         )
         // 足额预算保留旧图；紧预算仍足够容纳必需文字，唯一需要裁剪的是旧用户图文。
         assertEquals(listOf(image), builder.build(context).messages.flatMap { it.images })
         val requiredTextTokens = builder.buildWithMetadata(
-            context.copy(messages = listOf(reply), messageImages = emptyMap())
+            context = context.copy(messages = listOf(reply), messageImages = emptyMap()),
         ).inspection.finalTokenCount
-        val limited = context.copy(provider = provider(contextTokens = requiredTextTokens + 512 + 32))
+        val limited =
+            context.copy(provider = provider(contextTokens = requiredTextTokens + 512 + 32))
         val result = builder.buildWithMetadata(limited)
         assertTrue(result.request.messages.all { it.images.isEmpty() })
         assertFalse(result.request.messages.any { userMessage.content in it.content })
-        assertTrue(result.inspection.omittedItems.any {
-            it.source.kind == PromptSourceKind.ChatHistory && it.source.referenceId == userMessage.id &&
-                it.reason == PromptOmissionReason.ContextBudget
-        })
+        assertTrue(
+            result.inspection.omittedItems.any { omittedItem ->
+                omittedItem.source.kind == PromptSourceKind.ChatHistory && omittedItem.source.referenceId == userMessage.id
+                    && omittedItem.reason == PromptOmissionReason.ContextBudget
+            },
+        )
         // 同样的历史仍属于当前触发批次时，宁可报告预算不足，也不能静默删除用户图片。
         assertThrows(PromptBudgetExceededException::class.java) {
             builder.build(limited.copy(protectedUserMessageId = userMessage.id))
@@ -713,14 +728,18 @@ class GroupChatPromptBuilderTest {
             scenario = "",
             firstMessages = "",
             examplesOfDialogue = "",
-            postHistoryInstructions = ""
+            postHistoryInstructions = "",
         )
     }
 
     private fun member(character: Character, order: Int): GroupChatMemberData {
         return GroupChatMemberData(
-            relation = GroupChatMember(1, character.id, order),
-            character = character
+            relation = GroupChatMember(
+                sessionId = 1,
+                characterId = character.id,
+                sortOrder = order
+            ),
+            character = character,
         )
     }
 
@@ -728,7 +747,7 @@ class GroupChatPromptBuilderTest {
         id: Long,
         order: Int,
         content: String,
-        position: Int
+        position: Int,
     ): LorebookEntry {
         return LorebookEntry(
             id = id,
@@ -741,14 +760,14 @@ class GroupChatPromptBuilderTest {
             depth = 0,
             category = "[]",
             content = content,
-            position = position
+            position = position,
         )
     }
 
     private fun message(
         source: GroupChatMessage.Source,
         speaker: String,
-        content: String
+        content: String,
     ): GroupChatMessage {
         return GroupChatMessage(
             sessionId = 1,
@@ -756,13 +775,13 @@ class GroupChatPromptBuilderTest {
             source = source,
             content = content,
             speakerCharacterId = null,
-            speakerNameSnapshot = speaker
+            speakerNameSnapshot = speaker,
         )
     }
 
     private fun provider(
         contextTokens: Int = 8192,
-        maxTokens: Int = 512
+        maxTokens: Int = 512,
     ): LLMProvider {
         return LLMProvider(
             name = "Test",
@@ -774,7 +793,7 @@ class GroupChatPromptBuilderTest {
             maxTokens = maxTokens,
             createTime = 1,
             updateTime = 1,
-            isEnabled = true
+            isEnabled = true,
         )
     }
 }

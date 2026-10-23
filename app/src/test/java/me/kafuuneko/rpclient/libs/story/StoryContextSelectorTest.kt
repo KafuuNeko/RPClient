@@ -2,11 +2,11 @@ package me.kafuuneko.rpclient.libs.story
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
-import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
+import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,18 +21,19 @@ class StoryContextSelectorTest {
         override val reservePercent = 0
         override fun countText(text: String) = text.length
         override fun countMessage(message: LLMMessage) = message.content.length
-        override fun countMessages(messages: List<LLMMessage>) = messages.sumOf { it.content.length }
+        override fun countMessages(messages: List<LLMMessage>) =
+            messages.sumOf { it.content.length }
     }
 
     @Test
     fun continuationKeepsNearestEndingChunkRequired() {
         val content = "First paragraph.\n\nSecond paragraph.\n\nFinal paragraph."
         val result = mSelector.select(
-            content,
-            StoryEditTarget(content.length, content.length),
+            content = content,
+            target = StoryEditTarget(content.length, content.length),
             authorNote = "",
             tokenizer = mTokenizer,
-            promptBudget = 2048
+            promptBudget = 2048,
         )
 
         assertTrue(result.chunks.last().required)
@@ -50,7 +51,7 @@ class StoryContextSelectorTest {
             authorNote = "",
             tokenizer = mTokenizer,
             promptBudget = 2048,
-            continuationGuidance = guidance
+            continuationGuidance = guidance,
         )
 
         assertTrue(result.activationScanText.contains(guidance))
@@ -66,7 +67,7 @@ class StoryContextSelectorTest {
             authorNote = "",
             tokenizer = mTokenizer,
             promptBudget = 2048,
-            continuationGuidance = "接下来回学校。"
+            continuationGuidance = "接下来回学校。",
         )
         val entry = LorebookEntry(
             id = 1,
@@ -79,19 +80,19 @@ class StoryContextSelectorTest {
             depth = 0,
             category = "[]",
             content = "School lore",
-            matchWholeWords = null
+            matchWholeWords = null,
         )
 
         val activated = WorldBookActivator().activateStructured(
-            WorldBookScanContext(
+            context = WorldBookScanContext(
                 messages = listOf(WorldBookScanMessage("", selection.worldBookScanText)),
                 currentUserMessage = null,
                 totalMessageCount = 1,
                 worldInfoStateJson = "{}",
                 candidateLorebookEntries = listOf(entry),
                 generationType = WorldBookGenerationType.Continue,
-                includeNames = false
-            )
+                includeNames = false,
+            ),
         )
 
         assertEquals(listOf(entry), activated.activatedEntries)
@@ -101,11 +102,11 @@ class StoryContextSelectorTest {
     fun longEmojiParagraphNeverSplitsUtf16SurrogatePair() {
         val content = "😀".repeat(400)
         val result = mSelector.select(
-            content,
-            StoryEditTarget(content.length, content.length),
+            content = content,
+            target = StoryEditTarget(content.length, content.length),
             authorNote = "",
             tokenizer = mTokenizer,
-            promptBudget = 2048
+            promptBudget = 2048,
         )
 
         assertTrue(result.chunks.size > 1)
@@ -124,7 +125,7 @@ class StoryContextSelectorTest {
             target = StoryEditTarget(content.length, content.length),
             authorNote = "",
             tokenizer = mTokenizer,
-            promptBudget = 128
+            promptBudget = 128,
         )
 
         assertTrue(result.chunks.single().required)
@@ -134,13 +135,13 @@ class StoryContextSelectorTest {
 
     @Test
     fun hundredThousandCharacterDocumentBuildsBoundedPromptChunks() {
-        val content = List(8_000) { "第${it}段：雨落在旧城长街。" }.joinToString("\n\n")
+        val content = List(size = 8_000) { "第${it}段：雨落在旧城长街。" }.joinToString("\n\n")
         val result = mSelector.select(
-            content,
-            StoryEditTarget(content.length, content.length),
+            content = content,
+            target = StoryEditTarget(content.length, content.length),
             authorNote = "",
             tokenizer = mTokenizer,
-            promptBudget = 4096
+            promptBudget = 4096,
         )
 
         assertTrue(content.length > 100_000)

@@ -14,13 +14,13 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatData
  */
 internal fun groupRegexMacros(
     data: GroupChatData,
-    characterName: String
+    characterName: String,
 ): Map<String, String> {
     return RegexScriptRuntime.macros(
         userName = data.session.userName,
         characterName = characterName,
         userDescription = data.session.userDescription,
         scenario = data.session.scenario,
-        groupNames = data.members.joinToString(", ") { it.character.name }
+        groupNames = data.members.joinToString(", ") { it.character.name },
     )
 }

@@ -20,17 +20,17 @@ class LorebookCodec(
     /** 解析独立世界书，返回尚未写入数据库的书籍与条目集合。 */
     fun parseLorebook(json: String): CharacterBookImport {
         val root = JsonParser.parseString(json).asJsonObject
-        
+
         val name = root.optString("name")
         val lorebook = Lorebook(
             name = name.ifBlank { DefaultNames.IMPORTED_WORLD_BOOK },
             description = root.optString("description"),
-            scanDepth = root.optInt("scanDepth", 2),
-            tokenBudget = root.optInt("tokenBudget", 0),
-            recursiveScanning = root.optBoolean("recursiveScanning", false),
-            extensionsJson = mGson.toJson(root.optJsonObject("extensions") ?: JsonObject())
+            scanDepth = root.optInt(name = "scanDepth", default = 2),
+            tokenBudget = root.optInt(name = "tokenBudget", default = 0),
+            recursiveScanning = root.optBoolean(name = "recursiveScanning", default = false),
+            extensionsJson = mGson.toJson(root.optJsonObject("extensions") ?: JsonObject()),
         )
-        
+
         val entriesObj = root.optJsonObject("entries")
         val entries = mutableListOf<LorebookEntry>()
         entriesObj?.entrySet()?.forEach { (uid, element) ->
@@ -51,7 +51,7 @@ class LorebookCodec(
         if (lorebook.tokenBudget > 0) book.addProperty("tokenBudget", lorebook.tokenBudget)
         book.addProperty("recursiveScanning", lorebook.recursiveScanning)
         book.add("extensions", parseObjectOrEmpty(lorebook.extensionsJson))
-        
+
         val entriesObj = JsonObject()
         entries.forEachIndexed { index, entry ->
             entriesObj.add(index.toString(), entry.toStWorldBookEntry(index))
@@ -66,30 +66,32 @@ class LorebookCodec(
             lorebookId = 0L,
             name = optString("comment"),
             keywords = mGson.toJson(getAsJsonArray("key")?.toStringList().orEmpty()),
-            secondaryKeywords = mGson.toJson(getAsJsonArray("keysecondary")?.toStringList().orEmpty()),
-            constant = optBoolean("constant", false),
-            order = optInt("order", 100),
-            depth = optInt("depth", 4),
+            secondaryKeywords = mGson.toJson(
+                getAsJsonArray("keysecondary")?.toStringList().orEmpty()
+            ),
+            constant = optBoolean(name = "constant", default = false),
+            order = optInt(name = "order", default = 100),
+            depth = optInt(name = "depth", default = 4),
             category = "[]",
             content = optString("content"),
-            disabled = optBoolean("disable", false),
+            disabled = optBoolean(name = "disable", default = false),
             position = optInt("position", LorebookEntry.POSITION_AT_DEPTH),
             role = optInt("role", LorebookEntry.ROLE_SYSTEM),
-            probability = optInt("probability", 100),
+            probability = optInt(name = "probability", default = 100),
             ignoreBudget = optBoolean(
-                "ignoreBudget",
-                extensions.optBoolean("ignore_budget", false)
+                name = "ignoreBudget",
+                default = extensions.optBoolean(name = "ignore_budget", default = false),
             ),
             scanDepth = optNullableInt("scanDepth"),
             selectiveLogic = optInt("selectiveLogic", LorebookEntry.LOGIC_AND_ANY),
             matchWholeWords = optNullableBoolean("matchWholeWords"),
             caseSensitive = optNullableBoolean("caseSensitive"),
-            useGroupScoring = optBoolean("useGroupScoring", false),
+            useGroupScoring = optBoolean(name = "useGroupScoring", default = false),
             group = optString("group"),
-            groupOverride = optBoolean("groupOverride", false),
+            groupOverride = optBoolean(name = "groupOverride", default = false),
             groupWeight = optNullableInt("groupWeight"),
-            preventRecursion = optBoolean("preventRecursion", false),
-            delayUntilRecursion = optBoolean("delayUntilRecursion", false),
+            preventRecursion = optBoolean(name = "preventRecursion", default = false),
+            delayUntilRecursion = optBoolean(name = "delayUntilRecursion", default = false),
             sticky = optNullableInt("sticky"),
             cooldown = optNullableInt("cooldown"),
             delay = optNullableInt("delay"),
@@ -97,16 +99,31 @@ class LorebookCodec(
             triggers = mGson.toJson(
                 (getAsJsonArray("triggers") ?: extensions.getAsJsonArray("triggers"))
                     ?.toStringList()
-                    .orEmpty()
+                    .orEmpty(),
             ),
-            matchPersonaDescription = extensions.optBoolean("match_persona_description", false),
-            matchCharacterDescription = extensions.optBoolean("match_character_description", false),
-            matchCharacterPersonality = extensions.optBoolean("match_character_personality", false),
-            matchCharacterDepthPrompt = extensions.optBoolean("match_character_depth_prompt", false),
-            matchScenario = extensions.optBoolean("match_scenario", false),
-            matchCreatorNotes = extensions.optBoolean("match_creator_notes", false),
+            matchPersonaDescription = extensions.optBoolean(
+                name = "match_persona_description",
+                default = false
+            ),
+            matchCharacterDescription = extensions.optBoolean(
+                name = "match_character_description",
+                default = false
+            ),
+            matchCharacterPersonality = extensions.optBoolean(
+                name = "match_character_personality",
+                default = false
+            ),
+            matchCharacterDepthPrompt = extensions.optBoolean(
+                name = "match_character_depth_prompt",
+                default = false
+            ),
+            matchScenario = extensions.optBoolean(name = "match_scenario", default = false),
+            matchCreatorNotes = extensions.optBoolean(
+                name = "match_creator_notes",
+                default = false
+            ),
             extensionsJson = mGson.toJson(extensions),
-            rawJson = mGson.toJson(this)
+            rawJson = mGson.toJson(this),
         )
     }
 
@@ -152,7 +169,7 @@ class LorebookCodec(
         cooldown?.let { entry.addProperty("cooldown", it) }
         delay?.let { entry.addProperty("delay", it) }
         entry.addProperty("displayIndex", uid)
-        
+
         val extensions = parseObjectOrEmpty(extensionsJson)
         extensions.addProperty("outlet_name", outletName)
         extensions.add("triggers", parseArrayOrEmpty(triggers))
@@ -163,7 +180,7 @@ class LorebookCodec(
         extensions.addProperty("match_scenario", matchScenario)
         extensions.addProperty("match_creator_notes", matchCreatorNotes)
         entry.add("extensions", extensions)
-        
+
         return entry
     }
 
@@ -177,23 +194,25 @@ class LorebookCodec(
     }
 
     private fun JsonObject.optInt(name: String, default: Int): Int {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull() ?: default
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull()
+            ?: default
     }
 
     private fun JsonObject.optNullableInt(name: String): Int? {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asInt }.getOrNull()
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asInt }.getOrNull()
     }
 
     private fun JsonObject.optBoolean(name: String, default: Boolean): Boolean {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull() ?: default
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asBoolean }.getOrNull()
+            ?: default
     }
 
     private fun JsonObject.optNullableBoolean(name: String): Boolean? {
-        return runCatching { get(name)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull()
+        return runCatching { get(name)?.takeIf { element -> !element.isJsonNull }?.asBoolean }.getOrNull()
     }
 
     private fun JsonArray.toStringList(): List<String> {
-        return mapNotNull { element -> element.takeIf { !it.isJsonNull }?.asString }
+        return mapNotNull { element -> element.takeIf { element -> !element.isJsonNull }?.asString }
     }
 
     private fun parseArrayOrEmpty(json: String): JsonArray {

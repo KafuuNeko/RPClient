@@ -17,9 +17,9 @@ class StoryCharacterActivatorTest {
     @Test
     fun alwaysAndAllMatchedAutoCharactersActivateInStableOrder() {
         val candidates = listOf(
-            candidate(2L, "Alice", 2, StoryCharacter.ACTIVATION_AUTO),
-            candidate(1L, "Bob", 0, StoryCharacter.ACTIVATION_ALWAYS),
-            candidate(3L, "林月", 1, StoryCharacter.ACTIVATION_AUTO)
+            candidate(id = 2L, name = "Alice", order = 2, mode = StoryCharacter.ACTIVATION_AUTO),
+            candidate(id = 1L, name = "Bob", order = 0, mode = StoryCharacter.ACTIVATION_ALWAYS),
+            candidate(id = 3L, name = "林月", order = 1, mode = StoryCharacter.ACTIVATION_AUTO),
         )
 
         val result = mActivator.activate(candidates, "ALICE met 林月 beside the gate.")
@@ -33,8 +33,8 @@ class StoryCharacterActivatorTest {
     @Test
     fun latinNameUsesWholeWordWhileCjkNameUsesSubstring() {
         val candidates = listOf(
-            candidate(1L, "Ann", 0, StoryCharacter.ACTIVATION_AUTO),
-            candidate(2L, "林月", 1, StoryCharacter.ACTIVATION_AUTO)
+            candidate(id = 1L, name = "Ann", order = 0, mode = StoryCharacter.ACTIVATION_AUTO),
+            candidate(id = 2L, name = "林月", order = 1, mode = StoryCharacter.ACTIVATION_AUTO),
         )
 
         val result = mActivator.activate(candidates, "Annette 看见小林月亮起身。")
@@ -46,15 +46,20 @@ class StoryCharacterActivatorTest {
     fun primaryCharacterAlwaysActivatesBeforeOtherCharacters() {
         val result = mActivator.activate(
             candidates = listOf(
-                candidate(1L, "Alice", 1, StoryCharacter.ACTIVATION_AUTO),
                 candidate(
-                    2L,
-                    "Bob",
-                    0,
-                    StoryCharacter.ACTIVATION_PRIMARY
-                )
+                    id = 1L,
+                    name = "Alice",
+                    order = 1,
+                    mode = StoryCharacter.ACTIVATION_AUTO
+                ),
+                candidate(
+                    id = 2L,
+                    name = "Bob",
+                    order = 0,
+                    mode = StoryCharacter.ACTIVATION_PRIMARY,
+                ),
             ),
-            scanText = "No character name appears here."
+            scanText = "No character name appears here.",
         )
 
         assertEquals(listOf(2L), result.map { it.candidate.character.id })
@@ -63,24 +68,37 @@ class StoryCharacterActivatorTest {
 
     @Test
     fun promptFieldsResolveEachCharactersCardNameAndSharedUserIndependently() {
-        val alice = mActivator.activate(
-            listOf(
-                candidate(
-                    id = 1L,
-                    name = "Alice",
-                    order = 0,
-                    mode = StoryCharacter.ACTIVATION_ALWAYS,
-                    description = "{{char}} protects {{ user }} and <USER>.",
-                    personality = "<BOT> stays calm.",
-                    scenario = "{{CHAR}} waits."
-                )
-            ),
-            ""
-        ).single().resolveForPrompt("Reader")
-        val bob = mActivator.activate(
-            listOf(candidate(2L, "Bob", 0, StoryCharacter.ACTIVATION_ALWAYS)),
-            ""
-        ).single().resolveForPrompt("Reader")
+        val alice = mActivator
+            .activate(
+                candidates = listOf(
+                    element = candidate(
+                        id = 1L,
+                        name = "Alice",
+                        order = 0,
+                        mode = StoryCharacter.ACTIVATION_ALWAYS,
+                        description = "{{char}} protects {{ user }} and <USER>.",
+                        personality = "<BOT> stays calm.",
+                        scenario = "{{CHAR}} waits.",
+                    ),
+                ),
+                scanText = "",
+            )
+            .single()
+            .resolveForPrompt("Reader")
+        val bob = mActivator
+            .activate(
+                candidates = listOf(
+                    candidate(
+                        id = 2L,
+                        name = "Bob",
+                        order = 0,
+                        mode = StoryCharacter.ACTIVATION_ALWAYS
+                    )
+                ),
+                scanText = "",
+            )
+            .single()
+            .resolveForPrompt("Reader")
 
         assertEquals("Alice", alice.name)
         assertEquals("Alice protects Reader and Reader.", alice.description)
@@ -97,24 +115,45 @@ class StoryCharacterActivatorTest {
                 template = "User Persona ({{user}}):\n{{persona}}",
                 userName = "Reader",
                 userDescription = "{{user}} observes {{char}}.",
-                characterName = null
-            )
+                characterName = null,
+            ),
         )
         assertEquals(
             "",
-            renderUserPersonaTemplate("{{persona}}", "Reader", "", characterName = null)
+            renderUserPersonaTemplate(
+                template = "{{persona}}",
+                userName = "Reader",
+                userDescription = "",
+                characterName = null,
+            ),
         )
     }
 
     @Test
     fun lorebookMacrosPreferFirstCharacterLinkedToLorebookThenPrimaryFallback() {
         val characterNames = listOf(
-            candidate(1L, "Alice", 0, StoryCharacter.ACTIVATION_ALWAYS, lorebookId = 3L),
-            candidate(2L, "Bob", 1, StoryCharacter.ACTIVATION_ALWAYS, lorebookId = 3L)
+            candidate(
+                id = 1L,
+                name = "Alice",
+                order = 0,
+                mode = StoryCharacter.ACTIVATION_ALWAYS,
+                lorebookId = 3L
+            ),
+            candidate(
+                id = 2L,
+                name = "Bob",
+                order = 1,
+                mode = StoryCharacter.ACTIVATION_ALWAYS,
+                lorebookId = 3L
+            ),
         ).lorebookCharacterNames()
         val linked = lorebookCandidate().resolveForPrompt(characterNames[3L], "Reader", Gson())
         val primary = lorebookCandidate().resolveForPrompt("Primary", "Reader", Gson())
-        val unresolved = lorebookCandidate().resolveForPrompt(null, "Reader", Gson())
+        val unresolved = lorebookCandidate().resolveForPrompt(
+            characterName = null,
+            userName = "Reader",
+            gson = Gson()
+        )
 
         assertEquals("Alice met Reader.", linked.content)
         assertEquals(listOf("Alice", "Reader"), linked.getKeywordList())
@@ -131,10 +170,15 @@ class StoryCharacterActivatorTest {
         description: String = "Description",
         personality: String = "Personality",
         scenario: String = "Scenario",
-        lorebookId: Long = 0L
+        lorebookId: Long = 0L,
     ): StoryCharacterCandidate {
         return StoryCharacterCandidate(
-            relation = StoryCharacter(1L, id, order, mode),
+            relation = StoryCharacter(
+                storyId = 1L,
+                characterId = id,
+                sortOrder = order,
+                activationMode = mode
+            ),
             character = Character(
                 id = id,
                 name = name,
@@ -146,8 +190,8 @@ class StoryCharacterActivatorTest {
                 firstMessages = "",
                 examplesOfDialogue = "",
                 postHistoryInstructions = "",
-                characterLorebookId = lorebookId
-            )
+                characterLorebookId = lorebookId,
+            ),
         )
     }
 
@@ -155,7 +199,7 @@ class StoryCharacterActivatorTest {
         return StoryLorebookEntryCandidate(
             relation = StoryLorebookEntry(
                 storyId = 1L,
-                lorebookEntryId = 2L
+                lorebookEntryId = 2L,
             ),
             entry = LorebookEntry(
                 id = 2L,
@@ -166,8 +210,8 @@ class StoryCharacterActivatorTest {
                 order = 0,
                 depth = 0,
                 category = "[]",
-                content = "{{char}} met {{user}}."
-            )
+                content = "{{char}} met {{user}}.",
+            ),
         )
     }
 }

@@ -43,18 +43,18 @@ internal fun JsonObject.objectOrNull(name: String): JsonObject? {
 internal fun JsonArray.toStringSet(): Set<String> {
     return mapNotNullTo(linkedSetOf()) { element ->
         element
-            .takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+            .takeIf { element -> element.isJsonPrimitive && element.asJsonPrimitive.isString }
             ?.asString
             ?.trim()
-            ?.takeIf { it.isNotBlank() }
+            ?.takeIf { text -> text.isNotBlank() }
     }
 }
 
 /** 在忽略非字符串成员的前提下检查能力名称。 */
 internal fun JsonArray.containsString(value: String): Boolean {
     return any { element ->
-        element.isJsonPrimitive &&
-            element.asJsonPrimitive.isString &&
-            element.asString == value
+        element.isJsonPrimitive
+            && element.asJsonPrimitive.isString
+            && element.asString == value
     }
 }

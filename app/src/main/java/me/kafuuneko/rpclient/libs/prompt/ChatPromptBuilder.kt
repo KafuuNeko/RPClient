@@ -42,9 +42,7 @@ class ChatPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
     private val mWorldBookActivator: WorldBookActivator,
-    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(
-        RegexScriptEngine()
-    ),
+    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(mEngine = RegexScriptEngine()),
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
     private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
@@ -79,7 +77,7 @@ class ChatPromptBuilder(
         val worldBudget = resolveWorldInfoBudget(
             promptTokenBudget = context.maxContextTokens - context.maxResponseTokens,
             contextPercent = mPreferences.worldInfoBudgetPercent,
-            tokenBudgetCap = mPreferences.worldInfoBudgetCap
+            tokenBudgetCap = mPreferences.worldInfoBudgetCap,
         )
         val tokenizer = mRequestFinalizer.tokenizerFor(context.provider)
         val regexHits = mutableListOf<RegexExecutionHit>()
@@ -89,7 +87,7 @@ class ChatPromptBuilder(
             userName = context.userName,
             characterName = context.character.name,
             userDescription = context.userDescription,
-            scenario = context.character.scenario
+            scenario = context.character.scenario,
         )
         // 扫描上下文并激活匹配的世界书条目
         val rawWorldInfo = mWorldBookActivator.activateStructured(context)
@@ -99,7 +97,7 @@ class ChatPromptBuilder(
                 val result = mRegexProcessor.applyWorldInfo(
                     input = entry.content,
                     scripts = context.regexScripts,
-                    macros = regexMacros
+                    macros = regexMacros,
                 )
                 regexHits += result.hits
                 regexErrors += result.errors
@@ -111,12 +109,13 @@ class ChatPromptBuilder(
             result = activatedWorldInfo,
             globalTokenBudget = worldBudget,
             lorebooks = context.candidateLorebooks,
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
         val worldInfo = worldSelection.result
         // 将 outlet 位置的世界书条目按 order 降序聚合为占位字典
         val outlets = worldInfo.outletEntries.mapValues { (_, entries) ->
-            entries.sortedByDescending { it.order }.joinToString("\n") { it.content }
+            entries.sortedByDescending { entry -> entry.order }
+                .joinToString("\n") { entry -> entry.content }
         }
         // 构建固定系统消息区段与示例对话片段
         val fixedMessages = buildFixedMessages(context, worldInfo)
@@ -124,51 +123,59 @@ class ChatPromptBuilder(
         val examplePieces = buildExamplePieces(context, worldInfo, exampleBehavior)
         // 清洗历史消息推理块，并执行用户输入/AI 输出的 Prompt 阶段 Regex 处理
         val imageMessageIds = context.messageImages.keys + context.unavailableImages.keys
-        val historyMessages = context.messages.sanitizeThinkBlocks(imageMessageIds).mapIndexed { index, message ->
-            val depth = context.messages.lastIndex - index
-            val result = when (message.source) {
-                ChatMessage.Source.User -> mRegexProcessor.applyPrompt(
-                    input = message.content,
-                    source = RegexMessageSource.User,
-                    scripts = context.regexScripts,
-                    macros = regexMacros,
-                    depth = depth
-                )
-                ChatMessage.Source.Char -> mRegexProcessor.applyPrompt(
-                    input = message.content,
-                    source = RegexMessageSource.Character,
-                    scripts = context.regexScripts,
-                    macros = regexMacros,
-                    depth = depth
-                )
-                ChatMessage.Source.System,
-                ChatMessage.Source.Summary -> null
+        val historyMessages =
+            context.messages.sanitizeThinkBlocks(imageMessageIds).mapIndexed { index, message ->
+                val depth = context.messages.lastIndex - index
+                val result = when (message.source) {
+                    ChatMessage.Source.User -> mRegexProcessor.applyPrompt(
+                        input = message.content,
+                        source = RegexMessageSource.User,
+                        scripts = context.regexScripts,
+                        macros = regexMacros,
+                        depth = depth,
+                    )
+
+                    ChatMessage.Source.Char -> mRegexProcessor.applyPrompt(
+                        input = message.content,
+                        source = RegexMessageSource.Character,
+                        scripts = context.regexScripts,
+                        macros = regexMacros,
+                        depth = depth,
+                    )
+
+                    ChatMessage.Source.System,
+                    ChatMessage.Source.Summary -> null
+                }
+                if (result == null) {
+                    message
+                } else {
+                    regexHits += result.hits
+                    regexErrors += result.errors
+                    message.copy(content = result.text)
+                }
             }
-            if (result == null) {
-                message
-            } else {
-                regexHits += result.hits
-                regexErrors += result.errors
-                message.copy(content = result.text)
-            }
-        }
         // 组装格式化历史文本供 {{history}} 宏使用
-        val historyText = mHistoryBuilder.build(historyMessages, context.userName, context.character.name, (context.messageImages.keys + context.unavailableImages.keys).associateWith {
-            context.messageImages[it].orEmpty().size + context.unavailableImages[it].orEmpty().size
-        })
+        val historyText = mHistoryBuilder.build(
+            messages = historyMessages,
+            userName = context.userName,
+            characterName = context.character.name,
+            imageCounts = (context.messageImages.keys + context.unavailableImages.keys).associateWith { id ->
+                context.messageImages[id].orEmpty().size + context.unavailableImages[id].orEmpty().size
+            },
+        )
         // 组装合并了 At Depth 注入项的聊天历史草稿列表
         val chatMessages = buildChatMessages(
-            historyMessages,
-            context,
-            historyText,
-            inChatPieces,
-            outlets
+            historyMessages = historyMessages,
+            context = context,
+            historyText = historyText,
+            inChatPieces = inChatPieces,
+            outlets = outlets,
         ).toMutableList()
         // 若处于 Continue 续写模式，提取最后一条 AI 回复以便后续单独处理
         val continueTarget = if (context.generationMode == PromptGenerationMode.Continue) {
-            val targetIndex = chatMessages.indexOfLast {
-                it.source.kind == PromptSourceKind.ChatHistory &&
-                    it.role == LLMMessageRole.Assistant
+            val targetIndex = chatMessages.indexOfLast { draft ->
+                draft.source.kind == PromptSourceKind.ChatHistory
+                    && draft.role == LLMMessageRole.Assistant
             }
             if (targetIndex >= 0) chatMessages.removeAt(targetIndex) else null
         } else {
@@ -178,38 +185,38 @@ class ChatPromptBuilder(
         // 按分区顺序串联所有消息草稿
         val rawDrafts = buildList {
             // 历史前固定消息
-            fixedMessages.beforeHistory.forEach {
-                add(it.resolve(context, historyText, outlets))
+            fixedMessages.beforeHistory.forEach { piece ->
+                add(piece.resolve(context, historyText, outlets))
             }
             // 示例对话块
-            examplePieces.forEach {
-                add(it.resolve(context, historyText, outlets))
+            examplePieces.forEach { piece ->
+                add(piece.resolve(context, historyText, outlets))
             }
             // 新对话分隔提示词
             buildNewChatPiece(context, historyText, outlets)?.let(::add)
             // 聊天历史与深度注入项
             addAll(chatMessages)
             // 历史后固定指令（Post-history instructions）
-            fixedMessages.afterHistory.forEach {
-                add(it.resolve(context, historyText, outlets))
+            fixedMessages.afterHistory.forEach { piece ->
+                add(piece.resolve(context, historyText, outlets))
             }
             // 续写目标消息（若有）
             continueTarget?.let(::add)
             // 尾部任务控制指令（如 Continue/Impersonate 提示）
-            buildGenerationControlPiece(context)?.let {
-                add(it.resolve(context, historyText, outlets))
+            buildGenerationControlPiece(context)?.let { piece ->
+                add(piece.resolve(context, historyText, outlets))
             }
         }
         // 若生成草稿为空，使用兜底提示词
         val fallbackDrafts = rawDrafts.ifEmpty {
             listOf(
-                PromptMessageDraft(
+                element = PromptMessageDraft(
                     role = fallbackRole(context),
                     content = fallbackPrompt(context),
                     source = PromptSource(fallbackSourceKind(context)),
                     retentionPriority = PRIORITY_ESSENTIAL,
-                    canDrop = false
-                )
+                    canDrop = false,
+                ),
             )
         }
         // 确保末尾轮次符合模型角色的协议要求（如以 user 轮次收尾触发回复）
@@ -217,7 +224,7 @@ class ChatPromptBuilder(
             drafts = fallbackDrafts,
             context = context,
             history = historyText,
-            outlets = outlets
+            outlets = outlets,
         )
         // 调用 Finalizer 执行协议后处理、Token 预算裁剪与占位符替换
         val finalized = mRequestFinalizer.finalize(
@@ -227,7 +234,7 @@ class ChatPromptBuilder(
             options = LLMGenerationOptions(
                 temperature = context.provider?.temperature,
                 maxTokens = context.maxResponseTokens,
-                topP = context.provider?.topP
+                topP = context.provider?.topP,
             ),
             includeReasoningInContent = true,
             maxContextTokens = context.maxContextTokens,
@@ -236,27 +243,27 @@ class ChatPromptBuilder(
             strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
             postProcessingNames = PromptPostProcessingNames(
                 userName = context.userName,
-                characterName = context.character.name
+                characterName = context.character.name,
             ),
             preOmittedItems = worldSelection.omittedItems,
-            tokenizer = tokenizer
+            tokenizer = tokenizer,
         )
         // 组装检查器元数据
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
-            regexErrors = regexErrors
+            regexErrors = regexErrors,
         )
         val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         // 计算世界书时序推进后的下一状态
         val stateResult = mWorldBookActivator.resolveNextState(
-            rawWorldInfo
+            result = rawWorldInfo
                 .filterEntries(selectedWorldInfoIds)
-                .retainStateEntries(inspection)
+                .retainStateEntries(inspection),
         )
         return PromptBuildResult(
             request = finalized.request,
             worldInfoStateJson = stateResult.nextStateJson,
-            inspection = inspection
+            inspection = inspection,
         )
     }
 
@@ -272,7 +279,7 @@ class ChatPromptBuilder(
      */
     private fun buildFixedMessages(
         context: PromptBuildContext,
-        worldInfo: WorldBookActivationResult
+        worldInfo: WorldBookActivationResult,
     ): PromptSections {
         val beforeHistory = mutableListOf<PromptPiece>()
         val summaryPosition = readSummaryInjectionPosition()
@@ -284,11 +291,11 @@ class ChatPromptBuilder(
         // 扮演用户或续写时继续注入角色卡覆盖提示，会让同一请求同时出现两个互斥目标。
         if (context.generationMode.usesCharacterReplyTask()) {
             beforeHistory += PromptPiece(
-                LLMMessageRole.System,
-                readCharacterMainPrompt(context),
-                PromptSource(PromptSourceKind.MainPrompt),
-                PRIORITY_ESSENTIAL,
-                false
+                role = LLMMessageRole.System,
+                content = readCharacterMainPrompt(context),
+                source = PromptSource(PromptSourceKind.MainPrompt),
+                retentionPriority = PRIORITY_ESSENTIAL,
+                canDrop = false,
             )
         }
         // 摘要注入：位于主提示词之后
@@ -296,57 +303,65 @@ class ChatPromptBuilder(
             buildSummaryPiece(context)?.let { beforeHistory += it }
         }
         // 插入 beforeCharacter 世界书条目
-        worldInfo.beforeCharacter.forEach {
+        worldInfo.beforeCharacter.forEach { entry ->
             beforeHistory += PromptPiece(
                 role = LLMMessageRole.System,
-                content = formatWorldInfo(it.content),
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
+                content = formatWorldInfo(entry.content),
+                source = PromptSource(
+                    kind = PromptSourceKind.WorldInfo,
+                    detail = entry.name,
+                    referenceId = entry.id
+                ),
                 retentionPriority = PRIORITY_ESSENTIAL,
-                canDrop = !it.ignoreBudget
+                canDrop = !entry.ignoreBudget,
             )
         }
         // 插入用户设定、角色定义、性格与场景
         beforeHistory += PromptPiece.required(
-            LLMMessageRole.System,
-            renderUserPersonaTemplate(
+            role = LLMMessageRole.System,
+            content = renderUserPersonaTemplate(
                 template = mPreferences.userPersonaFormat,
                 userName = context.userName,
                 userDescription = context.userDescription,
-                characterName = context.character.name
+                characterName = context.character.name,
             ),
-            PromptSourceKind.UserPersona
+            sourceKind = PromptSourceKind.UserPersona,
         )
         beforeHistory += PromptPiece.required(
-            LLMMessageRole.System,
-            context.character.description,
-            PromptSourceKind.CharacterDescription
+            role = LLMMessageRole.System,
+            content = context.character.description,
+            sourceKind = PromptSourceKind.CharacterDescription,
         )
         beforeHistory += PromptPiece.required(
-            LLMMessageRole.System,
-            formatPersonality(context.character.personality),
-            PromptSourceKind.CharacterPersonality
+            role = LLMMessageRole.System,
+            content = formatPersonality(context.character.personality),
+            sourceKind = PromptSourceKind.CharacterPersonality,
         )
         beforeHistory += PromptPiece.required(
-            LLMMessageRole.System,
-            formatScenario(context.character.scenario),
-            PromptSourceKind.Scenario
+            role = LLMMessageRole.System,
+            content = formatScenario(context.character.scenario),
+            sourceKind = PromptSourceKind.Scenario,
         )
         // 插入辅助提示词（低保留优先级）
         beforeHistory += PromptPiece(
-            LLMMessageRole.System,
-            mPreferences.auxiliaryPrompt,
-            PromptSource(PromptSourceKind.AuxiliaryPrompt),
-            PRIORITY_AUXILIARY,
-            true
+            role = LLMMessageRole.System,
+            content = mPreferences.auxiliaryPrompt,
+            source = PromptSource(PromptSourceKind.AuxiliaryPrompt),
+            retentionPriority = PRIORITY_AUXILIARY,
+            canDrop = true,
         )
         // 插入 afterCharacter 世界书条目
-        worldInfo.afterCharacter.forEach {
+        worldInfo.afterCharacter.forEach { entry ->
             beforeHistory += PromptPiece(
                 role = LLMMessageRole.System,
-                content = formatWorldInfo(it.content),
-                source = PromptSource(PromptSourceKind.WorldInfo, it.name, it.id),
+                content = formatWorldInfo(entry.content),
+                source = PromptSource(
+                    kind = PromptSourceKind.WorldInfo,
+                    detail = entry.name,
+                    referenceId = entry.id
+                ),
                 retentionPriority = PRIORITY_ESSENTIAL,
-                canDrop = !it.ignoreBudget
+                canDrop = !entry.ignoreBudget,
             )
         }
 
@@ -355,18 +370,18 @@ class ChatPromptBuilder(
             // PHI 与主提示词共同约束“下一条角色回复”，特殊生成模式必须由自己的任务提示接管。
             if (context.generationMode.usesCharacterReplyTask()) {
                 add(
-                    PromptPiece.required(
+                    element = PromptPiece.required(
                         role = LLMMessageRole.User,
                         content = readCharacterPostHistoryInstructions(context),
-                        sourceKind = PromptSourceKind.PostHistoryInstructions
-                    )
+                        sourceKind = PromptSourceKind.PostHistoryInstructions,
+                    ),
                 )
             }
         }
 
         return PromptSections(
             beforeHistory = beforeHistory.filter { it.content.isNotBlank() },
-            afterHistory = afterHistory.filter { it.content.isNotBlank() }
+            afterHistory = afterHistory.filter { it.content.isNotBlank() },
         )
     }
 
@@ -381,21 +396,21 @@ class ChatPromptBuilder(
      */
     private fun buildInChatPieces(
         context: PromptBuildContext,
-        worldInfo: WorldBookActivationResult
+        worldInfo: WorldBookActivationResult,
     ): List<InChatPromptPiece> {
         val pieces = mutableListOf<InChatPromptPiece>()
         // 注入群聊/单聊内嵌摘要（InChat 模式）
         if (readSummaryInjectionPosition() == SummaryInjectionPosition.InChat) {
-            buildSummaryPiece(context)?.let {
+            buildSummaryPiece(context)?.let { piece ->
                 pieces += InChatPromptPiece(
                     role = readSummaryInjectionRole().toMessageRole(),
-                    content = it.content,
-                    source = it.source,
+                    content = piece.content,
+                    source = piece.source,
                     retentionPriority = PRIORITY_ESSENTIAL,
                     canDrop = false,
                     depth = readSummaryInjectionDepth(),
                     order = SUMMARY_ORDER,
-                    tieBreaker = Long.MIN_VALUE
+                    tieBreaker = Long.MIN_VALUE,
                 )
             }
         }
@@ -404,25 +419,29 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = entry.content,
-                source = PromptSource(PromptSourceKind.WorldInfo, entry.name, entry.id),
+                source = PromptSource(
+                    kind = PromptSourceKind.WorldInfo,
+                    detail = entry.name,
+                    referenceId = entry.id
+                ),
                 retentionPriority = PRIORITY_ESSENTIAL,
                 canDrop = !entry.ignoreBudget,
                 depth = USER_NOTE_DEPTH,
                 order = AN_TOP_ORDER,
-                tieBreaker = index.toLong()
+                tieBreaker = index.toLong(),
             )
         }
         // 注入当前会话的作者注释（User Note）
-        context.session.userNote.takeIf { it.isNotBlank() }?.let {
+        context.session.userNote.takeIf { it.isNotBlank() }?.let { text ->
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
-                content = it,
+                content = text,
                 source = PromptSource(PromptSourceKind.UserNote),
                 retentionPriority = PRIORITY_USER_NOTE,
                 canDrop = true,
                 depth = USER_NOTE_DEPTH,
                 order = USER_NOTE_ORDER,
-                tieBreaker = Long.MIN_VALUE
+                tieBreaker = Long.MIN_VALUE,
             )
         }
         // 注入 AN Bottom 世界书条目
@@ -430,45 +449,53 @@ class ChatPromptBuilder(
             pieces += InChatPromptPiece(
                 role = LLMMessageRole.System,
                 content = entry.content,
-                source = PromptSource(PromptSourceKind.WorldInfo, entry.name, entry.id),
+                source = PromptSource(
+                    kind = PromptSourceKind.WorldInfo,
+                    detail = entry.name,
+                    referenceId = entry.id
+                ),
                 retentionPriority = PRIORITY_ESSENTIAL,
                 canDrop = !entry.ignoreBudget,
                 depth = USER_NOTE_DEPTH,
                 order = AN_BOTTOM_ORDER,
-                tieBreaker = index.toLong()
+                tieBreaker = index.toLong(),
             )
         }
         // Character Note 通常直接约束角色输出，在扮演用户和续写时与本轮任务存在同类冲突。
         if (context.generationMode.usesCharacterReplyTask()) {
-            context.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let {
+            context.character.depthPromptPrompt.takeIf { it.isNotBlank() }?.let { text ->
                 pieces += InChatPromptPiece(
                     role = context.character.depthPromptRole.toMessageRole(),
-                    content = it,
+                    content = text,
                     source = PromptSource(PromptSourceKind.CharacterNote),
                     retentionPriority = PRIORITY_CHARACTER_NOTE,
                     canDrop = true,
                     depth = context.character.depthPromptDepth.coerceAtLeast(0),
                     order = CHARACTER_NOTE_ORDER,
-                    tieBreaker = Long.MIN_VALUE + 1
+                    tieBreaker = Long.MIN_VALUE + 1,
                 )
             }
         }
         // 注入 At Depth 泛型深度世界书分组条目
         worldInfo.depthEntries.forEach { group ->
-            val sources = group.entries.map {
-                PromptSource(PromptSourceKind.WorldInfo, it.name, it.id)
+            val sources = group.entries.map { entry ->
+                PromptSource(
+                    kind = PromptSourceKind.WorldInfo,
+                    detail = entry.name,
+                    referenceId = entry.id
+                )
             }
             val first = group.entries.firstOrNull() ?: return@forEach
             pieces += InChatPromptPiece(
                 role = group.role,
-                content = group.entries.joinToString("\n") { it.content },
+                content = group.entries.joinToString("\n") { entry -> entry.content },
                 source = sources.first(),
                 retentionPriority = PRIORITY_ESSENTIAL,
-                canDrop = group.entries.none { it.ignoreBudget },
+                canDrop = group.entries.none { entry -> entry.ignoreBudget },
                 depth = group.depth.coerceAtLeast(0),
                 order = first.order,
                 tieBreaker = first.id,
-                sources = sources
+                sources = sources,
             )
         }
         return pieces
@@ -487,15 +514,15 @@ class ChatPromptBuilder(
     private fun buildExamplePieces(
         context: PromptBuildContext,
         worldInfo: WorldBookActivationResult,
-        behavior: ExampleDialogueBehavior
+        behavior: ExampleDialogueBehavior,
     ): List<PromptPiece> {
         if (behavior == ExampleDialogueBehavior.Disabled) return emptyList()
         val retentionPriority = PromptRetentionPolicy.examplePriority(behavior)
         // 示例对话以 <START> 分块，每个块作为独立的上下文预算单元。
         val blocks = buildList {
-            worldInfo.exampleBefore.forEach { add(it.content) }
+            worldInfo.exampleBefore.forEach { entry -> add(entry.content) }
             addAll(parseExampleBlocks(context.character.examplesOfDialogue))
-            worldInfo.exampleAfter.forEach { add(it.content) }
+            worldInfo.exampleAfter.forEach { entry -> add(entry.content) }
         }
         return blocks
             .filter { it.isNotBlank() }
@@ -504,40 +531,40 @@ class ChatPromptBuilder(
                     val marker = mPreferences.newExampleChatPrompt
                     if (marker.isNotBlank()) {
                         add(
-                            PromptPiece(
-                                LLMMessageRole.System,
-                                marker,
-                                PromptSource(PromptSourceKind.ExampleDialogue),
-                                retentionPriority,
-                                true
-                            )
+                            element = PromptPiece(
+                                role = LLMMessageRole.System,
+                                content = marker,
+                                source = PromptSource(PromptSourceKind.ExampleDialogue),
+                                retentionPriority = retentionPriority,
+                                canDrop = true,
+                            ),
                         )
                     }
                     val parsed = parseExampleMessages(
                         block = block,
                         userName = context.userName,
-                        characterName = context.character.name
+                        characterName = context.character.name,
                     )
                     if (parsed.isEmpty()) {
                         add(
-                            PromptPiece(
-                                LLMMessageRole.System,
-                                block,
-                                PromptSource(PromptSourceKind.ExampleDialogue),
-                                retentionPriority,
-                                true
-                            )
+                            element = PromptPiece(
+                                role = LLMMessageRole.System,
+                                content = block,
+                                source = PromptSource(PromptSourceKind.ExampleDialogue),
+                                retentionPriority = retentionPriority,
+                                canDrop = true,
+                            ),
                         )
                     } else {
                         parsed.forEach { message ->
                             add(
-                                PromptPiece(
-                                    message.role,
-                                    message.content,
-                                    PromptSource(PromptSourceKind.ExampleDialogue),
-                                    retentionPriority,
-                                    true
-                                )
+                                element = PromptPiece(
+                                    role = message.role,
+                                    content = message.content,
+                                    source = PromptSource(PromptSourceKind.ExampleDialogue),
+                                    retentionPriority = retentionPriority,
+                                    canDrop = true,
+                                ),
                             )
                         }
                     }
@@ -556,17 +583,17 @@ class ChatPromptBuilder(
     private fun buildNewChatPiece(
         context: PromptBuildContext,
         history: String,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): PromptMessageDraft? {
         if (context.messages.isEmpty() && context.currentUserMessage.isNullOrBlank()) return null
         val marker = mPreferences.newChatPrompt
         if (marker.isBlank()) return null
         return PromptPiece(
-            LLMMessageRole.System,
-            marker,
-            PromptSource(PromptSourceKind.NewChatMarker),
-            PRIORITY_NEW_CHAT,
-            true
+            role = LLMMessageRole.System,
+            content = marker,
+            source = PromptSource(PromptSourceKind.NewChatMarker),
+            retentionPriority = PRIORITY_NEW_CHAT,
+            canDrop = true,
         )
             .resolve(context, history, outlets)
     }
@@ -589,43 +616,43 @@ class ChatPromptBuilder(
         context: PromptBuildContext,
         historyText: String,
         inChatPieces: List<InChatPromptPiece>,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): List<PromptMessageDraft> {
         val lastHistoryIndex = historyMessages.lastIndex
         val latestUserId = historyMessages.lastOrNull { it.source == ChatMessage.Source.User }?.id
         // 映射历史消息草稿，除最后一条外均允许在超出预算时被裁剪
         val chatMessages = historyMessages.mapIndexed { index, message ->
-            val hasImages = !context.messageImages[message.id].isNullOrEmpty() ||
-                !context.unavailableImages[message.id].isNullOrEmpty()
+            val hasImages = !context.messageImages[message.id].isNullOrEmpty()
+                || !context.unavailableImages[message.id].isNullOrEmpty()
             val protectsUserImages = hasImages && message.id == latestUserId
             message.toPromptDraft(
                 retentionPriority = PromptRetentionPolicy.HISTORY,
-                canDrop = index != lastHistoryIndex && !protectsUserImages
+                canDrop = index != lastHistoryIndex && !protectsUserImages,
             ).copy(
                 images = context.messageImages[message.id].orEmpty(),
-                unavailableImages = context.unavailableImages[message.id].orEmpty()
+                unavailableImages = context.unavailableImages[message.id].orEmpty(),
             )
         }.toMutableList()
         // 若存在当前用户正在输入的消息，执行正则替换并作为末尾 User 消息加入
-        context.currentUserMessage?.takeIf { it.isNotBlank() }?.let {
+        context.currentUserMessage?.takeIf { it.isNotBlank() }?.let { textValue ->
             val regexResult = mRegexProcessor.applyPrompt(
-                input = it,
+                input = textValue,
                 source = RegexMessageSource.User,
                 scripts = context.regexScripts,
                 macros = RegexScriptRuntime.macros(
-                    context.userName,
-                    context.character.name,
-                    context.userDescription,
-                    context.character.scenario
+                    userName = context.userName,
+                    characterName = context.character.name,
+                    userDescription = context.userDescription,
+                    scenario = context.character.scenario,
                 ),
-                depth = 0
+                depth = 0,
             )
             chatMessages += PromptMessageDraft(
                 role = LLMMessageRole.User,
-                content = resolve(regexResult.text, context, historyText, it, outlets),
+                content = resolve(regexResult.text, context, historyText, textValue, outlets),
                 source = PromptSource(PromptSourceKind.ChatHistory, "Current user message"),
                 retentionPriority = PRIORITY_ESSENTIAL,
-                canDrop = false
+                canDrop = false,
             )
         }
         if (chatMessages.isEmpty() || inChatPieces.isEmpty()) return chatMessages
@@ -639,17 +666,17 @@ class ChatPromptBuilder(
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, pieces) ->
                 pieces.sortedWith(
-                    compareBy<Pair<InChatPromptPiece, PromptMessageDraft>> {
-                        it.first.order
-                    }.thenBy { it.first.tieBreaker }
+                    comparator = compareBy<Pair<InChatPromptPiece, PromptMessageDraft>> { pair ->
+                        pair.first.order
+                    }.thenBy { pair -> pair.first.tieBreaker },
                 )
-                    .map { it.second }
+                    .map { pair -> pair.second }
             }
 
         // 将注入项插入聊天历史对应相对位置
         return buildList {
             for (index in 0..chatMessages.size) {
-                injections[index]?.let { addAll(it) }
+                injections[index]?.let { items -> addAll(items) }
                 if (index < chatMessages.size) add(chatMessages[index])
             }
         }
@@ -661,7 +688,10 @@ class ChatPromptBuilder(
      * depth=0 表示追加到聊天末尾；depth=1 表示插入到最后一条消息之前，以此类推。
      */
     private fun InChatPromptPiece.insertionIndex(chatMessages: List<PromptMessageDraft>): Int {
-        return (chatMessages.size - depth).coerceIn(0, chatMessages.size)
+        return (chatMessages.size - depth).coerceIn(
+            minimumValue = 0,
+            maximumValue = chatMessages.size
+        )
     }
 
     /**
@@ -677,15 +707,17 @@ class ChatPromptBuilder(
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> null
+
             PromptGenerationMode.Continue -> PromptPiece.required(
-                LLMMessageRole.User,
-                mPreferences.continueNudgePrompt,
-                PromptSourceKind.ContinueNudge
+                role = LLMMessageRole.User,
+                content = mPreferences.continueNudgePrompt,
+                sourceKind = PromptSourceKind.ContinueNudge,
             )
+
             PromptGenerationMode.Impersonate -> PromptPiece.required(
-                LLMMessageRole.User,
-                mPreferences.impersonationPrompt,
-                PromptSourceKind.ImpersonationNudge
+                role = LLMMessageRole.User,
+                content = mPreferences.impersonationPrompt,
+                sourceKind = PromptSourceKind.ImpersonationNudge,
             )
         }?.takeIf { it.content.isNotBlank() }
     }
@@ -706,14 +738,14 @@ class ChatPromptBuilder(
         drafts: List<PromptMessageDraft>,
         context: PromptBuildContext,
         history: String,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): List<PromptMessageDraft> {
         if (!context.generationMode.usesCharacterReplyTask()) return drafts
         if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
         val nudge = PromptPiece.required(
             role = LLMMessageRole.User,
             content = DEFAULT_CHARACTER_REPLY_NUDGE,
-            sourceKind = PromptSourceKind.CharacterReplyNudge
+            sourceKind = PromptSourceKind.CharacterReplyNudge,
         ).resolve(context, history, outlets)
         return drafts + nudge
     }
@@ -723,6 +755,7 @@ class ChatPromptBuilder(
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> mPreferences.mainPrompt
+
             PromptGenerationMode.Continue -> mPreferences.continueNudgePrompt
             PromptGenerationMode.Impersonate -> mPreferences.impersonationPrompt
         }
@@ -742,6 +775,7 @@ class ChatPromptBuilder(
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> PromptSourceKind.MainPrompt
+
             PromptGenerationMode.Continue -> PromptSourceKind.ContinueNudge
             PromptGenerationMode.Impersonate -> PromptSourceKind.ImpersonationNudge
         }
@@ -751,7 +785,7 @@ class ChatPromptBuilder(
     private fun PromptPiece.resolve(
         context: PromptBuildContext,
         history: String,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): PromptMessageDraft {
         val resolved = resolve(content, context, history, original, outlets).trim()
         return PromptMessageDraft(
@@ -759,7 +793,7 @@ class ChatPromptBuilder(
             content = resolved,
             source = source,
             retentionPriority = retentionPriority,
-            canDrop = canDrop
+            canDrop = canDrop,
         )
     }
 
@@ -767,7 +801,7 @@ class ChatPromptBuilder(
     private fun InChatPromptPiece.resolve(
         context: PromptBuildContext,
         history: String,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): PromptMessageDraft {
         val resolved = resolve(content, context, history, content, outlets).trim()
         return PromptMessageDraft(
@@ -776,7 +810,7 @@ class ChatPromptBuilder(
             source = source,
             retentionPriority = retentionPriority,
             canDrop = canDrop,
-            sources = sources
+            sources = sources,
         )
     }
 
@@ -786,7 +820,7 @@ class ChatPromptBuilder(
         context: PromptBuildContext,
         history: String,
         original: String,
-        outlets: Map<String, String>
+        outlets: Map<String, String>,
     ): String {
         return mMacroResolver.resolve(text, context, history, original, outlets)
     }
@@ -794,7 +828,7 @@ class ChatPromptBuilder(
     /** 将数据库聊天消息实体转换为 Prompt 消息草稿对象。 */
     private fun ChatMessage.toPromptDraft(
         retentionPriority: Int,
-        canDrop: Boolean
+        canDrop: Boolean,
     ): PromptMessageDraft {
         val role = when (source) {
             ChatMessage.Source.User -> LLMMessageRole.User
@@ -805,9 +839,13 @@ class ChatPromptBuilder(
         return PromptMessageDraft(
             role = role,
             content = content,
-            source = PromptSource(PromptSourceKind.ChatHistory, "Message #$id", id),
+            source = PromptSource(
+                kind = PromptSourceKind.ChatHistory,
+                detail = "Message #$id",
+                referenceId = id
+            ),
             retentionPriority = retentionPriority,
-            canDrop = canDrop
+            canDrop = canDrop,
         )
     }
 
@@ -837,9 +875,7 @@ class ChatPromptBuilder(
 
     /** 读取摘要注入位置配置。 */
     private fun readSummaryInjectionPosition(): SummaryInjectionPosition {
-        return SummaryInjectionPosition.fromPersistedValue(
-            mPreferences.summaryInjectionPosition
-        )
+        return SummaryInjectionPosition.fromPersistedValue(mPreferences.summaryInjectionPosition)
     }
 
     /** 读取摘要在 InChat 模式下的注入深度。 */
@@ -849,24 +885,26 @@ class ChatPromptBuilder(
 
     /** 读取摘要注入使用的消息角色。 */
     private fun readSummaryInjectionRole(): SummaryInjectionRole {
-        return SummaryInjectionRole.fromPersistedValue(
-            mPreferences.summaryInjectionRole
-        )
+        return SummaryInjectionRole.fromPersistedValue(mPreferences.summaryInjectionRole)
     }
 
     /** 根据模板与当前摘要内容构建摘要消息片段。 */
     private fun buildSummaryPiece(context: PromptBuildContext): PromptPiece? {
         if (context.summary.isBlank()) return null
         val template = mPreferences.summaryInjectionTemplate
-        val content = if (template.contains("{{summary}}", ignoreCase = true)) {
-            template.replace("{{summary}}", context.summary, ignoreCase = true)
+        val content = if (template.contains(other = "{{summary}}", ignoreCase = true)) {
+            template.replace(
+                oldValue = "{{summary}}",
+                newValue = context.summary,
+                ignoreCase = true
+            )
         } else {
             listOf(template, context.summary).filter { it.isNotBlank() }.joinToString("\n")
         }
         return PromptPiece.required(
             role = LLMMessageRole.System,
             content = content,
-            sourceKind = PromptSourceKind.Summary
+            sourceKind = PromptSourceKind.Summary,
         )
     }
 
@@ -897,7 +935,11 @@ class ChatPromptBuilder(
         val original = mPreferences.mainPrompt
         val override = context.character.systemPrompt.trim()
         val systemPrompt = override.ifBlank { original }
-        return mMacroResolver.resolve(systemPrompt, context, original = original)
+        return mMacroResolver.resolve(
+            template = systemPrompt,
+            context = context,
+            original = original
+        )
     }
 
     /** 读取并解析角色卡特定覆盖或全局的历史后指令。 */
@@ -905,7 +947,11 @@ class ChatPromptBuilder(
         val original = mPreferences.postHistoryInstructions
         val override = context.character.postHistoryInstructions.trim()
         val instructions = override.ifBlank { original }
-        return mMacroResolver.resolve(instructions, context, original = original)
+        return mMacroResolver.resolve(
+            template = instructions,
+            context = context,
+            original = original
+        )
     }
 
     /** 包含历史前与历史后固定系统消息的分区容器。 */
@@ -936,14 +982,14 @@ class ChatPromptBuilder(
             fun required(
                 role: LLMMessageRole,
                 content: String,
-                sourceKind: PromptSourceKind
+                sourceKind: PromptSourceKind,
             ): PromptPiece {
                 return PromptPiece(
                     role = role,
                     content = content,
                     source = PromptSource(sourceKind),
                     retentionPriority = PRIORITY_ESSENTIAL,
-                    canDrop = false
+                    canDrop = false,
                 )
             }
         }
@@ -974,26 +1020,37 @@ class ChatPromptBuilder(
     private companion object {
         /** 辅助提示词（Auxiliary Prompt）的上下文保留优先级。 */
         const val PRIORITY_AUXILIARY = 20
+
         /** 新对话标记提示词（New Chat Marker）的上下文保留优先级。 */
         const val PRIORITY_NEW_CHAT = 30
+
         /** 用户便签（User Note / AN）的上下文保留优先级。 */
         const val PRIORITY_USER_NOTE = 300
+
         /** 角色深度提示（Character Note / Depth Prompt）的上下文保留优先级。 */
         const val PRIORITY_CHARACTER_NOTE = 310
+
         /** 核心关键内容（如预算内世界书、摘要等）的上下文保留优先级。 */
         const val PRIORITY_ESSENTIAL = 1_000
+
         /** 用户便签（User Note / AN）默认插入的聊天历史深度（倒数第 4 条）。 */
         const val USER_NOTE_DEPTH = 4
+
         /** 摘要在同一深度插入时的内部排序序号（极小值保证排在最前）。 */
         const val SUMMARY_ORDER = Int.MIN_VALUE
+
         /** AN Top 世界书条目在同一深度插入时的内部排序序号。 */
         const val AN_TOP_ORDER = Int.MIN_VALUE + 1
+
         /** 用户便签在同一深度插入时的内部排序序号。 */
         const val USER_NOTE_ORDER = Int.MIN_VALUE + 2
+
         /** AN Bottom 世界书条目在同一深度插入时的内部排序序号。 */
         const val AN_BOTTOM_ORDER = Int.MIN_VALUE + 3
+
         /** 角色深度提示在同一深度插入时的内部排序序号。 */
         const val CHARACTER_NOTE_ORDER = Int.MIN_VALUE + 4
+
         /** 兜底的角色回复触发引导词，当未开启指定 Nudge 时确保 Prompt 末尾由 User 轮次触发角色生成。 */
         const val DEFAULT_CHARACTER_REPLY_NUDGE = "[Write {{char}}'s next reply.]"
     }
@@ -1021,7 +1078,7 @@ private fun Int.toMessageRole(): LLMMessageRole {
 /** 解析示例对话原始字符串为按 `<START>` 划分的消息块列表。 */
 private fun parseExampleBlocks(examples: String): List<String> {
     if (examples.isBlank() || examples.trim() == "<START>") return emptyList()
-    val normalized = if (examples.trimStart().startsWith("<START>", ignoreCase = true)) {
+    val normalized = if (examples.trimStart().startsWith(prefix = "<START>", ignoreCase = true)) {
         examples.trim()
     } else {
         "<START>\n${examples.trim()}"

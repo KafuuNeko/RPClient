@@ -13,9 +13,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -63,7 +63,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,7 +88,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.CredentialEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
@@ -122,11 +120,8 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
@@ -136,18 +131,28 @@ import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
+import kotlin.math.roundToInt
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 模型配置创建与编辑页 Compose 入口。 */
 @Composable
 fun LLMProviderEditLayout(
     uiState: LLMProviderEditUiState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is LLMProviderEditUiState.Normal) { LLMProviderEditUiIntent.Back.emit() }
+    BackHandler(
+        enabled = uiState is LLMProviderEditUiState.Normal,
+        onBack = { LLMProviderEditUiIntent.Back.emit() })
     when (uiState) {
         LLMProviderEditUiState.None -> Unit
-        is LLMProviderEditUiState.Finished -> LLMProviderEditLayout(uiState.previous) {}
+        is LLMProviderEditUiState.Finished -> LLMProviderEditLayout(
+            uiState = uiState.previous,
+            emit = {})
+
         is LLMProviderEditUiState.Normal -> {
             LLMProviderEditNormal(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
@@ -158,12 +163,12 @@ fun LLMProviderEditLayout(
 @Composable
 private fun LLMProviderEditNormal(
     state: LLMProviderEditUiState.Normal,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(pageCanvasColor())
+            .background(pageCanvasColor()),
     ) {
         AppTopBar(
             title = if (state.mode == LLMProviderEditMode.Create) {
@@ -174,21 +179,19 @@ private fun LLMProviderEditNormal(
             onBack = { LLMProviderEditUiIntent.Back.emit() },
             actions = {
                 TopBarSaveButton(state, emit)
-            }
+            },
         )
         RpLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                ),
+                .windowInsetsPadding(insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 14.dp,
                 end = 18.dp,
-                bottom = 32.dp
+                bottom = 32.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (state.mode == LLMProviderEditMode.Create) {
                 item {
@@ -197,18 +200,24 @@ private fun LLMProviderEditNormal(
                         selectedBaseUrl = state.form.baseUrl,
                         onSelectPreset = { preset ->
                             LLMProviderEditUiIntent.ApplyPresetTemplate(preset).emit()
-                        }
+                        },
                     )
                 }
             }
-            item { BasicPanel(state.form, state.modelCatalogState, emit) }
+            item {
+                BasicPanel(
+                    form = state.form,
+                    modelCatalogState = state.modelCatalogState,
+                    emit = emit
+                )
+            }
             item { ParameterPanel(state.form, emit) }
             item {
                 CollapsibleAdvancedPanel(
                     form = state.form,
                     requestExtensionsState = state.requestExtensionsState,
                     showImageTokenEstimator = state.showImageTokenEstimator,
-                    emit = emit
+                    emit = emit,
                 )
             }
             item { TestPanel(state.testState, emit) }
@@ -220,32 +229,32 @@ private fun LLMProviderEditNormal(
 private fun ProviderPresetsSection(
     selectedType: LLMProviderType,
     selectedBaseUrl: String,
-    onSelectPreset: (ProviderPreset) -> Unit
+    onSelectPreset: (ProviderPreset) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.quick_presets),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 2.dp)
+            contentPadding = PaddingValues(horizontal = 2.dp),
         ) {
             items(ProviderPreset.entries) { preset ->
-                val isSelected = preset.providerType == selectedType &&
-                        (preset == ProviderPreset.Custom || preset.baseUrl == selectedBaseUrl)
+                val isSelected = preset.providerType == selectedType
+                    && (preset == ProviderPreset.Custom || preset.baseUrl == selectedBaseUrl)
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectPreset(preset) },
                     label = {
                         Text(
-                            if (preset == ProviderPreset.Custom) {
+                            text = if (preset == ProviderPreset.Custom) {
                                 stringResource(R.string.preset_custom)
                             } else {
                                 preset.displayName
-                            }
+                            },
                         )
                     },
                     leadingIcon = {
@@ -261,7 +270,7 @@ private fun ProviderPresetsSection(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -269,8 +278,8 @@ private fun ProviderPresetsSection(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
                             alpha = 0.7f
                         ),
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
                 )
             }
         }
@@ -281,18 +290,20 @@ private fun ProviderPresetsSection(
 private fun BasicPanel(
     form: LLMProviderEditForm,
     modelCatalogState: LLMProviderEditModelCatalogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     Panel {
         RpSectionHeader(title = stringResource(R.string.basic_info))
         FormTextField(
-            stringResource(R.string.name),
-            form.name
-        ) { LLMProviderEditUiIntent.ChangeName(it).emit() }
+            label = stringResource(R.string.name),
+            value = form.name,
+            onChange = { text -> LLMProviderEditUiIntent.ChangeName(text).emit() },
+        )
         FormTextField(
-            stringResource(R.string.base_url),
-            form.baseUrl
-        ) { LLMProviderEditUiIntent.ChangeBaseUrl(it).emit() }
+            label = stringResource(R.string.base_url),
+            value = form.baseUrl,
+            onChange = { text -> LLMProviderEditUiIntent.ChangeBaseUrl(text).emit() },
+        )
         ModernCredentialControl(
             title = stringResource(R.string.api_key),
             icon = Icons.Rounded.Key,
@@ -300,32 +311,41 @@ private fun BasicPanel(
             editMode = form.apiKeyEditMode,
             onEdit = { LLMProviderEditUiIntent.ShowApiKeyEditor.emit() },
             onClear = { LLMProviderEditUiIntent.ClearApiKey.emit() },
-            onKeepExisting = { LLMProviderEditUiIntent.KeepExistingApiKey.emit() }
+            onKeepExisting = { LLMProviderEditUiIntent.KeepExistingApiKey.emit() },
         )
         ModelField(
             value = form.model,
             catalogState = modelCatalogState,
-            emit = emit
+            emit = emit,
         )
         ImageInputCapabilityField(
             selected = form.imageInputSetting,
-            onSelect = { LLMProviderEditUiIntent.ChangeImageInput(it).emit() }
+            onSelect = { imageInputSetting ->
+                LLMProviderEditUiIntent.ChangeImageInput(
+                    imageInputSetting
+                ).emit()
+            },
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.enabled), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    stringResource(R.string.enabled_desc),
+                    text = stringResource(R.string.enabled),
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = stringResource(R.string.enabled_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
             Switch(
                 checked = form.isEnabled,
-                onCheckedChange = { LLMProviderEditUiIntent.ToggleEnabled(it).emit() }
+                onCheckedChange = { enabled ->
+                    LLMProviderEditUiIntent.ToggleEnabled(enabled).emit()
+                },
             )
         }
     }
@@ -334,33 +354,32 @@ private fun BasicPanel(
 @Composable
 private fun ImageInputCapabilityField(
     selected: ImageInputSetting,
-    onSelect: (ImageInputSetting) -> Unit
+    onSelect: (ImageInputSetting) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.image_input_capability),
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleSmall,
         )
         // 选项整体换行，避免窄屏或长译文将单个词拆开。
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ImageInputSetting.entries.forEach { setting ->
                 FilterChip(
                     selected = selected == setting,
                     onClick = { onSelect(setting) },
                     label = {
+                        val capabilityLabelResId = when (setting) {
+                            ImageInputSetting.Auto -> R.string.image_capability_auto
+                            ImageInputSetting.Supported -> R.string.image_capability_supported
+                            ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
+                        }
                         Text(
-                            stringResource(
-                                when (setting) {
-                                    ImageInputSetting.Auto -> R.string.image_capability_auto
-                                    ImageInputSetting.Supported -> R.string.image_capability_supported
-                                    ImageInputSetting.Unsupported -> R.string.image_capability_unsupported
-                                }
-                            ),
+                            text = stringResource(id = capabilityLabelResId),
                             maxLines = 1,
-                            softWrap = false
+                            softWrap = false,
                         )
                     },
                     shape = RoundedCornerShape(10.dp),
@@ -368,15 +387,15 @@ private fun ImageInputCapabilityField(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
                             alpha = 0.7f
                         ),
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
                 )
             }
         }
         Text(
             text = stringResource(R.string.image_capability_hint),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
         )
     }
 }
@@ -385,14 +404,16 @@ private fun ImageInputCapabilityField(
 private fun ModelField(
     value: String,
     catalogState: LLMProviderEditModelCatalogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
             value = value,
-            onValueChange = {
-                LLMProviderEditUiIntent.ChangeModel(it).emit()
+            onValueChange = { text ->
+                LLMProviderEditUiIntent.ChangeModel(text).emit()
             },
             label = { Text(stringResource(R.string.model_name)) },
             trailingIcon = {
@@ -404,7 +425,7 @@ private fun ModelField(
                         } else {
                             LLMProviderEditUiIntent.QueryModels.emit()
                         }
-                    }
+                    },
                 ) {
                     Icon(
                         imageVector = if (loading) {
@@ -413,16 +434,16 @@ private fun ModelField(
                             Icons.Rounded.Refresh
                         },
                         contentDescription = stringResource(
-                            if (loading) {
+                            id = if (loading) {
                                 R.string.cancel_model_query
                             } else {
                                 R.string.query_models
-                            }
-                        )
+                            },
+                        ),
                     )
                 }
             },
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
         )
         ModelCatalogSupportingView(catalogState, emit)
     }
@@ -431,7 +452,7 @@ private fun ModelField(
 @Composable
 private fun ModelCatalogSupportingView(
     state: LLMProviderEditModelCatalogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     when (state) {
         LLMProviderEditModelCatalogState.Idle -> {
@@ -439,7 +460,7 @@ private fun ModelCatalogSupportingView(
                 text = stringResource(R.string.model_manual_input_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
 
@@ -447,16 +468,16 @@ private fun ModelCatalogSupportingView(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = 4.dp),
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp
+                    strokeWidth = 2.dp,
                 )
                 Text(
                     text = stringResource(R.string.querying_models),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -467,47 +488,47 @@ private fun ModelCatalogSupportingView(
                     text = stringResource(R.string.no_available_models_returned),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp),
                 )
             } else {
                 AppSurface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                     border = BorderStroke(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { LLMProviderEditUiIntent.ShowModelPicker.emit() }
+                        .clickable(onClick = { LLMProviderEditUiIntent.ShowModelPicker.emit() }),
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.AutoAwesome,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Text(
                             text = stringResource(
                                 R.string.available_models_found,
-                                state.models.size
+                                state.models.size,
                             ),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         Icon(
                             imageVector = Icons.Rounded.Search,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
@@ -519,7 +540,7 @@ private fun ModelCatalogSupportingView(
                 text = modelCatalogFailureText(state.failure),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = 4.dp),
             )
         }
     }
@@ -536,7 +557,7 @@ private fun modelCatalogFailureText(failure: LLMModelCatalogFailure): String {
         LLMModelCatalogFailure.InvalidResponse -> stringResource(R.string.model_query_invalid_response)
         is LLMModelCatalogFailure.HttpFailure -> stringResource(
             R.string.generation_error_http,
-            failure.statusCode
+            failure.statusCode,
         )
 
         LLMModelCatalogFailure.Unknown -> stringResource(R.string.model_query_failed)
@@ -551,17 +572,20 @@ private fun ModernCredentialControl(
     editMode: CredentialEditMode,
     onEdit: () -> Unit,
     onClear: () -> Unit,
-    onKeepExisting: () -> Unit
+    onKeepExisting: () -> Unit,
 ) {
     AppSurface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-        modifier = Modifier.fillMaxWidth()
+        border = BorderStroke(
+            width = 0.6.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {
@@ -569,7 +593,7 @@ private fun ModernCredentialControl(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -577,45 +601,46 @@ private fun ModernCredentialControl(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
-            Text(
-                text = when (editMode) {
-                    CredentialEditMode.KeepExisting -> stringResource(
-                        if (hasExistingValue) {
-                            R.string.credential_keep_existing
-                        } else {
-                            R.string.credential_not_set
-                        }
-                    )
+            val credentialSummary = when (editMode) {
+                CredentialEditMode.KeepExisting -> stringResource(
+                    id = if (hasExistingValue) {
+                        R.string.credential_keep_existing
+                    } else {
+                        R.string.credential_not_set
+                    },
+                )
 
-                    CredentialEditMode.Replace -> stringResource(R.string.credential_replace_on_save)
-                    CredentialEditMode.Clear -> stringResource(R.string.credential_clear_on_save)
-                },
+                CredentialEditMode.Replace -> stringResource(R.string.credential_replace_on_save)
+                CredentialEditMode.Clear -> stringResource(R.string.credential_clear_on_save)
+            }
+            Text(
+                text = credentialSummary,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onEdit,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 ) {
                     Text(
-                        stringResource(
-                            if (hasExistingValue || editMode == CredentialEditMode.Replace) {
+                        text = stringResource(
+                            id = if (hasExistingValue || editMode == CredentialEditMode.Replace) {
                                 R.string.credential_replace
                             } else {
                                 R.string.credential_set
-                            }
-                        )
+                            },
+                        ),
                     )
                 }
                 if (hasExistingValue && editMode != CredentialEditMode.Clear) {
                     TextButton(onClick = onClear) {
                         Text(
-                            stringResource(R.string.credential_clear),
-                            color = MaterialTheme.colorScheme.error
+                            text = stringResource(R.string.credential_clear),
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
@@ -633,14 +658,14 @@ private fun ModernCredentialControl(
 @Composable
 private fun ParameterPanel(
     form: LLMProviderEditForm,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     Panel {
         RpSectionHeader(title = stringResource(R.string.generation_parameters))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             FormTextField(
                 label = stringResource(R.string.temperature),
@@ -648,7 +673,7 @@ private fun ParameterPanel(
                 modifier = Modifier.weight(1f),
                 enabled = form.sendTemperature,
                 keyboardType = KeyboardType.Decimal,
-                onChange = { LLMProviderEditUiIntent.ChangeTemperature(it).emit() }
+                onChange = { text -> LLMProviderEditUiIntent.ChangeTemperature(text).emit() },
             )
             FormTextField(
                 label = stringResource(R.string.top_p),
@@ -656,38 +681,40 @@ private fun ParameterPanel(
                 modifier = Modifier.weight(1f),
                 enabled = form.sendTopP,
                 keyboardType = KeyboardType.Decimal,
-                onChange = { LLMProviderEditUiIntent.ChangeTopP(it).emit() }
+                onChange = { text -> LLMProviderEditUiIntent.ChangeTopP(text).emit() },
             )
         }
 
         ParameterSwitchRow(
             title = stringResource(R.string.provider_send_temperature),
             checked = form.sendTemperature,
-            onCheckedChange = { LLMProviderEditUiIntent.ToggleSendTemperature(it).emit() }
+            onCheckedChange = { enabled ->
+                LLMProviderEditUiIntent.ToggleSendTemperature(enabled).emit()
+            },
         )
         ParameterSwitchRow(
             title = stringResource(R.string.provider_send_top_p),
             checked = form.sendTopP,
-            onCheckedChange = { LLMProviderEditUiIntent.ToggleSendTopP(it).emit() }
+            onCheckedChange = { enabled -> LLMProviderEditUiIntent.ToggleSendTopP(enabled).emit() },
         )
         // 推理模型可能忽略已勾选的采样开关，需要在参数旁说明实际发送行为。
         if (form.protocol == LLMProviderProtocol.OpenAIResponses) {
             Text(
                 text = stringResource(R.string.provider_responses_parameters_hint),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         TokenPresetField(
             label = stringResource(R.string.max_tokens),
             value = form.maxTokens,
-            onChange = { LLMProviderEditUiIntent.ChangeMaxTokens(it).emit() }
+            onChange = { text -> LLMProviderEditUiIntent.ChangeMaxTokens(text).emit() },
         )
         TokenPresetField(
             label = stringResource(R.string.context) + " " + stringResource(R.string.tokens),
             value = form.contextTokens,
-            onChange = { LLMProviderEditUiIntent.ChangeContextTokens(it).emit() }
+            onChange = { text -> LLMProviderEditUiIntent.ChangeContextTokens(text).emit() },
         )
     }
 }
@@ -697,7 +724,7 @@ private fun CollapsibleAdvancedPanel(
     form: LLMProviderEditForm,
     requestExtensionsState: LLMProviderEditRequestExtensionsState,
     showImageTokenEstimator: Boolean,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
 
@@ -705,109 +732,117 @@ private fun CollapsibleAdvancedPanel(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+            width = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable(onClick = { isExpanded = !isExpanded })
                     .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RpIconBubble(
                     icon = Icons.Rounded.Tune,
                     contentColor = MaterialTheme.colorScheme.primary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.advanced_settings),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         text = stringResource(R.string.advanced_settings_desc),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
                 }
                 Icon(
                     imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                exit = shrinkVertically() + fadeOut(),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 18.dp)
                         .padding(bottom = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
                     )
 
                     ProviderSystemPromptField(
                         value = form.systemPrompt,
-                        onChange = { LLMProviderEditUiIntent.ChangeSystemPrompt(it).emit() }
+                        onChange = { text ->
+                            LLMProviderEditUiIntent.ChangeSystemPrompt(text).emit()
+                        },
                     )
 
                     Text(
-                        stringResource(R.string.provider_type),
-                        style = MaterialTheme.typography.titleSmall
+                        text = stringResource(R.string.provider_type),
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     EnumChipRow(
                         values = LLMProviderType.entries,
                         selected = form.providerType,
-                        label = { it.name },
-                        onSelect = { LLMProviderEditUiIntent.ChangeProviderType(it).emit() }
+                        label = { llmProviderType -> llmProviderType.name },
+                        onSelect = { llmProviderType ->
+                            LLMProviderEditUiIntent.ChangeProviderType(
+                                llmProviderType
+                            ).emit()
+                        },
                     )
 
                     Text(
-                        stringResource(R.string.protocol),
-                        style = MaterialTheme.typography.titleSmall
+                        text = stringResource(R.string.protocol),
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     EnumChipRow(
                         values = LLMProviderProtocol.entries,
                         selected = form.protocol,
-                        label = {
-                            if (it == LLMProviderProtocol.OpenAIResponses) {
+                        label = { llmProviderProtocol ->
+                            if (llmProviderProtocol == LLMProviderProtocol.OpenAIResponses) {
                                 stringResource(R.string.protocol_openai_responses)
-                            } else it.name
+                            } else llmProviderProtocol.name
                         },
-                        onSelect = { LLMProviderEditUiIntent.ChangeProtocol(it).emit() }
+                        onSelect = { llmProviderProtocol ->
+                            LLMProviderEditUiIntent.ChangeProtocol(
+                                llmProviderProtocol
+                            ).emit()
+                        },
                     )
 
                     ParameterSwitchRow(
                         title = stringResource(R.string.provider_use_server_reported_usage),
                         checked = form.useServerReportedUsage,
-                        onCheckedChange = {
-                            LLMProviderEditUiIntent.ToggleUseServerReportedUsage(it).emit()
-                        }
+                        onCheckedChange = { enabled ->
+                            LLMProviderEditUiIntent.ToggleUseServerReportedUsage(enabled).emit()
+                        },
                     )
                     Text(
-                        text = stringResource(
-                            R.string.provider_use_server_reported_usage_description
-                        ),
+                        text = stringResource(R.string.provider_use_server_reported_usage_description),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     ModernCredentialControl(
@@ -816,14 +851,14 @@ private fun CollapsibleAdvancedPanel(
                         editMode = form.customHeadersEditMode,
                         onEdit = { LLMProviderEditUiIntent.ShowCustomHeadersEditor.emit() },
                         onClear = { LLMProviderEditUiIntent.ClearCustomHeaders.emit() },
-                        onKeepExisting = { LLMProviderEditUiIntent.KeepExistingCustomHeaders.emit() }
+                        onKeepExisting = { LLMProviderEditUiIntent.KeepExistingCustomHeaders.emit() },
                     )
 
                     if (form.customHeadersJson.isNotBlank() && form.customHeadersJson.trim() != "{}" && form.customHeadersEditMode != CredentialEditMode.Clear) {
                         JsonSyntaxHighlightPreview(
                             title = stringResource(R.string.custom_headers_preview),
                             jsonString = form.customHeadersJson,
-                            onEditClick = { LLMProviderEditUiIntent.ShowCustomHeadersEditor.emit() }
+                            onEditClick = { LLMProviderEditUiIntent.ShowCustomHeadersEditor.emit() },
                         )
                     }
 
@@ -831,31 +866,33 @@ private fun CollapsibleAdvancedPanel(
                         ParameterSwitchRow(
                             title = stringResource(R.string.openrouter_preferred_provider),
                             checked = requestExtensionsState.usesPreferredProvider,
-                            onCheckedChange = {
-                                LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider(it).emit()
-                            }
+                            onCheckedChange = { enabled ->
+                                LLMProviderEditUiIntent.ToggleOpenRouterPreferredProvider(enabled)
+                                    .emit()
+                            },
                         )
                         if (requestExtensionsState.usesPreferredProvider) {
                             FormTextField(
                                 label = stringResource(R.string.openrouter_provider_slug),
                                 value = requestExtensionsState.preferredProvider,
-                                onChange = {
-                                    LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider(it)
+                                onChange = { text ->
+                                    LLMProviderEditUiIntent.ChangeOpenRouterPreferredProvider(text)
                                         .emit()
-                                }
+                                },
                             )
                             ParameterSwitchRow(
                                 title = stringResource(R.string.openrouter_allow_fallbacks),
                                 checked = requestExtensionsState.allowFallbacks,
-                                onCheckedChange = {
-                                    LLMProviderEditUiIntent.ToggleOpenRouterFallbacks(it).emit()
-                                }
+                                onCheckedChange = { enabled ->
+                                    LLMProviderEditUiIntent.ToggleOpenRouterFallbacks(enabled)
+                                        .emit()
+                                },
                             )
                         }
                         Text(
                             text = stringResource(R.string.openrouter_session_affinity_note),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -864,51 +901,57 @@ private fun CollapsibleAdvancedPanel(
                         onEdit = { LLMProviderEditUiIntent.ShowRequestBodyPatchDialog.emit() },
                         onResetToDefault = {
                             LLMProviderEditUiIntent.ConfirmRequestBodyPatch("{}").emit()
-                        }
+                        },
                     )
 
                     if (form.requestBodyPatchJson.isNotBlank() && form.requestBodyPatchJson.trim() != "{}") {
                         JsonSyntaxHighlightPreview(
                             title = stringResource(R.string.request_body_patch_preview),
                             jsonString = form.requestBodyPatchJson,
-                            onEditClick = { LLMProviderEditUiIntent.ShowRequestBodyPatchDialog.emit() }
+                            onEditClick = { LLMProviderEditUiIntent.ShowRequestBodyPatchDialog.emit() },
                         )
                     }
 
                     LocalTokenEstimatorSelector(
                         selected = form.localTokenEstimatorType,
-                        onSelect = {
-                            LLMProviderEditUiIntent.SelectLocalTokenEstimator(it).emit()
-                        }
+                        onSelect = { localTokenEstimatorType ->
+                            LLMProviderEditUiIntent.SelectLocalTokenEstimator(
+                                localTokenEstimatorType
+                            ).emit()
+                        },
                     )
 
                     if (showImageTokenEstimator) {
                         ImageTokenEstimatorSelector(
                             selected = form.imageTokenEstimatorType,
-                            onSelect = {
-                                LLMProviderEditUiIntent.SelectImageTokenEstimator(it).emit()
-                            }
+                            onSelect = { imageTokenEstimatorType ->
+                                LLMProviderEditUiIntent.SelectImageTokenEstimator(
+                                    imageTokenEstimatorType
+                                ).emit()
+                            },
                         )
                     }
 
                     TokenEstimateReserveSlider(
                         value = form.tokenEstimateReservePercent,
-                        onChange = {
-                            LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent(it).emit()
-                        }
+                        onChange = { value ->
+                            LLMProviderEditUiIntent.ChangeTokenEstimateReservePercent(value).emit()
+                        },
                     )
 
                     Text(
                         text = stringResource(R.string.prompt_post_processing_provider_title),
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     EnumChipRow(
                         values = PromptPostProcessingMode.entries,
                         selected = form.promptPostProcessingMode,
-                        label = { it.name },
-                        onSelect = {
-                            LLMProviderEditUiIntent.SelectPostProcessingMode(it).emit()
-                        }
+                        label = { promptPostProcessingMode -> promptPostProcessingMode.name },
+                        onSelect = { promptPostProcessingMode ->
+                            LLMProviderEditUiIntent.SelectPostProcessingMode(
+                                promptPostProcessingMode
+                            ).emit()
+                        },
                     )
                 }
             }
@@ -920,7 +963,7 @@ private fun CollapsibleAdvancedPanel(
 @Composable
 private fun ImageTokenEstimatorSelector(
     selected: ImageTokenEstimatorType,
-    onSelect: (ImageTokenEstimatorType) -> Unit
+    onSelect: (ImageTokenEstimatorType) -> Unit,
 ) {
     val labels = mapOf(
         ImageTokenEstimatorType.Automatic to stringResource(R.string.local_token_estimator_automatic),
@@ -931,12 +974,12 @@ private fun ImageTokenEstimatorSelector(
         ImageTokenEstimatorType.OpenAiPatch54 to stringResource(R.string.image_estimator_patch_54),
         ImageTokenEstimatorType.ClaudeStandard to stringResource(R.string.image_estimator_claude_standard),
         ImageTokenEstimatorType.ClaudeHighResolution to stringResource(R.string.image_estimator_claude_high),
-        ImageTokenEstimatorType.Gemini3 to stringResource(R.string.image_estimator_gemini)
+        ImageTokenEstimatorType.Gemini3 to stringResource(R.string.image_estimator_gemini),
     )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.image_token_estimator),
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleSmall,
         )
         var expanded by remember { mutableStateOf(false) }
         Box {
@@ -946,46 +989,55 @@ private fun ImageTokenEstimatorSelector(
                 elevation = CardDefaults.outlinedCardElevation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = labels[selected] ?: selected.name,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     Icon(
                         imageVector = Icons.Rounded.ArrowDropDown,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.heightIn(max = 280.dp)
+                modifier = Modifier.heightIn(max = 280.dp),
             ) {
                 ImageTokenEstimatorType.entries.forEach { type ->
                     DropdownMenuItem(
                         text = {
                             Text(
-                                labels[type] ?: type.name,
-                                fontWeight = if (type == selected) FontWeight.Bold else FontWeight.Normal
+                                text = labels[type] ?: type.name,
+                                fontWeight = if (type == selected) FontWeight.Bold else FontWeight.Normal,
                             )
                         },
                         trailingIcon = if (type == selected) {
-                            { Icon(Icons.Rounded.Check, contentDescription = null, Modifier.size(18.dp)) }
+                            {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
                         } else null,
                         onClick = {
                             expanded = false
                             onSelect(type)
-                        }
+                        },
                     )
                 }
             }
@@ -996,7 +1048,7 @@ private fun ImageTokenEstimatorSelector(
 @Composable
 private fun LocalTokenEstimatorSelector(
     selected: LocalTokenEstimatorType,
-    onSelect: (LocalTokenEstimatorType) -> Unit
+    onSelect: (LocalTokenEstimatorType) -> Unit,
 ) {
     // 文案在可组合上下文预先解析，通用 Chip 组件只接收普通字符串映射。
     val labels = mapOf(
@@ -1005,23 +1057,23 @@ private fun LocalTokenEstimatorSelector(
         LocalTokenEstimatorType.Cl100kBase to
             stringResource(R.string.local_token_estimator_cl100k),
         LocalTokenEstimatorType.O200kBase to
-            stringResource(R.string.local_token_estimator_o200k)
+            stringResource(R.string.local_token_estimator_o200k),
     )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = stringResource(R.string.local_token_estimator),
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleSmall,
         )
         EnumChipRow(
             values = LocalTokenEstimatorType.entries,
             selected = selected,
-            label = { labels.getValue(it) },
-            onSelect = onSelect
+            label = { localTokenEstimatorType -> labels.getValue(localTokenEstimatorType) },
+            onSelect = onSelect,
         )
         Text(
             text = stringResource(R.string.local_token_estimator_description),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -1029,40 +1081,40 @@ private fun LocalTokenEstimatorSelector(
 @Composable
 private fun TokenEstimateReserveSlider(
     value: Int,
-    onChange: (Int) -> Unit
+    onChange: (Int) -> Unit,
 ) {
     val percent = value.coerceIn(
-        MIN_TOKEN_ESTIMATE_RESERVE_PERCENT,
-        MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
+        minimumValue = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT,
+        maximumValue = MAX_TOKEN_ESTIMATE_RESERVE_PERCENT,
     )
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.token_estimate_reserve),
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
             )
             Text(
                 text = "$percent%",
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
         }
         // 轨道跟随内容区底板，手柄保持清晰可拖动。
         Slider(
             colors = pageSliderColors(),
             value = percent.toFloat(),
-            onValueChange = { onChange(it.roundToInt()) },
+            onValueChange = { float -> onChange(float.roundToInt()) },
             valueRange = MIN_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat()..
-                    MAX_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat()
+                MAX_TOKEN_ESTIMATE_RESERVE_PERCENT.toFloat(),
         )
         Text(
             text = stringResource(R.string.token_estimate_reserve_description),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -1071,7 +1123,7 @@ private fun TokenEstimateReserveSlider(
 private fun TokenPresetField(
     label: String,
     value: String,
-    onChange: (String) -> Unit
+    onChange: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FormTextField(
@@ -1079,18 +1131,18 @@ private fun TokenPresetField(
             value = value,
             modifier = Modifier.fillMaxWidth(),
             keyboardType = KeyboardType.Number,
-            onChange = onChange
+            onChange = onChange,
         )
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(TokenPreset.entries) { preset ->
                 FilterChip(
                     selected = value.toIntOrNull() == preset.value,
                     onClick = { onChange(preset.value.toString()) },
                     label = { Text(preset.displayName) },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 )
             }
         }
@@ -1101,13 +1153,13 @@ private fun TokenPresetField(
 private fun ParameterSwitchRow(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = title,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
@@ -1116,55 +1168,61 @@ private fun ParameterSwitchRow(
 @Composable
 private fun TestPanel(
     testState: LLMProviderEditTestState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RpIconBubble(
-                icon = when (testState) {
-                    is LLMProviderEditTestState.Failed -> Icons.Rounded.ErrorOutline
-                    is LLMProviderEditTestState.Success -> Icons.Rounded.CloudDone
-                    else -> Icons.Rounded.PlayArrow
-                },
-                contentColor = when (testState) {
-                    is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.error
-                    is LLMProviderEditTestState.Success -> Color(0xFF10B981)
-                    else -> MaterialTheme.colorScheme.primary
-                },
-                containerColor = when (testState) {
-                    is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.errorContainer.copy(
-                        alpha = 0.45f
-                    )
+            val testStatusIcon = when (testState) {
+                is LLMProviderEditTestState.Failed -> Icons.Rounded.ErrorOutline
+                is LLMProviderEditTestState.Success -> Icons.Rounded.CloudDone
+                else -> Icons.Rounded.PlayArrow
+            }
+            val testStatusColor = when (testState) {
+                is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.error
+                is LLMProviderEditTestState.Success -> Color(0xFF10B981)
+                else -> MaterialTheme.colorScheme.primary
+            }
+            val testStatusContainerColor = when (testState) {
+                is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.errorContainer.copy(
+                    alpha = 0.45f
+                )
 
-                    is LLMProviderEditTestState.Success -> Color(0xFF10B981).copy(alpha = 0.15f)
-                    else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                }
+                is LLMProviderEditTestState.Success -> Color(0xFF10B981).copy(alpha = 0.15f)
+                else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+            }
+            RpIconBubble(
+                icon = testStatusIcon,
+                contentColor = testStatusColor,
+                containerColor = testStatusContainerColor,
             )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    stringResource(R.string.model_test),
+                    text = stringResource(R.string.model_test),
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
+                val testStatusText = when (testState) {
+                    LLMProviderEditTestState.None -> stringResource(R.string.send_short_message)
+                    LLMProviderEditTestState.Testing -> stringResource(R.string.testing)
+                    is LLMProviderEditTestState.Success -> testState.message
+                        ?: stringResource(R.string.test_success)
+
+                    LLMProviderEditTestState.Failed -> stringResource(R.string.test_failed)
+                }
+                val testStatusTextColor = when (testState) {
+                    is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.error
+                    is LLMProviderEditTestState.Success -> Color(0xFF059669)
+                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                }
                 Text(
-                    text = when (testState) {
-                        LLMProviderEditTestState.None -> stringResource(R.string.send_short_message)
-                        LLMProviderEditTestState.Testing -> stringResource(R.string.testing)
-                        is LLMProviderEditTestState.Success -> testState.message
-                            ?: stringResource(R.string.test_success)
-                        LLMProviderEditTestState.Failed -> stringResource(R.string.test_failed)
-                    },
+                    text = testStatusText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = when (testState) {
-                        is LLMProviderEditTestState.Failed -> MaterialTheme.colorScheme.error
-                        is LLMProviderEditTestState.Success -> Color(0xFF059669)
-                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
-                    }
+                    color = testStatusTextColor,
                 )
             }
             OutlinedButton(
@@ -1175,13 +1233,13 @@ private fun TestPanel(
                     } else {
                         LLMProviderEditUiIntent.TestClick.emit()
                     }
-                }
+                },
             ) {
                 val isTesting = testState is LLMProviderEditTestState.Testing
                 Icon(
                     imageVector = if (isTesting) Icons.Rounded.Close else Icons.Rounded.PlayArrow,
                     contentDescription = stringResource(if (isTesting) R.string.cancel else R.string.test),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(stringResource(if (isTesting) R.string.cancel else R.string.test))
@@ -1193,40 +1251,39 @@ private fun TestPanel(
 @Composable
 private fun TopBarSaveButton(
     state: LLMProviderEditUiState.Normal,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     TextButton(
         enabled = state.loadState !is LLMProviderEditLoadState.Saving,
-        onClick = { LLMProviderEditUiIntent.SaveClick.emit() }
+        onClick = { LLMProviderEditUiIntent.SaveClick.emit() },
     ) {
         if (state.loadState is LLMProviderEditLoadState.Saving) {
             CircularProgressIndicator(
                 modifier = Modifier.size(16.dp),
-                strokeWidth = 2.dp
+                strokeWidth = 2.dp,
             )
             Spacer(modifier = Modifier.width(6.dp))
         } else {
             Icon(
-                Icons.Rounded.Check,
+                imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
         }
-        Text(
-            when {
-                state.loadState is LLMProviderEditLoadState.Saving -> stringResource(R.string.saving)
-                state.mode == LLMProviderEditMode.Create -> stringResource(R.string.create)
-                else -> stringResource(R.string.save)
-            }
-        )
+        val saveButtonText = when {
+            state.loadState is LLMProviderEditLoadState.Saving -> stringResource(R.string.saving)
+            state.mode == LLMProviderEditMode.Create -> stringResource(R.string.create)
+            else -> stringResource(R.string.save)
+        }
+        Text(text = saveButtonText)
     }
 }
 
 @Composable
 private fun DialogSwitch(
     dialogState: LLMProviderEditDialogState,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         LLMProviderEditDialogState.None -> Unit
@@ -1236,7 +1293,7 @@ private fun DialogSwitch(
             message = stringResource(R.string.unsaved_changes_message),
             confirmText = stringResource(R.string.discard_changes),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { LLMProviderEditUiIntent.ConfirmDiscardChanges.emit() }
+            onConfirm = { LLMProviderEditUiIntent.ConfirmDiscardChanges.emit() },
         )
 
         LLMProviderEditDialogState.ApiKeyEditor -> {
@@ -1250,7 +1307,7 @@ private fun DialogSwitch(
                 label = stringResource(R.string.api_key),
                 password = true,
                 confirmEnabled = value.isNotBlank(),
-                onConfirm = { LLMProviderEditUiIntent.ConfirmApiKeyReplacement(value).emit() }
+                onConfirm = { LLMProviderEditUiIntent.ConfirmApiKeyReplacement(value).emit() },
             )
         }
 
@@ -1265,7 +1322,7 @@ private fun DialogSwitch(
                 confirmEnabled = value.isNotBlank(),
                 onConfirm = {
                     LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(value).emit()
-                }
+                },
             )
         }
 
@@ -1277,13 +1334,13 @@ private fun DialogSwitch(
                 editorNote = stringResource(R.string.request_body_patch_editor_note),
                 value = value,
                 onValueChange = { value = it },
-                onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(value).emit() }
+                onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(value).emit() },
             )
         }
 
         is LLMProviderEditDialogState.ModelPicker -> ModelPickerDialog(
             state = dialogState,
-            emit = emit
+            emit = emit,
         )
     }
 }
@@ -1291,7 +1348,7 @@ private fun DialogSwitch(
 @Composable
 private fun ModelPickerDialog(
     state: LLMProviderEditDialogState.ModelPicker,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     AppDialogScaffold(
         onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
@@ -1301,37 +1358,41 @@ private fun ModelPickerDialog(
         confirmText = "",
         onConfirm = null,
         dismissText = stringResource(R.string.cancel),
-        onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() }
+        onDismiss = { LLMProviderEditUiIntent.DismissDialog.emit() },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedTextField(
                 value = state.searchQuery,
-                onValueChange = {
-                    LLMProviderEditUiIntent.ChangeModelSearch(it).emit()
+                onValueChange = { text ->
+                    LLMProviderEditUiIntent.ChangeModelSearch(text).emit()
                 },
-                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
                 label = { Text(stringResource(R.string.search_models)) },
                 leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
+                    Icon(imageVector = Icons.Rounded.Search, contentDescription = null)
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
             )
             if (state.items.isEmpty()) {
                 Text(
-                    stringResource(R.string.no_matching_models),
+                    text = stringResource(R.string.no_matching_models),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
+                    modifier = Modifier.padding(vertical = 12.dp),
                 )
             } else {
                 RpLazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 380.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    items(state.items, key = { it.id }) { model ->
+                    items(
+                        items = state.items,
+                        key = { llmAvailableModel -> llmAvailableModel.id }) { model ->
                         ModelPickerItem(model, emit)
                     }
                 }
@@ -1343,37 +1404,39 @@ private fun ModelPickerDialog(
 @Composable
 private fun ModelPickerItem(
     model: LLMAvailableModel,
-    emit: LLMProviderEditUiIntent.() -> Unit
+    emit: LLMProviderEditUiIntent.() -> Unit,
 ) {
     AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                LLMProviderEditUiIntent.SelectAvailableModel(model.id).emit()
-            }
+            .clickable(
+                onClick = {
+                    LLMProviderEditUiIntent.SelectAvailableModel(model.id).emit()
+                },
+            ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.Start,
         ) {
             Text(
                 text = model.displayName,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             if (model.displayName != model.id) {
                 Text(
                     text = model.id,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
                 )
             }
             ModelMetadataText(model)
@@ -1384,18 +1447,14 @@ private fun ModelPickerItem(
 @Composable
 private fun ModelMetadataText(model: LLMAvailableModel) {
     val metadata = listOfNotNull(
-        model.contextTokens?.let {
-            stringResource(R.string.model_context_tokens, it)
-        },
-        model.maxOutputTokens?.let {
-            stringResource(R.string.model_max_output_tokens, it)
-        }
+        model.contextTokens?.let { stringResource(R.string.model_context_tokens, it) },
+        model.maxOutputTokens?.let { stringResource(R.string.model_max_output_tokens, it) },
     )
     if (metadata.isEmpty()) return
     Text(
         text = metadata.joinToString(" · "),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f)
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
     )
 }
 
@@ -1408,10 +1467,13 @@ private fun FormTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    onChange: (String) -> Unit
+    onChange: (String) -> Unit,
 ) {
     OutlinedTextField(
-        modifier = modifier.generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
+        modifier = modifier.generalContentBackground(
+            shape = RoundedCornerShape(12.dp),
+            hasLabel = true
+        ),
         value = value,
         enabled = enabled,
         onValueChange = onChange,
@@ -1419,7 +1481,7 @@ private fun FormTextField(
         minLines = minLines,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = visualTransformation,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
@@ -1430,20 +1492,20 @@ private fun ProviderSystemPromptField(value: String, onChange: (String) -> Unit)
         // 标题与说明沿用页面的主题色和信息层级，强调该指令始终置顶。
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             RpIconBubble(icon = Icons.Rounded.Psychology)
             Text(
                 text = stringResource(R.string.provider_system_prompt),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
         }
         Text(
             text = stringResource(R.string.provider_system_prompt_description),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
             value = value,
@@ -1454,7 +1516,7 @@ private fun ProviderSystemPromptField(value: String, onChange: (String) -> Unit)
             minLines = 4,
             maxLines = 8,
             shape = RoundedCornerShape(12.dp),
-            textStyle = MaterialTheme.typography.bodyMedium
+            textStyle = MaterialTheme.typography.bodyMedium,
         )
     }
 }
@@ -1465,7 +1527,9 @@ private fun ProviderSystemPromptFieldPreview() {
     AppTheme(dynamicColor = false) {
         AppSurface {
             Column(modifier = Modifier.padding(18.dp)) {
-                ProviderSystemPromptField(value = "Keep replies concise.\nUse plain language.", onChange = {})
+                ProviderSystemPromptField(
+                    value = "Keep replies concise.\nUse plain language.",
+                    onChange = {})
             }
         }
     }
@@ -1476,7 +1540,7 @@ private fun <T> EnumChipRow(
     values: List<T>,
     selected: T,
     label: @Composable (T) -> String,
-    onSelect: (T) -> Unit
+    onSelect: (T) -> Unit,
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(values) { value ->
@@ -1484,7 +1548,7 @@ private fun <T> EnumChipRow(
                 selected = value == selected,
                 onClick = { onSelect(value) },
                 label = { Text(label(value)) },
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
             )
         }
     }
@@ -1496,7 +1560,7 @@ private fun JsonSyntaxHighlightPreview(
     jsonString: String,
     modifier: Modifier = Modifier,
     maxHeight: Dp = 180.dp,
-    onEditClick: (() -> Unit)? = null
+    onEditClick: (() -> Unit)? = null,
 ) {
     if (jsonString.isBlank()) return
 
@@ -1509,14 +1573,14 @@ private fun JsonSyntaxHighlightPreview(
                 val style = when (token.type) {
                     JsonSyntaxTokenType.Key -> SpanStyle(
                         color = colors.key,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
 
                     JsonSyntaxTokenType.String -> SpanStyle(color = colors.string)
                     JsonSyntaxTokenType.Number -> SpanStyle(color = colors.number)
                     JsonSyntaxTokenType.Literal -> SpanStyle(
                         color = colors.literal,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
 
                     JsonSyntaxTokenType.Punctuation -> SpanStyle(color = colors.punctuation)
@@ -1529,8 +1593,11 @@ private fun JsonSyntaxHighlightPreview(
     AppSurface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        modifier = modifier.fillMaxWidth()
+        border = BorderStroke(
+            width = 0.6.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -1538,23 +1605,23 @@ private fun JsonSyntaxHighlightPreview(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Code,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Text(
                         text = title,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (onEditClick != null) {
@@ -1566,14 +1633,14 @@ private fun JsonSyntaxHighlightPreview(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .clickable(onClick = onEditClick)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
             }
 
             HorizontalDivider(
                 thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
             )
 
             Box(
@@ -1583,14 +1650,14 @@ private fun JsonSyntaxHighlightPreview(
                     .draggableScrollIndicator(verticalScrollState)
                     .horizontalScroll(rememberScrollState())
                     .verticalScroll(verticalScrollState)
-                    .padding(12.dp)
+                    .padding(12.dp),
             ) {
                 Text(
                     text = annotatedText,
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
-                        lineHeight = 18.sp
-                    )
+                        lineHeight = 18.sp,
+                    ),
                 )
             }
         }
@@ -1601,7 +1668,7 @@ private fun JsonSyntaxHighlightPreview(
 private fun ModernRequestBodyPatchControl(
     requestBodyPatchJson: String,
     onEdit: () -> Unit,
-    onResetToDefault: () -> Unit
+    onResetToDefault: () -> Unit,
 ) {
     val hasCustomPatch = remember(requestBodyPatchJson) {
         val trimmed = requestBodyPatchJson.trim()
@@ -1611,26 +1678,29 @@ private fun ModernRequestBodyPatchControl(
     AppSurface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(0.6.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-        modifier = Modifier.fillMaxWidth()
+        border = BorderStroke(
+            width = 0.6.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Rounded.Code,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.request_body_patch_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
             Text(
@@ -1640,25 +1710,25 @@ private fun ModernRequestBodyPatchControl(
                     stringResource(R.string.request_body_patch_status_default)
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             )
             Text(
                 text = stringResource(R.string.request_body_patch_description),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onEdit,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 ) {
                     Text(stringResource(R.string.edit))
                 }
                 if (hasCustomPatch) {
                     TextButton(onClick = onResetToDefault) {
                         Text(
-                            stringResource(R.string.reset),
-                            color = MaterialTheme.colorScheme.error
+                            text = stringResource(R.string.reset),
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
@@ -1679,13 +1749,11 @@ private fun LLMProviderEditLayoutPreview() {
                     providerType = LLMProviderType.OpenRouter,
                     baseUrl = "https://openrouter.ai/api/v1",
                     model = "~anthropic/claude-sonnet-latest",
-                    requestBodyPatchJson = "{\n  \"session_id\": \"\$rpclient.routing_session_id\",\n  \"reasoning\": {\n    \"effort\": \"low\"\n  }\n}"
+                    requestBodyPatchJson = "{\n  \"session_id\": \"\$rpclient.routing_session_id\",\n  \"reasoning\": {\n    \"effort\": \"low\"\n  }\n}",
                 ),
-                requestExtensionsState = LLMProviderEditRequestExtensionsState(
-                    isOpenRouter = true
-                )
+                requestExtensionsState = LLMProviderEditRequestExtensionsState(isOpenRouter = true),
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

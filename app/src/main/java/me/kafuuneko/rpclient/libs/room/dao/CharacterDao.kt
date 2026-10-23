@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.libs.room.dao
 
-import kotlinx.coroutines.flow.Flow
 import androidx.room.Dao
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 

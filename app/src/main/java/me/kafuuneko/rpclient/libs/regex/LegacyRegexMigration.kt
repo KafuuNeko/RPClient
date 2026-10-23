@@ -7,7 +7,7 @@ internal fun mergeLegacyGlobalAndPreset(
     globalScripts: List<RegexScript>,
     presetScripts: List<RegexScript>,
     presetAuthorized: Boolean,
-    createId: () -> String = { java.util.UUID.randomUUID().toString() }
+    createId: () -> String = { java.util.UUID.randomUUID().toString() },
 ): List<RegexScript> {
     val reservedIds = mutableSetOf<String>()
     val normalizedGlobal = globalScripts.normalizeRegexScriptIds(reservedIds, createId)

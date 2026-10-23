@@ -126,15 +126,22 @@ class GroupChatRepository(
         sessionId: Long,
         content: String,
         images: List<MessageImageInput.Prepared>,
-        speakerNameSnapshot: String
+        speakerNameSnapshot: String,
     ): MessageWithImages {
         require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
         return mImages.mutate(images.map { it.value }) {
             // 最终图片已在事务外发布；正文、索引和图片关系共同提交。
             val now = System.currentTimeMillis()
-            val id = mMessageDao.insertOrReplace(GroupChatMessage(sessionId = sessionId, createTime = now,
-                source = GroupChatMessage.Source.User, content = content, speakerNameSnapshot = speakerNameSnapshot))
+            val id = mMessageDao.insertOrReplace(
+                data = GroupChatMessage(
+                    sessionId = sessionId,
+                    createTime = now,
+                    source = GroupChatMessage.Source.User,
+                    content = content,
+                    speakerNameSnapshot = speakerNameSnapshot,
+                ),
+            )
             mSessionDao.updateLatestTime(sessionId, now)
             val key = MessageKey(MessageType.Group, id)
             mImages.replaceInTransaction(this, key, sessionId, images)
@@ -147,7 +154,7 @@ class GroupChatRepository(
         sessionId: Long,
         messageId: Long,
         content: String,
-        images: List<MessageImageInput>
+        images: List<MessageImageInput>,
     ): MessageWithImages {
         require(images.size <= MessageImagePolicy.MAX_IMAGES_PER_MESSAGE) { "A message can contain at most four images" }
         require(content.isNotBlank() || images.isNotEmpty()) { "A message cannot have empty content and no images" }
@@ -167,12 +174,16 @@ class GroupChatRepository(
 
     /** 群聊会话基本信息。 */
     private val mSessionDao = mAppDatabase.getGroupChatSessionDao()
+
     /** 成员关系、静音和顺序。 */
     private val mMemberDao = mAppDatabase.getGroupChatMemberDao()
+
     /** 群聊历史消息。 */
     private val mMessageDao = mAppDatabase.getGroupChatMessageDao()
+
     /** 将成员关系补全为角色卡数据。 */
     private val mCharacterDao = mAppDatabase.getCharacterDao()
+
     /** 群聊摘要及覆盖边界。 */
     private val mSummaryDao = mAppDatabase.getGroupChatSummaryDao()
 
@@ -204,7 +215,7 @@ class GroupChatRepository(
                 session = session,
                 members = getMemberData(sessionId),
                 messages = mMessageDao.getMessages(sessionId),
-                summary = mSummaryDao.getLatest(sessionId)
+                summary = mSummaryDao.getLatest(sessionId),
             )
         }
     }
@@ -221,7 +232,7 @@ class GroupChatRepository(
      */
     suspend fun getGroupChatSummaryData(
         sessionId: Long,
-        maxCandidateMessages: Int = 0
+        maxCandidateMessages: Int = 0,
     ): GroupChatSummaryGenerationData? {
         require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
@@ -231,16 +242,16 @@ class GroupChatRepository(
             val messageWindow = loadSummaryMessagesAfterId(
                 sessionId = sessionId,
                 coveredMessageId = summary?.coveredMessageId ?: 0L,
-                maxCandidateMessages = maxCandidateMessages
+                maxCandidateMessages = maxCandidateMessages,
             )
             GroupChatSummaryGenerationData(
                 data = GroupChatData(
                     session = session,
                     members = getMemberData(sessionId),
                     messages = messageWindow.messages,
-                    summary = summary
+                    summary = summary,
                 ),
-                hasMoreCandidateMessages = messageWindow.hasMoreCandidateMessages
+                hasMoreCandidateMessages = messageWindow.hasMoreCandidateMessages,
             )
         }
     }
@@ -255,7 +266,7 @@ class GroupChatRepository(
     suspend fun getGroupChatPromptData(
         sessionId: Long,
         maxHistoryMessages: Int,
-        protectedUserMessageId: Long? = null
+        protectedUserMessageId: Long? = null,
     ): GroupChatPromptData? {
         require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
         return mAppDatabase.withTransaction {
@@ -267,11 +278,19 @@ class GroupChatRepository(
             } else {
                 mMessageDao.getLatestMessagePage(sessionId, maxHistoryMessages).asReversed()
             }
-            val retained = messages.filter { it.id > (summary?.coveredMessageId ?: 0L) }.toMutableList()
+            val retained =
+                messages.filter { message -> message.id > (summary?.coveredMessageId ?: 0L) }
+                    .toMutableList()
             protectedUserMessageId?.let { id ->
                 val trigger = mMessageDao.getMessageById(id)
-                if (trigger != null && trigger.sessionId == sessionId && trigger.source == GroupChatMessage.Source.User &&
-                    trigger.id > (summary?.coveredMessageId ?: 0L) && retained.none { it.id == id }) retained.add(0, trigger)
+                val shouldRetainTriggerMessage =
+                    trigger != null && trigger.sessionId == sessionId && trigger.source == GroupChatMessage.Source.User
+                        && trigger.id > (summary?.coveredMessageId
+                        ?: 0L) && retained.none { message -> message.id == id }
+                if (shouldRetainTriggerMessage) retained.add(
+                    index = 0,
+                    element = trigger,
+                )
             }
             // 完整计数独立保留给世界书时序，不能被 Prompt 消息窗口替代
             GroupChatPromptData(
@@ -279,10 +298,10 @@ class GroupChatRepository(
                     session = session,
                     members = getMemberData(sessionId),
                     messages = retained,
-                    summary = summary
+                    summary = summary,
                 ),
                 totalMessageCount = mMessageDao.getMessageCount(sessionId),
-                messageImages = getMessagesWithImages(retained.map { it.id })
+                messageImages = getMessagesWithImages(retained.map { message -> message.id }),
             )
         }
     }
@@ -299,15 +318,15 @@ class GroupChatRepository(
      */
     suspend fun getSpeakerSelectionData(
         sessionId: Long,
-        includeSpeakerPool: Boolean = true
+        includeSpeakerPool: Boolean = true,
     ): GroupChatSpeakerSelectionData? {
         return mAppDatabase.withTransaction {
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
             val members = getMemberData(sessionId)
             // Pooled 模式只读取轮次边界后的去重发言者 ID，不加载消息正文
             val spokenCharacterIds = if (
-                includeSpeakerPool &&
-                session.activationStrategy == GroupChatSession.ActivationStrategy.Pooled
+                includeSpeakerPool
+                && session.activationStrategy == GroupChatSession.ActivationStrategy.Pooled
             ) {
                 val latestUserMessage = mMessageDao.getLatestUserMessage(sessionId)
                 if (latestUserMessage == null) {
@@ -316,7 +335,7 @@ class GroupChatRepository(
                     mMessageDao.getSpeakerIdsAfter(
                         sessionId = sessionId,
                         afterCreateTime = latestUserMessage.createTime,
-                        afterMessageId = latestUserMessage.id
+                        afterMessageId = latestUserMessage.id,
                     )
                 }
             } else {
@@ -331,36 +350,71 @@ class GroupChatRepository(
                     .orEmpty(),
                 spokenCharacterIdsSinceLastUserMessage = spokenCharacterIds.toSet(),
                 lastCharacterSpeakerId = mMessageDao.getLatestCharacterMessage(sessionId)
-                    ?.speakerCharacterId
+                    ?.speakerCharacterId,
             )
         }
     }
 
     /** 直接读取锚点前后有限窗口，历史定位不遍历最新页到目标之间的消息。 */
-    private suspend fun messageWindow(sessionId: Long, messageId: Long, pageSize: Int, olderWindowSize: Int?): GroupChatMessagePage? {
-        val anchor = mMessageDao.getMessageById(messageId)?.takeIf { it.sessionId == sessionId } ?: return null
-        val olderLimit = olderWindowSize?.coerceIn(0, pageSize) ?: (pageSize / 2).coerceAtLeast(1)
-        val newerLimit = if (olderWindowSize == null) olderLimit else (pageSize - olderLimit - 1).coerceAtLeast(0)
+    private suspend fun messageWindow(
+        sessionId: Long,
+        messageId: Long,
+        pageSize: Int,
+        olderWindowSize: Int?,
+    ): GroupChatMessagePage? {
+        val anchor = mMessageDao.getMessageById(messageId)?.takeIf { it.sessionId == sessionId }
+            ?: return null
+        val olderLimit = olderWindowSize?.coerceIn(minimumValue = 0, maximumValue = pageSize)
+            ?: (pageSize / 2).coerceAtLeast(minimumValue = 1)
+        val newerLimit =
+            if (olderWindowSize == null) olderLimit else (pageSize - olderLimit - 1).coerceAtLeast(0)
         // 各多取一条判断两端是否可继续，不牺牲同时间消息的稳定顺序。
-        val older = mMessageDao.getMessagePageBefore(sessionId, anchor.createTime, anchor.id, olderLimit + 1)
-        val newer = mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, newerLimit + 1)
+        val older = mMessageDao.getMessagePageBefore(
+            sessionId,
+            anchor.createTime,
+            anchor.id,
+            olderLimit + 1
+        )
+        val newer =
+            mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, newerLimit + 1)
         val messages = older.take(olderLimit).asReversed() + anchor + newer.take(newerLimit)
         return GroupChatMessagePage(
-            messages = messages, canLoadOlderMessages = older.size > olderLimit,
+            messages = messages,
+            canLoadOlderMessages = older.size > olderLimit,
             messageImages = getMessagesWithImages(messages.map { it.id }),
             canLoadNewerMessages = newer.size > newerLimit,
-            newerMessageCount = mMessageDao.countAfter(sessionId, messages.last().createTime, messages.last().id)
+            newerMessageCount = mMessageDao.countAfter(
+                sessionId,
+                messages.last().createTime,
+                messages.last().id
+            ),
         )
     }
 
     /** 从当前窗口尾部向较新消息继续浏览，消息与附件共享读取事务。 */
-    suspend fun getMessagePageAfter(sessionId: Long, afterMessageId: Long, pageSize: Int): GroupChatMessagePage? = mAppDatabase.withTransaction {
-        val anchor = mMessageDao.getMessageById(afterMessageId)?.takeIf { it.sessionId == sessionId } ?: return@withTransaction null
-        val rows = mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, pageSize + 1)
+    suspend fun getMessagePageAfter(
+        sessionId: Long,
+        afterMessageId: Long,
+        pageSize: Int
+    ): GroupChatMessagePage? = mAppDatabase.withTransaction {
+        val anchor = mMessageDao.getMessageById(afterMessageId)
+            ?.takeIf { message -> message.sessionId == sessionId } ?: return@withTransaction null
+        val rows =
+            mMessageDao.getMessagePageAfter(sessionId, anchor.createTime, anchor.id, pageSize + 1)
         val messages = rows.take(pageSize)
-        GroupChatMessagePage(messages = messages, canLoadOlderMessages = true,
-            messageImages = getMessagesWithImages(messages.map { it.id }), canLoadNewerMessages = rows.size > pageSize,
-            newerMessageCount = messages.lastOrNull()?.let { mMessageDao.countAfter(sessionId, it.createTime, it.id) } ?: 0)
+        GroupChatMessagePage(
+            messages = messages,
+            canLoadOlderMessages = true,
+            messageImages = getMessagesWithImages(messages.map { message -> message.id }),
+            canLoadNewerMessages = rows.size > pageSize,
+            newerMessageCount = messages.lastOrNull()?.let { message ->
+                mMessageDao.countAfter(
+                    sessionId = sessionId,
+                    time = message.createTime,
+                    id = message.id,
+                )
+            } ?: 0,
+        )
     }
 
     /**
@@ -376,26 +430,36 @@ class GroupChatRepository(
         sessionId: Long,
         pageSize: Int,
         anchorMessageId: Long? = null,
-        olderWindowSize: Int? = null
+        olderWindowSize: Int? = null,
     ): GroupChatPageData? {
         require(pageSize > 0) { "pageSize must be positive" }
         return mAppDatabase.withTransaction {
             // 页面聚合必须共享同一快照，避免会话元数据与消息窗口不一致
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
-            val page = anchorMessageId?.let { messageWindow(sessionId, it, pageSize, olderWindowSize) } ?: mMessageDao.getLatestMessagePage(sessionId, pageSize + 1)
+            val page = anchorMessageId?.let { id ->
+                messageWindow(
+                    sessionId,
+                    id,
+                    pageSize,
+                    olderWindowSize
+                )
+            } ?: mMessageDao.getLatestMessagePage(
+                sessionId = sessionId,
+                limit = pageSize + 1,
+            )
                 .toGroupChatMessagePage(pageSize)
             GroupChatPageData(
                 data = GroupChatData(
                     session = session,
                     members = getMemberData(sessionId),
                     messages = page.messages,
-                    summary = mSummaryDao.getLatest(sessionId)
+                    summary = mSummaryDao.getLatest(sessionId),
                 ),
                 canLoadOlderMessages = page.canLoadOlderMessages,
                 hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId),
                 messageImages = page.messageImages,
                 canLoadNewerMessages = page.canLoadNewerMessages,
-                newerMessageCount = page.newerMessageCount
+                newerMessageCount = page.newerMessageCount,
             )
         }
     }
@@ -413,7 +477,7 @@ class GroupChatRepository(
         sessionId: Long,
         beforeCreateTime: Long,
         beforeMessageId: Long,
-        pageSize: Int
+        pageSize: Int,
     ): GroupChatMessagePage {
         require(pageSize > 0) { "pageSize must be positive" }
         return mAppDatabase.withTransaction {
@@ -421,7 +485,7 @@ class GroupChatRepository(
                 sessionId = sessionId,
                 beforeCreateTime = beforeCreateTime,
                 beforeMessageId = beforeMessageId,
-                limit = pageSize + 1
+                limit = pageSize + 1,
             ).toGroupChatMessagePage(pageSize)
         }
     }
@@ -445,7 +509,7 @@ class GroupChatRepository(
         activationStrategy: GroupChatSession.ActivationStrategy,
         allowSelfResponses: Boolean,
         openingMessages: List<GroupChatOpeningMessage> = emptyList(),
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
     ): Long {
         require(characterIds.distinct().size >= 2) {
             "A group chat requires at least two characters"
@@ -453,7 +517,7 @@ class GroupChatRepository(
         return mAppDatabase.withTransaction {
             // 插入群聊会话记录
             val sessionId = mSessionDao.insertOrReplace(
-                GroupChatSession(
+                data = GroupChatSession(
                     title = title,
                     createTime = createTime,
                     latestTime = createTime,
@@ -461,41 +525,41 @@ class GroupChatRepository(
                     userDescription = userDescription,
                     lorebookEntrySet = mGson.toJson(lorebookEntryIds.distinct()),
                     activationStrategy = activationStrategy,
-                    allowSelfResponses = allowSelfResponses
-                )
+                    allowSelfResponses = allowSelfResponses,
+                ),
             )
             // 插入初始群成员列表
             mMemberDao.insertOrReplaceAll(
-                characterIds.distinct().mapIndexed { index, characterId ->
+                data = characterIds.distinct().mapIndexed { index, characterId ->
                     GroupChatMember(
                         sessionId = sessionId,
                         characterId = characterId,
-                        sortOrder = index
+                        sortOrder = index,
                     )
-                }
+                },
             )
             // 写入开场白消息
             val selectedCharacterIds = characterIds.distinct().toSet()
-            val validOpenings = openingMessages.filter {
-                it.characterId in selectedCharacterIds && it.content.isNotBlank()
+            val validOpenings = openingMessages.filter { groupChatOpeningMessage ->
+                groupChatOpeningMessage.characterId in selectedCharacterIds && groupChatOpeningMessage.content.isNotBlank()
             }
             validOpenings.forEachIndexed { index, opening ->
                 mMessageDao.insertOrReplace(
-                    GroupChatMessage(
+                    data = GroupChatMessage(
                         sessionId = sessionId,
                         createTime = createTime + index,
                         source = GroupChatMessage.Source.Character,
                         content = opening.content.trim(),
                         speakerCharacterId = opening.characterId,
-                        speakerNameSnapshot = opening.characterName
-                    )
+                        speakerNameSnapshot = opening.characterName,
+                    ),
                 )
             }
             // 同步会话最新活跃时间戳
             if (validOpenings.isNotEmpty()) {
                 mSessionDao.updateLatestTime(
-                    sessionId,
-                    createTime + validOpenings.lastIndex
+                    id = sessionId,
+                    latestTime = createTime + validOpenings.lastIndex,
                 )
             }
             sessionId
@@ -510,22 +574,22 @@ class GroupChatRepository(
         speakerCharacterId: Long?,
         speakerNameSnapshot: String,
         generationBatchId: String? = null,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
     ): Long {
         require(source != GroupChatMessage.Source.User || content.isNotBlank()) {
             "A text-only user message cannot be empty, use the image entry for image-only messages"
         }
         return mAppDatabase.withTransaction {
             val messageId = mMessageDao.insertOrReplace(
-                GroupChatMessage(
+                data = GroupChatMessage(
                     sessionId = sessionId,
                     createTime = createTime,
                     source = source,
                     content = content,
                     speakerCharacterId = speakerCharacterId,
                     speakerNameSnapshot = speakerNameSnapshot,
-                    generationBatchId = generationBatchId
-                )
+                    generationBatchId = generationBatchId,
+                ),
             )
             mSessionDao.updateLatestTime(sessionId, createTime)
             messageId
@@ -536,8 +600,13 @@ class GroupChatRepository(
     suspend fun updateMessageContent(id: Long, content: String) {
         mAppDatabase.withTransaction {
             val message = mMessageDao.getMessageById(id) ?: return@withTransaction
-            require(message.source != GroupChatMessage.Source.User || content.isNotBlank() ||
-                mAppDatabase.getMessageImageDao().getByMessage(MessageType.Group, id).isNotEmpty()) {
+            require(
+                value = message.source != GroupChatMessage.Source.User || content.isNotBlank()
+                    || mAppDatabase
+                    .getMessageImageDao()
+                    .getByMessage(MessageType.Group, id)
+                    .isNotEmpty(),
+            ) {
                 "A message cannot have empty content and no images"
             }
             mMessageDao.updateContent(id, content)
@@ -560,8 +629,11 @@ class GroupChatRepository(
         mImages.mutate {
             val message = mMessageDao.getMessageById(id) ?: return@mutate
             mSummaryDao.deleteCovering(message.sessionId, message.id)
-            mImages.deleteInTransaction(this, MessageType.Group,
-                mMessageDao.getMessageIdsBySessionId(message.sessionId, id))
+            mImages.deleteInTransaction(
+                mutation = this,
+                type = MessageType.Group,
+                ids = mMessageDao.getMessageIdsBySessionId(message.sessionId, id),
+            )
             mMessageDao.deleteFrom(message.sessionId, message.id)
         }
     }
@@ -575,15 +647,15 @@ class GroupChatRepository(
     suspend fun addMember(sessionId: Long, characterId: Long) {
         mAppDatabase.withTransaction {
             val nextOrder = mMemberDao.getMembers(sessionId)
-                .maxOfOrNull { it.sortOrder }
+                .maxOfOrNull { groupChatMember -> groupChatMember.sortOrder }
                 ?.plus(1)
                 ?: 0
             mMemberDao.insertOrIgnore(
-                GroupChatMember(
+                data = GroupChatMember(
                     sessionId = sessionId,
                     characterId = characterId,
-                    sortOrder = nextOrder
-                )
+                    sortOrder = nextOrder,
+                ),
             )
         }
     }
@@ -604,9 +676,10 @@ class GroupChatRepository(
     suspend fun moveMember(sessionId: Long, characterId: Long, offset: Int) {
         mAppDatabase.withTransaction {
             val members = mMemberDao.getMembers(sessionId).toMutableList()
-            val from = members.indexOfFirst { it.characterId == characterId }
+            val from =
+                members.indexOfFirst { groupChatMember -> groupChatMember.characterId == characterId }
             if (from < 0) return@withTransaction
-            val to = (from + offset).coerceIn(0, members.lastIndex)
+            val to = (from + offset).coerceIn(minimumValue = 0, maximumValue = members.lastIndex)
             if (from == to) return@withTransaction
             val moved = members.removeAt(from)
             members.add(to, moved)
@@ -625,18 +698,19 @@ class GroupChatRepository(
      */
     suspend fun reorderMembers(
         sessionId: Long,
-        orderedCharacterIds: List<Long>
+        orderedCharacterIds: List<Long>,
     ): Boolean = mAppDatabase.withTransaction {
         val members = mMemberDao.getMembers(sessionId)
         // 完整校验成员快照，避免拖动期间的增删操作被旧顺序覆盖
         if (orderedCharacterIds.distinct().size != orderedCharacterIds.size) {
             return@withTransaction false
         }
-        if (members.map { it.characterId }.toSet() != orderedCharacterIds.toSet()) {
+        if (members.map { groupChatMember -> groupChatMember.characterId }
+                .toSet() != orderedCharacterIds.toSet()) {
             return@withTransaction false
         }
         // 仅写入实际变化的连续序号
-        val memberById = members.associateBy { it.characterId }
+        val memberById = members.associateBy { groupChatMember -> groupChatMember.characterId }
         orderedCharacterIds.forEachIndexed { index, characterId ->
             if (memberById.getValue(characterId).sortOrder != index) {
                 mMemberDao.updateSortOrder(sessionId, characterId, index)
@@ -646,10 +720,11 @@ class GroupChatRepository(
     }
 
     /** 图片摘要失败只暂停自动总结，不覆盖其他会话配置。 */
-    suspend fun updateAutoSummaryPaused(sessionId: Long, paused: Boolean) = mAppDatabase.withTransaction {
-        val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction
-        mSessionDao.update(session.copy(autoSummaryPaused = paused))
-    }
+    suspend fun updateAutoSummaryPaused(sessionId: Long, paused: Boolean) =
+        mAppDatabase.withTransaction {
+            val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction
+            mSessionDao.update(session.copy(autoSummaryPaused = paused))
+        }
 
     /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) {
@@ -668,9 +743,7 @@ class GroupChatRepository(
     /** 保存会话显式启用的世界书条目 ID，并去除重复项。 */
     suspend fun updateSessionLorebookEntryIds(sessionId: Long, entryIds: List<Long>) {
         val session = mSessionDao.getSessionById(sessionId) ?: return
-        mSessionDao.update(
-            session.copy(lorebookEntrySet = mGson.toJson(entryIds.distinct()))
-        )
+        mSessionDao.update(data = session.copy(lorebookEntrySet = mGson.toJson(entryIds.distinct())))
     }
 
     /** 持久化世界书粘性和冷却等时序状态。 */
@@ -691,16 +764,21 @@ class GroupChatRepository(
             val summary = mSummaryDao.getLatest(sessionId)
             mMessageDao.getMessageCountAfterId(
                 sessionId = sessionId,
-                messageId = summary?.coveredMessageId ?: 0L
+                messageId = summary?.coveredMessageId ?: 0L,
             )
         }
     }
 
     /** 一致读取摘要基线和消息附件，供网络请求完成后进行乐观校验。 */
-    suspend fun getSummaryInputSnapshot(sessionId: Long, messageIds: List<Long>): SummaryInputSnapshot =
+    suspend fun getSummaryInputSnapshot(
+        sessionId: Long,
+        messageIds: List<Long>
+    ): SummaryInputSnapshot =
         mAppDatabase.withTransaction {
-            SummaryInputSnapshot(getMessagesWithImages(messageIds),
-                mGson.toJson(mSummaryDao.getLatest(sessionId)))
+            SummaryInputSnapshot(
+                messages = getMessagesWithImages(messageIds),
+                summaryVersion = mGson.toJson(mSummaryDao.getLatest(sessionId)),
+            )
         }
 
     /** 新增摘要或更新指定摘要的内容与覆盖边界。 */
@@ -709,24 +787,27 @@ class GroupChatRepository(
         content: String,
         coveredMessageId: Long,
         summaryIdToUpdate: Long? = null,
-        expectedSnapshot: SummaryInputSnapshot? = null
+        expectedSnapshot: SummaryInputSnapshot? = null,
     ): Long = mAppDatabase.withTransaction {
-            if (expectedSnapshot != null) {
-                val current = getSummaryInputSnapshot(sessionId, expectedSnapshot.messages.map { it.key.messageId })
-                require(current == expectedSnapshot) { "Summary input changed, summarize again" }
-            }
+        if (expectedSnapshot != null) {
+            val current = getSummaryInputSnapshot(
+                sessionId = sessionId,
+                messageIds = expectedSnapshot.messages.map { messageWithImages -> messageWithImages.key.messageId },
+            )
+            require(current == expectedSnapshot) { "Summary input changed, summarize again" }
+        }
         val now = System.currentTimeMillis()
         if (summaryIdToUpdate != null) {
             mSummaryDao.updateContent(summaryIdToUpdate, content, coveredMessageId, now)
             return@withTransaction summaryIdToUpdate
         }
         mSummaryDao.insertOrReplace(
-            GroupChatSummary(
+            data = GroupChatSummary(
                 sessionId = sessionId,
                 createTime = now,
                 content = content,
-                coveredMessageId = coveredMessageId
-            )
+                coveredMessageId = coveredMessageId,
+            ),
         )
     }
 
@@ -739,41 +820,46 @@ class GroupChatRepository(
     suspend fun updateCurrentSummary(
         sessionId: Long,
         content: String,
-        createTime: Long = System.currentTimeMillis()
+        createTime: Long = System.currentTimeMillis(),
     ) {
         mAppDatabase.withTransaction {
             val latest = mSummaryDao.getLatest(sessionId)
             if (content.isBlank()) {
                 if (latest?.coveredMessageId == 0L) {
-                    mSummaryDao.updateContent(latest.id, "", 0L, createTime)
+                    mSummaryDao.updateContent(
+                        id = latest.id,
+                        content = "",
+                        coveredMessageId = 0L,
+                        createTime = createTime,
+                    )
                     return@withTransaction
                 }
                 mSummaryDao.insertOrReplace(
-                    GroupChatSummary(
+                    data = GroupChatSummary(
                         sessionId = sessionId,
                         createTime = createTime,
                         content = "",
-                        coveredMessageId = 0L
-                    )
+                        coveredMessageId = 0L,
+                    ),
                 )
                 return@withTransaction
             }
             val latestMessageId = mMessageDao.getLatestMessage(sessionId)?.id ?: 0L
             if (latest != null && latest.coveredMessageId == latestMessageId) {
                 mSummaryDao.updateContent(
-                    latest.id,
-                    content,
-                    latestMessageId,
-                    createTime
+                    id = latest.id,
+                    content = content,
+                    coveredMessageId = latestMessageId,
+                    createTime = createTime,
                 )
             } else {
                 mSummaryDao.insertOrReplace(
-                    GroupChatSummary(
+                    data = GroupChatSummary(
                         sessionId = sessionId,
                         createTime = createTime,
                         content = content,
-                        coveredMessageId = latestMessageId
-                    )
+                        coveredMessageId = latestMessageId,
+                    ),
                 )
             }
         }
@@ -782,10 +868,9 @@ class GroupChatRepository(
     /** 删除最新群聊摘要快照，使上一份摘要重新生效。 */
     suspend fun restorePreviousSummary(sessionId: Long): Boolean {
         return mAppDatabase.withTransaction {
-            val latest = mSummaryDao.getLatest(sessionId)
-                ?: return@withTransaction false
-            val previous = mSummaryDao.getPreviousById(sessionId, latest.id)
-                ?: return@withTransaction false
+            val latest = mSummaryDao.getLatest(sessionId) ?: return@withTransaction false
+            val previous =
+                mSummaryDao.getPreviousById(sessionId, latest.id) ?: return@withTransaction false
             mSummaryDao.delete(latest)
             previous.id > 0L
         }
@@ -793,8 +878,11 @@ class GroupChatRepository(
 
     suspend fun deleteSession(id: Long) {
         mImages.mutate {
-            mImages.deleteInTransaction(this, MessageType.Group,
-                mMessageDao.getMessageIdsBySessionId(id))
+            mImages.deleteInTransaction(
+                mutation = this,
+                type = MessageType.Group,
+                ids = mMessageDao.getMessageIdsBySessionId(id),
+            )
             mSessionDao.deleteById(id)
         }
     }
@@ -821,20 +909,23 @@ class GroupChatRepository(
     private suspend fun loadSummaryMessagesAfterId(
         sessionId: Long,
         coveredMessageId: Long,
-        maxCandidateMessages: Int
+        maxCandidateMessages: Int,
     ): GroupSummaryMessageWindow {
         // 无限制调用保留旧接口的完整范围语义
         if (maxCandidateMessages == 0) {
             return GroupSummaryMessageWindow(
                 messages = mMessageDao.getMessagesAfterId(sessionId, coveredMessageId),
-                hasMoreCandidateMessages = false
+                hasMoreCandidateMessages = false,
             )
         }
         // 最新消息不参与候选窗口计数，但必须交给 Builder 执行固定排除规则
         val latestMessage = mMessageDao.getLatestMessageAfterId(
             sessionId = sessionId,
-            messageId = coveredMessageId
-        ) ?: return GroupSummaryMessageWindow(emptyList(), false)
+            messageId = coveredMessageId,
+        ) ?: return GroupSummaryMessageWindow(
+            messages = emptyList(),
+            hasMoreCandidateMessages = false
+        )
         val queryLimit = if (maxCandidateMessages == Int.MAX_VALUE) {
             Int.MAX_VALUE
         } else {
@@ -845,11 +936,11 @@ class GroupChatRepository(
             messageId = coveredMessageId,
             latestCreateTime = latestMessage.createTime,
             latestMessageId = latestMessage.id,
-            limit = queryLimit
+            limit = queryLimit,
         )
         return GroupSummaryMessageWindow(
             messages = candidates.take(maxCandidateMessages) + latestMessage,
-            hasMoreCandidateMessages = candidates.size > maxCandidateMessages
+            hasMoreCandidateMessages = candidates.size > maxCandidateMessages,
         )
     }
 
@@ -864,12 +955,12 @@ class GroupChatRepository(
 
     /** 将数据库倒序结果裁成页面需要的正序消息，并保留是否还有更早记录。 */
     private suspend fun List<GroupChatMessage>.toGroupChatMessagePage(
-        pageSize: Int
+        pageSize: Int,
     ): GroupChatMessagePage {
         return GroupChatMessagePage(
             messages = take(pageSize).asReversed(),
             canLoadOlderMessages = size > pageSize,
-            messageImages = getMessagesWithImages(take(pageSize).asReversed().map { it.id })
+            messageImages = getMessagesWithImages(take(pageSize).asReversed().map { it.id }),
         )
     }
 

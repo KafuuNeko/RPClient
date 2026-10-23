@@ -67,7 +67,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                 characters = data.characters,
                 visibleCharacters = data.characters,
                 lorebookGroups = data.lorebookGroups,
-                visibleLorebookGroups = data.lorebookGroups
+                visibleLorebookGroups = data.lorebookGroups,
             ).setup()
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -108,14 +108,20 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         mCharacterSearchJob = viewModelScope.launch {
             val visibleIds = withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
-                uiState.characters.filter {
+                uiState.characters.filter { storyCreateCharacterItem ->
                     context.ensureActive()
-                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
-                }.mapTo(HashSet()) { it.id }
+                    matchesCharacterQuery(
+                        name = storyCreateCharacterItem.name,
+                        description = storyCreateCharacterItem.description,
+                        tags = storyCreateCharacterItem.tags,
+                        query = intent.value,
+                    )
+                }.mapTo(HashSet()) { storyCreateCharacterItem -> storyCreateCharacterItem.id }
             }
             val current = readyState() ?: return@launch
             if (current.characterQuery == intent.value) {
-                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+                current.copy(visibleCharacters = current.characters.filter { storyCreateCharacterItem -> storyCreateCharacterItem.id in visibleIds })
+                    .setup()
             }
         }
     }
@@ -134,9 +140,9 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val linkedEntryIds = character.linkedLorebookId
             ?.let { lorebookId ->
                 uiState.lorebookGroups
-                    .firstOrNull { it.lorebookId == lorebookId }
+                    .firstOrNull { storyCreateLorebookGroupItem -> storyCreateLorebookGroupItem.lorebookId == lorebookId }
                     ?.entries
-                    ?.mapTo(mutableSetOf()) { it.id }
+                    ?.mapTo(mutableSetOf()) { storyCreateLorebookEntryItem -> storyCreateLorebookEntryItem.id }
             }
             .orEmpty()
         // 切换角色选择状态并在初次选中时追加关联条目
@@ -146,7 +152,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                     selectedLorebookEntryIds + linkedEntryIds
                 } else {
                     selectedLorebookEntryIds
-                }
+                },
             )
         }
     }
@@ -154,7 +160,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     /** 设置已选角色的激活模式，并在设置新主角时自动清除旧主角。 */
     @UiIntentObserver(StoryCreateUiIntent.SetCharacterActivationMode::class)
     private fun onSetCharacterActivationMode(
-        intent: StoryCreateUiIntent.SetCharacterActivationMode
+        intent: StoryCreateUiIntent.SetCharacterActivationMode,
     ) {
         val uiState = readyState() ?: return
         if (intent.characterId !in uiState.form.selectedCharacterIds) return
@@ -169,7 +175,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val uiState = readyState() ?: return
         uiState.copy(
             lorebookQuery = intent.value,
-            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value)
+            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value),
         ).setup()
     }
 
@@ -183,13 +189,13 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val entryIds = group.entries.mapTo(mutableSetOf()) { it.id }
         if (entryIds.isEmpty()) return
         updateReadyForm {
-            val selectAll = entryIds.any { it !in selectedLorebookEntryIds }
+            val selectAll = entryIds.any { id -> id !in selectedLorebookEntryIds }
             copy(
                 selectedLorebookEntryIds = if (selectAll) {
                     selectedLorebookEntryIds + entryIds
                 } else {
                     selectedLorebookEntryIds - entryIds
-                }
+                },
             )
         }
     }
@@ -198,13 +204,11 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: StoryCreateUiIntent.ToggleLorebookEntry) {
         val uiState = readyState() ?: return
-        if (uiState.lorebookGroups.none { group -> group.entries.any { it.id == intent.entryId } }) {
+        if (uiState.lorebookGroups.none { group -> group.entries.any { storyCreateLorebookEntryItem -> storyCreateLorebookEntryItem.id == intent.entryId } }) {
             return
         }
         updateReadyForm {
-            copy(
-                selectedLorebookEntryIds = selectedLorebookEntryIds.toggle(intent.entryId)
-            )
+            copy(selectedLorebookEntryIds = selectedLorebookEntryIds.toggle(intent.entryId))
         }
     }
 
@@ -226,15 +230,15 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                         .sorted()
                         .map(::StoryLorebookEntrySelection),
                     characterSelections = uiState.characters
-                        .filter { it.id in uiState.form.selectedCharacterIds }
+                        .filter { storyCreateCharacterItem -> storyCreateCharacterItem.id in uiState.form.selectedCharacterIds }
                         .map { character ->
                             StoryCharacterSelection(
                                 characterId = character.id,
                                 activationMode = uiState.form
                                     .activationModeOf(character.id)
-                                    .toStorageValue()
+                                    .toStorageValue(),
                             )
-                        }
+                        },
                 )
             }
             // 启动故事编辑器页面并等待返回
@@ -242,7 +246,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                 activity = StoryEditorActivity::class.java,
                 extras = Bundle().apply {
                     putLong(StoryEditorActivity.EXTRA_STORY_ID, storyId)
-                }
+                },
             ).emitAndAwait()
             // 退出当前新建页
             StoryCreateUiState.finished(uiStateFlow.value).setup()

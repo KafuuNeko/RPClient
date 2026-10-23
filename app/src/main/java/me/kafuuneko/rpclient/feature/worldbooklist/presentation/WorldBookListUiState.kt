@@ -37,5 +37,6 @@ sealed class WorldBookListDialogState {
 /** 世界书列表读取或导入期间的加载状态。 */
 sealed class WorldBookListLoadState {
     data object None : WorldBookListLoadState()
+
     data object Loading : WorldBookListLoadState()
 }

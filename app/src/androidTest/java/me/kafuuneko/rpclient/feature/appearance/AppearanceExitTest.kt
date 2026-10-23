@@ -13,8 +13,6 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
-import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.R
@@ -24,8 +22,8 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustmen
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
-import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
@@ -39,10 +37,13 @@ import org.junit.Test
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
+import java.io.File
+import java.util.UUID
 
 /** 使用隔离 Room 和真实 MVI、弹窗交互验证返回确认，避免修改用户背景。 */
 class AppearanceExitTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
     private lateinit var mDatabase: AppDatabase
     private lateinit var mDirectory: File
     private lateinit var mRepository: PageBackgroundRepository
@@ -56,23 +57,32 @@ class AppearanceExitTest {
     @Before
     fun setUp() {
         mContext = InstrumentationRegistry.getInstrumentation().targetContext
-        mDirectory = File(mContext.cacheDir, "appearance-exit-${UUID.randomUUID()}").apply { mkdirs() }
+        mDirectory =
+            File(mContext.cacheDir, "appearance-exit-${UUID.randomUUID()}").apply { mkdirs() }
         val context = object : ContextWrapper(mContext) {
             override fun getCacheDir(): File = File(mDirectory, "cache").apply { mkdirs() }
-            override fun getDir(name: String, mode: Int): File = File(mDirectory, name).apply { mkdirs() }
+            override fun getDir(name: String, mode: Int): File =
+                File(mDirectory, name).apply { mkdirs() }
         }
         mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         val files = FileRepository(context, mDatabase)
         mRepository = PageBackgroundRepository(mDatabase, files)
-        runBlocking { mRepository.save(PageBackground(BackgroundPage.Chat, followGeneral = false), null) }
+        runBlocking {
+            mRepository.save(
+                value = PageBackground(page = BackgroundPage.Chat, followGeneral = false),
+                prepared = null,
+            )
+        }
         val runtime = BackgroundImageRuntime(context, files)
         // 只覆盖背景依赖并在结束时恢复，主题偏好只读。
         mOriginalRepository = GlobalContext.get().get()
         mOriginalRuntime = GlobalContext.get().get()
-        loadKoinModules(module {
-            single { mRepository }
-            single { runtime }
-        })
+        loadKoinModules(
+            module = module {
+                single { mRepository }
+                single { runtime }
+            },
+        )
         compose.runOnUiThread {
             mViewModel = AppearanceViewModel()
             mStore.put("appearance", mViewModel)
@@ -88,10 +98,12 @@ class AppearanceExitTest {
     @After
     fun tearDown() {
         compose.runOnUiThread { mStore.clear() }
-        loadKoinModules(module {
-            single { mOriginalRepository }
-            single { mOriginalRuntime }
-        })
+        loadKoinModules(
+            module = module {
+                single { mOriginalRepository }
+                single { mOriginalRuntime }
+            },
+        )
         mDatabase.close()
         mDirectory.deleteRecursively()
     }
@@ -102,43 +114,46 @@ class AppearanceExitTest {
         val first = compose.onNodeWithText("Message1").fetchSemanticsNode().boundsInRoot
         val second = compose.onNodeWithText("Message2").fetchSemanticsNode().boundsInRoot
         assertTrue(second.left > first.right)
-        compose.onNodeWithText(mContext.getString(R.string.appearance_preview_input)).assertIsDisplayed()
+        compose.onNodeWithText(mContext.getString(R.string.appearance_preview_input))
+            .assertIsDisplayed()
         send(AppearanceUiIntent.Back)
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
         openEditor()
-        changeBlur(45f)
+        changeBlur(value = 45f)
         send(AppearanceUiIntent.Back)
         awaitDialog()
         compose.onNodeWithText(mContext.getString(R.string.cancel)).performClick()
-        compose.waitUntil(5_000) { state().editor?.dialogState == BackgroundEditorDialogState.None }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.dialogState == BackgroundEditorDialogState.None }
         assertEquals(45, state().editor?.settings?.bubbleBlur)
         // 回到原始值后不应留下粘性的已修改标志。
-        changeBlur(0f)
+        changeBlur(value = 0f)
         send(AppearanceUiIntent.Back)
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
     }
 
     /** 保存经实际仓库提交，放弃不会覆盖已提交值，下一次进入重新建立基准。 */
     @Test
     fun dialogSavesOrDiscardsWithoutLosingCommittedSettings() {
-        changeBlur(45f)
+        changeBlur(value = 45f)
         send(AppearanceUiIntent.Back)
         awaitDialog()
         compose.onNodeWithText(mContext.getString(R.string.save)).performClick()
-        compose.waitUntil(5_000) { state().editor == null }
-        assertEquals(45, runBlocking { mRepository.observe(BackgroundPage.Chat).first().bubbleBlur })
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
+        assertEquals(
+            45,
+            runBlocking { mRepository.observe(BackgroundPage.Chat).first().bubbleBlur })
         openEditor()
         assertEquals(45, state().editor?.settings?.bubbleBlur)
         // 放弃后只丢弃本次修改，重新进入仍显示上次保存值。
-        changeBlur(80f)
+        changeBlur(value = 80f)
         send(AppearanceUiIntent.Back)
         awaitDialog()
         compose.onNodeWithText(mContext.getString(R.string.discard_changes)).performClick()
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
         openEditor()
         assertEquals(45, state().editor?.settings?.bubbleBlur)
         send(AppearanceUiIntent.Back)
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
     }
 
     /** 选图属于未保存修改，恢复原本的无图状态后不再要求保存。 */
@@ -149,34 +164,34 @@ class AppearanceExitTest {
         source.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
         send(AppearanceUiIntent.ImageSelected(Uri.fromFile(source)))
-        compose.waitUntil(5_000) {
+        compose.waitUntil(timeoutMillis = 5_000) {
             state().editor?.settings?.fileUuid != null && state().editor?.working == false
         }
         // 图像处理完成后通过同一返回确认保护新图片，不仅检测滑块值。
         send(AppearanceUiIntent.Back)
         awaitDialog()
         compose.onNodeWithText(mContext.getString(R.string.cancel)).performClick()
-        compose.waitUntil(5_000) { state().editor?.dialogState == BackgroundEditorDialogState.None }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.dialogState == BackgroundEditorDialogState.None }
         send(AppearanceUiIntent.ResetBackground)
-        compose.waitUntil(5_000) { state().editor?.settings?.fileUuid == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.settings?.fileUuid == null }
         send(AppearanceUiIntent.Back)
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
     }
 
     /** 保存异常不会关闭编辑器，用户仍能重新选择保留或放弃草稿。 */
     @Test
     fun failedSaveKeepsDraftAndAllowsAnotherExitChoice() {
-        changeBlur(65f)
+        changeBlur(value = 65f)
         send(AppearanceUiIntent.Back)
         awaitDialog()
         mDatabase.close()
         compose.onNodeWithText(mContext.getString(R.string.save)).performClick()
-        compose.waitUntil(5_000) { state().editor?.error != null && state().editor?.working == false }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.error != null && state().editor?.working == false }
         assertEquals(65, state().editor?.settings?.bubbleBlur)
         send(AppearanceUiIntent.Back)
         awaitDialog()
         compose.onNodeWithText(mContext.getString(R.string.discard_changes)).performClick()
-        compose.waitUntil(5_000) { state().editor == null }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
     }
 
     private fun state() = mViewModel.uiStateFlow.value as AppearanceUiState.Normal
@@ -184,7 +199,7 @@ class AppearanceExitTest {
     /** 等待加载结束后再允许测试操作草稿。 */
     private fun openEditor() {
         send(AppearanceUiIntent.EditBackground(BackgroundPage.Chat))
-        compose.waitUntil(5_000) { state().editor?.working == false && state().editor?.rendering == false }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.working == false && state().editor?.rendering == false }
     }
 
     private fun send(intent: AppearanceUiIntent) = compose.runOnIdle { mViewModel.emit(intent) }
@@ -192,11 +207,11 @@ class AppearanceExitTest {
     /** 使用真实意图修改参数，保证检测覆盖 ViewModel 草稿而非构造的假状态。 */
     private fun changeBlur(value: Float) {
         send(AppearanceUiIntent.ChangeAdjustment(BackgroundAdjustment.BubbleBlur, value))
-        compose.waitUntil(5_000) { state().editor?.settings?.bubbleBlur == value.toInt() }
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.settings?.bubbleBlur == value.toInt() }
     }
 
     private fun awaitDialog() {
-        compose.waitUntil(5_000) {
+        compose.waitUntil(timeoutMillis = 5_000) {
             state().editor?.dialogState == BackgroundEditorDialogState.UnsavedChanges
         }
     }

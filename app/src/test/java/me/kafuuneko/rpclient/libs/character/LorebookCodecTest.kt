@@ -21,12 +21,13 @@ class LorebookCodecTest {
 
     @Test
     fun missingBookBudgetFollowsGlobalAndIsOmittedOnExport() {
-        val imported = codec.parseLorebook(
-            """{"name":"Imported","entries":{}}"""
-        )
+        val imported = codec.parseLorebook("""{"name":"Imported","entries":{}}""")
 
         val exported = JsonParser.parseString(
-            codec.toLorebookJson(imported.lorebook, emptyList())
+            codec.toLorebookJson(
+                imported.lorebook,
+                emptyList()
+            )
         ).asJsonObject
 
         assertEquals(0, imported.lorebook.tokenBudget)
@@ -36,7 +37,7 @@ class LorebookCodecTest {
     @Test
     fun importedLorebookSurvivesEditAndExportWithoutCompatibilityLoss() {
         val imported = codec.parseLorebook(
-            """
+            json = """
             {
               "name": "Imported",
               "description": "Description",
@@ -81,7 +82,7 @@ class LorebookCodecTest {
                 }
               }
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
         val editedBook = WorldBookEditForm.from(imported.lorebook, imported.entries)
             .copy(name = "Renamed")
@@ -98,7 +99,10 @@ class LorebookCodecTest {
             ?: error("Entry form should be valid")
 
         val exported = JsonParser.parseString(
-            codec.toLorebookJson(editedBook, listOf(editedEntry))
+            codec.toLorebookJson(
+                editedBook,
+                listOf(editedEntry)
+            )
         ).asJsonObject
         val exportedEntry = exported.getAsJsonObject("entries").getAsJsonObject("0")
         val extensions = exportedEntry.getAsJsonObject("extensions")
@@ -109,10 +113,11 @@ class LorebookCodecTest {
         assertEquals(256, exported.get("tokenBudget").asInt)
         assertTrue(exported.get("recursiveScanning").asBoolean)
         assertTrue(
-            exported.getAsJsonObject("extensions")
+            exported
+                .getAsJsonObject("extensions")
                 .getAsJsonObject("book_extension")
                 .get("enabled")
-                .asBoolean
+                .asBoolean,
         )
         assertEquals("Updated content", exportedEntry.get("content").asString)
         assertTrue(exportedEntry.getAsJsonObject("custom_top_level").get("preserve").asBoolean)

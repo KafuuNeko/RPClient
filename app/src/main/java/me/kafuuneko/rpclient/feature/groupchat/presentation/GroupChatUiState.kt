@@ -61,7 +61,7 @@ sealed class GroupChatUiState {
 
 /** 更新未保存的设置草稿，同时保持会话当前正在使用的根状态字段不变。 */
 internal fun GroupChatUiState.Normal.withSettingsDraft(
-    transform: GroupChatSettingsState.() -> GroupChatSettingsState
+    transform: GroupChatSettingsState.() -> GroupChatSettingsState,
 ): GroupChatUiState.Normal {
     return copy(settingsState = settingsState.transform())
 }
@@ -137,9 +137,13 @@ data class GroupChatSettingsState(
 /** 群聊数据库操作和摘要操作的页面级加载状态。 */
 sealed class GroupChatLoadState {
     data object None : GroupChatLoadState()
+
     data object Loading : GroupChatLoadState()
+
     data object Deleting : GroupChatLoadState()
+
     data object Saving : GroupChatLoadState()
+
     data object Summarizing : GroupChatLoadState()
 }
 
@@ -149,23 +153,29 @@ sealed class GroupChatDialogState {
     data object SummaryTokenLimit : GroupChatDialogState()
 
     data object None : GroupChatDialogState()
+
     data class SessionLorebook(
         val query: String,
         val visibleGroups: List<GroupChatLorebookGroupItem>,
         val enabledEntryIds: Set<Long>
     ) : GroupChatDialogState()
+
     data class ModelSettingsGuide(
         val title: String,
         val message: String
     ) : GroupChatDialogState()
+
     data class PromptInspector(val inspection: PromptInspection) : GroupChatDialogState()
+
     data class DeleteMessageConfirm(val messageId: Long) : GroupChatDialogState()
+
     data class DeleteSessionConfirm(val title: String) : GroupChatDialogState()
 }
 
 /** 群聊页面当前展示的一级页面。 */
 enum class GroupChatPage {
     Conversation,
+
     Settings
 }
 

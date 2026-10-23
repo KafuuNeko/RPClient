@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.feature.groupchat.model
 
 import androidx.compose.ui.graphics.ImageBitmap
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.model.toMessageContentParts
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 
 /** 群聊消息展示模型，保留说话者快照以避免角色改名影响历史归属。 */
 data class GroupChatMessageItem(

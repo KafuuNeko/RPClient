@@ -79,7 +79,7 @@ data class LLMProviderEditForm(
 ) {
     /** 校验并转换表单；敏感鉴权字段由 ViewModel 在转换时显式提供。 */
     fun toProviderOrNull(
-        apiKey: String = ""
+        apiKey: String = "",
     ): LLMProvider? {
         // 先校验生成参数与扩展配置，避免保存不可发送的模型配置。
         val parsedTemperature = temperature.toFloatOrNull() ?: return null
@@ -95,12 +95,12 @@ data class LLMProviderEditForm(
         if (sendTemperature && parsedTemperature !in capabilities.temperatureRange) return null
         if (sendTopP && parsedTopP !in capabilities.topPRange) return null
         if (validateRequestBodyPatch(
-                requestBodyPatchJson,
-                protectedRequestBodyPaths(protocol)
+                patchJson = requestBodyPatchJson,
+                protectedPaths = protectedRequestBodyPaths(protocol),
             ).isFailure
         ) return null
-        if (providerType == LLMProviderType.OpenRouter &&
-            !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
+        if (providerType == LLMProviderType.OpenRouter
+            && !requestBodyPatchJson.hasValidOpenRouterRoutingPreferences()
         ) return null
         // 提示词保留原始排版；空白值是否注入由 LLM 模块统一判断。
         return LLMProvider(
@@ -127,7 +127,7 @@ data class LLMProviderEditForm(
             imageInputSetting = imageInputSetting,
             imageTokenEstimatorType = imageTokenEstimatorType,
             isEnabled = isEnabled,
-            createTime = createTime
+            createTime = createTime,
         )
     }
 }
@@ -135,7 +135,9 @@ data class LLMProviderEditForm(
 /** 敏感字段的非敏感编辑状态；Replace 只表示 ViewModel 已持有一份确认值。 */
 enum class CredentialEditMode {
     KeepExisting,
+
     Replace,
+
     Clear
 }
 
@@ -155,6 +157,6 @@ fun LLMProviderEditForm.toComparableForm(): LLMProviderEditForm {
         maxTokens = maxTokens.trim(),
         contextTokens = contextTokens.trim(),
         customHeadersJson = customHeadersJson.trim(),
-        requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" }
+        requestBodyPatchJson = requestBodyPatchJson.trim().ifBlank { "{}" },
     )
 }

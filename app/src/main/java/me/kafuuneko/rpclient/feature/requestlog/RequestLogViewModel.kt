@@ -35,7 +35,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         val page = loadLogPage(offset = 0)
         RequestLogUiState.Normal(
             logs = page.items,
-            canLoadMore = page.canLoadMore
+            canLoadMore = page.canLoadMore,
         ).setup()
     }
 
@@ -50,7 +50,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         uiState.copy(
             logs = uiState.logs + page.items,
             canLoadMore = page.canLoadMore,
-            isLoadingMore = false
+            isLoadingMore = false,
         ).setup()
     }
 
@@ -82,7 +82,8 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     /** 打开 JSON 查看器展示指定日志的完整请求体。 */
     @UiIntentObserver(RequestLogUiIntent.OpenRequestJson::class)
     private suspend fun onOpenRequestJson(intent: RequestLogUiIntent.OpenRequestJson) {
-        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId } ?: return
+        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId }
+            ?: return
         val json = loadRequestJson(intent.logId) ?: return
         RequestLogViewEvent.OpenJson(title = "${log.title} / ${intent.title}", json = json).emit()
     }
@@ -90,7 +91,8 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     /** 打开 JSON 查看器展示指定日志的完整响应体。 */
     @UiIntentObserver(RequestLogUiIntent.OpenResponseJson::class)
     private suspend fun onOpenResponseJson(intent: RequestLogUiIntent.OpenResponseJson) {
-        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId } ?: return
+        val log = getOrNull<RequestLogUiState.Normal>()?.logs?.firstOrNull { it.id == intent.logId }
+            ?: return
         val json = loadResponseJson(intent.logId) ?: return
         RequestLogViewEvent.OpenJson(title = "${log.title} / ${intent.title}", json = json).emit()
     }
@@ -125,11 +127,12 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
             val overviews = mLLMRequestLogRepository.getLogOverviews(
                 previewLength = JSON_PREVIEW_LENGTH,
                 limit = PAGE_SIZE + 1,
-                offset = offset
+                offset = offset,
             )
             RequestLogPage(
-                items = overviews.take(PAGE_SIZE).map { it.toUiModel() },
-                canLoadMore = overviews.size > PAGE_SIZE
+                items = overviews.take(PAGE_SIZE)
+                    .map { llmRequestLogOverview -> llmRequestLogOverview.toUiModel() },
+                canLoadMore = overviews.size > PAGE_SIZE,
             )
         }
     }
@@ -151,6 +154,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     private companion object {
         /** 单页日志数量。 */
         const val PAGE_SIZE = 50
+
         /** 列表展示时的 JSON 预览文本截断最大长度。 */
         const val JSON_PREVIEW_LENGTH = 2_000
     }

@@ -36,11 +36,12 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.surfaceBlur
 import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
-import me.kafuuneko.rpclient.ui.theme.LocalDialogControlOpacity
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
+import me.kafuuneko.rpclient.ui.theme.LocalDialogControlOpacity
 
 /** 页面外观开关与区域分类；弹窗可显式隔离，嵌套容器继续继承背景参数。 */
 internal val LocalGeneralPageSurfaces = staticCompositionLocalOf { false }
+
 /** 外层已铺设模糊背景时，内层只调整填充，避免重画壁纸覆盖父容器。 */
 internal val LocalPageSurfaceCovered = staticCompositionLocalOf { false }
 internal val LocalGeneralSurfaceKind = staticCompositionLocalOf { PageSurfaceKind.Content }
@@ -70,15 +71,20 @@ fun Modifier.generalContentBackground(shape: Shape, hasLabel: Boolean = false): 
 /** 将底板边界下移到输入容器，不修改输入框的测量、光标或触摸坐标。 */
 private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
     /** 按标签实际字号折算留白，并将原容器轮廓平移到正确位置。 */
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
         val top = with(density) { inset.toPx() }.coerceAtMost(size.height)
-        val outline = shape.createOutline(Size(size.width, size.height - top), layoutDirection, density)
+        val outline =
+            shape.createOutline(Size(size.width, size.height - top), layoutDirection, density)
         val path = when (outline) {
             is Outline.Rectangle -> Path().apply { addRect(outline.rect) }
             is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
             is Outline.Generic -> Path().apply { addPath(outline.path) }
         }
-        path.translate(Offset(0f, top))
+        path.translate(Offset(x = 0f, y = top))
         return Outline.Generic(path)
     }
 }
@@ -86,7 +92,10 @@ private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
 /** 优先读取弹窗内部控件参数，否则沿用所属页面区域的不透明度。 */
 @Composable
 internal fun generalOpacity(kind: PageSurfaceKind): Float =
-    LocalDialogControlOpacity.current ?: if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(kind) ?: 1f else 1f
+    LocalDialogControlOpacity.current
+        ?: if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(
+            kind
+        ) ?: 1f else 1f
 
 /**
  * 亮色半透明卡片内的主题底板使用更深的色阶，避免内外层浅色叠加后边界消失。
@@ -95,8 +104,12 @@ internal fun generalOpacity(kind: PageSurfaceKind): Float =
  */
 @Composable
 private fun nestedSurfaceColor(color: Color, opacity: Float): Color {
-    if (!LocalGeneralPageSurfaces.current || !LocalPageSurfaceCovered.current ||
-        LocalAppDarkTheme.current || opacity >= 1f || color.alpha == 0f) return color
+    val shouldKeepOriginalColor = !LocalGeneralPageSurfaces.current
+        || !LocalPageSurfaceCovered.current
+        || LocalAppDarkTheme.current
+        || opacity >= 1f
+        || color.alpha == 0f
+    if (shouldKeepOriginalColor) return color
     val colors = MaterialTheme.colorScheme
     val base = color.copy(alpha = 1f)
     // 不从壁纸重新取样，也不增加描边；仅拉开内层填充与外层卡片的色差。
@@ -105,6 +118,7 @@ private fun nestedSurfaceColor(color: Color, opacity: Float): Color {
         colors.surface, colors.surfaceVariant, colors.secondaryContainer,
         colors.surfaceContainer, colors.surfaceContainerHigh, colors.surfaceContainerHighest ->
             lerp(base, colors.onSurface, (1f - opacity) * 0.6f)
+
         else -> base
     }
     return adjusted.copy(alpha = color.alpha)
@@ -113,7 +127,7 @@ private fun nestedSurfaceColor(color: Color, opacity: Float): Color {
 /** 弹窗与独立预览使用自己的表面，不继承页面透明度。 */
 @Composable
 fun WithoutGeneralPageSurfaces(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalGeneralPageSurfaces provides false, content = content)
+    CompositionLocalProvider(value = LocalGeneralPageSurfaces provides false, content = content)
 }
 
 /**
@@ -134,7 +148,7 @@ fun AppSurface(
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
     kind: PageSurfaceKind = LocalGeneralSurfaceKind.current,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val opacity = generalOpacity(kind)
     val decorated = if (LocalGeneralPageSurfaces.current && !LocalPageSurfaceCovered.current)
@@ -144,14 +158,39 @@ fun AppSurface(
     val elevation = if (opacity < 1f) 0.dp else shadowElevation
     // 两种 Surface 重载保留各自的点击与无障碍语义。
     if (onClick == null) {
-        Surface(decorated, shape, fill, contentColor, tonalElevation, elevation, outline) {
-            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind, content = content)
+        Surface(
+            modifier = decorated,
+            shape = shape,
+            color = fill,
+            contentColor = contentColor,
+            tonalElevation = tonalElevation,
+            shadowElevation = elevation,
+            border = outline,
+        ) {
+            CompositionLocalProvider(
+                LocalPageSurfaceCovered provides true,
+                LocalGeneralSurfaceKind provides kind,
+                content = content,
+            )
         }
     } else {
-        Surface(onClick = onClick, modifier = decorated, enabled = enabled, shape = shape,
-            color = fill, contentColor = contentColor, tonalElevation = tonalElevation,
-            shadowElevation = elevation, border = outline, interactionSource = interactionSource) {
-            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind, content = content)
+        Surface(
+            onClick = onClick,
+            modifier = decorated,
+            enabled = enabled,
+            shape = shape,
+            color = fill,
+            contentColor = contentColor,
+            tonalElevation = tonalElevation,
+            shadowElevation = elevation,
+            border = outline,
+            interactionSource = interactionSource,
+        ) {
+            CompositionLocalProvider(
+                LocalPageSurfaceCovered provides true,
+                LocalGeneralSurfaceKind provides kind,
+                content = content,
+            )
         }
     }
 }
@@ -167,7 +206,7 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val kind = LocalGeneralSurfaceKind.current
     val opacity = generalOpacity(kind)
@@ -177,18 +216,46 @@ fun AppCard(
         containerColor = nestedSurfaceColor(colors.containerColor, opacity)
             .copy(alpha = colors.containerColor.alpha * opacity),
         disabledContainerColor = nestedSurfaceColor(colors.disabledContainerColor, opacity)
-            .copy(alpha = colors.disabledContainerColor.alpha * opacity)
+            .copy(alpha = colors.disabledContainerColor.alpha * opacity),
     )
     val outline = if (opacity < 1f) null else border
-    val depth = if (opacity < 1f) CardDefaults.cardElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp, 0.dp) else elevation
+    val depth = if (opacity < 1f) CardDefaults.cardElevation(
+        defaultElevation = 0.dp,
+        pressedElevation = 0.dp,
+        focusedElevation = 0.dp,
+        hoveredElevation = 0.dp,
+        draggedElevation = 0.dp,
+        disabledElevation = 0.dp,
+    ) else elevation
     // 子内容仍在 Card 的 ColumnScope 中布局，只隔离外观效果。
     if (onClick == null) {
-        Card(decorated, shape, fill, depth, outline) {
-            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind) { content() }
+        Card(
+            modifier = decorated,
+            shape = shape,
+            colors = fill,
+            elevation = depth,
+            border = outline
+        ) {
+            CompositionLocalProvider(
+                LocalPageSurfaceCovered provides true,
+                LocalGeneralSurfaceKind provides kind
+            ) { content() }
         }
     } else {
-        Card(onClick, decorated, enabled, shape, fill, depth, outline, interactionSource) {
-            CompositionLocalProvider(LocalPageSurfaceCovered provides true, LocalGeneralSurfaceKind provides kind) { content() }
+        Card(
+            onClick = onClick,
+            modifier = decorated,
+            enabled = enabled,
+            shape = shape,
+            colors = fill,
+            elevation = depth,
+            border = outline,
+            interactionSource = interactionSource,
+        ) {
+            CompositionLocalProvider(
+                LocalPageSurfaceCovered provides true,
+                LocalGeneralSurfaceKind provides kind
+            ) { content() }
         }
     }
 }
@@ -205,14 +272,29 @@ fun AppPageScaffold(
     containerColor: Color = MaterialTheme.colorScheme.background,
     contentColor: Color = contentColorFor(containerColor),
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
-    content: @Composable (PaddingValues) -> Unit
+    content: @Composable (PaddingValues) -> Unit,
 ) {
     // 栏位分类由槽位提供，普通内容卡片不需要逐页传递设置。
-    Scaffold(modifier = modifier,
-        topBar = { CompositionLocalProvider(LocalGeneralSurfaceKind provides PageSurfaceKind.TopBar, content = topBar) },
-        bottomBar = { CompositionLocalProvider(LocalGeneralSurfaceKind provides PageSurfaceKind.BottomBar, content = bottomBar) },
-        snackbarHost = snackbarHost, floatingActionButton = floatingActionButton,
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            CompositionLocalProvider(
+                value = LocalGeneralSurfaceKind provides PageSurfaceKind.TopBar,
+                content = topBar,
+            )
+        },
+        bottomBar = {
+            CompositionLocalProvider(
+                value = LocalGeneralSurfaceKind provides PageSurfaceKind.BottomBar,
+                content = bottomBar,
+            )
+        },
+        snackbarHost = snackbarHost,
+        floatingActionButton = floatingActionButton,
         floatingActionButtonPosition = floatingActionButtonPosition,
-        containerColor = pageCanvasColor(containerColor), contentColor = contentColor,
-        contentWindowInsets = contentWindowInsets, content = content)
+        containerColor = pageCanvasColor(containerColor),
+        contentColor = contentColor,
+        contentWindowInsets = contentWindowInsets,
+        content = content,
+    )
 }

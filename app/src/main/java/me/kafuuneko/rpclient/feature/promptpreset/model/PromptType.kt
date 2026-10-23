@@ -9,27 +9,49 @@ import me.kafuuneko.rpclient.libs.AppModel
  */
 enum class PromptType {
     Main,
+
     Auxiliary,
+
     PostHistory,
+
     Summarize,
+
     SummaryInjection,
+
     Impersonation,
+
     NewChat,
+
     NewExampleChat,
+
     ContinueNudge,
+
     ReplaceEmptyMessage,
+
     WorldInfoFormat,
+
     ScenarioFormat,
+
     PersonalityFormat,
+
     UserPersonaFormat,
+
     GroupNudge,
+
     NewGroupChat,
+
     GroupSummarize,
+
     StoryMain,
+
     StoryMemory,
+
     StorySummary,
+
     StorySummarize,
+
     StoryContinuationGuidance,
+
     StoryContinue
 }
 
@@ -72,13 +94,16 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.PostHistory,
         PromptType.Impersonation,
         PromptType.ContinueNudge -> listOf("{{char}}", "{{user}}")
+
         PromptType.GroupNudge -> listOf("{{char}}", "{{user}}", "{{group}}")
         PromptType.NewGroupChat -> listOf("{{group}}", "{{char}}", "{{user}}")
         PromptType.Summarize,
         PromptType.GroupSummarize,
         PromptType.StorySummarize -> listOf("{{words}}", "{{char}}", "{{user}}")
+
         PromptType.SummaryInjection,
         PromptType.StorySummary -> listOf("{{summary}}")
+
         PromptType.StoryMemory -> listOf("{{memory}}")
         PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
         PromptType.WorldInfoFormat -> listOf("{0}")

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Description
@@ -63,12 +62,23 @@ fun StoryEditorLayout(
     uiState: StoryEditorUiState,
     document: StoryEditorDocument?,
     background: PageBackgroundUiState = PageBackgroundUiState(),
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     when (uiState) {
         StoryEditorUiState.None -> EditorLoading()
-        is StoryEditorUiState.Normal -> StoryEditorNormal(uiState, document, background, emit)
-        is StoryEditorUiState.Finished -> StoryEditorLayout(uiState.previous, document, background) {}
+        is StoryEditorUiState.Normal -> StoryEditorNormal(
+            state = uiState,
+            document = document,
+            background = background,
+            emit = emit,
+        )
+
+        is StoryEditorUiState.Finished -> StoryEditorLayout(
+            uiState = uiState.previous,
+            document = document,
+            background = background,
+            emit = {},
+        )
     }
 }
 
@@ -77,24 +87,34 @@ private fun StoryEditorNormal(
     state: StoryEditorUiState.Normal,
     document: StoryEditorDocument?,
     background: PageBackgroundUiState,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
-    BackHandler {
-        when (state.pageState) {
-            StoryEditorPageState.Editor -> StoryEditorUiIntent.Back.emit()
-            StoryEditorPageState.Outline -> StoryEditorUiIntent.CloseStoryOutline.emit()
-            StoryEditorPageState.LoadingSettings,
-            is StoryEditorPageState.Settings -> StoryEditorUiIntent.CloseStorySettings.emit()
-        }
-    }
+    BackHandler(
+        onBack = {
+            when (state.pageState) {
+                StoryEditorPageState.Editor -> StoryEditorUiIntent.Back.emit()
+                StoryEditorPageState.Outline -> StoryEditorUiIntent.CloseStoryOutline.emit()
+                StoryEditorPageState.LoadingSettings,
+                is StoryEditorPageState.Settings -> StoryEditorUiIntent.CloseStorySettings.emit()
+            }
+        },
+    )
     // 章节、大纲及设置都属于当前故事，加载设置时也保留同一张背景。
-    PageBackdrop(background, useContainerAppearance = state.pageState != StoryEditorPageState.Editor) {
+    PageBackdrop(
+        state = background,
+        useContainerAppearance = state.pageState != StoryEditorPageState.Editor
+    ) {
         when (val pageState = state.pageState) {
-            StoryEditorPageState.Editor -> StoryEditorNormalPage(state, document, emit)
+            StoryEditorPageState.Editor -> StoryEditorNormalPage(
+                state = state,
+                document = document,
+                emit = emit
+            )
+
             StoryEditorPageState.Outline -> StoryOutlinePage(
                 storyTitle = state.topBarState.title,
                 structureState = state.structureState,
-                emit = emit
+                emit = emit,
             )
 
             StoryEditorPageState.LoadingSettings -> StorySettingsLoadingPage(emit)
@@ -107,7 +127,7 @@ private fun StoryEditorNormal(
 @Composable
 private fun EditorDialogSwitch(
     state: StoryEditorUiState.Normal,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
@@ -118,11 +138,11 @@ private fun EditorDialogSwitch(
                 R.string.summary_token_limit_message,
                 stringResource(R.string.summary_memory),
                 stringResource(R.string.general_summary_memory),
-                stringResource(R.string.summary_response_tokens)
+                stringResource(R.string.summary_response_tokens),
             ),
             confirmText = stringResource(R.string.summary_go_to_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { StoryEditorUiIntent.OpenSummarySettings.emit() }
+            onConfirm = { StoryEditorUiIntent.OpenSummarySettings.emit() },
         )
 
         is StoryEditorDialogState.ModelSettingsGuide -> AppConfirmDialog(
@@ -131,36 +151,40 @@ private fun EditorDialogSwitch(
             message = dialogState.message,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
-            onConfirm = { StoryEditorUiIntent.OpenProviderSettings.emit() }
+            onConfirm = { StoryEditorUiIntent.OpenProviderSettings.emit() },
         )
+
         is StoryEditorDialogState.PromptInspector -> PromptInspectorDialog(
             inspection = dialogState.inspection,
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
-            onCopyRequest = { StoryEditorUiIntent.CopyPromptItem(it).emit() }
+            onCopyRequest = { StoryEditorUiIntent.CopyPromptItem(it).emit() },
         )
 
         StoryEditorDialogState.FileActions -> FileActionsDialog(emit)
         is StoryEditorDialogState.ImportPreview -> ImportPreviewDialog(dialogState, emit)
-        is StoryEditorDialogState.StructureTitleEditor -> AppInputDialog(
-            onDismissRequest = {
-                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
-            },
-            title = when (dialogState.target) {
+        is StoryEditorDialogState.StructureTitleEditor -> {
+            val dialogTitle = when (dialogState.target) {
                 StoryStructureTitleTarget.NewVolume -> stringResource(R.string.story_add_volume)
                 is StoryStructureTitleTarget.NewChapter -> stringResource(R.string.story_add_chapter)
                 is StoryStructureTitleTarget.Volume,
                 is StoryStructureTitleTarget.Chapter -> stringResource(R.string.rename)
-            },
-            value = dialogState.title,
-            onValueChange = { StoryEditorUiIntent.ChangeStructureTitle(it).emit() },
-            label = stringResource(R.string.story_structure_title),
-            enabled = !dialogState.isSaving,
-            confirmText = stringResource(R.string.confirm),
-            dismissText = stringResource(R.string.cancel),
-            confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
-            isConfirmLoading = dialogState.isSaving,
-            onConfirm = { StoryEditorUiIntent.ConfirmStructureTitle.emit() }
-        )
+            }
+            AppInputDialog(
+                onDismissRequest = {
+                    if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+                },
+                title = dialogTitle,
+                value = dialogState.title,
+                onValueChange = { StoryEditorUiIntent.ChangeStructureTitle(it).emit() },
+                label = stringResource(R.string.story_structure_title),
+                enabled = !dialogState.isSaving,
+                confirmText = stringResource(R.string.confirm),
+                dismissText = stringResource(R.string.cancel),
+                confirmEnabled = dialogState.title.isNotBlank() && !dialogState.isSaving,
+                isConfirmLoading = dialogState.isSaving,
+                onConfirm = { StoryEditorUiIntent.ConfirmStructureTitle.emit() },
+            )
+        }
 
         is StoryEditorDialogState.DeleteVolume -> AppDangerDialog(
             onDismissRequest = {
@@ -172,7 +196,7 @@ private fun EditorDialogSwitch(
             dismissText = stringResource(R.string.cancel),
             confirmEnabled = !dialogState.isSaving,
             isConfirmLoading = dialogState.isSaving,
-            onConfirm = { StoryEditorUiIntent.ConfirmDeleteVolume.emit() }
+            onConfirm = { StoryEditorUiIntent.ConfirmDeleteVolume.emit() },
         )
 
         is StoryEditorDialogState.DeleteChapter -> AppDangerDialog(
@@ -185,55 +209,58 @@ private fun EditorDialogSwitch(
             dismissText = stringResource(R.string.cancel),
             confirmEnabled = !dialogState.isSaving,
             isConfirmLoading = dialogState.isSaving,
-            onConfirm = { StoryEditorUiIntent.ConfirmDeleteChapter.emit() }
+            onConfirm = { StoryEditorUiIntent.ConfirmDeleteChapter.emit() },
         )
 
-        is StoryEditorDialogState.MoveChapter -> StoryMoveChapterDialog(
-            onDismissRequest = {
-                if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
-            },
-            chapterTitle = dialogState.title,
-            options = buildList {
-                add(
-                    StoryChapterDestinationOption(
-                        volumeId = null,
-                        title = stringResource(R.string.story_ungrouped_chapters),
-                        chapterCount = state.structureState.ungroupedChapters.size
-                    )
-                )
-                state.structureState.volumes.forEach { volume ->
-                    add(
-                        StoryChapterDestinationOption(
-                            volumeId = volume.id,
-                            title = volume.title,
-                            chapterCount = volume.chapters.size
-                        )
-                    )
-                }
-            },
-            selectedVolumeId = when (val destination = dialogState.selectedDestination) {
+        is StoryEditorDialogState.MoveChapter -> {
+            val selectedVolumeId = when (val destination = dialogState.selectedDestination) {
                 StoryChapterDestination.Ungrouped -> null
                 is StoryChapterDestination.Volume -> destination.volumeId
-            },
-            isSaving = dialogState.isSaving,
-            onDestinationSelected = { volumeId ->
-                StoryEditorUiIntent.SelectChapterDestination(
-                    volumeId?.let(StoryChapterDestination::Volume)
-                        ?: StoryChapterDestination.Ungrouped
-                ).emit()
-            },
-            onConfirm = { StoryEditorUiIntent.ConfirmMoveStoryChapter.emit() }
-        )
+            }
+            StoryMoveChapterDialog(
+                onDismissRequest = {
+                    if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()
+                },
+                chapterTitle = dialogState.title,
+                options = buildList {
+                    add(
+                        element = StoryChapterDestinationOption(
+                            volumeId = null,
+                            title = stringResource(R.string.story_ungrouped_chapters),
+                            chapterCount = state.structureState.ungroupedChapters.size,
+                        ),
+                    )
+                    state.structureState.volumes.forEach { volume ->
+                        add(
+                            element = StoryChapterDestinationOption(
+                                volumeId = volume.id,
+                                title = volume.title,
+                                chapterCount = volume.chapters.size,
+                            ),
+                        )
+                    }
+                },
+                selectedVolumeId = selectedVolumeId,
+                isSaving = dialogState.isSaving,
+                onDestinationSelected = { volumeId ->
+                    StoryEditorUiIntent.SelectChapterDestination(
+                        destination = volumeId?.let(StoryChapterDestination::Volume)
+                            ?: StoryChapterDestination.Ungrouped,
+                    ).emit()
+                },
+                onConfirm = { StoryEditorUiIntent.ConfirmMoveStoryChapter.emit() },
+            )
+        }
 
         StoryEditorDialogState.SummarizingStory -> LoadingDialog(
             title = stringResource(R.string.story_summarizing),
             description = stringResource(R.string.story_summary_desc),
-            onCancel = { StoryEditorUiIntent.CancelStorySummary.emit() }
+            onCancel = { StoryEditorUiIntent.CancelStorySummary.emit() },
         )
 
         is StoryEditorDialogState.StorySummaryPreview -> StorySummaryPreviewDialog(
-            dialogState,
-            emit
+            state = dialogState,
+            emit = emit,
         )
     }
 }
@@ -241,7 +268,7 @@ private fun EditorDialogSwitch(
 @Composable
 private fun StorySummaryPreviewDialog(
     state: StoryEditorDialogState.StorySummaryPreview,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     AppDialogScaffold(
         onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
@@ -251,7 +278,7 @@ private fun StorySummaryPreviewDialog(
         compactHeader = true,
         confirmText = stringResource(R.string.confirm),
         dismissText = stringResource(R.string.cancel),
-        onConfirm = { StoryEditorUiIntent.ConfirmStorySummary.emit() }
+        onConfirm = { StoryEditorUiIntent.ConfirmStorySummary.emit() },
     ) {
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
@@ -261,7 +288,7 @@ private fun StorySummaryPreviewDialog(
             maxLines = 12,
             readOnly = true,
             outputTransformation = rememberPromptMacroOutputTransformation(),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
         )
     }
 }
@@ -277,38 +304,40 @@ private fun FileActionsDialog(emit: StoryEditorUiIntent.() -> Unit) {
             AppActionItem(
                 icon = Icons.Rounded.FileDownload,
                 title = stringResource(R.string.story_import_text),
-                onClick = { StoryEditorUiIntent.ImportTextClick.emit() }
+                onClick = { StoryEditorUiIntent.ImportTextClick.emit() },
             ),
             AppActionItem(
                 icon = Icons.Rounded.FileDownload,
                 title = stringResource(R.string.story_import_archive),
-                onClick = { StoryEditorUiIntent.ImportStoryClick.emit() }
+                onClick = { StoryEditorUiIntent.ImportStoryClick.emit() },
             ),
             AppActionItem(
                 icon = Icons.Rounded.FileUpload,
                 title = stringResource(R.string.story_export_txt),
-                onClick = { StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Text).emit() }
+                onClick = {
+                    StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Text).emit()
+                },
             ),
             AppActionItem(
                 icon = Icons.Rounded.FileUpload,
                 title = stringResource(R.string.story_export_markdown),
                 onClick = {
                     StoryEditorUiIntent.ExportTextClick(StoryTextExportFormat.Markdown).emit()
-                }
+                },
             ),
             AppActionItem(
                 icon = Icons.Rounded.FileUpload,
                 title = stringResource(R.string.story_export_archive),
-                onClick = { StoryEditorUiIntent.ExportStoryClick.emit() }
-            )
-        )
+                onClick = { StoryEditorUiIntent.ExportStoryClick.emit() },
+            ),
+        ),
     )
 }
 
 @Composable
 private fun ImportPreviewDialog(
     state: StoryEditorDialogState.ImportPreview,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     val preview = state.preview
     AppDialogScaffold(
@@ -325,17 +354,19 @@ private fun ImportPreviewDialog(
         onConfirm = { StoryEditorUiIntent.ConfirmImport.emit() },
         onDismiss = {
             if (!preview.isSaving) StoryEditorUiIntent.DismissDialog.emit()
-        }
+        },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(14.dp), hasLabel = true),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .generalContentBackground(shape = RoundedCornerShape(14.dp), hasLabel = true),
                 value = preview.title,
-                onValueChange = { StoryEditorUiIntent.ChangeImportTitle(it).emit() },
+                onValueChange = { text -> StoryEditorUiIntent.ChangeImportTitle(text).emit() },
                 label = { Text(stringResource(R.string.story_title)) },
                 singleLine = true,
                 enabled = !preview.isSaving,
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
             )
             Text(
                 text = stringResource(
@@ -343,10 +374,10 @@ private fun ImportPreviewDialog(
                     preview.draft.totalCharacterCount,
                     preview.draft.chapterCount,
                     preview.draft.characterHints.size,
-                    preview.draft.lorebookHints.size
+                    preview.draft.lorebookHints.size,
                 ),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -361,7 +392,7 @@ internal fun EditorLoading() {
         modifier = Modifier
             .fillMaxSize()
             .background(pageCanvasColor()),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator()
     }
@@ -374,33 +405,35 @@ private fun StoryEditorLayoutPreview() {
         StoryEditorLayout(
             uiState = StoryEditorUiState.Normal(
                 storyId = 1L,
-                topBarState = StoryEditorTopBarState(
-                    title = "Rain over the old city"
-                ),
-                contentState = StoryEditorContentState(
-                    characterCount = 128
-                ),
+                topBarState = StoryEditorTopBarState(title = "Rain over the old city"),
+                contentState = StoryEditorContentState(characterCount = 128),
                 structureState = StoryEditorStructureState(
                     currentChapterId = 1L,
                     currentChapterTitle = "Chapter One",
                     ungroupedChapters = listOf(
-                        StoryChapterOutlineItem(1L, "Chapter One", null, 128, 0)
-                    )
+                        element = StoryChapterOutlineItem(
+                            id = 1L,
+                            title = "Chapter One",
+                            volumeId = null,
+                            characterCount = 128,
+                            sortOrder = 0,
+                        ),
+                    ),
                 ),
                 referenceState = StoryEditorReferenceState(
                     hasMemory = true,
                     hasAuthorNote = true,
                     characterCount = 2,
-                    lorebookEntryCount = 4
-                )
+                    lorebookEntryCount = 4,
+                ),
             ),
             document = StoryEditorDocument(
                 storyId = 1L,
                 chapterId = 1L,
                 content = "# Chapter One\n\nRain tapped softly against the station windows.",
-                syncVersion = 1L
+                syncVersion = 1L,
             ),
-            emit = {}
+            emit = {},
         )
     }
 }

@@ -26,6 +26,6 @@ internal fun LLMProvider.toMainProviderItem(): MainProviderItem {
         name = name,
         baseUrl = baseUrl,
         model = model,
-        isEnabled = isEnabled
+        isEnabled = isEnabled,
     )
 }

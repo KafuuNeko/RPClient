@@ -40,25 +40,23 @@ import kotlin.math.roundToInt
 @Composable
 fun Modifier.draggableScrollIndicator(
     state: ScrollState,
-    color: Color = MaterialTheme.colorScheme.outline.copy(
-        alpha = SCROLL_INDICATOR_THUMB_OPACITY
-    ),
-    thumbThickness: Dp = ScrollIndicatorThickness
+    color: Color = MaterialTheme.colorScheme.outline.copy(alpha = SCROLL_INDICATOR_THUMB_OPACITY),
+    thumbThickness: Dp = ScrollIndicatorThickness,
 ): Modifier {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val thumbDraggedState = remember { mutableStateOf(false) }
     val indicatorAlpha = rememberScrollIndicatorAlpha(
         state = state,
-        thumbDraggedState = thumbDraggedState
+        thumbDraggedState = thumbDraggedState,
     )
 
     return drawWithContent {
         drawContent()
         val alpha = indicatorAlpha.value
         if (alpha == 0f) return@drawWithContent
-        val geometry = density.calculateScrollIndicatorGeometry(size.height, state)
-            ?: return@drawWithContent
+        val geometry =
+            density.calculateScrollIndicatorGeometry(size.height, state) ?: return@drawWithContent
 
         // 使用逻辑末端定位，保持 LTR 与 RTL 布局行为一致。
         val thickness = thumbThickness.toPx()
@@ -72,7 +70,7 @@ fun Modifier.draggableScrollIndicator(
             color = color.copy(alpha = color.alpha * alpha),
             topLeft = Offset(left, geometry.thumbStart),
             size = Size(thickness, geometry.thumbLength),
-            cornerRadius = CornerRadius(thickness / 2f, thickness / 2f)
+            cornerRadius = CornerRadius(thickness / 2f, thickness / 2f),
         )
     }.pointerInput(state, layoutDirection, density) {
         coroutineScope {
@@ -84,19 +82,19 @@ fun Modifier.draggableScrollIndicator(
             awaitEachGesture {
                 val down = awaitFirstDown(
                     requireUnconsumed = false,
-                    pass = PointerEventPass.Initial
+                    pass = PointerEventPass.Initial,
                 )
                 // 完全隐藏后不保留透明命中区，避免抢占容器原有手势。
                 if (indicatorAlpha.value == 0f) return@awaitEachGesture
                 val geometry = density.calculateScrollIndicatorGeometry(
                     containerLength = size.height.toFloat(),
-                    state = state
+                    state = state,
                 ) ?: return@awaitEachGesture
                 if (!density.isInsideScrollThumb(
                         position = down.position,
                         containerWidth = size.width.toFloat(),
                         geometry = geometry,
-                        layoutDirection = layoutDirection
+                        layoutDirection = layoutDirection,
                     )
                 ) return@awaitEachGesture
 
@@ -106,23 +104,23 @@ fun Modifier.draggableScrollIndicator(
                 try {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        val change =
+                            event.changes.firstOrNull { pointerInputChange -> pointerInputChange.id == down.id }
+                                ?: break
                         change.consume()
                         if (!change.pressed) break
 
                         // 将滑块顶部在轨道中的比例映射为内容像素偏移。
                         val currentGeometry = density.calculateScrollIndicatorGeometry(
                             containerLength = size.height.toFloat(),
-                            state = state
+                            state = state,
                         ) ?: break
                         val targetThumbStart = change.position.y - dragAnchor
                         val targetFraction = (
                             (targetThumbStart - currentGeometry.trackStart) /
                                 currentGeometry.thumbTravel
-                            ).coerceIn(0f, 1f)
-                        scrollTargets.trySend(
-                            (targetFraction * currentGeometry.maxScrollOffset).roundToInt()
-                        )
+                            ).coerceIn(minimumValue = 0f, maximumValue = 1f)
+                        scrollTargets.trySend(element = (targetFraction * currentGeometry.maxScrollOffset).roundToInt())
                     }
                 } finally {
                     thumbDraggedState.value = false
@@ -147,15 +145,15 @@ private data class ScrollIndicatorGeometry(
 /** 从滚动状态计算指示器几何，供绘制与拖动共用。 */
 private fun Density.calculateScrollIndicatorGeometry(
     containerLength: Float,
-    state: ScrollState
+    state: ScrollState,
 ): ScrollIndicatorGeometry? {
     // 部分文本框仅维护视口与最大偏移，总尺寸需要由两者重建。
     val viewportSize = state.viewportSize.toFloat()
     val maxScrollOffset = state.maxValue
     if (
-        viewportSize <= 0f ||
-        maxScrollOffset <= 0 ||
-        maxScrollOffset == Int.MAX_VALUE
+        viewportSize <= 0f
+        || maxScrollOffset <= 0
+        || maxScrollOffset == Int.MAX_VALUE
     ) return null
     val contentSize = viewportSize + maxScrollOffset.toFloat()
 
@@ -166,21 +164,21 @@ private fun Density.calculateScrollIndicatorGeometry(
 
     // 滑块长度反映可见比例，同时保留可辨识的最小尺寸。
     val maxThumbLength = maxOf(
-        minThumbLength,
-        trackLength * SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION
+        a = minThumbLength,
+        b = trackLength * SCROLL_INDICATOR_MAX_THUMB_LENGTH_FRACTION,
     )
     val thumbLength = (trackLength * viewportSize / contentSize)
         .coerceIn(minThumbLength, maxThumbLength)
     val thumbTravel = trackLength - thumbLength
     if (thumbTravel <= 0f) return null
     val thumbStart = trackStart + (state.value.toFloat() / maxScrollOffset.toFloat())
-        .coerceIn(0f, 1f) * thumbTravel
+        .coerceIn(minimumValue = 0f, maximumValue = 1f) * thumbTravel
     return ScrollIndicatorGeometry(
         trackStart = trackStart,
         thumbStart = thumbStart,
         thumbLength = thumbLength,
         maxScrollOffset = maxScrollOffset,
-        thumbTravel = thumbTravel
+        thumbTravel = thumbTravel,
     )
 }
 
@@ -189,7 +187,7 @@ private fun Density.isInsideScrollThumb(
     position: Offset,
     containerWidth: Float,
     geometry: ScrollIndicatorGeometry,
-    layoutDirection: LayoutDirection
+    layoutDirection: LayoutDirection,
 ): Boolean {
     // 横向扩大命中范围，纵向仅在短滑块不足最小触控尺寸时对称扩展。
     val touchTargetSize = ScrollIndicatorTouchTargetSize.toPx()

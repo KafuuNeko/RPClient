@@ -21,7 +21,8 @@ class Converters {
     /** 未知历史名称保守回退到自动，保证数据库仍可打开。 */
     @TypeConverter
     fun toImageTokenEstimatorType(value: String): ImageTokenEstimatorType =
-        ImageTokenEstimatorType.entries.firstOrNull { it.name == value } ?: ImageTokenEstimatorType.Automatic
+        ImageTokenEstimatorType.entries.firstOrNull { it.name == value }
+            ?: ImageTokenEstimatorType.Automatic
 
     /** 持久化稳定名称，避免枚举新增改变既有配置。 */
     @TypeConverter

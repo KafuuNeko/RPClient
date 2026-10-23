@@ -55,14 +55,18 @@ data class GroupChatSession(
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {
         Manual,
+
         Natural,
+
         List,
+
         Pooled
     }
 
     /** 多角色卡进入 Prompt 时采用替换当前角色还是联合注入。 */
     enum class CharacterCardMode {
         Swap,
+
         Join
     }
 }

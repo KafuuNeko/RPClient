@@ -9,7 +9,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 /** Token 数值的来源，用于避免把本地预估误解为服务商账单。 */
 enum class LLMTokenUsageSource {
     ProviderReported,
+
     ModelAwareEstimate,
+
     ProxyEstimate
 }
 

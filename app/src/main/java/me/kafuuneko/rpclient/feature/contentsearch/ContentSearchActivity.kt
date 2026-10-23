@@ -38,7 +38,7 @@ class ContentSearchActivity : CoreActivityWithEvent() {
     override fun ViewContent() {
         val state by mViewModel.uiStateFlow.collectAsState()
         LaunchedEffect(state) { if (state is ContentSearchUiState.Finished) finish() }
-        ContentSearchLayout(state) { mViewModel.emit(this) }
+        ContentSearchLayout(state = state, emit = { mViewModel.emit(this) })
     }
 
     companion object {

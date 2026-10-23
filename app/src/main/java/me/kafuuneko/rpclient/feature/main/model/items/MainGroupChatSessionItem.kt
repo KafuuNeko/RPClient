@@ -30,6 +30,6 @@ internal fun GroupChatSessionOverview.toUiModel(preview: String): MainGroupChatS
         preview = preview,
         messageCount = messageCount,
         updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
-        latestTime = latestTime
+        latestTime = latestTime,
     )
 }

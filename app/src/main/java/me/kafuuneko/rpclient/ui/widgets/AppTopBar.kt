@@ -41,7 +41,7 @@ fun AppTopBar(
     backIconPainter: Painter = painterResource(R.drawable.ic_back),
     onBack: () -> Unit = {},
     containerColor: Color = MaterialTheme.colorScheme.background,
-    actions: @Composable () -> Unit = {}
+    actions: @Composable () -> Unit = {},
 ) {
     // 容器颜色由页面指定，前景与触摸区域保持不变。
     AppSurface(
@@ -49,15 +49,13 @@ fun AppTopBar(
         modifier = modifier
             .fillMaxWidth(),
         color = containerColor,
-        contentColor = MaterialTheme.colorScheme.onBackground
+        contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
-                )
+                .windowInsetsPadding(insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 10.dp)
                 .height(height),
             verticalAlignment = Alignment.CenterVertically,
@@ -65,11 +63,11 @@ fun AppTopBar(
             Icon(
                 modifier = Modifier
                     .size(32.dp)
-                    .clickable { onBack() }
+                    .clickable(onClick = { onBack() })
                     .padding(4.dp),
                 painter = backIconPainter,
                 contentDescription = stringResource(R.string.back),
-                tint = MaterialTheme.colorScheme.onBackground
+                tint = MaterialTheme.colorScheme.onBackground,
             )
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -80,7 +78,7 @@ fun AppTopBar(
                 maxLines = 1,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
 
             actions()

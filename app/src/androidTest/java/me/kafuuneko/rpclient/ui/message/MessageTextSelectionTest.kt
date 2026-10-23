@@ -18,8 +18,6 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
@@ -28,6 +26,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /** 验证真实选择菜单与 Android 文本处理、分享协议之间的衔接。 */
 class MessageTextSelectionTest {
@@ -93,7 +93,10 @@ class MessageTextSelectionTest {
             val request = outgoing.poll(5, TimeUnit.SECONDS)
             assertNotNull("The menu should discover external text processors", request)
             assertEquals(Intent.ACTION_PROCESS_TEXT, request!!.action)
-            assertEquals("selected", request.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT).toString())
+            assertEquals(
+                "selected",
+                request.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT).toString()
+            )
         } finally {
             instrumentation.removeMonitor(monitor)
         }
@@ -103,7 +106,10 @@ class MessageTextSelectionTest {
         compose.setContent {
             AppTheme {
                 Box(Modifier.padding(48.dp)) {
-                    MarkdownMessageText("Before **selected** after.\n\nOther paragraph.", isUser = false)
+                    MarkdownMessageText(
+                        content = "Before **selected** after.\n\nOther paragraph.",
+                        isUser = false
+                    )
                 }
             }
         }
@@ -111,23 +117,35 @@ class MessageTextSelectionTest {
         val layouts = mutableListOf<TextLayoutResult>()
         val text = compose.onNodeWithText("Before selected after.")
         text.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        text.performTouchInput { longClick(layouts.single().getBoundingBox(9).center) }
+        text.performTouchInput { longClick(layouts.single().getBoundingBox(offset = 9).center) }
         compose.waitForIdle()
     }
 
     private fun clickMenuItem(label: String) {
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         val serviceInfo = automation.serviceInfo
-        serviceInfo.flags = serviceInfo.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        serviceInfo.flags =
+            serviceInfo.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         automation.serviceInfo = serviceInfo
         // 系统浮动工具栏可能属于独立窗口，使用无障碍树而非应用内 View 查找。
         var target: AccessibilityNodeInfo? = null
         var expanded = false
         compose.waitUntil(timeoutMillis = 5_000) {
-            val roots = automation.windows.mapNotNull { it.root }
-            target = roots.firstNotNullOfOrNull { findMenuNode(it, label) }
+            val roots =
+                automation.windows.mapNotNull { accessibilityWindowInfo -> accessibilityWindowInfo.root }
+            target = roots.firstNotNullOfOrNull { accessibilityNodeInfo ->
+                findMenuNode(
+                    accessibilityNodeInfo,
+                    label
+                )
+            }
             if (target == null && !expanded) {
-                val more = roots.firstNotNullOfOrNull { findMenuNode(it, "More options") }
+                val more = roots.firstNotNullOfOrNull { accessibilityNodeInfo ->
+                    findMenuNode(
+                        node = accessibilityNodeInfo,
+                        label = "More options",
+                    )
+                }
                 if (more != null) {
                     more.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                     expanded = true
@@ -143,7 +161,8 @@ class MessageTextSelectionTest {
             return if (node.isClickable) node else node.parent
         }
         return (0 until node.childCount).firstNotNullOfOrNull { index ->
-            node.getChild(index)?.let { findMenuNode(it, label) }
+            node.getChild(index)
+                ?.let { accessibilityNodeInfo -> findMenuNode(accessibilityNodeInfo, label) }
         }
     }
 }

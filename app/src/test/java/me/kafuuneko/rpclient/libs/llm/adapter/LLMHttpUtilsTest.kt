@@ -13,30 +13,29 @@ class LLMHttpUtilsTest {
             LLMMessage(LLMMessageRole.User, "Hello"),
             LLMMessage(LLMMessageRole.System, "Author note"),
             LLMMessage(LLMMessageRole.User, "Continue"),
-            LLMMessage(LLMMessageRole.Assistant, "Reply")
+            LLMMessage(LLMMessageRole.Assistant, "Reply"),
         ).toAlternatingConversationMessages()
 
         assertEquals(
             listOf(
                 LLMMessage(
-                    LLMMessageRole.User,
-                    "Hello\n\nAuthor note\n\nContinue"
+                    role = LLMMessageRole.User,
+                    content = "Hello\n\nAuthor note\n\nContinue",
                 ),
-                LLMMessage(LLMMessageRole.Assistant, "Reply")
+                LLMMessage(LLMMessageRole.Assistant, "Reply"),
             ),
-            result
+            result,
         )
     }
 
     @Test
     fun alternatingConversationAddsUserPlaceholderWhenOnlySystemExists() {
-        val result = listOf(
-            LLMMessage(LLMMessageRole.System, "Main")
-        ).toAlternatingConversationMessages()
+        val result =
+            listOf(LLMMessage(LLMMessageRole.System, "Main")).toAlternatingConversationMessages()
 
         assertEquals(
             listOf(LLMMessage(LLMMessageRole.User, "Let's get started.")),
-            result
+            result,
         )
     }
 }

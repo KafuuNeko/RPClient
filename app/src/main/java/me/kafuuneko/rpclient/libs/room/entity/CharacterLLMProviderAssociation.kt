@@ -17,13 +17,13 @@ import androidx.room.Index
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = LLMProvider::class,
             parentColumns = ["id"],
             childColumns = ["llmProviderId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         )
     ],
     indices = [Index("llmProviderId")]

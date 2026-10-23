@@ -49,7 +49,7 @@ class StoryContextSelector {
         authorNote: String,
         tokenizer: PromptTokenizer,
         promptBudget: Int,
-        continuationGuidance: String = ""
+        continuationGuidance: String = "",
     ): StoryContextSelection {
         require(target.end == content.length) {
             "Story continuation target must be at the end of the document"
@@ -67,7 +67,14 @@ class StoryContextSelector {
         // 提取邻近段落文本用于世界书与角色激活匹配
         val activationRanges = neighboring.take(ACTIVATION_PARAGRAPH_COUNT).map { it.first }
         val documentScanText = buildList {
-            activationRanges.sortedBy { it.start }.forEach { add(content.substring(it.start, it.end)) }
+            activationRanges.sortedBy { textRange -> textRange.start }.forEach { textRange ->
+                add(
+                    element = content.substring(
+                        startIndex = textRange.start,
+                        endIndex = textRange.end,
+                    ),
+                )
+            }
         }.joinToString("\n\n")
         val worldBookScanText = buildList {
             documentScanText.takeIf(String::isNotBlank)?.let(::add)
@@ -85,7 +92,7 @@ class StoryContextSelector {
                 CandidateChunk(
                     range = chunk,
                     distance = target.start - chunk.end,
-                    tokenCount = tokenizer.countText(content.substring(chunk.start, chunk.end))
+                    tokenCount = tokenizer.countText(content.substring(chunk.start, chunk.end)),
                 )
             }
         }.sortedWith(compareBy<CandidateChunk> { it.distance }.thenBy { it.range.start })
@@ -97,8 +104,8 @@ class StoryContextSelector {
         chunks.forEachIndexed { index, chunk ->
             if (
                 index == 0 || (
-                    selected.size < MAX_SELECTED_CHUNKS &&
-                        usedTokens + chunk.tokenCount <= promptBudget.coerceAtLeast(1)
+                    selected.size < MAX_SELECTED_CHUNKS
+                        && usedTokens + chunk.tokenCount <= promptBudget.coerceAtLeast(1)
                     )
             ) {
                 selected += chunk
@@ -121,12 +128,12 @@ class StoryContextSelector {
                         start = range.start,
                         end = range.end,
                         distance = candidate.distance,
-                        required = range == nearest?.range
+                        required = range == nearest?.range,
                     )
                 }
                 .sortedBy { it.start },
             omittedChunkCount = omitted.size,
-            omittedTokenCount = omitted.sumOf { it.tokenCount }
+            omittedTokenCount = omitted.sumOf { it.tokenCount },
         )
     }
 
@@ -149,7 +156,7 @@ class StoryContextSelector {
         content: String,
         range: TextRange,
         tokenizer: PromptTokenizer,
-        maxTokens: Int
+        maxTokens: Int,
     ): List<TextRange> {
         if (tokenizer.countText(content.substring(range.start, range.end)) <= maxTokens) {
             return listOf(range)
@@ -202,12 +209,16 @@ class StoryContextSelector {
     private companion object {
         /** 段落分隔正则表达式（匹配连续换行）。 */
         val PARAGRAPH_SEPARATOR = Regex("(?:\\r?\\n){2,}")
+
         /** 纳入激活匹配的邻近段落数量。 */
         const val ACTIVATION_PARAGRAPH_COUNT = 6
+
         /** 单个 Chunk 最小 Token 数。 */
         const val MIN_CHUNK_TOKENS = 128
+
         /** 单个 Chunk 最大 Token 数。 */
         const val MAX_CHUNK_TOKENS = 768
+
         /** 最大允许纳入的 Chunk 数量上限。 */
         const val MAX_SELECTED_CHUNKS = 512
     }

@@ -11,14 +11,15 @@ import me.kafuuneko.rpclient.libs.theme.AppThemePalette
  * - 由 Material Color Utilities 0.4.0 的 2021 标准色阶生成，无运行时依赖。
  * - 石墨采用中性色阶，其余采用柔和色调，避免大面积高饱和背景。
  */
-internal fun presetColorScheme(palette: AppThemePalette, dark: Boolean): ColorScheme? = when (palette) {
-    AppThemePalette.Sakura -> if (dark) SakuraDark else SakuraLight
-    AppThemePalette.Forest -> if (dark) ForestDark else ForestLight
-    AppThemePalette.Twilight -> if (dark) TwilightDark else TwilightLight
-    AppThemePalette.Parchment -> if (dark) ParchmentDark else ParchmentLight
-    AppThemePalette.Graphite -> if (dark) GraphiteDark else GraphiteLight
-    else -> null
-}
+internal fun presetColorScheme(palette: AppThemePalette, dark: Boolean): ColorScheme? =
+    when (palette) {
+        AppThemePalette.Sakura -> if (dark) SakuraDark else SakuraLight
+        AppThemePalette.Forest -> if (dark) ForestDark else ForestLight
+        AppThemePalette.Twilight -> if (dark) TwilightDark else TwilightLight
+        AppThemePalette.Parchment -> if (dark) ParchmentDark else ParchmentLight
+        AppThemePalette.Graphite -> if (dark) GraphiteDark else GraphiteLight
+        else -> null
+    }
 
 private val SakuraLight = lightColorScheme(
     primary = Color(0xFF8A4A64),
@@ -56,7 +57,7 @@ private val SakuraLight = lightColorScheme(
     surfaceContainerHigh = Color(0xFFF4E4E8),
     surfaceContainerHighest = Color(0xFFEEDFE2),
     surfaceContainerLow = Color(0xFFFFF0F3),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    surfaceContainerLowest = Color(0xFFFFFFFF),
 )
 
 private val SakuraDark = darkColorScheme(
@@ -95,7 +96,7 @@ private val SakuraDark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF30282A),
     surfaceContainerHighest = Color(0xFF3C3235),
     surfaceContainerLow = Color(0xFF21191C),
-    surfaceContainerLowest = Color(0xFF130C0F)
+    surfaceContainerLowest = Color(0xFF130C0F),
 )
 
 private val ForestLight = lightColorScheme(
@@ -134,7 +135,7 @@ private val ForestLight = lightColorScheme(
     surfaceContainerHigh = Color(0xFFE4EAE3),
     surfaceContainerHighest = Color(0xFFDFE4DD),
     surfaceContainerLow = Color(0xFFF0F5EE),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    surfaceContainerLowest = Color(0xFFFFFFFF),
 )
 
 private val ForestDark = darkColorScheme(
@@ -173,7 +174,7 @@ private val ForestDark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF262B27),
     surfaceContainerHighest = Color(0xFF313631),
     surfaceContainerLow = Color(0xFF181D19),
-    surfaceContainerLowest = Color(0xFF0A0F0C)
+    surfaceContainerLowest = Color(0xFF0A0F0C),
 )
 
 private val TwilightLight = lightColorScheme(
@@ -212,7 +213,7 @@ private val TwilightLight = lightColorScheme(
     surfaceContainerHigh = Color(0xFFEDE6EE),
     surfaceContainerHighest = Color(0xFFE7E0E8),
     surfaceContainerLow = Color(0xFFF8F1FA),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    surfaceContainerLowest = Color(0xFFFFFFFF),
 )
 
 private val TwilightDark = darkColorScheme(
@@ -251,7 +252,7 @@ private val TwilightDark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF2C292F),
     surfaceContainerHighest = Color(0xFF36343A),
     surfaceContainerLow = Color(0xFF1D1B20),
-    surfaceContainerLowest = Color(0xFF0F0D13)
+    surfaceContainerLowest = Color(0xFF0F0D13),
 )
 
 private val ParchmentLight = lightColorScheme(
@@ -290,7 +291,7 @@ private val ParchmentLight = lightColorScheme(
     surfaceContainerHigh = Color(0xFFF4E5DB),
     surfaceContainerHighest = Color(0xFFEFE0D5),
     surfaceContainerLow = Color(0xFFFFF1E7),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    surfaceContainerLowest = Color(0xFFFFFFFF),
 )
 
 private val ParchmentDark = darkColorScheme(
@@ -329,7 +330,7 @@ private val ParchmentDark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF302822),
     surfaceContainerHighest = Color(0xFF3C332C),
     surfaceContainerLow = Color(0xFF211A14),
-    surfaceContainerLowest = Color(0xFF130D07)
+    surfaceContainerLowest = Color(0xFF130D07),
 )
 
 private val GraphiteLight = lightColorScheme(
@@ -368,7 +369,7 @@ private val GraphiteLight = lightColorScheme(
     surfaceContainerHigh = Color(0xFFEAE7E9),
     surfaceContainerHighest = Color(0xFFE4E2E3),
     surfaceContainerLow = Color(0xFFF5F3F4),
-    surfaceContainerLowest = Color(0xFFFFFFFF)
+    surfaceContainerLowest = Color(0xFFFFFFFF),
 )
 
 private val GraphiteDark = darkColorScheme(
@@ -407,5 +408,5 @@ private val GraphiteDark = darkColorScheme(
     surfaceContainerHigh = Color(0xFF2A2A2B),
     surfaceContainerHighest = Color(0xFF343536),
     surfaceContainerLow = Color(0xFF1B1B1D),
-    surfaceContainerLowest = Color(0xFF0E0E0F)
+    surfaceContainerLowest = Color(0xFF0E0E0F),
 )

@@ -36,34 +36,35 @@ class LLMClientFactory(
         // 先选择协议适配器，再按请求实际发送的内容装配统计与指令注入。
         val protocolClient = when (provider.protocol) {
             LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
-                mOkHttpClient,
-                mLLMRequestLogRepository,
-                provider,
-                mImageRuntime,
-                mImageCapabilities
+                mOkHttpClient = mOkHttpClient,
+                mLLMRequestLogRepository = mLLMRequestLogRepository,
+                mProvider = provider,
+                mImageRuntime = mImageRuntime,
+                mImageCapabilities = mImageCapabilities,
             )
+
             LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
-                mOkHttpClient,
-                mLLMRequestLogRepository,
-                provider,
-                mImageRuntime,
-                mImageCapabilities
+                mOkHttpClient = mOkHttpClient,
+                mLLMRequestLogRepository = mLLMRequestLogRepository,
+                mProvider = provider,
+                mImageRuntime = mImageRuntime,
+                mImageCapabilities = mImageCapabilities,
             )
 
             LLMProviderProtocol.Gemini -> GeminiLLMClient(
-                mOkHttpClient,
-                mLLMRequestLogRepository,
-                provider,
-                mImageRuntime,
-                mImageCapabilities
+                mOkHttpClient = mOkHttpClient,
+                mLLMRequestLogRepository = mLLMRequestLogRepository,
+                mProvider = provider,
+                mImageRuntime = mImageRuntime,
+                mImageCapabilities = mImageCapabilities,
             )
 
             LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(
-                mOkHttpClient,
-                mLLMRequestLogRepository,
-                provider,
-                mImageRuntime,
-                mImageCapabilities
+                mOkHttpClient = mOkHttpClient,
+                mLLMRequestLogRepository = mLLMRequestLogRepository,
+                mProvider = provider,
+                mImageRuntime = mImageRuntime,
+                mImageCapabilities = mImageCapabilities,
             )
         }
         val usageRepository = mLLMTokenUsageRepository
@@ -74,7 +75,7 @@ class LLMClientFactory(
                 mDelegate = protocolClient,
                 mProvider = provider,
                 mRepository = usageRepository,
-                mTokenizerRegistry = mPromptTokenizerRegistry
+                mTokenizerRegistry = mPromptTokenizerRegistry,
             )
         }
         // 注入器必须位于统计器外层，使本地用量估算包含额外的系统指令。

@@ -14,32 +14,32 @@ import org.junit.runner.RunWith
 class AppDatabaseMigrationTest {
     @get:Rule
     val migrationHelper = MigrationTestHelper(
-        InstrumentationRegistry.getInstrumentation(),
-        AppDatabase::class.java
+        instrumentation = InstrumentationRegistry.getInstrumentation(),
+        databaseClass = AppDatabase::class.java,
     )
 
     @Test
     fun migrate1To2_removesHistoricalLogsAndKeepsBusinessRows() {
-        migrationHelper.createDatabase(DatabaseName, 1).apply {
+        migrationHelper.createDatabase(name = DatabaseName, version = 1).apply {
             execSQL(
-                """
+                sql = """
                 INSERT INTO character (
                     id, name, avatar, characterTags, description, personality, scenario,
                     firstMessages, examplesOfDialogue, postHistoryInstructions
                 ) VALUES (101, 'character', '', '[]', 'description', 'personality',
                     'scenario', '[]', '', '')
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO chat_sessions (
                     id, characterId, createTime, latestTime, lorebookEntrySet, title, userNote,
                     userName, userDescription, worldInfoStateJson, autoSummaryPaused
                 ) VALUES (202, 101, 1, 2, '[]', 'session', '', 'user', '', '{}', 0)
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO llm_providers (
                     id, name, providerType, protocol, baseUrl, apiKey, model,
                     customHeadersJson, temperature, topP, maxTokens, contextTokens,
@@ -48,35 +48,35 @@ class AppDatabaseMigrationTest {
                 ) VALUES (404, 'provider', 'Custom', 'OpenAICompatible',
                     'https://example.invalid', '', 'model', '', 0.8, 1.0, 1200, 8192,
                     1, 1, 0, 1, 4, 4)
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO lorebooks (
                     id, name, description, scanDepth, tokenBudget,
                     recursiveScanning, extensionsJson
                 ) VALUES
                     (501, 'legacy-default', '', 2, 25, 0, '{}'),
                     (502, 'explicit-budget', '', 2, 256, 0, '{}')
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO llm_request_logs (
                     id, createTime, providerName, providerType, protocol, model, isStreaming,
                     requestJson, responseJson
                 ) VALUES (303, 3, 'provider', 'Custom', 'OpenAICompatible', 'model', 0,
                     '{"prompt":"PRIVATE_SENTINEL_92f1"}',
                     '{"content":"PRIVATE_SENTINEL_92f1"}')
-                """.trimIndent()
+                """.trimIndent(),
             )
             close()
         }
 
         val migrated = migrationHelper.runMigrationsAndValidate(
-            DatabaseName,
-            2,
-            true
+            name = DatabaseName,
+            version = 2,
+            validateDroppedTables = true,
         )
 
         migrated.query("SELECT name FROM sqlite_master WHERE type = 'table'").use { cursor ->
@@ -94,15 +94,12 @@ class AppDatabaseMigrationTest {
             assertEquals("session", cursor.getString(0))
             assertEquals(2L, cursor.getLong(1))
         }
-        migrated.query(
-            "SELECT tokenEstimateReservePercent FROM llm_providers WHERE id = 404"
-        ).use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals(15, cursor.getInt(0))
-        }
-        migrated.query(
-            "SELECT id, tokenBudget FROM lorebooks ORDER BY id"
-        ).use { cursor ->
+        migrated.query("SELECT tokenEstimateReservePercent FROM llm_providers WHERE id = 404")
+            .use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(15, cursor.getInt(0))
+            }
+        migrated.query("SELECT id, tokenBudget FROM lorebooks ORDER BY id").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(501L, cursor.getLong(0))
             assertEquals(0, cursor.getInt(1))
@@ -114,9 +111,9 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun migrate2To3_keepsCharactersAndMigratesOpenRouterPatch() {
-        migrationHelper.createDatabase(RegexDatabaseName, 2).apply {
+        migrationHelper.createDatabase(name = RegexDatabaseName, version = 2).apply {
             execSQL(
-                """
+                sql = """
                 INSERT INTO character (
                     id, name, avatar, characterTags, description, personality, scenario,
                     firstMessages, examplesOfDialogue, postHistoryInstructions, extensionsJson
@@ -124,10 +121,10 @@ class AppDatabaseMigrationTest {
                     101, 'character', '', '[]', '', '', '', '', '', '',
                     '{"regex_scripts":[{"id":"legacy"}],"vendor":{"kept":true}}'
                 )
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO llm_providers (
                     id, name, providerType, protocol, baseUrl, apiKey, model,
                     customHeadersJson, temperature, topP, maxTokens, contextTokens,
@@ -136,10 +133,10 @@ class AppDatabaseMigrationTest {
                 ) VALUES (404, 'provider', 'OpenRouter', 'OpenAICompatible',
                     'https://openrouter.ai/api/v1', '', 'model', '', 0.8, 1.0,
                     1200, 8192, 15, 1, 1, 0, 1, 4, 4)
-                """.trimIndent()
+                """.trimIndent(),
             )
             execSQL(
-                """
+                sql = """
                 INSERT INTO llm_providers (
                     id, name, providerType, protocol, baseUrl, apiKey, model,
                     customHeadersJson, temperature, topP, maxTokens, contextTokens,
@@ -148,15 +145,15 @@ class AppDatabaseMigrationTest {
                 ) VALUES (405, 'custom', 'Custom', 'OpenAICompatible',
                     'https://example.invalid', '', 'model', '', 0.8, 1.0,
                     1200, 8192, 15, 1, 1, 0, 1, 4, 4)
-                """.trimIndent()
+                """.trimIndent(),
             )
             close()
         }
 
         val migrated = migrationHelper.runMigrationsAndValidate(
-            RegexDatabaseName,
-            3,
-            true
+            name = RegexDatabaseName,
+            version = 3,
+            validateDroppedTables = true,
         )
 
         // 表结构已由 Room 校验；这里只验证旧数据保留及自定义迁移行为。
@@ -169,13 +166,13 @@ class AppDatabaseMigrationTest {
             assertEquals(0L, cursor.getLong(0))
         }
         migrated.query(
-            "SELECT id, requestBodyPatchJson FROM llm_providers WHERE id IN (404, 405) ORDER BY id"
+            query = "SELECT id, requestBodyPatchJson FROM llm_providers WHERE id IN (404, 405) ORDER BY id",
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(404L, cursor.getLong(0))
             assertEquals(
                 OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON,
-                cursor.getString(1)
+                cursor.getString(1),
             )
             assertEquals(true, cursor.moveToNext())
             assertEquals(405L, cursor.getLong(0))
@@ -185,9 +182,9 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun migrate3To4_addsTokenUsageStorageWithoutSensitivePayloadColumns() {
-        migrationHelper.createDatabase(TokenUsageDatabaseName, 3).apply {
+        migrationHelper.createDatabase(name = TokenUsageDatabaseName, version = 3).apply {
             execSQL(
-                """
+                sql = """
                 INSERT INTO llm_providers (
                     id, name, providerType, protocol, baseUrl, apiKey, model,
                     customHeadersJson, requestBodyPatchJson, temperature, topP,
@@ -207,15 +204,15 @@ class AppDatabaseMigrationTest {
                     'https://api.anthropic.com', '', 'model', '', '{}',
                     0.8, 1.0, 1200, 8192, 15, 1, 0, 0, 1, 4, 4
                 )
-                """.trimIndent()
+                """.trimIndent(),
             )
             close()
         }
 
         val migrated = migrationHelper.runMigrationsAndValidate(
-            TokenUsageDatabaseName,
-            4,
-            true
+            name = TokenUsageDatabaseName,
+            version = 4,
+            validateDroppedTables = true,
         )
 
         // 表结构由 Room 校验，额外约束统计表不得保存敏感载荷。
@@ -229,12 +226,12 @@ class AppDatabaseMigrationTest {
             assertFalse(columnNames.contains("baseUrl"))
         }
         migrated.query(
-            """
+            query = """
             SELECT id, useServerReportedUsage, localTokenEstimatorType, imageInputSetting, imageTokenEstimatorType
             FROM llm_providers
             WHERE id IN (404, 405, 406)
             ORDER BY id
-            """.trimIndent()
+            """.trimIndent(),
         ).use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals(404L, cursor.getLong(0))
@@ -268,11 +265,15 @@ class AppDatabaseMigrationTest {
     /** 外观表升级必须保留现有文件索引，不给旧用户自动设置背景。 */
     @Test
     fun migrate4To5_preservesFilesAndStartsWithThemeBackgrounds() {
-        migrationHelper.createDatabase("app-background-migration-test", 4).apply {
+        migrationHelper.createDatabase(name = "app-background-migration-test", version = 4).apply {
             execSQL("INSERT INTO files (uuid, hash, mimeType) VALUES ('existing-avatar', 'avatar-hash', 'image/png')")
             close()
         }
-        val migrated = migrationHelper.runMigrationsAndValidate("app-background-migration-test", 5, true)
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            name = "app-background-migration-test",
+            version = 5,
+            validateDroppedTables = true,
+        )
         migrated.query("SELECT hash FROM files WHERE uuid = 'existing-avatar'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
             assertEquals("avatar-hash", cursor.getString(0))
@@ -280,7 +281,8 @@ class AppDatabaseMigrationTest {
         migrated.query("PRAGMA table_info(character)").use { cursor ->
             var found = false
             while (cursor.moveToNext()) {
-                if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "backgroundFileUuid") found = true
+                if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == "backgroundFileUuid") found =
+                    true
             }
             assertEquals(true, found)
         }
@@ -289,19 +291,23 @@ class AppDatabaseMigrationTest {
             assertEquals(0, cursor.getInt(0))
         }
         // 一次 4→5 升级后即可保存无图透明度，所有附加模糊列默认关闭。
-        migrated.execSQL("""
+        migrated.execSQL(
+            sql = """
             INSERT INTO page_backgrounds (page, fileUuid, blur, scrim, opacity, focalX, focalY)
             VALUES ('chat', NULL, 25, 0.25, 1.0, 0.5, 0.5)
-        """.trimIndent())
-        migrated.query("SELECT followGeneral, useCharacterBackground FROM page_backgrounds").use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            assertEquals(1, cursor.getInt(0))
-            assertEquals(0, cursor.getInt(1))
-        }
-        migrated.query("SELECT topBarBlur, bottomBarBlur, bubbleBlur, contentBlur FROM page_backgrounds").use { cursor ->
-            assertEquals(true, cursor.moveToFirst())
-            repeat(4) { assertEquals(0, cursor.getInt(it)) }
-        }
+        """.trimIndent(),
+        )
+        migrated.query("SELECT followGeneral, useCharacterBackground FROM page_backgrounds")
+            .use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+                assertEquals(0, cursor.getInt(1))
+            }
+        migrated.query("SELECT topBarBlur, bottomBarBlur, bubbleBlur, contentBlur FROM page_backgrounds")
+            .use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                repeat(times = 4) { value -> assertEquals(0, cursor.getInt(value)) }
+            }
     }
 
     private companion object {

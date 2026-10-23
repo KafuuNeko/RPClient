@@ -1,17 +1,20 @@
 package me.kafuuneko.rpclient.feature.tokenusage.presentation
 
-import java.time.Instant
-import java.time.ZoneId
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageGroupItem
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageRecordItem
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageSummaryItem
 import me.kafuuneko.rpclient.feature.tokenusage.model.TokenUsageTrendPoint
+import java.time.Instant
+import java.time.ZoneId
 
 /** 消耗统计支持的时间范围。 */
 enum class TokenUsagePeriod {
     Today,
+
     LastSevenDays,
+
     LastThirtyDays,
+
     AllTime
 }
 
@@ -19,6 +22,7 @@ enum class TokenUsagePeriod {
 enum class TokenUsageChartMode {
     /** 分段柱状统计图。 */
     Bar,
+
     /** 平滑渐变面积走势图。 */
     Line
 }
@@ -26,6 +30,7 @@ enum class TokenUsageChartMode {
 /** 消耗统计页当前显示的确认对话框。 */
 sealed class TokenUsageDialogState {
     data object None : TokenUsageDialogState()
+
     data object ClearConfirm : TokenUsageDialogState()
 }
 
@@ -76,5 +81,8 @@ internal fun TokenUsagePeriod.startTimeMillis(nowMillis: Long = System.currentTi
         TokenUsagePeriod.LastThirtyDays -> 29L
         TokenUsagePeriod.AllTime -> 0L
     }
-    return startOfToday.minusDays(daysToSubtract).toInstant().toEpochMilli()
+    return startOfToday
+        .minusDays(daysToSubtract)
+        .toInstant()
+        .toEpochMilli()
 }

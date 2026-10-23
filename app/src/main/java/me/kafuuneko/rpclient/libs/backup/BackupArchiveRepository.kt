@@ -2,13 +2,13 @@ package me.kafuuneko.rpclient.libs.backup
 
 import android.content.Context
 import android.net.Uri
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.extractArchive
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.sha256
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import org.json.JSONObject
+import java.io.File
 
 /**
  * 旧版 SQLite 快照的只读兼容入口。
@@ -43,11 +43,19 @@ class BackupArchiveRepository(
 
             val stagedDatabase = File(stageRoot, "database/$DATABASE_NAME")
             require(stagedDatabase.isFile) { "The archive is missing database/$DATABASE_NAME." }
-            require(stagedDatabase.inputStream().use { inputStream ->
-                val header = ByteArray(16)
-                inputStream.read(header) == 16 && String(header, Charsets.US_ASCII) == "SQLite format 3\u0000"
-            }) { "The backup database is not a valid SQLite database." }
-            require(sha256(stagedDatabase).equals(manifest.optString("databaseSha256"), ignoreCase = true)) {
+            require(
+                value = stagedDatabase.inputStream().use { inputStream ->
+                    val header = ByteArray(16)
+                    inputStream.read(header) == 16
+                        && String(header, Charsets.US_ASCII) == "SQLite format 3\u0000"
+                },
+            ) { "The backup database is not a valid SQLite database." }
+            require(
+                sha256(stagedDatabase).equals(
+                    other = manifest.optString("databaseSha256"),
+                    ignoreCase = true
+                )
+            ) {
                 "The database checksum does not match manifest.json."
             }
 
@@ -57,11 +65,21 @@ class BackupArchiveRepository(
             // 旧导出器不写空目录条目；缺省目录按旧协议恢复为空目录。
             stagedPrefs.mkdirs()
             stagedRepository.mkdirs()
-            BackupDataReplacer.replace(rollbackRoot, listOf(
-                BackupReplacement(stagedDatabase, mContext.getDatabasePath(DATABASE_NAME), isDatabase = true),
-                BackupReplacement(stagedPrefs, File(mContext.dataDir, "shared_prefs")),
-                BackupReplacement(stagedRepository, mContext.getDir("repository", Context.MODE_PRIVATE))
-            )) { mDatabase.close() }
+            BackupDataReplacer.replace(
+                rollback = rollbackRoot,
+                replacements = listOf(
+                    BackupReplacement(
+                        source = stagedDatabase,
+                        target = mContext.getDatabasePath(DATABASE_NAME),
+                        isDatabase = true,
+                    ),
+                    BackupReplacement(stagedPrefs, File(mContext.dataDir, "shared_prefs")),
+                    BackupReplacement(
+                        stagedRepository,
+                        mContext.getDir("repository", Context.MODE_PRIVATE)
+                    ),
+                ),
+            ) { mDatabase.close() }
         } finally {
             stageRoot.deleteRecursively()
         }

@@ -11,17 +11,17 @@ fun <Group, Entry> List<Group>.filterLorebookGroups(
     groupName: (Group) -> String,
     entries: (Group) -> List<Entry>,
     entrySearchFields: (Entry) -> Sequence<String>,
-    copyWithEntries: (Group, List<Entry>) -> Group
+    copyWithEntries: (Group, List<Entry>) -> Group,
 ): List<Group> {
     // 空搜索保持原列表，调用方可以直接把结果写回可见状态。
     val normalizedQuery = query.trim()
     if (normalizedQuery.isBlank()) return this
     // 世界书命中保留整组，条目命中则只保留匹配条目。
     return mapNotNull { group ->
-        val groupMatches = groupName(group).contains(normalizedQuery, ignoreCase = true)
+        val groupMatches = groupName(group).contains(other = normalizedQuery, ignoreCase = true)
         val matchingEntries = entries(group).filter { entry ->
-            entrySearchFields(entry).any {
-                it.contains(normalizedQuery, ignoreCase = true)
+            entrySearchFields(entry).any { text ->
+                text.contains(other = normalizedQuery, ignoreCase = true)
             }
         }
         when {

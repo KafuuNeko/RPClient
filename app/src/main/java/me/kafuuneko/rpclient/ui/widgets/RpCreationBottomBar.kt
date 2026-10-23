@@ -29,37 +29,50 @@ fun RpCreationBottomBar(
     subtitle: String,
     enabled: Boolean,
     onCreate: () -> Unit,
-    creating: Boolean = false
+    creating: Boolean = false,
 ) {
     AppSurface(
         tonalElevation = 4.dp,
         shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = MaterialTheme.colorScheme.surface,
     ) {
         // 摘要使用剩余宽度，长角色名省略，条目数允许自然换行，避免挤压创建按钮。
         Row(
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding()
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 18.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             PageButton(
                 onClick = onCreate,
                 enabled = enabled && !creating,
                 shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
             ) {
                 if (creating) {
-                    CircularProgressIndicator(Modifier.size(20.dp), color = LocalContentColor.current,
-                        strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = LocalContentColor.current,
+                        strokeWidth = 2.dp,
+                    )
                 } else {
-                    Text(stringResource(R.string.create), maxLines = 1)
+                    Text(text = stringResource(R.string.create), maxLines = 1)
                 }
             }
         }

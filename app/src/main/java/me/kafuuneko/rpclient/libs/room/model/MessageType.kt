@@ -25,8 +25,8 @@ enum class MessageType(val stableCode: String) {
          * @return 对应的 [MessageType]。
          * @throws IllegalArgumentException 编码不匹配任何已知类型时抛出。
          */
-        fun fromStableCode(code: String): MessageType = entries.firstOrNull {
-            it.stableCode == code
+        fun fromStableCode(code: String): MessageType = entries.firstOrNull { messageType ->
+            messageType.stableCode == code
         } ?: throw IllegalArgumentException("Unknown message type code: $code")
     }
 }

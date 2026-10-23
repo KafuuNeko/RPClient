@@ -19,7 +19,10 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 
 /** 使用应用统一的动作列表弹窗呈现保存、放弃和取消，草稿处理仍由 Intent 驱动。 */
 @Composable
-internal fun BackgroundEditorDialog(state: BackgroundEditorState, emit: (AppearanceUiIntent) -> Unit) {
+internal fun BackgroundEditorDialog(
+    state: BackgroundEditorState,
+    emit: (AppearanceUiIntent) -> Unit
+) {
     if (state.dialogState != BackgroundEditorDialogState.UnsavedChanges) return
     // 复用统一容器、动作样式及多语言排版，导入期间仅禁用保存入口。
     AppActionListDialog(
@@ -33,15 +36,15 @@ internal fun BackgroundEditorDialog(state: BackgroundEditorState, emit: (Appeara
                 icon = Icons.Rounded.Save,
                 title = stringResource(R.string.save),
                 enabled = !state.working,
-                onClick = { emit(AppearanceUiIntent.ApplyBackground) }
+                onClick = { emit(AppearanceUiIntent.ApplyBackground) },
             ),
             AppActionItem(
                 icon = Icons.Rounded.DeleteOutline,
                 title = stringResource(R.string.discard_changes),
                 isDestructive = true,
-                onClick = { emit(AppearanceUiIntent.DiscardBackgroundChanges) }
-            )
-        )
+                onClick = { emit(AppearanceUiIntent.DiscardBackgroundChanges) },
+            ),
+        ),
     )
 }
 
@@ -51,10 +54,11 @@ internal fun BackgroundEditorDialog(state: BackgroundEditorState, emit: (Appeara
 private fun BackgroundEditorDialogPreview() {
     AppTheme(dynamicColor = false) {
         BackgroundEditorDialog(
-            BackgroundEditorState(
+            state = BackgroundEditorState(
                 settings = PageBackground(BackgroundPage.Chat),
-                dialogState = BackgroundEditorDialogState.UnsavedChanges
-            )
-        ) {}
+                dialogState = BackgroundEditorDialogState.UnsavedChanges,
+            ),
+            emit = {},
+        )
     }
 }

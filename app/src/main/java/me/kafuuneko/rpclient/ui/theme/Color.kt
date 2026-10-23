@@ -92,7 +92,7 @@ val CharacterAccentColors = listOf(
     Color(0xFF0D9488),
     Color(0xFFEA580C),
     Color(0xFF8B5CF6),
-    Color(0xFFE11D48)
+    Color(0xFFE11D48),
 )
 val DefaultCharacterAccentColor = CharacterAccentColors.first()
 val NarratorAvatarColor = Color(0xFF64748B)
@@ -122,5 +122,5 @@ val RankBronzeTextColor = Color(0xFFB45309)
  */
 fun getMacaronColor(name: String): Color {
     val hue = kotlin.math.abs(name.hashCode() % 360).toFloat()
-    return Color.hsl(hue, saturation = 0.60f, lightness = 0.80f)
+    return Color.hsl(hue = hue, saturation = 0.60f, lightness = 0.80f)
 }

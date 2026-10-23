@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.feature.characteredit
 
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
-import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +46,7 @@ import me.kafuuneko.rpclient.utils.removeAtOrSelf
 import me.kafuuneko.rpclient.utils.updateAt
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.util.UUID
 
 /**
  * 角色创建与编辑页的状态持有者。
@@ -70,11 +70,14 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mBackgroundRuntime by inject<BackgroundImageRuntime>()
     private val mBackgroundOwner = UUID.randomUUID().toString()
     private var mPreparedBackground: PreparedFile? = null
-    private val mBackgroundDraft = MutableStateFlow<BackgroundDraft?>(null)
+    private val mBackgroundDraft = MutableStateFlow<BackgroundDraft?>(value = null)
 
     init {
         viewModelScope.launch {
-            combine(mBackgrounds.observe(BackgroundPage.General), mBackgroundDraft.filterNotNull()) { general, draft ->
+            combine(
+                mBackgrounds.observe(BackgroundPage.General),
+                mBackgroundDraft.filterNotNull()
+            ) { general, draft ->
                 general.copy(fileUuid = draft.uuid ?: general.fileUuid) to draft.prepared
             }.collectLatest { (settings, prepared) ->
                 // 角色只覆盖图片；通用外观变化会取消过期渲染，并保留未保存的图片草稿。
@@ -83,7 +86,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                         settings = settings,
                         image = mBackgroundRuntime.render(settings, prepared)?.asImageBitmap(),
                         surfaceImages = mBackgroundRuntime.renderSurfaces(settings, prepared)
-                            .mapValues { it.value.asImageBitmap() }
+                            .mapValues { entry -> entry.value.asImageBitmap() },
                     )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -106,17 +109,16 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             mLorebookRepository.getAllLorebooks() to mLLMRepository.getAllProviders()
         }
         // 若传入角色 ID 则查询角色实体详情
-        val character = intent.characterId?.let {
-            withContext(Dispatchers.IO) { mCharacterRepository.getCharacterById(it) }
+        val character = intent.characterId?.let { id ->
+            withContext(Dispatchers.IO) { mCharacterRepository.getCharacterById(id) }
         }
         // 查询该角色独立绑定的 LLM 提供商 ID
-        val llmProviderId = character?.let {
-            withContext(Dispatchers.IO) { mCharacterRepository.getLLMProviderId(it.id) }
+        val llmProviderId = character?.let { character ->
+            withContext(Dispatchers.IO) { mCharacterRepository.getLLMProviderId(character.id) }
         } ?: 0L
         // 转换实体为 UI 表单数据
-        val form = character?.let {
-            CharacterEditForm.from(it, llmProviderId)
-        } ?: CharacterEditForm()
+        val form =
+            character?.let { CharacterEditForm.from(it, llmProviderId) } ?: CharacterEditForm()
         // 构建初始 UI 状态
         CharacterEditUiState.Normal(
             mode = if (character == null) CharacterEditMode.Create else CharacterEditMode.Edit,
@@ -130,10 +132,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                         id = provider.id,
                         name = provider.name,
                         model = provider.model,
-                        isEnabled = provider.isEnabled
+                        isEnabled = provider.isEnabled,
                     )
                 },
-            loadState = CharacterEditLoadState.None
+            loadState = CharacterEditLoadState.None,
         ).setup()
         mBackgroundDraft.value = BackgroundDraft(form.backgroundFileUuid)
     }
@@ -142,9 +144,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     @UiIntentObserver(CharacterEditUiIntent.UpdateCharacterLorebook::class)
     private fun onUpdateCharacterLorebook(intent: CharacterEditUiIntent.UpdateCharacterLorebook) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        uiState.copy(
-            form = uiState.form.copy(characterLorebookId = intent.lorebookId)
-        ).setup()
+        uiState.copy(form = uiState.form.copy(characterLorebookId = intent.lorebookId)).setup()
     }
 
     /** 选择角色绑定的独立 LLM 提供商。 */
@@ -153,9 +153,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         uiState.copy(
             form = uiState.form.copy(llmProviderId = intent.providerId),
-            availableProviders = uiState.availableProviders.filter {
-                it.isEnabled || it.id == intent.providerId
-            }
+            availableProviders = uiState.availableProviders.filter { characterProviderItem ->
+                characterProviderItem.isEnabled || characterProviderItem.id == intent.providerId
+            },
         ).setup()
     }
 
@@ -186,9 +186,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                         id = provider.id,
                         name = provider.name,
                         model = provider.model,
-                        isEnabled = provider.isEnabled
+                        isEnabled = provider.isEnabled,
                     )
-                }
+                },
         ).setup()
     }
 
@@ -239,7 +239,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         } catch (_: OutOfMemoryError) {
             AppViewEvent.PopupToastMessageByResId(R.string.appearance_image_error).tryEmit()
         } finally {
-            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)?.setup()
+            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)
+                ?.setup()
         }
     }
 
@@ -249,7 +250,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         val state = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (state.loadState != CharacterEditLoadState.None) return
         updateForm { copy(backgroundFileUuid = null) }
-        mBackgroundDraft.value = BackgroundDraft(null)
+        mBackgroundDraft.value = BackgroundDraft(uuid = null)
         discardBackgroundDraft()
     }
 
@@ -287,9 +288,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         runCatching {
             withContext(Dispatchers.IO) {
                 if (
-                    uiState.form.avatar.isNotBlank() &&
-                    uiState.form.avatar != uiState.form.originalAvatar &&
-                    uiState.form.avatar != intent.fileUuid
+                    uiState.form.avatar.isNotBlank()
+                    && uiState.form.avatar != uiState.form.originalAvatar
+                    && uiState.form.avatar != intent.fileUuid
                 ) {
                     mFileRepository.deleteFile(uiState.form.avatar)
                 }
@@ -306,7 +307,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         latestState.copy(
             form = form,
             avatarImage = form.resolveAvatarImage(),
-            loadState = CharacterEditLoadState.None
+            loadState = CharacterEditLoadState.None,
         ).setup()
     }
 
@@ -363,7 +364,11 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 删除指定索引处的首条消息。 */
     @UiIntentObserver(CharacterEditUiIntent.DeleteFirstMessage::class)
     private fun onDeleteFirstMessage(intent: CharacterEditUiIntent.DeleteFirstMessage) =
-        updateForm { copy(firstMessages = firstMessages.removeAtOrSelf(intent.index).orSingleBlank()) }
+        updateForm {
+            copy(
+                firstMessages = firstMessages.removeAtOrSelf(intent.index).orSingleBlank()
+            )
+        }
 
     /** 修改示例对话（Examples of Dialogue）。 */
     @UiIntentObserver(CharacterEditUiIntent.ChangeExamplesOfDialogue::class)
@@ -403,12 +408,23 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 修改指定索引处的替代开场白。 */
     @UiIntentObserver(CharacterEditUiIntent.ChangeAlternateGreeting::class)
     private fun onChangeAlternateGreeting(intent: CharacterEditUiIntent.ChangeAlternateGreeting) =
-        updateForm { copy(alternateGreetings = alternateGreetings.updateAt(intent.index, intent.value)) }
+        updateForm {
+            copy(
+                alternateGreetings = alternateGreetings.updateAt(
+                    intent.index,
+                    intent.value
+                )
+            )
+        }
 
     /** 删除指定索引处的替代开场白。 */
     @UiIntentObserver(CharacterEditUiIntent.DeleteAlternateGreeting::class)
     private fun onDeleteAlternateGreeting(intent: CharacterEditUiIntent.DeleteAlternateGreeting) =
-        updateForm { copy(alternateGreetings = alternateGreetings.removeAtOrSelf(intent.index).orSingleBlank()) }
+        updateForm {
+            copy(
+                alternateGreetings = alternateGreetings.removeAtOrSelf(intent.index).orSingleBlank()
+            )
+        }
 
     /** 修改扩展 JSON 字符串。 */
     @UiIntentObserver(CharacterEditUiIntent.ChangeExtensionsJson::class)
@@ -420,9 +436,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private fun onShowPromptEditor(intent: CharacterEditUiIntent.ShowPromptEditor) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         val draftText = uiState.form.promptText(intent.field) ?: return
-        uiState.copy(
-            dialogState = CharacterEditDialogState.PromptEditor(intent.field, draftText)
-        ).setup()
+        uiState.copy(dialogState = CharacterEditDialogState.PromptEditor(intent.field, draftText))
+            .setup()
     }
 
     /** 更新全屏 Prompt 编辑器中的临时草稿文本。 */
@@ -448,7 +463,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         val dialogState = uiState.dialogState as? CharacterEditDialogState.PromptEditor ?: return
         uiState.copy(
             form = uiState.form.withPromptText(dialogState.field, dialogState.draftText),
-            dialogState = CharacterEditDialogState.None
+            dialogState = CharacterEditDialogState.None,
         ).setup()
     }
 
@@ -463,7 +478,10 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         try {
             withContext(Dispatchers.IO) {
                 mCharacterRepository.saveCharacterWithAppearance(
-                    character, uiState.form.llmProviderId, uiState.form.backgroundFileUuid, mPreparedBackground
+                    character = character,
+                    llmProviderId = uiState.form.llmProviderId,
+                    backgroundUuid = uiState.form.backgroundFileUuid,
+                    prepared = mPreparedBackground,
                 )
                 mPreparedBackground = null
                 // 头像属于已有独立流程；清理失败不应让已提交的新角色再次创建。
@@ -474,12 +492,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)?.setup()
+            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)
+                ?.setup()
             AppViewEvent.PopupToastMessageByResId(R.string.appearance_background_error).tryEmit()
             return
         }
         AppViewEvent.PopupToastMessageByResId(
-            if (uiState.mode == CharacterEditMode.Create) R.string.character_created else R.string.character_saved
+            message = if (uiState.mode == CharacterEditMode.Create) R.string.character_created else R.string.character_saved,
         ).tryEmit()
         CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
@@ -508,16 +527,14 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             }
         uiState.copy(
             dialogState = if (associatedLorebook == null) {
-                CharacterEditDialogState.DeleteConfirm(
-                    characterName = savedCharacter.name
-                )
+                CharacterEditDialogState.DeleteConfirm(characterName = savedCharacter.name)
             } else {
                 CharacterEditDialogState.DeleteWithLorebookConfirm(
                     characterName = savedCharacter.name,
                     lorebookId = associatedLorebook.id,
-                    lorebookName = associatedLorebook.name
+                    lorebookName = associatedLorebook.name,
                 )
-            }
+            },
         ).setup()
     }
 
@@ -558,25 +575,25 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         if (uiState.form.isNew) return
         uiState.copy(
             loadState = CharacterEditLoadState.Deleting,
-            dialogState = CharacterEditDialogState.None
+            dialogState = CharacterEditDialogState.None,
         ).setup()
         val pendingAvatar = uiState.form.avatar
             .takeIf { it.isNotBlank() && it != uiState.form.originalAvatar }
         withContext(Dispatchers.IO) {
             val character = mCharacterRepository.getCharacterById(uiState.form.id)
             // 可选删除关联的世界书
-            lorebookId?.let {
-                mLorebookRepository.deleteLorebook(it)
+            lorebookId?.let { id ->
+                mLorebookRepository.deleteLorebook(id)
             }
             // 删除角色实体
             mCharacterRepository.deleteCharacter(uiState.form.id)
             // 删除已持久化的旧头像文件
-            character?.avatar?.takeIf { it.isNotBlank() }?.let {
-                mFileRepository.deleteFile(it)
+            character?.avatar?.takeIf { text -> text.isNotBlank() }?.let { text ->
+                mFileRepository.deleteFile(text)
             }
             // 删除未持久化的新头像临时文件
-            pendingAvatar?.let {
-                mFileRepository.deleteFile(it)
+            pendingAvatar?.let { text ->
+                mFileRepository.deleteFile(text)
             }
         }
         discardBackgroundDraft()
@@ -614,8 +631,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     /** 异步加载当前表单持有的头像图片并解码为 ImageBitmap。 */
     private suspend fun CharacterEditForm.resolveAvatarImage() =
-        avatar.takeIf { it.isNotBlank() }?.let {
-            withContext(Dispatchers.IO) { mFileRepository.loadAvatarBitmap(it)?.asImageBitmap() }
+        avatar.takeIf { it.isNotBlank() }?.let { text ->
+            withContext(Dispatchers.IO) { mFileRepository.loadAvatarBitmap(text)?.asImageBitmap() }
         }
 
     /** 清理尚未提交保存的头像及背景草稿，保留已保存资源。 */

@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Group
@@ -85,7 +83,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 @Composable
 internal fun StorySettingsPage(
     state: StoryEditorPageState.Settings,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 设置分区和保存状态继续由原有页面状态驱动。
     AppPageScaffold(
@@ -98,41 +96,42 @@ internal fun StorySettingsPage(
                 actions = {
                     TextButton(
                         onClick = { StoryEditorUiIntent.SaveStorySettings.emit() },
-                        enabled = !state.isSaving
+                        enabled = !state.isSaving,
                     ) {
                         if (state.isSaving) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(stringResource(R.string.save))
                     }
-                }
+                },
             )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            SettingsSectionTabs(state.selectedSection, emit)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Box(
+        },
+        content = { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .padding(paddingValues),
             ) {
-                when (state.selectedSection) {
-                    StorySettingsSection.Context -> ContextSettings(state, emit)
-                    StorySettingsSection.Characters -> CharacterSettings(state, emit)
-                    StorySettingsSection.Lorebook -> LorebookSettings(state, emit)
+                SettingsSectionTabs(state.selectedSection, emit)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    when (state.selectedSection) {
+                        StorySettingsSection.Context -> ContextSettings(state, emit)
+                        StorySettingsSection.Characters -> CharacterSettings(state, emit)
+                        StorySettingsSection.Lorebook -> LorebookSettings(state, emit)
+                    }
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 /**
@@ -149,20 +148,20 @@ internal fun StorySettingsLoadingPage(emit: StoryEditorUiIntent.() -> Unit) {
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.story_settings),
-                onBack = { StoryEditorUiIntent.CloseStorySettings.emit() }
+                onBack = { StoryEditorUiIntent.CloseStorySettings.emit() },
             )
-        }
+        },
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Row(
                 modifier = Modifier.padding(28.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
                 Text(stringResource(R.string.story_loading_settings))
@@ -174,7 +173,7 @@ internal fun StorySettingsLoadingPage(emit: StoryEditorUiIntent.() -> Unit) {
 @Composable
 private fun SettingsSectionTabs(
     selected: StorySettingsSection,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 分区选择回传原有意图，横向滚动只负责容纳标签。
     Row(
@@ -182,20 +181,29 @@ private fun SettingsSectionTabs(
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         SettingsTab(
             selected = selected == StorySettingsSection.Context,
-            label = stringResource(R.string.story_context_settings)
-        ) { StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Context).emit() }
+            label = stringResource(R.string.story_context_settings),
+            onClick = {
+                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Context).emit()
+            },
+        )
         SettingsTab(
             selected = selected == StorySettingsSection.Characters,
-            label = stringResource(R.string.story_character_references)
-        ) { StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Characters).emit() }
+            label = stringResource(R.string.story_character_references),
+            onClick = {
+                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Characters).emit()
+            },
+        )
         SettingsTab(
             selected = selected == StorySettingsSection.Lorebook,
-            label = stringResource(R.string.world_book)
-        ) { StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Lorebook).emit() }
+            label = stringResource(R.string.world_book),
+            onClick = {
+                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Lorebook).emit()
+            },
+        )
     }
 }
 
@@ -209,21 +217,21 @@ private fun SettingsTab(selected: Boolean, label: String, onClick: () -> Unit) {
         leadingIcon = if (selected) {
             {
                 Icon(
-                    Icons.Rounded.Check,
+                    imageVector = Icons.Rounded.Check,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         } else {
             null
-        }
+        },
     )
 }
 
 @Composable
 private fun ContextSettings(
     state: StoryEditorPageState.Settings,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 保存期间沿用原有字段禁用规则，滚动状态仍由当前设置分区持有。
     val controlsEnabled = !state.isSaving
@@ -234,44 +242,44 @@ private fun ContextSettings(
             .draggableScrollIndicator(scrollState)
             .verticalScroll(scrollState)
             .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        UserPersonaSetting(state, controlsEnabled, emit)
+        UserPersonaSetting(state = state, enabled = controlsEnabled, emit = emit)
         SettingIntro(
             icon = Icons.AutoMirrored.Rounded.MenuBook,
             title = stringResource(R.string.story_memory),
-            subtitle = stringResource(R.string.story_memory_desc)
+            subtitle = stringResource(R.string.story_memory_desc),
         )
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.memory,
-            onValueChange = { StoryEditorUiIntent.ChangeMemory(it).emit() },
+            onValueChange = { text -> StoryEditorUiIntent.ChangeMemory(text).emit() },
             label = { Text(stringResource(R.string.story_memory)) },
             minLines = 6,
             maxLines = 12,
             enabled = controlsEnabled,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
         )
         SettingIntro(
             icon = Icons.Rounded.AutoAwesome,
             title = stringResource(R.string.story_summary),
-            subtitle = stringResource(R.string.story_summary_desc)
+            subtitle = stringResource(R.string.story_summary_desc),
         )
         StorySummarySettings(state, emit)
         SettingIntro(
             icon = Icons.Rounded.Edit,
             title = stringResource(R.string.story_author_note),
-            subtitle = stringResource(R.string.story_author_note_desc)
+            subtitle = stringResource(R.string.story_author_note_desc),
         )
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.authorNote,
-            onValueChange = { StoryEditorUiIntent.ChangeAuthorNote(it).emit() },
+            onValueChange = { text -> StoryEditorUiIntent.ChangeAuthorNote(text).emit() },
             label = { Text(stringResource(R.string.story_author_note)) },
             minLines = 4,
             maxLines = 10,
             enabled = controlsEnabled,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
         )
         Spacer(Modifier.height(8.dp))
     }
@@ -281,21 +289,19 @@ private fun ContextSettings(
 private fun UserPersonaSetting(
     state: StoryEditorPageState.Settings,
     enabled: Boolean,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     StoryUserPersonaCard(
         checked = state.includeUserPersona,
-        onCheckedChange = {
-            StoryEditorUiIntent.SetIncludeUserPersona(it).emit()
-        },
-        enabled = enabled
+        onCheckedChange = { StoryEditorUiIntent.SetIncludeUserPersona(it).emit() },
+        enabled = enabled,
     )
 }
 
 @Composable
 private fun StorySummarySettings(
     state: StoryEditorPageState.Settings,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 摘要字段继续使用原有草稿和修改意图。
     RpScrollableOutlinedTextField(
@@ -306,14 +312,14 @@ private fun StorySummarySettings(
         minLines = 6,
         maxLines = 12,
         enabled = !state.isSaving,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     )
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         PageButton(
             onClick = { StoryEditorUiIntent.SummarizeStory.emit() },
-            enabled = !state.isSaving
+            enabled = !state.isSaving,
         ) {
-            Icon(Icons.Rounded.AutoAwesome, contentDescription = null)
+            Icon(imageVector = Icons.Rounded.AutoAwesome, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.story_summarize_now))
         }
@@ -323,7 +329,7 @@ private fun StorySummarySettings(
 @Composable
 private fun CharacterSettings(
     state: StoryEditorPageState.Settings,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     if (state.characters.isEmpty()) {
         EmptySettingsMessage(R.string.story_no_characters)
@@ -336,23 +342,27 @@ private fun CharacterSettings(
         if (state.isSaving) {
             emptySet()
         } else {
-            state.characters.filter { it.selected }.map { it.id }.toSet()
+            state.characters.filter { storyCharacterOptionItem -> storyCharacterOptionItem.selected }
+                .map { storyCharacterOptionItem -> storyCharacterOptionItem.id }.toSet()
         }
     }
     val dragDropState = rememberLazyListDragDropState(
         lazyListState = listState,
         isItemDraggable = { key -> key in draggableCharacterIds },
         onMove = { fromKey, toKey ->
-            val selected = state.characters.filter { it.selected }
-            val fromIndex = selected.indexOfFirst { it.id == fromKey }
-            val toIndex = selected.indexOfFirst { it.id == toKey }
+            val selected =
+                state.characters.filter { storyCharacterOptionItem -> storyCharacterOptionItem.selected }
+            val fromIndex =
+                selected.indexOfFirst { storyCharacterOptionItem -> storyCharacterOptionItem.id == fromKey }
+            val toIndex =
+                selected.indexOfFirst { storyCharacterOptionItem -> storyCharacterOptionItem.id == toKey }
             if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
                 StoryEditorUiIntent.MoveStoryCharacter(
                     characterId = selected[fromIndex].id,
-                    offset = toIndex - fromIndex
+                    offset = toIndex - fromIndex,
                 ).emit()
             }
-        }
+        },
     )
     RpLazyColumn(
         state = listState,
@@ -360,25 +370,27 @@ private fun CharacterSettings(
             .fillMaxSize()
             .dragContainer(dragDropState),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             Text(
                 text = stringResource(R.string.story_character_references_desc),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        items(state.characters, key = { it.id }) { character ->
+        items(
+            items = state.characters,
+            key = { storyCharacterOptionItem -> storyCharacterOptionItem.id }) { character ->
             val selectedIndex = state.characters
-                .filter { it.selected }
-                .indexOfFirst { it.id == character.id }
+                .filter { storyCharacterOptionItem -> storyCharacterOptionItem.selected }
+                .indexOfFirst { storyCharacterOptionItem -> storyCharacterOptionItem.id == character.id }
             DraggableItem(dragDropState, character.id) {
                 CharacterSettingCard(
                     character = character,
                     canMoveUp = character.selected && selectedIndex > 0,
                     canMoveDown = character.selected && selectedIndex in 0 until selectedCount - 1,
-                    emit = emit
+                    emit = emit,
                 )
             }
         }
@@ -390,30 +402,30 @@ private fun CharacterSettingCard(
     character: StoryCharacterOptionItem,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 角色选择、排序与编辑操作沿用原有状态和意图。
     AppCard(
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            if (character.selected) {
+            width = 1.dp,
+            color = if (character.selected) {
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            }
+            },
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (character.selected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
             } else {
                 MaterialTheme.colorScheme.surface
-            }
-        )
+            },
+        ),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RpIconBubble(Icons.Rounded.Group)
@@ -423,21 +435,21 @@ private fun CharacterSettingCard(
                         text = character.name,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = character.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Switch(
                     checked = character.selected,
                     onCheckedChange = {
                         StoryEditorUiIntent.ToggleStoryCharacter(character.id).emit()
-                    }
+                    },
                 )
             }
             if (character.selected) {
@@ -446,70 +458,79 @@ private fun CharacterSettingCard(
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FilterChip(
                         selected = character.activationMode == StoryCharacterActivationMode.Primary,
                         onClick = {
                             StoryEditorUiIntent.SetCharacterActivationMode(
-                                character.id,
-                                StoryCharacterActivationMode.Primary
+                                characterId = character.id,
+                                activationMode = StoryCharacterActivationMode.Primary,
                             ).emit()
                         },
-                        label = { Text(stringResource(R.string.story_character_primary)) }
+                        label = { Text(stringResource(R.string.story_character_primary)) },
                     )
                     FilterChip(
                         selected = character.activationMode == StoryCharacterActivationMode.Always,
                         onClick = {
                             StoryEditorUiIntent.SetCharacterActivationMode(
-                                character.id,
-                                StoryCharacterActivationMode.Always
+                                characterId = character.id,
+                                activationMode = StoryCharacterActivationMode.Always,
                             ).emit()
                         },
-                        label = { Text(stringResource(R.string.story_character_always)) }
+                        label = { Text(stringResource(R.string.story_character_always)) },
                     )
                     FilterChip(
                         selected = character.activationMode == StoryCharacterActivationMode.Auto,
                         onClick = {
                             StoryEditorUiIntent.SetCharacterActivationMode(
-                                character.id,
-                                StoryCharacterActivationMode.Auto
+                                characterId = character.id,
+                                activationMode = StoryCharacterActivationMode.Auto,
                             ).emit()
                         },
-                        label = { Text(stringResource(R.string.story_character_auto)) }
+                        label = { Text(stringResource(R.string.story_character_auto)) },
                     )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.End,
                 ) {
                     IconButton(
                         onClick = {
-                            StoryEditorUiIntent.MoveStoryCharacter(character.id, -1).emit()
+                            StoryEditorUiIntent.MoveStoryCharacter(
+                                characterId = character.id,
+                                offset = -1
+                            ).emit()
                         },
-                        enabled = canMoveUp
+                        enabled = canMoveUp,
                     ) {
                         Icon(
-                            Icons.Rounded.ArrowUpward,
-                            contentDescription = stringResource(R.string.move_up)
+                            imageVector = Icons.Rounded.ArrowUpward,
+                            contentDescription = stringResource(R.string.move_up),
                         )
                     }
                     IconButton(
                         onClick = {
-                            StoryEditorUiIntent.MoveStoryCharacter(character.id, 1).emit()
+                            StoryEditorUiIntent.MoveStoryCharacter(
+                                characterId = character.id,
+                                offset = 1
+                            ).emit()
                         },
-                        enabled = canMoveDown
+                        enabled = canMoveDown,
                     ) {
                         Icon(
-                            Icons.Rounded.ArrowDownward,
-                            contentDescription = stringResource(R.string.move_down)
+                            imageVector = Icons.Rounded.ArrowDownward,
+                            contentDescription = stringResource(R.string.move_down),
                         )
                     }
                 }
                 character.linkedLorebookName?.let { lorebookName ->
                     RpTagRow(
                         tags = listOf(
-                            stringResource(R.string.story_linked_lorebook, lorebookName)
+                            stringResource(
+                                R.string.story_linked_lorebook,
+                                lorebookName
+                            )
                         )
                     )
                 }
@@ -521,7 +542,7 @@ private fun CharacterSettingCard(
 @Composable
 private fun LorebookSettings(
     state: StoryEditorPageState.Settings,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 世界书分组继续使用设置草稿，不在视图内重建业务数据。
     if (state.lorebookGroups.isEmpty()) {
@@ -531,19 +552,21 @@ private fun LorebookSettings(
     RpLazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             Text(
                 text = stringResource(R.string.story_lorebook_desc),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        items(state.lorebookGroups, key = { it.id }) { group ->
+        items(
+            items = state.lorebookGroups,
+            key = { storyLorebookGroupItem -> storyLorebookGroupItem.id }) { group ->
             LorebookGroupCard(
                 group = group,
-                emit = emit
+                emit = emit,
             )
         }
     }
@@ -552,7 +575,7 @@ private fun LorebookSettings(
 @Composable
 private fun LorebookGroupCard(
     group: StoryLorebookGroupItem,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 分组展开和条目选择沿用原有状态归属及修改意图。
     var expanded by remember(group.id) { mutableStateOf(false) }
@@ -560,44 +583,44 @@ private fun LorebookGroupCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            1.dp,
-            if (group.selectedCount > 0) {
+            width = 1.dp,
+            color = if (group.selectedCount > 0) {
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            }
+            },
         ),
         color = if (group.selectedCount > 0) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
         } else {
             MaterialTheme.colorScheme.surface
-        }
+        },
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded }
+                    .clickable(onClick = { expanded = !expanded })
                     .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RpIconBubble(
                     icon = Icons.AutoMirrored.Rounded.MenuBook,
                     size = 32.dp,
                     iconSize = 17.dp,
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(10.dp),
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(group.name, style = MaterialTheme.typography.titleSmall)
+                    Text(text = group.name, style = MaterialTheme.typography.titleSmall)
                     Text(
                         text = stringResource(
                             R.string.enabled_entries_count,
                             group.selectedCount,
-                            group.entries.size
+                            group.entries.size,
                         ),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -606,7 +629,7 @@ private fun LorebookGroupCard(
                     enabled = group.entries.isNotEmpty(),
                     onCheckedChange = {
                         StoryEditorUiIntent.ToggleLorebook(group.id).emit()
-                    }
+                    },
                 )
                 Spacer(Modifier.width(4.dp))
                 Icon(
@@ -616,7 +639,7 @@ private fun LorebookGroupCard(
                         Icons.AutoMirrored.Rounded.KeyboardArrowRight
                     },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (expanded) {
@@ -626,12 +649,12 @@ private fun LorebookGroupCard(
                         text = stringResource(R.string.story_lorebook_empty),
                         modifier = Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     Column(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         group.entries.forEach { entry ->
                             LorebookEntryRow(entry, emit)
@@ -646,31 +669,31 @@ private fun LorebookGroupCard(
 @Composable
 private fun LorebookEntryRow(
     entry: StoryLorebookEntryItem,
-    emit: StoryEditorUiIntent.() -> Unit
+    emit: StoryEditorUiIntent.() -> Unit,
 ) {
     // 条目展示和启用操作沿用原有设置草稿。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit() },
+            .clickable(onClick = { StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit() }),
         shape = RoundedCornerShape(14.dp),
         color = if (entry.selected) {
             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-        }
+        },
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     val constantLabel = if (entry.constant) {
                         stringResource(R.string.entry_constant)
@@ -686,7 +709,7 @@ private fun LorebookEntryRow(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -694,7 +717,7 @@ private fun LorebookEntryRow(
                     checked = entry.selected,
                     onCheckedChange = {
                         StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit()
-                    }
+                    },
                 )
             }
         }
@@ -705,18 +728,18 @@ private fun LorebookEntryRow(
 private fun SettingIntro(
     icon: ImageVector,
     title: String,
-    subtitle: String
+    subtitle: String,
 ) {
     // 说明区沿用相同图标和文案层级，保持各设置分区的视觉结构。
     Row(verticalAlignment = Alignment.CenterVertically) {
         RpIconBubble(icon)
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -729,7 +752,7 @@ private fun EmptySettingsMessage(messageRes: Int) {
             text = stringResource(messageRes),
             modifier = Modifier.padding(28.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

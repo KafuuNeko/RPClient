@@ -27,7 +27,7 @@ class WorldBookEditActivity : CoreActivityWithEvent() {
 
         WorldBookEditLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

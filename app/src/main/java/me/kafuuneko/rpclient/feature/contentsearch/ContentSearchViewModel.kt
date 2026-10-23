@@ -58,7 +58,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             ?: SearchScope.All
         ContentSearchUiState.Normal(
             inputState = ContentSearchInputState(draft = mSavedState["query"] ?: ""),
-            scopeState = ContentSearchScopeState(kind, scope)
+            scopeState = ContentSearchScopeState(kind, scope),
         ).setup()
         // 仅恢复持久状态；进入搜索页不代表用户确认开启。
         mRepository.restore()
@@ -68,11 +68,12 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 val changed =
                     current.indexState.enabled != index.enabled || current.indexState.busy != index.busy
                 if (changed) {
-                    cancelQuery(); mDirectScan = false
+                    cancelQuery()
+                    mDirectScan = false
                 }
                 current.copy(
                     indexState = index,
-                    resultState = if (changed) ContentSearchResultState.Idle else current.resultState
+                    resultState = if (changed) ContentSearchResultState.Idle else current.resultState,
                 ).setup()
             }
         }
@@ -86,9 +87,9 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         mRefreshOnResume = false
         state.copy(
             resultState = ContentSearchResultState.Error(
-                state.resultState.items(),
-                R.string.content_search_changed
-            )
+                items = state.resultState.items(),
+                message = R.string.content_search_changed,
+            ),
         ).setup()
     }
 
@@ -101,7 +102,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         mSavedState["query"] = intent.value.takeIf { it.length <= MAX_SAVED_DRAFT_LENGTH }.orEmpty()
         state.copy(
             inputState = state.inputState.copy(draft = intent.value),
-            resultState = ContentSearchResultState.Idle
+            resultState = ContentSearchResultState.Idle,
         ).setup()
     }
 
@@ -117,23 +118,25 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     private fun onSelectScope(intent: ContentSearchUiIntent.SelectScope) {
         val state = interactiveState() ?: return
         updateScope(
-            state.scopeState.copy(
+            scope = state.scopeState.copy(
                 scope = intent.scope,
-                parentId = if (intent.scope == SearchScope.Body) state.scopeState.parentId else null
-            )
+                parentId = if (intent.scope == SearchScope.Body) state.scopeState.parentId else null,
+            ),
         )
     }
 
     /** 搜索按钮与键盘 Search 共用提交入口。 */
     @UiIntentObserver(ContentSearchUiIntent.Submit::class)
     private fun onSubmit() {
-        mDirectScan = false; search()
+        mDirectScan = false
+        search()
     }
 
     /** 明确选择慢速全文扫描时才绕过索引，保留停止和部分结果。 */
     @UiIntentObserver(ContentSearchUiIntent.SearchDirectly::class)
     private fun onSearchDirectly() {
-        mDirectScan = true; search()
+        mDirectScan = true
+        search()
     }
 
     /** 使用当前游标请求下一页，不允许重复分页任务。 */
@@ -149,11 +152,11 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         cancelQuery()
         state.copy(
             resultState = ContentSearchResultState.Content(
-                state.resultState.items(),
-                null,
-                false,
-                stopped = true
-            )
+                items = state.resultState.items(),
+                next = null,
+                complete = false,
+                stopped = true,
+            ),
         ).setup()
     }
 
@@ -162,7 +165,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     private fun onBack() {
         val state = getOrNull<ContentSearchUiState.Normal>() ?: return
         if (state.scopeState.parentId != null && !state.indexState.busy) {
-            onClearObjectScope(); return
+            onClearObjectScope()
+            return
         }
         cancelQuery()
         ContentSearchUiState.Finished(state).setup()
@@ -179,17 +183,17 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         state.copy(resultState = stoppedResult(state.resultState)).setup()
         AppViewEvent.StartActivity(
             activity = MainActivity::class.java,
-            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) }
+            extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) },
         ).tryEmit()
     }
 
     /** 停止的查询保留已取得结果，打开设置后不能留下无人执行的 Loading。 */
     private fun stoppedResult(result: ContentSearchResultState): ContentSearchResultState =
         if (result is ContentSearchResultState.Searching) ContentSearchResultState.Content(
-            result.items,
-            null,
-            false,
-            stopped = true
+            items = result.items,
+            next = null,
+            complete = false,
+            stopped = true,
         ) else result
 
     /** 在同一页面内按单个对象展示命中消息／章节。 */
@@ -198,12 +202,12 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         val state = interactiveState() ?: return
         val kind = SearchKind.entries.first { it.code == intent.hit.kind }
         updateScope(
-            state.scopeState.copy(
+            scope = state.scopeState.copy(
                 kind = kind,
                 scope = SearchScope.Body,
                 parentId = intent.hit.parentId,
-                parentTitle = intent.hit.title
-            )
+                parentTitle = intent.hit.title,
+            ),
         )
     }
 
@@ -226,8 +230,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 resultState = ContentSearchResultState.Content(
                     items = state.resultState.items(),
                     next = null,
-                    complete = false
-                )
+                    complete = false,
+                ),
             ).setup()
         }
         mSearchJob = viewModelScope.launch {
@@ -251,22 +255,25 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                     1 -> {
                         extras.putString(
                             ChatActivity.EXTRA_SESSION_ID,
-                            hit.parentId.toString()
-                        ); ChatActivity::class.java
+                            hit.parentId.toString(),
+                        )
+                        ChatActivity::class.java
                     }
 
                     2 -> {
                         extras.putString(
                             GroupChatActivity.EXTRA_SESSION_ID,
-                            hit.parentId.toString()
-                        ); GroupChatActivity::class.java
+                            hit.parentId.toString(),
+                        )
+                        GroupChatActivity::class.java
                     }
 
                     else -> {
                         extras.putLong(
                             StoryEditorActivity.EXTRA_STORY_ID,
-                            hit.parentId
-                        ); StoryEditorActivity::class.java
+                            hit.parentId,
+                        )
+                        StoryEditorActivity::class.java
                     }
                 }
                 mRefreshOnResume = true
@@ -298,9 +305,9 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             SearchQueryValidation.TooLong -> {
                 state.copy(
                     resultState = ContentSearchResultState.Error(
-                        emptyList(),
-                        R.string.content_search_too_long
-                    )
+                        items = emptyList(),
+                        message = R.string.content_search_too_long,
+                    ),
                 ).setup()
                 return
             }
@@ -317,11 +324,11 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             kind = state.scopeState.kind,
             scope = state.scopeState.scope,
             parentId = state.scopeState.parentId,
-            directScan = mDirectScan
+            directScan = mDirectScan,
         )
         state.copy(
             inputState = state.inputState.copy(submitted = state.inputState.draft),
-            resultState = ContentSearchResultState.Searching(existing)
+            resultState = ContentSearchResultState.Searching(existing),
         ).setup()
         // 长任务退出 Intent 消费器，取消和输入才能立即得到处理。
         mSearchJob = viewModelScope.launch {
@@ -332,8 +339,12 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                     }
                 }
                 publish(
-                    generation,
-                    ContentSearchResultState.Content(existing + page.hits, page.next, page.complete)
+                    generation = generation,
+                    result = ContentSearchResultState.Content(
+                        items = existing + page.hits,
+                        next = page.next,
+                        complete = page.complete,
+                    ),
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -342,8 +353,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                     if (failure is SearchChangedException) R.string.content_search_changed else R.string.content_search_error
                 val current = getOrNull<ContentSearchUiState.Normal>() ?: return@launch
                 publish(
-                    generation,
-                    ContentSearchResultState.Error(current.resultState.items(), message)
+                    generation = generation,
+                    result = ContentSearchResultState.Error(current.resultState.items(), message),
                 )
             }
         }

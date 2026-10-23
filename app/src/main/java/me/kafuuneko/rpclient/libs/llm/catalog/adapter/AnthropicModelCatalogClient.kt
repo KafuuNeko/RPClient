@@ -25,7 +25,7 @@ class AnthropicModelCatalogClient(
                 .toHttpUrl()
                 .newBuilder()
                 .addQueryParameter("limit", "1000")
-                .apply { afterId?.let { addQueryParameter("after_id", it) } }
+                .apply { afterId?.let { text -> addQueryParameter("after_id", text) } }
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -55,18 +55,17 @@ internal data class AnthropicModelCatalogPage(
  */
 internal fun parseAnthropicModelCatalogPage(raw: String): AnthropicModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
-    val data = json.arrayOrNull("data")
-        ?: throw LLMModelCatalogInvalidResponseException()
+    val data = json.arrayOrNull("data") ?: throw LLMModelCatalogInvalidResponseException()
     val models = buildList {
         data.forEach { element ->
-            val item = element.takeIf { it.isJsonObject }?.asJsonObject
+            val item = element.takeIf { element -> element.isJsonObject }?.asJsonObject
                 ?: return@forEach
             val id = item.stringOrNull("id") ?: return@forEach
             add(
-                LLMAvailableModel(
+                element = LLMAvailableModel(
                     id = id,
-                    displayName = item.stringOrNull("display_name") ?: id
-                )
+                    displayName = item.stringOrNull("display_name") ?: id,
+                ),
             )
         }
     }
@@ -79,6 +78,6 @@ internal fun parseAnthropicModelCatalogPage(raw: String): AnthropicModelCatalogP
     }
     return AnthropicModelCatalogPage(
         models = models,
-        nextAfterId = lastId.takeIf { hasMore }
+        nextAfterId = lastId.takeIf { hasMore },
     )
 }

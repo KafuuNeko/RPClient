@@ -13,7 +13,7 @@ internal fun StoryEditorStructureState.allChapters(): List<StoryChapterOutlineIt
 
 /** 返回指定分卷中的章节；空分卷 ID 表示未分卷章节。 */
 internal fun StoryEditorStructureState.chaptersInVolume(
-    volumeId: Long?
+    volumeId: Long?,
 ): List<StoryChapterOutlineItem> {
     return if (volumeId == null) {
         ungroupedChapters
@@ -25,7 +25,7 @@ internal fun StoryEditorStructureState.chaptersInVolume(
 /** 替换指定分卷的章节列表，同时保留其余结构节点不变。 */
 private fun StoryEditorStructureState.withChapters(
     volumeId: Long?,
-    chapters: List<StoryChapterOutlineItem>
+    chapters: List<StoryChapterOutlineItem>,
 ): StoryEditorStructureState {
     return if (volumeId == null) {
         copy(ungroupedChapters = chapters)
@@ -33,7 +33,7 @@ private fun StoryEditorStructureState.withChapters(
         copy(
             volumes = volumes.map { volume ->
                 if (volume.id == volumeId) volume.copy(chapters = chapters) else volume
-            }
+            },
         )
     }
 }
@@ -52,11 +52,12 @@ private fun StoryEditorStructureState.withChapters(
  */
 internal fun StoryEditorStructureState.moveChapterForDrag(
     chapterId: Long,
-    target: StoryChapterDropTarget
+    target: StoryChapterDropTarget,
 ): StoryEditorStructureState? {
     val sourceChapter = allChapters().firstOrNull { it.id == chapterId } ?: return null
     val targetChapter = (target as? StoryChapterDropTarget.Chapter)?.let { chapterTarget ->
-        allChapters().firstOrNull { it.id == chapterTarget.chapterId } ?: return null
+        allChapters().firstOrNull { storyChapterOutlineItem -> storyChapterOutlineItem.id == chapterTarget.chapterId }
+            ?: return null
     }
     if (targetChapter?.id == sourceChapter.id) return null
 
@@ -82,11 +83,12 @@ internal fun StoryEditorStructureState.moveChapterForDrag(
             val anchorIndex = targetChapters.indexOfFirst { it.id == target.chapterId }
                 .takeIf { it >= 0 }
                 ?: return null
-            val movesDownInSameContainer = sourceChapter.volumeId == targetVolumeId &&
-                    originalSourceChapters.indexOfFirst { it.id == sourceChapter.id } <
-                    originalSourceChapters.indexOfFirst { it.id == target.chapterId }
+            val movesDownInSameContainer = sourceChapter.volumeId == targetVolumeId
+                && originalSourceChapters.indexOfFirst { it.id == sourceChapter.id } <
+                originalSourceChapters.indexOfFirst { it.id == target.chapterId }
             if (movesDownInSameContainer) anchorIndex + 1 else anchorIndex
         }
+
         is StoryChapterDropTarget.Container -> when (target.position) {
             StoryChapterDropPosition.Start -> 0
             StoryChapterDropPosition.End -> targetChapters.size
@@ -118,12 +120,12 @@ internal fun buildStructureState(editorData: StoryEditorData): StoryEditorStruct
             title = overview.title,
             volumeId = overview.volumeId,
             characterCount = overview.contentCharacterCount,
-            sortOrder = overview.sortOrder
+            sortOrder = overview.sortOrder,
         )
     }
     // 解析当前章节所属分卷
     val currentVolume = editorData.currentChapter.volumeId?.let { volumeId ->
-        editorData.volumes.firstOrNull { it.id == volumeId }
+        editorData.volumes.firstOrNull { storyVolume -> storyVolume.id == volumeId }
     }
     // 组装大纲状态对象
     return StoryEditorStructureState(
@@ -137,8 +139,8 @@ internal fun buildStructureState(editorData: StoryEditorData): StoryEditorStruct
                 id = volume.id,
                 title = volume.title,
                 sortOrder = volume.sortOrder,
-                chapters = chapters.filter { it.volumeId == volume.id }
+                chapters = chapters.filter { storyChapterOutlineItem -> storyChapterOutlineItem.volumeId == volume.id },
             )
-        }
+        },
     )
 }

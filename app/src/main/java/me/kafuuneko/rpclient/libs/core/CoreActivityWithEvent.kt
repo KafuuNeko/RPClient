@@ -46,8 +46,8 @@ abstract class CoreActivityWithEvent : CoreActivity() {
                 .flowWithLifecycle(lifecycle, Lifecycle.State.CREATED)
                 .collect { wrapper ->
                     currentCoroutineContext().ensureActive()
-                    wrapper.consumeIfNotHandled {
-                        onReceivedViewEvent(it)
+                    wrapper.consumeIfNotHandled { iViewEvent ->
+                        onReceivedViewEvent(iViewEvent)
                     }
                 }
         }

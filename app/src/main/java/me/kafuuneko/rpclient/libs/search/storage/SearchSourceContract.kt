@@ -6,12 +6,42 @@ internal object SearchSourceContract {
     const val CHAT_HIDDEN = "source = 'Summary'"
 
     /** 触发器观察的源类型、归属列、变更列及隐藏条件。 */
-    data class Source(val kind: Int, val table: String, val parent: String, val columns: List<String>, val hidden: String = "0")
+    data class Source(
+        val kind: Int,
+        val table: String,
+        val parent: String,
+        val columns: List<String>,
+        val hidden: String = "0"
+    )
 
     val sources = listOf(
-        Source(1, "chat_messages", "sessionId", listOf("content", "source", "sessionId"), "NEW.$CHAT_HIDDEN"),
-        Source(2, "group_chat_messages", "sessionId", listOf("content", "speakerNameSnapshot", "sessionId")),
-        Source(3, "story_chapters", "storyId", listOf("content", "title", "storyId"))
+        Source(
+            kind = 1,
+            table = "chat_messages",
+            parent = "sessionId",
+            columns = listOf(
+                "content",
+                "source",
+                "sessionId",
+            ),
+            hidden = "NEW.$CHAT_HIDDEN",
+        ),
+        Source(
+            kind = 2,
+            table = "group_chat_messages",
+            parent = "sessionId",
+            columns = listOf(
+                "content",
+                "speakerNameSnapshot",
+                "sessionId",
+            ),
+        ),
+        Source(
+            kind = 3,
+            table = "story_chapters",
+            parent = "storyId",
+            columns = listOf("content", "title", "storyId")
+        ),
     )
     val metadataColumns = mapOf(
         "chat_sessions" to listOf("title", "characterId", "latestTime", "userName"),
@@ -19,7 +49,7 @@ internal object SearchSourceContract {
         "stories" to listOf("title", "latestTime"),
         "character" to listOf("name"),
         "group_chat_members" to listOf("sessionId", "characterId"),
-        "story_characters" to listOf("storyId", "characterId")
+        "story_characters" to listOf("storyId", "characterId"),
     )
     val observedTables = sources.map { it.table } + metadataColumns.keys
 }

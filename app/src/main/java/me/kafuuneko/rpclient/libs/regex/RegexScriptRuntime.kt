@@ -17,7 +17,7 @@ class RegexScriptRuntime(
         mode: RegexExecutionMode,
         macros: Map<String, String>,
         depth: Int? = null,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): RegexExecutionResult {
         return mEngine.execute(
             input = input,
@@ -27,8 +27,8 @@ class RegexScriptRuntime(
                 mode = mode,
                 isEdit = isEdit,
                 depth = depth,
-                macros = macros
-            )
+                macros = macros,
+            ),
         )
     }
 
@@ -39,7 +39,7 @@ class RegexScriptRuntime(
         mode: RegexExecutionMode,
         macros: Map<String, String>,
         depth: Int? = null,
-        isEdit: Boolean = false
+        isEdit: Boolean = false,
     ): RegexExecutionResult {
         return executeMessage(
             input = input,
@@ -48,7 +48,7 @@ class RegexScriptRuntime(
             mode = mode,
             macros = macros,
             depth = depth,
-            isEdit = isEdit
+            isEdit = isEdit,
         )
     }
 
@@ -58,7 +58,7 @@ class RegexScriptRuntime(
         scripts: List<ScopedRegexScript>,
         macros: Map<String, String>,
         depth: Int? = null,
-        bodyPlacement: RegexPlacement = RegexPlacement.AiResponse
+        bodyPlacement: RegexPlacement = RegexPlacement.AiResponse,
     ): RegexExecutionResult {
         return executeMessage(
             input = input,
@@ -67,7 +67,7 @@ class RegexScriptRuntime(
             mode = RegexExecutionMode.Markdown,
             macros = macros,
             depth = depth,
-            isEdit = false
+            isEdit = false,
         )
     }
 
@@ -79,17 +79,17 @@ class RegexScriptRuntime(
         mode: RegexExecutionMode,
         macros: Map<String, String>,
         depth: Int?,
-        isEdit: Boolean
+        isEdit: Boolean,
     ): RegexExecutionResult {
-        if (!input.contains("<think>", ignoreCase = true)) {
+        if (!input.contains(other = "<think>", ignoreCase = true)) {
             return execute(
-                input,
-                scripts,
-                bodyPlacement,
-                mode,
-                macros,
-                depth,
-                isEdit
+                input = input,
+                scripts = scripts,
+                placement = bodyPlacement,
+                mode = mode,
+                macros = macros,
+                depth = depth,
+                isEdit = isEdit,
             )
         }
         val hits = mutableListOf<RegexExecutionHit>()
@@ -97,16 +97,16 @@ class RegexScriptRuntime(
         val output = buildString {
             var cursor = 0
             while (cursor < input.length) {
-                val open = input.indexOf("<think>", cursor, ignoreCase = true)
+                val open = input.indexOf(string = "<think>", startIndex = cursor, ignoreCase = true)
                 if (open < 0) {
                     val result = execute(
-                        input.substring(cursor),
-                        scripts,
-                        bodyPlacement,
-                        mode,
-                        macros,
-                        depth,
-                        isEdit
+                        input = input.substring(cursor),
+                        scripts = scripts,
+                        placement = bodyPlacement,
+                        mode = mode,
+                        macros = macros,
+                        depth = depth,
+                        isEdit = isEdit,
                     )
                     append(result.text)
                     hits += result.hits
@@ -114,29 +114,30 @@ class RegexScriptRuntime(
                     break
                 }
                 val body = execute(
-                    input.substring(cursor, open),
-                    scripts,
-                    bodyPlacement,
-                    mode,
-                    macros,
-                    depth,
-                    isEdit
+                    input = input.substring(cursor, open),
+                    scripts = scripts,
+                    placement = bodyPlacement,
+                    mode = mode,
+                    macros = macros,
+                    depth = depth,
+                    isEdit = isEdit,
                 )
                 append(body.text)
                 hits += body.hits
                 errors += body.errors
                 append(input.substring(open, open + THINK_OPEN.length))
                 val contentStart = open + THINK_OPEN.length
-                val close = input.indexOf("</think>", contentStart, ignoreCase = true)
+                val close =
+                    input.indexOf(string = "</think>", startIndex = contentStart, ignoreCase = true)
                 val contentEnd = if (close < 0) input.length else close
                 val reasoning = execute(
-                    input.substring(contentStart, contentEnd),
-                    scripts,
-                    RegexPlacement.Reasoning,
-                    mode,
-                    macros,
-                    depth,
-                    isEdit
+                    input = input.substring(contentStart, contentEnd),
+                    scripts = scripts,
+                    placement = RegexPlacement.Reasoning,
+                    mode = mode,
+                    macros = macros,
+                    depth = depth,
+                    isEdit = isEdit,
                 )
                 append(reasoning.text)
                 hits += reasoning.hits
@@ -146,7 +147,7 @@ class RegexScriptRuntime(
                 cursor = close + THINK_CLOSE.length
             }
         }
-        return RegexExecutionResult(output, hits, errors)
+        return RegexExecutionResult(text = output, hits = hits, errors = errors)
     }
 
     companion object {
@@ -156,14 +157,14 @@ class RegexScriptRuntime(
             characterName: String,
             userDescription: String = "",
             scenario: String = "",
-            groupNames: String = ""
+            groupNames: String = "",
         ): Map<String, String> = mapOf(
             "user" to userName,
             "char" to characterName,
             "persona" to userDescription,
             "scenario" to scenario,
             "group" to groupNames,
-            "charIfNotGroup" to characterName
+            "charIfNotGroup" to characterName,
         )
 
         private const val THINK_OPEN = "<think>"

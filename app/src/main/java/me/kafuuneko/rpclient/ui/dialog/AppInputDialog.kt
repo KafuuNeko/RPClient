@@ -18,7 +18,6 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,18 +30,16 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /**
  * 现代化通用文本输入对话框。
@@ -74,7 +71,7 @@ fun AppInputDialog(
     isConfirmLoading: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     onConfirm: () -> Unit,
-    extraContent: @Composable ColumnScope.() -> Unit = {}
+    extraContent: @Composable ColumnScope.() -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -97,11 +94,11 @@ fun AppInputDialog(
         dismissText = dismissText,
         confirmEnabled = confirmEnabled,
         isConfirmLoading = isConfirmLoading,
-        onConfirm = onConfirm
+        onConfirm = onConfirm,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (password) {
                 // 密码掩码仍使用值式 API；密码输入固定为单行，不需要纵向指示器。
@@ -111,19 +108,23 @@ fun AppInputDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    label = if (label != null) { { Text(label) } } else null,
-                    placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+                    label = if (label != null) {
+                        { Text(label) }
+                    } else null,
+                    placeholder = if (placeholder != null) {
+                        { Text(placeholder) }
+                    } else null,
                     singleLine = true,
                     enabled = enabled,
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = keyboardType,
-                        imeAction = ImeAction.Done
+                        imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (enabled && confirmEnabled && !isConfirmLoading) onConfirm()
-                        }
+                        },
                     ),
                     visualTransformation = if (passwordVisible) {
                         VisualTransformation.None
@@ -139,10 +140,10 @@ fun AppInputDialog(
                                     Icons.Rounded.Visibility
                                 },
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
+                    },
                 )
             } else {
                 RpScrollableOutlinedTextField(
@@ -151,8 +152,12 @@ fun AppInputDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    label = if (label != null) { { Text(label) } } else null,
-                    placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+                    label = if (label != null) {
+                        { Text(label) }
+                    } else null,
+                    placeholder = if (placeholder != null) {
+                        { Text(placeholder) }
+                    } else null,
                     singleLine = singleLine,
                     minLines = minLines,
                     maxLines = maxLines,
@@ -160,7 +165,7 @@ fun AppInputDialog(
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = keyboardType,
-                        imeAction = if (singleLine) ImeAction.Done else ImeAction.Default
+                        imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
                     ),
                     onKeyboardAction = KeyboardActionHandler { performDefaultAction ->
                         if (enabled && confirmEnabled && !isConfirmLoading) {
@@ -175,13 +180,13 @@ fun AppInputDialog(
                                 Icon(
                                     imageVector = Icons.Rounded.Clear,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     } else {
                         null
-                    }
+                    },
                 )
             }
 
@@ -200,10 +205,10 @@ private fun AppInputDialogPreview() {
                 onDismissRequest = {},
                 title = "修改故事标题",
                 value = text,
-                onValueChange = { text = it },
+                onValueChange = { textValue -> text = textValue },
                 label = "故事标题",
                 placeholder = "请输入标题...",
-                onConfirm = {}
+                onConfirm = {},
             )
         }
     }

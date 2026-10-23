@@ -4,9 +4,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import java.io.Reader
 import java.io.Writer
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 
 /** `.rpstory.json` 的稳定 V2 编解码器，同时兼容缺少章节引导的历史归档。 */
 class StoryArchiveCodec(private val mGson: Gson) {
@@ -38,7 +38,7 @@ class StoryArchiveCodec(private val mGson: Gson) {
                 else -> decodeStory(root.requiredObject("story"))
             },
             characterHints = decodeCharacterHints(root),
-            lorebookHints = decodeLorebookHints(root)
+            lorebookHints = decodeLorebookHints(root),
         )
         validateArchive(archive)
         return archive
@@ -52,11 +52,11 @@ class StoryArchiveCodec(private val mGson: Gson) {
             authorNote = story.optionalString("authorNote"),
             includeUserPersona = story.optionalBoolean("includeUserPersona"),
             ungroupedChapters = listOf(
-                ArchivedChapter(
+                element = ArchivedChapter(
                     title = DefaultNames.STORY_CHAPTER,
-                    content = story.requiredString("content")
-                )
-            )
+                    content = story.requiredString("content"),
+                ),
+            ),
         )
     }
 
@@ -67,17 +67,16 @@ class StoryArchiveCodec(private val mGson: Gson) {
             summary = story.optionalString("summary"),
             authorNote = story.optionalString("authorNote"),
             includeUserPersona = story.optionalBoolean("includeUserPersona"),
-            ungroupedChapters = story.requiredArrayObjects("ungroupedChapters").map {
-                it.decodeChapter()
-            },
+            ungroupedChapters = story.requiredArrayObjects("ungroupedChapters")
+                .map { it.decodeChapter() },
             volumes = story.requiredArrayObjects("volumes").map { volume ->
                 ArchivedVolume(
                     title = volume.requiredNonBlankTitle("title"),
-                    chapters = volume.requiredArrayObjects("chapters").map {
-                        it.decodeChapter()
-                    }
+                    chapters = volume.requiredArrayObjects("chapters").map { jsonObject ->
+                        jsonObject.decodeChapter()
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -85,7 +84,7 @@ class StoryArchiveCodec(private val mGson: Gson) {
         return ArchivedChapter(
             title = requiredNonBlankTitle("title"),
             content = requiredString("content"),
-            continuationGuidance = optionalString("continuationGuidance")
+            continuationGuidance = optionalString("continuationGuidance"),
         )
     }
 
@@ -98,7 +97,7 @@ class StoryArchiveCodec(private val mGson: Gson) {
             StoryCharacterHint(
                 name = hint.requiredString("name"),
                 fingerprint = hint.requiredString("fingerprint"),
-                activationMode = mode
+                activationMode = mode,
             )
         }
     }
@@ -108,7 +107,7 @@ class StoryArchiveCodec(private val mGson: Gson) {
             StoryLorebookHint(
                 lorebookName = hint.requiredString("lorebookName"),
                 entryName = hint.requiredString("entryName"),
-                fingerprint = hint.requiredString("fingerprint")
+                fingerprint = hint.requiredString("fingerprint"),
             )
         }
     }
@@ -128,9 +127,11 @@ class StoryArchiveCodec(private val mGson: Gson) {
         require(story.ungroupedChapters.all { it.title.isNotBlank() }) {
             "Story archive contains a blank chapter title"
         }
-        require(story.volumes.all { volume ->
-            volume.title.isNotBlank() && volume.chapters.all { it.title.isNotBlank() }
-        }) {
+        require(
+            value = story.volumes.all { volume ->
+                volume.title.isNotBlank() && volume.chapters.all { archivedChapter -> archivedChapter.title.isNotBlank() }
+            },
+        ) {
             "Story archive contains a blank volume or chapter title"
         }
         require(archive.characterHints.size <= MAX_HINTS && archive.lorebookHints.size <= MAX_HINTS) {
@@ -156,8 +157,8 @@ class StoryArchiveCodec(private val mGson: Gson) {
     }
 
     private fun JsonObject.requiredNonBlankTitle(key: String): String {
-        return requiredString(key).trim().also {
-            require(it.isNotEmpty()) { "Story archive contains a blank $key" }
+        return requiredString(key).trim().also { text ->
+            require(text.isNotEmpty()) { "Story archive contains a blank $key" }
         }
     }
 
@@ -170,10 +171,10 @@ class StoryArchiveCodec(private val mGson: Gson) {
     }
 
     private fun JsonObject.requiredInt(key: String): Int {
-        return get(key)?.takeIf {
-            it.isJsonPrimitive && it.asJsonPrimitive.isNumber
-        }?.let {
-            runCatching { it.asInt }.getOrNull()
+        return get(key)?.takeIf { element ->
+            element.isJsonPrimitive && element.asJsonPrimitive.isNumber
+        }?.let { element ->
+            runCatching { element.asInt }.getOrNull()
         } ?: throw IllegalArgumentException("Story archive is missing $key")
     }
 
@@ -197,25 +198,31 @@ class StoryArchiveCodec(private val mGson: Gson) {
 
     private fun arrayObjects(key: String, value: JsonElement): List<JsonObject> {
         require(value.isJsonArray) { "Story archive contains invalid $key" }
-        return value.asJsonArray.map {
-            require(it.isJsonObject) { "Story archive contains invalid $key" }
-            it.asJsonObject
+        return value.asJsonArray.map { element ->
+            require(element.isJsonObject) { "Story archive contains invalid $key" }
+            element.asJsonObject
         }
     }
 
     companion object {
         /** 常驻激活模式标识。 */
         const val MODE_ALWAYS = "always"
+
         /** 自动匹配激活模式标识。 */
         const val MODE_AUTO = "auto"
+
         /** 主角常驻激活模式标识。 */
         const val MODE_PRIMARY = "primary"
+
         /** 旧版连续正文归档的协议版本号。 */
         private const val LEGACY_VERSION = 1
+
         /** 单篇归档允许包含的最大分卷数。 */
         private const val MAX_VOLUMES = 1_000
+
         /** 单篇归档允许包含的最大章节数。 */
         private const val MAX_CHAPTERS = 10_000
+
         /** 单篇归档允许包含的最大引用提示数。 */
         private const val MAX_HINTS = 10_000
     }

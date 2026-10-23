@@ -9,7 +9,8 @@ object ImageLogSanitizer {
     /** 限制持久日志大小，并清理嵌套错误字符串中的 Base64；截断也不会保留载荷前缀。 */
     fun sanitize(value: String): String {
         val fields = mDataField.replace(value) { it.groupValues[1] + IMAGE_DATA_OMITTED }
-        val redacted = mEncodedRun.replace(mDataUrl.replace(fields, IMAGE_DATA_OMITTED), PAYLOAD_OMITTED)
+        val redacted =
+            mEncodedRun.replace(mDataUrl.replace(fields, IMAGE_DATA_OMITTED), PAYLOAD_OMITTED)
         return if (redacted.length > 65_536) redacted.take(65_536) + "\n$LOG_TRUNCATED" else redacted
     }
 

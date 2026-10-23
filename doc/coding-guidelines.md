@@ -29,6 +29,7 @@ RPClient 是面向 Android 的本地优先 AI 角色扮演聊天客户端。所�
 | 新增 Intent、系统选择器、跳转、一次性提示 | [UiIntent 与 ViewEvent](./guides/intent-and-viewevent.md) |
 | 编写 ViewModel、Activity、Compose | [ViewModel、Activity 与 Compose](./guides/viewmodel-activity-compose.md) |
 | 编写或修改代码（代码美观与可读性） | [代码美观与可读性规范](./guides/code-elegance-and-readability.md) |
+| 代码格式化、交付前排版检查 | [自动代码格式化](./guides/code-formatting.md) |
 | 编写或修改代码注释与 KDoc | [代码注释与 KDoc 规范](./guides/comments-and-kdoc.md) |
 | 新增数据库表、DAO、Repository、文件记录 | [Room 数据层](./guides/room-data-layer.md) |
 | 新增依赖注入或偏好配置 | [Koin 与 Kotpref](./guides/koin-and-kotpref.md) |
@@ -75,7 +76,7 @@ Compose View --UiIntent--> ViewModel --UiState--> Compose View
 8. 编写代码时主动评估是否需要补充维护性注释，尤其是兼容性、数据一致性、生命周期、Prompt 预算、协议差异和非直观取舍。
 9. 普通函数建议不超过 80 行，嵌套不超过 4 层。
 10. 优先 guard clause，少写层层嵌套。
-11. 跨行调用全量使用具名实参，杜绝半裸传参；复杂条件提取解释性布尔变量；Modifier 链独立成行。
+11. 排版统一使用 Android Studio 原生格式化器及项目代码样式；参数具名、条件分解和变量提取等需要语义信息的调整由编码与审查完成。
 12. 不做无关重构，不改动与需求无关的框架代码。
 13. 不引入未经需求确认的大型框架或架构重写。
 
@@ -94,13 +95,10 @@ Compose View --UiIntent--> ViewModel --UiState--> Compose View
 
 ### 5.1 核心通用原则
 
-- **多行调用全量具名**：跨行函数、构造器及 `copy()` 调用必须全量使用具名实参（`param = value`），坚决杜绝裸传位置参数。
-- **严禁半裸传参**：一旦某个参数使用了具名实参（如 Compose 的 `style = ...`），前面的所有参数必须全量具名（如 `text = ...`），严禁混用位置参数与具名参数。
-- **字面量强制具名**：布尔值（`true`/`false`）、数字及 `null` 等无上下文语义的字面量必须显式命名形参。
-- **解释性变量分解复杂条件**：严禁在 `if` 或条件语句中堆叠多个 `&&`/`||` 与复杂运算，必须提取具有明确业务语义的解释性局部布尔变量；多行条件运算符统一置于行首。
-- **卫语句扁平化**：优先使用 Guard Clause 提前返回，消除多层缩进金字塔，主逻辑保持在最外层。
-- **Compose 规范**：Modifier 链每个操作符必须单起一行；组件参数内严禁内联巨型计算或长串 `when`，提前提取展示属性；非尾部内容槽位回调必须具名。
-- **流式调用与作用域**：多行或嵌套 Lambda 严禁使用隐式 `it`，必须显式声明语义参数；长流式链操作符独占一行；杜绝作用域函数无节制嵌套。
+- **统一排版**：采用 Android Studio 原生格式化器及项目代码样式，缩进、折行、尾逗号、调用链与声明间距以工具输出为准。
+- **参数与条件清晰**：调用容易产生歧义时使用具名参数；复杂条件按业务含义分解，避免堆叠隐式判断。
+- **流程清晰**：优先卫语句，控制嵌套；Lambda 和作用域函数的使用应便于理解作用域、接收者及返回目标。
+- **Compose 语义清晰**：复杂计算在组件声明外完成，回调与内容槽位明确用途，格式化器不承担业务重构。
 
 ---
 
@@ -240,12 +238,14 @@ AI 在编码过程中**严禁**主动生成以下类型的无意义单元测试�
 9. 新 Room 表是否更新 `AppDatabase`？
 10. 用户可见文案是否全部来自字符串资源，内部异常与日志文案是否统一为英文，且全部语言目录已同步补齐（占位符与英文源一致）？
 11. 是否避免在普通状态、提示或非调试日志中泄露 API Key、请求头、私密对话、真实路径和完整原始响应？
-12. 是否遵循代码美观与可读性规范（跨行调用全量具名、消除半裸传参、复杂条件提取解释性变量、Compose Modifier 独立行、消除隐式嵌套 it）？
+12. 是否按项目的 Android Studio 代码样式完成格式化，并对参数含义、条件分解、作用域与可读性进行了语义审查？
 13. 是否仅在引入复杂纯逻辑、关键算法分支、协议编解码兼容或 Bug 回归时补充必要单元测试，严禁堆砌无价值的无用测试？
 14. 新增注释是否解释了必要约束，而不是复述代码？
 15. 是否运行最小验证？
 
 常用验证：
+
+Kotlin 变更在交付前先按 [自动代码格式化](./guides/code-formatting.md) 执行 `formatApply` 与 `formatCheck`，AI 的自动执行约定见仓库根目录 `AGENTS.md`。格式化工具通过独立 JVM 构建调用已安装的 Android Studio，不需要配置 Android SDK。
 
 ```powershell
 .\gradlew.bat --offline --no-daemon --console=plain :app:testDebugUnitTest

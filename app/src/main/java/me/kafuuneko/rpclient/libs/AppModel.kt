@@ -65,7 +65,8 @@ Story memory:
     const val DEFAULT_AUXILIARY_PROMPT = ""
 
     // 默认扮演用户提示词，用于从用户视角生成下一条消息。
-    const val DEFAULT_IMPERSONATION_PROMPT = "[Write your next reply from the point of view of {{user}}. Do not write as {{char}} or system.]"
+    const val DEFAULT_IMPERSONATION_PROMPT =
+        "[Write your next reply from the point of view of {{user}}. Do not write as {{char}} or system.]"
 
     // 默认新聊天边界提示词，用于区分设定区和真实聊天历史。
     const val DEFAULT_NEW_CHAT_PROMPT = "[Start a new Chat]"
@@ -74,7 +75,8 @@ Story memory:
     const val DEFAULT_NEW_EXAMPLE_CHAT_PROMPT = "[Example Chat]"
 
     // 默认续写提示词，用于继续上一条助手回复。
-    const val DEFAULT_CONTINUE_NUDGE_PROMPT = "[Continue your last message without repeating its original content.]"
+    const val DEFAULT_CONTINUE_NUDGE_PROMPT =
+        "[Continue your last message without repeating its original content.]"
 
     // 默认空消息替换文本；为空时输入框空白不会发送。
     const val DEFAULT_REPLACE_EMPTY_MESSAGE_PROMPT = ""
@@ -237,9 +239,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     var storyMemoryTemplate by stringPref(default = DEFAULT_STORY_MEMORY_TEMPLATE)
     var storySummaryTemplate by stringPref(default = DEFAULT_STORY_SUMMARY_TEMPLATE)
     var storySummarizePrompt by stringPref(default = DEFAULT_STORY_SUMMARIZE_PROMPT)
-    var storyContinuationGuidancePrompt by stringPref(
-        default = DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT
-    )
+    var storyContinuationGuidancePrompt by stringPref(default = DEFAULT_STORY_CONTINUATION_GUIDANCE_PROMPT)
     var storyContinuePrompt by stringPref(default = DEFAULT_STORY_CONTINUE_PROMPT)
 
     // 全部图片发送参数以一个值保存，避免并发请求读到混合配置。
@@ -280,9 +280,7 @@ Treat it as an instruction, not as manuscript text. Do not quote, repeat, explai
     override var summaryInjectionTemplate by stringPref(default = DEFAULT_SUMMARY_INJECTION_TEMPLATE)
 
     // 摘要注入位置使用 SummaryInjectionPosition.persistedValue 持久化。
-    override var summaryInjectionPosition by intPref(
-        default = SummaryInjectionPosition.default.persistedValue
-    )
+    override var summaryInjectionPosition by intPref(default = SummaryInjectionPosition.default.persistedValue)
 
     // 摘要位于聊天内时，从聊天末尾向前计算的插入深度。
     override var summaryInjectionDepth by intPref(default = 2)

@@ -15,11 +15,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -69,7 +67,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 @Composable
 fun GroupChatCreateLayout(
     uiState: GroupChatCreateUiState,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit = {}
+    emitIntent: (GroupChatCreateUiIntent) -> Unit = {},
 ) {
     when (uiState) {
         GroupChatCreateUiState.None -> Unit
@@ -85,7 +83,7 @@ fun GroupChatCreateLayout(
 @Composable
 private fun GroupChatCreateNormalView(
     state: GroupChatCreateUiState.Normal,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     AppPageScaffold(
         // 缩小整个表单视口，底栏与搜索框共同避让键盘；短列表也能滚动到焦点。
@@ -93,132 +91,142 @@ private fun GroupChatCreateNormalView(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.group_chat_create_title),
-                onBack = { emitIntent(GroupChatCreateUiIntent.Back) }
+                onBack = { emitIntent(GroupChatCreateUiIntent.Back) },
             )
         },
         bottomBar = {
             CreateBottomBar(
                 selectedCount = state.selectedCount,
-                enabled = state.canCreate &&
-                        state.loadState == GroupChatCreateLoadState.None,
-                onCreate = { emitIntent(GroupChatCreateUiIntent.Create) }
+                enabled = state.canCreate
+                    && state.loadState == GroupChatCreateLoadState.None,
+                onCreate = { emitIntent(GroupChatCreateUiIntent.Create) },
             )
-        }
-    ) { padding ->
-        RpLazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = 14.dp,
-                end = 18.dp,
-                bottom = 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = state.title,
-                    onValueChange = {
-                        emitIntent(GroupChatCreateUiIntent.ChangeTitle(it))
-                    },
-                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp), hasLabel = true),
-                    label = { Text(stringResource(R.string.group_chat_title_label)) },
-                    placeholder = {
-                        Text(stringResource(R.string.group_chat_title_placeholder))
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp)
-                )
+        },
+        content = { padding ->
+            RpLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = 14.dp,
+                    end = 18.dp,
+                    bottom = 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item {
+                    OutlinedTextField(
+                        value = state.title,
+                        onValueChange = { text ->
+                            emitIntent(GroupChatCreateUiIntent.ChangeTitle(text))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .generalContentBackground(
+                                shape = RoundedCornerShape(16.dp),
+                                hasLabel = true
+                            ),
+                        label = { Text(stringResource(R.string.group_chat_title_label)) },
+                        placeholder = {
+                            Text(stringResource(R.string.group_chat_title_placeholder))
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                }
+                item {
+                    StrategySection(
+                        selected = state.activationStrategy,
+                        onSelect = { groupChatActivationStrategy ->
+                            emitIntent(
+                                GroupChatCreateUiIntent.SelectStrategy(
+                                    groupChatActivationStrategy
+                                )
+                            )
+                        },
+                    )
+                }
+                item {
+                    SelfResponseSetting(
+                        enabled = state.allowSelfResponses,
+                        onChange = { enabled ->
+                            emitIntent(GroupChatCreateUiIntent.ToggleAllowSelfResponses(enabled))
+                        },
+                    )
+                }
+                item {
+                    GreetingSection(
+                        state = state.greetingState,
+                        emitIntent = emitIntent,
+                    )
+                }
+                item {
+                    RpSectionHeader(
+                        title = stringResource(R.string.group_chat_members),
+                        action = stringResource(R.string.selected_count, state.selectedCount),
+                    )
+                }
+                item {
+                    CharacterSearchField(
+                        query = state.searchQuery,
+                        onQueryChange = { text ->
+                            emitIntent(
+                                GroupChatCreateUiIntent.ChangeSearchQuery(
+                                    text
+                                )
+                            )
+                        },
+                    )
+                }
+                if (state.visibleCharacters.isEmpty()) {
+                    item { EmptyCharacterCard() }
+                }
+                items(
+                    items = state.visibleCharacters,
+                    key = { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.id },
+                ) { character ->
+                    CharacterChoiceCard(
+                        character = character,
+                        onClick = {
+                            emitIntent(GroupChatCreateUiIntent.ToggleCharacter(character.id))
+                        },
+                    )
+                }
+                item {
+                    RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
+                }
+                item {
+                    GroupChatLorebookSelector(
+                        groups = state.lorebookGroups,
+                        visibleGroups = state.visibleLorebookGroups,
+                        query = state.lorebookQuery,
+                        onQueryChange = { text ->
+                            emitIntent(GroupChatCreateUiIntent.ChangeLorebookQuery(text))
+                        },
+                        onToggleLorebook = { id ->
+                            emitIntent(GroupChatCreateUiIntent.ToggleLorebook(id))
+                        },
+                        onToggleEntry = { id ->
+                            emitIntent(GroupChatCreateUiIntent.ToggleLorebookEntry(id))
+                        },
+                    )
+                }
             }
-            item {
-                StrategySection(
-                    selected = state.activationStrategy,
-                    onSelect = {
-                        emitIntent(GroupChatCreateUiIntent.SelectStrategy(it))
-                    }
-                )
-            }
-            item {
-                SelfResponseSetting(
-                    enabled = state.allowSelfResponses,
-                    onChange = {
-                        emitIntent(
-                            GroupChatCreateUiIntent.ToggleAllowSelfResponses(it)
-                        )
-                    }
-                )
-            }
-            item {
-                GreetingSection(
-                    state = state.greetingState,
-                    emitIntent = emitIntent
-                )
-            }
-            item {
-                RpSectionHeader(
-                    title = stringResource(R.string.group_chat_members),
-                    action = stringResource(R.string.selected_count, state.selectedCount)
-                )
-            }
-            item {
-                CharacterSearchField(
-                    query = state.searchQuery,
-                    onQueryChange = { emitIntent(GroupChatCreateUiIntent.ChangeSearchQuery(it)) }
-                )
-            }
-            if (state.visibleCharacters.isEmpty()) {
-                item { EmptyCharacterCard() }
-            }
-            items(
-                items = state.visibleCharacters,
-                key = { it.id }
-            ) { character ->
-                CharacterChoiceCard(
-                    character = character,
-                    onClick = {
-                        emitIntent(
-                            GroupChatCreateUiIntent.ToggleCharacter(character.id)
-                        )
-                    }
-                )
-            }
-            item {
-                RpSectionHeader(
-                    title = stringResource(R.string.enabled_world_book_entries)
-                )
-            }
-            item {
-                GroupChatLorebookSelector(
-                    groups = state.lorebookGroups,
-                    visibleGroups = state.visibleLorebookGroups,
-                    query = state.lorebookQuery,
-                    onQueryChange = {
-                        emitIntent(GroupChatCreateUiIntent.ChangeLorebookQuery(it))
-                    },
-                    onToggleLorebook = {
-                        emitIntent(GroupChatCreateUiIntent.ToggleLorebook(it))
-                    },
-                    onToggleEntry = {
-                        emitIntent(GroupChatCreateUiIntent.ToggleLorebookEntry(it))
-                    }
-                )
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
 private fun StrategySection(
     selected: GroupChatActivationStrategy,
-    onSelect: (GroupChatActivationStrategy) -> Unit
+    onSelect: (GroupChatActivationStrategy) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RpSectionHeader(title = stringResource(R.string.group_chat_turn_strategy))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             GroupChatActivationStrategy.entries.forEach { strategy ->
                 FilterChip(
@@ -227,20 +235,20 @@ private fun StrategySection(
                     label = {
                         Text(
                             text = stringResource(strategy.titleRes()),
-                            maxLines = 1
+                            maxLines = 1,
                         )
                     },
                     colors = pageFilterChipColors(
                         selectedContainerColor =
-                            MaterialTheme.colorScheme.primaryContainer
-                    )
+                            MaterialTheme.colorScheme.primaryContainer,
+                    ),
                 )
             }
         }
         Text(
             text = stringResource(selected.descriptionRes()),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -248,48 +256,48 @@ private fun StrategySection(
 @Composable
 private fun SelfResponseSetting(
     enabled: Boolean,
-    onChange: (Boolean) -> Unit
+    onChange: (Boolean) -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onChange(!enabled) },
+            .clickable(onClick = { onChange(!enabled) }),
         shape = RoundedCornerShape(16.dp),
         color = if (enabled) {
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        }
+        },
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Rounded.AutoAwesome,
+                imageVector = Icons.Rounded.AutoAwesome,
                 contentDescription = null,
                 tint = if (enabled) {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.secondary
-                }
+                },
             )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = stringResource(R.string.group_chat_allow_consecutive),
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
                     text = stringResource(R.string.group_chat_allow_consecutive_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Switch(checked = enabled, onCheckedChange = onChange)
@@ -300,7 +308,7 @@ private fun SelfResponseSetting(
 @Composable
 private fun GreetingSection(
     state: GroupChatCreateGreetingState,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RpSectionHeader(title = stringResource(R.string.group_chat_greeting_mode))
@@ -310,7 +318,7 @@ private fun GreetingSection(
                 selected = state.mode == mode,
                 onClick = {
                     emitIntent(GroupChatCreateUiIntent.SelectGreetingMode(mode))
-                }
+                },
             )
         }
         when (state.mode) {
@@ -319,12 +327,12 @@ private fun GreetingSection(
 
             GroupChatGreetingMode.Manual -> ManualGreetingEditor(
                 state = state,
-                emitIntent = emitIntent
+                emitIntent = emitIntent,
             )
 
             GroupChatGreetingMode.Custom -> CustomGreetingEditor(
                 state = state,
-                emitIntent = emitIntent
+                emitIntent = emitIntent,
             )
         }
     }
@@ -334,7 +342,7 @@ private fun GreetingSection(
 private fun GreetingModeOption(
     mode: GroupChatGreetingMode,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     AppSurface(
         modifier = Modifier
@@ -345,25 +353,25 @@ private fun GreetingModeOption(
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        }
+        },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = onClick)
             Column(
                 modifier = Modifier.padding(start = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = stringResource(mode.titleRes()),
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
                     text = stringResource(mode.descriptionRes()),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -373,7 +381,7 @@ private fun GreetingModeOption(
 @Composable
 private fun ManualGreetingEditor(
     state: GroupChatCreateGreetingState,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     GreetingCharacterSelector(state, emitIntent)
     val selectedCharacter = state.selectedCharacter
@@ -388,38 +396,40 @@ private fun ManualGreetingEditor(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.group_chat_greeting_choose_message),
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.labelLarge,
         )
         selectedCharacter.greetings.forEachIndexed { index, greeting ->
             AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        emitIntent(GroupChatCreateUiIntent.SelectGreeting(index))
-                    },
+                    .clickable(
+                        onClick = {
+                            emitIntent(GroupChatCreateUiIntent.SelectGreeting(index))
+                        },
+                    ),
                 shape = RoundedCornerShape(14.dp),
                 color = if (state.selectedGreetingIndex == index) {
                     MaterialTheme.colorScheme.secondaryContainer
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                }
+                },
             ) {
                 Row(
                     modifier = Modifier.padding(10.dp),
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.Top,
                 ) {
                     RadioButton(
                         selected = state.selectedGreetingIndex == index,
                         onClick = {
                             emitIntent(GroupChatCreateUiIntent.SelectGreeting(index))
-                        }
+                        },
                     )
                     Text(
                         text = greeting,
                         modifier = Modifier.padding(start = 8.dp, top = 10.dp),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 4,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -430,7 +440,7 @@ private fun ManualGreetingEditor(
 @Composable
 private fun CustomGreetingEditor(
     state: GroupChatCreateGreetingState,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     GreetingCharacterSelector(state, emitIntent)
     if (state.selectedCharacter == null) {
@@ -439,9 +449,7 @@ private fun CustomGreetingEditor(
     }
     RpScrollableOutlinedTextField(
         value = state.customGreeting,
-        onValueChange = {
-            emitIntent(GroupChatCreateUiIntent.ChangeCustomGreeting(it))
-        },
+        onValueChange = { emitIntent(GroupChatCreateUiIntent.ChangeCustomGreeting(it)) },
         modifier = Modifier.fillMaxWidth(),
         label = { Text(stringResource(R.string.group_chat_custom_greeting)) },
         placeholder = {
@@ -449,34 +457,32 @@ private fun CustomGreetingEditor(
         },
         minLines = 4,
         maxLines = 10,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
     )
 }
 
 @Composable
 private fun GreetingCharacterSelector(
     state: GroupChatCreateGreetingState,
-    emitIntent: (GroupChatCreateUiIntent) -> Unit
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     if (state.characters.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.group_chat_greeting_choose_character),
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.labelLarge,
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             state.characters.forEach { character ->
                 FilterChip(
                     selected = state.selectedCharacterId == character.id,
                     onClick = {
-                        emitIntent(
-                            GroupChatCreateUiIntent.SelectGreetingCharacter(character.id)
-                        )
+                        emitIntent(GroupChatCreateUiIntent.SelectGreetingCharacter(character.id))
                     },
-                    label = { Text(character.name) }
+                    label = { Text(character.name) },
                 )
             }
         }
@@ -488,14 +494,14 @@ private fun GreetingHint(textRes: Int) {
     Text(
         text = stringResource(textRes),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error
+        color = MaterialTheme.colorScheme.error,
     )
 }
 
 @Composable
 private fun CharacterChoiceCard(
     character: GroupChatCreateCharacterItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val accent = getMacaronColor(character.name)
     AppCard(
@@ -509,34 +515,34 @@ private fun CharacterChoiceCard(
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            }
+            },
         ),
         colors = CardDefaults.elevatedCardColors(
             containerColor = if (character.selected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.32f)
             } else {
                 MaterialTheme.colorScheme.surface
-            }
-        )
+            },
+        ),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RpAvatar(
                 text = character.name.firstOrNull()?.uppercase() ?: "?",
-                color = accent
+                color = accent,
             )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = character.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = character.description.ifBlank {
@@ -545,7 +551,7 @@ private fun CharacterChoiceCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             RpCheckBadge(selected = character.selected, size = 24.dp)
@@ -558,18 +564,18 @@ private fun EmptyCharacterCard() {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
     ) {
         Column(
             modifier = Modifier.padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
-                Icons.Rounded.Groups,
+                imageVector = Icons.Rounded.Groups,
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
             Text(stringResource(R.string.group_chat_no_matching_characters))
         }
@@ -580,16 +586,20 @@ private fun EmptyCharacterCard() {
 private fun CreateBottomBar(
     selectedCount: Int,
     enabled: Boolean,
-    onCreate: () -> Unit
+    onCreate: () -> Unit,
 ) {
     RpCreationBottomBar(
-        title = pluralStringResource(R.plurals.group_chat_member_count, selectedCount, selectedCount),
+        title = pluralStringResource(
+            R.plurals.group_chat_member_count,
+            selectedCount,
+            selectedCount
+        ),
         subtitle = stringResource(
-            if (selectedCount >= 2) R.string.group_chat_ready_to_begin
-            else R.string.group_chat_select_at_least_two
+            id = if (selectedCount >= 2) R.string.group_chat_ready_to_begin
+            else R.string.group_chat_select_at_least_two,
         ),
         enabled = enabled,
-        onCreate = onCreate
+        onCreate = onCreate,
     )
 }
 
@@ -598,25 +608,25 @@ private fun LoadStateOverlay(loadState: GroupChatCreateLoadState) {
     if (loadState == GroupChatCreateLoadState.None) return
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         AppSurface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 10.dp
+            shadowElevation = 10.dp,
         ) {
             Row(
                 modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.size(14.dp))
                 Text(
-                    if (loadState == GroupChatCreateLoadState.Creating) {
+                    text = if (loadState == GroupChatCreateLoadState.Creating) {
                         stringResource(R.string.group_chat_creating)
                     } else {
                         stringResource(R.string.group_chat_loading_characters)
-                    }
+                    },
                 )
             }
         }
@@ -689,35 +699,41 @@ private fun GroupChatCreatePreview() {
                 characters = previewCharacters,
                 visibleCharacters = previewCharacters,
                 greetingState = GroupChatCreateGreetingState(
-                    characters = previewCharacters.filter { it.selected }.map {
-                        GroupChatGreetingCharacterItem(
-                            id = it.id,
-                            name = it.name,
-                            greetings = it.greetings
-                        )
-                    },
+                    characters = previewCharacters.filter { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.selected }
+                        .map { groupChatCreateCharacterItem ->
+                            GroupChatGreetingCharacterItem(
+                                id = groupChatCreateCharacterItem.id,
+                                name = groupChatCreateCharacterItem.name,
+                                greetings = groupChatCreateCharacterItem.greetings,
+                            )
+                        },
                     selectedCharacterId = 1,
-                    selectedGreetingIndex = 0
-                )
-            )
+                    selectedGreetingIndex = 0,
+                ),
+            ),
         )
     }
 }
 
 private val previewCharacters = listOf(
     GroupChatCreateCharacterItem(
-        1,
-        "Lyra",
-        "A curious star navigator.",
-        true,
-        greetings = listOf("Lyra studies the unfamiliar stars.", "We made it.")
+        id = 1,
+        name = "Lyra",
+        description = "A curious star navigator.",
+        selected = true,
+        greetings = listOf("Lyra studies the unfamiliar stars.", "We made it."),
     ),
     GroupChatCreateCharacterItem(
-        2,
-        "Mina",
-        "A calm archivist with a sharp memory.",
-        true,
-        greetings = listOf("Mina opens the archive.")
+        id = 2,
+        name = "Mina",
+        description = "A calm archivist with a sharp memory.",
+        selected = true,
+        greetings = listOf("Mina opens the archive."),
     ),
-    GroupChatCreateCharacterItem(3, "Rowan", "An impulsive but loyal explorer.", false)
+    GroupChatCreateCharacterItem(
+        id = 3,
+        name = "Rowan",
+        description = "An impulsive but loyal explorer.",
+        selected = false,
+    ),
 )

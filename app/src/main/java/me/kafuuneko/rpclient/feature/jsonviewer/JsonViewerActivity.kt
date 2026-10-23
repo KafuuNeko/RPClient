@@ -28,7 +28,7 @@ class JsonViewerActivity : CoreActivity() {
 
         JsonViewerLayout(
             uiState = uiState,
-            emit = { mViewModel.emit(this) }
+            emit = { mViewModel.emit(this) },
         )
     }
 

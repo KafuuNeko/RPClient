@@ -7,8 +7,11 @@ package me.kafuuneko.rpclient.libs.prompt.model
  */
 enum class SummaryInjectionPosition(val persistedValue: Int) {
     None(-1),
+
     BeforeMain(10),
+
     AfterMain(11),
+
     InChat(12);
 
     companion object {

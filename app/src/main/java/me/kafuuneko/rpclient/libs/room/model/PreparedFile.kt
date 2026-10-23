@@ -14,6 +14,7 @@ data class PreparedFile internal constructor(
 /** 图文编辑中的有序附件输入；保留项必须属于正在编辑的消息。 */
 sealed interface MessageImageInput {
     data class Prepared(val value: PreparedFile) : MessageImageInput
+
     data class Existing(val uuid: String) : MessageImageInput
 }
 
