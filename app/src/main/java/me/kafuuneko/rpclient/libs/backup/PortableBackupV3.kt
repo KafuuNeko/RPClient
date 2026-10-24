@@ -10,12 +10,16 @@ import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
 import java.io.File
+import java.io.StringWriter
 import java.io.Writer
+import java.security.MessageDigest
 import me.kafuuneko.rpclient.libs.character.CharacterBookImport
 import me.kafuuneko.rpclient.libs.character.CharacterCardMapper
 import me.kafuuneko.rpclient.libs.character.LorebookCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveImage
+import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveMessage
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveMessageRole
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveSummary
@@ -28,8 +32,14 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
+import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.story.ArchivedChapter
+import me.kafuuneko.rpclient.libs.story.ArchivedStory
+import me.kafuuneko.rpclient.libs.story.ArchivedVolume
+import me.kafuuneko.rpclient.libs.story.StoryArchive
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
+import me.kafuuneko.rpclient.libs.story.StoryCharacterHint
+import me.kafuuneko.rpclient.libs.story.StoryLorebookHint
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -108,6 +118,7 @@ internal class BackupV3Writer(
     private val mDatabase: SupportSQLiteDatabase,
     private val mTables: List<String>,
     private val mRoot: File,
+    private val mAttachmentDirectory: File,
     gson: Gson,
     private val mReport: BackupReport
 ) {
@@ -116,11 +127,12 @@ internal class BackupV3Writer(
     private val mLorebookCodec = LorebookCodec(gson)
     private val mRegexCodec = RegexScriptCodec(gson)
     private val mChatCodec = ChatArchiveCodec(gson)
+    private val mStoryCodec = StoryArchiveCodec(gson)
 
     /** 已由专用文档接管的表；其余表走通用 JSONL。 */
     private val mOwned = mutableSetOf<String>()
 
-    fun writeAll() {
+    suspend fun writeAll() {
         stage("characters") { writeCharacters() }
         stage("worldbooks") { writeWorldbooks() }
         stage("regex scripts") { writeRegex() }
@@ -131,7 +143,7 @@ internal class BackupV3Writer(
     }
 
     /** 记录阶段开始，失败时在异常信息里带上阶段名，页面详情能直接看出卡在哪一步。 */
-    private inline fun stage(name: String, block: () -> Unit) {
+    private suspend fun stage(name: String, block: suspend () -> Unit) {
         mReport.info("Exporting $name")
         try {
             block()
@@ -268,94 +280,137 @@ internal class BackupV3Writer(
         val chapterRows = rows("story_chapters")
         val characterRows = rows("story_characters")
         val loreRows = rows("story_lorebook_entries")
+        val characters = rows("character").associate { row ->
+            row.optLong("id") to entity(row, Character::class.java)
+        }
+        val lorebookEntries = rows("lorebook_entries").associateBy { it.optLong("id") }
+        val lorebooks = rows("lorebooks").associateBy { it.optLong("id") }
         val orderBy = compareBy<JSONObject> { it.optInt("sortOrder") }.thenBy { it.optLong("id") }
-
-        fun chapterDoc(chapter: JSONObject) = JSONObject()
-            .put("title", chapter.optString("title"))
-            .put("content", chapter.optString("content"))
-            .put("continuationGuidance", chapter.optString("continuationGuidance"))
-
-        fun chapterSide(chapter: JSONObject) = JSONObject()
-            .put("id", chapter.optLong("id"))
-            .put("contentRevision", chapter.opt("contentRevision"))
-            .put("createTime", chapter.opt("createTime"))
-            .put("latestTime", chapter.opt("latestTime"))
-
         val stories = rows("stories")
+
         stories.forEach { story ->
             val id = story.optLong("id")
             val volumes = volumeRows.filter { it.optLong("storyId") == id }.sortedWith(orderBy)
             val chapters = chapterRows.filter { it.optLong("storyId") == id }.sortedWith(orderBy)
             val ungrouped = chapters.filter { it.isNull("volumeId") }
-
-            val volumeDocs = JSONArray()
+            val archivedVolumes = volumes.map { volume ->
+                val inVolume = chapters.filter {
+                    !it.isNull("volumeId") && it.optLong("volumeId") == volume.optLong("id")
+                }
+                ArchivedVolume(
+                    title = volume.optString("title"),
+                    chapters = inVolume.map {
+                        ArchivedChapter(
+                            title = it.optString("title"),
+                            content = it.optString("content"),
+                            continuationGuidance = it.optString("continuationGuidance")
+                        )
+                    }
+                )
+            }
+            val characterHints = characterRows
+                .filter { it.optLong("storyId") == id }
+                .mapNotNull { relation ->
+                    val character = characters[relation.optLong("characterId")] ?: return@mapNotNull null
+                    StoryCharacterHint(
+                        name = character.name,
+                        fingerprint = ChatCharacterMatcher.fingerprintOf(character),
+                        activationMode = when (relation.optInt("activationMode", StoryCharacter.ACTIVATION_AUTO)) {
+                            StoryCharacter.ACTIVATION_PRIMARY -> StoryArchiveCodec.MODE_PRIMARY
+                            StoryCharacter.ACTIVATION_ALWAYS -> StoryArchiveCodec.MODE_ALWAYS
+                            else -> StoryArchiveCodec.MODE_AUTO
+                        }
+                    )
+                }
+            val lorebookHints = loreRows
+                .filter { it.optLong("storyId") == id }
+                .mapNotNull { relation ->
+                    val entry = lorebookEntries[relation.optLong("lorebookEntryId")] ?: return@mapNotNull null
+                    val book = lorebooks[entry.optLong("lorebookId")]
+                    StoryLorebookHint(
+                        lorebookName = book?.optString("name").orEmpty(),
+                        entryName = entry.optString("name"),
+                        fingerprint = textFingerprint(entry.optString("content"))
+                    )
+                }
+            val archive = StoryArchive(
+                story = ArchivedStory(
+                    title = story.optString("title"),
+                    memory = story.optString("memory"),
+                    summary = story.optString("summary"),
+                    authorNote = story.optString("authorNote"),
+                    includeUserPersona = story.flag("includeUserPersona"),
+                    ungroupedChapters = ungrouped.map {
+                        ArchivedChapter(
+                            title = it.optString("title"),
+                            content = it.optString("content"),
+                            continuationGuidance = it.optString("continuationGuidance")
+                        )
+                    },
+                    volumes = archivedVolumes
+                ),
+                characterHints = characterHints,
+                lorebookHints = lorebookHints
+            )
+            val doc = JSONObject(mStoryCodec.encode(archive))
             val volumeSides = JSONArray()
             val volumeChapterSides = JSONArray()
             volumes.forEach { volume ->
-                val inVolume = chapters.filter { !it.isNull("volumeId") && it.optLong("volumeId") == volume.optLong("id") }
-                val chapterDocs = JSONArray()
-                val chapterSides = JSONArray()
-                inVolume.forEach {
-                    chapterDocs.put(chapterDoc(it))
-                    chapterSides.put(chapterSide(it))
+                val inVolume = chapters.filter {
+                    !it.isNull("volumeId") && it.optLong("volumeId") == volume.optLong("id")
                 }
-                volumeDocs.put(JSONObject().put("title", volume.optString("title")).put("chapters", chapterDocs))
                 volumeSides.put(JSONObject().put("id", volume.optLong("id")))
-                volumeChapterSides.put(chapterSides)
+                volumeChapterSides.put(JSONArray().apply {
+                    inVolume.forEach { put(chapterSide(it)) }
+                })
             }
-            val ungroupedDocs = JSONArray()
-            val ungroupedSides = JSONArray()
-            ungrouped.forEach {
-                ungroupedDocs.put(chapterDoc(it))
-                ungroupedSides.put(chapterSide(it))
-            }
-            val characterArray = JSONArray()
-            characterRows.filter { it.optLong("storyId") == id }.forEach { characterArray.put(it) }
-            val loreArray = JSONArray()
-            loreRows.filter { it.optLong("storyId") == id }.forEach { loreArray.put(it) }
-
-            val doc = JSONObject()
-                .put("format", "rpclient_story")
-                .put("version", 2)
-                .put(
-                    "story",
-                    JSONObject()
-                        .put("title", story.optString("title"))
-                        .put("memory", story.optString("memory"))
-                        .put("summary", story.optString("summary"))
-                        .put("authorNote", story.optString("authorNote"))
-                        .put("includeUserPersona", story.flag("includeUserPersona"))
-                        .put("ungroupedChapters", ungroupedDocs)
-                        .put("volumes", volumeDocs)
-                )
-                .put("characterHints", JSONArray())
-                .put("lorebookHints", JSONArray())
-                .put(
-                    BackupV3.SIDECAR,
-                    JSONObject()
-                        .put(
-                            "story",
-                            JSONObject()
-                                .put("id", id)
-                                .put("worldInfoGenerationStep", story.opt("worldInfoGenerationStep"))
-                                .put("revision", story.opt("revision"))
-                                .put("createTime", story.opt("createTime"))
-                                .put("latestTime", story.opt("latestTime"))
-                        )
-                        .put("volumes", volumeSides)
-                        .put("ungroupedChapters", ungroupedSides)
-                        .put("volumeChapters", volumeChapterSides)
-                        .put("characters", characterArray)
-                        .put("lorebookStates", loreArray)
-                )
+            val ungroupedSides = JSONArray().apply { ungrouped.forEach { put(chapterSide(it)) } }
+            doc.put(
+                BackupV3.SIDECAR,
+                JSONObject()
+                    .put(
+                        "story",
+                        JSONObject()
+                            .put("id", id)
+                            .put("worldInfoGenerationStep", story.opt("worldInfoGenerationStep"))
+                            .put("revision", story.opt("revision"))
+                            .put("createTime", story.opt("createTime"))
+                            .put("latestTime", story.opt("latestTime"))
+                    )
+                    .put("volumes", volumeSides)
+                    .put("ungroupedChapters", ungroupedSides)
+                    .put("volumeChapters", volumeChapterSides)
+                    .put("characters", JSONArray().apply {
+                        characterRows.filter { it.optLong("storyId") == id }.forEach { put(it) }
+                    })
+                    .put("lorebookStates", JSONArray().apply {
+                        loreRows.filter { it.optLong("storyId") == id }.forEach { put(it) }
+                    })
+            )
             writeText(docFile("stories", story.optString("title"), id, ".rpstory.json"), doc.toString(2))
         }
         mReport.info("stories: ${stories.size}")
     }
 
-    private fun writeChats() {
+    private fun chapterSide(chapter: JSONObject) = JSONObject()
+        .put("id", chapter.optLong("id"))
+        .put("contentRevision", chapter.opt("contentRevision"))
+        .put("createTime", chapter.opt("createTime"))
+        .put("latestTime", chapter.opt("latestTime"))
+
+    private fun textFingerprint(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+
+    private suspend fun writeChats() {
         own("chat_sessions", "chat_messages")
         val characters = rows("character").associate { it.optLong("id") to entity(it, Character::class.java) }
+        val fileRows = rows("files").associateBy { it.optString("uuid") }
+        val imagesByMessage = rows("message_images")
+            .filter { it.optString("messageType") == "single" }
+            .groupBy { it.optLong("messageId") }
+            .mapValues { (_, images) -> images.sortedBy { it.optInt("position") } }
         val sessions = rows("chat_sessions")
         var messageCount = 0
         sessions.forEach { session ->
@@ -398,24 +453,63 @@ internal class BackupV3Writer(
                     )
                 }
             )
-            val lines = mChatCodec.encode(archive).lines().filter { it.isNotBlank() }
-            check(lines.size == normal.size + 1) {
-                "chat session $id: expected ${normal.size + 1} lines but encoder produced ${lines.size}"
-            }
             val output = StringBuilder()
-            lines.forEachIndexed { index, line ->
-                val json = JSONObject(line)
-                val side = JSONObject()
-                if (index == 0) {
-                    side.put("session", JSONObject().put("id", id).put("characterId", session.opt("characterId")))
-                    if (latest != null) side.put("summaryId", latest.optLong("id"))
-                    val older = JSONArray()
-                    summaries.dropLast(1).forEach { older.put(it) }
-                    side.put("olderSummaries", older)
-                } else {
-                    side.put("id", normal[index - 1].optLong("id"))
+            val headerWriter = StringWriter()
+            mChatCodec.encodeHeader(archive, headerWriter)
+            val header = JSONObject(headerWriter.toString().trimEnd())
+            val headerSide = JSONObject()
+                .put("session", JSONObject().put("id", id).put("characterId", session.opt("characterId")))
+            if (latest != null) headerSide.put("summaryId", latest.optLong("id"))
+            headerSide.put("olderSummaries", JSONArray().apply {
+                summaries.dropLast(1).forEach { put(it) }
+            })
+            header.put(BackupV3.SIDECAR, headerSide)
+            output.append(header.toString()).append('\n')
+
+            val writtenHashes = mutableSetOf<String>()
+            normal.forEachIndexed { index, messageRow ->
+                val originalId = messageRow.optLong("id")
+                val attachments = imagesByMessage[originalId].orEmpty().mapNotNull { relation ->
+                    val fileRow = fileRows[relation.optString("imageUuid")] ?: return@mapNotNull null
+                    val hash = fileRow.optString("hash")
+                    val file = File(mAttachmentDirectory, hash).takeIf { hash.isNotBlank() && it.isFile }
+                        ?: return@mapNotNull null
+                    val mimeType = fileRow.optString("mimeType")
+                        .takeIf { it.startsWith("image/", ignoreCase = true) }
+                        ?: "image/jpeg"
+                    Triple(file, hash, mimeType)
                 }
-                json.put(BackupV3.SIDECAR, side)
+                val message = ChatArchiveMessage(
+                    createTime = messageRow.optLong("createTime"),
+                    role = roleOf(messageRow.optString("source")),
+                    content = messageRow.optString("content"),
+                    images = attachments.map { (_, hash, mime) -> ChatArchiveImage(mimeType = mime, hash = hash) }
+                )
+                val lineWriter = StringWriter()
+                if (attachments.isEmpty()) {
+                    mChatCodec.encodeMessage(archive, message, lineWriter, writtenHashes)
+                } else {
+                    mChatCodec.encodeMessageWithImages(archive, message, lineWriter) {
+                        var first = true
+                        attachments.forEach { (file, hash, mime) ->
+                            if (!first) lineWriter.write(",")
+                            first = false
+                            if (hash in writtenHashes) {
+                                ChatArchiveImageCodec.writeImage(ChatArchiveImage(hash = hash), lineWriter)
+                            } else {
+                                ChatArchiveImageCodec.writeImage(
+                                    ChatArchiveImage(mimeType = mime, hash = hash),
+                                    lineWriter
+                                ) { encoded ->
+                                    file.inputStream().use { input -> input.copyTo(encoded) }
+                                }
+                                writtenHashes.add(hash)
+                            }
+                        }
+                    }
+                }
+                val json = JSONObject(lineWriter.toString().trimEnd())
+                json.put(BackupV3.SIDECAR, JSONObject().put("id", originalId))
                 output.append(json.toString()).append('\n')
             }
             writeText(docFile("chats", session.optString("title"), id, ".jsonl"), output.toString())
@@ -488,6 +582,8 @@ internal class BackupV3Reader(
 
     private val mTables = linkedMapOf<String, MutableList<JSONObject>>()
     private val mCharacters = mutableListOf<JSONObject>()
+    private val mOriginalCharacterRows = mutableMapOf<Long, MutableList<JSONObject>>()
+    private val mOriginalLorebookEntryRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mPendingCards = mutableListOf<PendingCard>()
     private val mLinks = mutableListOf<Link>()
     private val mNow = System.currentTimeMillis()
@@ -582,6 +678,9 @@ internal class BackupV3Reader(
                 applyId(side, row)
                 add("character", row)
                 mCharacters.add(row)
+                side?.optLong("id", 0L)?.takeIf { it > 0L }?.let { sourceId ->
+                    mOriginalCharacterRows.getOrPut(sourceId) { mutableListOf() }.add(row)
+                }
                 // 角色作用域正则只来自角色卡本身，与单个角色导入一致。
                 parsed.regexScripts.forEachIndexed { index, script ->
                     val regexRow = entityRow(script.toEntity(0L, index, mGson))
@@ -622,7 +721,10 @@ internal class BackupV3Reader(
         imported.entries.forEachIndexed { index, entry ->
             val row = entityRow(entry)
             val entryId = keys.getOrNull(index)?.let { ids?.optLong(it, 0L) } ?: 0L
-            if (entryId > 0L) row.put("id", entryId) else row.remove("id")
+            if (entryId > 0L) {
+                row.put("id", entryId)
+                mOriginalLorebookEntryRows.getOrPut(entryId) { mutableListOf() }.add(row)
+            } else row.remove("id")
             link(row, "lorebookId", bookRow)
             add("lorebook_entries", row)
         }
@@ -722,8 +824,26 @@ internal class BackupV3Reader(
                     addChapter(chapter, index, ungroupedSides?.optJSONObject(index), null)
                 }
                 // 角色与世界书状态没有菜单级导入格式，按数据库行原样保存在附加键里。
-                side?.optJSONArray("characters")?.objects()?.forEach { add("story_characters", it) }
-                side?.optJSONArray("lorebookStates")?.objects()?.forEach { add("story_lorebook_entries", it) }
+                side?.optJSONArray("characters")?.objects()?.forEach { relation ->
+                    val sourceCharacters = mOriginalCharacterRows[relation.optLong("characterId")].orEmpty()
+                    if (sourceCharacters.size == 1) {
+                        link(relation, "storyId", storyRow)
+                        link(relation, "characterId", sourceCharacters.single())
+                        add("story_characters", relation)
+                    } else {
+                        mReport.warn("${rel(file)}: story character reference ${relation.optLong("characterId")} is ambiguous or missing; relation skipped")
+                    }
+                }
+                side?.optJSONArray("lorebookStates")?.objects()?.forEach { relation ->
+                    val sourceEntries = mOriginalLorebookEntryRows[relation.optLong("lorebookEntryId")].orEmpty()
+                    if (sourceEntries.size == 1) {
+                        link(relation, "storyId", storyRow)
+                        link(relation, "lorebookEntryId", sourceEntries.single())
+                        add("story_lorebook_entries", relation)
+                    } else {
+                        mReport.warn("${rel(file)}: story lorebook entry reference ${relation.optLong("lorebookEntryId")} is ambiguous or missing; relation skipped")
+                    }
+                }
             }
         }
     }
@@ -781,25 +901,27 @@ internal class BackupV3Reader(
                     .put("autoSummaryPaused", archive.autoSummaryPaused)
                 archive.creatorNotes?.let { sessionRow.put("creatorNotes", it) }
                 sessionSide.longValue("id")?.takeIf { it > 0L }?.let { sessionRow.put("id", it) }
-                val characterId = sessionSide.longValue("characterId")
-                if (characterId != null && characterId > 0L) {
-                    sessionRow.put("characterId", characterId)
-                } else {
-                    val match = mCharacters.firstOrNull { it.optString("name") == archive.characterNameHint }
-                        ?: throw IllegalArgumentException(
-                            "No restored character is named '${archive.characterNameHint}'. " +
-                                "Add the character file or set rpclient_backup.session.characterId in the header line."
-                        )
-                    link(sessionRow, "characterId", match)
-                }
+                val sourceCharacterId = sessionSide.longValue("characterId")
+                val sourceCharacterRows = sourceCharacterId?.let { mOriginalCharacterRows[it] }.orEmpty()
+                val characterRow = sourceCharacterRows.singleOrNull()
+                    ?: mCharacters.singleOrNull { it.optString("name") == archive.characterNameHint }
+                    ?: throw IllegalArgumentException(
+                        "No unambiguous restored character matches '${archive.characterNameHint}'. " +
+                            "Add the character file or fix rpclient_backup.session.characterId in the header line."
+                    )
+                link(sessionRow, "characterId", characterRow)
                 add("chat_sessions", sessionRow)
 
+                val originalMessageRows = mutableMapOf<Long, JSONObject>()
                 val messageRows = archive.messages.mapIndexed { index, message ->
                     val row = JSONObject()
                         .put("createTime", message.createTime)
                         .put("source", sourceOf(message.role))
                         .put("content", message.content)
-                    messageSides.getOrNull(index).longValue("id")?.takeIf { it > 0L }?.let { row.put("id", it) }
+                    messageSides.getOrNull(index).longValue("id")?.takeIf { it > 0L }?.let {
+                        row.put("id", it)
+                        originalMessageRows[it] = row
+                    }
                     link(row, "sessionId", sessionRow)
                     add("chat_messages", row)
                     row
@@ -819,6 +941,14 @@ internal class BackupV3Reader(
                     val row = JSONObject(element.toString())
                     link(row, "sessionId", sessionRow)
                     add("chat_messages", row)
+                }
+                // message_images is a generic table, but its messageId must follow any reassigned message ID.
+                mTables["message_images"].orEmpty().forEach { relation ->
+                    if (relation.optString("messageType") == "single") {
+                        originalMessageRows[relation.optLong("messageId")]?.let { messageRow ->
+                            link(relation, "messageId", messageRow)
+                        }
+                    }
                 }
             }
         }
