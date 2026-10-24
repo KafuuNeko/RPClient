@@ -583,7 +583,9 @@ internal class BackupV3Reader(
     private val mTables = linkedMapOf<String, MutableList<JSONObject>>()
     private val mCharacters = mutableListOf<JSONObject>()
     private val mOriginalCharacterRows = mutableMapOf<Long, MutableList<JSONObject>>()
+    private val mOriginalLorebookRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalLorebookEntryRows = mutableMapOf<Long, MutableList<JSONObject>>()
+    private val mOriginalMessageRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mPendingCards = mutableListOf<PendingCard>()
     private val mLinks = mutableListOf<Link>()
     private val mNow = System.currentTimeMillis()
@@ -693,20 +695,25 @@ internal class BackupV3Reader(
         }
     }
 
-    /** worldbooks/ 中的同一本世界书优先；缺失时才使用角色卡内嵌的副本。 */
+    /** Resolve the card's source lorebook ID to the actual imported row, not a possibly reassigned ID. */
     private fun resolveCharacterLorebooks() {
-        val folderBookIds = mTables["lorebooks"].orEmpty().filter { it.has("id") }.map { it.getLong("id") }.toSet()
         mPendingCards.forEach { pending ->
             val linkedId = pending.row.optLong("characterLorebookId", 0L)
             val embedded = pending.embedded
-            if (linkedId > 0L && linkedId in folderBookIds) return@forEach
+            val sourceBooks = mOriginalLorebookRows[linkedId].orEmpty()
+            if (linkedId > 0L && sourceBooks.size == 1) {
+                link(pending.row, "characterLorebookId", sourceBooks.single())
+                return@forEach
+            }
+            if (linkedId > 0L && sourceBooks.size > 1) {
+                mReport.warn("${rel(pending.file)}: worldbook reference $linkedId is ambiguous; using the embedded copy when available")
+            } else if (linkedId > 0L && sourceBooks.isEmpty()) {
+                mReport.warn("${rel(pending.file)}: worldbook $linkedId is not available by source ID; using the embedded copy when available")
+            }
             if (embedded != null) {
-                if (linkedId > 0L) {
-                    mReport.warn("${rel(pending.file)}: worldbook $linkedId is not in worldbooks/; using the copy embedded in the card")
-                }
                 link(pending.row, "characterLorebookId", addLorebook(embedded, null, emptyList()))
             } else if (linkedId > 0L) {
-                mReport.warn("${rel(pending.file)}: worldbook $linkedId is not in worldbooks/ and the card embeds none; the link was cleared")
+                mReport.warn("${rel(pending.file)}: worldbook $linkedId is missing or ambiguous and the card embeds none; the link was cleared")
                 pending.row.put("characterLorebookId", 0L)
             }
         }
@@ -717,6 +724,9 @@ internal class BackupV3Reader(
         val bookRow = entityRow(imported.lorebook)
         applyId(side, bookRow)
         add("lorebooks", bookRow)
+        side?.optLong("id", 0L)?.takeIf { it > 0L }?.let { sourceId ->
+            mOriginalLorebookRows.getOrPut(sourceId) { mutableListOf() }.add(bookRow)
+        }
         val ids = side?.optJSONObject("entryIds")
         imported.entries.forEachIndexed { index, entry ->
             val row = entityRow(entry)
@@ -912,7 +922,7 @@ internal class BackupV3Reader(
                 link(sessionRow, "characterId", characterRow)
                 add("chat_sessions", sessionRow)
 
-                val originalMessageRows = mutableMapOf<Long, JSONObject>()
+                val messageRowsBySourceId = mutableMapOf<Long, MutableList<JSONObject>>()
                 val messageRows = archive.messages.mapIndexed { index, message ->
                     val row = JSONObject()
                         .put("createTime", message.createTime)
@@ -920,7 +930,8 @@ internal class BackupV3Reader(
                         .put("content", message.content)
                     messageSides.getOrNull(index).longValue("id")?.takeIf { it > 0L }?.let {
                         row.put("id", it)
-                        originalMessageRows[it] = row
+                        messageRowsBySourceId.getOrPut(it) { mutableListOf() }.add(row)
+                        mOriginalMessageRows.getOrPut(it) { mutableListOf() }.add(row)
                     }
                     link(row, "sessionId", sessionRow)
                     add("chat_messages", row)
@@ -939,16 +950,36 @@ internal class BackupV3Reader(
                 }
                 headerSide?.getAsJsonArray("olderSummaries")?.forEach { element ->
                     val row = JSONObject(element.toString())
+                    val sourceCoveredId = row.optLong("coveredMessageId", 0L)
+                    if (sourceCoveredId > 0L) {
+                        val coveredRows = messageRowsBySourceId[sourceCoveredId].orEmpty()
+                        if (coveredRows.size == 1) {
+                            link(row, "coveredMessageId", coveredRows.single())
+                        } else {
+                            // Never leave a stale ID that could accidentally target another restored message.
+                            row.put("coveredMessageId", 0L)
+                            mReport.warn(
+                                "${rel(file)}: older summary references message $sourceCoveredId that is ambiguous or missing; coverage was cleared"
+                            )
+                        }
+                    }
                     link(row, "sessionId", sessionRow)
                     add("chat_messages", row)
                 }
-                // message_images is a generic table, but its messageId must follow any reassigned message ID.
-                mTables["message_images"].orEmpty().forEach { relation ->
-                    if (relation.optString("messageType") == "single") {
-                        originalMessageRows[relation.optLong("messageId")]?.let { messageRow ->
-                            link(relation, "messageId", messageRow)
-                        }
-                    }
+            }
+        }
+        // Resolve attachment references only after all chat files have been read, so duplicate source IDs
+        // across separate sessions are treated as ambiguous instead of linking to whichever file was read last.
+        val imageRelations = mTables["message_images"] ?: return
+        imageRelations.toList().forEach { relation ->
+            if (relation.optString("messageType") == "single") {
+                val sourceId = relation.optLong("messageId", 0L)
+                val messageRow = mOriginalMessageRows[sourceId].orEmpty().singleOrNull()
+                if (messageRow != null) {
+                    link(relation, "messageId", messageRow)
+                } else {
+                    mReport.warn("message_images references missing or ambiguous message $sourceId; relation was removed")
+                    imageRelations.remove(relation)
                 }
             }
         }
