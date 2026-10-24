@@ -1,26 +1,29 @@
 package me.kafuuneko.rpclient.feature.jsonviewer.model
 
 import me.kafuuneko.rpclient.utils.toPreview
+import me.kafuuneko.rpclient.libs.json.splitJsonText
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
 /** 使用 JSONTokener 安全解析 JSON 字符串为 JSONObject、JSONArray 或原始基本类型。 */
 internal fun parseJson(json: String): Result<Any?> {
-    return runCatching {
+    return try {
         val tokener = JSONTokener(json)
         val value = tokener.nextValue()
         val next = tokener.nextClean()
         if (next.code != 0) error("Unexpected data after JSON value.")
-        value
+        Result.success(value)
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 }
 
 /** 将当前聚焦的 JSONObject 或 JSONArray 映射为子条目列表。 */
-internal fun Any?.toEntries(): List<JsonViewerEntry> {
+internal fun Any?.toEntries(limit: Int = 100): List<JsonViewerEntry> {
     // 对象沿用解析器的键迭代顺序，数组沿用原索引，确保导航定位一致。
     return when (this) {
-        is JSONObject -> keys().asSequence().toList().mapIndexed { index, key ->
+        is JSONObject -> keys().asSequence().take(limit).mapIndexed { index, key ->
             val value = opt(key)
             value.toEntry(
                 id = index,
@@ -28,9 +31,9 @@ internal fun Any?.toEntries(): List<JsonViewerEntry> {
                 sourceKey = key,
                 sourceIndex = null,
             )
-        }
+        }.toList()
 
-        is JSONArray -> (0 until length()).map { index ->
+        is JSONArray -> (0 until minOf(length(), limit)).map { index ->
             val value = opt(index)
             value.toEntry(
                 id = index,
@@ -40,7 +43,7 @@ internal fun Any?.toEntries(): List<JsonViewerEntry> {
             )
         }
 
-        else -> emptyList()
+        else -> listOf(toEntry(id = 0, name = "$", sourceKey = null, sourceIndex = null))
     }
 }
 
@@ -51,14 +54,19 @@ private fun Any?.toEntry(
     sourceKey: String?,
     sourceIndex: Int?,
 ): JsonViewerEntry {
+    // 只复制允许展示的值，源 key 继续用于导航，避免标签缩略影响路径定位。
+    val text = valuePreview()
     return JsonViewerEntry(
         id = id,
-        name = name,
+        name = if (name.length > 256) safePrefix(name, 256) + "…" else name,
         type = nodeType(),
-        preview = valuePreview(),
+        preview = if (this is JSONObject || this is JSONArray) text else "",
         childCount = childCount(),
         sourceKey = sourceKey,
         sourceIndex = sourceIndex,
+        valueBlocks = splitJsonText(text),
+        originalLength = if (this is String) length else 0,
+        isTruncated = this is String && length > VALUE_PREVIEW_LENGTH,
     )
 }
 
@@ -88,11 +96,18 @@ private fun Any?.valuePreview(): String {
     return when (this) {
         is JSONObject -> "{…}"
         is JSONArray -> "[…]"
-        is String -> toPreview(VALUE_PREVIEW_LENGTH)
+        is String -> if (length > VALUE_PREVIEW_LENGTH) safePrefix(this, 4096) else this
         is Boolean, is Number -> toString()
         JSONObject.NULL, null -> "null"
         else -> toString().toPreview(VALUE_PREVIEW_LENGTH)
     }
 }
 
-private const val VALUE_PREVIEW_LENGTH = 180
+private const val VALUE_PREVIEW_LENGTH = 100_000
+
+/** 超长字段的前缀同样避开代理对边界。 */
+private fun safePrefix(value: String, length: Int): String {
+    val end =
+        if (value[length - 1].isHighSurrogate() && value[length].isLowSurrogate()) length - 1 else length
+    return value.substring(0, end)
+}

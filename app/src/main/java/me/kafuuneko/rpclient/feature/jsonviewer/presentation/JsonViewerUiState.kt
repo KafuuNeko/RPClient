@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.jsonviewer.presentation
 
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerEntry
 import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
+import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonSourceState
 
 /**
  * JSON 查看器页面状态。
@@ -25,7 +26,15 @@ sealed class JsonViewerUiState {
         /** 当前分组、请求或结果包含的条目列表。 */
         val entries: List<JsonViewerEntry>,
         /** 当前 JSON 节点是否存在可返回的父节点。 */
-        val canNavigateUp: Boolean
+        val canNavigateUp: Boolean,
+        /** 顶部视图切换不改变树导航和冻结载荷。 */
+        val selectedTab: JsonViewerTab = JsonViewerTab.Tree,
+        /** 首次选择源码后才创建高亮内容。 */
+        val sourceState: JsonSourceState = JsonSourceState.NotLoaded,
+        /** 解析失败仍保留双 Tab，允许查看受预算约束的原文。 */
+        val treeError: JsonViewerErrorReason? = null,
+        /** 当前层可继续按批映射，避免一次生成宽数组的全部条目。 */
+        val canLoadMore: Boolean = false,
     ) : JsonViewerUiState()
 
     data class Error(
@@ -50,5 +59,10 @@ sealed class JsonViewerUiState {
 enum class JsonViewerErrorReason {
     PayloadUnavailable,
 
-    InvalidJson
+    InvalidJson,
+
+    TooLarge,
 }
+
+/** 文档的两种互补展示形式。 */
+enum class JsonViewerTab { Tree, Source }

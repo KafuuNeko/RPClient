@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.backup.BackupDatabaseCodec
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -92,5 +93,52 @@ class LLMRequestLogRepositoryTest {
 
         assertEquals(0L, id)
         assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
+    }
+
+    /** 大于数据库窗口的正文必须通过分块读取，并保持 UTF-8 及备份字段完整。 */
+    @Test
+    fun largeLog_roundTripsAcrossCursorChunksAndBackup() = runBlocking {
+        val content = "中😀\n".repeat(350_000)
+        val request = "{\"content\":\"" + content.replace("\n", "\\n") + "\"}"
+        val provider = LLMProviderConfig(
+            name = "Local",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.invalid",
+            model = "model",
+        )
+        // 该合成数据超过常见 CursorWindow 容量，但仍处于新录制预算内。
+        val id = repository.saveLog(provider, "model", false, request, request)
+        assertEquals(request, repository.getRequestJson(id))
+        assertEquals(request, repository.getResponseJson(id))
+        val rows = BackupDatabaseCodec.readRows(
+            database.openHelper.readableDatabase,
+            "llm_request_logs",
+            "id",
+            id
+        )
+        assertEquals(request, rows.getJSONObject(0).getString("requestJson"))
+        assertEquals(request, rows.getJSONObject(0).getString("responseJson"))
+    }
+
+    /** 非法历史原文中的 NUL 不能让 SQLite 文本 SUBSTR 静默丢失后半段。 */
+    @Test
+    fun rawLog_keepsEmbeddedNulAndUnicode() = runBlocking {
+        val raw = "prefix\u0000" + "中😀".repeat(20_000) + "suffix"
+        val id = repository.saveLog(
+            provider = LLMProviderConfig(
+                name = "Local",
+                providerType = LLMProviderType.Custom,
+                protocol = LLMProviderProtocol.OpenAICompatible,
+                baseUrl = "https://example.invalid",
+                model = "model",
+            ),
+            model = "model",
+            isStreaming = false,
+            requestJson = raw,
+            responseJson = raw,
+        )
+        assertEquals(raw, repository.getRequestJson(id))
+        assertEquals(raw, repository.getResponseJson(id))
     }
 }

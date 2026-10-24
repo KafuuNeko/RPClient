@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
@@ -71,18 +69,12 @@ class OpenAIResponsesLLMClient(
         val decoder = OpenAIResponsesStreamDecoder()
         val mapper =
             LLMStreamPartMapper(request.includeReasoningInContent, request.captureReasoning)
-        val log = JsonArray()
-        var loggedChars = 0
+        val log = LLMStreamLog()
         try {
             // takeWhile 在终态帧处理完后主动结束收集，不等待服务端再次发送或关闭连接。
             mOkHttpClient.streamLines(http.request) { emit(LLMStreamEvent.Connected) }
                 .takeWhile { line ->
-                    if (loggedChars < MAX_LOG_CHARACTERS) {
-                        val safe =
-                            ImageLogSanitizer.sanitize(line).take(MAX_LOG_CHARACTERS - loggedChars)
-                        log.add(safe)
-                        loggedChars += safe.length + 1
-                    }
+                    log.append(line)
                     frames.accept(line)?.let { event ->
                         decoder.accept(event)
                             .forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
@@ -96,7 +88,7 @@ class OpenAIResponsesLLMClient(
             }
             decoder.requireFinished()
         } catch (error: Throwable) {
-            log.add(JsonObject().apply { addProperty("error", error.message.orEmpty()) })
+            log.addError(error.message)
             throw recordImageFailure(request, model, error)
         } finally {
             try {
@@ -105,7 +97,7 @@ class OpenAIResponsesLLMClient(
                     model = model,
                     isStreaming = true,
                     requestJson = http.payloadJson,
-                    responseJson = log.toString(),
+                    responseJson = log.toJson(),
                 )
             } finally {
                 http.temporaryFile?.delete()
@@ -155,7 +147,4 @@ class OpenAIResponsesLLMClient(
         } else error
     }
 
-    private companion object {
-        const val MAX_LOG_CHARACTERS = 65_536
-    }
 }

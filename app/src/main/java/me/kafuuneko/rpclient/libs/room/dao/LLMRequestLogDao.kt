@@ -31,13 +31,13 @@ interface LLMRequestLogDao : MutableDao<LLMRequestLog> {
         offset: Int,
     ): List<LLMRequestLogOverview>
 
-    /** 按 ID 读取复制或查看所需的完整请求 JSON。 */
-    @Query("SELECT requestJson FROM llm_request_logs WHERE id = :id")
-    suspend fun getRequestJson(id: Long): String?
+    /** 按 UTF-8 字节偏移读取有界请求片段，避免整列装入 CursorWindow。 */
+    @Query("SELECT SUBSTR(CAST(requestJson AS BLOB), :start, :length) FROM llm_request_logs WHERE id = :id")
+    suspend fun getRequestJsonChunk(id: Long, start: Int, length: Int): ByteArray?
 
-    /** 按 ID 读取复制或查看所需的完整响应 JSON。 */
-    @Query("SELECT responseJson FROM llm_request_logs WHERE id = :id")
-    suspend fun getResponseJson(id: Long): String?
+    /** 按 UTF-8 字节偏移读取有界响应片段。 */
+    @Query("SELECT SUBSTR(CAST(responseJson AS BLOB), :start, :length) FROM llm_request_logs WHERE id = :id")
+    suspend fun getResponseJsonChunk(id: Long, start: Int, length: Int): ByteArray?
 
     /** 清空全部调试日志。 */
     @Query("DELETE FROM llm_request_logs")

@@ -1361,4 +1361,14 @@
     <string name="backup_status_title">Current Status</string>
     <string name="message_edit_separate_think">Separate thinking</string>
     <string name="message_edit_separate_think_desc">Edit only the reply, keeping the original thinking.</string>
+    <string name="json_export_label">Export</string>
+    <string name="json_export_working">Exporting file…</string>
+    <string name="json_export_success">File exported</string>
+    <string name="json_export_failed">Could not export the file. Please try again.</string>
+    <string name="json_export_raw_notice">This log cannot be formatted. The saved text will be exported instead.</string>
+    <string name="json_tab_tree">Visual</string>
+    <string name="json_tab_source">Source</string>
+    <string name="json_value_truncated">This value contains %1$d characters. The preview is shortened; export to read all saved content.</string>
+    <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
+    <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
 </resources>

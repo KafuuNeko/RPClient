@@ -1352,4 +1352,14 @@
     <string name="backup_status_title">現在の状態</string>
     <string name="message_edit_separate_think">思考過程を分離</string>
     <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
+    <string name="json_export_label">エクスポート</string>
+    <string name="json_export_working">ファイルをエクスポート中…</string>
+    <string name="json_export_success">ファイルをエクスポートしました</string>
+    <string name="json_export_failed">ファイルをエクスポートできませんでした。再試行してください。</string>
+    <string name="json_export_raw_notice">このログは整形できません。保存された原文をエクスポートします。</string>
+    <string name="json_tab_tree">ビジュアル</string>
+    <string name="json_tab_source">ソース</string>
+    <string name="json_value_truncated">この値は %1$d 文字あります。プレビューを省略しています。保存された全内容はエクスポートして確認できます。</string>
+    <string name="json_preview_too_large">内容が大きすぎるため表示できません。リクエストログからエクスポートして確認してください。</string>
+    <string name="json_source_invalid">このログは整形できません。保存された原文を表示しています。</string>
 </resources>

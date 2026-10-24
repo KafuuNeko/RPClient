@@ -15,7 +15,13 @@ data class JsonViewerEntry(
     /** 当前 JSON 子节点在父对象中的字段名。 */
     val sourceKey: String? = null,
     /** 当前 JSON 子节点在父数组中的位置。 */
-    val sourceIndex: Int? = null
+    val sourceIndex: Int? = null,
+    /** 仅在阈值内保留完整正文，按有界小块参与列表懒加载。 */
+    val valueBlocks: List<String> = listOf(preview),
+    /** 原始字符串长度，用于明确说明保护性缩略。 */
+    val originalLength: Int = 0,
+    /** 显式区分真实省略号与查看器产生的缩略。 */
+    val isTruncated: Boolean = false,
 ) {
     val hasChildren: Boolean
         get() = type == JsonViewerNodeType.Object || type == JsonViewerNodeType.Array

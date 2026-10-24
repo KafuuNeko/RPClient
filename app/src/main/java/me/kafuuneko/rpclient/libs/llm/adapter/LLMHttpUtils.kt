@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -487,7 +488,7 @@ internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): 
 /**
  * 尽力写入请求日志。
  *
- * 日志失败不得影响实际生成请求，因此此处有意吞掉持久化异常。
+ * 日志失败不得影响实际生成请求；停止生成时也尽力保留已收到的片段。
  */
 internal suspend fun LLMRequestLogRepository.trySaveLog(
     provider: LLMProviderConfig,
@@ -496,14 +497,17 @@ internal suspend fun LLMRequestLogRepository.trySaveLog(
     requestJson: String,
     responseJson: String,
 ) {
-    runCatching {
-        saveLog(
-            provider = provider,
-            model = model,
-            isStreaming = isStreaming,
-            requestJson = requestJson,
-            responseJson = responseJson,
-        )
+    // 只保护有界日志的收尾写入，不扩大网络请求或生成任务的不可取消范围。
+    withContext(NonCancellable + Dispatchers.IO) {
+        runCatching {
+            saveLog(
+                provider = provider,
+                model = model,
+                isStreaming = isStreaming,
+                requestJson = requestJson,
+                responseJson = responseJson,
+            )
+        }
     }
 }
 

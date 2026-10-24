@@ -7,4 +7,8 @@ sealed class JsonViewerUiIntent {
     data object Back : JsonViewerUiIntent()
 
     data class EntrySelected(val entryId: Int) : JsonViewerUiIntent()
+
+    data class SelectTab(val tab: JsonViewerTab) : JsonViewerUiIntent()
+
+    data object LoadMore : JsonViewerUiIntent()
 }

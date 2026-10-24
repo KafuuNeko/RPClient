@@ -1335,4 +1335,14 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="backup_status_title">Stato attuale</string>
     <string name="message_edit_separate_think">Separa il ragionamento</string>
     <string name="message_edit_separate_think_desc">Modifica solo la risposta, mantenendo il ragionamento originale.</string>
+    <string name="json_export_label">Esporta</string>
+    <string name="json_export_working">Esportazione del file…</string>
+    <string name="json_export_success">File esportato</string>
+    <string name="json_export_failed">Impossibile esportare il file. Riprova.</string>
+    <string name="json_export_raw_notice">Questo registro non può essere formattato. Verrà esportato il testo salvato.</string>
+    <string name="json_tab_tree">Visuale</string>
+    <string name="json_tab_source">Sorgente</string>
+    <string name="json_value_truncated">Questo valore contiene %1$d caratteri. L’anteprima è abbreviata; esporta per leggere tutto il contenuto salvato.</string>
+    <string name="json_preview_too_large">Il contenuto è troppo grande da visualizzare. Esportalo dal registro delle richieste.</string>
+    <string name="json_source_invalid">Questo registro non può essere formattato. Viene mostrato il testo salvato.</string>
 </resources>

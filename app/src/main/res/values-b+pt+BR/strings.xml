@@ -1360,4 +1360,14 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="backup_status_title">Status atual</string>
     <string name="message_edit_separate_think">Separar raciocínio</string>
     <string name="message_edit_separate_think_desc">Edite só a resposta e preserve o raciocínio original.</string>
+    <string name="json_export_label">Exportar</string>
+    <string name="json_export_working">Exportando arquivo…</string>
+    <string name="json_export_success">Arquivo exportado</string>
+    <string name="json_export_failed">Não foi possível exportar o arquivo. Tente novamente.</string>
+    <string name="json_export_raw_notice">Este registro não pode ser formatado. O texto salvo será exportado.</string>
+    <string name="json_tab_tree">Visual</string>
+    <string name="json_tab_source">Código</string>
+    <string name="json_value_truncated">Este valor contém %1$d caracteres. A prévia foi reduzida; exporte para ler todo o conteúdo salvo.</string>
+    <string name="json_preview_too_large">O conteúdo é grande demais para exibir. Exporte pelo registro de solicitações para ler.</string>
+    <string name="json_source_invalid">Este registro não pode ser formatado. Exibindo o texto salvo.</string>
 </resources>

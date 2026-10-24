@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import me.kafuuneko.rpclient.libs.json.JsonResourceLimitException
 
 /** JSON 语法高亮分词类别。 */
 enum class JsonSyntaxTokenType {
@@ -125,10 +126,17 @@ private fun JsonSyntaxToken.style(colors: JsonSyntaxColors): SpanStyle {
 }
 
 /** 单遍流式 JSON 词法分析器。 */
-fun tokenizeJsonSyntax(source: String): List<JsonSyntaxToken> {
+fun tokenizeJsonSyntax(
+    source: String,
+    maxTokens: Int = Int.MAX_VALUE,
+    checkActive: () -> Unit = {},
+): List<JsonSyntaxToken> {
     val tokens = mutableListOf<JsonSyntaxToken>()
     var index = 0
     while (index < source.length) {
+        // 每轮均检查取消和数量，源码预览不为超限文档构建完整 Token 列表。
+        checkActive()
+        if (tokens.size >= maxTokens) throw JsonResourceLimitException()
         val start = index
         when (source[index]) {
             '"' -> {

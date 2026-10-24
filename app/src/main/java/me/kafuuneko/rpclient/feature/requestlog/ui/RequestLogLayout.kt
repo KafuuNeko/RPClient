@@ -21,11 +21,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -34,11 +33,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,9 +50,11 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogDialogState
+import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogExportState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
@@ -61,7 +62,6 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 /** LLM 请求日志列表与清理确认对话框的 Compose 入口。 */
 @Composable
@@ -78,6 +78,7 @@ fun RequestLogLayout(
         is RequestLogUiState.Normal -> {
             NormalView(uiState, emit)
             DialogSwitch(uiState.dialogState, emit)
+            ExportSwitch(uiState.exportState, emit)
         }
     }
 }
@@ -223,7 +224,7 @@ private fun RequestLogCard(
                 JsonBlock(
                     title = requestJsonTitle,
                     json = log.requestPreview,
-                    onCopy = { RequestLogUiIntent.CopyRequestJson(log.id).emit() },
+                    onExport = { RequestLogUiIntent.ExportRequestJson(log.id).emit() },
                     onOpen = {
                         RequestLogUiIntent.OpenRequestJson(log.id, requestJsonTitle).emit()
                     },
@@ -231,7 +232,7 @@ private fun RequestLogCard(
                 JsonBlock(
                     title = responseJsonTitle,
                     json = log.responsePreview,
-                    onCopy = { RequestLogUiIntent.CopyResponseJson(log.id).emit() },
+                    onExport = { RequestLogUiIntent.ExportResponseJson(log.id).emit() },
                     onOpen = {
                         RequestLogUiIntent.OpenResponseJson(log.id, responseJsonTitle).emit()
                     },
@@ -259,14 +260,27 @@ private fun DialogSwitch(
     }
 }
 
+/** 准备和写入期间显示可取消的统一加载弹窗，系统选择器自行处理取消。 */
+@Composable
+private fun ExportSwitch(state: RequestLogExportState, emit: RequestLogUiIntent.() -> Unit) {
+    if (state != RequestLogExportState.Preparing && state != RequestLogExportState.Writing) return
+    LoadingDialog(
+        title = stringResource(R.string.json_export_label),
+        description = stringResource(R.string.json_export_working),
+        onCancel = { RequestLogUiIntent.CancelExport.emit() },
+        cancelOnBackPress = true,
+    )
+}
+
 @Composable
 private fun JsonBlock(
     title: String,
     json: String,
-    onCopy: () -> Unit,
+    onExport: () -> Unit,
     onOpen: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // 查看与导出保持同级操作，导出图标的方向沿用应用其他文件导出入口。
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = title,
@@ -279,15 +293,13 @@ private fun JsonBlock(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.view_json))
             }
-            OutlinedButton(
-                onClick = onCopy,
-                shape = RoundedCornerShape(12.dp),
+            TextButton(
+                onClick = onExport,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(imageVector = Icons.Rounded.ContentCopy, contentDescription = null)
+                Icon(imageVector = Icons.Rounded.FileUpload, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(R.string.copy))
+                Text(stringResource(R.string.json_export_label))
             }
         }
         Text(

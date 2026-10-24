@@ -7,8 +7,10 @@ import android.util.Base64
 import androidx.sqlite.db.SupportSQLiteDatabase
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BLOB_KEY
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.TABLE_ROWS_KEY
+import me.kafuuneko.rpclient.libs.json.JsonResourceLimitException
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 /** 编解码 SQLite 结构与无损数据行，重建派生 FTS 后校验完整性。 */
@@ -69,10 +71,11 @@ internal object BackupDatabaseCodec {
         value: Any? = null,
     ): JSONArray {
         val suffix = if (whereColumn == null) "" else " WHERE " + quote(whereColumn) + " = ?"
-        val sql = "SELECT * FROM " + quote(table) + suffix
+        val projection = if (table == "llm_request_logs") logProjection(db) else "*"
+        val sql = "SELECT " + projection + " FROM " + quote(table) + suffix
         val arguments: Array<Any?> = if (whereColumn == null) emptyArray() else arrayOf(value)
         // 所有值通过绑定参数传递，列值按 SQLite 的实际类型编码。
-        return db.query(sql, arguments).use { cursor ->
+        val rows = db.query(sql, arguments).use { cursor ->
             JSONArray().apply {
                 while (cursor.moveToNext()) {
                     val row = JSONObject()
@@ -82,6 +85,49 @@ internal object BackupDatabaseCodec {
                     put(row)
                 }
             }
+        }
+        if (table == "llm_request_logs") {
+            // 日志正文独立分块读取，备份格式仍保留原始 TEXT 字段，无需改变协议。
+            for (index in 0 until rows.length()) {
+                val row = rows.getJSONObject(index)
+                row.put("requestJson", readLogPayload(db, row.getLong("id"), "requestJson"))
+                row.put("responseJson", readLogPayload(db, row.getLong("id"), "responseJson"))
+            }
+        }
+        return rows
+    }
+
+    /** 动态保留日志表扩展列，仅把两个大 TEXT 列从窗口投影中移除。 */
+    private fun logProjection(db: SupportSQLiteDatabase): String {
+        return db.query("PRAGMA table_info(llm_request_logs)").use { cursor ->
+            val columns = mutableListOf<String>()
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                columns += if (name == "requestJson" || name == "responseJson") {
+                    "'' AS " + quote(name)
+                } else quote(name)
+            }
+            columns.joinToString(", ")
+        }
+    }
+
+    /** 从冻结备份库按 UTF-8 字节偏移读取正文，避免整行超过窗口容量。 */
+    private fun readLogPayload(db: SupportSQLiteDatabase, id: Long, column: String): String {
+        val result = ByteArrayOutputStream()
+        var start = 1
+        // 列名只由本方法的固定调用点提供；记录 ID 和偏移继续使用绑定参数。
+        while (true) {
+            val chunk = db.query(
+                "SELECT SUBSTR(CAST(" + quote(column) + " AS BLOB), ?, 65536) FROM llm_request_logs WHERE id = ?",
+                arrayOf<Any>(start, id),
+            ).use { cursor ->
+                check(cursor.moveToFirst()) { "Request log disappeared from backup snapshot." }
+                cursor.getBlob(0)
+            }
+            if (result.size().toLong() + chunk.size > 16_777_216) throw JsonResourceLimitException()
+            result.write(chunk)
+            if (chunk.size < 65_536) return result.toString(Charsets.UTF_8.name())
+            start += 65_536
         }
     }
 

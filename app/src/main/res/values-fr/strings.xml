@@ -1357,4 +1357,14 @@
     <string name="backup_status_title">État actuel</string>
     <string name="message_edit_separate_think">Séparer le raisonnement</string>
     <string name="message_edit_separate_think_desc">Modifiez seulement la réponse, en gardant le raisonnement initial.</string>
+    <string name="json_export_label">Exporter</string>
+    <string name="json_export_working">Exportation du fichier…</string>
+    <string name="json_export_success">Fichier exporté</string>
+    <string name="json_export_failed">Impossible d’exporter le fichier. Veuillez réessayer.</string>
+    <string name="json_export_raw_notice">Ce journal ne peut pas être mis en forme. Le texte enregistré sera exporté.</string>
+    <string name="json_tab_tree">Visuel</string>
+    <string name="json_tab_source">Source</string>
+    <string name="json_value_truncated">Cette valeur contient %1$d caractères. L’aperçu est abrégé ; exportez pour lire tout le contenu enregistré.</string>
+    <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
+    <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
 </resources>

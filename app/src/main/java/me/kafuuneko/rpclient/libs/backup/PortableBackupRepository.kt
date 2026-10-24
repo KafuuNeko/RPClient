@@ -424,7 +424,15 @@ class PortableBackupRepository(
     private fun exportRequestLogs(db: SupportSQLiteDatabase, root: File) {
         File(root, "app-data/request-logs.jsonl").bufferedWriter(Charsets.UTF_8).use { writer ->
             tableNames(db).forEach { table ->
-                readRows(db, table).objects().forEach { row ->
+                // 大日志逐条重建正文，避免一次将所有请求/响应载入内存。
+                val rows = if (table == "llm_request_logs") {
+                    val ids = db.query("SELECT id FROM llm_request_logs").use { cursor ->
+                        buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
+                    }
+                    ids.asSequence()
+                        .flatMap { id -> readRows(db, table, "id", id).objects().asSequence() }
+                } else readRows(db, table).objects().asSequence()
+                rows.forEach { row ->
                     val isRequestLog = table == "llm_request_logs"
                     writeJsonLine(
                         json = JSONObject()

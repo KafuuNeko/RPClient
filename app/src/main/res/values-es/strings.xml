@@ -1358,4 +1358,14 @@
     <string name="backup_status_title">Estado actual</string>
     <string name="message_edit_separate_think">Separar razonamiento</string>
     <string name="message_edit_separate_think_desc">Edita solo la respuesta y conserva el razonamiento original.</string>
+    <string name="json_export_label">Exportar</string>
+    <string name="json_export_working">Exportando archivo…</string>
+    <string name="json_export_success">Archivo exportado</string>
+    <string name="json_export_failed">No se pudo exportar el archivo. Inténtalo de nuevo.</string>
+    <string name="json_export_raw_notice">Este registro no se puede formatear. Se exportará el texto guardado.</string>
+    <string name="json_tab_tree">Visual</string>
+    <string name="json_tab_source">Código</string>
+    <string name="json_value_truncated">Este valor contiene %1$d caracteres. La vista previa está abreviada; exporta para leer todo el contenido guardado.</string>
+    <string name="json_preview_too_large">El contenido es demasiado grande para mostrarlo. Expórtalo desde el registro de solicitudes.</string>
+    <string name="json_source_invalid">Este registro no se puede formatear. Se muestra el texto guardado.</string>
 </resources>

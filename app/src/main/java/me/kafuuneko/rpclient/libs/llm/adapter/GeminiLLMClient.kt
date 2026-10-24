@@ -81,8 +81,7 @@ class GeminiLLMClient(
         return flow {
             val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
-                val rawChunks = JSONArray()
-                var loggedChars = 0
+                val rawChunks = LLMStreamLog()
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
                     captureReasoning = request.captureReasoning,
@@ -92,12 +91,7 @@ class GeminiLLMClient(
                         request = httpRequest.request,
                         onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
-                        if (loggedChars < 65_536) {
-                            val safeLine =
-                                ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
-                            rawChunks.put(safeLine)
-                            loggedChars += safeLine.length
-                        }
+                        rawChunks.append(line)
                         parseGeminiStreamParts(line).forEach { part ->
                             partMapper.map(part).forEach { event -> emit(event) }
                         }
@@ -110,7 +104,7 @@ class GeminiLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.toString(),
+                        responseJson = rawChunks.toJson(),
                     )
                 }.onFailure { error ->
                     mLLMRequestLogRepository.trySaveLog(
@@ -118,7 +112,7 @@ class GeminiLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = error.toErrorJson(),
+                        responseJson = rawChunks.apply { addError(error.message) }.toJson(),
                     )
                     throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
                         provider = mProvider.copy(model = model),

@@ -1361,4 +1361,14 @@
     <string name="backup_status_title">Текущий статус</string>
     <string name="message_edit_separate_think">Отделять рассуждения</string>
     <string name="message_edit_separate_think_desc">Редактировать только ответ, сохраняя исходные рассуждения.</string>
+    <string name="json_export_label">Экспорт</string>
+    <string name="json_export_working">Экспорт файла…</string>
+    <string name="json_export_success">Файл экспортирован</string>
+    <string name="json_export_failed">Не удалось экспортировать файл. Повторите попытку.</string>
+    <string name="json_export_raw_notice">Этот журнал невозможно отформатировать. Будет экспортирован сохранённый текст.</string>
+    <string name="json_tab_tree">Структура</string>
+    <string name="json_tab_source">Исходник</string>
+    <string name="json_value_truncated">Это значение содержит %1$d символов. Предпросмотр сокращён; экспортируйте, чтобы прочитать всё сохранённое содержимое.</string>
+    <string name="json_preview_too_large">Содержимое слишком велико для отображения. Экспортируйте его из журнала запросов.</string>
+    <string name="json_source_invalid">Этот журнал невозможно отформатировать. Показан сохранённый текст.</string>
 </resources>

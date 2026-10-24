@@ -82,8 +82,7 @@ class OpenAICompatibleLLMClient(
             // 构建带 stream=true 的 HTTP 请求与参数补丁
             val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
-                val rawChunks = JSONArray()
-                var loggedChars = 0
+                val rawChunks = LLMStreamLog()
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
                     captureReasoning = request.captureReasoning,
@@ -94,12 +93,7 @@ class OpenAICompatibleLLMClient(
                         request = httpRequest.request,
                         onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
-                        if (loggedChars < 65_536) {
-                            val safeLine =
-                                ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
-                            rawChunks.put(safeLine)
-                            loggedChars += safeLine.length
-                        }
+                        rawChunks.append(line)
                         parseOpenAIStreamParts(line).forEach { part ->
                             partMapper.map(part).forEach { event -> emit(event) }
                         }
@@ -113,7 +107,7 @@ class OpenAICompatibleLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.toString(),
+                        responseJson = rawChunks.toJson(),
                     )
                 }.onFailure { error ->
                     // 记录失败日志并向上层抛出
@@ -122,7 +116,7 @@ class OpenAICompatibleLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = error.toErrorJson(),
+                        responseJson = rawChunks.apply { addError(error.message) }.toJson(),
                     )
                     throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
                         provider = mProvider.copy(model = model),

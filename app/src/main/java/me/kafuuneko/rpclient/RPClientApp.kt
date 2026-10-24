@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.json.JsonExportRepository
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
@@ -160,6 +161,7 @@ internal val appModules = module {
     singleOf(::StoryArchiveRepository)
     singleOf(::BackupArchiveRepository)
     singleOf(::PortableBackupRepository)
+    singleOf(::JsonExportRepository)
     singleOf(::RegexScriptCodec)
     singleOf(::RegexScriptEngine)
     singleOf(::RegexScriptRuntime)

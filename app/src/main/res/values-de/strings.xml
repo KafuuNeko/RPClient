@@ -1356,4 +1356,14 @@
     <string name="backup_status_title">Aktueller Status</string>
     <string name="message_edit_separate_think">Denkprozess trennen</string>
     <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
+    <string name="json_export_label">Exportieren</string>
+    <string name="json_export_working">Datei wird exportiert…</string>
+    <string name="json_export_success">Datei exportiert</string>
+    <string name="json_export_failed">Die Datei konnte nicht exportiert werden. Bitte erneut versuchen.</string>
+    <string name="json_export_raw_notice">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird exportiert.</string>
+    <string name="json_tab_tree">Visuell</string>
+    <string name="json_tab_source">Quelltext</string>
+    <string name="json_value_truncated">Dieser Wert enthält %1$d Zeichen. Die Vorschau ist gekürzt; exportieren Sie den gesamten gespeicherten Inhalt zum Lesen.</string>
+    <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
+    <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
 </resources>

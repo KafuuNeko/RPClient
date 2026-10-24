@@ -1353,4 +1353,14 @@
     <string name="backup_status_title">当前状态</string>
     <string name="message_edit_separate_think">分离思考链</string>
     <string name="message_edit_separate_think_desc">编辑时仅修改正文，保留原有思考链。</string>
+    <string name="json_export_label">导出</string>
+    <string name="json_export_working">正在导出文件…</string>
+    <string name="json_export_success">文件已导出</string>
+    <string name="json_export_failed">文件导出失败，请重试。</string>
+    <string name="json_export_raw_notice">此日志无法格式化，将导出已保存的原文。</string>
+    <string name="json_tab_tree">可视化</string>
+    <string name="json_tab_source">源码</string>
+    <string name="json_value_truncated">此字段共 %1$d 个字符，已缩略显示；可导出查看已保存的完整内容。</string>
+    <string name="json_preview_too_large">内容过大，无法显示。请从请求日志导出查看。</string>
+    <string name="json_source_invalid">此日志无法格式化，当前显示已保存的原文。</string>
 </resources>

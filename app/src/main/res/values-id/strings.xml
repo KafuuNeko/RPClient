@@ -1357,4 +1357,14 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_status_title">Status Saat Ini</string>
     <string name="message_edit_separate_think">Pisahkan penalaran</string>
     <string name="message_edit_separate_think_desc">Edit hanya jawaban dan pertahankan penalaran asli.</string>
+    <string name="json_export_label">Ekspor</string>
+    <string name="json_export_working">Mengekspor file…</string>
+    <string name="json_export_success">File diekspor</string>
+    <string name="json_export_failed">Tidak dapat mengekspor file. Silakan coba lagi.</string>
+    <string name="json_export_raw_notice">Log ini tidak dapat diformat. Teks yang tersimpan akan diekspor.</string>
+    <string name="json_tab_tree">Visual</string>
+    <string name="json_tab_source">Sumber</string>
+    <string name="json_value_truncated">Nilai ini berisi %1$d karakter. Pratinjau dipersingkat; ekspor untuk membaca seluruh konten tersimpan.</string>
+    <string name="json_preview_too_large">Konten terlalu besar untuk ditampilkan. Ekspor dari log permintaan untuk membacanya.</string>
+    <string name="json_source_invalid">Log ini tidak dapat diformat. Menampilkan teks yang tersimpan.</string>
 </resources>

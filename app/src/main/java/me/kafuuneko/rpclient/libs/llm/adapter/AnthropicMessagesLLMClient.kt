@@ -81,8 +81,7 @@ class AnthropicMessagesLLMClient(
         return flow {
             val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
-                val rawChunks = JSONArray()
-                var loggedChars = 0
+                val rawChunks = LLMStreamLog()
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
                     captureReasoning = request.captureReasoning,
@@ -93,12 +92,7 @@ class AnthropicMessagesLLMClient(
                         onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
                         // 限制流式响应日志大小，并清除图片 Base64 等内容
-                        if (loggedChars < 65_536) {
-                            val safeLine =
-                                ImageLogSanitizer.sanitize(line).take(65_536 - loggedChars)
-                            rawChunks.put(safeLine)
-                            loggedChars += safeLine.length
-                        }
+                        rawChunks.append(line)
                         parseAnthropicStreamParts(line).forEach { part ->
                             partMapper.map(part).forEach { event -> emit(event) }
                         }
@@ -111,7 +105,7 @@ class AnthropicMessagesLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.toString(),
+                        responseJson = rawChunks.toJson(),
                     )
                 }.onFailure { error ->
                     mLLMRequestLogRepository.trySaveLog(
@@ -119,7 +113,7 @@ class AnthropicMessagesLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = error.toErrorJson(),
+                        responseJson = rawChunks.apply { addError(error.message) }.toJson(),
                     )
                     throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
                         provider = mProvider.copy(model = model),

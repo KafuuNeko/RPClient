@@ -21,7 +21,9 @@ sealed class RequestLogUiState {
         /** 当前列表是否正在加载下一页数据。 */
         val isLoadingMore: Boolean = false,
         /** 当前页面互斥展示的对话框状态。 */
-        val dialogState: RequestLogDialogState = RequestLogDialogState.None
+        val dialogState: RequestLogDialogState = RequestLogDialogState.None,
+        /** 当前导出阶段；正文与冻结文件由 ViewModel 和 Repository 私有持有。 */
+        val exportState: RequestLogExportState = RequestLogExportState.Idle,
     ) : RequestLogUiState()
 
     data class Finished(val previous: RequestLogUiState) : RequestLogUiState()
@@ -33,3 +35,6 @@ sealed class RequestLogUiState {
         }
     }
 }
+
+/** 导出流程的互斥阶段，等待选择器时仍可正常浏览日志。 */
+enum class RequestLogExportState { Idle, Preparing, Selecting, Writing }

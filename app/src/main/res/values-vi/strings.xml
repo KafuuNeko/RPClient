@@ -1357,4 +1357,14 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_status_title">Trạng thái hiện tại</string>
     <string name="message_edit_separate_think">Tách suy luận</string>
     <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
+    <string name="json_export_label">Xuất</string>
+    <string name="json_export_working">Đang xuất tệp…</string>
+    <string name="json_export_success">Đã xuất tệp</string>
+    <string name="json_export_failed">Không thể xuất tệp. Vui lòng thử lại.</string>
+    <string name="json_export_raw_notice">Không thể định dạng nhật ký này. Văn bản đã lưu sẽ được xuất.</string>
+    <string name="json_tab_tree">Trực quan</string>
+    <string name="json_tab_source">Mã nguồn</string>
+    <string name="json_value_truncated">Giá trị này chứa %1$d ký tự. Bản xem trước đã được rút gọn; hãy xuất để đọc toàn bộ nội dung đã lưu.</string>
+    <string name="json_preview_too_large">Nội dung quá lớn để hiển thị. Hãy xuất từ nhật ký yêu cầu để đọc.</string>
+    <string name="json_source_invalid">Không thể định dạng nhật ký này. Đang hiển thị văn bản đã lưu.</string>
 </resources>

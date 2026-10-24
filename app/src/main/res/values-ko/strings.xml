@@ -1351,4 +1351,14 @@
     <string name="backup_status_title">현재 상태</string>
     <string name="message_edit_separate_think">사고 과정 분리</string>
     <string name="message_edit_separate_think_desc">본문만 편집하고 기존 사고 과정은 유지합니다.</string>
+    <string name="json_export_label">내보내기</string>
+    <string name="json_export_working">파일 내보내는 중…</string>
+    <string name="json_export_success">파일을 내보냈습니다</string>
+    <string name="json_export_failed">파일을 내보낼 수 없습니다. 다시 시도하세요.</string>
+    <string name="json_export_raw_notice">이 로그는 서식을 지정할 수 없습니다. 저장된 원문을 내보냅니다.</string>
+    <string name="json_tab_tree">시각화</string>
+    <string name="json_tab_source">소스</string>
+    <string name="json_value_truncated">이 값은 %1$d자입니다. 미리보기가 축약되었습니다. 저장된 전체 내용은 내보내서 확인하세요.</string>
+    <string name="json_preview_too_large">내용이 너무 커서 표시할 수 없습니다. 요청 로그에서 내보내서 확인하세요.</string>
+    <string name="json_source_invalid">이 로그는 서식을 지정할 수 없습니다. 저장된 원문을 표시합니다.</string>
 </resources>

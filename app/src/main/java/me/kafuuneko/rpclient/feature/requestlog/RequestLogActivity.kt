@@ -1,8 +1,5 @@
 package me.kafuuneko.rpclient.feature.requestlog
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -18,10 +15,17 @@ import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogViewEvent
 import me.kafuuneko.rpclient.feature.requestlog.ui.RequestLogLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.json.CreateJsonDocumentContract
 
-/** LLM 请求日志页面宿主，处理复制与 JSON 详情导航。 */
+/** LLM 请求日志页面宿主，处理系统保存选择器与 JSON 详情导航。 */
 class RequestLogActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<RequestLogViewModel>()
+    private var mPendingExportToken: String? = null
+    private val mExportLauncher = registerForActivityResult(CreateJsonDocumentContract()) { uri ->
+        val token = mPendingExportToken
+        mPendingExportToken = null
+        mViewModel.emit(RequestLogUiIntent.ExportResult(token, uri))
+    }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
@@ -40,25 +44,41 @@ class RequestLogActivity : CoreActivityWithEvent() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        mPendingExportToken = savedInstanceState?.getString(EXPORT_TOKEN)
         super.onCreate(savedInstanceState)
         mViewModel.emit(RequestLogUiIntent.Init)
     }
 
+    /** 配置变更与系统回调使用同一个小型任务标识，不保存正文。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(EXPORT_TOKEN, mPendingExportToken)
+        super.onSaveInstanceState(outState)
+    }
+
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
-            is RequestLogViewEvent.CopyText -> copyText(viewEvent.text)
+            is RequestLogViewEvent.OpenExporter -> {
+                if (!mViewModel.isExportPending(viewEvent.export.token)) return
+                mPendingExportToken = viewEvent.export.token
+                try {
+                    mExportLauncher.launch(viewEvent.export)
+                } catch (_: Exception) {
+                    mPendingExportToken = null
+                    mViewModel.emit(RequestLogUiIntent.ExportResult(viewEvent.export.token, null))
+                    Toast.makeText(this, R.string.json_export_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+
             is RequestLogViewEvent.OpenJson -> openJson(viewEvent.title, viewEvent.json)
             else -> super.onReceivedViewEvent(viewEvent)
         }
     }
 
-    private fun copyText(text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.request_log_json), text))
-        Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
-    }
-
     private fun openJson(title: String, json: String) {
         startActivity(JsonViewerActivity.newIntent(this, title, json))
+    }
+
+    private companion object {
+        const val EXPORT_TOKEN = "request_log_export_token"
     }
 }

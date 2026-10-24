@@ -2,33 +2,42 @@ package me.kafuuneko.rpclient.feature.jsonviewer.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.DataObject
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -41,8 +50,9 @@ import me.kafuuneko.rpclient.feature.jsonviewer.model.JsonViewerNodeType
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerErrorReason
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
+import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerTab
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -105,9 +115,11 @@ private fun NormalView(
     uiState: JsonViewerUiState.Normal,
     emit: JsonViewerUiIntent.() -> Unit,
 ) {
+    val treeScrollState = rememberLazyListState()
+    val sourceScrollState = rememberLazyListState()
+    LaunchedEffect(uiState.path) { treeScrollState.scrollToItem(0) }
     AppPageScaffold(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
@@ -115,50 +127,196 @@ private fun NormalView(
                 onBack = { JsonViewerUiIntent.Back.emit() },
             )
         },
-        content = { paddingValues ->
-            RpLazyColumn(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .background(pageCanvasColor()),
-                contentPadding = PaddingValues(
-                    start = 18.dp,
-                    top = 18.dp,
-                    end = 18.dp,
-                    bottom = 32.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item {
-                    JsonPathBar(path = uiState.path)
-                }
-                item {
-                    JsonSummaryCard(
-                        currentType = uiState.currentType,
-                        childCount = uiState.childCount,
-                    )
-                }
-                if (uiState.entries.isEmpty()) {
-                    item {
-                        RpInfoCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            icon = Icons.Rounded.DataObject,
-                            title = stringResource(R.string.json_empty_node),
-                            subtitle = stringResource(R.string.json_empty_node_desc),
-                        )
-                    }
-                }
-                items(
-                    items = uiState.entries,
-                    key = { jsonViewerEntry -> jsonViewerEntry.id }) { entry ->
-                    JsonEntryRow(
-                        entry = entry,
-                        onClick = { JsonViewerUiIntent.EntrySelected(entry.id).emit() },
-                    )
+    ) { paddingValues ->
+        // 滚动状态保留在 Tab 外，切换展示不会丢失当前位置。
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .background(pageCanvasColor())
+        ) {
+            JsonViewTabs(selectedTab = uiState.selectedTab, emit = emit)
+            if (uiState.selectedTab == JsonViewerTab.Tree) {
+                TreeView(uiState = uiState, scrollState = treeScrollState, emit = emit)
+            } else {
+                JsonSourceView(state = uiState.sourceState, scrollState = sourceScrollState)
+            }
+        }
+    }
+}
+
+/** 切换栏沿用顶栏外观，避免壁纸模式下额外铺设不透明底色。 */
+@Composable
+private fun JsonViewTabs(
+    selectedTab: JsonViewerTab,
+    emit: JsonViewerUiIntent.() -> Unit,
+) {
+    AppSurface(kind = PageSurfaceKind.TopBar, color = MaterialTheme.colorScheme.background) {
+        PrimaryTabRow(
+            selectedTabIndex = selectedTab.ordinal,
+            containerColor = Color.Transparent,
+            divider = {},
+        ) {
+            // Tab 本身保持透明，背景统一交给应用表面处理。
+            JsonViewerTab.entries.forEach { tab ->
+                Tab(
+                    selected = tab == selectedTab,
+                    onClick = { JsonViewerUiIntent.SelectTab(tab).emit() },
+                    text = {
+                        Text(stringResource(if (tab == JsonViewerTab.Tree) R.string.json_tab_tree else R.string.json_tab_source))
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** 当前层的条目和文本块共享外层懒列表，长字符串不会变成一个巨大的布局项目。 */
+@Composable
+private fun TreeView(
+    uiState: JsonViewerUiState.Normal,
+    scrollState: LazyListState,
+    emit: JsonViewerUiIntent.() -> Unit,
+) {
+    RpLazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+        state = scrollState,
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+    ) {
+        // 路径与当前层摘要共用一行，将首屏空间留给实际字段。
+        item {
+            JsonLocationBar(
+                path = uiState.path,
+                currentType = uiState.currentType,
+                childCount = uiState.childCount,
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        if (uiState.treeError != null) {
+            item {
+                RpInfoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.DataObject,
+                    title = stringResource(R.string.json_viewer),
+                    subtitle = stringResource(if (uiState.treeError == JsonViewerErrorReason.TooLarge) R.string.json_preview_too_large else R.string.json_invalid_desc),
+                )
+            }
+            return@RpLazyColumn
+        }
+        if (uiState.entries.isEmpty()) {
+            item {
+                RpInfoCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Rounded.DataObject,
+                    title = stringResource(R.string.json_empty_node),
+                    subtitle = stringResource(R.string.json_empty_node_desc),
+                )
+            }
+        }
+        uiState.entries.forEach { entry -> jsonEntryItems(entry, emit) }
+        if (uiState.canLoadMore) {
+            item(key = "more") {
+                TextButton(onClick = { JsonViewerUiIntent.LoadMore.emit() }) {
+                    Text(stringResource(R.string.content_search_more))
                 }
             }
-        },
+        }
+    }
+}
+
+/** 文本仍按有界项目懒加载，但相邻块拼成同一字段表面，不暴露内部渲染分块。 */
+private fun LazyListScope.jsonEntryItems(
+    entry: JsonViewerEntry,
+    emit: JsonViewerUiIntent.() -> Unit
+) {
+    item(key = "entry-${entry.id}") {
+        if (entry.hasChildren) {
+            JsonContainerRow(
+                entry = entry,
+                onClick = { JsonViewerUiIntent.EntrySelected(entry.id).emit() })
+        } else {
+            JsonScalarStart(entry = entry)
+        }
+    }
+    // 首块与字段标题放在一起，后续块无间距衔接，仅末块保留底部圆角。
+    if (!entry.hasChildren) {
+        items(
+            count = (entry.valueBlocks.size - 1).coerceAtLeast(0),
+            key = { index -> "value-${entry.id}-${index + 1}" }) { index ->
+            val isLast = index + 1 == entry.valueBlocks.lastIndex
+            JsonScalarContinuation(
+                text = entry.valueBlocks[index + 1],
+                isLast = isLast,
+                truncatedLength = if (isLast && entry.isTruncated) entry.originalLength else null,
+            )
+        }
+    }
+    item(key = "spacing-${entry.id}") { Spacer(Modifier.height(12.dp)) }
+}
+
+/** 短字段只使用一张卡片，长字段的首块与标题保持连接。 */
+@Composable
+private fun JsonScalarStart(entry: JsonViewerEntry) {
+    val isLast = entry.valueBlocks.size <= 1
+    AppSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = if (isLast) RoundedCornerShape(16.dp) else RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp
+        ),
+    ) {
+        // 与后续惰性块共用背景和水平内边距，滚动时不出现独立正文卡片。
+        Column(
+            Modifier.padding(
+                start = 14.dp,
+                top = 12.dp,
+                end = 14.dp,
+                bottom = if (isLast) 14.dp else 0.dp
+            )
+        ) {
+            JsonFieldHeading(entry = entry)
+            Spacer(Modifier.height(8.dp))
+            JsonValueText(text = entry.valueBlocks.firstOrNull().orEmpty())
+            if (isLast && entry.isTruncated) JsonTruncationNote(length = entry.originalLength)
+        }
+    }
+}
+
+/** 中间块不使用圆角或额外留白，完整字段的截断提示固定在末尾。 */
+@Composable
+private fun JsonScalarContinuation(text: String, isLast: Boolean, truncatedLength: Int?) {
+    val shape: Shape =
+        if (isLast) RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp) else RectangleShape
+    AppSurface(modifier = Modifier.fillMaxWidth(), shape = shape) {
+        // 单块文本大小受映射阶段限制，不能在这里合并成长段 Text。
+        Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = if (isLast) 14.dp else 0.dp)) {
+            JsonValueText(text = text)
+            if (truncatedLength != null) JsonTruncationNote(length = truncatedLength)
+        }
+    }
+}
+
+@Composable
+private fun JsonValueText(text: String) {
+    SelectionContainer {
+        Text(
+            text = text.ifEmpty { "\"\"" },
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun JsonTruncationNote(length: Int) {
+    Text(
+        text = stringResource(R.string.json_value_truncated, length),
+        modifier = Modifier.padding(top = 10.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -195,6 +353,7 @@ private fun ErrorView(
                     val errorMessageResId = when (uiState.reason) {
                         JsonViewerErrorReason.PayloadUnavailable -> R.string.json_payload_unavailable
                         JsonViewerErrorReason.InvalidJson -> R.string.json_invalid_desc
+                        JsonViewerErrorReason.TooLarge -> R.string.json_preview_too_large
                     }
                     RpInfoCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -214,82 +373,62 @@ private fun ErrorView(
 }
 
 @Composable
-private fun JsonPathBar(path: List<String>) {
+private fun JsonLocationBar(path: List<String>, currentType: JsonViewerNodeType, childCount: Int) {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
-        LazyRow(
+        // 路径可独立横向滚动，长路径不会挤掉当前层的数量。
+        Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            itemsIndexed(path) { index, item ->
-                Text(
-                    text = item,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (index == path.lastIndex) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                )
-                if (index < path.lastIndex) {
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                itemsIndexed(path) { index, item ->
                     Text(
-                        text = "/",
+                        text = item,
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = if (index == path.lastIndex) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                    )
+                    if (index < path.lastIndex) Text(
+                        "/",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun JsonSummaryCard(
-    currentType: JsonViewerNodeType,
-    childCount: Int,
-) {
-    AppCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            JsonTypeChip(type = currentType)
+            Text(text = currentType.labelText(), style = MaterialTheme.typography.labelSmall)
+            Text(text = "·", style = MaterialTheme.typography.labelSmall)
             Text(
                 text = currentType.childCountText(childCount),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }
 }
 
 @Composable
-private fun JsonEntryRow(
+private fun JsonContainerRow(
     entry: JsonViewerEntry,
     onClick: () -> Unit,
 ) {
     AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = entry.hasChildren, onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 1.dp,
+        onClick = onClick,
     ) {
+        // 导航条目的类型与数量收在副标题，字段名保持主要视觉层级。
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            JsonTypeChip(type = entry.type)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -297,86 +436,68 @@ private fun JsonEntryRow(
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.titleSmall,
+                    fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = if (entry.hasChildren) entry.type.childCountText(entry.childCount) else entry.preview,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = if (entry.hasChildren) null else FontFamily.Monospace,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
-                )
-                if (entry.hasChildren) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = entry.preview,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = if (entry.hasChildren) null else FontFamily.Monospace,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                        text = entry.type.labelText(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = entry.type.childCountText(entry.childCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-            if (entry.hasChildren) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
 private fun JsonRawPreview(rawPreview: String) {
-    Text(
-        text = rawPreview,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-                shape = RoundedCornerShape(12.dp),
+    AppSurface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+        SelectionContainer {
+            Text(
+                text = rawPreview,
+                modifier = Modifier.padding(12.dp),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
             )
-            .padding(12.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
-    )
+        }
+    }
 }
 
 @Composable
-private fun JsonTypeChip(type: JsonViewerNodeType) {
-    val colorScheme = MaterialTheme.colorScheme
-    val containerColor = when (type) {
-        JsonViewerNodeType.Object -> colorScheme.primary.copy(alpha = 0.12f)
-        JsonViewerNodeType.Array -> colorScheme.tertiary.copy(alpha = 0.16f)
-        JsonViewerNodeType.String -> colorScheme.secondary.copy(alpha = 0.14f)
-        JsonViewerNodeType.Number -> colorScheme.error.copy(alpha = 0.12f)
-        JsonViewerNodeType.Boolean -> colorScheme.primaryContainer.copy(alpha = 0.6f)
-        JsonViewerNodeType.Null -> colorScheme.surfaceVariant
-    }
-    val contentColor = when (type) {
-        JsonViewerNodeType.Object -> colorScheme.primary
-        JsonViewerNodeType.Array -> colorScheme.tertiary
-        JsonViewerNodeType.String -> colorScheme.secondary
-        JsonViewerNodeType.Number -> colorScheme.error
-        JsonViewerNodeType.Boolean -> colorScheme.onPrimaryContainer
-        JsonViewerNodeType.Null -> colorScheme.onSurfaceVariant
-    }
-
-    AppSurface(
-        shape = CircleShape,
-        color = containerColor,
-        contentColor = contentColor,
+private fun JsonFieldHeading(entry: JsonViewerEntry) {
+    // 类型降为辅助标签，避免每个字符串前出现占据整行的大色块。
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = type.labelText(),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            text = entry.name,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = entry.type.labelText(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
