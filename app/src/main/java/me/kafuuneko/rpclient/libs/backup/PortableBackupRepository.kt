@@ -53,8 +53,8 @@ class PortableBackupRepository(
             report.info("Backup started (portable format v$VERSION_3)")
             val stage = File(mContext.cacheDir, "portable-export-" + System.nanoTime())
             val tempZip = File(mContext.cacheDir, "portable-export-" + System.nanoTime() + ".zip")
-            check(stage.mkdirs()) { "Could not create temporary backup workspace." }
             try {
+                check(stage.mkdirs()) { "Could not create temporary backup workspace." }
                 // 业务行与附件在同一主库快照中导出，避免引用与物理文件错位。
                 val primaryDb = mDatabase.openHelper.writableDatabase
                 val primaryTables = tableNames(primaryDb)
@@ -91,6 +91,10 @@ class PortableBackupRepository(
                 writeArchive(stage, tempZip)
                 copyToDestination(tempZip, destination)
                 report.info("Backup finished")
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                if (error is BackupOperationException) throw error
+                throw BackupOperationException(report.statusMessage(error, "Backup"), error)
             } finally {
                 stage.deleteRecursively()
                 tempZip.delete()
