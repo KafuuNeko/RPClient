@@ -7,11 +7,9 @@
 ```text
 RPClient-Portable-Data.zip
 ├── manifest.json                  格式与版本，不含校验和
-├── characters/<名称>-<id>.json     Character Card V2
+├── characters/<名称>-<id>.json     Character Card V2，与单个角色导出相同（内嵌绑定的世界书与角色正则）
 ├── worldbooks/<名称>-<id>.json     酒馆世界书（含角色绑定的世界书）
-├── regex/
-│   ├── global-scripts.json         正则脚本数组
-│   └── character-<id>.json         角色作用域正则脚本数组
+├── regex/global-scripts.json       仅全局正则脚本数组
 ├── stories/<标题>-<id>.rpstory.json
 ├── chats/<标题>-<id>.jsonl         酒馆 JSONL
 ├── group-chats/<标题>-<id>.jsonl   每行一个数据库行（无菜单导入器）
@@ -38,7 +36,7 @@ RPClient-Portable-Data.zip
 - 删除：删除文件即删除该条目；指向它的子记录（如该角色的聊天）会在恢复时按外键一并移除，并写入详情日志。
 - 新增：复制一个文件并删除其中的 `rpclient_backup` 键，恢复时自动分配新主键。复制文件但保留 `rpclient_backup.id` 时，重复主键会被重新分配并记录警告。
 - 新增聊天文件时，用文件头里的角色名匹配已恢复的角色；也可以在头行 `rpclient_backup.session.characterId` 指定角色主键。
-- 角色卡内嵌的 `character_book` 与 `regex_scripts` 在恢复时被忽略并记录警告；请使用 `worldbooks/` 与 `regex/` 下的文件。
+- 角色作用域正则只存在于角色卡里，恢复时以卡内内容为准。绑定的世界书以 `worldbooks/` 下同一本为准；只有该文件缺失时才使用角色卡内嵌的副本，并记录警告。
 - 角色卡只保存首条开场白；`<START>` 分隔的额外开场白与应用自身的角色卡导出一样不会保留。
 - 恢复仍会检查路径安全、重复条目、SQLite 完整性、外键以及 Room 迁移兼容性。不兼容的数据库在暂存目录被拒绝，不会覆盖当前数据。
 
@@ -68,3 +66,7 @@ ZIP 不加密，可能包含 API Key、自定义请求头、提示词、对话�
 ## 回归验证
 
 设备测试使用独立临时目录和真实 SQLite，覆盖完整往返、FTS 与背景附件、私有同名 manifest、无效归档、未来数据库版本、损坏行数据、手动编辑角色卡与删除角色文件后的恢复结果，以及替换失败后的 WAL 回滚。测试不读取或恢复用户实际数据。
+
+## 混淆（R8）注意
+
+备份用 Gson 按“字段名 = 数据库列名”读写 `libs/room/entity` 下的实体，因此 `proguard-rules.pro` 保留了这些实体的字段名。去掉该规则后 release 包会读到全为 null 的实体；导出时会在首次映射某个实体时校验字段名，并在备份详情中给出明确原因。

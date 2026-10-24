@@ -11,6 +11,7 @@ import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
 import java.io.File
 import java.io.Writer
+import me.kafuuneko.rpclient.libs.character.CharacterBookImport
 import me.kafuuneko.rpclient.libs.character.CharacterCardMapper
 import me.kafuuneko.rpclient.libs.character.LorebookCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
@@ -120,13 +121,51 @@ internal class BackupV3Writer(
     private val mOwned = mutableSetOf<String>()
 
     fun writeAll() {
-        writeCharacters()
-        writeWorldbooks()
-        writeRegex()
-        writeStories()
-        writeChats()
-        writeGroups()
-        writeOtherTables()
+        stage("characters") { writeCharacters() }
+        stage("worldbooks") { writeWorldbooks() }
+        stage("regex scripts") { writeRegex() }
+        stage("stories") { writeStories() }
+        stage("chats") { writeChats() }
+        stage("group chats") { writeGroups() }
+        stage("other tables") { writeOtherTables() }
+    }
+
+    /** 记录阶段开始，失败时在异常信息里带上阶段名，页面详情能直接看出卡在哪一步。 */
+    private inline fun stage(name: String, block: () -> Unit) {
+        mReport.info("Exporting $name")
+        try {
+            block()
+        } catch (error: Exception) {
+            throw IllegalStateException("Export failed while writing $name: ${error.message}", error)
+        }
+    }
+
+    /** 失败时指出具体条目，便于定位到某一个角色或聊天。 */
+    private inline fun <T> item(what: String, block: () -> T): T {
+        try {
+            return block()
+        } catch (error: Exception) {
+            throw IllegalStateException("$what: ${error.message}", error)
+        }
+    }
+
+    private val mCheckedTypes = mutableSetOf<Class<*>>()
+
+    /**
+     * 按列名把数据库行映射成实体。Gson 依赖字段名，混淆后字段名与列名不一致会得到全为 null 的对象，
+     * 后续才在无关位置崩溃；因此每种实体首次映射时校验字段名，立即给出明确原因。
+     */
+    private fun <T : Any> entity(row: JSONObject, type: Class<T>): T {
+        val value = mRowGson.fromJson(row.toString(), type)
+        if (mCheckedTypes.add(type)) {
+            val keys = JSONObject(mRowGson.toJson(value)).keys().asSequence().toSet()
+            val missing = row.keys().asSequence().filter { !row.isNull(it) && it !in keys }.toList()
+            check(missing.isEmpty()) {
+                "${type.simpleName} fields do not match database columns $missing; " +
+                    "Room entity field names must be kept by R8 (see proguard-rules.pro)"
+            }
+        }
+        return value
     }
 
     private fun own(vararg names: String) {
@@ -152,23 +191,41 @@ internal class BackupV3Writer(
         file.writeText(text, Charsets.UTF_8)
     }
 
+    /**
+     * 与 CharacterCardRepository.exportJson 相同：角色卡内嵌绑定的世界书和角色作用域正则。
+     * 恢复时 worldbooks/ 下的同一本世界书优先于卡内嵌入的副本。
+     */
     private fun writeCharacters() {
         own("character")
+        val books = rows("lorebooks").associateBy { it.optLong("id") }
+        val entriesByBook = rows("lorebook_entries").groupBy { it.optLong("lorebookId") }
+        val scriptsByCharacter = rows("regex_scripts")
+            .filter { !it.isNull("characterId") }
+            .sortedWith(compareBy<JSONObject> { it.optInt("sortOrder") }.thenBy { it.optLong("rowId") })
+            .groupBy { it.optLong("characterId") }
         val characters = rows("character")
         characters.forEach { row ->
             val id = row.optLong("id")
-            val character = mRowGson.fromJson(row.toString(), Character::class.java)
-            // 绑定的世界书与角色正则单独成文件，避免在角色卡里重复保存一份。
-            val card = JSONObject(mCardMapper.toV2Json(character))
-            card.put(
-                BackupV3.SIDECAR,
-                JSONObject()
-                    .put("id", id)
-                    .put("avatar", row.opt("avatar"))
-                    .put("characterLorebookId", row.opt("characterLorebookId"))
-                    .put("backgroundFileUuid", row.opt("backgroundFileUuid"))
-            )
-            writeText(docFile("characters", row.optString("name"), id, ".json"), card.toString(2))
+            item("character $id '${row.optString("name")}'") {
+                val character = entity(row, Character::class.java)
+                val bookRow = books[row.optLong("characterLorebookId")]
+                val lorebook = bookRow?.let { entity(it, Lorebook::class.java) }
+                val entries = bookRow?.let { entriesByBook[it.optLong("id")] }.orEmpty()
+                    .sortedWith(compareBy<JSONObject> { it.optInt("order") }.thenBy { it.optLong("id") })
+                    .map { entity(it, LorebookEntry::class.java) }
+                val scripts = scriptsByCharacter[id].orEmpty()
+                    .map { entity(it, RegexScriptEntity::class.java).toDomain() }
+                val card = JSONObject(mCardMapper.toV2Json(character, lorebook, entries, scripts))
+                card.put(
+                    BackupV3.SIDECAR,
+                    JSONObject()
+                        .put("id", id)
+                        .put("avatar", row.opt("avatar"))
+                        .put("characterLorebookId", row.opt("characterLorebookId"))
+                        .put("backgroundFileUuid", row.opt("backgroundFileUuid"))
+                )
+                writeText(docFile("characters", row.optString("name"), id, ".json"), card.toString(2))
+            }
         }
         mReport.info("characters: ${characters.size}")
     }
@@ -179,11 +236,11 @@ internal class BackupV3Writer(
         val books = rows("lorebooks")
         books.forEach { bookRow ->
             val id = bookRow.optLong("id")
-            val lorebook = mRowGson.fromJson(bookRow.toString(), Lorebook::class.java)
+            val lorebook = entity(bookRow, Lorebook::class.java)
             val entryRows = allEntries
                 .filter { it.optLong("lorebookId") == id }
                 .sortedWith(compareBy<JSONObject> { it.optInt("order") }.thenBy { it.optLong("id") })
-            val entries = entryRows.map { mRowGson.fromJson(it.toString(), LorebookEntry::class.java) }
+            val entries = entryRows.map { entity(it, LorebookEntry::class.java) }
             val doc = JSONObject(mLorebookCodec.toLorebookJson(lorebook, entries))
             // 酒馆世界书的条目键是序号；这里记录“序号 -> 条目主键”，新增或删除条目不影响其他条目。
             val entryIds = JSONObject()
@@ -194,23 +251,15 @@ internal class BackupV3Writer(
         mReport.info("worldbooks: ${books.size}, entries: ${allEntries.size}")
     }
 
+    /** 只导出全局正则；角色作用域正则已内嵌在各自的角色卡里，与单个角色导出一致。 */
     private fun writeRegex() {
         own("regex_scripts")
         val ordered = rows("regex_scripts")
             .sortedWith(compareBy<JSONObject> { it.optInt("sortOrder") }.thenBy { it.optLong("rowId") })
-
-        fun scripts(list: List<JSONObject>): List<RegexScript> = list.map {
-            mRowGson.fromJson(it.toString(), RegexScriptEntity::class.java).toDomain()
-        }
-
         val global = ordered.filter { it.isNull("characterId") }
-        writeText(File(mRoot, "regex/global-scripts.json"), mRegexCodec.toJson(scripts(global), true))
-        ordered.filter { !it.isNull("characterId") }
-            .groupBy { it.optLong("characterId") }
-            .forEach { (characterId, list) ->
-                writeText(File(mRoot, "regex/character-$characterId.json"), mRegexCodec.toJson(scripts(list), true))
-            }
-        mReport.info("regex scripts: ${ordered.size}")
+        val scripts: List<RegexScript> = global.map { entity(it, RegexScriptEntity::class.java).toDomain() }
+        writeText(File(mRoot, "regex/global-scripts.json"), mRegexCodec.toJson(scripts, true))
+        mReport.info("global regex scripts: ${global.size}, character regex scripts (inside cards): ${ordered.size - global.size}")
     }
 
     private fun writeStories() {
@@ -306,9 +355,7 @@ internal class BackupV3Writer(
 
     private fun writeChats() {
         own("chat_sessions", "chat_messages")
-        val characters = rows("character").associate {
-            it.optLong("id") to mRowGson.fromJson(it.toString(), Character::class.java)
-        }
+        val characters = rows("character").associate { it.optLong("id") to entity(it, Character::class.java) }
         val sessions = rows("chat_sessions")
         var messageCount = 0
         sessions.forEach { session ->
@@ -441,8 +488,12 @@ internal class BackupV3Reader(
 
     private val mTables = linkedMapOf<String, MutableList<JSONObject>>()
     private val mCharacters = mutableListOf<JSONObject>()
+    private val mPendingCards = mutableListOf<PendingCard>()
     private val mLinks = mutableListOf<Link>()
     private val mNow = System.currentTimeMillis()
+
+    /** 角色卡内嵌的世界书要等 worldbooks/ 读完后才能决定是否使用。 */
+    private class PendingCard(val file: File, val row: JSONObject, val embedded: CharacterBookImport?)
 
     /** 子行的外键字段在主键分配完成后再回填。 */
     private class Link(val child: JSONObject, val field: String, val parent: JSONObject)
@@ -451,6 +502,7 @@ internal class BackupV3Reader(
         readRowFiles("tables", mTables)
         readCharacters()
         readWorldbooks()
+        resolveCharacterLorebooks()
         readRegex()
         readStories()
         readChats()
@@ -525,19 +577,56 @@ internal class BackupV3Reader(
                 val text = file.readText(Charsets.UTF_8)
                 val side = JSONObject(text).optJSONObject(BackupV3.SIDECAR)
                 val parsed = mCardMapper.parseCharacter(text)
-                if (parsed.embeddedLorebook != null) {
-                    mReport.warn("${rel(file)}: character_book is ignored; keep lorebooks under worldbooks/")
-                }
-                if (parsed.regexScripts.isNotEmpty()) {
-                    mReport.warn("${rel(file)}: regex scripts inside the card are ignored; keep them under regex/")
-                }
                 val row = entityRow(parsed.character)
                 copyFrom(side, row, "avatar", "characterLorebookId", "backgroundFileUuid")
                 applyId(side, row)
                 add("character", row)
                 mCharacters.add(row)
+                // 角色作用域正则只来自角色卡本身，与单个角色导入一致。
+                parsed.regexScripts.forEachIndexed { index, script ->
+                    val regexRow = entityRow(script.toEntity(0L, index, mGson))
+                    regexRow.remove("rowId")
+                    link(regexRow, "characterId", row)
+                    add("regex_scripts", regexRow)
+                }
+                mPendingCards.add(PendingCard(file, row, parsed.embeddedLorebook))
             }
         }
+    }
+
+    /** worldbooks/ 中的同一本世界书优先；缺失时才使用角色卡内嵌的副本。 */
+    private fun resolveCharacterLorebooks() {
+        val folderBookIds = mTables["lorebooks"].orEmpty().filter { it.has("id") }.map { it.getLong("id") }.toSet()
+        mPendingCards.forEach { pending ->
+            val linkedId = pending.row.optLong("characterLorebookId", 0L)
+            val embedded = pending.embedded
+            if (linkedId > 0L && linkedId in folderBookIds) return@forEach
+            if (embedded != null) {
+                if (linkedId > 0L) {
+                    mReport.warn("${rel(pending.file)}: worldbook $linkedId is not in worldbooks/; using the copy embedded in the card")
+                }
+                link(pending.row, "characterLorebookId", addLorebook(embedded, null, emptyList()))
+            } else if (linkedId > 0L) {
+                mReport.warn("${rel(pending.file)}: worldbook $linkedId is not in worldbooks/ and the card embeds none; the link was cleared")
+                pending.row.put("characterLorebookId", 0L)
+            }
+        }
+    }
+
+    /** 写入一本世界书及其条目；sidecar 提供时按序号键恢复条目主键。 */
+    private fun addLorebook(imported: CharacterBookImport, side: JSONObject?, keys: List<String>): JSONObject {
+        val bookRow = entityRow(imported.lorebook)
+        applyId(side, bookRow)
+        add("lorebooks", bookRow)
+        val ids = side?.optJSONObject("entryIds")
+        imported.entries.forEachIndexed { index, entry ->
+            val row = entityRow(entry)
+            val entryId = keys.getOrNull(index)?.let { ids?.optLong(it, 0L) } ?: 0L
+            if (entryId > 0L) row.put("id", entryId) else row.remove("id")
+            link(row, "lorebookId", bookRow)
+            add("lorebook_entries", row)
+        }
+        return bookRow
     }
 
     private fun readWorldbooks() {
@@ -545,44 +634,27 @@ internal class BackupV3Reader(
             at(file) {
                 val text = file.readText(Charsets.UTF_8)
                 val doc = JSONObject(text)
-                val side = doc.optJSONObject(BackupV3.SIDECAR)
                 val parsed = mLorebookCodec.parseLorebook(text)
-                val bookRow = entityRow(parsed.lorebook)
-                applyId(side, bookRow)
-                add("lorebooks", bookRow)
                 // 解码器按文件顺序产出条目，这里取同一顺序的键来匹配条目主键。
                 val keys = mutableListOf<String>()
                 doc.optJSONObject("entries")?.let { entries ->
                     entries.keys().forEach { key -> if (entries.opt(key) is JSONObject) keys.add(key) }
                 }
                 check(keys.size == parsed.entries.size) { "entry count mismatch while reading entries" }
-                val ids = side?.optJSONObject("entryIds")
-                parsed.entries.forEachIndexed { index, entry ->
-                    val row = entityRow(entry)
-                    val entryId = ids?.optLong(keys[index], 0L) ?: 0L
-                    if (entryId > 0L) row.put("id", entryId) else row.remove("id")
-                    link(row, "lorebookId", bookRow)
-                    add("lorebook_entries", row)
-                }
+                addLorebook(parsed, doc.optJSONObject(BackupV3.SIDECAR), keys)
             }
         }
     }
 
     private fun readRegex() {
         files("regex", ".json").forEach { file ->
-            val characterId: Long? = if (file.name == GLOBAL_REGEX_FILE) {
-                null
-            } else {
-                CHARACTER_REGEX_NAME.matchEntire(file.name)?.groupValues?.get(1)?.toLongOrNull()
-            }
-            if (characterId == null && file.name != GLOBAL_REGEX_FILE) {
-                mReport.warn("${rel(file)}: ignored; regex files must be named $GLOBAL_REGEX_FILE or character-<id>.json")
+            if (file.name != GLOBAL_REGEX_FILE) {
+                mReport.warn("${rel(file)}: ignored; only $GLOBAL_REGEX_FILE is read (character regex lives inside character cards)")
                 return@forEach
             }
             at(file) {
-                val scripts = mRegexCodec.parseList(file.readText(Charsets.UTF_8))
-                scripts.forEachIndexed { index, script ->
-                    val row = entityRow(script.toEntity(characterId, index, mGson))
+                mRegexCodec.parseList(file.readText(Charsets.UTF_8)).forEachIndexed { index, script ->
+                    val row = entityRow(script.toEntity(null, index, mGson))
                     row.remove("rowId")
                     add("regex_scripts", row)
                 }
@@ -823,6 +895,5 @@ internal class BackupV3Reader(
 
     private companion object {
         const val GLOBAL_REGEX_FILE = "global-scripts.json"
-        val CHARACTER_REGEX_NAME = Regex("character-(\\d+)\\.json")
     }
 }
