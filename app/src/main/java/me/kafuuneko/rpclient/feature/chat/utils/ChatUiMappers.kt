@@ -1,27 +1,21 @@
 package me.kafuuneko.rpclient.feature.chat.utils
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
-import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.utils.formatTimestamp
-import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.model.toMessageContentParts
-
-/** 映射世界书 UI 分组所需的书籍索引与条目集合。 */
-data class ChatLorebookEntryData(
-    val lorebooks: Map<Long, Lorebook>,
-    val entries: List<LorebookEntry>
-)
+import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
+import me.kafuuneko.rpclient.utils.formatTimestamp
 
 /** 将会话实体和聚合信息转换为聊天页展示模型。 */
 fun ChatSession.toChatSessionItem(

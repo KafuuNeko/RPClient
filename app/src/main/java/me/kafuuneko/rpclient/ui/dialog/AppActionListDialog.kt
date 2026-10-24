@@ -17,10 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -156,7 +155,7 @@ private fun ActionItemRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .background(iconContainerColor, RoundedCornerShape(10.dp)),
+                    .background(dialogControlColor(iconContainerColor), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

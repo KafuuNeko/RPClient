@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,7 +24,9 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainImageSendState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 
 /**
  * 渲染图片发送高级设置；业务草稿、保存和校验全部交给 ViewModel。
@@ -88,8 +90,7 @@ private fun ImageLimitField(value: String, @StringRes label: Int, onChange: (Str
     OutlinedTextField(
         value = value, onValueChange = onChange, label = { Text(stringResource(label)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true, modifier = Modifier.fillMaxWidth()
-    )
+        singleLine = true, modifier = Modifier.fillMaxWidth().generalContentBackground(OutlinedTextFieldDefaults.shape, hasLabel = true))
 }
 
 /** @return 发送模式对应的本地化名称。 */

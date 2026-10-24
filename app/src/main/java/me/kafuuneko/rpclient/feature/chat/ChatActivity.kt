@@ -13,18 +13,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.flowWithLifecycle
+import kotlinx.coroutines.flow.mapNotNull
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
-import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
+    private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
+    private val mBackgroundFlow by lazy {
+        mBackgroundViewModel.observeChat(mViewModel.uiStateFlow.mapNotNull {
+            (it as? ChatUiState.Normal)?.character?.id
+        }).flowWithLifecycle(lifecycle)
+    }
     private val mViewModel by viewModels<ChatViewModel>()
     private val mImagePicker = registerForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(4)
@@ -50,6 +61,7 @@ class ChatActivity : CoreActivityWithEvent() {
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
+        val background by mBackgroundFlow.collectAsState(PageBackgroundUiState())
 
         LaunchedEffect(uiState) {
             if (uiState is ChatUiState.Finished) finish()
@@ -57,6 +69,7 @@ class ChatActivity : CoreActivityWithEvent() {
 
         ChatLayout(
             uiState = uiState,
+            background = background,
             emit = { mViewModel.emit(this) }
         )
     }
@@ -65,7 +78,8 @@ class ChatActivity : CoreActivityWithEvent() {
         super.onCreate(savedInstanceState)
         mViewModel.emit(
             ChatUiIntent.Init(
-                sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
+                sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
+                searchMessageId = intent.getLongExtra(SearchNavigation.EXTRA_SOURCE_ID, 0).takeIf { it > 0 }
             )
         )
     }

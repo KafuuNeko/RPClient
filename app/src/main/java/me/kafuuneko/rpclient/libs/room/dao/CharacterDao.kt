@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.dao
 
+import kotlinx.coroutines.flow.Flow
 import androidx.room.Dao
 import androidx.room.Query
 import me.kafuuneko.rpclient.libs.room.MutableDao
@@ -41,4 +42,7 @@ interface CharacterDao : MutableDao<Character> {
     @Query("UPDATE character SET characterLorebookId = 0 WHERE characterLorebookId = :lorebookId")
     suspend fun clearLorebookAssociations(lorebookId: Long)
 
+    /** 观察本地角色背景关联，删除角色后自动回退为空。 */
+    @Query("SELECT backgroundFileUuid FROM character WHERE id = :id")
+    fun observeBackground(id: Long): Flow<String?>
 }

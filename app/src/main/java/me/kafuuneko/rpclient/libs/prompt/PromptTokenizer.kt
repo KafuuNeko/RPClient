@@ -140,12 +140,17 @@ class PromptTokenizerRegistry(
         val o200kOpenAiPrefixes = listOf("gpt-5", "gpt-4o", "o1", "o3", "o4")
         val o200kProxyMarkers = listOf("gemini", "gemma", "grok")
         val isOpenAiModel = { context: AutomaticEstimatorContext ->
-            context.protocol == LLMProviderProtocol.OpenAICompatible &&
+            (context.protocol == LLMProviderProtocol.OpenAICompatible ||
+                context.protocol == LLMProviderProtocol.OpenAIResponses) &&
                 (context.providerType == LLMProviderType.ChatGPT ||
                     context.normalizedModel.startsWith("gpt-") ||
                     context.normalizedModel.matches(openAiReasoningModelPattern))
         }
         linkedMapOf(
+            // 新模型没有已核实的本地精确编码时使用带预留的代理，避免误报精确预算。
+            AutomaticEstimatorMatcher { context ->
+                isOpenAiModel(context) && context.normalizedModel.startsWith("gpt-6")
+            } to AutomaticEstimatorFactory { _, reservePercent -> estimatedO200k(reservePercent) },
             AutomaticEstimatorMatcher { context ->
                 isOpenAiModel(context) &&
                     o200kOpenAiPrefixes.any(context.normalizedModel::startsWith)

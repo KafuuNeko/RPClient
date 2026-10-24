@@ -43,7 +43,7 @@ internal data class PreparedWireBody(val body: RequestBody, val logJson: String,
 }
 
 /**
- * 三协议共用图片编码器。
+ * 各协议共用的图片资源编码器。
  * - JSON 树仅含随机图片占位符，实际 Base64 逐图流式写入有界临时文件。
  * - Patch 之后精确校验字节数，流式和非流式共用同一准备入口。
  */
@@ -58,7 +58,9 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
                 when (block) {
                     is LLMContentBlock.Text -> if (block.text.isNotBlank()) {
                         array.put(JSONObject().put("text", block.text).apply {
-                            if (mProvider.protocol != LLMProviderProtocol.Gemini) put("type", "text")
+                            if (mProvider.protocol != LLMProviderProtocol.Gemini) {
+                                put("type", if (mProvider.protocol == LLMProviderProtocol.OpenAIResponses) "input_text" else "text")
+                            }
                         })
                     }
                     is LLMContentBlock.Image -> array.put(image(block.reference))
@@ -69,9 +71,10 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
 
     /** 图片结构只接受已准备资源，不允许高级 JSON 绕过图片生命周期。 */
     private fun image(reference: LLMImageReference): JSONObject {
-        val marker = "rpclient-image-${UUID.randomUUID()}"
-        mImages[marker] = reference
+        val marker = registerImage(reference)
         return when (mProvider.protocol) {
+            LLMProviderProtocol.OpenAIResponses -> JSONObject().put("type", "input_image")
+                .put("image_url", marker).put("detail", "auto")
             LLMProviderProtocol.OpenAICompatible -> JSONObject().put("type", "image_url")
                 .put("image_url", JSONObject().put("url", marker))
             LLMProviderProtocol.Gemini -> JSONObject().put("inlineData", JSONObject()
@@ -82,9 +85,20 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
         }
     }
 
+    /** 登记本次请求持有的图片资源，允许独立协议编码器构造自己的 JSON 结构。 */
+    fun registerImage(reference: LLMImageReference): String {
+        val marker = "rpclient-image-${UUID.randomUUID()}"
+        mImages[marker] = reference
+        return marker
+    }
+
     /** 应用全部扩展后写出请求；任何准备失败都删除本次临时文件。 */
     suspend fun prepare(payload: JSONObject, request: LLMGenerationRequest, runtime: MessageImageRuntime?): PreparedWireBody {
-        val json = payload.toString()
+        return prepare(payload.toString(), request, runtime)
+    }
+
+    /** 将已完成协议编码的 JSON 写为有界请求体，图片占位符只在此处展开。 */
+    suspend fun prepare(json: String, request: LLMGenerationRequest, runtime: MessageImageRuntime?): PreparedWireBody {
         if (mImages.isEmpty()) return PreparedWireBody(json.toRequestBody(JsonMediaType), json)
         if (mProvider.imageInputSetting == ImageInputSetting.Unsupported) throw ImageRequestException(ImageRequestFailure.Unsupported)
         if (mImages.size > MessageImagePolicy.MAX_IMAGES_PER_REQUEST) throw ImageRequestException(ImageRequestFailure.TooMany)
@@ -145,7 +159,8 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
     /** 持资源租约流式编码单张图片；关闭 Base64 包装流只刷新，不关闭外层 JSON。 */
     private suspend fun writeImage(reference: LLMImageReference, output: OutputStream, runtime: MessageImageRuntime) {
         output.write('"'.code)
-        if (mProvider.protocol == LLMProviderProtocol.OpenAICompatible) {
+        if (mProvider.protocol == LLMProviderProtocol.OpenAICompatible ||
+            mProvider.protocol == LLMProviderProtocol.OpenAIResponses) {
             output.write("data:${reference.mimeType};base64,".toByteArray(Charsets.UTF_8))
         }
         val context = currentCoroutineContext()

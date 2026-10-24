@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchat.model
 
+import androidx.compose.ui.graphics.ImageBitmap
+
 /** 群聊成员列表的 UI 模型；[muted] 只控制发言资格，不代表移除角色卡。 */
 data class GroupChatMemberItem(
     /** 当前记录或列表项的唯一标识。 */
@@ -9,5 +11,7 @@ data class GroupChatMemberItem(
     /** 用于说明当前对象的描述文本。 */
     val description: String,
     /** 当前群聊成员是否被禁言。 */
-    val muted: Boolean
+    val muted: Boolean,
+    /** 已解码的角色头像；资源缺失时由界面展示文字占位。 */
+    val avatarImage: ImageBitmap? = null
 )

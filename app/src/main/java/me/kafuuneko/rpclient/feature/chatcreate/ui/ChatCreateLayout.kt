@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,30 +20,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AddComment
 import androidx.compose.material.icons.rounded.Book
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.FormatQuote
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,22 +45,28 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateLoadState
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
-import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
+import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.utils.toggle
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建单角色会话页 Compose 入口。 */
 @Composable
@@ -92,7 +91,7 @@ private fun ChatCreateNormal(
     val filteredLorebookGroups = state.visibleLorebookGroups
     val isSearchingLorebooks = state.lorebookQuery.isNotBlank()
 
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.create_chat_title),
@@ -102,7 +101,8 @@ private fun ChatCreateNormal(
         bottomBar = {
             CreateBottomBar(
                 loadState = state.loadState,
-                hasCharacter = state.characters.isNotEmpty(),
+                characterName = state.characters.firstOrNull { it.id == state.form.selectedCharacterId }?.name,
+                selectedEntryCount = state.form.selectedLorebookEntryIds.size,
                 emit = emit
             )
         }
@@ -113,17 +113,12 @@ private fun ChatCreateNormal(
                 .padding(padding),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.create_chat_title),
-                    subtitle = stringResource(R.string.create_chat_subtitle)
-                )
-            }
             if (state.loadState == ChatCreateLoadState.Loading) {
                 item { LoadingRow() }
             } else {
@@ -134,7 +129,18 @@ private fun ChatCreateNormal(
                 if (state.characters.isEmpty()) {
                     item { EmptyCard(Icons.Rounded.Person, stringResource(R.string.no_characters_for_chat)) }
                 }
-                items(state.characters) { character ->
+                if (state.characters.isNotEmpty()) {
+                    item {
+                        CharacterSearchField(
+                            query = state.characterQuery,
+                            onQueryChange = { ChatCreateUiIntent.ChangeCharacterQuery(it).emit() }
+                        )
+                    }
+                    if (state.visibleCharacters.isEmpty()) {
+                        item { EmptyCard(Icons.Rounded.Search, stringResource(R.string.no_matching_characters)) }
+                    }
+                }
+                items(state.visibleCharacters, key = { "character-${it.id}" }) { character ->
                     CharacterOption(
                         character = character,
                         selected = character.id == state.form.selectedCharacterId,
@@ -210,7 +216,7 @@ private fun BasicForm(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             value = form.title,
             onValueChange = { ChatCreateUiIntent.ChangeTitle(it).emit() },
             label = { Text(stringResource(R.string.chat_title)) },
@@ -236,7 +242,7 @@ private fun CharacterOption(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -284,7 +290,7 @@ private fun FirstMessageOption(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -324,7 +330,7 @@ private fun LorebookGroupOption(
     onExpandedChange: () -> Unit,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -385,7 +391,7 @@ private fun LorebookEntryOption(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -446,41 +452,17 @@ private fun ChatCreateLorebookEntryItem.displayTags(
 @Composable
 private fun CreateBottomBar(
     loadState: ChatCreateLoadState,
-    hasCharacter: Boolean,
+    characterName: String?,
+    selectedEntryCount: Int,
     emit: ChatCreateUiIntent.() -> Unit
 ) {
-    val creating = loadState == ChatCreateLoadState.Creating
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
-        )
-    ) {
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            enabled = hasCharacter && loadState == ChatCreateLoadState.None,
-            shape = RoundedCornerShape(14.dp),
-            contentPadding = PaddingValues(vertical = 13.dp),
-            onClick = { ChatCreateUiIntent.CreateChat.emit() }
-        ) {
-            if (creating) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Rounded.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.create_chat))
-            }
-        }
-    }
+    RpCreationBottomBar(
+        title = characterName ?: stringResource(R.string.character_editor_empty),
+        subtitle = stringResource(R.string.world_books_enabled, selectedEntryCount),
+        enabled = characterName != null && loadState == ChatCreateLoadState.None,
+        creating = loadState == ChatCreateLoadState.Creating,
+        onCreate = { ChatCreateUiIntent.CreateChat.emit() }
+    )
 }
 
 @Composable
@@ -499,7 +481,7 @@ private fun LorebookSearchField(
     onQueryChange: (String) -> Unit
 ) {
     OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(12.dp)),
         value = query,
         onValueChange = onQueryChange,
         placeholder = {
@@ -531,7 +513,7 @@ private fun EmptyCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String
 ) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

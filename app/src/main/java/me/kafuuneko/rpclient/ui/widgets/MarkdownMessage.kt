@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.utils.MarkdownBlock
@@ -63,24 +64,24 @@ fun MarkdownMessageText(
     content: String,
     isUser: Boolean,
     modifier: Modifier = Modifier,
-    blockSpacing: androidx.compose.ui.unit.Dp = 10.dp,
+    blockSpacing: Dp = 10.dp,
     highlightedText: String? = null,
     highlightedOccurrenceIndex: Int = 0,
     onHighlightedPosition: ((Float?) -> Unit)? = null
 ) {
     val blocks = remember(content) { MarkdownParser.parseBlocks(content) }
-    val textColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    val linkColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
-    val strongColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val textColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface
+    val linkColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.primary
+    val strongColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface
     val subtleColor = textColor.copy(alpha = if (isUser) 0.78f else 0.65f)
     val narrationColor = textColor.copy(alpha = if (isUser) 0.85f else 0.75f)
     val blockColor = if (isUser) {
-        textColor.copy(alpha = 0.12f)
+        textColor.copy(alpha = 0.12f * LocalPageBubbleOpacity.current)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f * LocalPageBubbleOpacity.current)
     }
     val selectionColor = if (isUser) {
-        MaterialTheme.colorScheme.onPrimary
+        pageUserBubbleContentColor()
     } else {
         MaterialTheme.colorScheme.primary
     }
@@ -110,15 +111,14 @@ fun MarkdownMessageText(
                 }
                 val highlightedStartBlock = highlightRanges.firstOrNull()?.blockIndex
                 if (highlightedStartBlock == null && onHighlightedPosition != null) {
-                    // Clear any previous coordinate when the latest edit cannot be mapped.
+                    // 最新修改无法映射时清除旧坐标，避免滚动到上一次结果。
                     SideEffect { onHighlightedPosition(null) }
                 }
                 blocks.forEachIndexed { blockIndex, block ->
                     val blockRanges = rangesByBlock[blockIndex].orEmpty()
                         .filter { it.listItemIndex == null }
                         .map { it.start until it.endExclusive }
-                    // Recreate only the highlighted block when its content/range changes so its
-                    // layout callback reports coordinates for the latest generated text.
+                    // 高亮内容或范围变化时重建该块，使布局回调对应最新生成结果。
                     key(
                         blockIndex,
                         block.takeIf { blockIndex == highlightedStartBlock },
@@ -236,29 +236,8 @@ private fun MarkdownInlineText(
                 strongColor = strongColor
             )
         }
-        val validRanges = highlightedRanges.mapNotNull { range ->
-            val start = range.first.coerceIn(0, rendered.length)
-            val end = (range.last + 1).coerceIn(start, rendered.length)
-            (start until end).takeIf { start < end }
-        }
-        if (validRanges.isNotEmpty()) {
-            buildAnnotatedString {
-                append(rendered)
-                validRanges.forEach { range ->
-                    addStyle(
-                        SpanStyle(
-                            background = highlightBackground,
-                            color = highlightForeground,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        start = range.first,
-                        end = range.last + 1
-                    )
-                }
-            }
-        } else {
-            rendered
-        }
+        // 高亮作用于渲染后的可见范围，不能直接套用 Markdown 原文下标。
+        rendered.withHighlightRanges(highlightedRanges, highlightForeground, highlightBackground)
     }
     Text(
         modifier = modifier,
@@ -279,30 +258,9 @@ private fun MarkdownCodeBlock(
     val highlightBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     val highlightForeground = MaterialTheme.colorScheme.primary
     val highlightedCode = remember(content, highlightedRanges, highlightBackground, highlightForeground) {
-        val displayContent = content.ifBlank { " " }
-        val validRanges = highlightedRanges.mapNotNull { range ->
-            val start = range.first.coerceIn(0, content.length)
-            val end = (range.last + 1).coerceIn(start, content.length)
-            (start until end).takeIf { start < end }
-        }
-        if (validRanges.isEmpty()) {
-            AnnotatedString(displayContent)
-        } else {
-            buildAnnotatedString {
-                append(displayContent)
-                validRanges.forEach { range ->
-                    addStyle(
-                        SpanStyle(
-                            background = highlightBackground,
-                            color = highlightForeground,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        start = range.first,
-                        end = range.last + 1
-                    )
-                }
-            }
-        }
+        // 代码块不解析行内语法，空内容仍保留占位高度。
+        AnnotatedString(content.ifBlank { " " })
+            .withHighlightRanges(highlightedRanges, highlightForeground, highlightBackground)
     }
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -331,6 +289,25 @@ private fun MarkdownCodeBlock(
                 ),
                 color = color
             )
+        }
+    }
+}
+
+/** 限制高亮范围到可见文本长度，正文与代码块共用相同样式。 */
+private fun AnnotatedString.withHighlightRanges(
+    ranges: List<IntRange>,
+    foreground: Color,
+    background: Color
+): AnnotatedString {
+    if (ranges.isEmpty()) return this
+    return buildAnnotatedString {
+        append(this@withHighlightRanges)
+        // 生成内容可能与上一帧布局不同，越界片段只裁剪，不影响正文渲染。
+        ranges.forEach { range ->
+            val start = range.first.coerceIn(0, length)
+            val end = (range.last + 1).coerceIn(start, length)
+            if (start < end) addStyle(SpanStyle(background = background, color = foreground,
+                fontWeight = FontWeight.Medium), start, end)
         }
     }
 }

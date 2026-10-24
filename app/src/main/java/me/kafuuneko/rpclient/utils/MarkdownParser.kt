@@ -24,7 +24,7 @@ internal sealed class MarkdownInline {
 internal data class MarkdownListItem(
     val marker: String,
     val content: String,
-    /** Two leading spaces (or an equivalent tab width) represent one nesting level. */
+    /** 每两个前导空格或等效制表符宽度表示一级嵌套。 */
     val indentLevel: Int = 0
 )
 
@@ -36,7 +36,7 @@ internal data class MarkdownListItem(
  * - 未识别或未闭合的语法保留为普通文本，兼容流式输出中间态。
  */
 internal object MarkdownParser {
-    private val ESCAPABLE_MARKDOWN_CHARACTERS = setOf(
+    private val mEscapableMarkdownCharacters = setOf(
         '\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '>', '|', '~'
     )
     private val mHeadingRegex = Regex("""^(#{1,6})\s+(.+)$""")
@@ -111,9 +111,9 @@ internal object MarkdownParser {
         }
 
         while (index < source.length) {
-            // Markdown escapes retain the escaped character without the backslash.
+            // 转义标记保留目标字符，不展示前导反斜杠。
             if (source[index] == '\\' && index + 1 < source.length &&
-                source[index + 1] in ESCAPABLE_MARKDOWN_CHARACTERS
+                source[index + 1] in mEscapableMarkdownCharacters
             ) {
                 flushPlain(index)
                 parts += MarkdownInline.Text(source.substring(index + 1, index + 2))
@@ -122,7 +122,7 @@ internal object MarkdownParser {
                 continue
             }
 
-            // Intraword underscores are literal (for example, file_name and user_id).
+            // 单词内部的下划线按原文展示，例如 file_name 和 user_id。
             if ((source.startsWith("**", index) || source.startsWith("__", index)) &&
                 !canOpenDelimiter(source, index, source.substring(index, index + 2))
             ) {
@@ -137,7 +137,7 @@ internal object MarkdownParser {
                 continue
             }
 
-            // Unclosed delimiters are retained as plain text for streaming intermediate states.
+            // 未闭合定界符保留为普通文本，兼容流式输出的中间状态。
             val parsed = when {
                 source.startsWith("***", index) -> parseDelimited(source, index, "***") {
                     MarkdownInline.Strong(
@@ -191,7 +191,7 @@ internal object MarkdownParser {
         val language = fence.drop(fenceLength).trim().takeIf { it.isNotBlank() }
         val codeLines = mutableListOf<String>()
         var index = startIndex + 1
-        // A closing fence must be at least as long as the opening fence and have no info string.
+        // 结束围栏长度不得短于开始围栏，且不能附带语言等信息。
         while (index < lines.size && !isClosingCodeFence(lines[index], fenceLength)) {
             codeLines += lines[index]
             index += 1
@@ -281,6 +281,7 @@ internal object MarkdownParser {
         wrap: (String) -> MarkdownInline
     ): ParsedInline? {
         val contentStart = startIndex + delimiter.length
+        // 跳过转义符，未闭合的标记继续保留原文。
         var end = contentStart
         while (end <= source.length - delimiter.length) {
             if (source[end] == '\\') {
@@ -320,7 +321,9 @@ internal object MarkdownParser {
         return true
     }
 
+    /** 平衡标签与 URL 内的括号，允许地址包含合法的括号片段。 */
     private fun parseLink(source: String, startIndex: Int): ParsedInline? {
+        // 标签与 URL 分别计数，转义的括号不参与嵌套深度。
         var labelDepth = 0
         var labelEnd = -1
         var cursor = startIndex + 1

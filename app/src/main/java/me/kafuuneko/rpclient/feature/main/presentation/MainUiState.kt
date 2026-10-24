@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
 sealed class MainUiState {
@@ -37,6 +38,8 @@ internal fun MainUiState.Normal.mergeResumeRefresh(
         homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
         settingsState = settingsState.copy(
             chatDataManagementState = this.settingsState.chatDataManagementState,
+            // 恢复页面的读取可能挂起，索引进度以订阅期间收到的最新状态为准。
+            searchIndexState = this.settingsState.searchIndexState,
             summaryState = settingsState.summaryState.copy(
                 selectedTab = this.settingsState.summaryState.selectedTab
             )
@@ -52,6 +55,10 @@ internal fun MainUiState.Normal.canOpenDialog(): Boolean {
 /** 首页互斥显示的确认对话框。 */
 sealed class MainDialogState {
     data object None : MainDialogState()
+
+    data object EnableSearchIndex : MainDialogState()
+
+    data object DisableSearchIndex : MainDialogState()
 
     data class DeleteSelectedItems(
         /** 当前对象或操作涉及的数量。 */
@@ -109,4 +116,16 @@ sealed class MainDialogState {
 enum class MainPage {
     Home,
     Settings
+}
+
+/** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
+internal fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
+    provider: LLMProvider
+): Boolean {
+    val value = draftValue.toIntOrNull() ?: return false
+    return when (parameter) {
+        MainGenerationParameter.MaxTokens -> value >= provider.contextTokens
+        MainGenerationParameter.ContextTokens -> value <= provider.maxTokens
+        MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> false
+    }
 }

@@ -27,9 +27,10 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
+import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import java.util.Locale
@@ -136,6 +138,10 @@ fun NumericEditDialog(
                 ) {
                     // 减少操作会在最小值处截断，避免生成越界输入
                     FilledTonalIconButton(
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = dialogControlColor(MaterialTheme.colorScheme.secondaryContainer),
+                            disabledContainerColor = dialogControlColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                        ),
                         onClick = {
                             val nextVal = (clampedFloat - sliderConfig.step).coerceAtLeast(sliderConfig.range.start)
                             onValueChange(String.format(Locale.US, "%.2f", nextVal))
@@ -167,6 +173,10 @@ fun NumericEditDialog(
 
                     // 增加操作会在最大值处截断，避免生成越界输入
                     FilledTonalIconButton(
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = dialogControlColor(MaterialTheme.colorScheme.secondaryContainer),
+                            disabledContainerColor = dialogControlColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                        ),
                         onClick = {
                             val nextVal = (clampedFloat + sliderConfig.step).coerceAtMost(sliderConfig.range.endInclusive)
                             onValueChange(String.format(Locale.US, "%.2f", nextVal))
@@ -185,6 +195,7 @@ fun NumericEditDialog(
                 // 滑动结果按步长吸附，确保与步进按钮产生一致的值
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
+                        colors = pageSliderColors(),
                         value = clampedFloat,
                         onValueChange = { newVal ->
                             val snapped = (newVal / sliderConfig.step).roundToInt() * sliderConfig.step
@@ -374,15 +385,15 @@ private fun NumericEditDialogInputPreview() {
             NumericEditDialog(
                 title = "Max Tokens",
                 subtitle = "单次回复最大生成的 Token 上限",
-                value = "4096",
+                value = "4000",
                 decimalInput = false,
                 onValueChange = {},
                 onConfirm = {},
                 onDismiss = {},
                 quickOptions = listOf(
-                    NumericEditQuickOption("2K", "2048"),
-                    NumericEditQuickOption("4K", "4096"),
-                    NumericEditQuickOption("8K", "8192")
+                    NumericEditQuickOption("2K", "2000"),
+                    NumericEditQuickOption("4K", "4000"),
+                    NumericEditQuickOption("8K", "8000")
                 )
             )
         }

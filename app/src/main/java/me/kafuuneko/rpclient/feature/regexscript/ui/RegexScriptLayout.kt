@@ -19,11 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import me.kafuuneko.rpclient.ui.widgets.DraggableItem
-import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.dragContainer
-import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerBasedShape
@@ -45,14 +40,8 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Tune
-import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
-import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
-import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,11 +49,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -76,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -92,7 +79,23 @@ import me.kafuuneko.rpclient.libs.regex.RegexFindMacroMode
 import me.kafuuneko.rpclient.libs.regex.RegexPlacement
 import me.kafuuneko.rpclient.libs.regex.RegexScript
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.DraggableItem
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.dragContainer
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
+import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 
 /** Regex 管理页 Compose 入口，仅根据状态树渲染并向 ViewModel 发出意图。 */
 @Composable
@@ -119,45 +122,47 @@ private fun RegexScriptNormal(
 ) {
     val canManageScripts =
         state.scope != RegexScriptScope.Character || state.selectedCharacterId != null
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = stringResource(R.string.regex_script_title),
-                            fontWeight = FontWeight.Bold
+                AppSurface {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = stringResource(R.string.regex_script_title),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { emitIntent(RegexScriptUiIntent.Back) }) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                            }
+                        },
+                        actions = {
+                            IconButton(
+                                onClick = { emitIntent(RegexScriptUiIntent.ImportClick) },
+                                enabled = canManageScripts && !state.transferInProgress
+                            ) {
+                                Icon(Icons.Rounded.FileDownload, contentDescription = null)
+                            }
+                            IconButton(
+                                onClick = { emitIntent(RegexScriptUiIntent.ExportClick) },
+                                enabled = !state.transferInProgress
+                            ) {
+                                Icon(Icons.Rounded.FileUpload, contentDescription = null)
+                            }
+                            IconButton(
+                                onClick = { emitIntent(RegexScriptUiIntent.CreateScript) },
+                                enabled = canManageScripts && !state.transferInProgress
+                            ) {
+                                Icon(Icons.Rounded.Add, contentDescription = null)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { emitIntent(RegexScriptUiIntent.Back) }) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { emitIntent(RegexScriptUiIntent.ImportClick) },
-                            enabled = canManageScripts && !state.transferInProgress
-                        ) {
-                            Icon(Icons.Rounded.FileDownload, contentDescription = null)
-                        }
-                        IconButton(
-                            onClick = { emitIntent(RegexScriptUiIntent.ExportClick) },
-                            enabled = !state.transferInProgress
-                        ) {
-                            Icon(Icons.Rounded.FileUpload, contentDescription = null)
-                        }
-                        IconButton(
-                            onClick = { emitIntent(RegexScriptUiIntent.CreateScript) },
-                            enabled = canManageScripts && !state.transferInProgress
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = null)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
                     )
-                )
+                }
                 if (state.transferInProgress) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
@@ -267,7 +272,7 @@ private fun AppFilterChip(
             selectedBorderWidth = 1.5.dp,
             borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
         ),
-        colors = FilterChipDefaults.filterChipColors(
+        colors = pageFilterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
             selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -283,7 +288,7 @@ private fun ScopeSelector(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         modifier = Modifier.fillMaxWidth()
@@ -306,7 +311,7 @@ private fun ScopeSelector(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
-                Surface(
+                AppSurface(
                     onClick = { emitIntent(RegexScriptUiIntent.SelectScope(scope)) },
                     shape = RoundedCornerShape(12.dp),
                     color = backgroundColor,
@@ -336,7 +341,7 @@ private fun CharacterSelector(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    Card(
+    AppCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
         ),
@@ -386,7 +391,7 @@ private fun AuthorizationCard(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
         colors = CardDefaults.cardColors(
@@ -400,7 +405,7 @@ private fun AuthorizationCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
+            AppSurface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.tertiaryContainer,
                 modifier = Modifier.size(40.dp)
@@ -442,7 +447,7 @@ private fun AuthorizationCard(
 /** 列表为空时的精致占位卡片。 */
 @Composable
 private fun EmptyScriptsCard() {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
@@ -483,7 +488,7 @@ private fun ScriptCard(
 ) {
     val cardAlpha = if (script.disabled) 0.6f else 1.0f
 
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
@@ -544,7 +549,7 @@ private fun ScriptCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     matchedPlacements.forEach { placement ->
-                        Surface(
+                        AppSurface(
                             shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -561,7 +566,7 @@ private fun ScriptCard(
             }
 
             // 正则表达式等宽代码展示框
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth()
@@ -655,7 +660,7 @@ private fun TestCard(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit
 ) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -920,8 +925,7 @@ private fun EditorDialog(
                     },
                     label = { Text(stringResource(R.string.regex_min_depth)) },
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1f)
-                )
+                    modifier = Modifier.weight(1f).generalContentBackground(RoundedCornerShape(10.dp), hasLabel = true))
                 OutlinedTextField(
                     value = draft.maxDepth,
                     onValueChange = {
@@ -929,8 +933,7 @@ private fun EditorDialog(
                     },
                     label = { Text(stringResource(R.string.regex_max_depth)) },
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1f)
-                )
+                    modifier = Modifier.weight(1f).generalContentBackground(RoundedCornerShape(10.dp), hasLabel = true))
             }
             state.validationError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

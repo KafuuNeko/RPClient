@@ -1,29 +1,47 @@
 package me.kafuuneko.rpclient.feature.characteredit
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.viewModelScope
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
+import me.kafuuneko.rpclient.feature.characteredit.model.BackgroundDraft
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
+import me.kafuuneko.rpclient.feature.characteredit.model.ensureListInputs
 import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
+import me.kafuuneko.rpclient.feature.characteredit.model.promptText
+import me.kafuuneko.rpclient.feature.characteredit.model.withPromptText
+import me.kafuuneko.rpclient.feature.characteredit.model.withValidLorebookAssociation
+import me.kafuuneko.rpclient.feature.characteredit.model.withValidProviderAssociation
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMode
-import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
+import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
 import me.kafuuneko.rpclient.utils.orSingleBlank
 import me.kafuuneko.rpclient.utils.removeAtOrSelf
 import me.kafuuneko.rpclient.utils.updateAt
@@ -35,7 +53,7 @@ import org.koin.core.component.inject
  *
  * 核心职责：
  * - 维护角色全量表单字段（基本信息、性格、场景、首条消息、示例对话、系统提示词、历史后指令、深度提示词、替代开场白等）；
- * - 管理角色头像文件生命周期（选择、暂存、替换、保存与未提交临时文件清理）；
+ * - 管理角色头像与背景文件生命周期（选择、暂存、替换、保存与未提交临时文件清理）；
  * - 协调角色关联世界书与独立 LLM 提供商配置的校验与动态同步；
  * - 提供多行长文本 Prompt 全屏编辑器弹窗及剪贴板复制能力；
  * - 支持未保存修改防误退脏检查弹窗及级联删除关联世界书确认。
@@ -47,6 +65,37 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mFileRepository by inject<FileRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
+
+    private val mBackgrounds by inject<PageBackgroundRepository>()
+    private val mBackgroundRuntime by inject<BackgroundImageRuntime>()
+    private val mBackgroundOwner = UUID.randomUUID().toString()
+    private var mPreparedBackground: PreparedFile? = null
+    private val mBackgroundDraft = MutableStateFlow<BackgroundDraft?>(null)
+
+    init {
+        viewModelScope.launch {
+            combine(mBackgrounds.observe(BackgroundPage.General), mBackgroundDraft.filterNotNull()) { general, draft ->
+                general.copy(fileUuid = draft.uuid ?: general.fileUuid) to draft.prepared
+            }.collectLatest { (settings, prepared) ->
+                // 角色只覆盖图片；通用外观变化会取消过期渲染，并保留未保存的图片草稿。
+                val background = try {
+                    PageBackgroundUiState(
+                        settings = settings,
+                        image = mBackgroundRuntime.render(settings, prepared)?.asImageBitmap(),
+                        surfaceImages = mBackgroundRuntime.renderSurfaces(settings, prepared)
+                            .mapValues { it.value.asImageBitmap() }
+                    )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    PageBackgroundUiState(settings)
+                } catch (_: OutOfMemoryError) {
+                    PageBackgroundUiState(settings)
+                }
+                getOrNull<CharacterEditUiState.Normal>()?.copy(background = background)?.setup()
+            }
+        }
+    }
 
     /** 初始化编辑页，拉取候选世界书与提供商列表，并加载目标角色或新建空表单。 */
     @UiIntentObserver(CharacterEditUiIntent.Init::class)
@@ -86,6 +135,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                 },
             loadState = CharacterEditLoadState.None
         ).setup()
+        mBackgroundDraft.value = BackgroundDraft(form.backgroundFileUuid)
     }
 
     /** 更新角色绑定的世界书 ID。 */
@@ -112,14 +162,15 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     /** 页面恢复可见时重新校验世界书与模型提供商有效性，清理失效外键关联。 */
     @UiIntentObserver(CharacterEditUiIntent.Resume::class)
     private suspend fun onResume() {
-        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (!isStateOf<CharacterEditUiState.Normal>()) return
         // 重新拉取最新的世界书与提供商列表
         val (lorebooks, providers) = withContext(Dispatchers.IO) {
             mLorebookRepository.getAllLorebooks() to mLLMRepository.getAllProviders()
         }
         val availableLorebookIds = lorebooks.mapTo(mutableSetOf()) { it.id }
         val availableProviderIds = providers.mapTo(mutableSetOf()) { it.id }
-        // 校验并重置可能已被外部删除的世界书或提供商外键
+        // 读取最新表单，避免覆盖等待期间完成的背景预览或图片选择。
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         uiState.copy(
             form = uiState.form
                 .withValidLorebookAssociation(availableLorebookIds)
@@ -152,10 +203,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     @UiIntentObserver(CharacterEditUiIntent.Back::class)
     private suspend fun onBack() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        if (
-            uiState.loadState == CharacterEditLoadState.Saving ||
-            uiState.loadState == CharacterEditLoadState.Deleting
-        ) return
+        if (uiState.loadState != CharacterEditLoadState.None) return
         if (uiState.form.hasUnsavedChangesFrom(uiState.initialForm)) {
             uiState.copy(dialogState = CharacterEditDialogState.UnsavedChangesConfirm).setup()
             return
@@ -163,10 +211,65 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         finishEditing()
     }
 
+    /** 选择背景只触发系统事件，文件校验与暂存由背景管线完成。 */
+    @UiIntentObserver(CharacterEditUiIntent.PickBackground::class)
+    private fun onPickBackground() {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.loadState == CharacterEditLoadState.None) CharacterEditViewEvent.OpenBackgroundPicker.tryEmit()
+    }
+
+    /** 替换尚未提交的背景草稿，旧关联直到角色保存成功后才回收。 */
+    @UiIntentObserver(CharacterEditUiIntent.BackgroundSelected::class)
+    private suspend fun onBackgroundSelected(intent: CharacterEditUiIntent.BackgroundSelected) {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.loadState != CharacterEditLoadState.None) return
+        state.copy(loadState = CharacterEditLoadState.Loading).setup()
+        try {
+            // 导入失败不改动表单及已保存背景，取消由图像管线清理未完成草稿。
+            val prepared = mBackgroundRuntime.prepare(mBackgroundOwner, intent.uri)
+            val previous = mPreparedBackground
+            mPreparedBackground = prepared
+            updateForm { copy(backgroundFileUuid = prepared.file.uuid) }
+            mBackgroundDraft.value = BackgroundDraft(prepared.file.uuid, prepared)
+            mBackgroundRuntime.discard(previous)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.appearance_image_error).tryEmit()
+        } catch (_: OutOfMemoryError) {
+            AppViewEvent.PopupToastMessageByResId(R.string.appearance_image_error).tryEmit()
+        } finally {
+            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)?.setup()
+        }
+    }
+
+    /** 移除仅改变草稿，取消编辑时已保存背景仍然存在。 */
+    @UiIntentObserver(CharacterEditUiIntent.RemoveBackground::class)
+    private fun onRemoveBackground() {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.loadState != CharacterEditLoadState.None) return
+        updateForm { copy(backgroundFileUuid = null) }
+        mBackgroundDraft.value = BackgroundDraft(null)
+        discardBackgroundDraft()
+    }
+
+    /** 独立清理作用域处理临时源图，保存后的文件不再由编辑器持有。 */
+    private fun discardBackgroundDraft() {
+        mBackgroundRuntime.discard(mPreparedBackground)
+        mPreparedBackground = null
+    }
+
+    /** 页面被销毁时释放尚未提交的背景，旋转期间 ViewModel 仍持有草稿。 */
+    override fun onCleared() {
+        discardBackgroundDraft()
+        super.onCleared()
+    }
+
     /** 触发系统图片选择器以选取角色头像。 */
     @UiIntentObserver(CharacterEditUiIntent.PickAvatarClick::class)
     private fun onPickAvatarClick() {
-        if (!isStateOf<CharacterEditUiState.Normal>()) return
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterEditLoadState.None) return
         CharacterEditViewEvent.OpenAvatarPicker.tryEmit()
     }
 
@@ -353,18 +456,27 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     @UiIntentObserver(CharacterEditUiIntent.SaveCharacter::class)
     private suspend fun onSaveCharacter() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterEditLoadState.None) return
         val character = uiState.form.toCharacterOrNullWithToast() ?: return
         uiState.copy(loadState = CharacterEditLoadState.Saving).setup()
-        // 在 IO 线程保存角色及关联的 LLM 提供商配置
-        withContext(Dispatchers.IO) {
-            mCharacterRepository.saveCharacterWithLLMProvider(
-                character = character,
-                llmProviderId = uiState.form.llmProviderId
-            )
-            // 提交成功后安全删除被替换的原头像物理文件
-            if (uiState.form.originalAvatar.isNotBlank() && uiState.form.originalAvatar != character.avatar) {
-                mFileRepository.deleteFile(uiState.form.originalAvatar)
+        // 角色、背景及模型关联一起提交，失败时保留可重试草稿。
+        try {
+            withContext(Dispatchers.IO) {
+                mCharacterRepository.saveCharacterWithAppearance(
+                    character, uiState.form.llmProviderId, uiState.form.backgroundFileUuid, mPreparedBackground
+                )
+                mPreparedBackground = null
+                // 头像属于已有独立流程；清理失败不应让已提交的新角色再次创建。
+                if (uiState.form.originalAvatar.isNotBlank() && uiState.form.originalAvatar != character.avatar) {
+                    runCatching { mFileRepository.deleteFile(uiState.form.originalAvatar) }
+                }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)?.setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.appearance_background_error).tryEmit()
+            return
         }
         AppViewEvent.PopupToastMessageByResId(
             if (uiState.mode == CharacterEditMode.Create) R.string.character_created else R.string.character_saved
@@ -377,7 +489,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private suspend fun onDeleteCharacterClick() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (uiState.form.isNew) {
-            cleanupPendingAvatar()
+            cleanupPendingImages()
             CharacterEditUiState.finished(uiStateFlow.value).setup()
             return
         }
@@ -467,6 +579,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                 mFileRepository.deleteFile(it)
             }
         }
+        discardBackgroundDraft()
         AppViewEvent.PopupToastMessageByResId(R.string.character_deleted).tryEmit()
         CharacterEditUiState.finished(uiStateFlow.value).setup()
     }
@@ -505,8 +618,9 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             withContext(Dispatchers.IO) { mFileRepository.loadAvatarBitmap(it)?.asImageBitmap() }
         }
 
-    /** 清理尚未提交保存的新头像临时物理文件。 */
-    private suspend fun cleanupPendingAvatar() {
+    /** 清理尚未提交保存的头像及背景草稿，保留已保存资源。 */
+    private suspend fun cleanupPendingImages() {
+        discardBackgroundDraft()
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (uiState.form.avatar.isBlank() || uiState.form.avatar == uiState.form.originalAvatar) return
         withContext(Dispatchers.IO) {
@@ -516,70 +630,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
 
     /** 结束编辑流程：清理未提交的临时头像文件并迁移至 Finished 状态。 */
     private suspend fun finishEditing() {
-        cleanupPendingAvatar()
+        cleanupPendingImages()
         CharacterEditUiState.finished(uiStateFlow.value).setup()
-    }
-
-    /** 确保所有列表输入项至少包含一个输入框。 */
-    private fun CharacterEditForm.ensureListInputs(): CharacterEditForm {
-        return copy(
-            tags = tags.orSingleBlank(),
-            firstMessages = firstMessages.orSingleBlank(),
-            alternateGreetings = alternateGreetings.orSingleBlank()
-        )
-    }
-
-    /** 校验绑定的世界书 ID 是否仍然存在，若已被删除则重置为 0。 */
-    private fun CharacterEditForm.withValidLorebookAssociation(
-        availableLorebookIds: Set<Long>
-    ): CharacterEditForm {
-        if (characterLorebookId == 0L || characterLorebookId in availableLorebookIds) return this
-        return copy(characterLorebookId = 0L)
-    }
-
-    /** 校验绑定的 LLM 提供商 ID 是否仍然存在，若已被删除则重置为 0。 */
-    private fun CharacterEditForm.withValidProviderAssociation(
-        availableProviderIds: Set<Long>
-    ): CharacterEditForm {
-        if (llmProviderId == 0L || llmProviderId in availableProviderIds) return this
-        return copy(llmProviderId = 0L)
-    }
-
-    /** 根据目标枚举字段读取对应的 Prompt 文本内容。 */
-    private fun CharacterEditForm.promptText(field: CharacterPromptField): String? {
-        return when (field) {
-            CharacterPromptField.Description -> description
-            CharacterPromptField.Personality -> personality
-            CharacterPromptField.Scenario -> scenario
-            is CharacterPromptField.FirstMessage -> firstMessages.getOrNull(field.index)
-            CharacterPromptField.DialogueExamples -> examplesOfDialogue
-            CharacterPromptField.SystemPrompt -> systemPrompt
-            CharacterPromptField.PostHistoryInstructions -> postHistoryInstructions
-            CharacterPromptField.DepthPrompt -> depthPromptPrompt
-            is CharacterPromptField.AlternateGreeting -> alternateGreetings.getOrNull(field.index)
-        }
-    }
-
-    /** 根据目标枚举字段将 Prompt 编辑器中的文本回写至表单对应字段。 */
-    private fun CharacterEditForm.withPromptText(
-        field: CharacterPromptField,
-        text: String
-    ): CharacterEditForm {
-        return when (field) {
-            CharacterPromptField.Description -> copy(description = text)
-            CharacterPromptField.Personality -> copy(personality = text)
-            CharacterPromptField.Scenario -> copy(scenario = text)
-            is CharacterPromptField.FirstMessage -> copy(
-                firstMessages = firstMessages.updateAt(field.index, text)
-            )
-            CharacterPromptField.DialogueExamples -> copy(examplesOfDialogue = text)
-            CharacterPromptField.SystemPrompt -> copy(systemPrompt = text)
-            CharacterPromptField.PostHistoryInstructions -> copy(postHistoryInstructions = text)
-            CharacterPromptField.DepthPrompt -> copy(depthPromptPrompt = text)
-            is CharacterPromptField.AlternateGreeting -> copy(
-                alternateGreetings = alternateGreetings.updateAt(field.index, text)
-            )
-        }
     }
 
 }

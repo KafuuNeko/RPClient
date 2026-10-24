@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
@@ -21,20 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -53,16 +43,25 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatGreetingMode
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
-import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
+import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
 @Composable
@@ -86,7 +85,7 @@ private fun GroupChatCreateNormalView(
     state: GroupChatCreateUiState.Normal,
     emitIntent: (GroupChatCreateUiIntent) -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.group_chat_create_title),
@@ -115,18 +114,12 @@ private fun GroupChatCreateNormalView(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                RpPageTitle(
-                    title = stringResource(R.string.group_chat_build_cast),
-                    subtitle = stringResource(R.string.group_chat_build_cast_desc)
-                )
-            }
-            item {
                 OutlinedTextField(
                     value = state.title,
                     onValueChange = {
                         emitIntent(GroupChatCreateUiIntent.ChangeTitle(it))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().generalContentBackground(RoundedCornerShape(16.dp), hasLabel = true),
                     label = { Text(stringResource(R.string.group_chat_title_label)) },
                     placeholder = {
                         Text(stringResource(R.string.group_chat_title_placeholder))
@@ -166,24 +159,9 @@ private fun GroupChatCreateNormalView(
                 )
             }
             item {
-                OutlinedTextField(
-                    value = state.searchQuery,
-                    onValueChange = {
-                        emitIntent(GroupChatCreateUiIntent.ChangeSearchQuery(it))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = null)
-                    },
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.group_chat_search_characters),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp)
+                CharacterSearchField(
+                    query = state.searchQuery,
+                    onQueryChange = { emitIntent(GroupChatCreateUiIntent.ChangeSearchQuery(it)) }
                 )
             }
             if (state.visibleCharacters.isEmpty()) {
@@ -248,7 +226,7 @@ private fun StrategySection(
                             maxLines = 1
                         )
                     },
-                    colors = FilterChipDefaults.filterChipColors(
+                    colors = pageFilterChipColors(
                         selectedContainerColor =
                             MaterialTheme.colorScheme.primaryContainer
                     )
@@ -268,7 +246,7 @@ private fun SelfResponseSetting(
     enabled: Boolean,
     onChange: (Boolean) -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onChange(!enabled) },
@@ -354,7 +332,7 @@ private fun GreetingModeOption(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -409,7 +387,7 @@ private fun ManualGreetingEditor(
             style = MaterialTheme.typography.labelLarge
         )
         selectedCharacter.greetings.forEachIndexed { index, greeting ->
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
@@ -516,7 +494,7 @@ private fun CharacterChoiceCard(
     onClick: () -> Unit
 ) {
     val accent = getMacaronColor(character.name)
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -566,7 +544,7 @@ private fun CharacterChoiceCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(30.dp),
                 shape = CircleShape,
                 color = if (character.selected) {
@@ -592,7 +570,7 @@ private fun CharacterChoiceCard(
 
 @Composable
 private fun EmptyCharacterCard() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -619,50 +597,15 @@ private fun CreateBottomBar(
     enabled: Boolean,
     onCreate: () -> Unit
 ) {
-    Surface(
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.group_chat_member_count,
-                        selectedCount,
-                        selectedCount
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(
-                        if (selectedCount >= 2) {
-                            R.string.group_chat_ready_to_begin
-                        } else {
-                            R.string.group_chat_select_at_least_two
-                        }
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Button(
-                onClick = onCreate,
-                enabled = enabled,
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
-            ) {
-                Text(stringResource(R.string.create))
-            }
-        }
-    }
+    RpCreationBottomBar(
+        title = pluralStringResource(R.plurals.group_chat_member_count, selectedCount, selectedCount),
+        subtitle = stringResource(
+            if (selectedCount >= 2) R.string.group_chat_ready_to_begin
+            else R.string.group_chat_select_at_least_two
+        ),
+        enabled = enabled,
+        onCreate = onCreate
+    )
 }
 
 @Composable
@@ -672,7 +615,7 @@ private fun LoadStateOverlay(loadState: GroupChatCreateLoadState) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 10.dp

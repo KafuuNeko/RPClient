@@ -67,7 +67,10 @@ data class ChatMessagePage(
     val canLoadOlderMessages: Boolean,
     val totalMessageCount: Int,
     /** 与本页正文在同一事务读取的有序附件。 */
-    val messageImages: List<MessageWithImages> = emptyList()
+    val messageImages: List<MessageWithImages> = emptyList(),
+    /** 搜索窗口后方仍有较新消息。 */
+    val canLoadNewerMessages: Boolean = false,
+    val newerMessageCount: Int = 0
 )
 
 /**
@@ -507,6 +510,35 @@ class ChatRepository(
         return mChatMessageDao.getMessagesBySessionId(sessionId)
     }
 
+    /** 直接读取锚点前后有限窗口，历史定位不遍历最新页到目标之间的消息。 */
+    private suspend fun messageWindow(sessionId: Long, messageId: Long, pageSize: Int, olderWindowSize: Int?): ChatMessagePage? {
+        val anchor = mChatMessageDao.getMessageById(messageId)?.takeIf { it.sessionId == sessionId && it.source != ChatMessage.Source.Summary } ?: return null
+        val olderLimit = olderWindowSize?.coerceIn(0, pageSize) ?: (pageSize / 2).coerceAtLeast(1)
+        val newerLimit = if (olderWindowSize == null) olderLimit else (pageSize - olderLimit - 1).coerceAtLeast(0)
+        // 各多取一条判断两端是否可继续，不牺牲同时间消息的稳定顺序。
+        val older = mChatMessageDao.getMessagePageBeforeBySessionId(sessionId, anchor.createTime, anchor.id, olderLimit + 1)
+        val newer = mChatMessageDao.getMessagePageBySessionId(sessionId, anchor.createTime, anchor.id, newerLimit + 1)
+        val messages = older.take(olderLimit).asReversed() + anchor + newer.take(newerLimit)
+        return ChatMessagePage(
+            messages = messages, canLoadOlderMessages = older.size > olderLimit,
+            totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId),
+            messageImages = getMessagesWithImages(messages.map { it.id }),
+            canLoadNewerMessages = newer.size > newerLimit,
+            newerMessageCount = mChatMessageDao.countAfter(sessionId, messages.last().createTime, messages.last().id)
+        )
+    }
+
+    /** 从当前窗口尾部向较新消息继续浏览，消息与附件共享读取事务。 */
+    suspend fun getMessagePageAfter(sessionId: Long, afterMessageId: Long, pageSize: Int): ChatMessagePage? = mAppDatabase.withTransaction {
+        val anchor = mChatMessageDao.getMessageById(afterMessageId)?.takeIf { it.sessionId == sessionId } ?: return@withTransaction null
+        val rows = mChatMessageDao.getMessagePageBySessionId(sessionId, anchor.createTime, anchor.id, pageSize + 1)
+        val messages = rows.take(pageSize)
+        ChatMessagePage(messages = messages, canLoadOlderMessages = true,
+            totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId),
+            messageImages = getMessagesWithImages(messages.map { it.id }), canLoadNewerMessages = rows.size > pageSize,
+            newerMessageCount = messages.lastOrNull()?.let { mChatMessageDao.countAfter(sessionId, it.createTime, it.id) } ?: 0)
+    }
+
     /**
      * 获取会话末尾的一页普通消息。
      *
@@ -518,17 +550,20 @@ class ChatRepository(
      */
     suspend fun getChatPageData(
         sessionId: Long,
-        pageSize: Int
+        pageSize: Int,
+        anchorMessageId: Long? = null,
+        olderWindowSize: Int? = null
     ): ChatPageData {
         require(pageSize > 0) { "pageSize must be positive" }
         return mAppDatabase.withTransaction {
             // 消息窗口与会话级能力必须来自同一快照，避免页面出现短暂矛盾状态
-            val rows = mChatMessageDao.getLatestMessagePageBySessionId(
+            val anchored = anchorMessageId?.let { messageWindow(sessionId, it, pageSize, olderWindowSize) }
+            val rows = if (anchored == null) mChatMessageDao.getLatestMessagePageBySessionId(
                 sessionId = sessionId,
                 limit = pageSize + 1
-            )
+            ) else emptyList()
             ChatPageData(
-                page = rows.toChatMessagePage(
+                page = anchored ?: rows.toChatMessagePage(
                     pageSize = pageSize,
                     totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId)
                 ),

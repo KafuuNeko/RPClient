@@ -18,15 +18,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
-import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -48,13 +46,16 @@ import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListDia
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListLoadState
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiIntent
 import me.kafuuneko.rpclient.feature.worldbooklist.presentation.WorldBookListUiState
+import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
+import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
-import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 世界书列表与文件导入导出操作的 Compose 入口。 */
 @Composable
@@ -78,7 +79,7 @@ private fun WorldBookListNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = stringResource(R.string.world_book_manager),
@@ -167,7 +168,7 @@ private fun LoadingRow() {
 
 @Composable
 private fun EmptyPanel() {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -202,7 +203,7 @@ private fun WorldBookCard(
     onClick: () -> Unit,
     onExport: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },

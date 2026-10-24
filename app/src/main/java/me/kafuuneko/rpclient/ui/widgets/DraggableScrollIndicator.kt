@@ -43,7 +43,7 @@ fun Modifier.draggableScrollIndicator(
     color: Color = MaterialTheme.colorScheme.outline.copy(
         alpha = SCROLL_INDICATOR_THUMB_OPACITY
     ),
-    thumbThickness: Dp = 6.dp
+    thumbThickness: Dp = ScrollIndicatorThickness
 ): Modifier {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current

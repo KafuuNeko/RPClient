@@ -35,6 +35,18 @@ sealed class MainUiIntent {
 
     data class OpenChat(val sessionId: String) : MainUiIntent()
 
+    data object OpenContentSearch : MainUiIntent()
+
+    data class ToggleSearchAcceleration(val enabled: Boolean) : MainUiIntent()
+
+    data object ConfirmEnableSearchIndex : MainUiIntent()
+
+    data object ConfirmDisableSearchIndex : MainUiIntent()
+
+    data object CancelSearchIndexBuild : MainUiIntent()
+
+    data object RetrySearchIndexCleanup : MainUiIntent()
+
     data object OpenCreateChat : MainUiIntent()
 
     data class OpenGroupChat(val sessionId: String) : MainUiIntent()
@@ -155,7 +167,13 @@ sealed class MainUiIntent {
 
     data object OpenTokenUsage : MainUiIntent()
 
+    data object OpenAppearance : MainUiIntent()
+
     data object OpenBackupRestore : MainUiIntent()
+
+    data class ToggleStoryMarkdownRendering(val enabled: Boolean) : MainUiIntent()
+
+    data class ToggleSeparateThinkWhenEditing(val enabled: Boolean) : MainUiIntent()
 
     data object OpenAbout : MainUiIntent()
 

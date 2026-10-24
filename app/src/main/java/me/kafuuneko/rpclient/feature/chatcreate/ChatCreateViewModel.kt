@@ -1,34 +1,40 @@
 package me.kafuuneko.rpclient.feature.chatcreate
 
 import android.os.Bundle
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateCharacterItem
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookEntryItem
+import me.kafuuneko.rpclient.feature.chatcreate.model.FirstMessageSelection
+import me.kafuuneko.rpclient.feature.chatcreate.model.defaultLorebookEntryIds
+import me.kafuuneko.rpclient.feature.chatcreate.model.filterForQuery
+import me.kafuuneko.rpclient.feature.chatcreate.model.normalizedTitle
+import me.kafuuneko.rpclient.feature.chatcreate.model.toChatCreateCharacterItem
+import me.kafuuneko.rpclient.feature.chatcreate.model.toChatCreateLorebookGroups
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateLoadState
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
-import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
-import me.kafuuneko.rpclient.utils.toDefaultChatTitle
-import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -46,6 +52,7 @@ import org.koin.core.component.inject
 class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreateUiState>(
     ChatCreateUiState.None
 ), KoinComponent {
+    private var mCharacterSearchJob: Job? = null
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
@@ -62,31 +69,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
             val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
-            val groups = lorebooks.map { lorebookWithEntries ->
-                val lorebook = lorebookWithEntries.lorebook
-                val entries = lorebookWithEntries.entries
-                    .sortedBy { it.order }
-                    .map { entry ->
-                        ChatCreateLorebookEntryItem(
-                            id = entry.id,
-                            lorebookName = lorebook.name,
-                            name = entry.name,
-                            content = entry.content,
-                            keywords = entry.getKeywordList(),
-                            secondaryKeywords = entry.getSecondaryKeywordList(),
-                            category = entry.getCategoryList(),
-                            constant = entry.constant,
-                            order = entry.order,
-                            depth = entry.depth
-                        )
-                    }
-                ChatCreateLorebookGroupItem(
-                    lorebookId = lorebook.id,
-                    lorebookName = lorebook.name,
-                    entryCount = entries.size,
-                    entries = entries
-                )
-            }.filter { it.entries.isNotEmpty() }
+            val groups = lorebooks.toChatCreateLorebookGroups()
             characters to groups
         }
         mCharactersById = data.first.associateBy { it.id }
@@ -107,21 +90,34 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                     linkedLorebookEntryIds = selectedLorebookEntryIds
                 ),
             characters = data.first.map { character ->
-                ChatCreateCharacterItem(
-                    id = character.id,
-                    name = character.name,
-                    description = resolveCharacterUserMacros(
-                        template = character.description,
-                        characterName = character.name,
-                        userName = userName
-                    ),
-                    tags = character.getCharacterTagList()
-                )
+                character.toChatCreateCharacterItem(userName)
             },
             selectedCharacterFirstMessages = selectedCharacterFirstMessages,
             lorebookGroups = data.second,
             visibleLorebookGroups = data.second
         ).setup()
+    }
+
+    /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
+    @UiIntentObserver(ChatCreateUiIntent.ChangeCharacterQuery::class)
+    private fun onChangeCharacterQuery(intent: ChatCreateUiIntent.ChangeCharacterQuery) {
+        val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
+        mCharacterSearchJob?.cancel()
+        uiState.copy(characterQuery = intent.value).setup()
+        // 后台计算仅返回 ID，回写时从最新列表恢复选择状态。
+        mCharacterSearchJob = viewModelScope.launch {
+            val visibleIds = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                uiState.characters.filter {
+                    context.ensureActive()
+                    matchesCharacterQuery(it.name, it.description, it.tags, intent.value)
+                }.mapTo(HashSet()) { it.id }
+            }
+            val current = getOrNull<ChatCreateUiState.Normal>() ?: return@launch
+            if (current.characterQuery == intent.value) {
+                current.copy(visibleCharacters = current.characters.filter { it.id in visibleIds }).setup()
+            }
+        }
     }
 
     /** 处理返回操作，迁移至 Finished 状态。 */
@@ -317,39 +313,4 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         return FirstMessageSelection(selectedCharacterFirstMessages[selectedIndex])
     }
 
-    /** 获取格式化后的会话标题，为空时生成默认日期标题。 */
-    private fun ChatCreateForm.normalizedTitle(createTime: Long): String {
-        return title.trim().ifBlank { createTime.toDefaultChatTitle() }
-    }
-
-    /** 获取角色绑定的世界书条目 ID 集合。 */
-    private fun Character.defaultLorebookEntryIds(
-        lorebookGroups: List<ChatCreateLorebookGroupItem>
-    ): Set<Long> {
-        if (characterLorebookId == 0L) return emptySet()
-        return lorebookGroups
-            .firstOrNull { it.lorebookId == characterLorebookId }
-            ?.entries
-            ?.mapTo(mutableSetOf()) { it.id }
-            .orEmpty()
-    }
-
-    /** 根据关键词多字段过滤世界书分组与条目。 */
-    private fun List<ChatCreateLorebookGroupItem>.filterForQuery(
-        query: String
-    ): List<ChatCreateLorebookGroupItem> = filterLorebookGroups(
-        query = query,
-        groupName = { it.lorebookName },
-        entries = { it.entries },
-        entrySearchFields = { entry ->
-            sequenceOf(entry.lorebookName, entry.name, entry.content) +
-                entry.keywords.asSequence() +
-                entry.secondaryKeywords.asSequence() +
-                entry.category.asSequence()
-        },
-        copyWithEntries = { group, entries -> group.copy(entries = entries) }
-    )
-
-    /** 开场白解析结果包装类。 */
-    private data class FirstMessageSelection(val value: String?)
 }

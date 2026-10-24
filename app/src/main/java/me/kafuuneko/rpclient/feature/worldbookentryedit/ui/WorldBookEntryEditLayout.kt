@@ -35,8 +35,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Tag
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -44,15 +43,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,27 +74,34 @@ import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEn
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditMode
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiState
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DEFAULT_PROMPT_MACROS
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpChipInputField
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpJsonCodeEditorField
-import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
-import me.kafuuneko.rpclient.ui.widgets.RpNumberStepper
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
+import me.kafuuneko.rpclient.ui.widgets.RpNumberStepper
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
+import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
+import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 
 /** 世界书条目编辑导航分段选项卡。 */
@@ -152,7 +154,7 @@ private fun WorldBookEntryEditNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         AppTopBar(
             title = if (state.mode == WorldBookEntryEditMode.Create) {
@@ -171,17 +173,12 @@ private fun WorldBookEntryEditNormal(
                 ),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = state.form.name.ifBlank { stringResource(R.string.unnamed_entry) },
-                    subtitle = stringResource(R.string.world_book_entry_editor_subtitle)
-                )
-            }
             if (state.loadState == WorldBookEntryEditLoadState.Loading) {
                 item { LoadingPanel() }
             } else {
@@ -280,7 +277,7 @@ private fun HeroHeaderPanel(
     val depthVal = form.depth.toIntOrNull() ?: 4
     val orderVal = form.order.toIntOrNull() ?: 100
 
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -388,7 +385,7 @@ private fun HeroHeaderPanel(
 /** 单个弱化状态徽章胶囊。 */
 @Composable
 private fun StatusBadge(text: String, color: Color) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(8.dp),
         color = color.copy(alpha = 0.12f),
         border = BorderStroke(0.5.dp, color.copy(alpha = 0.25f))
@@ -410,7 +407,8 @@ private fun WorldBookEntryEditTabBar(
     onTabSelected: (WorldBookEntryEditTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
+        kind = PageSurfaceKind.TopBar,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -428,7 +426,7 @@ private fun WorldBookEntryEditTabBar(
             )
             tabs.forEach { (tab, title) ->
                 val selected = selectedTab == tab
-                Surface(
+                AppSurface(
                     onClick = { onTabSelected(tab) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
@@ -521,7 +519,7 @@ private fun ContentWorkbenchPanel(
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.50f)
             ) {
@@ -570,7 +568,7 @@ private fun CategoriesPanel(
 /** 常驻激活提示横幅。 */
 @Composable
 private fun ConstantNoticeBanner() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
@@ -816,7 +814,7 @@ private fun PlacementPanel(
                     onChange = { WorldBookEntryEditUiIntent.ChangeOutletName(it).emit() }
                 )
                 val macroPreview = "{{outlet::" + form.outletName.ifBlank { "name" } + "}}"
-                Surface(
+                AppSurface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)
                 ) {
@@ -1201,7 +1199,7 @@ private fun PositionSelector(
             enabled = enabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).generalContentBackground(RoundedCornerShape(12.dp), hasLabel = true),
             shape = RoundedCornerShape(12.dp)
         )
         ExposedDropdownMenu(
@@ -1227,9 +1225,11 @@ private fun ActionPanel(
     state: WorldBookEntryEditUiState.Normal,
     emit: WorldBookEntryEditUiIntent.() -> Unit
 ) {
+    // 次操作保留次级填充，透明度较高时仍与页面上的普通文字区分。
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(
+        Button(
             modifier = Modifier.weight(1f),
+            colors = ButtonDefaults.filledTonalButtonColors(),
             shape = RoundedCornerShape(12.dp),
             enabled = state.loadState == WorldBookEntryEditLoadState.None,
             onClick = { WorldBookEntryEditUiIntent.Back.emit() }

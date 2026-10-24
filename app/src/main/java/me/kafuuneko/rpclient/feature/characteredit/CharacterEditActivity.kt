@@ -37,6 +37,14 @@ class CharacterEditActivity : CoreActivityWithEvent() {
         }
     }
 
+    /** 背景保留原始比例，由背景管线校验及暂存，不经过头像裁剪。 */
+    private val mBackgroundPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { mViewModel.emit(CharacterEditUiIntent.BackgroundSelected(it)) }
+    }
+
+    /** 编辑页以角色背景草稿为画布，通用参数由 ViewModel 统一合成。 */
+    override fun usesGeneralBackground(): Boolean = false
+
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
     @Composable
@@ -67,6 +75,7 @@ class CharacterEditActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
+            CharacterEditViewEvent.OpenBackgroundPicker -> mBackgroundPicker.launch("image/*")
             CharacterEditViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
             is CharacterEditViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

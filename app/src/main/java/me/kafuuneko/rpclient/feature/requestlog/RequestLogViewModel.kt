@@ -2,16 +2,15 @@ package me.kafuuneko.rpclient.feature.requestlog
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
+import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogPage
+import me.kafuuneko.rpclient.feature.requestlog.model.toUiModel
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogDialogState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiIntent
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.room.model.LLMRequestLogOverview
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
-import me.kafuuneko.rpclient.utils.formatTimestamp
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -135,18 +134,6 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         }
     }
 
-    /** 将数据库日志实体转换为列表展示项模型。 */
-    private fun LLMRequestLogOverview.toUiModel(): RequestLogItem {
-        val mode = if (isStreaming) "stream" else "once"
-        return RequestLogItem(
-            id = id,
-            title = "$providerName / $model",
-            subtitle = "${createTime.formatTimestamp("MM-dd HH:mm:ss")} · ${protocol.name} · $mode",
-            requestPreview = requestPreview,
-            responsePreview = responsePreview
-        )
-    }
-
     /** 从数据库异步加载指定日志的完整请求体 JSON。 */
     private suspend fun loadRequestJson(logId: Long): String? {
         return withContext(Dispatchers.IO) {
@@ -168,8 +155,4 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         const val JSON_PREVIEW_LENGTH = 2_000
     }
 
-    private data class RequestLogPage(
-        val items: List<RequestLogItem>,
-        val canLoadMore: Boolean
-    )
 }

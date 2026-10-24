@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.ui.dialog
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,11 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 
 /** Dialog 顶部状态徽标的色彩风格。 */
 enum class DialogBadgeTone {
@@ -85,22 +82,12 @@ fun AppDialogScaffold(
     scrollableContent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
-    Dialog(
+    AppDialogWindow(
         onDismissRequest = onDismissRequest,
         properties = properties
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            shadowElevation = 12.dp,
-            border = BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-            )
+        DialogPanelSurface(
+            modifier = modifier.fillMaxWidth().wrapContentHeight()
         ) {
             Column(
                 modifier = Modifier
@@ -164,7 +151,7 @@ private fun CompactDialogHeader(
         if (badgeIcon != null) {
             val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
             Box(
-                modifier = Modifier.size(42.dp).background(containerColor, CircleShape),
+                modifier = Modifier.size(42.dp).background(dialogControlColor(containerColor), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(badgeIcon, null, Modifier.size(22.dp), contentColor)
@@ -200,9 +187,9 @@ private fun HeroDialogHeader(
         Box(
             modifier = Modifier
                 .size(58.dp)
-                .background(containerColor.copy(alpha = 0.35f), CircleShape)
+                .background(dialogControlColor(containerColor.copy(alpha = 0.35f)), CircleShape)
                 .padding(5.dp)
-                .background(containerColor, CircleShape),
+                .background(dialogControlColor(containerColor), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(badgeIcon, null, Modifier.size(26.dp), contentColor)
@@ -232,13 +219,14 @@ private fun HeroDialogHeader(
 }
 
 @Composable
-private fun AppDialogContent(
+private fun ColumnScope.AppDialogContent(
     scrollable: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scrollState = rememberScrollState()
     val modifier = if (scrollable) {
-        Modifier
+        // 优先为标题和操作按钮保留空间，小高度窗口只滚动正文。
+        Modifier.weight(1f, fill = false)
             .fillMaxWidth()
             .heightIn(max = 380.dp)
             .draggableScrollIndicator(scrollState)
@@ -334,7 +322,7 @@ private fun DialogConfirmButton(
     Button(
         onClick = onClick,
         enabled = enabled && !loading,
-        colors = colors,
+        colors = dialogButtonColors(colors, if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary),
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -359,6 +347,7 @@ private fun DialogConfirmButton(
 @Composable
 private fun DialogDismissButton(text: String, modifier: Modifier, onClick: () -> Unit) {
     FilledTonalButton(
+        colors = dialogButtonColors(ButtonDefaults.filledTonalButtonColors()),
         onClick = onClick,
         modifier = modifier.height(48.dp),
         shape = RoundedCornerShape(16.dp)

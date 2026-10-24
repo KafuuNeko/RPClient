@@ -65,7 +65,10 @@ data class Character(
     val depthPromptRole: Int = 0,
     // 从角色卡 data.character_book 导入并绑定的世界书 ID；0 表示未绑定。
     @ColumnInfo(defaultValue = "0")
-    val characterLorebookId: Long = 0L
+    val characterLorebookId: Long = 0L,
+    // 仅本地使用的背景文件 UUID，由 FileRepository 管理，不参与角色卡导入导出或 Prompt。
+    @ColumnInfo(defaultValue = "NULL")
+    val backgroundFileUuid: String? = null
 ) {
     /** 解析角色标签 JSON；损坏数据由 Gson 工具按空列表处理。 */
     fun getCharacterTagList(): List<String> {

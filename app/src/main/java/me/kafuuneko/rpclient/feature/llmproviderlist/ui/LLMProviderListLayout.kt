@@ -32,16 +32,12 @@ import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.SmartToy
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -66,11 +62,15 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpMetaPill
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 模型配置列表页 Compose 入口。 */
 @Composable
@@ -97,7 +97,7 @@ private fun LLMProviderListNormal(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(pageCanvasColor())
     ) {
         // 顶栏与列表区共享同一个新建入口，兼顾快速操作和空列表引导
         AppTopBar(
@@ -118,17 +118,12 @@ private fun LLMProviderListNormal(
                 .navigationBarsPadding(),
             contentPadding = PaddingValues(
                 start = 18.dp,
+                top = 14.dp,
                 end = 18.dp,
                 bottom = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.model_list_title),
-                    subtitle = stringResource(R.string.model_list_subtitle)
-                )
-            }
             item {
                 RpSectionHeader(
                     title = stringResource(R.string.all_models),
@@ -186,7 +181,7 @@ private fun LoadingRow() {
 private fun ProviderListEmptyState(
     onCreateClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -204,7 +199,7 @@ private fun ProviderListEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier.size(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -255,7 +250,7 @@ private fun ProviderListCard(
     onClone: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
@@ -352,7 +347,7 @@ private fun ProviderListCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Surface(
+                AppSurface(
                     shape = RoundedCornerShape(8.dp),
                     color = if (provider.isEnabled)
                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
@@ -385,7 +380,9 @@ private fun ProviderListCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    RpMetaPill(provider.protocol.name)
+                    RpMetaPill(if (provider.protocol == LLMProviderProtocol.OpenAIResponses) {
+                        stringResource(R.string.protocol_openai_responses)
+                    } else provider.protocol.name)
                     ProviderStatusDot(isEnabled = provider.isEnabled, isConfigured = provider.isConfigured)
                 }
             }
@@ -400,13 +397,13 @@ private fun ProviderStatusDot(isEnabled: Boolean, isConfigured: Boolean) {
         !isConfigured -> MaterialTheme.colorScheme.error
         else -> Color(0xFF10B981) // Emerald green
     }
-    Surface(
+    AppSurface(
         shape = CircleShape,
         color = dotColor.copy(alpha = 0.2f),
         modifier = Modifier.size(16.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Surface(
+            AppSurface(
                 shape = CircleShape,
                 color = dotColor,
                 modifier = Modifier.size(7.dp)
@@ -432,7 +429,7 @@ private fun ProviderBrandBadge(
 
     val activeColor = if (isEnabled) brandColor else brandColor.copy(alpha = 0.4f)
 
-    Surface(
+    AppSurface(
         modifier = Modifier.size(42.dp),
         shape = RoundedCornerShape(13.dp),
         color = activeColor.copy(alpha = if (isEnabled) 0.14f else 0.08f),

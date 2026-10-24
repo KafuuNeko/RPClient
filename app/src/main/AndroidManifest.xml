@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 允许选择菜单发现翻译、朗读等第三方文本处理入口。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
 
     <application
         android:name=".RPClientApp"
@@ -16,6 +23,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".feature.contentsearch.ContentSearchActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <!-- 仅供应用内选择菜单调用，避免在其他应用中增加同名分享入口。 -->
+        <activity
+            android:name=".feature.textshare.TextShareActivity"
+            android:exported="false"
+            android:label="@string/text_selection_share"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".feature.backuprestore.BackupRestoreActivity"
             android:exported="false"
@@ -118,6 +141,16 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.promptpreset.PromptPresetActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.dialogappearance.DialogAppearanceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".feature.appearance.AppearanceActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />

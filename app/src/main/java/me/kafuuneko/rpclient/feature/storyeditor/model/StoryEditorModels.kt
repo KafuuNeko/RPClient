@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
-import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
+import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 
 /** Compose 文本编辑状态与 ViewModel 草稿之间的轻量同步快照。 */
 data class StoryEditorDocument(
@@ -14,7 +14,9 @@ data class StoryEditorDocument(
     /** 用于隔离过期异步结果的同步版本号。 */
     val syncVersion: Long,
     /** 当前编辑器最近一次修改的文本区间。 */
-    val latestEditedRange: StoryEditedTextRange? = null
+    val latestEditedRange: StoryEditedTextRange? = null,
+    /** 从完整内容搜索进入时的可靠原文定位；编辑后由新文档快照清除。 */
+    val searchRange: StoryEditedTextRange? = null
 )
 
 /** 当前编辑会话中最近一次正文修改所插入或替换内容的半开字符区间。 */
@@ -257,3 +259,12 @@ data class StoryImportPreview(
     /** 当前页面是否正在执行保存操作。 */
     val isSaving: Boolean = false
 )
+
+/** 计算撤销条目中插入文本所覆盖的范围。 */
+internal fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {
+    if (insertedText.isEmpty()) return null
+    return StoryEditedTextRange(
+        start = start,
+        end = start + insertedText.length
+    )
+}

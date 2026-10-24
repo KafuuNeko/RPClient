@@ -13,29 +13,27 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
+import me.kafuuneko.rpclient.feature.appearance.AppearanceActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
+import me.kafuuneko.rpclient.feature.contentsearch.ContentSearchActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchatcreate.GroupChatCreateActivity
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.model.ImageSendField
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
-import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
-import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
+import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
-import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
-import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
-import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.feature.main.model.items.toUiModel
+import me.kafuuneko.rpclient.feature.main.model.toImportCharacterItem
+import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
@@ -57,10 +55,14 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainViewEvent
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
+import me.kafuuneko.rpclient.feature.main.presentation.buildProviderSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.canOpenDialog
+import me.kafuuneko.rpclient.feature.main.presentation.hasInvalidTokenRelationship
 import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
+import me.kafuuneko.rpclient.feature.main.presentation.postProcessingMode
 import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
+import me.kafuuneko.rpclient.feature.main.presentation.toGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
@@ -81,28 +83,24 @@ import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
-import me.kafuuneko.rpclient.libs.room.model.ChatSessionOverview
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
+import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
-import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-
-/** 连续空白字符匹配正则，用于故事内容摘要的空白压缩与规整。 */
-private val WHITESPACE_REGEX = Regex("\\s+")
 
 /**
  * 应用主页面状态持有者。
@@ -122,6 +120,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mLLMRepository by inject<LLMRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
+    private val mContentSearchRepository by inject<ContentSearchRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mStoryRepository by inject<StoryRepository>()
@@ -169,6 +168,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             homeState = buildHomeState(),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders)
         ).setup()
+        // 订阅应用级任务；旋转页面不会重复启动构建或丢失清理进度。
+        observeSearchIndex()
     }
 
     /** 页面从后台恢复可见时触发，增量刷新首页列表与设置项。 */
@@ -192,6 +193,17 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Back::class)
     private fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        // 设置中的索引任务必须通过取消与清理收尾，不能只隐藏进度窗口。
+        if (uiState.selectedPage == MainPage.Settings) {
+            when (uiState.settingsState.searchIndexState) {
+                is SearchIndexState.Building -> {
+                    onCancelSearchIndexBuild()
+                    return
+                }
+                SearchIndexState.Preparing, SearchIndexState.Cleaning -> return
+                else -> Unit
+            }
+        }
         if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) {
             uiState.copy(
                 homeState = uiState.homeState.copy(
@@ -626,6 +638,94 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(selectedPage = intent.page).setup()
     }
 
+    /** 观察持久索引状态，只更新对应面板并撤销已经过期的确认窗口。 */
+    private fun observeSearchIndex() {
+        mContentSearchRepository.restore()
+        viewModelScope.launch {
+            mContentSearchRepository.indexState.collect { index ->
+                val current = getOrNull<MainUiState.Normal>() ?: return@collect
+                // 维护启动后由进度窗口接管，其他业务弹窗仍保留自己的生命周期。
+                val dialog = when (current.dialogState) {
+                    MainDialogState.EnableSearchIndex ->
+                        if (index.busy || index.enabled) MainDialogState.None else current.dialogState
+                    MainDialogState.DisableSearchIndex ->
+                        if (!index.enabled) MainDialogState.None else current.dialogState
+                    else -> current.dialogState
+                }
+                current.copy(
+                    settingsState = current.settingsState.copy(searchIndexState = index),
+                    dialogState = dialog
+                ).setup()
+            }
+        }
+    }
+
+    /**
+     * 开关先请求确认，只有用户确认后才修改持久索引。
+     * @param intent 用户希望切换到的启用状态。
+     */
+    @UiIntentObserver(MainUiIntent.ToggleSearchAcceleration::class)
+    private fun onToggleSearchAcceleration(intent: MainUiIntent.ToggleSearchAcceleration) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.selectedPage != MainPage.Settings || !state.canOpenDialog()) return
+        val index = state.settingsState.searchIndexState
+        if (index.busy || intent.enabled == index.enabled) return
+        state.copy(
+            dialogState = if (intent.enabled) MainDialogState.EnableSearchIndex else MainDialogState.DisableSearchIndex
+        ).setup()
+    }
+
+    /** 确认开启后展示可取消进度，构建完成前开关仍保持关闭。 */
+    @UiIntentObserver(MainUiIntent.ConfirmEnableSearchIndex::class)
+    private fun onConfirmEnableSearchIndex() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.dialogState != MainDialogState.EnableSearchIndex) return
+        val index = state.settingsState.searchIndexState
+        if (index.busy || index.enabled) return
+        state.copy(
+            dialogState = MainDialogState.None,
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Building())
+        ).setup()
+        viewModelScope.launch { mContentSearchRepository.enable() }
+    }
+
+    /** 关闭确认只消费一次，先进入清理状态以拦截重复操作。 */
+    @UiIntentObserver(MainUiIntent.ConfirmDisableSearchIndex::class)
+    private fun onConfirmDisableSearchIndex() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.dialogState != MainDialogState.DisableSearchIndex) return
+        if (!state.settingsState.searchIndexState.enabled) return
+        cleanSearchIndex(state)
+    }
+
+    /** 返回和取消按钮共用清理路径，取消构建不能留下部分索引。 */
+    @UiIntentObserver(MainUiIntent.CancelSearchIndexBuild::class)
+    private fun onCancelSearchIndexBuild() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.settingsState.searchIndexState !is SearchIndexState.Building) return
+        cleanSearchIndex(state)
+    }
+
+    /** 清理失败仅重试清理，不隐式重新启用搜索加速。 */
+    @UiIntentObserver(MainUiIntent.RetrySearchIndexCleanup::class)
+    private fun onRetrySearchIndexCleanup() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.settingsState.searchIndexState != SearchIndexState.CleanupFailed) return
+        cleanSearchIndex(state)
+    }
+
+    /**
+     * 清理任务交给共享仓库，页面只展示进度。
+     * @param state 已通过操作守卫的当前页面状态。
+     */
+    private fun cleanSearchIndex(state: MainUiState.Normal) {
+        state.copy(
+            dialogState = MainDialogState.None,
+            settingsState = state.settingsState.copy(searchIndexState = SearchIndexState.Cleaning)
+        ).setup()
+        viewModelScope.launch { mContentSearchRepository.disable() }
+    }
+
     /** 选择应用配色主题并同步更新全局主题与设置页状态。 */
     @UiIntentObserver(MainUiIntent.SelectThemeMode::class)
     private fun onSelectThemeMode(intent: MainUiIntent.SelectThemeMode) {
@@ -638,6 +738,28 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 )
             )
         ).setup()
+    }
+
+    /** 保存消息编辑偏好，并同步设置页状态。 */
+    @UiIntentObserver(MainUiIntent.ToggleSeparateThinkWhenEditing::class)
+    private fun onToggleSeparateThinkWhenEditing(intent: MainUiIntent.ToggleSeparateThinkWhenEditing) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.separateThinkWhenEditing = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(separateThinkWhenEditing = intent.enabled)
+        ).setup()
+    }
+
+    /** 保存故事 Markdown 预览偏好，并同步设置页状态。 */
+    @UiIntentObserver(MainUiIntent.ToggleStoryMarkdownRendering::class)
+    private fun onToggleStoryMarkdownRendering(intent: MainUiIntent.ToggleStoryMarkdownRendering) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.storyMarkdownRenderingEnabled = intent.enabled
+        uiState.copy(settingsState = uiState.settingsState.copy(
+            appearanceState = uiState.settingsState.appearanceState.copy(
+                storyMarkdownRenderingEnabled = intent.enabled
+            )
+        )).setup()
     }
 
     /** 切换首页内容子标签页（单聊 / 群聊 / 故事）。 */
@@ -658,6 +780,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             activity = ChatActivity::class.java,
             extras = Bundle().apply { putString(ChatActivity.EXTRA_SESSION_ID, intent.sessionId) }
         ).tryEmit()
+    }
+
+    /** 从最近内容标题进入独立搜索页，沿用当前内容分类。 */
+    @UiIntentObserver(MainUiIntent.OpenContentSearch::class)
+    private fun onOpenContentSearch() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val kind = when (state.homeState.selectedContentTab) {
+            MainHomeContentTab.All -> SearchKind.All
+            MainHomeContentTab.Single -> SearchKind.Chat
+            MainHomeContentTab.Group -> SearchKind.Group
+            MainHomeContentTab.Story -> SearchKind.Story
+        }
+        AppViewEvent.StartActivity(ContentSearchActivity::class.java,
+            Bundle().apply { putInt(ContentSearchActivity.EXTRA_KIND, kind.code) }).tryEmit()
     }
 
     /** 打开新建单聊会话页。 */
@@ -831,18 +967,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    /** 校验最大生成 Token 是否大于等于上下文总 Token 限制。 */
-    private fun MainDialogState.EditGenerationParameter.hasInvalidTokenRelationship(
-        provider: LLMProvider
-    ): Boolean {
-        val value = draftValue.toIntOrNull() ?: return false
-        return when (parameter) {
-            MainGenerationParameter.MaxTokens -> value >= provider.contextTokens
-            MainGenerationParameter.ContextTokens -> value <= provider.maxTokens
-            MainGenerationParameter.Temperature, MainGenerationParameter.TopP -> false
-        }
-    }
-
     /** 触发系统图片选择器选择用户自定义头像。 */
     @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
     private fun onPickUserAvatarClick() {
@@ -922,7 +1046,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(RequestLogActivity::class.java).tryEmit()
     }
 
-    /** Open the standalone manual backup and restore screen. */
+    /** 打开独立的完整备份与恢复页面。 */
     @UiIntentObserver(MainUiIntent.OpenBackupRestore::class)
     private fun onOpenBackupRestore() {
         if (!isStateOf<MainUiState.Normal>()) return
@@ -934,6 +1058,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenTokenUsage() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(TokenUsageActivity::class.java).tryEmit()
+    }
+
+    /** 打开独立外观页，主题及背景草稿由该 feature 管理。 */
+    @UiIntentObserver(MainUiIntent.OpenAppearance::class)
+    private fun onOpenAppearance() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(AppearanceActivity::class.java).tryEmit()
     }
 
     /** 打开关于软件页面。 */
@@ -1406,7 +1537,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val storyOverviews = mStoryRepository.getStoryOverviews()
             // 将单聊会话按角色聚合分组
             val sessionItems = sessions.map { session ->
-                session.toUiModel(characterMap[session.characterId])
+                session.toUiModel(
+                    characterName = characterMap[session.characterId]?.name.orEmpty()
+                        .ifBlank { mContext.getString(R.string.unknown_character) },
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
+                )
             }
             val sessionGroups = sessionItems.groupBy { it.characterId }.map { (id, items) ->
                 MainChatSessionGroup(
@@ -1417,26 +1552,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             }
             // 格式化群聊会话列表项
             val groupChatItems = groupSessions.map { session ->
-                MainGroupChatSessionItem(
-                    id = session.id.toString(),
-                    title = session.title,
-                    memberNames = session.memberNames,
-                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages),
-                    messageCount = session.messageCount,
-                    updatedAt = session.latestTime.formatTimestamp("MM-dd HH:mm"),
-                    latestTime = session.latestTime
+                session.toUiModel(
+                    preview = messagePreview(session.latestMessageContent, session.latestMessageHasImages)
                 )
             }
             // 格式化故事列表项
             val storyItems = storyOverviews.map { story ->
-                MainStoryItem(
-                    id = story.id,
-                    title = story.title,
-                    preview = story.preview.replace(WHITESPACE_REGEX, " ").trim(),
-                    contentCharacterCount = story.contentCharacterCount,
-                    updatedAt = story.latestTime.formatTimestamp("MM-dd HH:mm"),
-                    latestTime = story.latestTime
-                )
+                story.toUiModel()
             }
             // 装配完整的首页状态模型
             MainHomeState(
@@ -1474,10 +1596,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         selectedProvider: LLMProvider?,
         allProviders: List<LLMProvider>
     ): MainSettingsState {
+        // 全量装配读取共享仓库的当前值，持续变化由状态订阅更新。
         return MainSettingsState(
+            separateThinkWhenEditing = AppModel.separateThinkWhenEditing,
+            searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
-                themeMode = mAppThemeManager.themeModeFlow.value
+                themeMode = mAppThemeManager.themeModeFlow.value,
+                storyMarkdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled
             ),
             identityState = MainUserIdentityState(
                 userName = AppModel.resolvedUserName,
@@ -1527,19 +1653,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
-    /** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
-    private fun buildProviderSettingsState(
-        providers: List<LLMProvider>,
-        selectedProvider: LLMProvider?
-    ): MainProviderSettingsState {
-        if (selectedProvider == null) return MainProviderSettingsState.Empty
-        return MainProviderSettingsState.Available(
-            selectedProviderId = selectedProvider.id,
-            providers = providers.map { it.toMainProviderItem() },
-            generationParametersState = selectedProvider.toGenerationParametersState()
-        )
-    }
-
     /** 构建总结注入配置子状态（根据注入位置分别构建 System 或 InChat 配置）。 */
     private fun buildSummaryInjectionState(
         position: SummaryInjectionPosition
@@ -1547,42 +1660,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return position.toMainSummaryInjectionState(
             depth = AppModel.summaryInjectionDepth,
             role = readSummaryInjectionRole()
-        )
-    }
-
-    /** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
-    private fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
-        return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
-    }
-
-    /** 将 LLMProvider 映射为主页供应商下拉列表展示项。 */
-    private fun LLMProvider.toMainProviderItem(): MainProviderItem {
-        return MainProviderItem(
-            id = id,
-            name = name,
-            baseUrl = baseUrl,
-            model = model,
-            isEnabled = isEnabled
-        )
-    }
-
-    /** 将 Character 实体映射为导入角色绑定弹窗中的条目。 */
-    private fun Character.toImportCharacterItem(): MainImportCharacterItem {
-        return MainImportCharacterItem(
-            id = id,
-            name = name,
-            details = creator.takeIf { it.isNotBlank() }
-                ?: description.lineSequence().firstOrNull().orEmpty().take(80)
-        )
-    }
-
-    /** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
-    private fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
-        return MainGenerationParametersState(
-            temperature = temperature,
-            topP = topP,
-            maxTokens = maxTokens,
-            contextTokens = contextTokens
         )
     }
 
@@ -1611,29 +1688,6 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 }
             }
 
-    /** 从当前首页状态中按 ID 查找故事。 */
-    private fun MainHomeState.findStory(storyId: Long): MainStoryItem? {
-        val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
-        return content.stories.firstOrNull { it.id == storyId }
-    }
-
-    /** 从当前首页快照中读取可重命名内容的标题。 */
-    private fun MainHomeState.findItemTitle(item: MainHomeItemSelection): String? {
-        return when (item.type) {
-            MainHomeItemType.Chat -> allRecentItems
-                .filterIsInstance<MainChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
-            MainHomeItemType.GroupChat -> allRecentItems
-                .filterIsInstance<MainGroupChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
-            MainHomeItemType.Story -> item.itemId.toLongOrNull()
-                ?.let { storyId -> findStory(storyId) }
-                ?.title
-        }
-    }
-
     /** 辅助函数：安全解析整数设置项并应用更新。 */
     private fun updateSettingsInt(
         value: String,
@@ -1658,17 +1712,4 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         content?.stripThinkBlocks()?.takeIf { it.isNotBlank() }
             ?: mContext.getString(if (hasImages) R.string.message_image else R.string.no_messages_yet)
 
-    /** 将 ChatSessionOverview 转换为首页单聊列表项展示模型。 */
-    private fun ChatSessionOverview.toUiModel(character: Character?): MainChatSessionItem {
-        return MainChatSessionItem(
-            id = id.toString(),
-            characterId = characterId.toString(),
-            characterName = character?.name.orEmpty().ifBlank { mContext.getString(R.string.unknown_character) },
-            title = title,
-            preview = messagePreview(latestMessageContent, latestMessageHasImages),
-            messageCount = messageCount,
-            updatedAt = latestTime.formatTimestamp("MM-dd HH:mm"),
-            latestTime = latestTime
-        )
-    }
 }

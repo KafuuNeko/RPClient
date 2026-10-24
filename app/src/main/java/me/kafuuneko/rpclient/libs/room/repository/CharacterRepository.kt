@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.libs.room.model.MessageType
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
@@ -88,6 +89,33 @@ class CharacterRepository(
     }
 
     /**
+     * 角色、模型绑定及背景在同一个文件事务中提交，失败时保留原图片和可重试草稿。
+     *
+     * @param character 待保存的角色字段。
+     * @param llmProviderId 模型配置 ID；0 表示跟随全局配置。
+     * @param backgroundUuid 保留的原背景索引；null 表示移除。
+     * @param prepared 新选图片的暂存凭据；非空时优先发布该图片。
+     * @return 保存后的角色 ID。
+     */
+    suspend fun saveCharacterWithAppearance(
+        character: Character,
+        llmProviderId: Long,
+        backgroundUuid: String?,
+        prepared: PreparedFile?
+    ): Long = mImages.mutate(listOfNotNull(prepared)) {
+        // 已有角色被删除后不得创建孤立背景，也不允许挪用其他所有者的索引。
+        val previous = mCharacterDao.getCharacterById(character.id)
+        require(character.id == 0L || previous != null) { "Character no longer exists" }
+        val uuid = prepared?.file?.uuid ?: backgroundUuid
+        require(uuid == null || prepared != null || previous?.backgroundFileUuid == uuid) {
+            "Stale character background reference"
+        }
+        val id = saveCharacterWithLLMProvider(character.copy(backgroundFileUuid = uuid), llmProviderId)
+        previous?.backgroundFileUuid?.takeIf { it != uuid }?.let { removeFiles(listOf(it)) }
+        id
+    }
+
+    /**
      * 获取角色显式绑定的回复模型配置 ID。
      *
      * @param characterId 角色 ID。
@@ -135,8 +163,10 @@ class CharacterRepository(
                 mImages.deleteInTransaction(this, MessageType.Single,
                     mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id))
             }
+            val backgroundUuid = mCharacterDao.getCharacterById(id)?.backgroundFileUuid
             mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
             mCharacterDao.deleteCharacterById(id)
+            backgroundUuid?.let { removeFiles(listOf(it)) }
         }
     }
 

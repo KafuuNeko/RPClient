@@ -1,10 +1,7 @@
 package me.kafuuneko.rpclient.ui.widgets
 
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +13,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,13 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,13 +37,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 页面主标题，带辅助说明，统一页面顶部视觉规范。 */
 @Composable
@@ -107,7 +106,15 @@ fun RpSectionHeader(
     }
 }
 
-/** 项目统一的文字占位头像，采用现代化柔和 Squircle 圆角与微弱高光边框。 */
+/**
+ * 展示统一圆角头像，图片不可用时使用文字占位。
+ *
+ * @param text 头像不可用时显示的文字。
+ * @param color 占位文字、背景与边框的强调色。
+ * @param modifier 头像布局与尺寸。
+ * @param shape 头像裁剪形状。
+ * @param image 已解码的头像图片；为空时保留文字占位样式。
+ */
 @Composable
 fun RpAvatar(
     text: String,
@@ -122,12 +129,11 @@ fun RpAvatar(
         color = color.copy(alpha = 0.14f),
         border = BorderStroke(0.5.dp, color.copy(alpha = 0.28f))
     ) {
-        // 有头像图就显示图，取不到再退回首字占位，
-        // 避免角色换了头像之后群聊里还是那个字母
+        // 图片沿用 Surface 的裁剪与边框，文字占位仍保留原有布局。
         if (image != null) {
             Image(
                 bitmap = image,
-                contentDescription = text,
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -155,7 +161,8 @@ fun RpIconBubble(
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     contentColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    Surface(
+    // 图标底板继承所在内容区，图标本身保持原有强调色。
+    AppSurface(
         modifier = modifier.size(38.dp),
         shape = RoundedCornerShape(13.dp),
         color = containerColor,
@@ -194,7 +201,7 @@ fun RpTagRow(
 /** 单个强调标签，采用胶囊结构与轻量填充，去除粗糙黑边。 */
 @Composable
 fun RpTagPill(text: String) {
-    Surface(
+    AppSurface(
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.40f),
@@ -230,7 +237,7 @@ fun RpMetaRow(items: List<String>) {
 /** 单个弱化元信息标签。 */
 @Composable
 fun RpMetaPill(text: String) {
-    Surface(
+    AppSurface(
         modifier = Modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f),
@@ -257,7 +264,7 @@ fun RpInfoCard(
     subtitle: String,
     trailing: @Composable (() -> Unit)? = null
 ) {
-    Card(
+    AppCard(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
@@ -299,7 +306,7 @@ fun RpInfoCard(
 /** 使用项目统一圆角与背景色的内容面板。 */
 @Composable
 fun RpPanel(content: @Composable ColumnScope.() -> Unit) {
-    Card(
+    AppCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
@@ -324,7 +331,7 @@ fun RpSettingsGroup(
     shape: Shape = RoundedCornerShape(20.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(
@@ -519,7 +526,7 @@ fun StoryUserPersonaCard(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    Card(
+    AppCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))

@@ -10,6 +10,8 @@ import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -90,20 +92,30 @@ internal fun OkHttpClient.streamLines(
             try { awaitCancellation() } finally { call.cancel() }
         }
         try {
-            val response = withContext(Dispatchers.IO) { call.execute() }
+            val response = withCancellableNetworkIo { call.execute() }
             response.use {
                 val body = it.body ?: throw LLMEmptyResponseException()
                 if (!it.isSuccessful) {
-                    val errorBody = withContext(Dispatchers.IO) { body.string() }
+                    val errorBody = withCancellableNetworkIo { body.string() }
                     throw LLMHttpStatusException(it.code, ImageLogSanitizer.sanitize(errorBody.ifBlank { it.message }))
                 }
                 onConnected()
                 while (true) {
-                    val line = withContext(Dispatchers.IO) { body.source().readUtf8Line() } ?: break
+                    val line = withCancellableNetworkIo { body.source().readUtf8Line() } ?: break
                     emit(line)
                 }
             }
         } finally { cancellation.cancel() }
+    }
+}
+
+/** 主动取消 socket 会产生 IOException，必须在 IO 子协程内还原取消，避免其作为失败影响父任务。 */
+private suspend fun <T> withCancellableNetworkIo(block: () -> T): T = withContext(Dispatchers.IO) {
+    try {
+        block()
+    } catch (error: IOException) {
+        currentCoroutineContext().ensureActive()
+        throw error
     }
 }
 
@@ -284,7 +296,7 @@ internal class LLMStreamPartMapper(
     private fun mapText(
         part: LLMProviderStreamPart.Text
     ): List<LLMStreamEvent> {
-        if (part.content.isBlank()) return emptyList()
+        if (part.content.isEmpty()) return emptyList()
         val prefix = closeReasoning()?.content.orEmpty()
         return listOf(
             LLMStreamEvent.Delta(
@@ -297,7 +309,7 @@ internal class LLMStreamPartMapper(
     private fun mapReasoning(
         part: LLMProviderStreamPart.Reasoning
     ): List<LLMStreamEvent> {
-        if (part.content.isBlank()) return emptyList()
+        if (part.content.isEmpty()) return emptyList()
         // 聊天兼容模式将推理并入正文，结构化捕获模式则保持独立事件
         if (includeReasoningInContent) {
             val content = if (mIsThinking) part.content else "<think>\n${part.content}"

@@ -3,12 +3,15 @@ package me.kafuuneko.rpclient.feature.main.presentation
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
+import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
@@ -30,13 +33,19 @@ data class MainSettingsState(
     /** 设置页中调试功能区域的状态。 */
     val debugState: MainDebugSettingsState,
     /** 设置页中图片发送方式和自定义参数草稿。 */
-    val imageSendState: MainImageSendState = MainImageSendState()
+    val imageSendState: MainImageSendState = MainImageSendState(),
+    /** 搜索加速开关与应用级索引维护进度。 */
+    val searchIndexState: SearchIndexState = SearchIndexState.Disabled,
+    /** 单聊与群聊的消息编辑是否分离思考链。 */
+    val separateThinkWhenEditing: Boolean = true
 )
 
 /** 应用外观设置面板状态。 */
 data class MainAppearanceSettingsState(
     /** 用户当前选择的配色主题模式。 */
-    val themeMode: AppThemeMode
+    val themeMode: AppThemeMode,
+    /** 故事章节默认使用 Markdown 预览，关闭时保留原文编辑方式。 */
+    val storyMarkdownRenderingEnabled: Boolean = false
 )
 
 /** 用户名称、描述和头像面板状态。 */
@@ -212,3 +221,31 @@ data class MainDebugSettingsState(
     /** 当前对象或功能是否启用。 */
     val enabled: Boolean
 )
+
+/** 将 LLMProvider 的生成参数映射为可编辑状态模型。 */
+internal fun LLMProvider.toGenerationParametersState(): MainGenerationParametersState {
+    return MainGenerationParametersState(
+        temperature = temperature,
+        topP = topP,
+        maxTokens = maxTokens,
+        contextTokens = contextTokens
+    )
+}
+
+/** 构建供应商配置子状态，无可用供应商时返回 Empty。 */
+internal fun buildProviderSettingsState(
+    providers: List<LLMProvider>,
+    selectedProvider: LLMProvider?
+): MainProviderSettingsState {
+    if (selectedProvider == null) return MainProviderSettingsState.Empty
+    return MainProviderSettingsState.Available(
+        selectedProviderId = selectedProvider.id,
+        providers = providers.map { it.toMainProviderItem() },
+        generationParametersState = selectedProvider.toGenerationParametersState()
+    )
+}
+
+/** 解析当前供应商生效的 Prompt 后处理模式枚举。 */
+internal fun LLMProvider.postProcessingMode(): PromptPostProcessingMode {
+    return PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode)
+}

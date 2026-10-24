@@ -98,7 +98,7 @@ fun AppCodeEditorDialog(
                     .fillMaxWidth()
                     .height(editorHeight)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                    .background(dialogControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)))
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),

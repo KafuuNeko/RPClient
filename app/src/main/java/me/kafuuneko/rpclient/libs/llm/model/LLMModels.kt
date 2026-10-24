@@ -6,6 +6,13 @@ const val DEFAULT_LLM_MAX_TOKENS = 8192
 /** 新模型配置用于输入与输出的默认总上下文预算。 */
 const val DEFAULT_LLM_CONTEXT_TOKENS = 32768
 
+/** OpenAI 原生模板使用当前轻量推理模型，输出预算仍由用户配置控制。 */
+const val DEFAULT_OPENAI_RESPONSES_MODEL = "gpt-6-luna"
+
+/** 原生 Responses 的推理参数；摘要开关由每次生成的展示需求决定。 */
+const val DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON =
+    "{\"reasoning\":{\"effort\":\"low\"}}"
+
 /** 高级请求 JSON 中用于引用稳定匿名会话路由 ID 的系统变量名。 */
 const val LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID = "\$rpclient.routing_session_id"
 
@@ -49,12 +56,13 @@ enum class LLMProviderType {
 /**
  * 模型配置实际使用的 HTTP 协议。
  *
- * ChatGPT、DeepSeek、OpenRouter 以及大多数第三方网关都归入 OpenAICompatible。
+ * Responses 与 Chat Completions 分别建模；协议名称作为持久化值，不随展示名称改变。
  */
 enum class LLMProviderProtocol {
     OpenAICompatible,
     Gemini,
-    AnthropicMessages
+    AnthropicMessages,
+    OpenAIResponses
 }
 
 /**
@@ -291,7 +299,7 @@ enum class LLMReasoningKind {
     Detailed
 }
 
-/** 判断服务端是否因输出 Token 上限截断响应，涵盖当前支持的三种协议。 */
+/** 判断服务端是否因输出 Token 上限截断响应，保留各协议的原生停止原因。 */
 fun LLMGenerationResponse.isOutputTokenLimitReached(): Boolean {
-    return finishReason?.trim()?.lowercase() in setOf("length", "max_tokens")
+    return finishReason?.trim()?.lowercase() in setOf("length", "max_tokens", "max_output_tokens")
 }

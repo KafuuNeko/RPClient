@@ -4,9 +4,9 @@ import android.os.Bundle
 import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.LLMProviderEditActivity
-import me.kafuuneko.rpclient.feature.llmproviderlist.model.LLMProviderListItem
-import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
+import me.kafuuneko.rpclient.feature.llmproviderlist.model.toUiModel
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListDialogState
+import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListLoadState
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiIntent
 import me.kafuuneko.rpclient.feature.llmproviderlist.presentation.LLMProviderListUiState
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -170,15 +170,7 @@ class LLMProviderListViewModel : CoreViewModelWithEvent<LLMProviderListUiIntent,
         val uiState = getOrNull<LLMProviderListUiState.Normal>() ?: return
         // 查询全部提供商并转换为列表项模型
         val providers = mLLMRepository.getAllProviders().map { provider ->
-            LLMProviderListItem(
-                id = provider.id,
-                name = provider.name,
-                providerType = provider.providerType,
-                protocol = provider.protocol,
-                baseUrl = provider.baseUrl,
-                model = provider.model,
-                isEnabled = provider.isEnabled
-            )
+            provider.toUiModel()
         }
         // 更新列表展示并解除加载中状态
         uiState.copy(

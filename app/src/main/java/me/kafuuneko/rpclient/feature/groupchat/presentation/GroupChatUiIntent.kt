@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
+import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
@@ -11,9 +11,16 @@ sealed class GroupChatUiIntent {
 
     data object RetryImageReply : GroupChatUiIntent()
     data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
-    data class Init(val sessionId: String?) : GroupChatUiIntent()
+    data class Init(val sessionId: String?, val searchMessageId: Long? = null) : GroupChatUiIntent()
     data object Resume : GroupChatUiIntent()
     data object LoadOlderMessages : GroupChatUiIntent()
+
+    data object LoadNewerMessages : GroupChatUiIntent()
+
+    data object ReturnToLatest : GroupChatUiIntent()
+
+    /** 列表已经到达真实末尾，携带尾消息 ID 防止过期滚动事件误清除定位。 */
+    data class ReachLatestMessage(val messageId: Long) : GroupChatUiIntent()
     data object Back : GroupChatUiIntent()
     data object OpenSettings : GroupChatUiIntent()
     data object ShowSessionLoreDialog : GroupChatUiIntent()

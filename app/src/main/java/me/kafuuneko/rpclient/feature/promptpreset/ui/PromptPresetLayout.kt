@@ -30,13 +30,9 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -58,10 +54,14 @@ import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiSta
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
 
 /** Prompt 预设列表与编辑对话框的 Compose 入口。 */
 @Composable
@@ -85,7 +85,7 @@ private fun NormalView(
     uiState: PromptPresetUiState.Normal,
     emit: PromptPresetUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
@@ -101,7 +101,7 @@ private fun NormalView(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .background(MaterialTheme.colorScheme.background),
+                .background(pageCanvasColor()),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 18.dp,
@@ -110,12 +110,6 @@ private fun NormalView(
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.prompt_preset_title),
-                    subtitle = stringResource(R.string.prompt_preset_subtitle)
-                )
-            }
             promptGroups.forEach { group ->
                 item {
                     RpSectionHeader(title = stringResource(group.titleRes))
@@ -144,7 +138,7 @@ private fun PromptCard(
     promptPreview: String,
     onClick: () -> Unit
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
@@ -157,7 +151,7 @@ private fun PromptCard(
         ) {
             // 标题行
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
+                AppSurface(
                     modifier = Modifier.size(38.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)

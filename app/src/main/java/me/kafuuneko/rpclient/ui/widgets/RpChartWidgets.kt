@@ -31,11 +31,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ShowChart
 import androidx.compose.material.icons.rounded.BarChart
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -368,7 +366,7 @@ private fun RpChartToggleChip(
     text: String,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         shape = CircleShape,
         color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
         border = if (selected) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)) else null,
@@ -799,7 +797,7 @@ fun RpTrendChartCard(
 ) {
     val selectedPoint = points.firstOrNull { it.key == selectedKey }
 
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

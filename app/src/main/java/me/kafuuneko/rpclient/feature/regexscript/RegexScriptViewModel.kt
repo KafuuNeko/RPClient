@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.regexscript
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,6 +16,7 @@ import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptDialogS
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptUiIntent
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptUiState
 import me.kafuuneko.rpclient.feature.regexscript.presentation.RegexScriptViewEvent
+import me.kafuuneko.rpclient.feature.regexscript.presentation.targetOrNull
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -29,7 +31,6 @@ import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.util.UUID
 
 /**
  * 正则表达式脚本（Regex Script）管理页状态持有者。
@@ -444,16 +445,6 @@ class RegexScriptViewModel :
             current.copy(scripts = scripts).setup()
         }
         return scripts
-    }
-
-    /** 从当前 UI 状态解析对应的 Regex 脚本定位目标。 */
-    private fun RegexScriptUiState.Normal.targetOrNull(): RegexScriptTarget? {
-        return when (scope) {
-            RegexScriptScope.Global -> RegexScriptTarget(RegexScriptScope.Global)
-            RegexScriptScope.Character -> selectedCharacterId?.let {
-                RegexScriptTarget(RegexScriptScope.Character, it)
-            }
-        }
     }
 
     /** 仅由当前传输任务清理进度，页面结束后不再发布普通状态。 */

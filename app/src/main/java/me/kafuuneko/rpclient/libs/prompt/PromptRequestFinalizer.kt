@@ -104,7 +104,8 @@ class PromptRequestFinalizer(
             postProcessingMode == PromptPostProcessingMode.None &&
             environment.tokenizer.supportsIncrementalMessageCounting &&
             filteredDrafts.none { it.images.isNotEmpty() || it.unavailableImages.isNotEmpty() } &&
-            (provider == null || provider.protocol == LLMProviderProtocol.OpenAICompatible)
+            (provider == null || provider.protocol == LLMProviderProtocol.OpenAICompatible ||
+                provider.protocol == LLMProviderProtocol.OpenAIResponses)
         ) {
             return finalizeWithoutPostProcessing(
                 drafts = filteredDrafts,

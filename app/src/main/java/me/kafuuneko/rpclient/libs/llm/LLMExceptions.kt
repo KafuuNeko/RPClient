@@ -32,6 +32,11 @@ class LLMRequestException(cause: Throwable) : IllegalStateException(
     cause
 )
 
+/** HTTP 已成功建立后由模型协议返回的失败；普通提示只使用错误码分类。 */
+class LLMResponseException(val code: String? = null) : IllegalStateException(
+    "The model service could not complete the response"
+)
+
 /** 为模型调用异常附加可安全展示的配置名称，不包含凭据或请求内容。 */
 class LLMProviderRequestException(
     val providerName: String,
@@ -80,6 +85,12 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
             403 -> GenerationFailure.Forbidden
             429 -> GenerationFailure.RateLimited
             else -> GenerationFailure.HttpFailure(throwable.statusCode)
+        }
+        is LLMResponseException -> when (throwable.code) {
+            "invalid_api_key", "authentication_error" -> GenerationFailure.Unauthorized
+            "permission_denied" -> GenerationFailure.Forbidden
+            "rate_limit_exceeded", "insufficient_quota" -> GenerationFailure.RateLimited
+            else -> GenerationFailure.RequestFailure
         }
         is LLMRequestException -> if (throwable.cause is ImageRequestException) classifyGenerationFailure(throwable.cause!!) else GenerationFailure.RequestFailure
         is IOException -> GenerationFailure.Network

@@ -4,9 +4,9 @@ import android.content.Context
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -16,86 +16,93 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
+import me.kafuuneko.rpclient.feature.main.MainActivity
+import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
-import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.ActiveStoryGeneration
+import me.kafuuneko.rpclient.feature.storyeditor.model.LoadedStory
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropPosition
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDropTarget
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditHistory
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditedTextRange
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditedTextRange
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookEntryItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
-import me.kafuuneko.rpclient.feature.storyeditor.model.enableLorebook
-import me.kafuuneko.rpclient.feature.storyeditor.model.restoreLorebookSelection
-import me.kafuuneko.rpclient.feature.storyeditor.model.toggleLorebook
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryUndoEntry
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
-import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.model.editedTextRange
+import me.kafuuneko.rpclient.feature.storyeditor.model.enableLorebook
+import me.kafuuneko.rpclient.feature.storyeditor.model.normalizeCharacterOrder
+import me.kafuuneko.rpclient.feature.storyeditor.model.restoreLorebookSelection
+import me.kafuuneko.rpclient.feature.storyeditor.model.toStorageValue
+import me.kafuuneko.rpclient.feature.storyeditor.model.toStoryCharacterActivationMode
+import me.kafuuneko.rpclient.feature.storyeditor.model.toggleLorebook
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryContinuationInputState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructureState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEvent
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
-import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
-import me.kafuuneko.rpclient.feature.main.MainActivity
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.allChapters
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.buildStructureState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.canEditStructure
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.moveChapterForDrag
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.shouldScheduleStoryAutoSaveAfterComposition
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryDialogState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryGenerationFailure
+import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
-import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
-import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.StoryChapterPlacement
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
+import me.kafuuneko.rpclient.libs.room.repository.StoryEditorData
+import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
-import me.kafuuneko.rpclient.libs.room.repository.StoryChapterPlacement
-import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
-import me.kafuuneko.rpclient.libs.room.repository.StoryEditorData
-import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryEditTarget
+import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
+import me.kafuuneko.rpclient.libs.story.StoryPromptBudgetException
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StoryPromptContext
-import me.kafuuneko.rpclient.libs.story.StoryPromptBudgetException
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
-import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 import me.kafuuneko.rpclient.libs.story.prepareStoryContinuationText
 import me.kafuuneko.rpclient.libs.story.storyTextHash
-import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
-import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
-import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
-import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.AppModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 
 /**
  * 分卷/章节故事编辑器（Story Editor）的 ViewModel（状态持有者与业务控制器）。
@@ -201,7 +208,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
         // 异步从数据库加载故事基础数据与关联统计
         val loaded = withContext(Dispatchers.IO) {
-            val editorData = mStoryRepository.getStoryEditorData(intent.storyId)
+            val editorData = mStoryRepository.getStoryEditorData(intent.storyId, intent.searchChapterId)
                 ?: return@withContext null
             val characterCount = mStoryRepository
                 .getStoryCharacterCandidates(editorData.story.id)
@@ -228,7 +235,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mRevision = chapter.contentRevision
         mWorldInfoStates = loaded.worldInfoStates
         // 向文档流发布初始文本
-        publishDocument(chapter.content)
+        val searchTargetAvailable = intent.searchChapterId == null || intent.searchChapterId == chapter.id
+        if (!searchTargetAvailable) {
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
+        }
+        val searchRange = if (!searchTargetAvailable) null else withContext(Dispatchers.Default) {
+            SearchTextCodec.literalRange(chapter.content, intent.searchQuery)
+                ?.let { StoryEditedTextRange(it.first, it.last + 1) }
+        }
+        publishDocument(chapter.content, searchRange = searchRange)
         // 检查全局是否存在已启用的模型服务配置
         val hasAvailableProvider = withContext(Dispatchers.IO) {
             mLLMRepository.getSelectedProvider() != null
@@ -238,7 +253,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             storyId = story.id,
             topBarState = StoryEditorTopBarState(title = story.title),
             contentState = StoryEditorContentState(
-                characterCount = chapter.content.length
+                characterCount = chapter.content.length,
+                markdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled
             ),
             structureState = buildStructureState(loaded.editorData),
             referenceState = StoryEditorReferenceState(
@@ -363,8 +379,13 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         val hasAvailableProvider = withContext(Dispatchers.IO) {
             mLLMRepository.getSelectedProvider() != null
         }
-        if (uiState.hasAvailableProvider != hasAvailableProvider) {
-            uiState.copy(hasAvailableProvider = hasAvailableProvider).setup()
+        val markdownEnabled = AppModel.storyMarkdownRenderingEnabled
+        if (uiState.hasAvailableProvider != hasAvailableProvider ||
+            uiState.contentState.markdownRenderingEnabled != markdownEnabled
+        ) {
+            uiState.copy(hasAvailableProvider = hasAvailableProvider,
+                contentState = uiState.contentState.copy(markdownRenderingEnabled = markdownEnabled)
+            ).setup()
         }
     }
 
@@ -2571,40 +2592,6 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mPersistedGuidance = editorData.currentChapter.continuationGuidance
     }
 
-    /** 将数据库加载的大纲聚合数据转换为 UI 结构状态。 */
-    private fun buildStructureState(editorData: StoryEditorData): StoryEditorStructureState {
-        // 将章节数据库实体映射为大纲项
-        val chapters = editorData.chapters.map { overview ->
-            StoryChapterOutlineItem(
-                id = overview.id,
-                title = overview.title,
-                volumeId = overview.volumeId,
-                characterCount = overview.contentCharacterCount,
-                sortOrder = overview.sortOrder
-            )
-        }
-        // 解析当前章节所属分卷
-        val currentVolume = editorData.currentChapter.volumeId?.let { volumeId ->
-            editorData.volumes.firstOrNull { it.id == volumeId }
-        }
-        // 组装大纲状态对象
-        return StoryEditorStructureState(
-            currentChapterId = editorData.currentChapter.id,
-            currentChapterTitle = editorData.currentChapter.title,
-            currentVolumeId = currentVolume?.id,
-            currentVolumeTitle = currentVolume?.title,
-            ungroupedChapters = chapters.filter { it.volumeId == null },
-            volumes = editorData.volumes.map { volume ->
-                StoryVolumeOutlineItem(
-                    id = volume.id,
-                    title = volume.title,
-                    sortOrder = volume.sortOrder,
-                    chapters = chapters.filter { it.volumeId == volume.id }
-                )
-            }
-        )
-    }
-
     /** 统一封装故事结构变更事务与加载状态维护。 */
     private suspend fun mutateStructure(
         operation: suspend (storyId: Long) -> Boolean
@@ -2722,43 +2709,6 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     /**
-     * 规范化角色列表的排序：已选角色按 sortOrder 升序且紧密重新编号（0, 1, 2...），未选角色按名称字典序排在最后。
-     */
-    private fun normalizeCharacterOrder(
-        characters: List<StoryCharacterOptionItem>
-    ): List<StoryCharacterOptionItem> {
-        val selected = characters.filter { it.selected }
-            .sortedBy { it.sortOrder }
-            .mapIndexed { index, item -> item.copy(sortOrder = index) }
-        val unselected = characters.filterNot { it.selected }
-            .sortedBy { it.name.lowercase() }
-            .map { it.copy(sortOrder = Int.MAX_VALUE) }
-        return selected + unselected
-    }
-
-    /**
-     * 数据库存储的激活模式 Int 转 UI 枚举 [StoryCharacterActivationMode]。
-     */
-    private fun Int?.toStoryCharacterActivationMode(): StoryCharacterActivationMode {
-        return when (this) {
-            StoryCharacter.ACTIVATION_PRIMARY -> StoryCharacterActivationMode.Primary
-            StoryCharacter.ACTIVATION_ALWAYS -> StoryCharacterActivationMode.Always
-            else -> StoryCharacterActivationMode.Auto
-        }
-    }
-
-    /**
-     * UI 激活模式枚举转数据库存储的 Int 值。
-     */
-    private fun StoryCharacterActivationMode.toStorageValue(): Int {
-        return when (this) {
-            StoryCharacterActivationMode.Primary -> StoryCharacter.ACTIVATION_PRIMARY
-            StoryCharacterActivationMode.Always -> StoryCharacter.ACTIVATION_ALWAYS
-            StoryCharacterActivationMode.Auto -> StoryCharacter.ACTIVATION_AUTO
-        }
-    }
-
-    /**
      * 更新顶部状态栏的保存状态 [StorySaveState]。
      */
     private fun updateSaveState(saveState: StorySaveState) {
@@ -2773,7 +2723,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private fun publishDocument(
         content: String,
-        latestEditedRange: StoryEditedTextRange? = null
+        latestEditedRange: StoryEditedTextRange? = null,
+        searchRange: StoryEditedTextRange? = null
     ) {
         val story = mStory ?: return
         val chapter = mChapter ?: return
@@ -2782,7 +2733,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             chapterId = chapter.id,
             content = content,
             syncVersion = ++mDocumentSyncVersion,
-            latestEditedRange = latestEditedRange
+            latestEditedRange = latestEditedRange,
+            searchRange = searchRange
         )
     }
 
@@ -2800,263 +2752,4 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         /** 文件名非法字符正则过滤 */
         val INVALID_FILE_NAME_CHARS = Regex("[\\\\/:*?\"<>|]")
     }
-}
-
-/**
- * 活跃的故事 AI 续写任务快照，记录生成上下文与局部生成增量。
- */
-private data class ActiveStoryGeneration(
-    val token: Any,
-    val provider: LLMProvider,
-    val target: StoryEditTarget,
-    val chapterId: Long,
-    val baseStoryRevision: Long,
-    val baseChapterRevision: Long,
-    val sourceContent: String,
-    val previousEditedRange: StoryEditedTextRange?,
-    val previousWorldInfoStates: List<StoryLorebookRuntimeState>,
-    val previousWorldInfoGenerationStep: Int,
-    val nextWorldInfoStates: List<StoryLorebookRuntimeState>,
-    val startedAtElapsedRealtime: Long,
-    val partialText: String = "",
-    val reasoningText: String = "",
-    val phase: StoryGenerationPhase = StoryGenerationPhase.AwaitingResponse,
-    val isReasoningExpanded: Boolean = false
-) {
-    /** 追加模型构思，并在正文已经开始后保持写作阶段不倒退。 */
-    fun appendReasoning(content: String): ActiveStoryGeneration {
-        val nextReasoning = (reasoningText + content).takeLast(MAX_REASONING_DISPLAY_CHARS)
-        return copy(
-            reasoningText = nextReasoning,
-            phase = if (phase == StoryGenerationPhase.Writing) {
-                StoryGenerationPhase.Writing
-            } else {
-                StoryGenerationPhase.Reasoning
-            }
-        )
-    }
-
-    /** 追加最终正文，并保持用户当前选择的构思展开状态。 */
-    fun appendGeneratedText(content: String): ActiveStoryGeneration {
-        return copy(
-            partialText = partialText + content,
-            phase = StoryGenerationPhase.Writing
-        )
-    }
-
-    /**
-     * 合并同一任务的最新交互状态。
-     *
-     * 模型文本由收包协程持有，而展开状态可由 UI Intent 独立更新；每次处理流事件前合并，
-     * 防止协程中的旧快照覆盖用户刚刚完成的操作。
-     */
-    fun withLatestInteractionState(latest: ActiveStoryGeneration?): ActiveStoryGeneration {
-        if (latest?.token !== token) return this
-        return copy(isReasoningExpanded = latest.isReasoningExpanded)
-    }
-
-    /** 构造只包含当前展示所需推理信息的流式页面状态。 */
-    fun toStreamingState(reasoningDetail: String = ""): StoryGenerationState.Streaming {
-        return StoryGenerationState.Streaming(
-            partialText = partialText,
-            phase = phase,
-            startedAtElapsedRealtime = startedAtElapsedRealtime,
-            reasoningPreview = reasoningText.toReasoningPreview(),
-            reasoningDetail = reasoningDetail,
-            isReasoningExpanded = isReasoningExpanded
-        )
-    }
-
-    /** 清除只属于活跃请求的推理信息，避免失败恢复快照延长其内存生命周期。 */
-    fun withoutReasoning(): ActiveStoryGeneration {
-        return copy(
-            reasoningText = "",
-            isReasoningExpanded = false
-        )
-    }
-
-    /** 生成拼接了增量续写预览文本的完整正文。 */
-    fun previewContent(): String {
-        val previewText = prepareStoryContinuationText(sourceContent, partialText)
-        return sourceContent.replaceRange(target.start, target.end, previewText)
-    }
-
-    /** 计算当前生成结果在正文中的范围。 */
-    fun resultTextRange(text: String = partialText): StoryEditedTextRange? {
-        if (text.isEmpty()) return null
-        return StoryEditedTextRange(
-            start = target.start,
-            end = target.start + text.length
-        )
-    }
-
-    private companion object {
-        /** 防止异常服务返回无限推理文本并长期占用编辑器内存。 */
-        const val MAX_REASONING_DISPLAY_CHARS = 24_000
-    }
-}
-
-/** 将推理文本压缩为状态卡使用的单行最近片段。 */
-private fun String.toReasoningPreview(): String {
-    val normalized = lineSequence()
-        .map(String::trim)
-        .filter(String::isNotBlank)
-        .joinToString(" ")
-    if (normalized.length <= REASONING_PREVIEW_CHARS) return normalized
-    return "…${normalized.takeLast(REASONING_PREVIEW_CHARS - 1)}"
-}
-
-private const val REASONING_PREVIEW_CHARS = 220
-
-/** 编辑器初始化时一次性读取的 Story 与关联状态。 */
-private data class LoadedStory(
-    val editorData: StoryEditorData,
-    val characterCount: Int,
-    val worldInfoStates: List<StoryLorebookRuntimeState>
-)
-
-private fun StoryEditorUiState.Normal.canEditStructure(): Boolean {
-    return pageState == StoryEditorPageState.Outline &&
-        dialogState == StoryEditorDialogState.None &&
-        !structureState.isUpdating &&
-        generationState is StoryGenerationState.Idle
-}
-
-private fun StoryEditorStructureState.allChapters(): List<StoryChapterOutlineItem> {
-    return ungroupedChapters + volumes.flatMap { it.chapters }
-}
-
-/** 返回指定分卷中的章节；空分卷 ID 表示未分卷章节。 */
-private fun StoryEditorStructureState.chaptersInVolume(
-    volumeId: Long?
-): List<StoryChapterOutlineItem> {
-    return if (volumeId == null) {
-        ungroupedChapters
-    } else {
-        volumes.firstOrNull { it.id == volumeId }?.chapters.orEmpty()
-    }
-}
-
-/** 替换指定分卷的章节列表，同时保留其余结构节点不变。 */
-private fun StoryEditorStructureState.withChapters(
-    volumeId: Long?,
-    chapters: List<StoryChapterOutlineItem>
-): StoryEditorStructureState {
-    return if (volumeId == null) {
-        copy(ungroupedChapters = chapters)
-    } else {
-        copy(
-            volumes = volumes.map { volume ->
-                if (volume.id == volumeId) volume.copy(chapters = chapters) else volume
-            }
-        )
-    }
-}
-
-/**
- * 根据拖放目标生成新的章节结构，非法或无效目标返回空。
- *
- * - 同容器内依据源节点与锚点的相对方向插入，保持拖动经过相邻节点时可交换位置。
- * - 跨容器章节目标表示插入到该章节之前。
- * - 容器目标只表达首尾语义，最终下标由当前结构计算。
- * - 源容器与目标容器都会重新生成连续排序值。
- *
- * @param chapterId 被拖动的章节 ID
- * @param target 手势命中的类型化结构目标
- * @return 完成移动后的结构；章节、分卷或锚点无效时返回空
- */
-internal fun StoryEditorStructureState.moveChapterForDrag(
-    chapterId: Long,
-    target: StoryChapterDropTarget
-): StoryEditorStructureState? {
-    val sourceChapter = allChapters().firstOrNull { it.id == chapterId } ?: return null
-    val targetChapter = (target as? StoryChapterDropTarget.Chapter)?.let { chapterTarget ->
-        allChapters().firstOrNull { it.id == chapterTarget.chapterId } ?: return null
-    }
-    if (targetChapter?.id == sourceChapter.id) return null
-
-    // 先验证目标容器，再从参与排序的列表中排除源章节。
-    val targetVolumeId = when (target) {
-        is StoryChapterDropTarget.Chapter -> requireNotNull(targetChapter).volumeId
-        is StoryChapterDropTarget.Container -> target.volumeId
-    }
-    if (targetVolumeId != null && volumes.none { it.id == targetVolumeId }) return null
-    val originalSourceChapters = chaptersInVolume(sourceChapter.volumeId)
-    val sourceChapters = originalSourceChapters
-        .filterNot { it.id == sourceChapter.id }
-        .normalizeChapterOrder()
-    val targetChapters = if (sourceChapter.volumeId == targetVolumeId) {
-        sourceChapters
-    } else {
-        chaptersInVolume(targetVolumeId).filterNot { it.id == sourceChapter.id }
-    }
-
-    // 章节锚点插在其前方，容器边界按当前成员数量解析为首尾下标。
-    val targetIndex = when (target) {
-        is StoryChapterDropTarget.Chapter -> {
-            val anchorIndex = targetChapters.indexOfFirst { it.id == target.chapterId }
-                .takeIf { it >= 0 }
-                ?: return null
-            val movesDownInSameContainer = sourceChapter.volumeId == targetVolumeId &&
-                    originalSourceChapters.indexOfFirst { it.id == sourceChapter.id } <
-                    originalSourceChapters.indexOfFirst { it.id == target.chapterId }
-            if (movesDownInSameContainer) anchorIndex + 1 else anchorIndex
-        }
-        is StoryChapterDropTarget.Container -> when (target.position) {
-            StoryChapterDropPosition.Start -> 0
-            StoryChapterDropPosition.End -> targetChapters.size
-        }
-    }
-    val reorderedTarget = targetChapters.toMutableList().apply {
-        add(targetIndex, sourceChapter.copy(volumeId = targetVolumeId))
-    }.normalizeChapterOrder()
-
-    return if (sourceChapter.volumeId == targetVolumeId) {
-        withChapters(targetVolumeId, reorderedTarget)
-    } else {
-        withChapters(sourceChapter.volumeId, sourceChapters)
-            .withChapters(targetVolumeId, reorderedTarget)
-    }
-}
-
-/** 生成容器内从零开始且连续的章节排序值。 */
-private fun List<StoryChapterOutlineItem>.normalizeChapterOrder(): List<StoryChapterOutlineItem> {
-    return mapIndexed { index, chapter -> chapter.copy(sortOrder = index) }
-}
-
-/** 将公共模型配置引导转换为故事页面的对话框状态。 */
-private fun ModelSettingsGuideContent.toStoryDialogState(): StoryEditorDialogState.ModelSettingsGuide {
-    return StoryEditorDialogState.ModelSettingsGuide(title = title, message = message)
-}
-
-
-/** 计算撤销条目中插入文本所覆盖的范围。 */
-private fun StoryUndoEntry.editedTextRange(): StoryEditedTextRange? {
-    if (insertedText.isEmpty()) return null
-    return StoryEditedTextRange(
-        start = start,
-        end = start + insertedText.length
-    )
-}
-
-/** 将 LLM 异常转换为故事生成专用的失败分类 [StoryGenerationFailure]。 */
-internal fun Throwable.toStoryGenerationFailure(): StoryGenerationFailure {
-    return when (classifyGenerationFailure(this)) {
-        is LLMGenerationFailure.EmptyResponse -> StoryGenerationFailure.EmptyResult
-        is LLMGenerationFailure.PromptBudget -> StoryGenerationFailure.ContextBudget
-        else -> StoryGenerationFailure.Provider
-    }
-}
-
-/** 判断输入法组合态结束时，是否需要补发一次被延后的自动保存。 */
-internal fun shouldScheduleStoryAutoSaveAfterComposition(
-    wasComposing: Boolean,
-    snapshot: StoryEditorSnapshot,
-    draftContent: String,
-    persistedContent: String
-): Boolean {
-    return wasComposing &&
-        !snapshot.isComposing &&
-        snapshot.content == draftContent &&
-        draftContent != persistedContent
 }

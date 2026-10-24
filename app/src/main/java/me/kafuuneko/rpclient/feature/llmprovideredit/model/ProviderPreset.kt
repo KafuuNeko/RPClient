@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
+import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
@@ -55,10 +57,10 @@ enum class ProviderPreset(
     ChatGPT(
         displayName = "OpenAI",
         providerType = LLMProviderType.ChatGPT,
-        protocol = LLMProviderProtocol.OpenAICompatible,
+        protocol = LLMProviderProtocol.OpenAIResponses,
         baseUrl = "https://api.openai.com/v1",
-        defaultModel = "gpt-4o",
-        defaultRequestBodyPatchJson = "{}",
+        defaultModel = DEFAULT_OPENAI_RESPONSES_MODEL,
+        defaultRequestBodyPatchJson = DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON,
         defaultUseServerReportedUsage = true
     ),
     OpenRouter(

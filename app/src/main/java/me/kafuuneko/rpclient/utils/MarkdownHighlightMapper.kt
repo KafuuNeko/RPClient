@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.utils
 
 /**
- * A range in the visible text of a rendered Markdown block (or one list item).
- * [endExclusive] follows the same UTF-16 indexing convention as Compose text ranges.
+ * Markdown 块或列表项渲染后的可见文本范围。
+ * [endExclusive] 与 Compose 文本范围一致，使用 UTF-16 偏移且不包含结束位置。
  */
 internal data class MarkdownHighlightRange(
     val blockIndex: Int,
@@ -12,13 +12,17 @@ internal data class MarkdownHighlightRange(
 )
 
 /**
- * Maps a generated source edit to the visible-text ranges produced by [MarkdownParser].
+ * 将生成内容在原文中的修改映射到 [MarkdownParser] 输出的可见文本范围。
  *
- * Both the source document and the selected edit are parsed first, then whitespace and
- * block boundaries are normalized in the same way. Markdown markers therefore do not
- * offset the highlight, and edits spanning multiple blocks yield multiple visible ranges.
+ * 原文和修改片段采用相同的空白与块边界归一化，避免 Markdown 标记导致高亮偏移；
+ * 跨块修改拆成多个可见范围。
  */
 internal object MarkdownHighlightMapper {
+    /**
+     * 在可见文档中定位指定次数的命中，并拆分为各渲染节点的 UTF-16 范围。
+     * @param occurrenceIndex 从零开始的非重叠匹配序号。
+     * @return 不跨越块或列表项边界的高亮范围，未匹配时为空。
+     */
     fun findRanges(
         blocks: List<MarkdownBlock>,
         highlightedText: String?,
@@ -45,6 +49,7 @@ internal object MarkdownHighlightMapper {
         }
         if (found < 0) return emptyList()
 
+        // 合并相邻可见字符，跨块空白只用于匹配，不生成高亮范围。
         val output = mutableListOf<MarkdownHighlightRange>()
         var active: SourceLocation? = null
         var activeEnd = -1
@@ -86,15 +91,14 @@ internal object MarkdownHighlightMapper {
     }
 
     /**
-     * Counts visible occurrences in the text preceding the edited range. This intentionally
-     * differs from searching raw Markdown: a formatted and an unformatted occurrence should
-     * share the same rendered coordinates.
+     * 统计修改位置之前的可见文本命中次数，确保格式化和未格式化的相同文本使用一致的定位规则。
      */
     fun countOccurrencesBefore(prefix: String, highlightedText: String): Int {
         if (highlightedText.isBlank()) return 0
         val needle = buildVisibleDocument(MarkdownParser.parseBlocks(highlightedText)).text
         if (needle.isBlank()) return 0
 
+        // 与最终渲染共用归一化逻辑，Markdown 标记不参与出现次数。
         val haystack = buildVisibleDocument(MarkdownParser.parseBlocks(prefix)).text
         var from = 0
         var count = 0
@@ -125,6 +129,7 @@ internal object MarkdownHighlightMapper {
         val locations: List<SourceLocation?>
     )
 
+    /** 保留归一化字符到原渲染节点的映射，连续空白折叠但不丢失来源范围。 */
     private fun buildVisibleDocument(blocks: List<MarkdownBlock>): VisibleDocument {
         val chunks = buildList {
             blocks.forEachIndexed { blockIndex, block ->
@@ -149,6 +154,7 @@ internal object MarkdownHighlightMapper {
             }
         }
 
+        // 块边界以无来源空格连接，字符空白则保留所属节点与原始跨度。
         val visible = StringBuilder()
         val locations = mutableListOf<SourceLocation?>()
 
@@ -215,6 +221,7 @@ internal object MarkdownHighlightMapper {
                 }
             }
         }
+        // 只收集实际可见内容，忽略格式标记与链接地址。
         appendParts(MarkdownParser.parseInline(source))
     }
 }

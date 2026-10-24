@@ -46,7 +46,9 @@ fun RpPercentageSlider(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+        // 轨道跟随内容区底板，手柄保持清晰可拖动。
         Slider(
+            colors = pageSliderColors(),
             value = percent.toFloat(),
             onValueChange = { onValueChange(it.roundToInt()) },
             enabled = enabled,

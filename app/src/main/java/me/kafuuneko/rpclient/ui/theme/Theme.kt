@@ -9,7 +9,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 
 private val DarkColorScheme = darkColorScheme(
     background = BackgroundDarkColor,
@@ -50,8 +53,16 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = SecondaryContainerColor,
     onSecondaryContainer = OnSecondaryContainerColor,
     outline = OutlineColor,
-    outlineVariant = OutlineVariantColor
+    outlineVariant = OutlineVariantColor,
+    surfaceContainer = SurfaceVariantColor,
+    surfaceContainerLow = BackgroundColor,
+    surfaceContainerHigh = SecondaryContainerColor,
+    surfaceContainerHighest = SecondaryContainerColor,
+    surfaceDim = OutlineVariantColor
 )
+
+/** 页面遮罩使用实际应用的明暗模式，包括用户强制指定的模式。 */
+val LocalAppDarkTheme = staticCompositionLocalOf { false }
 
 /** 应用 Material 3 配色与字体；动态配色仅在调用方显式启用且系统支持时生效。 */
 @Composable
@@ -59,26 +70,33 @@ fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Android 12 起系统才提供动态配色 API。
     dynamicColor: Boolean = false,
+    palette: AppThemePalette = AppThemePalette.Classic,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        (dynamicColor || palette == AppThemePalette.Dynamic) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
+        presetColorScheme(palette, darkTheme) != null -> requireNotNull(presetColorScheme(palette, darkTheme))
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography
-    ) {
-        Surface(
-            color = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.onBackground,
-            content = content
-        )
+    // 亮色画布与卡片采用柔和的分层表面，避免壁纸遮罩和纯白卡片叠加发白。
+    val pageColors = if (darkTheme) colorScheme else colorScheme.copy(
+        background = colorScheme.surfaceContainerLow,
+        surface = colorScheme.surfaceContainer,
+        surfaceBright = colorScheme.surfaceContainer
+    )
+    CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
+        MaterialTheme(colorScheme = pageColors, typography = Typography) {
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground,
+                content = content
+            )
+        }
     }
 }

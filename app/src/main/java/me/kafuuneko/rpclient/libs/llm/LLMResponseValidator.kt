@@ -33,20 +33,22 @@ internal fun LLMGenerationResponse.requireNonEmptyContent(): LLMGenerationRespon
  */
 internal fun Flow<LLMStreamEvent>.requireNonEmptyContent(): Flow<LLMStreamEvent> = flow {
     var hasContent = false
+    var outputTokenLimitReached = false
 
     collect { event ->
         when (event) {
             is LLMStreamEvent.Delta -> {
                 if (event.content.isNotBlank()) hasContent = true
             }
+            is LLMStreamEvent.Finished -> outputTokenLimitReached =
+                event.finishReason?.lowercase() in setOf("length", "max_tokens", "max_output_tokens")
             LLMStreamEvent.Connected,
-            is LLMStreamEvent.ReasoningDelta,
-            is LLMStreamEvent.Finished -> Unit
+            is LLMStreamEvent.ReasoningDelta -> Unit
         }
         emit(event)
     }
 
     if (!hasContent) {
-        throw LLMEmptyResponseException()
+        throw LLMEmptyResponseException(outputTokenLimitReached)
     }
 }

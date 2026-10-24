@@ -22,13 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.DataObject
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -46,10 +43,13 @@ import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerErrorReas
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppCard
+import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
+import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 分层 JSON 查看器 Compose 入口。 */
 @Composable
@@ -78,7 +78,7 @@ private fun LoadingView(
     uiState: JsonViewerUiState.Loading,
     emit: JsonViewerUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
@@ -92,7 +92,7 @@ private fun LoadingView(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .background(pageCanvasColor()),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator()
@@ -105,7 +105,7 @@ private fun NormalView(
     uiState: JsonViewerUiState.Normal,
     emit: JsonViewerUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
@@ -121,7 +121,7 @@ private fun NormalView(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .background(MaterialTheme.colorScheme.background),
+                .background(pageCanvasColor()),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 18.dp,
@@ -130,12 +130,6 @@ private fun NormalView(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                RpPageTitle(
-                    title = stringResource(R.string.json_viewer),
-                    subtitle = stringResource(R.string.json_viewer_subtitle)
-                )
-            }
             item {
                 JsonPathBar(path = uiState.path)
             }
@@ -170,7 +164,7 @@ private fun ErrorView(
     uiState: JsonViewerUiState.Error,
     emit: JsonViewerUiIntent.() -> Unit
 ) {
-    Scaffold(
+    AppPageScaffold(
         modifier = Modifier
             .fillMaxSize(),
         contentWindowInsets = WindowInsets(0.dp),
@@ -185,7 +179,7 @@ private fun ErrorView(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .background(pageCanvasColor()),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = 18.dp,
@@ -218,7 +212,7 @@ private fun ErrorView(
 
 @Composable
 private fun JsonPathBar(path: List<String>) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
@@ -253,7 +247,7 @@ private fun JsonSummaryCard(
     currentType: JsonViewerNodeType,
     childCount: Int
 ) {
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -278,7 +272,7 @@ private fun JsonEntryRow(
     entry: JsonViewerEntry,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = entry.hasChildren, onClick = onClick),
@@ -369,7 +363,7 @@ private fun JsonTypeChip(type: JsonViewerNodeType) {
         JsonViewerNodeType.Null -> colorScheme.onSurfaceVariant
     }
 
-    Surface(
+    AppSurface(
         shape = CircleShape,
         color = containerColor,
         contentColor = contentColor

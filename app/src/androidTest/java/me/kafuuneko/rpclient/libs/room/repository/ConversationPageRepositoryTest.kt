@@ -1,7 +1,5 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
-import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
-import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -13,6 +11,8 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -79,6 +79,46 @@ class ConversationPageRepositoryTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun searchAnchorLoadsBothDirectionsWithGlobalDepth() = runBlocking {
+        val ids = (0..100).map { index -> chatRepository.createMessage(
+            sessionId = chatSessionId, source = ChatMessage.Source.User,
+            content = "message-$index", createTime = index.toLong()
+        ) }
+        val page = chatRepository.getChatPageData(chatSessionId, 10, ids[40]).page
+        assertEquals(ids.subList(35, 46), page.messages.map { it.id })
+        assertTrue(page.canLoadOlderMessages)
+        assertTrue(page.canLoadNewerMessages)
+        assertEquals(55, page.newerMessageCount)
+        val newer = chatRepository.getMessagePageAfter(chatSessionId, page.messages.last().id, 10)!!
+        assertEquals(ids.subList(46, 56), newer.messages.map { it.id })
+        assertEquals(45, newer.newerMessageCount)
+        // 页面恢复保持已加载窗口的非对称两侧，不能重新居中后丢失较新消息。
+        val restored = chatRepository.getChatPageData(chatSessionId, 21, ids[40], olderWindowSize = 5).page
+        assertEquals(ids.subList(35, 56), restored.messages.map { it.id })
+        val older = chatRepository.getMessagePageBefore(chatSessionId, 35, ids[35], 10)
+        assertEquals(ids.subList(25, 35), older.messages.map { it.id })
+    }
+
+    @Test
+    fun groupSearchWindowRetainsBothSidesAndRejectsWrongSession() = runBlocking {
+        val ids = (0..60).map { index -> groupChatRepository.createMessage(
+            sessionId = groupChatSessionId, source = GroupChatMessage.Source.User,
+            content = "group-$index", speakerCharacterId = null,
+            speakerNameSnapshot = "Alice", createTime = index.toLong()
+        ) }
+        val page = groupChatRepository.getGroupChatPageData(groupChatSessionId, 10, ids[20])!!
+        assertEquals(ids.subList(15, 26), page.data.messages.map { it.id })
+        assertEquals(35, page.newerMessageCount)
+        val newer = groupChatRepository.getMessagePageAfter(groupChatSessionId, ids[25], 10)!!
+        assertEquals(ids.subList(26, 36), newer.messages.map { it.id })
+        assertEquals(25, newer.newerMessageCount)
+        // 同名或其它会话的锚点不能改变导航归属。
+        assertEquals(null, groupChatRepository.getMessagePageAfter(groupChatSessionId + 100, ids[25], 10))
+        val restored = groupChatRepository.getGroupChatPageData(groupChatSessionId, 21, ids[20], olderWindowSize = 5)!!
+        assertEquals(ids.subList(15, 36), restored.data.messages.map { it.id })
     }
 
     @Test

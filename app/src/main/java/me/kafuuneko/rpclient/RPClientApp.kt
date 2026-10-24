@@ -10,6 +10,8 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveRepository
 import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
+import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
@@ -46,6 +48,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -53,7 +56,9 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryCharacterActivator
@@ -85,6 +90,7 @@ class RPClientApp : Application() {
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
             koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
+            koinApplication.koin.get<ContentSearchRepository>().restore()
         }
     }
 }
@@ -116,7 +122,10 @@ internal val appModules = module {
         )
     }
     singleOf(::LLMProviderSelectionResolver)
+    singleOf(::DialogAppearanceManager)
     singleOf(::AppThemeManager)
+    singleOf(::PageBackgroundRepository)
+    singleOf(::BackgroundImageRuntime)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
     singleOf(::ImageInputCapabilityResolver)
@@ -172,6 +181,7 @@ internal val appModules = module {
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
+            .addCallback(SearchDatabaseCallback)
             .fallbackToDestructiveMigrationOnDowngrade(true)
             .build()
     }
@@ -181,6 +191,7 @@ internal val appModules = module {
             .build()
     }
 
+    singleOf(::ContentSearchRepository)
     singleOf(::CharacterRepository)
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)

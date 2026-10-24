@@ -13,13 +13,14 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.model.CredentialEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderCredentialResolver
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.filterForSearch
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.toEditForm
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.toRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditDialogState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditLoadState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditModelCatalogState
-import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditTestState
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
@@ -30,14 +31,12 @@ import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
-import me.kafuuneko.rpclient.libs.llm.adapter.readOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterFallbacks
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProvider
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProviderEnabled
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.llm.catalog.classifyModelCatalogFailure
-import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
@@ -741,30 +740,6 @@ class LLMProviderEditViewModel :
         initialApiKey = mInitialApiKey,
         apiKeyReplacement = mApiKeyReplacement
     )
-
-    /** 提取 OpenRouter 专属路由配置状态。 */
-    private fun LLMProviderEditForm.toRequestExtensionsState():
-            LLMProviderEditRequestExtensionsState {
-        val routing = requestBodyPatchJson.readOpenRouterRoutingPreferences()
-        return LLMProviderEditRequestExtensionsState(
-            isOpenRouter = providerType == LLMProviderType.OpenRouter,
-            usesPreferredProvider = routing.usesPreferredProvider,
-            preferredProvider = routing.preferredProvider,
-            allowFallbacks = routing.allowFallbacks
-        )
-    }
-
-    /** 在模型列表中按 ID 或显示名称进行大小写不敏感的搜索过滤。 */
-    private fun List<LLMAvailableModel>.filterForSearch(
-        query: String
-    ): List<LLMAvailableModel> {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) return this
-        return filter { model ->
-            model.id.contains(normalizedQuery, ignoreCase = true) ||
-                    model.displayName.contains(normalizedQuery, ignoreCase = true)
-        }
-    }
 
     /** 取消模型目录查询协程任务。 */
     private fun cancelModelCatalogQuery() {

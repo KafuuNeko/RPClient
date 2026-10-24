@@ -1,13 +1,14 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
-import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
+import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
+import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
-import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
+import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
@@ -86,7 +87,11 @@ data class GroupChatConversationState(
     /** 当前正在编辑的消息 ID；未编辑时为空。 */
     val editingMessageId: Long? = null,
     /** 当前消息编辑器中尚未保存的草稿。 */
-    val editingMessageDraft: String = ""
+    val editingMessageDraft: String = "",
+    /** 搜索历史位置；非空时禁止流式更新抢回底部。 */
+    val searchAnchorMessageId: Long? = null,
+    val canLoadNewerMessages: Boolean = false,
+    val isLoadingNewerMessages: Boolean = false
 )
 
 /** 群聊设置草稿、候选成员与世界书选择子状态。 */
@@ -162,4 +167,9 @@ sealed class GroupChatDialogState {
 enum class GroupChatPage {
     Conversation,
     Settings
+}
+
+/** 将公共模型配置引导转换为群聊页面的对话框状态。 */
+internal fun ModelSettingsGuideContent.toGroupChatDialogState(): GroupChatDialogState.ModelSettingsGuide {
+    return GroupChatDialogState.ModelSettingsGuide(title = title, message = message)
 }

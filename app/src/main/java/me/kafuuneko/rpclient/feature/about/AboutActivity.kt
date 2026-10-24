@@ -7,22 +7,25 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.widget.Toast
-import androidx.core.net.toUri
-import androidx.core.content.pm.PackageInfoCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import me.kafuuneko.rpclient.feature.about.presentation.AboutUiState
-import me.kafuuneko.rpclient.feature.about.presentation.AboutAppInfoState
-import me.kafuuneko.rpclient.feature.about.ui.AboutLayout
+import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.net.toUri
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.about.presentation.AboutAppInfoState
+import me.kafuuneko.rpclient.feature.about.presentation.AboutUiState
+import me.kafuuneko.rpclient.feature.about.ui.AboutLayout
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreActivity
 
 /** 关于页面宿主，负责提供版本、社区反馈和项目联系信息。 */
 class AboutActivity : CoreActivity() {
+    /** 本页用于展示应用介绍或主题原色，排除通用背景。 */
+    override fun usesGeneralBackground(): Boolean = false
+
     /** 提供安装包元数据，并将页面操作交给宿主执行。 */
     @Composable
     override fun ViewContent() {
