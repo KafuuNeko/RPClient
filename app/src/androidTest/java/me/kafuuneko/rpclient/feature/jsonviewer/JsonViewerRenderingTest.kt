@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
@@ -43,6 +44,7 @@ import me.kafuuneko.rpclient.libs.appearance.BackgroundBlur
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.llm.adapter.LLMStreamLog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 import org.json.JSONArray
@@ -176,6 +178,38 @@ class JsonViewerRenderingTest {
             }
             screenshot("issue23-json-wallpaper-source")
             showRequestLogActions(scenario = scenario, backdrop = blurred)
+        }
+    }
+
+    /** 新采集日志在树视图呈现对象，在源码中直接展开对象并可复制实际字段。 */
+    @Test
+    fun structuredStreamLog_displaysObjectsAndFormattedSource() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val log = LLMStreamLog()
+        listOf(
+            "data: {\"id\":\"chunk-1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"delta\":{\"content\":\"StructuredCopy\"}}]}",
+            "", "data: {\"id\":\"chunk-2\",\"choices\":[{\"delta\":{\"content\":\"合成响应😀\"}}]}",
+            "", "data: [DONE]", "",
+        ).forEach(log::append)
+        ActivityScenario.launch<JsonViewerActivity>(
+            JsonViewerActivity.newIntent(context, "Structured response JSON", log.toJson())
+        ).use {
+            compose.waitUntil(timeoutMillis = 10_000) {
+                compose.onAllNodes(mVerticalList).fetchSemanticsNodes().isNotEmpty()
+            }
+            // 普通事件与结束记录都是对象，不再出现 data 行和分隔空字符串。
+            compose.onAllNodes(hasText(context.getString(R.string.json_type_object)))
+                .assertCountEquals(3)
+            screenshot("issue23-stream-objects-tree")
+            compose.onNodeWithText(context.getString(R.string.json_tab_source)).performClick()
+            compose.waitUntil(timeoutMillis = 10_000) {
+                compose.onAllNodes(hasText("\"id\": \"chunk-1\"", substring = true))
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onAllNodes(hasText("data:", substring = true)).assertCountEquals(0)
+            compose.onAllNodes(hasText("\\\"id\\\"", substring = true)).assertCountEquals(0)
+            screenshot("issue23-stream-objects-source")
+            copyWord(word = "StructuredCopy")
         }
     }
 
