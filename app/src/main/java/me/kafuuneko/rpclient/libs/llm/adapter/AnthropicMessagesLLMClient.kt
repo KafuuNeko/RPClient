@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -48,7 +49,7 @@ class AnthropicMessagesLLMClient(
                     model = model,
                     isStreaming = false,
                     requestJson = httpRequest.payloadJson,
-                    responseJson = text,
+                    responseJson = { text },
                 )
             }.onFailure { error ->
                 mLLMRequestLogRepository.trySaveLog(
@@ -56,7 +57,7 @@ class AnthropicMessagesLLMClient(
                     model = model,
                     isStreaming = false,
                     requestJson = httpRequest.payloadJson,
-                    responseJson = error.toErrorJson(),
+                    responseJson = { error.toErrorJson() },
                 )
             }.getOrElse { error ->
                 throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
@@ -81,7 +82,8 @@ class AnthropicMessagesLLMClient(
         return flow {
             val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
-                val rawChunks = LLMStreamLog()
+                // 请求开始时决定是否采集，普通模式不创建日志缓冲或补录中途开启前的内容。
+                val rawChunks = if (AppModel.debugModeEnabled) LLMStreamLog() else null
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
                     captureReasoning = request.captureReasoning,
@@ -92,7 +94,7 @@ class AnthropicMessagesLLMClient(
                         onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
                         // 限制流式响应日志大小，并清除图片 Base64 等内容
-                        rawChunks.append(line)
+                        rawChunks?.append(line)
                         parseAnthropicStreamParts(line).forEach { part ->
                             partMapper.map(part).forEach { event -> emit(event) }
                         }
@@ -105,7 +107,7 @@ class AnthropicMessagesLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.toJson(),
+                        responseJson = { rawChunks?.toJson() },
                     )
                 }.onFailure { error ->
                     mLLMRequestLogRepository.trySaveLog(
@@ -113,7 +115,7 @@ class AnthropicMessagesLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.apply { addError(error.message) }.toJson(),
+                        responseJson = { rawChunks?.apply { addError(error.message) }?.toJson() },
                     )
                     throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
                         provider = mProvider.copy(model = model),

@@ -4,8 +4,12 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.chibatching.kotpref.Kotpref
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.llm.adapter.trySaveLog
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -93,6 +97,59 @@ class LLMRequestLogRepositoryTest {
 
         assertEquals(0L, id)
         assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
+    }
+
+    /** 普通模式不求值日志正文，已取消的调用也不能进入挂起的收尾阶段。 */
+    @Test
+    fun disabledDebug_skipsSerializationAndCancellableContextSwitch() = runBlocking {
+        AppModel.debugModeEnabled = false
+        val provider = LLMProviderConfig(
+            name = "Local",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.invalid",
+            model = "model",
+        )
+        var serialized = false
+        var returned = false
+        // 取消后若执行了 withContext，调用将无法自然到达 returned 赋值。
+        val job = launch {
+            currentCoroutineContext().cancel()
+            repository.trySaveLog(provider, "model", true, "{}", responseJson = {
+                serialized = true
+                "{}"
+            })
+            returned = true
+        }
+        job.join()
+        assertTrue(returned)
+        assertEquals(false, serialized)
+        assertTrue(repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).isEmpty())
+    }
+
+    /** 调试开启时仍能在取消后的收尾阶段求值并保存已采集正文。 */
+    @Test
+    fun enabledDebug_savesLazyPayloadAfterCancellation() = runBlocking {
+        val provider = LLMProviderConfig(
+            name = "Local",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAICompatible,
+            baseUrl = "https://example.invalid",
+            model = "model",
+        )
+        var serializations = 0
+        // 与流式取消路径相同，调用前已经取消，只有局部写入仍受保护。
+        val job = launch {
+            currentCoroutineContext().cancel()
+            repository.trySaveLog(provider, "model", true, "{}", responseJson = {
+                serializations++
+                "[{\"content\":\"partial\"}]"
+            })
+        }
+        job.join()
+        val saved = repository.getLogOverviews(previewLength = 24, limit = 50, offset = 0).single()
+        assertEquals(1, serializations)
+        assertEquals("[{\"content\":\"partial\"}]", repository.getResponseJson(saved.id))
     }
 
     /** 大于数据库窗口的正文必须通过分块读取，并保持 UTF-8 及备份字段完整。 */

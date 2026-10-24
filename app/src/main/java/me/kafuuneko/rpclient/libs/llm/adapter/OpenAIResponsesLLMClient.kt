@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -32,6 +33,7 @@ class OpenAIResponsesLLMClient(
         val model = request.model ?: mProvider.model
         val http = buildRequest(request = request, model = model, stream = false)
         var raw: String? = null
+        var failure: Throwable? = null
         try {
             // 在解析前保留响应，解析失败仍可通过受控日志定位服务端返回的结构。
             raw = mOkHttpClient.await(http.request)
@@ -42,19 +44,17 @@ class OpenAIResponsesLLMClient(
                 includeReasoningInContent = request.includeReasoningInContent,
             )
         } catch (error: Throwable) {
-            if (raw == null) raw = error.toErrorJson()
+            failure = error
             throw recordImageFailure(request, model, error)
         } finally {
             try {
-                raw?.let { text ->
-                    mLLMRequestLogRepository.trySaveLog(
-                        provider = mProvider,
-                        model = model,
-                        isStreaming = false,
-                        requestJson = http.payloadJson,
-                        responseJson = text,
-                    )
-                }
+                mLLMRequestLogRepository.trySaveLog(
+                    provider = mProvider,
+                    model = model,
+                    isStreaming = false,
+                    requestJson = http.payloadJson,
+                    responseJson = { raw ?: failure?.toErrorJson() },
+                )
             } finally {
                 http.temporaryFile?.delete()
             }
@@ -69,12 +69,13 @@ class OpenAIResponsesLLMClient(
         val decoder = OpenAIResponsesStreamDecoder()
         val mapper =
             LLMStreamPartMapper(request.includeReasoningInContent, request.captureReasoning)
-        val log = LLMStreamLog()
+        // 请求开始时决定是否采集，普通模式不创建日志缓冲或补录中途开启前的内容。
+        val log = if (AppModel.debugModeEnabled) LLMStreamLog() else null
         try {
             // takeWhile 在终态帧处理完后主动结束收集，不等待服务端再次发送或关闭连接。
             mOkHttpClient.streamLines(http.request) { emit(LLMStreamEvent.Connected) }
                 .takeWhile { line ->
-                    log.append(line)
+                    log?.append(line)
                     frames.accept(line)?.let { event ->
                         decoder.accept(event)
                             .forEach { part -> mapper.map(part).forEach { event -> emit(event) } }
@@ -88,7 +89,7 @@ class OpenAIResponsesLLMClient(
             }
             decoder.requireFinished()
         } catch (error: Throwable) {
-            log.addError(error.message)
+            log?.addError(error.message)
             throw recordImageFailure(request, model, error)
         } finally {
             try {
@@ -97,7 +98,7 @@ class OpenAIResponsesLLMClient(
                     model = model,
                     isStreaming = true,
                     requestJson = http.payloadJson,
-                    responseJson = log.toJson(),
+                    responseJson = { log?.toJson() },
                 )
             } finally {
                 http.temporaryFile?.delete()

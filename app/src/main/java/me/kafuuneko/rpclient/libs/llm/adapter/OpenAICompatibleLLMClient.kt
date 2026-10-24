@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonObject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -48,7 +49,7 @@ class OpenAICompatibleLLMClient(
                     model = model,
                     isStreaming = false,
                     requestJson = httpRequest.payloadJson,
-                    responseJson = text,
+                    responseJson = { text },
                 )
             }.onFailure { error ->
                 mLLMRequestLogRepository.trySaveLog(
@@ -56,7 +57,7 @@ class OpenAICompatibleLLMClient(
                     model = model,
                     isStreaming = false,
                     requestJson = httpRequest.payloadJson,
-                    responseJson = error.toErrorJson(),
+                    responseJson = { error.toErrorJson() },
                 )
             }.getOrElse { error ->
                 throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
@@ -82,7 +83,8 @@ class OpenAICompatibleLLMClient(
             // 构建带 stream=true 的 HTTP 请求与参数补丁
             val httpRequest = buildRequest(request = request, model = model, stream = true)
             try {
-                val rawChunks = LLMStreamLog()
+                // 请求开始时决定是否采集，普通模式不创建日志缓冲或补录中途开启前的内容。
+                val rawChunks = if (AppModel.debugModeEnabled) LLMStreamLog() else null
                 val partMapper = LLMStreamPartMapper(
                     includeReasoningInContent = request.includeReasoningInContent,
                     captureReasoning = request.captureReasoning,
@@ -93,7 +95,7 @@ class OpenAICompatibleLLMClient(
                         request = httpRequest.request,
                         onConnected = { emit(LLMStreamEvent.Connected) },
                     ).collect { line ->
-                        rawChunks.append(line)
+                        rawChunks?.append(line)
                         parseOpenAIStreamParts(line).forEach { part ->
                             partMapper.map(part).forEach { event -> emit(event) }
                         }
@@ -101,13 +103,13 @@ class OpenAICompatibleLLMClient(
                     // 兼容未发送完成块便直接关闭连接的模型服务
                     partMapper.finish().forEach { event -> emit(event) }
                 }.onSuccess {
-                    // 记录成功的请求与完整 SSE 原始块日志
+                    // 日志正文延迟到确认调试仍开启后生成。
                     mLLMRequestLogRepository.trySaveLog(
                         provider = mProvider,
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.toJson(),
+                        responseJson = { rawChunks?.toJson() },
                     )
                 }.onFailure { error ->
                     // 记录失败日志并向上层抛出
@@ -116,7 +118,7 @@ class OpenAICompatibleLLMClient(
                         model = model,
                         isStreaming = true,
                         requestJson = httpRequest.payloadJson,
-                        responseJson = rawChunks.apply { addError(error.message) }.toJson(),
+                        responseJson = { rawChunks?.apply { addError(error.message) }?.toJson() },
                     )
                     throw if (request.messages.any { message -> message.images.isNotEmpty() }) mImageCapabilities.recordFailure(
                         provider = mProvider.copy(model = model),

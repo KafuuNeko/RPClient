@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMHttpStatusException
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
@@ -489,23 +490,28 @@ internal fun Request.Builder.applyProviderHeaders(provider: LLMProviderConfig): 
  * 尽力写入请求日志。
  *
  * 日志失败不得影响实际生成请求；停止生成时也尽力保留已收到的片段。
+ * 调试关闭时直接返回，不生成日志正文，也不进入不可取消的 IO 收尾。
+ *
+ * @param responseJson 仅在需要保存时生成正文；未采集该请求时返回 null
  */
 internal suspend fun LLMRequestLogRepository.trySaveLog(
     provider: LLMProviderConfig,
     model: String,
     isStreaming: Boolean,
     requestJson: String,
-    responseJson: String,
+    responseJson: () -> String?,
 ) {
+    if (!AppModel.debugModeEnabled) return
     // 只保护有界日志的收尾写入，不扩大网络请求或生成任务的不可取消范围。
     withContext(NonCancellable + Dispatchers.IO) {
         runCatching {
+            val response = responseJson() ?: return@runCatching
             saveLog(
                 provider = provider,
                 model = model,
                 isStreaming = isStreaming,
                 requestJson = requestJson,
-                responseJson = responseJson,
+                responseJson = response,
             )
         }
     }

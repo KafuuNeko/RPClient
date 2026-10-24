@@ -1063,6 +1063,44 @@ class MultimodalImageIntegrationTest {
         }
     }
 
+    /** 各协议关闭调试仍正常返回正文，流式请求不能在中途开启时补存空日志。 */
+    @Test
+    fun allProtocolsSkipDebugWorkWhenDisabledAtRequestStart() = runBlocking {
+        val request =
+            LLMGenerationRequest(messages = listOf(LLMMessage(LLMMessageRole.User, "text")))
+        for (protocol in LLMProviderProtocol.entries) for (stream in listOf(false, true))
+            for (enableDuringRequest in listOf(false, true)) {
+                logs.deleteAll()
+                AppModel.debugModeEnabled = false
+                val http = OkHttpClient.Builder().addInterceptor { chain ->
+                    // 在请求已开始后切换偏好，检验流式记录器没有被懒创建或补录。
+                    if (enableDuringRequest) AppModel.debugModeEnabled = true
+                    Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                        .code(200).message("OK")
+                        .body(
+                            response(
+                                protocol,
+                                stream
+                            ).toResponseBody("application/json".toMediaType())
+                        )
+                        .build()
+                }.build()
+                val provider = LLMProviderConfig(
+                    name = "test", providerType = LLMProviderType.Custom, protocol = protocol,
+                    baseUrl = "https://example.invalid", model = "test",
+                )
+                val client = LLMClientFactory(http, logs).create(provider)
+                val content = if (stream) {
+                    client.streamGenerate(request).toList().filterIsInstance<LLMStreamEvent.Delta>()
+                        .joinToString("") { it.content }
+                } else client.generate(request).content
+                assertEquals("ok", content)
+                // 非流式正文无需额外采集，可在保存时开启；流式必须有完整的采集起点。
+                val expectedLogs = if (!stream && enableDuringRequest) 1 else 0
+                assertEquals(expectedLogs, logs.getLogOverviews(24, 50, 0).size)
+            }
+    }
+
     @Test
     fun allProtocolsWriteTextPureImageAndMixedImagesForBothModesWithoutLoggingBytes() =
         runBlocking {
