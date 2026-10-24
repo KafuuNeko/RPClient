@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupOperation
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiIntent
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiState
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreViewEvent
+import me.kafuuneko.rpclient.libs.backup.BackupReport
 import me.kafuuneko.rpclient.libs.backup.BackupRestoreException
 import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -23,7 +24,8 @@ import org.koin.core.component.inject
  * 备份与恢复的 MVI 状态持有者。
  * - 导入 URI 作为私有快照，配置变化不会丢失运行中的操作或弹窗。
  * - 恢复进入文件替换后必须完成收尾；数据库关闭后只允许重启。
- * - 失败信息使用本地化资源，不向界面透传文件路径或归档内容。
+ * - 状态文案使用本地化资源；技术详情（阶段日志与异常链）放入可展开、可复制的区块，
+ *   日志只含相对归档路径、表名和数量，不含对话正文。
  */
 class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, BackupRestoreUiState>(
     BackupRestoreUiState.Normal()
@@ -45,15 +47,16 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         val uri = intent.uri ?: return
         if (state.busy) return
         state.copy(operation = BackupOperation.Exporting, status = R.string.backup_working).setup()
-        // 导出允许协程取消；错误只映射为本地化状态，不能泄露归档路径。
+        // 导出允许协程取消；失败时把异常链并入技术详情，供用户展开和复制。
         viewModelScope.launch {
+            val report = BackupReport()
             try {
-                mRepository.exportArchive(uri)
-                state.copy(status = R.string.backup_export_success).setup()
+                mRepository.exportArchive(uri, report)
+                state.copy(status = R.string.backup_export_success, detail = report.text()).setup()
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                state.copy(status = R.string.backup_failure_detail).setup()
+            } catch (error: Exception) {
+                state.copy(status = R.string.backup_failure_detail, detail = report.textWithError(error)).setup()
             }
         }
     }
@@ -86,14 +89,18 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         viewModelScope.launch {
             // 数据库替换完成后必须发出重启事件，不能恢复成可继续操作的空闲页。
             withContext(NonCancellable) {
+                val report = BackupReport()
                 try {
-                    mRepository.restoreArchive(uri)
-                    requireRestart()
+                    mRepository.restoreArchive(uri, report)
+                    requireRestart(R.string.backup_restore_done, report.text())
                 } catch (error: Exception) {
                     if ((error as? BackupRestoreException)?.restartRequired == true) {
-                        requireRestart()
+                        requireRestart(R.string.backup_restart_required, report.textWithError(error))
                     } else {
-                        BackupRestoreUiState.Normal(status = R.string.backup_failure_detail).setup()
+                        BackupRestoreUiState.Normal(
+                            status = R.string.backup_failure_detail,
+                            detail = report.textWithError(error)
+                        ).setup()
                     }
                 }
             }
@@ -116,17 +123,19 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         if (!state.busy) BackupRestoreUiState.Finished(state).setup()
     }
 
-    /** 宿主重建期间可能错过一次性事件，恢复前台时再次完成待重启状态。 */
-    @UiIntentObserver(BackupRestoreUiIntent.Resume::class)
-    private fun onResume() {
+    /** 用户读完详情后手动重启；自动重启会让恢复警告随进程消失。 */
+    @UiIntentObserver(BackupRestoreUiIntent.RestartClick::class)
+    private fun onRestartClick() {
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
         if (state.operation == BackupOperation.Restarting) BackupRestoreViewEvent.RestartApp.tryEmit()
     }
 
-    /** 关闭数据库后的终态只等待宿主重启，不再接受业务输入。 */
-    private fun requireRestart() {
-        BackupRestoreUiState.Normal(operation = BackupOperation.Restarting,
-            status = R.string.backup_restarting).setup()
-        BackupRestoreViewEvent.RestartApp.tryEmit()
+    /** 关闭数据库后的终态只等待用户重启，不再接受业务输入。 */
+    private fun requireRestart(@androidx.annotation.StringRes status: Int, detail: String) {
+        BackupRestoreUiState.Normal(
+            operation = BackupOperation.Restarting,
+            status = status,
+            detail = detail
+        ).setup()
     }
 }

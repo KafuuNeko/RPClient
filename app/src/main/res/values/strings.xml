@@ -1366,4 +1366,10 @@
     <string name="backup_status_title">Current Status</string>
     <string name="message_edit_separate_think">Separate thinking</string>
     <string name="message_edit_separate_think_desc">Edit only the reply, keeping the original thinking.</string>
+    <string name="backup_details_title">Technical details</string>
+    <string name="backup_details_copy">Copy</string>
+    <string name="backup_details_copied">Details copied</string>
+    <string name="backup_restore_done">Restore finished. Review the details below, then restart RPClient to load the restored data.</string>
+    <string name="backup_restart_required">RPClient must restart to reopen its data. Review the details below, then restart.</string>
+    <string name="backup_restart_now">Restart RPClient</string>
 </resources>

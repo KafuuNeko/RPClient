@@ -1349,4 +1349,10 @@
     <string name="backup_status_title">現在の状態</string>
     <string name="message_edit_separate_think">思考過程を分離</string>
     <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
+    <string name="backup_details_title">技術的な詳細</string>
+    <string name="backup_details_copy">コピー</string>
+    <string name="backup_details_copied">詳細をコピーしました</string>
+    <string name="backup_restore_done">復元が完了しました。下の詳細を確認してから、RPClient を再起動して復元したデータを読み込んでください。</string>
+    <string name="backup_restart_required">データを開き直すには RPClient の再起動が必要です。下の詳細を確認してから再起動してください。</string>
+    <string name="backup_restart_now">RPClient を再起動</string>
 </resources>

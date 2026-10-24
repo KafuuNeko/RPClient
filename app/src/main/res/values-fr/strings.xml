@@ -1354,4 +1354,10 @@
     <string name="backup_status_title">État actuel</string>
     <string name="message_edit_separate_think">Séparer le raisonnement</string>
     <string name="message_edit_separate_think_desc">Modifiez seulement la réponse, en gardant le raisonnement initial.</string>
+    <string name="backup_details_title">Détails techniques</string>
+    <string name="backup_details_copy">Copier</string>
+    <string name="backup_details_copied">Détails copiés</string>
+    <string name="backup_restore_done">Restauration terminée. Consultez les détails ci-dessous, puis redémarrez RPClient pour charger les données restaurées.</string>
+    <string name="backup_restart_required">RPClient doit redémarrer pour rouvrir ses données. Consultez les détails ci-dessous, puis redémarrez.</string>
+    <string name="backup_restart_now">Redémarrer RPClient</string>
 </resources>

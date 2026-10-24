@@ -1332,4 +1332,10 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="backup_status_title">Stato attuale</string>
     <string name="message_edit_separate_think">Separa il ragionamento</string>
     <string name="message_edit_separate_think_desc">Modifica solo la risposta, mantenendo il ragionamento originale.</string>
+    <string name="backup_details_title">Dettagli tecnici</string>
+    <string name="backup_details_copy">Copia</string>
+    <string name="backup_details_copied">Dettagli copiati</string>
+    <string name="backup_restore_done">Ripristino completato. Controlla i dettagli qui sotto, poi riavvia RPClient per caricare i dati ripristinati.</string>
+    <string name="backup_restart_required">RPClient deve riavviarsi per riaprire i propri dati. Controlla i dettagli qui sotto, poi riavvia.</string>
+    <string name="backup_restart_now">Riavvia RPClient</string>
 </resources>

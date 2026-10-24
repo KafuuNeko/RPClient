@@ -1348,4 +1348,10 @@
     <string name="backup_status_title">현재 상태</string>
     <string name="message_edit_separate_think">사고 과정 분리</string>
     <string name="message_edit_separate_think_desc">본문만 편집하고 기존 사고 과정은 유지합니다.</string>
+    <string name="backup_details_title">기술 세부 정보</string>
+    <string name="backup_details_copy">복사</string>
+    <string name="backup_details_copied">세부 정보를 복사했습니다</string>
+    <string name="backup_restore_done">복원이 완료되었습니다. 아래 세부 정보를 확인한 뒤 RPClient를 다시 시작하여 복원된 데이터를 불러오세요.</string>
+    <string name="backup_restart_required">데이터를 다시 열려면 RPClient를 다시 시작해야 합니다. 아래 세부 정보를 확인한 뒤 다시 시작하세요.</string>
+    <string name="backup_restart_now">RPClient 다시 시작</string>
 </resources>

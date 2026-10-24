@@ -1357,4 +1357,10 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="backup_status_title">Status atual</string>
     <string name="message_edit_separate_think">Separar raciocínio</string>
     <string name="message_edit_separate_think_desc">Edite só a resposta e preserve o raciocínio original.</string>
+    <string name="backup_details_title">Detalhes técnicos</string>
+    <string name="backup_details_copy">Copiar</string>
+    <string name="backup_details_copied">Detalhes copiados</string>
+    <string name="backup_restore_done">Restauração concluída. Veja os detalhes abaixo e reinicie o RPClient para carregar os dados restaurados.</string>
+    <string name="backup_restart_required">O RPClient precisa reiniciar para reabrir os dados. Veja os detalhes abaixo e reinicie.</string>
+    <string name="backup_restart_now">Reiniciar o RPClient</string>
 </resources>

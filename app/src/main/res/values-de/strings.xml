@@ -1353,4 +1353,10 @@
     <string name="backup_status_title">Aktueller Status</string>
     <string name="message_edit_separate_think">Denkprozess trennen</string>
     <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
+    <string name="backup_details_title">Technische Details</string>
+    <string name="backup_details_copy">Kopieren</string>
+    <string name="backup_details_copied">Details kopiert</string>
+    <string name="backup_restore_done">Wiederherstellung abgeschlossen. Prüfe die Details unten und starte RPClient neu, um die wiederhergestellten Daten zu laden.</string>
+    <string name="backup_restart_required">RPClient muss neu starten, um seine Daten wieder zu öffnen. Prüfe die Details unten und starte dann neu.</string>
+    <string name="backup_restart_now">RPClient neu starten</string>
 </resources>

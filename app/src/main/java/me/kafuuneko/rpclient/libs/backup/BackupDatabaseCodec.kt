@@ -13,6 +13,8 @@ import org.json.JSONObject
 
 /** 编解码 SQLite 结构与无损数据行，重建派生 FTS 后校验完整性。 */
 internal object BackupDatabaseCodec {
+    private const val MAX_PRUNE_ROUNDS = 8
+
     /** 导出业务结构定义，FTS 影子表由虚表定义重建。 */
     fun schemaJson(db: SupportSQLiteDatabase): JSONObject {
         val objects = JSONArray()
@@ -81,6 +83,19 @@ internal object BackupDatabaseCodec {
         }
     }
 
+    /** 逐行流式读取原始行，避免大表一次性进入堆内存。 */
+    fun forEachRow(db: SupportSQLiteDatabase, table: String, action: (JSONObject) -> Unit) {
+        db.query("SELECT * FROM " + quote(table), emptyArray()).use { cursor ->
+            while (cursor.moveToNext()) {
+                val row = JSONObject()
+                for (index in 0 until cursor.columnCount) {
+                    row.put(cursor.getColumnName(index), cursorValue(cursor, index))
+                }
+                action(row)
+            }
+        }
+    }
+
     /** 封装协议中的表名与行数组映射。 */
     fun tableRows(vararg tables: Pair<String, JSONArray>): JSONObject {
         val result = JSONObject()
@@ -142,7 +157,8 @@ internal object BackupDatabaseCodec {
     fun reconstructDatabase(
         schema: JSONObject,
         tableRows: Map<String, List<JSONObject>>,
-        destination: File
+        destination: File,
+        onPruned: ((String) -> Unit)? = null
     ) {
         val objects = schema.optJSONArray("objects") ?: error("Database schema is invalid.")
         objects.objects().forEach { item ->
@@ -204,6 +220,8 @@ internal object BackupDatabaseCodec {
             }
             db.version = schema.optInt("userVersion", 0)
             db.execSQL("PRAGMA foreign_keys=ON")
+            // 手工删除父级文件后，指向它的子记录按外键语义一并移除，并写入日志。
+            if (onPruned != null) pruneForeignKeyViolations(db, onPruned)
             db.rawQuery("PRAGMA integrity_check", null).use { cursor ->
                 require(cursor.moveToFirst() && cursor.getString(0) == "ok") {
                     "Reconstructed database failed SQLite integrity validation."
@@ -216,6 +234,26 @@ internal object BackupDatabaseCodec {
             }
         } finally {
             db.close()
+        }
+    }
+
+    /** 反复删除缺少父记录的行，直到外键检查通过；级联子记录由外键动作处理。 */
+    private fun pruneForeignKeyViolations(db: SQLiteDatabase, report: (String) -> Unit) {
+        repeat(MAX_PRUNE_ROUNDS) {
+            val violations = mutableListOf<Pair<String, Long>>()
+            db.rawQuery("PRAGMA foreign_key_check", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (!cursor.isNull(1)) violations.add(cursor.getString(0) to cursor.getLong(1))
+                }
+            }
+            if (violations.isEmpty()) return
+            violations.forEach { (table, rowId) ->
+                db.execSQL("DELETE FROM " + quote(table) + " WHERE rowid = ?", arrayOf<Any>(rowId))
+            }
+            report(
+                "Removed " + violations.size + " row(s) whose parent record is missing, in: " +
+                    violations.map { it.first }.distinct().joinToString()
+            )
         }
     }
 

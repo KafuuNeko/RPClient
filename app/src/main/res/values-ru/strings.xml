@@ -1358,4 +1358,10 @@
     <string name="backup_status_title">Текущий статус</string>
     <string name="message_edit_separate_think">Отделять рассуждения</string>
     <string name="message_edit_separate_think_desc">Редактировать только ответ, сохраняя исходные рассуждения.</string>
+    <string name="backup_details_title">Технические подробности</string>
+    <string name="backup_details_copy">Копировать</string>
+    <string name="backup_details_copied">Подробности скопированы</string>
+    <string name="backup_restore_done">Восстановление завершено. Просмотрите подробности ниже, затем перезапустите RPClient, чтобы загрузить восстановленные данные.</string>
+    <string name="backup_restart_required">RPClient необходимо перезапустить, чтобы заново открыть данные. Просмотрите подробности ниже и перезапустите.</string>
+    <string name="backup_restart_now">Перезапустить RPClient</string>
 </resources>

@@ -1,7 +1,28 @@
 package me.kafuuneko.rpclient.feature.backuprestore.ui
 
 import androidx.activity.compose.BackHandler
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -41,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupDialogState
+import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupOperation
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiIntent
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiState
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -161,7 +183,7 @@ private fun BackupContent(
             // 任务执行进度指示与操作状态提示卡片
             if (state.busy || state.status != null) {
                 item {
-                    StatusCard(state)
+                    StatusCard(state, emit)
                 }
             }
             // 完整数据导出操作卡片
@@ -371,9 +393,13 @@ private fun RestoreSection(
  * 实时状态指示面板，展示任务进度与操作结果。
  *
  * @param state 当前页面状态。
+ * @param emit 意图发射回调，用于恢复完成后的手动重启。
  */
 @Composable
-private fun StatusCard(state: BackupRestoreUiState.Normal) {
+private fun StatusCard(
+    state: BackupRestoreUiState.Normal,
+    emit: BackupRestoreUiIntent.() -> Unit
+) {
     // 外层卡片提供柔和背景与边框
     AppCard(
         modifier = Modifier.fillMaxWidth(),
@@ -411,7 +437,8 @@ private fun StatusCard(state: BackupRestoreUiState.Normal) {
                 val isFailure = statusRes == R.string.backup_failure_detail ||
                     statusRes == R.string.backup_operation_failed
                 val isSuccess = statusRes == R.string.backup_export_success ||
-                    statusRes == R.string.backup_restore_success
+                    statusRes == R.string.backup_restore_success ||
+                    statusRes == R.string.backup_restore_done
                 val statusIcon = when {
                     isFailure -> Icons.Rounded.ErrorOutline
                     isSuccess -> Icons.Rounded.Check
@@ -438,6 +465,91 @@ private fun StatusCard(state: BackupRestoreUiState.Normal) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+            }
+            // 阶段日志、警告与完整异常链：默认折叠，可展开阅读和复制
+            state.detail?.takeIf { it.isNotBlank() }?.let { DetailsPanel(it) }
+            // 恢复结束后由用户确认重启，避免警告随进程消失
+            if (state.operation == BackupOperation.Restarting) {
+                PageButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    onClick = { BackupRestoreUiIntent.RestartClick.emit() }
+                ) {
+                    Text(stringResource(R.string.backup_restart_now))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 可展开、可选择、可一键复制的技术详情区块。
+ *
+ * @param detail 阶段日志、警告和完整异常链文本。
+ */
+@Composable
+private fun DetailsPanel(detail: String) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.backup_details_copied)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.backup_details_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (expanded) {
+            // 内部区块限制高度并独立滚动，长异常链不会撑开整页
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .verticalScroll(rememberScrollState())
+                    .padding(10.dp)
+            ) {
+                SelectionContainer {
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            PageOutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("backup-report", detail))
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.backup_details_copy))
             }
         }
     }

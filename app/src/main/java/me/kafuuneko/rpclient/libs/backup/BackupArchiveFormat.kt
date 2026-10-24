@@ -7,6 +7,7 @@ import org.json.JSONObject
 internal object BackupArchiveFormat {
     const val FORMAT = "rpclient-portable-data"
     const val VERSION = 2
+    const val VERSION_3 = 3
     const val LEGACY_VERSION = 1
     const val PRIMARY_DB = "primary.sqlite"
     const val LOGS_DB = "request_logs.sqlite"

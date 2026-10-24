@@ -1355,4 +1355,10 @@
     <string name="backup_status_title">Estado actual</string>
     <string name="message_edit_separate_think">Separar razonamiento</string>
     <string name="message_edit_separate_think_desc">Edita solo la respuesta y conserva el razonamiento original.</string>
+    <string name="backup_details_title">Detalles técnicos</string>
+    <string name="backup_details_copy">Copiar</string>
+    <string name="backup_details_copied">Detalles copiados</string>
+    <string name="backup_restore_done">Restauración completada. Revisa los detalles de abajo y reinicia RPClient para cargar los datos restaurados.</string>
+    <string name="backup_restart_required">RPClient debe reiniciarse para volver a abrir sus datos. Revisa los detalles de abajo y reinicia.</string>
+    <string name="backup_restart_now">Reiniciar RPClient</string>
 </resources>

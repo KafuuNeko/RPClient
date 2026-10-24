@@ -1354,4 +1354,10 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_status_title">Trạng thái hiện tại</string>
     <string name="message_edit_separate_think">Tách suy luận</string>
     <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
+    <string name="backup_details_title">Chi tiết kỹ thuật</string>
+    <string name="backup_details_copy">Sao chép</string>
+    <string name="backup_details_copied">Đã sao chép chi tiết</string>
+    <string name="backup_restore_done">Khôi phục xong. Hãy xem chi tiết bên dưới rồi khởi động lại RPClient để tải dữ liệu đã khôi phục.</string>
+    <string name="backup_restart_required">RPClient cần khởi động lại để mở lại dữ liệu. Hãy xem chi tiết bên dưới rồi khởi động lại.</string>
+    <string name="backup_restart_now">Khởi động lại RPClient</string>
 </resources>

@@ -1350,4 +1350,10 @@
     <string name="backup_status_title">当前状态</string>
     <string name="message_edit_separate_think">分离思考链</string>
     <string name="message_edit_separate_think_desc">编辑时仅修改正文，保留原有思考链。</string>
+    <string name="backup_details_title">技术详情</string>
+    <string name="backup_details_copy">复制</string>
+    <string name="backup_details_copied">详情已复制</string>
+    <string name="backup_restore_done">恢复完成。请查看下方详情，然后重启 RPClient 以载入恢复的数据。</string>
+    <string name="backup_restart_required">RPClient 需要重启才能重新打开数据。请查看下方详情，然后重启。</string>
+    <string name="backup_restart_now">重启 RPClient</string>
 </resources>
