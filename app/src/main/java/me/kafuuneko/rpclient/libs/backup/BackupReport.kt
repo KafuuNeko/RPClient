@@ -102,3 +102,11 @@ class BackupReport {
         }
     }
 }
+
+/**
+ * Carries a concise operation-level message while preserving the original failure for diagnostics.
+ */
+internal class BackupOperationException(
+    message: String,
+    cause: Throwable
+) : Exception(message, cause)
