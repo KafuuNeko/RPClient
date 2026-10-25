@@ -416,12 +416,10 @@
     <string name="unnamed_entry">Unbenannter Eintrag</string>
     <string name="entry_name">Eintragsname</string>
     <string name="entry_constant">Immer aktiv</string>
-    <string name="entry_constant_desc">Diesen Eintrag einfügen, wenn er aktiviert ist, auch ohne Schlüsselwort-Übereinstimmungen</string>
     <string name="entry_order">Reihenfolge</string>
     <string name="entry_depth">Tiefe</string>
     <string name="entry_content">Inhalt</string>
     <string name="entry_disabled">Deaktiviert</string>
-    <string name="entry_disabled_desc">Diesen Eintrag bei der Aktivierung überspringen</string>
     <string name="entry_position">Position</string>
     <string name="entry_role">Rolle</string>
     <string name="entry_probability">Wahrscheinlichkeit</string>

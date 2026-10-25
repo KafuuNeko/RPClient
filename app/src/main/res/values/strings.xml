@@ -430,12 +430,10 @@
     <string name="unnamed_entry">Unnamed entry</string>
     <string name="entry_name">Entry name</string>
     <string name="entry_constant">Always active</string>
-    <string name="entry_constant_desc">Insert this entry when it is enabled, even without keyword matches</string>
     <string name="entry_order">Order</string>
     <string name="entry_depth">Depth</string>
     <string name="entry_content">Content</string>
     <string name="entry_disabled">Disabled</string>
-    <string name="entry_disabled_desc">Skip this entry during activation</string>
     <string name="entry_position">Position</string>
     <string name="entry_role">Role</string>
     <string name="entry_probability">Probability</string>

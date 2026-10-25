@@ -416,12 +416,10 @@ Gagal: %2$d</string>
     <string name="unnamed_entry">Entri tanpa nama</string>
     <string name="entry_name">Nama Entri</string>
     <string name="entry_constant">Konstan (Selalu Disuntikkan)</string>
-    <string name="entry_constant_desc">Sisipkan entri ini saat diaktifkan, bahkan tanpa pencocokan kata kunci</string>
     <string name="entry_order">Urutan Penyuntikan</string>
     <string name="entry_depth">Kedalaman Penyuntikan</string>
     <string name="entry_content">Konten Entri</string>
     <string name="entry_disabled">Dinonaktifkan</string>
-    <string name="entry_disabled_desc">Lewati entri ini selama aktivasi</string>
     <string name="entry_position">Posisi Penyuntikan</string>
     <string name="entry_role">Peran Penyuntikan</string>
     <string name="entry_probability">Probabilitas Aktivasi</string>

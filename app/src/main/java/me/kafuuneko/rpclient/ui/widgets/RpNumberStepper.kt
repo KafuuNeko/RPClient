@@ -16,7 +16,6 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,7 +54,8 @@ fun RpNumberStepper(
     var showDialog by remember { mutableStateOf(false) }
     val currentValue = value.toIntOrNull() ?: min
 
-    Surface(
+    // 内外底板均继承所属区域的透明度，嵌套在卡片中时不重复绘制壁纸。
+    AppSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -114,7 +114,7 @@ fun RpNumberStepper(
                     )
                 }
 
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .widthIn(min = 52.dp)
                         .clickable(enabled = enabled, onClick = { showDialog = true }),

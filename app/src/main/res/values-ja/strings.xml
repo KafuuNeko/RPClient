@@ -416,12 +416,10 @@
     <string name="unnamed_entry">名前のないエントリ</string>
     <string name="entry_name">エントリ名</string>
     <string name="entry_constant">常に有効</string>
-    <string name="entry_constant_desc">有効化されている場合、キーワードが一致しなくてもこのエントリを挿入します</string>
     <string name="entry_order">順序</string>
     <string name="entry_depth">深度</string>
     <string name="entry_content">コンテンツ</string>
     <string name="entry_disabled">無効</string>
-    <string name="entry_disabled_desc">有効化プロセスでこのエントリをスキップします</string>
     <string name="entry_position">位置</string>
     <string name="entry_role">ロール</string>
     <string name="entry_probability">確率</string>

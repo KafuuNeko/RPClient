@@ -100,7 +100,6 @@ import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 世界书条目编辑导航分段选项卡。 */
@@ -314,7 +313,7 @@ private fun LoadingPanel() {
  *
  * 核心特性：
  * - 汇总条目核心参数（常驻/触发、启用状态、角色、深度优先级、触发概率）。
- * - 右侧集成快捷启用 Switch 与删除入口。
+ * - 右侧提供删除入口，启用状态由基本信息分区统一编辑。
  */
 @Composable
 private fun HeroHeaderPanel(
@@ -396,13 +395,6 @@ private fun HeroHeaderPanel(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     )
                 }
-                Switch(
-                    checked = !form.disabled,
-                    enabled = enabled,
-                    onCheckedChange = { enabled ->
-                        WorldBookEntryEditUiIntent.ChangeDisabled(!enabled).emit()
-                    },
-                )
                 IconButton(
                     enabled = enabled,
                     onClick = { WorldBookEntryEditUiIntent.DeleteEntryClick.emit() },
@@ -512,7 +504,6 @@ private fun BasicInfoPanel(
         RpSettingsGroup {
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_constant),
-                subtitle = stringResource(R.string.entry_constant_desc),
                 checked = form.constant,
                 enabled = enabled,
                 onCheckedChange = { enabled ->
@@ -522,7 +513,6 @@ private fun BasicInfoPanel(
             RpSettingsDivider(startIndent = false)
             RpSettingsSwitchTile(
                 title = stringResource(R.string.entry_disabled),
-                subtitle = stringResource(R.string.entry_disabled_desc),
                 checked = form.disabled,
                 enabled = enabled,
                 onCheckedChange = { enabled ->

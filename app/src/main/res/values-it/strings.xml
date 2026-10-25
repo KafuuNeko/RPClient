@@ -406,12 +406,10 @@ Non riusciti: %2$d</string>
     <string name="unnamed_entry">Voce senza nome</string>
     <string name="entry_name">Nome voce</string>
     <string name="entry_constant">Sempre attiva</string>
-    <string name="entry_constant_desc">Inserisci questa voce quando è abilitata, anche senza corrispondenza di parole chiave</string>
     <string name="entry_order">Ordine</string>
     <string name="entry_depth">Profondità</string>
     <string name="entry_content">Contenuto</string>
     <string name="entry_disabled">Disabilitata</string>
-    <string name="entry_disabled_desc">Salta questa voce durante l\'attivazione</string>
     <string name="entry_position">Posizione</string>
     <string name="entry_role">Ruolo</string>
     <string name="entry_probability">Probabilità</string>

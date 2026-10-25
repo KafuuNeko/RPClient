@@ -415,12 +415,10 @@
     <string name="unnamed_entry">未命名條目</string>
     <string name="entry_name">條目名稱</string>
     <string name="entry_constant">始終啟用</string>
-    <string name="entry_constant_desc">啟用後即使沒有關鍵字符合也插入此條目</string>
     <string name="entry_order">順序</string>
     <string name="entry_depth">深度</string>
     <string name="entry_content">內容</string>
     <string name="entry_disabled">已停用</string>
-    <string name="entry_disabled_desc">啟用時略過此條目</string>
     <string name="entry_position">位置</string>
     <string name="entry_role">角色</string>
     <string name="entry_probability">機率</string>

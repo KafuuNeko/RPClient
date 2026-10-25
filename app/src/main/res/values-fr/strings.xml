@@ -415,12 +415,10 @@
     <string name="unnamed_entry">Entrée sans nom</string>
     <string name="entry_name">Nom de l\'entrée</string>
     <string name="entry_constant">Toujours active</string>
-    <string name="entry_constant_desc">Insérer cette entrée lorsqu\'elle est activée, même sans correspondance de mots-clés</string>
     <string name="entry_order">Ordre</string>
     <string name="entry_depth">Profondeur</string>
     <string name="entry_content">Contenu</string>
     <string name="entry_disabled">Désactivée</string>
-    <string name="entry_disabled_desc">Ignorer cette entrée lors de l\'activation</string>
     <string name="entry_position">Position</string>
     <string name="entry_role">Rôle</string>
     <string name="entry_probability">Probabilité</string>

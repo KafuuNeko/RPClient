@@ -461,12 +461,15 @@ private fun EntryCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                // 标题只使用剩余宽度，避免长名称将状态标签挤成竖排。
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
                         text = entry.name.ifBlank { stringResource(R.string.unnamed_entry) },
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
                         maxLines = 1,
@@ -482,6 +485,9 @@ private fun EntryCard(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -618,5 +624,28 @@ private fun WorldBookEditLayoutPreview() {
             ),
             emit = {},
         )
+    }
+}
+
+@Preview(name = "Entry card - Long title", widthDp = 320, locale = "zh-rCN", showBackground = true)
+@Preview(name = "Entry card - Large text", widthDp = 320, fontScale = 1.5f, showBackground = true)
+@Composable
+private fun EntryCardLongTitlePreview() {
+    // 用窄屏和放大字体复现长标题与状态标签争抢宽度的场景。
+    AppTheme(dynamicColor = false) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            EntryCard(
+                entry = WorldBookEntryListItem(
+                    id = 1L,
+                    name = "核心规则-角色创建环节补充修正",
+                    keywords = emptyList(),
+                    constant = true,
+                    order = 20,
+                    depth = 4,
+                ),
+                onClick = {},
+                onToggleDisabled = {},
+            )
+        }
     }
 }

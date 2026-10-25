@@ -416,12 +416,10 @@ Falhas: %2$d</string>
     <string name="unnamed_entry">Entrada sem nome</string>
     <string name="entry_name">Nome da entrada</string>
     <string name="entry_constant">Sempre ativa</string>
-    <string name="entry_constant_desc">Inserir esta entrada quando estiver ativada, mesmo sem correspondência de palavras-chave</string>
     <string name="entry_order">Ordem</string>
     <string name="entry_depth">Profundidade</string>
     <string name="entry_content">Conteúdo</string>
     <string name="entry_disabled">Desativada</string>
-    <string name="entry_disabled_desc">Ignorar esta entrada durante a ativação</string>
     <string name="entry_position">Posição</string>
     <string name="entry_role">Papel</string>
     <string name="entry_probability">Probabilidade</string>

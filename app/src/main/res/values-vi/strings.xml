@@ -416,12 +416,10 @@ Thất bại: %2$d</string>
     <string name="unnamed_entry">Mục chưa đặt tên</string>
     <string name="entry_name">Tên mục</string>
     <string name="entry_constant">Luôn kích hoạt</string>
-    <string name="entry_constant_desc">Chèn mục này khi được bật, ngay cả khi không khớp từ khóa</string>
     <string name="entry_order">Thứ tự</string>
     <string name="entry_depth">Độ sâu</string>
     <string name="entry_content">Nội dung</string>
     <string name="entry_disabled">Đã tắt</string>
-    <string name="entry_disabled_desc">Bỏ qua mục này trong quá trình kích hoạt</string>
     <string name="entry_position">Vị trí</string>
     <string name="entry_role">Vai trò</string>
     <string name="entry_probability">Xác suất</string>

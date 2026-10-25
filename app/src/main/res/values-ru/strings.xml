@@ -415,12 +415,10 @@
     <string name="unnamed_entry">Запись без названия</string>
     <string name="entry_name">Название записи</string>
     <string name="entry_constant">Всегда активно</string>
-    <string name="entry_constant_desc">Вставлять эту запись, когда она включена, даже без совпадения ключевых слов</string>
     <string name="entry_order">Порядок</string>
     <string name="entry_depth">Глубина</string>
     <string name="entry_content">Содержимое</string>
     <string name="entry_disabled">Отключено</string>
-    <string name="entry_disabled_desc">Пропускать эту запись при активации</string>
     <string name="entry_position">Позиция</string>
     <string name="entry_role">Роль</string>
     <string name="entry_probability">Вероятность</string>
