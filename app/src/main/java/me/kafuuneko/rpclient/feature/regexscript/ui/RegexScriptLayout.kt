@@ -82,6 +82,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
@@ -204,6 +205,8 @@ private fun RegexScriptNormal(
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                item { Spacer(modifier = Modifier.height(0.dp)) }
+
                 item { ScopeSelector(state, emitIntent) }
 
                 if (state.scope == RegexScriptScope.Character) {
@@ -292,56 +295,18 @@ private fun AppFilterChip(
     )
 }
 
-/** 作用域切换器，改用分段式 Pill 单选组，增强页面层次感。 */
+/** 脚本作用域切换复用统一的圆角分段 Tab。 */
 @Composable
 private fun ScopeSelector(
     state: RegexScriptUiState.Normal,
     emitIntent: (RegexScriptUiIntent) -> Unit,
 ) {
-    AppSurface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            RegexScriptScope.entries.forEach { scope ->
-                val selected = state.scope == scope
-                val backgroundColor = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0f)
-                }
-                val contentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                AppSurface(
-                    onClick = { emitIntent(RegexScriptUiIntent.SelectScope(scope)) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = backgroundColor,
-                    contentColor = contentColor,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = scope.label(),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        )
-                    }
-                }
-            }
-        }
-    }
+    RpSegmentedTabs(
+        tabs = RegexScriptScope.entries,
+        selectedTab = state.scope,
+        onTabSelected = { scope -> emitIntent(RegexScriptUiIntent.SelectScope(scope)) },
+        tabLabel = { scope -> scope.label() },
+    )
 }
 
 /** 角色作用域下的角色选择器。包装在柔和背景卡片中。 */
