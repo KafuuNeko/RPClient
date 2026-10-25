@@ -128,7 +128,6 @@
     <string name="summary_role_user">Benutzer</string>
     <string name="summary_role_assistant">Assistent</string>
     <string name="pause_auto_summary">Automatische Zusammenfassung für diesen Chat pausieren</string>
-    <string name="pause_auto_summary_desc">Manuelle Zusammenfassungen bleiben verfügbar.</string>
     <string name="restore_previous_summary">Vorherige Zusammenfassung wiederherstellen</string>
     <string name="restore_previous_summary_desc">Den neuesten Snapshot verwerfen und den vorherigen Speicher wiederherstellen.</string>
     <string name="unknown_character">Unbekannter Charakter</string>
@@ -299,7 +298,6 @@
     <string name="enabled_entries_count">%1$d/%2$d aktiviert</string>
     <string name="session_world_books">Sitzungs-Weltbücher</string>
     <string name="manage_world_books">Verwalten</string>
-    <string name="session_lore_note">Eintragsänderungen betreffen nur die aktuelle Sitzung, nicht die Weltbuch-Bibliothek selbst.</string>
     <string name="search_world_books">Weltbücher oder Einträge suchen</string>
     <string name="clear_search">Suche löschen</string>
     <string name="no_world_book_search_results">Keine passenden Weltbücher oder Einträge gefunden.</string>
@@ -335,7 +333,6 @@
     <string name="summarize_now">Jetzt zusammenfassen</string>
     <string name="summarize_now_desc">Diesen Chat-Speicher mit den globalen Zusammenfassungseinstellungen aktualisieren</string>
     <string name="delete_chat_title">Chat löschen</string>
-    <string name="delete_chat_desc">Diese Sitzung und alle Nachrichten dauerhaft löschen</string>
     <string name="delete_chat_message">Möchtest du "%s" und alle zugehörigen Nachrichten löschen? Dies kann nicht rückgängig gemacht werden.</string>
     <string name="session">Sitzung</string>
     <string name="title">Titel</string>
@@ -393,7 +390,6 @@
     <string name="world_book_manager">Weltbuch-Manager</string>
     <string name="create_world_book">Weltbuch erstellen</string>
     <string name="world_book_title">Weltbuch</string>
-    <string name="world_book_subtitle">Lorebooks und Einträge verwalten; entscheiden, welche Daten in Sitzungen aktiviert werden sollen</string>
     <string name="world_book_library">Weltbuch-Bibliothek</string>
     <string name="create">Erstellen</string>
     <string name="entries">Einträge</string>
@@ -945,10 +941,8 @@
     <string name="story_character_always">Immer</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_include_user_persona">Benutzerpersona einbeziehen</string>
-    <string name="story_include_user_persona_desc">Fügt die aktuelle globale Benutzerbeschreibung zum KI-Schreibkontext hinzu.</string>
     <string name="story_character_primary">Protagonist</string>
     <string name="story_linked_lorebook">Verknüpftes Weltenbuch: %1$s</string>
-    <string name="story_lorebook_desc">Wähle verfügbare Einträge. Schlüsselwort- und Daueraktivierung werden beim KI-Schreiben angewendet.</string>
     <string name="story_lorebook_empty">Dieses Weltenbuch enthält keine Einträge.</string>
     <string name="story_settings_load_failed">Geschichtseinstellungen konnten nicht geladen werden</string>
     <string name="story_settings_save_failed">Geschichtseinstellungen konnten nicht gespeichert werden</string>
@@ -1228,7 +1222,6 @@
     <string name="appearance_title">Aussehen</string>
     <string name="appearance_entry_desc">Themen und Seitenhintergründe</string>
     <string name="appearance_palette_heading">Wähle deine Farben</string>
-    <string name="appearance_palette_desc">Sanfte Flächen und harmonische Farben für angenehmes Lesen.</string>
     <string name="appearance_classic">Klassisches Blau</string>
     <string name="appearance_sakura">Kirschblüte</string>
     <string name="appearance_forest">Wald</string>
@@ -1367,5 +1360,4 @@
     <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
     <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
     <string name="chat_include_character_examples">Dialogbeispiele der Charaktere einbeziehen</string>
-    <string name="chat_include_character_examples_desc">Fügt Dialogbeispiele der in diesem Chat verwendeten Charakterkarten zum Generierungskontext hinzu.</string>
 </resources>

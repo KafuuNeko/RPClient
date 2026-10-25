@@ -114,7 +114,6 @@ fun SessionLorebookDialog(
     AppDialogScaffold(
         onDismissRequest = onDismissRequest,
         title = stringResource(R.string.session_world_books),
-        subtitle = stringResource(R.string.session_lore_note),
         badgeIcon = Icons.AutoMirrored.Rounded.MenuBook,
         compactHeader = true,
         confirmText = stringResource(R.string.confirm),

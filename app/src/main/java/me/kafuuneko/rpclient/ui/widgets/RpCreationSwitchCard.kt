@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
  * 创建页共用的带图标开关卡片，背景与普通角色卡一致，状态由图标和开关表达。
  *
  * @param title 选项标题。
- * @param subtitle 选项说明。
+ * @param subtitle 可选的选项说明。
  * @param icon 选项图标。
  * @param checked 当前是否开启。
  * @param onCheckedChange 回传用户选择的目标状态。
@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun RpCreationSwitchCard(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     icon: ImageVector,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -64,11 +64,13 @@ fun RpCreationSwitchCard(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(text = title, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             PageSwitch(checked = checked, onCheckedChange = onCheckedChange)
         }

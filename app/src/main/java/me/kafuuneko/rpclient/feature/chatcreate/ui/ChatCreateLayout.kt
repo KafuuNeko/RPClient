@@ -285,7 +285,6 @@ private fun BasicForm(
         if (showCharacterExamplesSwitch) {
             RpCreationSwitchCard(
                 title = stringResource(R.string.chat_include_character_examples),
-                subtitle = stringResource(R.string.chat_include_character_examples_desc),
                 icon = Icons.Rounded.FormatQuote,
                 checked = form.includeCharacterExamples,
                 onCheckedChange = { enabled ->

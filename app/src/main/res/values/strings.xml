@@ -142,7 +142,6 @@
     <string name="summary_role_user">User</string>
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Pause auto summary for this chat</string>
-    <string name="pause_auto_summary_desc">Manual summaries remain available.</string>
     <string name="restore_previous_summary">Restore previous summary</string>
     <string name="restore_previous_summary_desc">Discard the latest snapshot and restore the preceding memory.</string>
     <string name="unknown_character">Unknown character</string>
@@ -313,7 +312,6 @@
     <string name="enabled_entries_count">%1$d/%2$d enabled</string>
     <string name="session_world_books">Session World Books</string>
     <string name="manage_world_books">Manage</string>
-    <string name="session_lore_note">Entry toggles only affect the current session, not the world book library itself.</string>
     <string name="search_world_books">Search world books or entries</string>
     <string name="clear_search">Clear search</string>
     <string name="no_world_book_search_results">No matching world books or entries.</string>
@@ -349,7 +347,6 @@
     <string name="summarize_now">Summarize now</string>
     <string name="summarize_now_desc">Update this chat memory using the global summary settings</string>
     <string name="delete_chat_title">Delete chat</string>
-    <string name="delete_chat_desc">Permanently delete this session and all messages</string>
     <string name="delete_chat_message">Delete "%s" and all of its messages? This cannot be undone.</string>
     <string name="session">Session</string>
     <string name="title">Title</string>
@@ -407,7 +404,6 @@
     <string name="world_book_manager">World Book Manager</string>
     <string name="create_world_book">Create world book</string>
     <string name="world_book_title">World Book</string>
-    <string name="world_book_subtitle">Manage lorebooks and entries; decide which data to enable in sessions</string>
     <string name="world_book_library">World Book Library</string>
     <string name="create">Create</string>
     <string name="entries">Entries</string>
@@ -1074,10 +1070,8 @@
     <string name="story_character_always">Always</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_include_user_persona">Include user persona</string>
-    <string name="story_include_user_persona_desc">Add the current global user persona description to AI writing context.</string>
     <string name="story_character_primary">Protagonist</string>
     <string name="story_linked_lorebook">Linked lorebook: %1$s</string>
-    <string name="story_lorebook_desc">Choose entries available to this story. Keyword and constant activation will be applied during AI writing.</string>
     <string name="story_lorebook_empty">This lorebook has no entries.</string>
     <string name="story_settings_load_failed">Could not load story settings</string>
     <string name="story_settings_save_failed">Could not save story settings</string>
@@ -1247,7 +1241,6 @@
     <string name="appearance_title">Appearance</string>
     <string name="appearance_entry_desc">Themes and page backgrounds</string>
     <string name="appearance_palette_heading">Find your palette</string>
-    <string name="appearance_palette_desc">Soft surfaces, balanced colors, and a look that feels like you.</string>
     <string name="appearance_classic">Classic blue</string>
     <string name="appearance_sakura">Sakura</string>
     <string name="appearance_forest">Forest</string>
@@ -1372,5 +1365,4 @@
     <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
     <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
     <string name="chat_include_character_examples">Include character dialogue examples</string>
-    <string name="chat_include_character_examples_desc">Add dialogue examples from the character cards used in this chat to the generation context.</string>
 </resources>

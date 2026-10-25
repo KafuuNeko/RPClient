@@ -127,7 +127,6 @@
     <string name="summary_role_user">Usuario</string>
     <string name="summary_role_assistant">Asistente</string>
     <string name="pause_auto_summary">Pausar resumen automático en este chat</string>
-    <string name="pause_auto_summary_desc">Los resúmenes manuales continúan disponibles.</string>
     <string name="restore_previous_summary">Restaurar resumen anterior</string>
     <string name="restore_previous_summary_desc">Descarta la instantánea actual y restaura la memoria anterior.</string>
     <string name="unknown_character">Personaje desconocido</string>
@@ -298,7 +297,6 @@
     <string name="enabled_entries_count">%1$d/%2$d habilitadas</string>
     <string name="session_world_books">Libros del mundo de la sesión</string>
     <string name="manage_world_books">Administrar</string>
-    <string name="session_lore_note">El estado de las entradas solo afecta a la sesión actual, no a la biblioteca global.</string>
     <string name="search_world_books">Buscar libros del mundo o entradas</string>
     <string name="clear_search">Borrar búsqueda</string>
     <string name="no_world_book_search_results">No se encontraron libros del mundo ni entradas coincidentes.</string>
@@ -334,7 +332,6 @@
     <string name="summarize_now">Resumir ahora</string>
     <string name="summarize_now_desc">Actualizar la memoria de este chat con los ajustes globales de resumen</string>
     <string name="delete_chat_title">Eliminar chat</string>
-    <string name="delete_chat_desc">Eliminar permanentemente esta sesión y todos sus mensajes</string>
     <string name="delete_chat_message">¿Eliminar «%s» y todos sus mensajes? Esta acción no se puede deshacer.</string>
     <string name="session">Sesión</string>
     <string name="title">Título</string>
@@ -392,7 +389,6 @@
     <string name="world_book_manager">Administrador de libros del mundo</string>
     <string name="create_world_book">Crear libro del mundo</string>
     <string name="world_book_title">Libro del mundo</string>
-    <string name="world_book_subtitle">Administre libros y entradas; decida cuáles habilitar en las sesiones</string>
     <string name="world_book_library">Biblioteca de libros del mundo</string>
     <string name="create">Crear</string>
     <string name="entries">Entradas</string>
@@ -1058,10 +1054,8 @@
     <string name="story_character_always">Siempre</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_include_user_persona">Incluir personaje del usuario</string>
-    <string name="story_include_user_persona_desc">Añadir la descripción del personaje del usuario al contexto de escritura de IA.</string>
     <string name="story_character_primary">Protagonista</string>
     <string name="story_linked_lorebook">Libro del mundo vinculado: %1$s</string>
-    <string name="story_lorebook_desc">Elija entradas disponibles para esta historia. Se aplicará activación por palabras clave y constante.</string>
     <string name="story_lorebook_empty">Este libro del mundo no tiene entradas.</string>
     <string name="story_settings_load_failed">No se pudieron cargar los ajustes de la historia</string>
     <string name="story_settings_save_failed">No se pudieron guardar los ajustes de la historia</string>
@@ -1230,7 +1224,6 @@
     <string name="appearance_title">Apariencia</string>
     <string name="appearance_entry_desc">Temas y fondos de página</string>
     <string name="appearance_palette_heading">Elige tu paleta</string>
-    <string name="appearance_palette_desc">Superficies suaves y colores armoniosos para una lectura agradable.</string>
     <string name="appearance_classic">Azul clásico</string>
     <string name="appearance_sakura">Flor de cerezo</string>
     <string name="appearance_forest">Bosque</string>
@@ -1369,5 +1362,4 @@
     <string name="json_preview_too_large">El contenido es demasiado grande para mostrarlo. Expórtalo desde el registro de solicitudes.</string>
     <string name="json_source_invalid">Este registro no se puede formatear. Se muestra el texto guardado.</string>
     <string name="chat_include_character_examples">Incluir ejemplos de diálogo de los personajes</string>
-    <string name="chat_include_character_examples_desc">Añade al contexto de generación ejemplos de diálogo de las fichas de personaje usadas en este chat.</string>
 </resources>

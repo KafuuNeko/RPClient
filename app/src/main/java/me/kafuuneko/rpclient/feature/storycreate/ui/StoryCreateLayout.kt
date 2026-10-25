@@ -203,13 +203,6 @@ private fun StoryCreateNormal(
                     item {
                         RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
                     }
-                    item {
-                        Text(
-                            text = stringResource(R.string.story_lorebook_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                     if (state.lorebookGroups.isNotEmpty()) {
                         item {
                             LorebookSearchField(

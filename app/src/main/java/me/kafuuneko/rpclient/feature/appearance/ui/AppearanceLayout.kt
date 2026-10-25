@@ -121,10 +121,6 @@ private fun AppearanceChoices(
                 text = stringResource(R.string.appearance_palette_heading),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            Text(
-                text = stringResource(R.string.appearance_palette_desc),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

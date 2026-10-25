@@ -148,7 +148,6 @@ internal fun ChatSettingsPage(
                     MenuAction(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.delete_chat_title),
-                        subtitle = stringResource(R.string.delete_chat_desc),
                         iconTint = MaterialTheme.colorScheme.error,
                         enabled = loadState == ChatLoadState.None,
                         onClick = { ChatUiIntent.DeleteSessionClick.emit() },
@@ -169,7 +168,6 @@ internal fun ChatSettingsPage(
                     }
                     SessionSwitchRow(
                         title = stringResource(R.string.pause_auto_summary),
-                        subtitle = stringResource(R.string.pause_auto_summary_desc),
                         checked = session.autoSummaryPaused,
                         onCheckedChange = { enabled ->
                             ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
@@ -230,7 +228,6 @@ internal fun ChatSettingsPage(
                     MenuAction(
                         icon = Icons.AutoMirrored.Rounded.MenuBook,
                         title = stringResource(R.string.world_book_manager),
-                        subtitle = stringResource(R.string.world_book_subtitle),
                         onClick = { ChatUiIntent.OpenWorldBookManager.emit() },
                     )
                     SessionLoreSettings(
@@ -384,7 +381,6 @@ private fun SessionSwitchRow(
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    subtitle: String? = null,
     enabled: Boolean = true,
 ) {
     // 分区容器已经提供外边距，行内只按剩余宽度分配文字和开关。
@@ -392,16 +388,11 @@ private fun SessionSwitchRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
-                )
-            }
-        }
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+        )
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }

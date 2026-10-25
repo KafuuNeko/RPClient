@@ -127,7 +127,6 @@
     <string name="summary_role_user">사용자</string>
     <string name="summary_role_assistant">어시스턴트</string>
     <string name="pause_auto_summary">이 채팅의 자동 요약 일시 중지</string>
-    <string name="pause_auto_summary_desc">수동 요약은 계속 사용할 수 있습니다.</string>
     <string name="restore_previous_summary">이전 요약 복원</string>
     <string name="restore_previous_summary_desc">최신 스냅샷을 버리고 이전 메모리를 복원합니다.</string>
     <string name="unknown_character">알 수 없는 캐릭터</string>
@@ -298,7 +297,6 @@
     <string name="enabled_entries_count">%1$d/%2$d개 활성화됨</string>
     <string name="session_world_books">세션 월드북 목록</string>
     <string name="manage_world_books">관리</string>
-    <string name="session_lore_note">항목 활성화 상태는 현재 세션에만 영향을 미치며, 월드북 라이브러리 자체에는 영향을 주지 않습니다.</string>
     <string name="search_world_books">월드북 또는 항목 검색</string>
     <string name="clear_search">검색어 지우기</string>
     <string name="no_world_book_search_results">일치하는 월드북 또는 항목이 없습니다.</string>
@@ -334,7 +332,6 @@
     <string name="summarize_now">지금 요약</string>
     <string name="summarize_now_desc">전역 요약 설정을 사용하여 대화 메모리를 업데이트합니다</string>
     <string name="delete_chat_title">대화 삭제</string>
-    <string name="delete_chat_desc">이 세션과 모든 메시지를 영구적으로 삭제합니다</string>
     <string name="delete_chat_message">"%s" 대화방과 모든 메시지를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
     <string name="session">세션</string>
     <string name="title">제목</string>
@@ -392,7 +389,6 @@
     <string name="world_book_manager">월드북 관리자</string>
     <string name="create_world_book">월드북 생성</string>
     <string name="world_book_title">월드북</string>
-    <string name="world_book_subtitle">로어북 및 항목 관리; 세션에서 활성화할 데이터 결정</string>
     <string name="world_book_library">월드북 라이브러리</string>
     <string name="create">생성</string>
     <string name="entries">항목</string>
@@ -897,7 +893,6 @@
     <string name="story_author_note">작가 노트</string>
     <string name="story_author_note_desc">문체, 시점과 다음 장면에 대한 짧고 강한 지침입니다.</string>
     <string name="story_include_user_persona">사용자 페르소나 포함</string>
-    <string name="story_include_user_persona_desc">현재 전역 사용자 페르소나 설명을 AI 작성 컨텍스트에 추가합니다.</string>
     <string name="story_character_primary">주인공</string>
     <string name="story_character_always">항상</string>
     <string name="story_character_auto">자동</string>
@@ -949,7 +944,6 @@
     <string name="story_library_title">각 이야기를 하나의 연속 문서로 작성하세요</string>
     <string name="story_linked_lorebook">연결된 월드북: %1$s</string>
     <string name="story_loading_settings">이야기 설정 불러오는 중…</string>
-    <string name="story_lorebook_desc">이 이야기에서 사용할 항목을 선택하세요. AI 글쓰기 시 키워드와 상시 활성화가 적용됩니다.</string>
     <string name="story_lorebook_empty">이 월드북에는 항목이 없습니다.</string>
     <string name="story_memory">메모리</string>
     <string name="story_memory_desc">장기 설정, 개요, 향후 계획과 작성 제약.</string>
@@ -1223,7 +1217,6 @@
     <string name="appearance_title">외관</string>
     <string name="appearance_entry_desc">테마 색상 및 페이지 배경</string>
     <string name="appearance_palette_heading">마음에 드는 색상 선택</string>
-    <string name="appearance_palette_desc">부드러운 배경과 조화로운 색상으로 편안하게 읽어 보세요.</string>
     <string name="appearance_classic">클래식 블루</string>
     <string name="appearance_sakura">벚꽃</string>
     <string name="appearance_forest">숲</string>
@@ -1362,5 +1355,4 @@
     <string name="json_preview_too_large">내용이 너무 커서 표시할 수 없습니다. 요청 로그에서 내보내서 확인하세요.</string>
     <string name="json_source_invalid">이 로그는 서식을 지정할 수 없습니다. 저장된 원문을 표시합니다.</string>
     <string name="chat_include_character_examples">캐릭터 카드의 대화 예시 포함</string>
-    <string name="chat_include_character_examples_desc">이 채팅에서 사용하는 캐릭터 카드의 대화 예시를 생성 컨텍스트에 추가합니다.</string>
 </resources>

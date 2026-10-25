@@ -169,7 +169,6 @@ private fun GroupChatCreateNormalView(
                     item {
                         RpCreationSwitchCard(
                             title = stringResource(R.string.chat_include_character_examples),
-                            subtitle = stringResource(R.string.chat_include_character_examples_desc),
                             icon = Icons.Rounded.FormatQuote,
                             checked = state.includeCharacterExamples,
                             onCheckedChange = { enabled ->

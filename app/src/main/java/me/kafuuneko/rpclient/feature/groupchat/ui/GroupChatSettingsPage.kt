@@ -163,7 +163,6 @@ internal fun GroupChatSettingsPage(
                     )
                     SettingsSwitchRow(
                         title = stringResource(R.string.pause_auto_summary),
-                        subtitle = stringResource(R.string.pause_auto_summary_desc),
                         checked = state.autoSummaryPaused,
                         onCheckedChange = { enabled ->
                             emitIntent(GroupChatUiIntent.ToggleAutoSummaryPaused(enabled))
@@ -326,11 +325,6 @@ internal fun GroupChatSettingsPage(
             }
             item {
                 GroupSettingsSection(title = stringResource(R.string.world_book)) {
-                    Text(
-                        text = stringResource(R.string.session_lore_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     GroupChatLorebookSelector(
                         groups = state.lorebookGroups,
                         visibleGroups = state.visibleLorebookGroups,
@@ -352,7 +346,6 @@ internal fun GroupChatSettingsPage(
                     SettingsActionRow(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.group_chat_delete_content_description),
-                        subtitle = stringResource(R.string.delete_chat_desc),
                         iconTint = MaterialTheme.colorScheme.error,
                         onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) },
                     )
@@ -440,20 +433,16 @@ private fun SettingsActionRow(
 @Composable
 private fun SettingsSwitchRow(
     title: String,
-    subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     // 开关状态由设置草稿提供，交互只回传修改意图。
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+        )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

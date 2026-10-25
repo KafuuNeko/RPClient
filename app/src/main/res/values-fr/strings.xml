@@ -127,7 +127,6 @@
     <string name="summary_role_user">Utilisateur</string>
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Suspendre le résumé automatique pour ce chat</string>
-    <string name="pause_auto_summary_desc">Les résumés manuels restent disponibles.</string>
     <string name="restore_previous_summary">Restaurer le résumé précédent</string>
     <string name="restore_previous_summary_desc">Ignorer le dernier instantané et restaurer la mémoire précédente.</string>
     <string name="unknown_character">Personnage inconnu</string>
@@ -298,7 +297,6 @@
     <string name="enabled_entries_count">%1$d/%2$d activées</string>
     <string name="session_world_books">Livres d\'univers de la session</string>
     <string name="manage_world_books">Gérer</string>
-    <string name="session_lore_note">Les commutateurs d\'entrées n\'affectent que la session en cours, pas la bibliothèque de livres d\'univers elle-même.</string>
     <string name="search_world_books">Rechercher des livres d\'univers ou des entrées</string>
     <string name="clear_search">Effacer la recherche</string>
     <string name="no_world_book_search_results">Aucun livre d\'univers ou entrée correspondante.</string>
@@ -334,7 +332,6 @@
     <string name="summarize_now">Résumer maintenant</string>
     <string name="summarize_now_desc">Mettre à jour la mémoire de cette discussion en utilisant les paramètres globaux de résumé</string>
     <string name="delete_chat_title">Supprimer la discussion</string>
-    <string name="delete_chat_desc">Supprimer définitivement cette session et tous ses messages</string>
     <string name="delete_chat_message">Supprimer "%s" et tous ses messages ? Cette action est irréversible.</string>
     <string name="session">Session</string>
     <string name="title">Titre</string>
@@ -392,7 +389,6 @@
     <string name="world_book_manager">Gestionnaire de livres d\'univers</string>
     <string name="create_world_book">Créer un livre d\'univers</string>
     <string name="world_book_title">Livre d\'univers</string>
-    <string name="world_book_subtitle">Gérer les lorebooks et les entrées ; décider quelles données activer dans les sessions</string>
     <string name="world_book_library">Bibliothèque de livres d\'univers</string>
     <string name="create">Créer</string>
     <string name="entries">Entrées</string>
@@ -901,7 +897,6 @@
     <string name="story_author_note">Note d’auteur</string>
     <string name="story_author_note_desc">Une consigne brève et forte sur le style, le point de vue et la prochaine scène.</string>
     <string name="story_include_user_persona">Inclure le persona utilisateur</string>
-    <string name="story_include_user_persona_desc">Ajoute la description globale actuelle de l’utilisateur au contexte d’écriture de l’IA.</string>
     <string name="story_character_primary">Protagoniste</string>
     <string name="story_character_always">Toujours</string>
     <string name="story_character_auto">Auto</string>
@@ -953,7 +948,6 @@
     <string name="story_library_title">Vos histoires sous forme de documents continus</string>
     <string name="story_linked_lorebook">Lorebook lié : %1$s</string>
     <string name="story_loading_settings">Chargement des réglages…</string>
-    <string name="story_lorebook_desc">Choisissez les entrées disponibles. L’activation par mot-clé ou constante sera appliquée pendant l’écriture IA.</string>
     <string name="story_lorebook_empty">Ce lorebook ne contient aucune entrée.</string>
     <string name="story_memory">Mémoire</string>
     <string name="story_memory_desc">Faits à long terme, plan, projets futurs et contraintes d’écriture.</string>
@@ -1229,7 +1223,6 @@
     <string name="appearance_title">Apparence</string>
     <string name="appearance_entry_desc">Thèmes et arrière-plans</string>
     <string name="appearance_palette_heading">Choisissez votre palette</string>
-    <string name="appearance_palette_desc">Des surfaces douces et des couleurs harmonieuses pour une lecture agréable.</string>
     <string name="appearance_classic">Bleu classique</string>
     <string name="appearance_sakura">Fleur de cerisier</string>
     <string name="appearance_forest">Forêt</string>
@@ -1368,5 +1361,4 @@
     <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
     <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
     <string name="chat_include_character_examples">Inclure les exemples de dialogue des personnages</string>
-    <string name="chat_include_character_examples_desc">Ajoute au contexte de génération les exemples de dialogue des fiches de personnage utilisées dans cette discussion.</string>
 </resources>

@@ -652,22 +652,13 @@ fun StoryUserPersonaCard(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
-            Column(
+            Text(
+                text = stringResource(R.string.story_include_user_persona),
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.story_include_user_persona),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.story_include_user_persona_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                )
-            }
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,

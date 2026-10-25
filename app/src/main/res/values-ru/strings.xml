@@ -127,7 +127,6 @@
     <string name="summary_role_user">Пользователь</string>
     <string name="summary_role_assistant">Ассистент</string>
     <string name="pause_auto_summary">Приостановить авто-сводку для этого чата</string>
-    <string name="pause_auto_summary_desc">Ручные сводки остаются доступны.</string>
     <string name="restore_previous_summary">Восстановить предыдущую сводку</string>
     <string name="restore_previous_summary_desc">Удалить последний снимок и восстановить предыдущую память.</string>
     <string name="unknown_character">Неизвестный персонаж</string>
@@ -298,7 +297,6 @@
     <string name="enabled_entries_count">%1$d/%2$d включено</string>
     <string name="session_world_books">Книги миров сессии</string>
     <string name="manage_world_books">Управление</string>
-    <string name="session_lore_note">Переключатели записей влияют только на текущую сессию, а не на саму библиотеку книг миров.</string>
     <string name="search_world_books">Поиск книг миров или записей</string>
     <string name="clear_search">Очистить поиск</string>
     <string name="no_world_book_search_results">Нет подходящих книг миров или записей.</string>
@@ -334,7 +332,6 @@
     <string name="summarize_now">Суммировать сейчас</string>
     <string name="summarize_now_desc">Обновить память этого чата, используя глобальные настройки суммаризации</string>
     <string name="delete_chat_title">Удалить чат</string>
-    <string name="delete_chat_desc">Навсегда удалить эту сессию и все сообщения</string>
     <string name="delete_chat_message">Удалить «%s» и все его сообщения? Это действие нельзя отменить.</string>
     <string name="session">Сессия</string>
     <string name="title">Название</string>
@@ -392,7 +389,6 @@
     <string name="world_book_manager">Менеджер книг миров</string>
     <string name="create_world_book">Создать книгу мира</string>
     <string name="world_book_title">Книга мира</string>
-    <string name="world_book_subtitle">Управление лорбуками и записями; выбор данных для включения в сессии</string>
     <string name="world_book_library">Библиотека книг миров</string>
     <string name="create">Создать</string>
     <string name="entries">Записи</string>
@@ -948,10 +944,8 @@
     <string name="story_character_always">Всегда</string>
     <string name="story_character_auto">Авто</string>
     <string name="story_include_user_persona">Включить персону пользователя</string>
-    <string name="story_include_user_persona_desc">Добавляет текущее глобальное описание персоны пользователя в контекст для ИИ.</string>
     <string name="story_character_primary">Протагонист</string>
     <string name="story_linked_lorebook">Связанный лорбук: %1$s</string>
-    <string name="story_lorebook_desc">Выберите доступные записи. Активация по ключевым словам и постоянные записи применяются при работе ИИ.</string>
     <string name="story_lorebook_empty">В этом лорбуке нет записей.</string>
     <string name="story_settings_load_failed">Не удалось загрузить настройки истории</string>
     <string name="story_settings_save_failed">Не удалось сохранить настройки истории</string>
@@ -1233,7 +1227,6 @@
     <string name="appearance_title">Оформление</string>
     <string name="appearance_entry_desc">Темы и фоны страниц</string>
     <string name="appearance_palette_heading">Выберите палитру</string>
-    <string name="appearance_palette_desc">Мягкие оттенки и гармоничные цвета для комфортного чтения.</string>
     <string name="appearance_classic">Классический синий</string>
     <string name="appearance_sakura">Сакура</string>
     <string name="appearance_forest">Лес</string>
@@ -1372,5 +1365,4 @@
     <string name="json_preview_too_large">Содержимое слишком велико для отображения. Экспортируйте его из журнала запросов.</string>
     <string name="json_source_invalid">Этот журнал невозможно отформатировать. Показан сохранённый текст.</string>
     <string name="chat_include_character_examples">Включать примеры диалогов персонажей</string>
-    <string name="chat_include_character_examples_desc">Добавляет примеры диалогов из используемых в этом чате карточек персонажей в контекст генерации.</string>
 </resources>

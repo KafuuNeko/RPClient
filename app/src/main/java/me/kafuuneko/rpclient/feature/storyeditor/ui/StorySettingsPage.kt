@@ -554,13 +554,6 @@ private fun LorebookSettings(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.story_lorebook_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         items(
             items = state.lorebookGroups,
             key = { storyLorebookGroupItem -> storyLorebookGroupItem.id }) { group ->

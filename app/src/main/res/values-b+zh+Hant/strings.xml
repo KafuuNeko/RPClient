@@ -127,7 +127,6 @@
     <string name="summary_role_user">使用者</string>
     <string name="summary_role_assistant">助手</string>
     <string name="pause_auto_summary">暫停此聊天的自動摘要</string>
-    <string name="pause_auto_summary_desc">仍可手動產生摘要。</string>
     <string name="restore_previous_summary">還原上一版摘要</string>
     <string name="restore_previous_summary_desc">捨棄最新快照並還原前一份記憶。</string>
     <string name="unknown_character">未知角色</string>
@@ -298,7 +297,6 @@
     <string name="enabled_entries_count">已啟用 %1$d/%2$d</string>
     <string name="session_world_books">會話世界書</string>
     <string name="manage_world_books">管理</string>
-    <string name="session_lore_note">條目開關只影響目前會話，不會修改世界書庫。</string>
     <string name="search_world_books">搜尋世界書或條目</string>
     <string name="clear_search">清除搜尋</string>
     <string name="no_world_book_search_results">沒有符合的世界書或條目。</string>
@@ -334,7 +332,6 @@
     <string name="summarize_now">立即摘要</string>
     <string name="summarize_now_desc">使用全域摘要設定更新此聊天記憶</string>
     <string name="delete_chat_title">刪除聊天</string>
-    <string name="delete_chat_desc">永久刪除此會話和全部訊息</string>
     <string name="delete_chat_message">刪除「%s」及其所有訊息？此操作無法復原。</string>
     <string name="session">會話</string>
     <string name="title">標題</string>
@@ -392,7 +389,6 @@
     <string name="world_book_manager">世界書管理器</string>
     <string name="create_world_book">建立世界書</string>
     <string name="world_book_title">世界書</string>
-    <string name="world_book_subtitle">管理世界書和條目；決定會話中啟用哪些資料</string>
     <string name="world_book_library">世界書庫</string>
     <string name="create">建立</string>
     <string name="entries">條目</string>
@@ -899,7 +895,6 @@
     <string name="story_author_note">作者備註</string>
     <string name="story_author_note_desc">用簡短而明確的指令約束文風、視角和下一幕方向。</string>
     <string name="story_include_user_persona">注入使用者人設</string>
-    <string name="story_include_user_persona_desc">將目前全域使用者人設描述加入 AI 編寫上下文。</string>
     <string name="story_character_primary">主角</string>
     <string name="story_character_always">常駐</string>
     <string name="story_character_auto">自動</string>
@@ -951,7 +946,6 @@
     <string name="story_library_title">把每個故事寫成一份連續文件</string>
     <string name="story_linked_lorebook">綁定世界書：%1$s</string>
     <string name="story_loading_settings">正在載入故事設定……</string>
-    <string name="story_lorebook_desc">選擇目前故事可用的條目；AI 寫作階段會繼續套用關鍵字和常駐啟用規則。</string>
     <string name="story_lorebook_empty">這本世界書還沒有條目。</string>
     <string name="story_memory">長期記憶</string>
     <string name="story_memory_desc">長期設定、大綱、未來計畫和寫作約束。</string>
@@ -1223,7 +1217,6 @@
     <string name="appearance_title">外觀</string>
     <string name="appearance_entry_desc">主題配色與頁面背景</string>
     <string name="appearance_palette_heading">選擇喜歡的配色</string>
-    <string name="appearance_palette_desc">柔和的底色、協調的層次，讓閱讀更舒適。</string>
     <string name="appearance_classic">經典藍</string>
     <string name="appearance_sakura">櫻花粉</string>
     <string name="appearance_forest">森林綠</string>
@@ -1362,5 +1355,4 @@
     <string name="json_preview_too_large">內容過大，無法顯示。請從請求日誌匯出查看。</string>
     <string name="json_source_invalid">此日誌無法格式化，目前顯示已儲存的原文。</string>
     <string name="chat_include_character_examples">注入角色卡範例對話</string>
-    <string name="chat_include_character_examples_desc">將本次使用的角色卡範例對話加入生成上下文。</string>
 </resources>

@@ -125,7 +125,6 @@
     <string name="summary_role_user">User</string>
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Sospendi riassunto automatico per questa chat</string>
-    <string name="pause_auto_summary_desc">I riassunti manuali rimangono disponibili.</string>
     <string name="restore_previous_summary">Ripristina riassunto precedente</string>
     <string name="restore_previous_summary_desc">Elimina l\'ultima istantanea e ripristina la memoria precedente.</string>
     <string name="unknown_character">Personaggio sconosciuto</string>
@@ -293,7 +292,6 @@ Non riusciti: %2$d</string>
     <string name="enabled_entries_count">%1$d/%2$d abilitate</string>
     <string name="session_world_books">Grimori della sessione</string>
     <string name="manage_world_books">Gestisci</string>
-    <string name="session_lore_note">L\'attivazione o disattivazione delle voci influisce solo sulla sessione corrente, non sulla libreria dei grimori.</string>
     <string name="search_world_books">Cerca nei grimori o nelle voci</string>
     <string name="clear_search">Cancella ricerca</string>
     <string name="no_world_book_search_results">Nessun grimorio o voce corrispondente.</string>
@@ -329,7 +327,6 @@ Non riusciti: %2$d</string>
     <string name="summarize_now">Riassumi ora</string>
     <string name="summarize_now_desc">Aggiorna la memoria di questa chat usando le impostazioni di riassunto globali</string>
     <string name="delete_chat_title">Elimina chat</string>
-    <string name="delete_chat_desc">Elimina definitivamente questa sessione e tutti i messaggi</string>
     <string name="delete_chat_message">Eliminare "%s" e tutti i suoi messaggi? Questa azione non può essere annullata.</string>
     <string name="session">Sessione</string>
     <string name="title">Titolo</string>
@@ -383,7 +380,6 @@ Non riusciti: %2$d</string>
     <string name="world_book_manager">Gestione grimori</string>
     <string name="create_world_book">Crea grimorio</string>
     <string name="world_book_title">Grimorio</string>
-    <string name="world_book_subtitle">Gestisci grimori e voci; decidi quali dati abilitare nelle sessioni</string>
     <string name="world_book_library">Libreria dei grimori</string>
     <string name="create">Crea</string>
     <string name="entries">Voci</string>
@@ -1035,10 +1031,8 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="story_character_always">Sempre</string>
     <string name="story_character_auto">Automatico</string>
     <string name="story_include_user_persona">Includi persona utente</string>
-    <string name="story_include_user_persona_desc">Aggiungi la descrizione globale attuale della persona utente al contesto di scrittura IA.</string>
     <string name="story_character_primary">Protagonista</string>
     <string name="story_linked_lorebook">Grimorio collegato: %1$s</string>
-    <string name="story_lorebook_desc">Scegli le voci disponibili per questa storia. L\'attivazione costante e per parole chiave verrà applicata durante la scrittura con IA.</string>
     <string name="story_lorebook_empty">Questo grimorio non ha voci.</string>
     <string name="story_settings_load_failed">Impossibile caricare le impostazioni della storia</string>
     <string name="story_settings_save_failed">Impossibile salvare le impostazioni della storia</string>
@@ -1207,7 +1201,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_title">Aspetto</string>
     <string name="appearance_entry_desc">Temi e sfondi delle pagine</string>
     <string name="appearance_palette_heading">Scegli la tua palette</string>
-    <string name="appearance_palette_desc">Superfici delicate e colori armoniosi per una lettura piacevole.</string>
     <string name="appearance_classic">Blu classico</string>
     <string name="appearance_sakura">Ciliegio</string>
     <string name="appearance_forest">Foresta</string>
@@ -1346,5 +1339,4 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="json_preview_too_large">Il contenuto è troppo grande da visualizzare. Esportalo dal registro delle richieste.</string>
     <string name="json_source_invalid">Questo registro non può essere formattato. Viene mostrato il testo salvato.</string>
     <string name="chat_include_character_examples">Includi esempi di dialogo dei personaggi</string>
-    <string name="chat_include_character_examples_desc">Aggiunge al contesto di generazione gli esempi di dialogo delle schede personaggio usate in questa chat.</string>
 </resources>
