@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
 sealed class GroupChatUiState {
@@ -74,8 +75,8 @@ data class GroupChatConversationState(
     val hasCharacterMessage: Boolean,
     /** 当前已加载窗口之前是否仍有更早消息。 */
     val canLoadOlderMessages: Boolean = false,
-    /** 当前是否正在向列表头部加载更早消息。 */
-    val isLoadingOlderMessages: Boolean = false,
+    /** 当前历史窗口的加载方向，同一时间只允许一个分页任务。 */
+    val historyLoadState: MessageHistoryLoadState = MessageHistoryLoadState.None,
     /** 当前手动选中的群聊发言者角色 ID。 */
     val selectedSpeakerId: Long?,
     /** 消息输入框中尚未发送的草稿。 */
@@ -91,7 +92,6 @@ data class GroupChatConversationState(
     /** 搜索历史位置；非空时禁止流式更新抢回底部。 */
     val searchAnchorMessageId: Long? = null,
     val canLoadNewerMessages: Boolean = false,
-    val isLoadingNewerMessages: Boolean = false
 )
 
 /** 群聊设置草稿、候选成员与世界书选择子状态。 */

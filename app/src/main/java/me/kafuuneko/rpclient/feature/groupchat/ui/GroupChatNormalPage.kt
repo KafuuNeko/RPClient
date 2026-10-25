@@ -102,6 +102,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.MessageContentPart
+import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
@@ -207,10 +208,9 @@ internal fun GroupChatNormalPage(
                     imageState = state.imageState,
                     messages = state.conversationState.messages,
                     canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
-                    isLoadingOlderMessages = state.conversationState.isLoadingOlderMessages,
+                    historyLoadState = state.conversationState.historyLoadState,
                     searchAnchorMessageId = state.conversationState.searchAnchorMessageId,
                     canLoadNewerMessages = state.conversationState.canLoadNewerMessages,
-                    isLoadingNewerMessages = state.conversationState.isLoadingNewerMessages,
                     expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
                     editingMessageId = state.conversationState.editingMessageId,
                     editingMessageDraft = state.conversationState.editingMessageDraft,
@@ -494,16 +494,17 @@ private fun MessageList(
     imageState: MessageImageState,
     messages: List<GroupChatMessageItem>,
     canLoadOlderMessages: Boolean,
-    isLoadingOlderMessages: Boolean,
+    historyLoadState: MessageHistoryLoadState,
     searchAnchorMessageId: Long?,
     canLoadNewerMessages: Boolean,
-    isLoadingNewerMessages: Boolean,
     expandedThinkBlockIds: Set<String>,
     editingMessageId: Long?,
     editingMessageDraft: String,
     emitIntent: (GroupChatUiIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isLoadingOlderMessages = historyLoadState.isLoadingOlder
+    val isLoadingNewerMessages = historyLoadState.isLoadingNewer
     val activeSearchAnchor by rememberUpdatedState(searchAnchorMessageId)
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
@@ -1083,7 +1084,7 @@ private fun GroupMessageEditContent(
     // 编辑草稿与图片操作继续由页面状态和意图管理。
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RpScrollableOutlinedTextField(
-            enabled = !imageState.submitting,
+            enabled = !imageState.loadState.isSubmitting,
             value = draft,
             onValueChange = { text ->
                 emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(text))
@@ -1126,7 +1127,7 @@ private fun GroupMessageEditContent(
         ) {
             TextButton(
                 onClick = { emitIntent(GroupChatUiIntent.CancelEditingMessage) },
-                enabled = !imageState.submitting,
+                enabled = !imageState.loadState.isSubmitting,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             ) {
                 Text(
@@ -1141,11 +1142,11 @@ private fun GroupMessageEditContent(
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = { emitIntent(GroupChatUiIntent.SaveEditingMessage) },
-                enabled = !imageState.processing,
+                enabled = !imageState.loadState.isBusy,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             ) {
                 Text(
-                    text = stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
+                    text = stringResource(if (imageState.loadState.isSubmitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) {
                         pageUserBubbleContentColor()
@@ -1312,7 +1313,7 @@ private fun Composer(
             // 待发送图片抽屉托盘
             DraftAttachmentTray(
                 state = imageState,
-                enabled = !generating && !imageState.submitting,
+                enabled = !generating && !imageState.loadState.isSubmitting,
                 emit = onImageAction,
             )
 
@@ -1334,7 +1335,7 @@ private fun Composer(
                 QuickActionPill(
                     icon = Icons.Rounded.AutoAwesome,
                     label = stringResource(R.string.summarize_now),
-                    enabled = !generating && !imageState.submitting,
+                    enabled = !generating && !imageState.loadState.isSubmitting,
                     onClick = onSummarize,
                 )
             }
@@ -1351,7 +1352,7 @@ private fun Composer(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 52.dp, max = 140.dp),
-                    enabled = !generating && !imageState.submitting,
+                    enabled = !generating && !imageState.loadState.isSubmitting,
                     placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
                     shape = RoundedCornerShape(18.dp),
                     maxLines = 5,
@@ -1361,7 +1362,7 @@ private fun Composer(
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onImageAction(MessageImageAction.Choose(editing = false))
                             },
-                            enabled = !generating && !imageState.processing && imageState.canAddDraft,
+                            enabled = !generating && !imageState.loadState.isBusy && imageState.canAddDraft,
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ImageIcon,

@@ -105,6 +105,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -210,7 +211,7 @@ class GroupChatViewModel :
     private suspend fun onImageAction(intent: GroupChatUiIntent.ImageAction) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val action = intent.action
-        val shouldBlockImageMutation = mImageCoordinator.state.processing
+        val shouldBlockImageMutation = mImageCoordinator.state.loadState.isBusy
             && (action is MessageImageAction.Choose
             || action is MessageImageAction.Remove
             || action is MessageImageAction.Move)
@@ -227,7 +228,7 @@ class GroupChatViewModel :
         // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
         when (action) {
             is MessageImageAction.Picked -> {
-                if (mImageCoordinator.state.processing) return
+                if (mImageCoordinator.state.loadState.isBusy) return
                 viewModelScope.launch { mImageCoordinator.handle(action) }
             }
 
@@ -349,8 +350,8 @@ class GroupChatViewModel :
         val sessionId = mSessionId ?: return
         val displayContext = mMessageDisplayContext ?: return
         val lastId = state.conversationState.messages.lastOrNull()?.id ?: return
-        if (!state.conversationState.canLoadNewerMessages || state.conversationState.isLoadingNewerMessages) return
-        state.copy(conversationState = state.conversationState.copy(isLoadingNewerMessages = true))
+        if (!state.conversationState.canLoadNewerMessages || state.conversationState.historyLoadState.isBusy) return
+        state.copy(conversationState = state.conversationState.copy(historyLoadState = MessageHistoryLoadState.LoadingNewer))
             .setup()
         // 分页只转换新窗口，避免重新执行全部已展示正文的 Display 处理。
         try {
@@ -371,7 +372,7 @@ class GroupChatViewModel :
                     messages = current.conversationState.messages + loaded?.first.orEmpty()
                         .filterNot { it.id in ids },
                     canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false,
-                    isLoadingNewerMessages = false,
+                    historyLoadState = MessageHistoryLoadState.None,
                 ),
             ).setup()
         } catch (cancelled: CancellationException) {
@@ -380,7 +381,7 @@ class GroupChatViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.content_search_error).tryEmit()
         } finally {
             val current = getOrNull<GroupChatUiState.Normal>()
-            current?.copy(conversationState = current.conversationState.copy(isLoadingNewerMessages = false))
+            current?.copy(conversationState = current.conversationState.copy(historyLoadState = MessageHistoryLoadState.None))
                 ?.setup()
         }
     }
@@ -396,7 +397,7 @@ class GroupChatViewModel :
         val conversation = state.conversationState
         val shouldKeepSearchAnchor = conversation.searchAnchorMessageId == null
             || conversation.canLoadNewerMessages
-            || conversation.isLoadingNewerMessages
+            || conversation.historyLoadState.isLoadingNewer
             || conversation.messages.lastOrNull()?.id != intent.messageId
         if (shouldKeepSearchAnchor) return
         mSearchAnchorId = null
@@ -425,11 +426,11 @@ class GroupChatViewModel :
         val cursor = mOldestLoadedMessageCursor ?: return
         val displayContext = mMessageDisplayContext ?: return
         if (!uiState.conversationState.canLoadOlderMessages
-            || uiState.conversationState.isLoadingOlderMessages
+            || uiState.conversationState.historyLoadState.isBusy
         ) return
 
         // 先发布加载标记，阻止列表顶部连续发出相同请求
-        uiState.copy(conversationState = uiState.conversationState.copy(isLoadingOlderMessages = true))
+        uiState.copy(conversationState = uiState.conversationState.copy(historyLoadState = MessageHistoryLoadState.LoadingOlder))
             .setup()
         val loadedPage = try {
             withContext(Dispatchers.IO) {
@@ -452,7 +453,7 @@ class GroupChatViewModel :
             if (throwable is CancellationException) throw throwable
             val currentState = getOrNull<GroupChatUiState.Normal>() ?: return
             currentState.copy(
-                conversationState = currentState.conversationState.copy(isLoadingOlderMessages = false),
+                conversationState = currentState.conversationState.copy(historyLoadState = MessageHistoryLoadState.None),
             ).setup()
             return
         }
@@ -466,7 +467,7 @@ class GroupChatViewModel :
             conversationState = currentState.conversationState.copy(
                 messages = olderItems + currentState.conversationState.messages,
                 canLoadOlderMessages = loadedPage.canLoadOlderMessages,
-                isLoadingOlderMessages = false,
+                historyLoadState = MessageHistoryLoadState.None,
             ),
         ).setup()
     }
@@ -757,7 +758,7 @@ class GroupChatViewModel :
                 return
             }
             val sessionId = mSessionId ?: return
-            if (mImageCoordinator.state.processing) return
+            if (mImageCoordinator.state.loadState.isBusy) return
             clearReplyRetry()
             val images = mImageCoordinator.draftInputs()
             val rawInput = uiState.conversationState.inputDraft.trim()
@@ -1340,7 +1341,7 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.StartEditMessage::class)
     private suspend fun onStartEditMessage(intent: GroupChatUiIntent.StartEditMessage) {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isCompleted == false) return
         val message = uiState.conversationState.messages
@@ -1410,7 +1411,7 @@ class GroupChatViewModel :
     private fun onChangeEditingMessageDraft(
         intent: GroupChatUiIntent.ChangeEditingMessageDraft,
     ) {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
         uiState.copy(conversationState = uiState.conversationState.copy(editingMessageDraft = intent.value))
@@ -1424,11 +1425,11 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.SaveEditingMessage::class)
     private suspend fun onSaveEditingMessage() {
-        if (mImageCoordinator.state.processing) return
+        if (mImageCoordinator.state.loadState.isBusy) return
         try {
             val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
             val messageId = uiState.conversationState.editingMessageId ?: return
-            if (mImageCoordinator.state.processing || (uiState.conversationState.editingMessageDraft.isBlank() && mImageCoordinator.state.editing.isEmpty())) return
+            if (mImageCoordinator.state.loadState.isBusy || (uiState.conversationState.editingMessageDraft.isBlank() && mImageCoordinator.state.editing.isEmpty())) return
             val data = mMessageDisplayContext ?: return
             val message = mGroupChatRepository.getMessageById(messageId)
                 ?.takeIf { it.sessionId == uiState.sessionId } ?: return
@@ -1481,7 +1482,7 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.CancelEditingMessage::class)
     private suspend fun onCancelEditingMessage() {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         mImageCoordinator.cancelProcessing()
         mImageCoordinator.cancelEditing()
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return

@@ -40,7 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupDialogState
+import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreDialogState
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiIntent
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiState
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
@@ -456,9 +456,9 @@ private fun DialogSwitch(
     emit: BackupRestoreUiIntent.() -> Unit,
 ) {
     // 弹窗状态分发，取消时重置临时 URI
-    when (state.dialog) {
-        BackupDialogState.None -> Unit
-        BackupDialogState.ConfirmRestore -> AppDangerDialog(
+    when (state.dialogState) {
+        BackupRestoreDialogState.None -> Unit
+        BackupRestoreDialogState.ConfirmRestore -> AppDangerDialog(
             onDismissRequest = { BackupRestoreUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.backup_restore_confirm_title),
             message = stringResource(R.string.backup_restore_confirm_message),

@@ -66,12 +66,12 @@ fun DraftAttachmentTray(
     emit: (MessageImageAction) -> Unit,
 ) {
     val shouldHideImageDraft = state.draft.isEmpty()
-        && (state.submitting
-        || !state.processing)
+        && (state.loadState.isSubmitting
+        || !state.loadState.isBusy)
         && state.errorResId == null
     if (shouldHideImageDraft) return
     val currentEmit by rememberUpdatedState(emit)
-    var moveMenuUuid by remember(state.draft, enabled, state.processing) {
+    var moveMenuUuid by remember(state.draft, enabled, state.loadState.isBusy) {
         mutableStateOf<String?>(
             value = null
         )
@@ -108,7 +108,7 @@ fun DraftAttachmentTray(
                             shape = RoundedCornerShape(12.dp),
                         )
                         .combinedClickable(
-                            enabled = !state.processing,
+                            enabled = !state.loadState.isBusy,
                             onClick = {
                                 currentEmit(MessageImageAction.Preview(state.draft, index))
                             },
@@ -135,7 +135,7 @@ fun DraftAttachmentTray(
                         )
                     }
 
-                    if (state.processing) {
+                    if (state.loadState.isBusy) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -178,12 +178,12 @@ fun DraftAttachmentTray(
                     }
                     // 菜单绑定图片 UUID，重排后仍操作同一附件，沿用历史编辑的前移交互。
                     DropdownMenu(
-                        expanded = moveMenuUuid == uuid && enabled && !state.processing && index > 0,
+                        expanded = moveMenuUuid == uuid && enabled && !state.loadState.isBusy && index > 0,
                         onDismissRequest = { moveMenuUuid = null },
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.image_move_earlier)) },
-                            enabled = enabled && !state.processing && index > 0,
+                            enabled = enabled && !state.loadState.isBusy && index > 0,
                             onClick = {
                                 moveMenuUuid = null
                                 currentEmit(MessageImageAction.Move(uuid = uuid, editing = false))
@@ -194,7 +194,7 @@ fun DraftAttachmentTray(
             }
 
             // 未达到上限且未在处理中时展示追加图片卡片
-            if (enabled && state.canAddDraft && !state.processing) {
+            if (enabled && state.canAddDraft && !state.loadState.isBusy) {
                 Box(
                     modifier = Modifier
                         .size(68.dp)
@@ -224,7 +224,7 @@ fun DraftAttachmentTray(
             }
         }
 
-        if (state.processing) {
+        if (state.loadState.isBusy) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp),
@@ -237,7 +237,7 @@ fun DraftAttachmentTray(
                 Spacer(modifier = Modifier.width(6.dp))
                 TextButton(
                     onClick = { currentEmit(MessageImageAction.CancelProcessing) },
-                    enabled = !state.submitting,
+                    enabled = !state.loadState.isSubmitting,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 ) {
                     Text(

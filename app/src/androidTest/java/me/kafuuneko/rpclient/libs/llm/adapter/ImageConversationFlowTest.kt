@@ -102,7 +102,7 @@ class ImageConversationFlowTest {
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(timeMillis = 30_000) {
                     vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>()
-                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.processing }
+                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.loadState.isBusy }
                 }
                 // Activity 配置重建复用 ViewModel，内存中的文字和图片草稿仍然保留。
                 vm.emit(ChatUiIntent.ChangeInputDraft("unsent draft"))
@@ -223,7 +223,7 @@ class ImageConversationFlowTest {
                 vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(timeMillis = 30_000) {
                     vm.uiStateFlow.filterIsInstance<GroupChatUiState.Normal>()
-                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.processing }
+                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.loadState.isBusy }
                 }
                 // Activity 配置重建复用 ViewModel，内存中的文字和图片草稿仍然保留。
                 vm.emit(GroupChatUiIntent.ChangeInputDraft("unsent draft"))
@@ -335,7 +335,7 @@ class ImageConversationFlowTest {
                     }
                     await { vm.uiStateFlow.value is GroupChatUiState.Normal }
                     vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose()))
-                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.draft.size == 1 && !messageImageState.processing } == true }
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.draft.size == 1 && !messageImageState.loadState.isBusy } == true }
                     vm.emit(GroupChatUiIntent.SendMessage)
                     await { repository.getGroupChatData(id)!!.messages.count { message -> message.source == GroupChatMessage.Source.Character } == 2 }
                     await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
@@ -360,7 +360,7 @@ class ImageConversationFlowTest {
                     await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == message.id }
                     vm.emit(GroupChatUiIntent.ChangeEditingMessageDraft("edited"))
                     vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
-                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 2 && !messageImageState.processing } == true }
+                    await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 2 && !messageImageState.loadState.isBusy } == true }
                     assertEquals(
                         1,
                         repository.getMessagesWithImages(listOf(message.id)).single().images.size
@@ -443,7 +443,7 @@ class ImageConversationFlowTest {
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == messageId.toString() }
                 vm.emit(ChatUiIntent.ChangeEditingMessageDraft(""))
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
-                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 1 && !messageImageState.processing } == true }
+                await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 1 && !messageImageState.loadState.isBusy } == true }
                 screenshot("chat-character-image-edit.png")
                 vm.emit(ChatUiIntent.SaveEditingMessage)
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.editingMessageId == null }
@@ -514,7 +514,7 @@ class ImageConversationFlowTest {
                     await("group editing target") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == messageId }
                     vm.emit(GroupChatUiIntent.ChangeEditingMessageDraft(""))
                     vm.emit(GroupChatUiIntent.ImageAction(MessageImageAction.Choose(editing = true)))
-                    await("group image picked") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 1 && !messageImageState.processing } == true }
+                    await("group image picked") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.imageState?.let { messageImageState -> messageImageState.editing.size == 1 && !messageImageState.loadState.isBusy } == true }
                     screenshot("group-character-image-edit.png")
                     vm.emit(GroupChatUiIntent.SaveEditingMessage)
                     await("group edit saved") { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.editingMessageId == null }
@@ -587,7 +587,7 @@ class ImageConversationFlowTest {
                 vm.emit(ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false)))
                 withTimeout(timeMillis = 30_000) {
                     vm.uiStateFlow.filterIsInstance<ChatUiState.Normal>()
-                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.processing }
+                        .first { normal -> normal.imageState.draft.size == 1 && !normal.imageState.loadState.isBusy }
                 }
                 // 服务端保持 SSE 开启却不返回下一行，停止必须主动关闭 socket。
                 vm.emit(ChatUiIntent.SendMessage)

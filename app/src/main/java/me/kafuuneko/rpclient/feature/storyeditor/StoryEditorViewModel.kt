@@ -53,9 +53,9 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiInten
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEvent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryStreamState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.allChapters
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.buildStructureState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.canEditStructure
@@ -1880,8 +1880,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     active = active.withLatestInteractionState(mActiveGeneration)
                     when (event) {
                         LLMStreamEvent.Connected -> {
-                            if (active.phase == StoryGenerationPhase.AwaitingResponse) {
-                                active = active.copy(phase = StoryGenerationPhase.Connected)
+                            if (active.streamState == StoryStreamState.AwaitingResponse) {
+                                active = active.copy(streamState = StoryStreamState.Connected)
                                 mActiveGeneration = active
                                 updateStreamingStatus(active)
                             }

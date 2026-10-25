@@ -7,8 +7,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupDialogState
-import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupOperation
+import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreDialogState
+import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreLoadState
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiIntent
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreUiState
 import me.kafuuneko.rpclient.feature.backuprestore.presentation.BackupRestoreViewEvent
@@ -44,7 +44,8 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
         val uri = intent.uri ?: return
         if (state.busy) return
-        state.copy(operation = BackupOperation.Exporting, status = R.string.backup_working).setup()
+        state.copy(loadState = BackupRestoreLoadState.Exporting, status = R.string.backup_working)
+            .setup()
         // 导出允许协程取消；错误只映射为本地化状态，不能泄露归档路径。
         viewModelScope.launch {
             try {
@@ -71,7 +72,7 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
         if (state.busy || intent.uri == null) return
         mRestoreUri = intent.uri
-        state.copy(dialog = BackupDialogState.ConfirmRestore).setup()
+        state.copy(dialogState = BackupRestoreDialogState.ConfirmRestore).setup()
     }
 
     /** 用户确认后串行恢复，配置变化或页面任务取消不能中断替换收尾。 */
@@ -79,12 +80,12 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
     private fun onConfirmRestore() {
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
         val uri = mRestoreUri ?: return
-        if (state.busy || state.dialog != BackupDialogState.ConfirmRestore) return
+        if (state.busy || state.dialogState != BackupRestoreDialogState.ConfirmRestore) return
         mRestoreUri = null
         state.copy(
-            operation = BackupOperation.Restoring,
+            loadState = BackupRestoreLoadState.Restoring,
             status = R.string.backup_working,
-            dialog = BackupDialogState.None,
+            dialogState = BackupRestoreDialogState.None,
         ).setup()
         viewModelScope.launch {
             // 数据库替换完成后必须发出重启事件，不能恢复成可继续操作的空闲页。
@@ -109,7 +110,7 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
         if (state.busy) return
         mRestoreUri = null
-        state.copy(dialog = BackupDialogState.None).setup()
+        state.copy(dialogState = BackupRestoreDialogState.None).setup()
     }
 
     /** 操作期间不关闭页面；空闲时保留最后一帧完成退出。 */
@@ -123,13 +124,13 @@ class BackupRestoreViewModel : CoreViewModelWithEvent<BackupRestoreUiIntent, Bac
     @UiIntentObserver(BackupRestoreUiIntent.Resume::class)
     private fun onResume() {
         val state = getOrNull<BackupRestoreUiState.Normal>() ?: return
-        if (state.operation == BackupOperation.Restarting) BackupRestoreViewEvent.RestartApp.tryEmit()
+        if (state.loadState == BackupRestoreLoadState.Restarting) BackupRestoreViewEvent.RestartApp.tryEmit()
     }
 
     /** 关闭数据库后的终态只等待宿主重启，不再接受业务输入。 */
     private fun requireRestart() {
         BackupRestoreUiState.Normal(
-            operation = BackupOperation.Restarting,
+            loadState = BackupRestoreLoadState.Restarting,
             status = R.string.backup_restarting,
         ).setup()
         BackupRestoreViewEvent.RestartApp.tryEmit()

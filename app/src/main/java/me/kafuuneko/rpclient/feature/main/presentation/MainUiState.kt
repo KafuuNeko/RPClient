@@ -101,13 +101,24 @@ sealed class MainDialogState {
         val visibleCharacters: List<MainImportCharacterItem>,
         /** 当前选中角色的 ID。 */
         val selectedCharacterId: Long?,
-        /** 当前页面是否正在执行导入操作。 */
-        val isImporting: Boolean = false,
+        /** 图片恢复与正式导入共用一个互斥任务状态。 */
+        val loadState: MainChatImportLoadState = MainChatImportLoadState.None,
         /** 外部图片只在用户授权目录后尝试恢复；统计不包含 Base64 内容。 */
         val externalImageCount: Int = 0,
         val resolvedImageCount: Int = 0,
-        val isResolvingImages: Boolean = false
     ) : MainDialogState()
+}
+
+/** 聊天存档确认页的任务状态，目录扫描完成后才允许正式导入。 */
+sealed class MainChatImportLoadState {
+    data object None : MainChatImportLoadState()
+
+    data object ResolvingImages : MainChatImportLoadState()
+
+    data object Importing : MainChatImportLoadState()
+
+    /** 是否应阻止关闭弹窗或重复启动导入任务。 */
+    val isBusy: Boolean get() = this !is None
 }
 
 /** 首页底部导航对应的一级页面。 */

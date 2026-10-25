@@ -51,10 +51,10 @@ sealed class BackgroundEditorLoadState {
 }
 
 /** 背景编辑器的返回确认状态，由 ViewModel 统一控制。 */
-enum class BackgroundEditorDialogState {
-    None,
+sealed class BackgroundEditorDialogState {
+    data object None : BackgroundEditorDialogState()
 
-    UnsavedChanges
+    data object UnsavedChanges : BackgroundEditorDialogState()
 }
 
 /** 内容页可观察的背景子状态，图片不可用时使用原有主题表面。 */

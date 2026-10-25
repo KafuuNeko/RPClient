@@ -36,12 +36,18 @@ sealed class ContentSearchResultState {
 
     data class Searching(val items: List<SearchHit> = emptyList()) : ContentSearchResultState()
 
-    data class Content(
+    data class Partial(
         val items: List<SearchHit>,
         val next: SearchCursor?,
-        val complete: Boolean,
-        val stopped: Boolean = false
     ) : ContentSearchResultState()
+
+    /** 检索数据已完整覆盖；下一页游标非空时仍可继续加载结果。 */
+    data class Complete(
+        val items: List<SearchHit>,
+        val next: SearchCursor?,
+    ) : ContentSearchResultState()
+
+    data class Stopped(val items: List<SearchHit>) : ContentSearchResultState()
 
     data class Error(val items: List<SearchHit>, @param:StringRes val message: Int) :
         ContentSearchResultState()
@@ -51,6 +57,22 @@ sealed class ContentSearchResultState {
 fun ContentSearchResultState.items(): List<SearchHit> = when (this) {
     ContentSearchResultState.Idle -> emptyList()
     is ContentSearchResultState.Searching -> items
-    is ContentSearchResultState.Content -> items
+    is ContentSearchResultState.Partial -> items
+    is ContentSearchResultState.Complete -> items
+    is ContentSearchResultState.Stopped -> items
     is ContentSearchResultState.Error -> items
+}
+
+/**
+ * 读取可继续分页的游标，检索数据完整不代表已到最后一页。
+ *
+ * @return 部分或完整结果的下一页游标；不可分页状态返回 null。
+ */
+fun ContentSearchResultState.nextCursor(): SearchCursor? = when (this) {
+    is ContentSearchResultState.Partial -> next
+    is ContentSearchResultState.Complete -> next
+    ContentSearchResultState.Idle,
+    is ContentSearchResultState.Searching,
+    is ContentSearchResultState.Stopped,
+    is ContentSearchResultState.Error -> null
 }

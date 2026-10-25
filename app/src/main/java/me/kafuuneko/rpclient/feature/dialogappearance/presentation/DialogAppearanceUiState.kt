@@ -6,17 +6,17 @@ import me.kafuuneko.rpclient.libs.appearance.DialogAppearance
 sealed interface DialogAppearanceUiState {
     data class Normal(
         val settings: DialogAppearance = DialogAppearance(),
-        val dialog: DialogAppearanceDialog = DialogAppearanceDialog.None
+        val dialogState: DialogAppearanceDialogState = DialogAppearanceDialogState.None
     ) : DialogAppearanceUiState
 
     data class Finished(val previous: Normal) : DialogAppearanceUiState
 }
 
 /** 预览与未保存确认互斥，避免窗口遮罩重复叠加。 */
-enum class DialogAppearanceDialog {
-    None,
+sealed class DialogAppearanceDialogState {
+    data object None : DialogAppearanceDialogState()
 
-    Preview,
+    data object Preview : DialogAppearanceDialogState()
 
-    UnsavedChanges
+    data object UnsavedChanges : DialogAppearanceDialogState()
 }

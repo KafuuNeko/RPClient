@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryStreamState
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.story.StoryEditTarget
@@ -25,7 +25,7 @@ internal data class ActiveStoryGeneration(
     val startedAtElapsedRealtime: Long,
     val partialText: String = "",
     val reasoningText: String = "",
-    val phase: StoryGenerationPhase = StoryGenerationPhase.AwaitingResponse,
+    val streamState: StoryStreamState = StoryStreamState.AwaitingResponse,
     val isReasoningExpanded: Boolean = false
 ) {
     /** 追加模型构思，并在正文已经开始后保持写作阶段不倒退。 */
@@ -33,10 +33,10 @@ internal data class ActiveStoryGeneration(
         val nextReasoning = (reasoningText + content).takeLast(MAX_REASONING_DISPLAY_CHARS)
         return copy(
             reasoningText = nextReasoning,
-            phase = if (phase == StoryGenerationPhase.Writing) {
-                StoryGenerationPhase.Writing
+            streamState = if (streamState == StoryStreamState.Writing) {
+                StoryStreamState.Writing
             } else {
-                StoryGenerationPhase.Reasoning
+                StoryStreamState.Reasoning
             },
         )
     }
@@ -45,7 +45,7 @@ internal data class ActiveStoryGeneration(
     fun appendGeneratedText(content: String): ActiveStoryGeneration {
         return copy(
             partialText = partialText + content,
-            phase = StoryGenerationPhase.Writing,
+            streamState = StoryStreamState.Writing,
         )
     }
 
@@ -64,7 +64,7 @@ internal data class ActiveStoryGeneration(
     fun toStreamingState(reasoningDetail: String = ""): StoryGenerationState.Streaming {
         return StoryGenerationState.Streaming(
             partialText = partialText,
-            phase = phase,
+            streamState = streamState,
             startedAtElapsedRealtime = startedAtElapsedRealtime,
             reasoningPreview = reasoningText.toReasoningPreview(),
             reasoningDetail = reasoningDetail,

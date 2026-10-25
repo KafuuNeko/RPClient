@@ -33,7 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAdjustment
-import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceDialog
+import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceDialogState
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceUiIntent
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceUiState
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
@@ -126,7 +126,7 @@ fun DialogAppearanceLayout(
             }
         },
     )
-    DialogEditorOverlay(state, emit)
+    DialogSwitch(state, emit)
 }
 
 /** 参数显示与单位集中映射，面板不透明时禁用无效的局部模糊但保留其草稿值。 */
@@ -241,13 +241,13 @@ private fun DialogSlider(
 
 /** 未保存确认不使用未提交的极端透明草稿，始终保留清晰的保存和放弃入口。 */
 @Composable
-private fun DialogEditorOverlay(
+private fun DialogSwitch(
     state: DialogAppearanceUiState.Normal,
     emit: (DialogAppearanceUiIntent) -> Unit
 ) {
-    when (state.dialog) {
-        DialogAppearanceDialog.None -> Unit
-        DialogAppearanceDialog.Preview -> CompositionLocalProvider(LocalDialogAppearance provides state.settings) {
+    when (state.dialogState) {
+        DialogAppearanceDialogState.None -> Unit
+        DialogAppearanceDialogState.Preview -> CompositionLocalProvider(LocalDialogAppearance provides state.settings) {
             AppDialogScaffold(
                 onDismissRequest = { emit(DialogAppearanceUiIntent.DismissDialog) },
                 title = stringResource(R.string.appearance_preview),
@@ -259,7 +259,7 @@ private fun DialogEditorOverlay(
             }
         }
         // 与页面背景编辑器复用相同的保存、放弃、取消样式。
-        DialogAppearanceDialog.UnsavedChanges -> AppActionListDialog(
+        DialogAppearanceDialogState.UnsavedChanges -> AppActionListDialog(
             onDismissRequest = { emit(DialogAppearanceUiIntent.DismissDialog) },
             title = stringResource(R.string.appearance_save_changes_title),
             subtitle = stringResource(R.string.appearance_save_changes_message),

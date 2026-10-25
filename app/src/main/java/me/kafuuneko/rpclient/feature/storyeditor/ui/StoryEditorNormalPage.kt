@@ -106,9 +106,9 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructu
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationFailure
-import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationPhase
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryGenerationState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySaveState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryStreamState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
@@ -2028,11 +2028,11 @@ private fun rememberGenerationElapsedSeconds(startedAtElapsedRealtime: Long): Lo
 private fun StoryGenerationState.statusTitle(): String {
     val resId = when (this) {
         StoryGenerationState.Preparing -> R.string.story_generation_status_preparing
-        is StoryGenerationState.Streaming -> when (phase) {
-            StoryGenerationPhase.AwaitingResponse -> R.string.story_generation_status_waiting
-            StoryGenerationPhase.Connected -> R.string.story_generation_status_connected
-            StoryGenerationPhase.Reasoning -> R.string.story_generation_status_reasoning
-            StoryGenerationPhase.Writing -> R.string.story_generation_status_writing
+        is StoryGenerationState.Streaming -> when (streamState) {
+            StoryStreamState.AwaitingResponse -> R.string.story_generation_status_waiting
+            StoryStreamState.Connected -> R.string.story_generation_status_connected
+            StoryStreamState.Reasoning -> R.string.story_generation_status_reasoning
+            StoryStreamState.Writing -> R.string.story_generation_status_writing
         }
 
         StoryGenerationState.Applying -> R.string.story_generation_status_applying
@@ -2045,12 +2045,12 @@ private fun StoryGenerationState.statusTitle(): String {
 @Composable
 private fun StoryGenerationState.statusSubtitle(elapsedSeconds: Long): String {
     if (this !is StoryGenerationState.Streaming) return ""
-    if (phase == StoryGenerationPhase.Reasoning && reasoningPreview.isNotBlank()) {
+    if (streamState == StoryStreamState.Reasoning && reasoningPreview.isNotBlank()) {
         return reasoningPreview
     }
     if (
         elapsedSeconds >= SLOW_GENERATION_HINT_SECONDS
-        && phase != StoryGenerationPhase.Writing
+        && streamState != StoryStreamState.Writing
     ) {
         return stringResource(R.string.story_generation_slow_hint)
     }
@@ -2077,7 +2077,7 @@ private fun StoryGenerationStatusCardPreview() {
             StoryGenerationStatusCard(
                 generationState = StoryGenerationState.Streaming(
                     partialText = "",
-                    phase = StoryGenerationPhase.Reasoning,
+                    streamState = StoryStreamState.Reasoning,
                     startedAtElapsedRealtime = SystemClock.elapsedRealtime() - 8_000L,
                     reasoningPreview = "正在协调人物动机，并选择适合承接上一段的场景冲突。",
                     reasoningDetail = "先延续雨夜车站的氛围，再通过人物迟疑表现未说出口的矛盾。",

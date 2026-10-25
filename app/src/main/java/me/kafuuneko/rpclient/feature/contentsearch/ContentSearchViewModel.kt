@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchSco
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiIntent
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.items
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.nextCursor
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
@@ -151,11 +152,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         val state = interactiveState() ?: return
         cancelQuery()
         state.copy(
-            resultState = ContentSearchResultState.Content(
+            resultState = ContentSearchResultState.Stopped(
                 items = state.resultState.items(),
-                next = null,
-                complete = false,
-                stopped = true,
             ),
         ).setup()
     }
@@ -189,11 +187,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
 
     /** 停止的查询保留已取得结果，打开设置后不能留下无人执行的 Loading。 */
     private fun stoppedResult(result: ContentSearchResultState): ContentSearchResultState =
-        if (result is ContentSearchResultState.Searching) ContentSearchResultState.Content(
+        if (result is ContentSearchResultState.Searching) ContentSearchResultState.Stopped(
             items = result.items,
-            next = null,
-            complete = false,
-            stopped = true,
         ) else result
 
     /** 在同一页面内按单个对象展示命中消息／章节。 */
@@ -227,10 +222,9 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         val generation = mGeneration
         if (state.resultState is ContentSearchResultState.Searching) {
             state.copy(
-                resultState = ContentSearchResultState.Content(
+                resultState = ContentSearchResultState.Partial(
                     items = state.resultState.items(),
                     next = null,
-                    complete = false,
                 ),
             ).setup()
         }
@@ -314,7 +308,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
 
             is SearchQueryValidation.Valid -> Unit
         }
-        val cursor = if (append) (state.resultState as? ContentSearchResultState.Content)?.next
+        val cursor = if (append) state.resultState.nextCursor()
             ?: return else null
         cancelQuery()
         val generation = mGeneration
@@ -340,11 +334,11 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 }
                 publish(
                     generation = generation,
-                    result = ContentSearchResultState.Content(
-                        items = existing + page.hits,
-                        next = page.next,
-                        complete = page.complete,
-                    ),
+                    result = if (page.complete) {
+                        ContentSearchResultState.Complete(existing + page.hits, page.next)
+                    } else {
+                        ContentSearchResultState.Partial(existing + page.hits, page.next)
+                    },
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled

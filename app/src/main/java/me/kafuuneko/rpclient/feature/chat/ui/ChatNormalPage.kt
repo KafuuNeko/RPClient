@@ -148,7 +148,7 @@ internal fun ChatNormalPage(
     val listState = rememberLazyListState()
     val isListDragged by listState.interactionSource.collectIsDraggedAsState()
     val canLoadOlderMessages by rememberUpdatedState(state.conversationState.canLoadOlderMessages)
-    val isLoadingOlderMessages by rememberUpdatedState(state.conversationState.isLoadingOlderMessages)
+    val isLoadingOlderMessages by rememberUpdatedState(state.conversationState.historyLoadState.isLoadingOlder)
     // 与列表位置一起恢复，返回设置前的历史阅读位置不应被首次定位或流式跟随覆盖。
     var shouldFollowBottom by rememberSaveable { mutableStateOf(true) }
     var isFirstLoad by rememberSaveable { mutableStateOf(true) }
@@ -188,7 +188,7 @@ internal fun ChatNormalPage(
             val layout = listState.layoutInfo
             conversation.messages.lastOrNull()?.id?.takeIf {
                 !isFirstLoad && conversation.searchAnchorMessageId != null
-                    && !conversation.canLoadNewerMessages && !conversation.isLoadingNewerMessages
+                    && !conversation.canLoadNewerMessages && !conversation.historyLoadState.isLoadingNewer
                     && layout.totalItemsCount == conversation.messages.size + 2
                     && layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
             }
@@ -315,10 +315,10 @@ internal fun ChatNormalPage(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (state.conversationState.canLoadOlderMessages
-                || state.conversationState.isLoadingOlderMessages
+                || state.conversationState.historyLoadState.isLoadingOlder
             ) {
                 item(key = "older-messages-loader") {
-                    OlderMessagesLoadIndicator(loading = state.conversationState.isLoadingOlderMessages)
+                    OlderMessagesLoadIndicator(loading = state.conversationState.historyLoadState.isLoadingOlder)
                 }
             } else {
                 item(key = "conversation-start") {
@@ -344,7 +344,7 @@ internal fun ChatNormalPage(
                     editing = message.id == state.conversationState.editingMessageId,
                     editingDraft = state.conversationState.editingMessageDraft,
                     isFirstMessage = !state.conversationState.canLoadOlderMessages
-                        && !state.conversationState.isLoadingOlderMessages
+                        && !state.conversationState.historyLoadState.isLoadingOlder
                         && index == 0,
                     emit = emit,
                 )
@@ -357,7 +357,7 @@ internal fun ChatNormalPage(
                     ) {
                         TextButton(
                             onClick = { ChatUiIntent.LoadNewerMessages.emit() },
-                            enabled = !state.conversationState.isLoadingNewerMessages,
+                            enabled = !state.conversationState.historyLoadState.isLoadingNewer,
                         ) {
                             Text(stringResource(R.string.content_search_newer))
                         }
@@ -849,7 +849,7 @@ private fun MessageEditContent(
     // 编辑框沿用正文排版，短消息仅占一行，长消息在高度上限内滚动。
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         RpScrollableOutlinedTextField(
-            enabled = !imageState.submitting,
+            enabled = !imageState.loadState.isSubmitting,
             modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.bodyMedium,
             value = draft,
@@ -873,7 +873,7 @@ private fun MessageEditContent(
         ) {
             TextButton(
                 onClick = { ChatUiIntent.CancelEditingMessage.emit() },
-                enabled = !imageState.submitting,
+                enabled = !imageState.loadState.isSubmitting,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             ) {
                 Text(
@@ -885,11 +885,11 @@ private fun MessageEditContent(
             Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = { ChatUiIntent.SaveEditingMessage.emit() },
-                enabled = !imageState.processing,
+                enabled = !imageState.loadState.isBusy,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             ) {
                 Text(
-                    text = stringResource(if (imageState.submitting) R.string.image_loading else R.string.save),
+                    text = stringResource(if (imageState.loadState.isSubmitting) R.string.image_loading else R.string.save),
                     fontWeight = FontWeight.Bold,
                     color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.primary,
                 )
@@ -1125,7 +1125,7 @@ private fun ChatInputBar(
             // 附件为空时仍保留选图失败提示。
             DraftAttachmentTray(
                 state = imageState,
-                enabled = !isGenerating && !imageState.submitting,
+                enabled = !isGenerating && !imageState.loadState.isSubmitting,
                 emit = { action -> ChatUiIntent.ImageAction(action).emit() },
             )
 
@@ -1147,7 +1147,7 @@ private fun ChatInputBar(
                 QuickActionPill(
                     icon = Icons.Rounded.Edit,
                     label = stringResource(R.string.impersonate_user),
-                    enabled = !isGenerating && !imageState.submitting,
+                    enabled = !isGenerating && !imageState.loadState.isSubmitting,
                     onClick = { ChatUiIntent.ImpersonateUser.emit() },
                 )
                 QuickActionPill(
@@ -1174,7 +1174,7 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { text -> ChatUiIntent.ChangeInputDraft(text).emit() },
-                    enabled = !isGenerating && !imageState.submitting,
+                    enabled = !isGenerating && !imageState.loadState.isSubmitting,
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),
@@ -1185,7 +1185,7 @@ private fun ChatInputBar(
                                 ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false))
                                     .emit()
                             },
-                            enabled = !isGenerating && !imageState.processing && imageState.canAddDraft,
+                            enabled = !isGenerating && !imageState.loadState.isBusy && imageState.canAddDraft,
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ImageIcon,

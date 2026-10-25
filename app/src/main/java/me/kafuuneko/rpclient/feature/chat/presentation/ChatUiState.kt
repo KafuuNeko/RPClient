@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
 sealed class ChatUiState {
@@ -59,8 +60,8 @@ data class ChatConversationState(
     val hasAssistantMessage: Boolean,
     /** 当前已加载窗口之前是否仍有更早消息。 */
     val canLoadOlderMessages: Boolean = false,
-    /** 当前是否正在向列表头部加载更早消息。 */
-    val isLoadingOlderMessages: Boolean = false,
+    /** 当前历史窗口的加载方向，同一时间只允许一个分页任务。 */
+    val historyLoadState: MessageHistoryLoadState = MessageHistoryLoadState.None,
     /** 消息输入框中尚未发送的草稿。 */
     val inputDraft: String = "",
     /** 当前模型生成任务的生命周期状态。 */
@@ -74,7 +75,6 @@ data class ChatConversationState(
     /** 搜索历史位置；非空时禁止流式更新抢回底部。 */
     val searchAnchorMessageId: String? = null,
     val canLoadNewerMessages: Boolean = false,
-    val isLoadingNewerMessages: Boolean = false
 )
 
 /** 单聊设置页中的世界书列表与搜索状态。 */

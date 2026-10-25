@@ -33,6 +33,7 @@ import me.kafuuneko.rpclient.feature.main.model.toImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatImportLoadState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
@@ -402,7 +403,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onDismissDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val importDialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection
-        if (importDialog?.isImporting == true || importDialog?.isResolvingImages == true) return
+        if (importDialog?.loadState?.isBusy == true) return
         val deleteDialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems
         if (deleteDialog?.isDeleting == true) return
         val renameDialog = uiState.dialogState as? MainDialogState.RenameItem
@@ -490,7 +491,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onChooseChatImageDirectory() {
         val state = getOrNull<MainUiState.Normal>() ?: return
         val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
+        if (dialog.loadState.isBusy || mChatImportJob?.isActive == true) return
         mDirectoryPickArchive = mPendingChatImport ?: return
         MainViewEvent.OpenChatImageDirectory.tryEmit()
     }
@@ -505,8 +506,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (archive == null || archive !== mPendingChatImport) return
         val state = getOrNull<MainUiState.Normal>() ?: return
         val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting || mChatImportJob?.isActive == true) return
-        state.copy(dialogState = dialog.copy(isResolvingImages = true)).setup()
+        if (dialog.loadState is MainChatImportLoadState.Importing || mChatImportJob?.isActive == true) return
+        state.copy(dialogState = dialog.copy(loadState = MainChatImportLoadState.ResolvingImages))
+            .setup()
         mChatImportJob = viewModelScope.launch {
             try {
                 val sources = mChatArchiveRepository.resolveImageDirectory(archive, uri)
@@ -535,7 +537,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val currentDialog =
                     current?.dialogState as? MainDialogState.ImportChatCharacterSelection
                 if (archive === mPendingChatImport && current != null && currentDialog != null) {
-                    current.copy(dialogState = currentDialog.copy(isResolvingImages = false))
+                    current.copy(dialogState = currentDialog.copy(loadState = MainChatImportLoadState.None))
                         .setup()
                 }
             }
@@ -549,7 +551,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     ) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting) return
+        if (dialog.loadState is MainChatImportLoadState.Importing) return
         val query = intent.value.trim()
         val visible = if (query.isBlank()) {
             dialog.characters
@@ -572,7 +574,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onSelectImportCharacter(intent: MainUiIntent.SelectImportCharacter) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
-        if (dialog.isImporting || dialog.characters.none { it.id == intent.characterId }) return
+        if (dialog.loadState is MainChatImportLoadState.Importing || dialog.characters.none { it.id == intent.characterId }) return
         uiState.copy(dialogState = dialog.copy(selectedCharacterId = intent.characterId)).setup()
     }
 
@@ -583,8 +585,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val dialog = uiState.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
         val characterId = dialog.selectedCharacterId ?: return
         val archive = mPendingChatImport ?: return
-        if (dialog.isImporting || dialog.isResolvingImages || mChatImportJob?.isActive == true) return
-        uiState.copy(dialogState = dialog.copy(isImporting = true)).setup()
+        if (dialog.loadState.isBusy || mChatImportJob?.isActive == true) return
+        uiState.copy(dialogState = dialog.copy(loadState = MainChatImportLoadState.Importing))
+            .setup()
         mChatImportJob = viewModelScope.launch {
             try {
                 // 在 IO 线程事务保存会话与全量导入消息
@@ -627,7 +630,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val currentDialog = current.dialogState
                     as? MainDialogState.ImportChatCharacterSelection
                     ?: return@launch
-                current.copy(dialogState = currentDialog.copy(isImporting = false)).setup()
+                current.copy(dialogState = currentDialog.copy(loadState = MainChatImportLoadState.None))
+                    .setup()
             } finally {
                 mChatImportJob = null
             }

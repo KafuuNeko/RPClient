@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.dialogappearance
 
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAdjustment
-import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceDialog
+import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceDialogState
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceUiIntent
 import me.kafuuneko.rpclient.feature.dialogappearance.presentation.DialogAppearanceUiState
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearance
@@ -27,7 +27,7 @@ class DialogAppearanceViewModel :
     @UiIntentObserver(DialogAppearanceUiIntent.Adjust::class)
     private fun onAdjust(intent: DialogAppearanceUiIntent.Adjust) {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
-        if (state.dialog != DialogAppearanceDialog.None) return
+        if (state.dialogState != DialogAppearanceDialogState.None) return
         val settings = state.settings
         val next = when (intent.field) {
             DialogAdjustment.Transparency -> settings.copy(transparency = intent.value)
@@ -43,14 +43,14 @@ class DialogAppearanceViewModel :
     @UiIntentObserver(DialogAppearanceUiIntent.Preview::class)
     private fun onPreview() {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
-        if (state.dialog == DialogAppearanceDialog.None) state.copy(dialog = DialogAppearanceDialog.Preview)
+        if (state.dialogState == DialogAppearanceDialogState.None) state.copy(dialogState = DialogAppearanceDialogState.Preview)
             .setup()
     }
 
     /** 关闭预览或取消返回，继续保留编辑中的草稿。 */
     @UiIntentObserver(DialogAppearanceUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
-        getOrNull<DialogAppearanceUiState.Normal>()?.copy(dialog = DialogAppearanceDialog.None)
+        getOrNull<DialogAppearanceUiState.Normal>()?.copy(dialogState = DialogAppearanceDialogState.None)
             ?.setup()
     }
 
@@ -58,7 +58,7 @@ class DialogAppearanceViewModel :
     @UiIntentObserver(DialogAppearanceUiIntent.Reset::class)
     private fun onReset() {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
-        if (state.dialog == DialogAppearanceDialog.None) state.copy(settings = DialogAppearance())
+        if (state.dialogState == DialogAppearanceDialogState.None) state.copy(settings = DialogAppearance())
             .setup()
     }
 
@@ -67,7 +67,8 @@ class DialogAppearanceViewModel :
     private fun onSave() {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
         mAppearance.save(state.settings)
-        DialogAppearanceUiState.Finished(state.copy(dialog = DialogAppearanceDialog.None)).setup()
+        DialogAppearanceUiState.Finished(state.copy(dialogState = DialogAppearanceDialogState.None))
+            .setup()
     }
 
     /** 返回先关闭当前示例；有修改时询问保存，无修改直接离开。 */
@@ -75,8 +76,8 @@ class DialogAppearanceViewModel :
     private fun onBack() {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
         when {
-            state.dialog != DialogAppearanceDialog.None -> onDismissDialog()
-            state.settings != mOriginal -> state.copy(dialog = DialogAppearanceDialog.UnsavedChanges)
+            state.dialogState != DialogAppearanceDialogState.None -> onDismissDialog()
+            state.settings != mOriginal -> state.copy(dialogState = DialogAppearanceDialogState.UnsavedChanges)
                 .setup()
 
             else -> DialogAppearanceUiState.Finished(state).setup()
@@ -87,8 +88,8 @@ class DialogAppearanceViewModel :
     @UiIntentObserver(DialogAppearanceUiIntent.Discard::class)
     private fun onDiscard() {
         val state = getOrNull<DialogAppearanceUiState.Normal>() ?: return
-        if (state.dialog == DialogAppearanceDialog.UnsavedChanges) {
-            DialogAppearanceUiState.Finished(state.copy(dialog = DialogAppearanceDialog.None))
+        if (state.dialogState == DialogAppearanceDialogState.UnsavedChanges) {
+            DialogAppearanceUiState.Finished(state.copy(dialogState = DialogAppearanceDialogState.None))
                 .setup()
         }
     }

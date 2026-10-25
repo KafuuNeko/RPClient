@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
@@ -23,6 +25,9 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chat.ChatViewModel
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchResultState
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiState
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.items
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatViewModel
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
@@ -34,6 +39,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -46,6 +52,81 @@ import kotlin.math.abs
 class ContentSearchFlowTest {
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
+
+    /** 数据完整的搜索结果仍可分多页，真实按钮必须追加后续结果并在末页消失。 */
+    @Test
+    fun completeSearchResultsKeepPaginationUntilLastPage() = runBlocking {
+        val database = GlobalContext.get().get<AppDatabase>()
+        val character = createCharacter(database)
+        val sessionIds = mutableListOf<Long>()
+        try {
+            // 标题检索始终返回完整数据，超过一页的命中不能因此丢失分页能力。
+            repeat(times = 25) { index ->
+                sessionIds += database.getChatSessionDao().insertOrReplace(
+                    data = ChatSession(
+                        characterId = character,
+                        title = "rppaginationfixture $index",
+                        createTime = index.toLong(),
+                        latestTime = index.toLong(),
+                        lorebookEntrySet = "[]",
+                        userNote = "",
+                    ),
+                )
+            }
+            val intent = Intent(
+                InstrumentationRegistry.getInstrumentation().targetContext,
+                ContentSearchActivity::class.java,
+            ).putExtra(ContentSearchActivity.EXTRA_KIND, SearchKind.Chat.code)
+            ActivityScenario.launch<ContentSearchActivity>(intent).use { scenario ->
+                lateinit var model: ContentSearchViewModel
+                scenario.onActivity { activity ->
+                    model = ViewModelProvider(activity)[ContentSearchViewModel::class.java]
+                }
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val state = model.uiStateFlow.value as? ContentSearchUiState.Normal
+                    state != null && !state.indexState.busy
+                }
+                val context = InstrumentationRegistry.getInstrumentation().targetContext
+                // 从页面筛选标题并提交，覆盖仓库到 ViewModel 的完整结果转换。
+                rule.onNodeWithText(context.getString(R.string.content_search_all))
+                    .performClick()
+                rule.onNodeWithText(context.getString(R.string.content_search_metadata))
+                    .performClick()
+                rule.onNode(hasSetTextAction()).performTextInput("rppaginationfixture")
+                rule.onNodeWithText(context.getString(R.string.content_search_submit))
+                    .performClick()
+                val result = {
+                    (model.uiStateFlow.value as? ContentSearchUiState.Normal)?.resultState
+                }
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val current = result()
+                    current is ContentSearchResultState.Complete && current.items.size == 20
+                }
+                assertEquals(sessionIds.reversed().take(20), result()?.items()?.map { it.parentId })
+                // 必须点击真实的加载更多按钮，避免只验证领域层游标而漏掉页面回归。
+                val more = context.getString(R.string.content_search_more)
+                rule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(more))
+                rule.onNodeWithText(more).performClick()
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val current = result()
+                    current is ContentSearchResultState.Complete && current.items.size == 25
+                }
+                assertEquals(sessionIds.reversed(), result()?.items()?.map { it.parentId })
+                rule.onNodeWithText(more).assertDoesNotExist()
+            }
+        } finally {
+            sessionIds.forEach { session ->
+                database.openHelper.writableDatabase.execSQL(
+                    "DELETE FROM chat_sessions WHERE id = ?",
+                    arrayOf(session),
+                )
+            }
+            database.openHelper.writableDatabase.execSQL(
+                "DELETE FROM character WHERE id = ?",
+                arrayOf(character),
+            )
+        }
+    }
 
     @Test
     fun homeSearchOpensOldMessageAndKeepsLatestOutsideWindow() = runBlocking {
@@ -198,7 +279,7 @@ class ContentSearchFlowTest {
                         capture("content-search-navigation.png")
                         val previousTail = read().messages.last().id
                         rule.onNodeWithText(newerLabel()).performClick()
-                        rule.waitUntil(timeoutMillis = 10_000) { !read().isLoadingNewerMessages && read().messages.last().id != previousTail }
+                        rule.waitUntil(timeoutMillis = 10_000) { !read().historyLoadState.isLoadingNewer && read().messages.last().id != previousTail }
                     }
                     val count = read().messages.size
                     assertEquals(anchor.toString(), read().searchAnchorMessageId)
@@ -271,7 +352,7 @@ class ContentSearchFlowTest {
                     val read =
                         { (model.uiStateFlow.value as GroupChatUiState.Normal).conversationState }
                     val endIndex =
-                        { read().messages.size + if (read().canLoadOlderMessages || read().isLoadingOlderMessages) 1 else 0 }
+                        { read().messages.size + if (read().canLoadOlderMessages || read().historyLoadState.isLoadingOlder) 1 else 0 }
                     rule.waitForIdle()
                     assertEquals(anchor, read().searchAnchorMessageId)
                     if (anchor == ids.last()) {
@@ -287,7 +368,7 @@ class ContentSearchFlowTest {
                         capture("content-search-navigation.png")
                         val previousTail = read().messages.last().id
                         rule.onNodeWithText(newerLabel()).performClick()
-                        rule.waitUntil(timeoutMillis = 10_000) { !read().isLoadingNewerMessages && read().messages.last().id != previousTail }
+                        rule.waitUntil(timeoutMillis = 10_000) { !read().historyLoadState.isLoadingNewer && read().messages.last().id != previousTail }
                     }
                     val count = read().messages.size
                     assertEquals(anchor, read().searchAnchorMessageId)

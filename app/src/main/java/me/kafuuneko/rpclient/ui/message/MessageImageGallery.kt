@@ -122,7 +122,7 @@ private fun MessageImageTile(
         currentEmit(MessageImageAction.RegisterDisplay(uuid))
         onDispose { currentEmit(MessageImageAction.ReleaseDisplay(uuid)) }
     }
-    val canMoveImageEarlier = editing && canMove && !state.processing && remaining == 0
+    val canMoveImageEarlier = editing && canMove && !state.loadState.isBusy && remaining == 0
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
@@ -156,14 +156,14 @@ private fun MessageImageTile(
         MessageImageOverlay(
             remaining = remaining,
             editable = editing,
-            processing = state.processing,
+            processing = state.loadState.isBusy,
             onRemove = { emit(MessageImageAction.Remove(uuid = uuid, editing = true)) },
         )
         // 将原有前移操作收进长按菜单，避免每张图下方的文字按钮撑高编辑区。
         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.image_move_earlier)) },
-                enabled = !state.processing,
+                enabled = !state.loadState.isBusy,
                 onClick = {
                     showMenu = false
                     emit(MessageImageAction.Move(uuid = uuid, editing = true))
@@ -238,15 +238,15 @@ fun MessageImageEditButton(state: MessageImageState, emit: (MessageImageAction) 
     IconButton(
         onClick = {
             emit(
-                if (state.processing) MessageImageAction.CancelProcessing else MessageImageAction.Choose(
+                if (state.loadState.isBusy) MessageImageAction.CancelProcessing else MessageImageAction.Choose(
                     editing = true
                 )
             )
         },
-        enabled = !state.submitting && (state.processing || state.canAddEditing),
+        enabled = !state.loadState.isSubmitting && (state.loadState.isBusy || state.canAddEditing),
         modifier = Modifier.size(32.dp),
     ) {
-        if (state.processing) {
+        if (state.loadState.isBusy) {
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(26.dp),

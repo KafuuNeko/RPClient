@@ -98,6 +98,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
@@ -202,7 +203,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onImageAction(intent: ChatUiIntent.ImageAction) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val action = intent.action
-        val shouldBlockImageMutation = mImageCoordinator.state.processing
+        val shouldBlockImageMutation = mImageCoordinator.state.loadState.isBusy
             && (action is MessageImageAction.Choose
             || action is MessageImageAction.Remove
             || action is MessageImageAction.Move)
@@ -219,7 +220,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 复制任务独立于串行 Intent 收集，取消按钮才能及时结束云端读取。
         when (action) {
             is MessageImageAction.Picked -> {
-                if (mImageCoordinator.state.processing) return
+                if (mImageCoordinator.state.loadState.isBusy) return
                 viewModelScope.launch { mImageCoordinator.handle(action) }
             }
 
@@ -359,8 +360,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionId = mSessionId ?: return
         val displayContext = mMessageDisplayContext ?: return
         val lastId = state.conversationState.messages.lastOrNull()?.id?.toLongOrNull() ?: return
-        if (!state.conversationState.canLoadNewerMessages || state.conversationState.isLoadingNewerMessages) return
-        state.copy(conversationState = state.conversationState.copy(isLoadingNewerMessages = true))
+        if (!state.conversationState.canLoadNewerMessages || state.conversationState.historyLoadState.isBusy) return
+        state.copy(conversationState = state.conversationState.copy(historyLoadState = MessageHistoryLoadState.LoadingNewer))
             .setup()
         // 分页只转换新窗口，避免重新执行全部已展示正文的 Display 处理。
         try {
@@ -381,7 +382,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     messages = current.conversationState.messages + loaded?.first.orEmpty()
                         .filterNot { it.id in ids },
                     canLoadNewerMessages = loaded?.second?.canLoadNewerMessages ?: false,
-                    isLoadingNewerMessages = false,
+                    historyLoadState = MessageHistoryLoadState.None,
                 ),
             ).setup()
         } catch (cancelled: CancellationException) {
@@ -390,7 +391,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.content_search_error).tryEmit()
         } finally {
             val current = getOrNull<ChatUiState.Normal>()
-            current?.copy(conversationState = current.conversationState.copy(isLoadingNewerMessages = false))
+            current?.copy(conversationState = current.conversationState.copy(historyLoadState = MessageHistoryLoadState.None))
                 ?.setup()
         }
     }
@@ -406,7 +407,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val conversation = state.conversationState
         val shouldKeepSearchAnchor = conversation.searchAnchorMessageId == null
             || conversation.canLoadNewerMessages
-            || conversation.isLoadingNewerMessages
+            || conversation.historyLoadState.isLoadingNewer
             || conversation.messages.lastOrNull()?.id != intent.messageId
         if (shouldKeepSearchAnchor) return
         mSearchAnchorId = null
@@ -435,11 +436,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val cursor = mOldestLoadedMessageCursor ?: return
         val displayContext = mMessageDisplayContext ?: return
         if (!uiState.conversationState.canLoadOlderMessages
-            || uiState.conversationState.isLoadingOlderMessages
+            || uiState.conversationState.historyLoadState.isBusy
         ) return
 
         // 先发布加载标记，拦截顶部滚动在同一页内重复触发
-        uiState.copy(conversationState = uiState.conversationState.copy(isLoadingOlderMessages = true))
+        uiState.copy(conversationState = uiState.conversationState.copy(historyLoadState = MessageHistoryLoadState.LoadingOlder))
             .setup()
         val loadedPage = try {
             withContext(Dispatchers.IO) {
@@ -464,7 +465,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             if (throwable is CancellationException) throw throwable
             val currentState = getOrNull<ChatUiState.Normal>() ?: return
             currentState.copy(
-                conversationState = currentState.conversationState.copy(isLoadingOlderMessages = false),
+                conversationState = currentState.conversationState.copy(historyLoadState = MessageHistoryLoadState.None),
             ).setup()
             return
         }
@@ -479,7 +480,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             conversationState = currentState.conversationState.copy(
                 messages = olderItems + currentState.conversationState.messages,
                 canLoadOlderMessages = loadedPage.canLoadOlderMessages,
-                isLoadingOlderMessages = false,
+                historyLoadState = MessageHistoryLoadState.None,
             ),
         ).setup()
     }
@@ -552,7 +553,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
-        if (mImageCoordinator.state.processing) return
+        if (mImageCoordinator.state.loadState.isBusy) return
         val images = mImageCoordinator.draftInputs()
         val rawInput = uiState.conversationState.inputDraft.trim()
             .ifBlank { if (images.isEmpty()) AppModel.replaceEmptyMessagePrompt.trim() else "" }
@@ -1366,7 +1367,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.StartEditMessage::class)
     private suspend fun onStartEditMessage(intent: ChatUiIntent.StartEditMessage) {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val message = uiState.conversationState.messages
             .firstOrNull { it.id == intent.messageId } ?: return
@@ -1399,7 +1400,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ChangeEditingMessageDraft::class)
     private fun onChangeEditingMessageDraft(intent: ChatUiIntent.ChangeEditingMessageDraft) {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.conversationState.editingMessageId == null) return
         uiState.copy(conversationState = uiState.conversationState.copy(editingMessageDraft = intent.value))
@@ -1414,7 +1415,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SaveEditingMessage::class)
     private suspend fun onSaveEditingMessage() {
-        if (mImageCoordinator.state.processing) return
+        if (mImageCoordinator.state.loadState.isBusy) return
         try {
             val uiState = getOrNull<ChatUiState.Normal>() ?: return
             val sessionId = mSessionId ?: return
@@ -1479,7 +1480,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.CancelEditingMessage::class)
     private suspend fun onCancelEditingMessage() {
-        if (mImageCoordinator.state.submitting) return
+        if (mImageCoordinator.state.loadState.isSubmitting) return
         mImageCoordinator.cancelProcessing()
         mImageCoordinator.cancelEditing()
         val uiState = getOrNull<ChatUiState.Normal>() ?: return

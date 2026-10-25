@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementState
+import me.kafuuneko.rpclient.feature.main.presentation.MainChatImportLoadState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
@@ -89,7 +90,7 @@ internal fun ImportChatCharacterDialog(
     state: MainDialogState.ImportChatCharacterSelection,
     emit: MainUiIntent.() -> Unit,
 ) {
-    val canDismiss = !state.isImporting && !state.isResolvingImages
+    val canDismiss = !state.loadState.isBusy
     AppDialogScaffold(
         onDismissRequest = {
             if (canDismiss) MainUiIntent.DismissDialog.emit()
@@ -97,10 +98,10 @@ internal fun ImportChatCharacterDialog(
         title = stringResource(R.string.select_import_character_title),
         badgeIcon = Icons.Rounded.FileDownload,
         badgeTone = DialogBadgeTone.Primary,
-        confirmText = stringResource(if (state.isImporting) R.string.importing_chat else R.string.import_chat),
+        confirmText = stringResource(if (state.loadState is MainChatImportLoadState.Importing) R.string.importing_chat else R.string.import_chat),
         dismissText = stringResource(R.string.cancel),
-        confirmEnabled = state.selectedCharacterId != null && !state.isImporting && !state.isResolvingImages,
-        isConfirmLoading = state.isImporting,
+        confirmEnabled = state.selectedCharacterId != null && !state.loadState.isBusy,
+        isConfirmLoading = state.loadState is MainChatImportLoadState.Importing,
         onConfirm = { MainUiIntent.ConfirmImportChat.emit() },
         onDismiss = {
             if (canDismiss) MainUiIntent.DismissDialog.emit()
@@ -129,12 +130,12 @@ private fun ImportCharacterSelectionContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(
-                enabled = !state.isImporting && !state.isResolvingImages,
+                enabled = !state.loadState.isBusy,
                 onClick = { MainUiIntent.ChooseChatImageDirectory.emit() },
             ) {
                 Text(
                     text = stringResource(
-                        id = if (state.isResolvingImages) R.string.chat_import_reading_images
+                        id = if (state.loadState is MainChatImportLoadState.ResolvingImages) R.string.chat_import_reading_images
                         else R.string.chat_import_choose_image_directory,
                     ),
                 )
@@ -154,7 +155,7 @@ private fun ImportCharacterSelectionContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .generalContentBackground(RoundedCornerShape(12.dp)),
-            enabled = !state.isImporting,
+            enabled = state.loadState !is MainChatImportLoadState.Importing,
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_characters),
@@ -186,7 +187,7 @@ private fun ImportCharacterSelectionContent(
                     ImportCharacterItem(
                         character = character,
                         selected = character.id == state.selectedCharacterId,
-                        enabled = !state.isImporting,
+                        enabled = state.loadState !is MainChatImportLoadState.Importing,
                         onClick = {
                             MainUiIntent.SelectImportCharacter(character.id).emit()
                         },

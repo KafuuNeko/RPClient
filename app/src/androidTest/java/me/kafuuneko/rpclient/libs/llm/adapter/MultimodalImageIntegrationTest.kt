@@ -157,7 +157,7 @@ class MultimodalImageIntegrationTest {
         try {
             // 管道保持打开但不提供字节，稳定模拟等待云端资源的选择任务。
             withTimeout(timeMillis = 5_000) { opened.await() }
-            assertTrue(coordinator.state.processing)
+            assertTrue(coordinator.state.loadState.isBusy)
             assertTrue(pick.isActive)
             coordinator.handle(
                 MessageImageAction.Preview(
@@ -167,7 +167,7 @@ class MultimodalImageIntegrationTest {
             )
             assertTrue(
                 "Preview error incorrectly unlocked sending while pick still runs",
-                coordinator.state.processing
+                coordinator.state.loadState.isBusy
             )
             assertTrue(pick.isActive)
             assertFalse(requireNotNull(coordinator.state.preview).loading)
@@ -175,13 +175,13 @@ class MultimodalImageIntegrationTest {
             assertTrue(runCatching { coordinator.draftInputs() }.exceptionOrNull() is IllegalStateException)
             // 保存元数据失败同样不能结束选图；实际选图结束后由自身收尾解锁。
             assertNull(coordinator.beginSave())
-            assertTrue(coordinator.state.processing)
+            assertTrue(coordinator.state.loadState.isBusy)
         } finally {
             pipe[1].close()
             withTimeout(timeMillis = 5_000) { pick.await() }
             coordinator.releaseDrafts()
         }
-        assertFalse(coordinator.state.processing)
+        assertFalse(coordinator.state.loadState.isBusy)
     }
 
     @Test
@@ -216,7 +216,7 @@ class MultimodalImageIntegrationTest {
                 val oldPick = async(start = CoroutineStart.UNDISPATCHED) {
                     coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(fixture()))))
                 }
-                assertTrue(coordinator.state.processing)
+                assertTrue(coordinator.state.loadState.isBusy)
                 coordinator.startEditing(listOf("message-b-image"))
                 coordinator.choose(editing = true)
                 val newPick = async(start = CoroutineStart.UNDISPATCHED) {
@@ -224,12 +224,12 @@ class MultimodalImageIntegrationTest {
                 }
                 oldPick.join()
                 assertTrue(oldPick.isCancelled)
-                assertTrue(coordinator.state.processing)
+                assertTrue(coordinator.state.loadState.isBusy)
                 assertEquals(listOf("message-b-image"), coordinator.state.editing)
                 release.complete(Unit)
                 newPick.await()
                 assertEquals(2, coordinator.state.editing.size)
-                assertFalse(coordinator.state.processing)
+                assertFalse(coordinator.state.loadState.isBusy)
             }
         } finally {
             release.complete(Unit)
@@ -424,7 +424,7 @@ class MultimodalImageIntegrationTest {
         }.exceptionOrNull() as ImageRequestException
         assertEquals(ImageRequestFailure.OriginalTooLarge, failure.failure)
         assertEquals(listOf(source.file.uuid), coordinator.state.draft)
-        assertFalse(coordinator.state.processing)
+        assertFalse(coordinator.state.loadState.isBusy)
         assertTrue(chat.getMessagesBySessionId(sessionId).isEmpty())
         settings = ImageSendSettings(
             mode = ImageSendMode.Custom,
@@ -703,7 +703,7 @@ class MultimodalImageIntegrationTest {
         fresh.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         assertTrue(fresh.state.draft.isEmpty())
         assertEquals(R.string.image_prepare_failed, fresh.state.errorResId)
-        assertFalse(fresh.state.processing)
+        assertFalse(fresh.state.loadState.isBusy)
         // 成功或取消的回调都会消费归属，重复结果不能继续往草稿追加附件。
         coordinator.handle(MessageImageAction.Picked(listOf(Uri.fromFile(original))))
         assertEquals(listOf(uuid), coordinator.state.draft)

@@ -69,6 +69,7 @@ import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchSco
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiIntent
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.items
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.nextCursor
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.search.SearchHit
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
@@ -371,12 +372,10 @@ private fun SearchResults(
                 ContentSearchResultState.Idle -> R.string.content_search_idle
                 is ContentSearchResultState.Searching -> R.string.loading
                 is ContentSearchResultState.Error -> result.message
-                is ContentSearchResultState.Content -> when {
-                    result.stopped -> R.string.content_search_stopped
-                    !result.complete -> R.string.content_search_partial
-                    result.items.isEmpty() -> R.string.content_search_empty
-                    else -> null
-                }
+                is ContentSearchResultState.Stopped -> R.string.content_search_stopped
+                is ContentSearchResultState.Partial -> R.string.content_search_partial
+                is ContentSearchResultState.Complete ->
+                    if (result.items.isEmpty()) R.string.content_search_empty else null
             }
             Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                 if (message != null) Text(
@@ -395,7 +394,10 @@ private fun SearchResults(
                         Text(stringResource(R.string.settings))
                     }
                 }
-                if (result is ContentSearchResultState.Error || result is ContentSearchResultState.Content && !result.complete) {
+                if (result is ContentSearchResultState.Error
+                    || result is ContentSearchResultState.Partial
+                    || result is ContentSearchResultState.Stopped
+                ) {
                     TextButton(onClick = { ContentSearchUiIntent.Submit.emit() }) {
                         Text(stringResource(R.string.content_search_refresh))
                     }
@@ -409,7 +411,7 @@ private fun SearchResults(
         ) { hit ->
             ResultCard(hit = hit, showWithin = state.scopeState.parentId == null, emit = emit)
         }
-        if (result is ContentSearchResultState.Content && result.next != null) item(key = "more") {
+        if (result.nextCursor() != null) item(key = "more") {
             TextButton(
                 onClick = { ContentSearchUiIntent.More.emit() },
                 modifier = Modifier.fillMaxWidth(),

@@ -127,8 +127,8 @@ sealed class StoryGenerationState {
     data class Streaming(
         /** 生成中断时仍可恢复或保存的正文片段。 */
         val partialText: String,
-        /** 当前生成任务所处的准备、请求或收尾阶段。 */
-        val phase: StoryGenerationPhase,
+        /** 当前流式接收所处的等待、连接、推理或正文阶段。 */
+        val streamState: StoryStreamState,
         /** 生成开始时的单调时钟值，仅用于计算当前任务耗时。 */
         val startedAtElapsedRealtime: Long,
         /** 经过长度限制、供状态区域展示的推理摘要。 */
@@ -152,14 +152,14 @@ sealed class StoryGenerationState {
 }
 
 /** 流式故事生成中由真实协议事件驱动的当前阶段。 */
-enum class StoryGenerationPhase {
-    AwaitingResponse,
+sealed class StoryStreamState {
+    data object AwaitingResponse : StoryStreamState()
 
-    Connected,
+    data object Connected : StoryStreamState()
 
-    Reasoning,
+    data object Reasoning : StoryStreamState()
 
-    Writing
+    data object Writing : StoryStreamState()
 }
 
 /** 用户可恢复或重试的续写失败类型。 */

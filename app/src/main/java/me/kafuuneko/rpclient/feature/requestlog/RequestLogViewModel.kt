@@ -94,7 +94,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     /** 冻结内容后才启动系统选择器，避免清空日志或连续点击造成串写。 */
     private fun startExport(logId: Long, request: Boolean) {
         val uiState = getOrNull<RequestLogUiState.Normal>() ?: return
-        if (uiState.exportState != RequestLogExportState.Idle) return
+        if (uiState.exportState != RequestLogExportState.None) return
         if (uiState.logs.none { it.id == logId }) return
         val generation = ++mExportGeneration
         uiState.copy(exportState = RequestLogExportState.Preparing).setup()
@@ -117,7 +117,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
                 if (generation == mExportGeneration) {
                     mPreparedExport?.let { mJsonExportRepository.discard(it.token) }
                     mPreparedExport = null
-                    updateExportState(RequestLogExportState.Idle)
+                    updateExportState(RequestLogExportState.None)
                     AppViewEvent.PopupToastMessageByResId(R.string.json_export_failed).emit()
                 }
             }
@@ -136,7 +136,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
         }
         if (intent.uri == null) {
             cancelExport()
-            updateExportState(RequestLogExportState.Idle)
+            updateExportState(RequestLogExportState.None)
             return
         }
         // 仅同一份冻结文件能够进入写入阶段，系统回调不重新读取日志。
@@ -154,7 +154,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
                     AppViewEvent.PopupToastMessageByResId(R.string.json_export_failed).emit()
                 }
             } finally {
-                if (generation == mExportGeneration) updateExportState(RequestLogExportState.Idle)
+                if (generation == mExportGeneration) updateExportState(RequestLogExportState.None)
             }
         }
     }
@@ -163,7 +163,7 @@ class RequestLogViewModel : CoreViewModelWithEvent<RequestLogUiIntent, RequestLo
     @UiIntentObserver(RequestLogUiIntent.CancelExport::class)
     private fun onCancelExport() {
         cancelExport()
-        updateExportState(RequestLogExportState.Idle)
+        updateExportState(RequestLogExportState.None)
     }
 
     /** 保留当前日志列表和对话框，只更新导出子状态。 */

@@ -60,18 +60,18 @@ class MessageImageCoordinator(
      * @param editing 是否将本次选择的图片加入历史消息编辑区。
      */
     fun choose(editing: Boolean) {
-        if (state.processing) return
+        if (state.loadState.isBusy) return
         mPendingPick = PendingPick(editing, mEditingVersion)
     }
 
     /** 立即撤销任务的状态发布权；底层资源在 IO 线程取消，不阻塞串行 Intent。 */
     fun cancelProcessing() {
-        if (state.submitting) return
+        if (state.loadState.isSubmitting) return
         mProcessingVersion++
         mProcessingJob?.cancel()
         mProcessingJob = null
         mProcessingEditing = false
-        publish(state.copy(processing = false))
+        publish(state.copy(loadState = MessageImageLoadState.None))
     }
 
     /**
@@ -82,7 +82,7 @@ class MessageImageCoordinator(
      * @throws IllegalArgumentException 草稿的暂存凭据缺失时抛出。
      */
     fun draftInputs(): List<MessageImageInput.Prepared> {
-        check(!state.processing) { "Images are still being processed" }
+        check(!state.loadState.isBusy) { "Images are still being processed" }
         return state.draft.map { MessageImageInput.Prepared(requireNotNull(mPrepared[it])) }
     }
 
@@ -106,11 +106,11 @@ class MessageImageCoordinator(
         editing: Boolean = false,
         commit: suspend (List<MessageImageInput>) -> T
     ): T {
-        check(!state.processing) { "Images are still being processed" }
+        check(!state.loadState.isBusy) { "Images are still being processed" }
         val inputs = if (editing) editingInputs() else draftInputs()
         val ids = inputs.filterIsInstance<MessageImageInput.Prepared>().map { it.value.file.uuid }
         mPendingPick = null
-        publish(state.copy(processing = true, submitting = true, errorResId = null))
+        publish(state.copy(loadState = MessageImageLoadState.Submitting, errorResId = null))
         try {
             return mRuntime.submit(inputs) { finalInputs ->
                 val result = commit(finalInputs)
@@ -131,7 +131,7 @@ class MessageImageCoordinator(
                 result
             }
         } finally {
-            publish(state.copy(processing = false, submitting = false))
+            publish(state.copy(loadState = MessageImageLoadState.None))
         }
     }
 
@@ -141,7 +141,7 @@ class MessageImageCoordinator(
      * @param ids 当前消息已有的附件 ID，顺序与消息一致。
      */
     suspend fun startEditing(ids: List<String>) {
-        if (state.submitting) return
+        if (state.loadState.isSubmitting) return
         cancelEditing()
         mEditingActive = true
         publish(state.copy(editing = ids))
@@ -149,7 +149,7 @@ class MessageImageCoordinator(
 
     /** 取消编辑只释放本次编辑新增的暂存。 */
     suspend fun cancelEditing() {
-        if (state.submitting) return
+        if (state.loadState.isSubmitting) return
         mEditingActive = false
         mEditingVersion++
         if (mProcessingEditing) cancelProcessing()
@@ -186,7 +186,7 @@ class MessageImageCoordinator(
      * @param action 页面发出的图片操作。
      */
     suspend fun handle(action: MessageImageAction) {
-        val shouldBlockDraftMutation = state.submitting
+        val shouldBlockDraftMutation = state.loadState.isSubmitting
             && (action is MessageImageAction.Picked
             || action is MessageImageAction.Remove
             || action is MessageImageAction.Move)
@@ -244,7 +244,7 @@ class MessageImageCoordinator(
         // 包括取消在内，每次回调都消费选择记录；进程重建或重复结果不能默认归入新草稿。
         val pendingPick = mPendingPick
         mPendingPick = null
-        if (action.uris.isEmpty() || state.processing) return
+        if (action.uris.isEmpty() || state.loadState.isBusy) return
         if (pendingPick == null) {
             publish(state.copy(errorResId = R.string.image_prepare_failed))
             return
@@ -261,7 +261,7 @@ class MessageImageCoordinator(
         val processingVersion = ++mProcessingVersion
         mProcessingJob = currentCoroutineContext()[Job]
         mProcessingEditing = editing
-        publish(state.copy(processing = true, errorResId = null))
+        publish(state.copy(loadState = MessageImageLoadState.Preparing, errorResId = null))
         try {
             for (uri in action.uris) {
                 val prepared = mRuntime.prepare(mOwner, uri)
@@ -287,7 +287,7 @@ class MessageImageCoordinator(
             if (processingVersion == mProcessingVersion) {
                 mProcessingJob = null
                 mProcessingEditing = false
-                publish(state.copy(processing = false))
+                publish(state.copy(loadState = MessageImageLoadState.None))
             }
         }
     }
