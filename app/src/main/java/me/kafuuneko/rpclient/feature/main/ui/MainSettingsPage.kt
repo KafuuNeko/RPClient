@@ -180,10 +180,14 @@ internal fun MainSettingsPage(
 
         // 模型与推理服务
         item {
+            val openProviderManager = { MainUiIntent.OpenProviderManager.emit() }
             RpSectionHeader(
                 title = stringResource(R.string.model_provider),
                 action = stringResource(R.string.manage),
-                onAction = { MainUiIntent.OpenProviderManager.emit() },
+                onAction = openProviderManager,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(role = Role.Button, onClick = openProviderManager),
             )
         }
         when (val providerState = state.providerState) {

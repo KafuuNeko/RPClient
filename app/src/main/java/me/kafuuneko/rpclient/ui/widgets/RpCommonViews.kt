@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.ui.widgets
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -79,15 +80,24 @@ fun RpPageTitle(
     }
 }
 
-/** 内容区段标题，右侧支持快捷操作入口。 */
+/**
+ * 内容区段标题，右侧支持快捷操作入口。
+ *
+ * @param title 区段标题。
+ * @param action 可选的右侧操作文案。
+ * @param onAction 点击右侧操作时回传事件。
+ * @param modifier 整行标题的布局与交互修饰符。
+ */
 @Composable
 fun RpSectionHeader(
     title: String,
     action: String? = null,
     onAction: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ) {
+    // 外部点击修饰符覆盖完整标题行，包括标题与操作文字之间的留白。
     Row(
-        modifier = Modifier.padding(vertical = 2.dp),
+        modifier = modifier.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
