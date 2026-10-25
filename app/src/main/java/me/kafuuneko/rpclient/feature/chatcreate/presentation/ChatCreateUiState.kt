@@ -14,6 +14,8 @@ sealed class ChatCreateUiState {
         val loadState: ChatCreateLoadState = ChatCreateLoadState.None,
         /** 当前页面正在编辑的表单数据。 */
         val form: ChatCreateForm = ChatCreateForm(),
+        /** 全局允许示例对话时才展示会话开关，隐藏不改变表单选择。 */
+        val showCharacterExamplesSwitch: Boolean = true,
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<ChatCreateCharacterItem> = emptyList(),
         /** 角色区独立的查询与展示列表，过滤不影响已选角色。 */

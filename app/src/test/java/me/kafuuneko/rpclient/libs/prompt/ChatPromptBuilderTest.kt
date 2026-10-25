@@ -755,6 +755,66 @@ class ChatPromptBuilderTest {
     }
 
     @Test
+    fun sessionExampleSwitchPreservesWorldInfoAcrossGenerationModes() {
+        val character = context().character.copy(
+            examplesOfDialogue = "<START>\nChar: CARD_EXAMPLE_STYLE",
+        )
+        val entries = listOf(
+            lorebookEntry(
+                id = 91L, order = 100, depth = 0,
+                content = "WORLD_EXAMPLE_TOP", position = LorebookEntry.POSITION_EXAMPLE_TOP,
+            ),
+            lorebookEntry(
+                id = 92L, order = 100, depth = 0,
+                content = "WORLD_EXAMPLE_BOTTOM", position = LorebookEntry.POSITION_EXAMPLE_BOTTOM,
+            ),
+        )
+        // 会话开关在所有生成模式下生效，也必须覆盖全局优先保留示例的策略。
+        PromptGenerationMode.entries.forEach { mode ->
+            listOf(true, false).forEach { enabled ->
+                val request = builder(ExampleDialogueBehavior.Pinned).build(
+                    context = context(
+                        character = character,
+                        session = session().copy(includeCharacterExamples = enabled),
+                        entries = entries,
+                        generationMode = mode,
+                    ),
+                )
+                val content = request.messages.joinToString("\n") { it.content }
+                assertEquals(
+                    "mode=$mode, enabled=$enabled",
+                    enabled,
+                    "CARD_EXAMPLE_STYLE" in content
+                )
+                assertTrue("WORLD_EXAMPLE_TOP" in content)
+                assertTrue("WORLD_EXAMPLE_BOTTOM" in content)
+            }
+        }
+    }
+
+    @Test
+    fun sessionExampleSwitchDoesNotAffectExplicitExampleMacros() {
+        val examples = "<START>\nChar: CARD_EXAMPLE_STYLE"
+        val resolver = PromptMacroResolver(historyBuilder)
+        val template = "Examples={{mesExamples}};Raw={{mesExamplesRaw}}"
+        val enabledContext = context(
+            character = context().character.copy(examplesOfDialogue = examples),
+        )
+
+        // 会话开关仅控制自动注入，显式使用的示例宏仍按模板要求展开。
+        assertEquals("Examples=$examples;Raw=$examples", resolver.resolve(template, enabledContext))
+        assertEquals(
+            "Examples=$examples;Raw=$examples",
+            resolver.resolve(
+                template = template,
+                context = enabledContext.copy(
+                    session = enabledContext.session.copy(includeCharacterExamples = false),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun pinnedExamplesTakeBudgetBeforeDroppableHistory() {
         val normal =
             builder(ExampleDialogueBehavior.Normal).buildWithMetadata(context = examplePriorityContext())

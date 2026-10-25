@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -51,7 +52,9 @@ data class ChatSession(
     // 世界书 timed effects 运行时状态，保存 sticky/cooldown 的有效期；不是用户可编辑内容。
     val worldInfoStateJson: String = "{}",
     // 是否仅暂停当前会话的自动总结；手动总结不受影响。
-    val autoSummaryPaused: Boolean = false
+    val autoSummaryPaused: Boolean = false,
+    // 是否注入当前角色卡的示例对话；世界书示例位置条目不受此开关影响。
+    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true
 ) {
     /** 将空白 creator notes 覆盖归一化为 null，使读取时继续继承角色卡默认值。 */
     fun withNormalizedCreatorNotes(): ChatSession {

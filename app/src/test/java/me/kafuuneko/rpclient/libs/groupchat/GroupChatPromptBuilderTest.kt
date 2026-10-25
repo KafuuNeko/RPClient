@@ -89,6 +89,69 @@ class GroupChatPromptBuilderTest {
     }
 
     @Test
+    fun sessionExampleSwitchRespectsCardModeAndPreservesWorldInfo() {
+        val lyra = character(id = 1, name = "Lyra").copy(
+            examplesOfDialogue = "<START>\nLyra: LYRA_EXAMPLE_STYLE",
+        )
+        val mira = character(id = 2, name = "Mira").copy(
+            examplesOfDialogue = "<START>\nMira: MIRA_EXAMPLE_STYLE",
+        )
+        val builder = GroupChatPromptBuilder(
+            mPreferences = TestPromptPreferences(),
+            mExampleDialogueBehaviorProvider = ExampleDialogueBehaviorProvider {
+                ExampleDialogueBehavior.Pinned
+            },
+        )
+        val base = GroupChatPromptContext(
+            session = GroupChatSession(
+                title = "Crew", createTime = 1, latestTime = 1,
+                userName = "Alex", userDescription = "",
+            ),
+            members = listOf(
+                member(character = lyra, order = 0),
+                member(character = mira, order = 1)
+            ),
+            speaker = lyra,
+            messages = emptyList(),
+            provider = provider(),
+            candidateLorebookEntries = listOf(
+                worldEntry(
+                    id = 91L, order = 100, content = "WORLD_EXAMPLE_TOP",
+                    position = LorebookEntry.POSITION_EXAMPLE_TOP,
+                ),
+                worldEntry(
+                    id = 92L, order = 100, content = "WORLD_EXAMPLE_BOTTOM",
+                    position = LorebookEntry.POSITION_EXAMPLE_BOTTOM,
+                ),
+            ),
+        )
+        // 全部生成模式共用会话开关，开启时仍按 Swap/Join 选择成员示例。
+        GroupChatGenerationMode.entries.forEach { generationMode ->
+            GroupChatSession.CharacterCardMode.entries.forEach { cardMode ->
+                listOf(true, false).forEach { enabled ->
+                    val request = builder.build(
+                        context = base.copy(
+                            session = base.session.copy(
+                                characterCardMode = cardMode,
+                                includeCharacterExamples = enabled,
+                            ),
+                            generationMode = generationMode,
+                        ),
+                    )
+                    val content = request.messages.joinToString("\n") { it.content }
+                    assertEquals(enabled, "LYRA_EXAMPLE_STYLE" in content)
+                    assertEquals(
+                        enabled && cardMode == GroupChatSession.CharacterCardMode.Join,
+                        "MIRA_EXAMPLE_STYLE" in content,
+                    )
+                    assertTrue("WORLD_EXAMPLE_TOP" in content)
+                    assertTrue("WORLD_EXAMPLE_BOTTOM" in content)
+                }
+            }
+        }
+    }
+
+    @Test
     fun disabledWorldInfoExamplesDoNotConsumeGroupBudgetOrAdvanceState() {
         val lyra = character(id = 1, name = "Lyra")
         val example = worldEntry(

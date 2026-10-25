@@ -1368,4 +1368,6 @@
     <string name="json_value_truncated">Este valor contiene %1$d caracteres. La vista previa está abreviada; exporta para leer todo el contenido guardado.</string>
     <string name="json_preview_too_large">El contenido es demasiado grande para mostrarlo. Expórtalo desde el registro de solicitudes.</string>
     <string name="json_source_invalid">Este registro no se puede formatear. Se muestra el texto guardado.</string>
+    <string name="chat_include_character_examples">Incluir ejemplos de diálogo de los personajes</string>
+    <string name="chat_include_character_examples_desc">Añade al contexto de generación ejemplos de diálogo de las fichas de personaje usadas en este chat.</string>
 </resources>

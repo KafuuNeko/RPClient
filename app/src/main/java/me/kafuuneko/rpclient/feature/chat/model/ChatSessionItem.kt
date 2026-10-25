@@ -21,5 +21,7 @@ data class ChatSessionItem(
     /** 当前会话或分组包含的消息数量。 */
     val messageCount: Int,
     /** 当前会话已启用的世界书条目 ID 集合。 */
-    val enabledLorebookEntryIds: Set<Long>
+    val enabledLorebookEntryIds: Set<Long>,
+    /** 是否允许注入当前角色卡的示例对话。 */
+    val includeCharacterExamples: Boolean = true
 )

@@ -1345,4 +1345,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="json_value_truncated">Questo valore contiene %1$d caratteri. L’anteprima è abbreviata; esporta per leggere tutto il contenuto salvato.</string>
     <string name="json_preview_too_large">Il contenuto è troppo grande da visualizzare. Esportalo dal registro delle richieste.</string>
     <string name="json_source_invalid">Questo registro non può essere formattato. Viene mostrato il testo salvato.</string>
+    <string name="chat_include_character_examples">Includi esempi di dialogo dei personaggi</string>
+    <string name="chat_include_character_examples_desc">Aggiunge al contesto di generazione gli esempi di dialogo delle schede personaggio usate in questa chat.</string>
 </resources>

@@ -172,6 +172,15 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     suspend fun updateAutoSummaryPaused(id: Long, paused: Boolean)
 
     /**
+     * 修改当前会话的角色卡示例对话注入开关。
+     *
+     * @param id 会话 ID。
+     * @param enabled 是否允许注入角色卡示例对话。
+     */
+    @Query("UPDATE chat_sessions SET includeCharacterExamples = :enabled WHERE id = :id")
+    suspend fun updateIncludeCharacterExamples(id: Long, enabled: Boolean)
+
+    /**
      * 根据会话 id 删除会话。
      *
      * @param id 会话 id。

@@ -76,6 +76,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
  * @param session 当前会话配置
  * @param lorebookState 会话世界书状态
  * @param loadState 当前加载状态
+ * @param showCharacterExamplesSwitch 是否展示角色卡示例对话开关
  * @param emit 原有单聊意图发送入口
  */
 @Composable
@@ -83,6 +84,7 @@ internal fun ChatSettingsPage(
     session: ChatSessionItem,
     lorebookState: ChatLorebookState,
     loadState: ChatLoadState,
+    showCharacterExamplesSwitch: Boolean,
     emit: ChatUiIntent.() -> Unit,
 ) {
     // 沿用会话和世界书状态节点，各设置项继续发送原有意图。
@@ -155,9 +157,21 @@ internal fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
-                    SummaryPauseRow(
-                        paused = session.autoSummaryPaused,
-                        onPausedChange = { enabled ->
+                    if (showCharacterExamplesSwitch) {
+                        SessionSwitchRow(
+                            title = stringResource(R.string.chat_include_character_examples),
+                            checked = session.includeCharacterExamples,
+                            enabled = loadState == ChatLoadState.None,
+                            onCheckedChange = { enabled ->
+                                ChatUiIntent.ToggleIncludeCharacterExamples(enabled).emit()
+                            },
+                        )
+                    }
+                    SessionSwitchRow(
+                        title = stringResource(R.string.pause_auto_summary),
+                        subtitle = stringResource(R.string.pause_auto_summary_desc),
+                        checked = session.autoSummaryPaused,
+                        onCheckedChange = { enabled ->
                             ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
                         },
                     )
@@ -364,25 +378,31 @@ private fun LorebookSearchField(
     )
 }
 
+/** 会话分区中的开关共用文字起点与右侧控件位置，不再叠加设置行内边距。 */
 @Composable
-private fun SummaryPauseRow(
-    paused: Boolean,
-    onPausedChange: (Boolean) -> Unit,
+private fun SessionSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null,
+    enabled: Boolean = true,
 ) {
-    // 暂停状态由会话配置提供，开关只回传用户操作。
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // 分区容器已经提供外边距，行内只按剩余宽度分配文字和开关。
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.pause_auto_summary),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                text = stringResource(R.string.pause_auto_summary_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
-            )
+            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
+                )
+            }
         }
-        Switch(checked = paused, onCheckedChange = onPausedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 

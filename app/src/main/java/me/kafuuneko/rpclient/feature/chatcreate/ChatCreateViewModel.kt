@@ -26,6 +26,8 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -58,6 +60,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mChatRepository by inject<ChatRepository>()
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mMacroResolver by inject<PromptMacroResolver>()
+    private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
     private var mCharactersById: Map<Long, Character> = emptyMap()
 
     /** 初始化页面，并发拉取数据库中的全量角色与世界书条目。 */
@@ -83,6 +86,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val userName = AppModel.resolvedUserName
         ChatCreateUiState.Normal(
             loadState = ChatCreateLoadState.None,
+            showCharacterExamplesSwitch =
+                mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
             form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
                 .selectCharacter(
                     characterId = selectedCharacter?.id,
@@ -182,6 +187,19 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         updateForm { copy(userNote = intent.value) }
     }
 
+    /**
+     * 修改待创建会话的角色卡示例对话注入开关。
+     *
+     * @param intent 包含开关目标值的用户意图。
+     */
+    @UiIntentObserver(ChatCreateUiIntent.ToggleIncludeCharacterExamples::class)
+    private fun onToggleIncludeCharacterExamples(
+        intent: ChatCreateUiIntent.ToggleIncludeCharacterExamples,
+    ) {
+        if (!isStateOf<ChatCreateUiState.Normal>()) return
+        updateForm { copy(includeCharacterExamples = intent.enabled) }
+    }
+
     /** 修改世界书检索关键词，过滤展示的分组与条目。 */
     @UiIntentObserver(ChatCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: ChatCreateUiIntent.ChangeLorebookQuery) {
@@ -253,6 +271,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 userName = userName,
                 userDescription = userDescription,
                 creatorNotes = null,
+                includeCharacterExamples = uiState.form.includeCharacterExamples,
             )
             val context = PromptBuildContext(
                 userName = userName,
@@ -281,6 +300,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
                 firstMessageContent = firstMessageContent,
                 createTime = createTime,
+                includeCharacterExamples = uiState.form.includeCharacterExamples,
             )
         }
         // 导航至聊天页并等待返回

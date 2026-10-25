@@ -1367,4 +1367,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="json_value_truncated">Nilai ini berisi %1$d karakter. Pratinjau dipersingkat; ekspor untuk membaca seluruh konten tersimpan.</string>
     <string name="json_preview_too_large">Konten terlalu besar untuk ditampilkan. Ekspor dari log permintaan untuk membacanya.</string>
     <string name="json_source_invalid">Log ini tidak dapat diformat. Menampilkan teks yang tersimpan.</string>
+    <string name="chat_include_character_examples">Sertakan contoh dialog karakter</string>
+    <string name="chat_include_character_examples_desc">Tambahkan contoh dialog dari kartu karakter yang digunakan dalam obrolan ini ke konteks pembuatan.</string>
 </resources>

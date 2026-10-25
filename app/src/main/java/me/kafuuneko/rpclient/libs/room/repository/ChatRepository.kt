@@ -201,6 +201,8 @@ class ChatRepository(
 
     /**
      * 创建新的聊天会话，同时附带开场白消息。
+     *
+     * @param includeCharacterExamples 是否允许注入角色卡示例对话，默认开启。
      */
     suspend fun createSessionWithFirstMessage(
         characterId: Long,
@@ -212,7 +214,9 @@ class ChatRepository(
         firstMessageContent: String?,
         creatorNotes: String? = null,
         createTime: Long = System.currentTimeMillis(),
+        includeCharacterExamples: Boolean = true,
     ): Long {
+        // 会话配置与开场白必须原子写入，避免创建失败后留下不完整会话。
         return mAppDatabase.withTransaction {
             val sessionId = mChatSessionDao.insertOrReplace(
                 data = ChatSession(
@@ -225,8 +229,10 @@ class ChatRepository(
                     userName = userName,
                     userDescription = userDescription,
                     creatorNotes = creatorNotes,
+                    includeCharacterExamples = includeCharacterExamples,
                 ),
             )
+            // 未选中开场白时只创建会话，不补写空的角色消息。
             firstMessageContent?.takeIf { text -> text.isNotBlank() }?.let { text ->
                 mChatMessageDao.insertOrReplace(
                     data = ChatMessage(
@@ -245,6 +251,8 @@ class ChatRepository(
      * 创建新的聊天会话。
      *
      * 世界书条目通过 id 列表传入，由仓库统一序列化为持久化字段。
+     *
+     * @param includeCharacterExamples 是否允许注入角色卡示例对话，默认开启。
      */
     suspend fun createSession(
         characterId: Long,
@@ -255,7 +263,9 @@ class ChatRepository(
         lorebookEntryIds: List<Long>,
         creatorNotes: String? = null,
         createTime: Long = System.currentTimeMillis(),
+        includeCharacterExamples: Boolean = true,
     ): Long {
+        // 统一通过保存入口归一化角色备注覆盖，保留会话自身的示例配置。
         return saveSession(
             session = ChatSession(
                 characterId = characterId,
@@ -267,6 +277,7 @@ class ChatRepository(
                 userName = userName,
                 userDescription = userDescription,
                 creatorNotes = creatorNotes,
+                includeCharacterExamples = includeCharacterExamples,
             ),
         )
     }
@@ -476,6 +487,16 @@ class ChatRepository(
     /** 暂停或恢复当前单聊的自动总结。 */
     suspend fun updateAutoSummaryPaused(id: Long, paused: Boolean) {
         mChatSessionDao.updateAutoSummaryPaused(id, paused)
+    }
+
+    /**
+     * 保存当前会话的角色卡示例对话注入开关。
+     *
+     * @param id 会话 ID。
+     * @param enabled 是否允许注入角色卡示例对话。
+     */
+    suspend fun updateIncludeCharacterExamples(id: Long, enabled: Boolean) {
+        mChatSessionDao.updateIncludeCharacterExamples(id, enabled)
     }
 
     /**

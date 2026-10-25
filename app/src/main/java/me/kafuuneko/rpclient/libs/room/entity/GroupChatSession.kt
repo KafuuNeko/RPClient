@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -50,7 +51,9 @@ data class GroupChatSession(
     // 是否从单个角色的输出中裁剪其他成员的发言前缀。
     val trimOtherSpeakers: Boolean = true,
     // 是否仅暂停当前群聊的自动总结；手动总结不受影响。
-    val autoSummaryPaused: Boolean = false
+    val autoSummaryPaused: Boolean = false,
+    // 是否注入本轮参与 Prompt 的成员角色卡示例，成员范围仍遵循 Swap/Join 配置。
+    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

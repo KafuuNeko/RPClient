@@ -27,6 +27,8 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -56,6 +58,7 @@ class GroupChatCreateViewModel :
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mGreetingPlanner by inject<GroupChatGreetingPlanner>()
+    private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
 
     /** 初始化页面，拉取候选角色列表与世界书条目列表。 */
     @UiIntentObserver(GroupChatCreateUiIntent.Init::class)
@@ -75,6 +78,8 @@ class GroupChatCreateViewModel :
         // 渲染就绪状态
         GroupChatCreateUiState.Normal(
             characters = data.first,
+            showCharacterExamplesSwitch =
+                mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
             visibleCharacters = data.first,
             lorebookGroups = data.second,
             visibleLorebookGroups = data.second,
@@ -188,6 +193,19 @@ class GroupChatCreateViewModel :
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         uiState.copy(allowSelfResponses = intent.enabled).setup()
+    }
+
+    /**
+     * 修改待创建群聊的角色卡示例对话注入开关。
+     *
+     * @param intent 包含开关目标值的用户意图。
+     */
+    @UiIntentObserver(GroupChatCreateUiIntent.ToggleIncludeCharacterExamples::class)
+    private fun onToggleIncludeCharacterExamples(
+        intent: GroupChatCreateUiIntent.ToggleIncludeCharacterExamples,
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        uiState.copy(includeCharacterExamples = intent.enabled).setup()
     }
 
     /** 选择群聊开场白模式。 */
@@ -328,6 +346,7 @@ class GroupChatCreateViewModel :
                 lorebookEntryIds = uiState.selectedLorebookEntryIds.sorted(),
                 activationStrategy = uiState.activationStrategy.toEntity(),
                 allowSelfResponses = uiState.allowSelfResponses,
+                includeCharacterExamples = uiState.includeCharacterExamples,
                 openingMessages = openingMessages,
                 createTime = createTime,
             )

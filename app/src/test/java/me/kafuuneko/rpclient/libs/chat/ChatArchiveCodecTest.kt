@@ -161,6 +161,7 @@ class ChatArchiveCodecTest {
             lorebookEntrySet = "[1,2]",
             worldInfoStateJson = """{"sticky":true}""",
             autoSummaryPaused = true,
+            includeCharacterExamples = false,
             characterNameHint = "Seraphina",
             characterFingerprint = "fingerprint",
             messages = listOf(
@@ -220,6 +221,7 @@ class ChatArchiveCodecTest {
         )
 
         assertEquals("Imported file", decoded.title)
+        assertTrue(decoded.includeCharacterExamples)
         assertEquals("Alice", decoded.userName)
         assertEquals("Seraphina", decoded.characterNameHint)
         assertEquals(

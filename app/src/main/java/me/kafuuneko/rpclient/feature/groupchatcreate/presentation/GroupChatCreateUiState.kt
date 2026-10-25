@@ -34,6 +34,10 @@ sealed class GroupChatCreateUiState {
             GroupChatActivationStrategy.Natural,
         /** 群聊轮询时是否允许同一角色连续发言。 */
         val allowSelfResponses: Boolean = false,
+        /** 是否允许注入参与当前群聊 Prompt 的角色卡示例对话。 */
+        val includeCharacterExamples: Boolean = true,
+        /** 全局允许示例对话时才展示会话开关，隐藏不改变表单选择。 */
+        val showCharacterExamplesSwitch: Boolean = true,
         /** 群聊创建页的开场白选择状态。 */
         val greetingState: GroupChatCreateGreetingState = GroupChatCreateGreetingState()
     ) : GroupChatCreateUiState() {

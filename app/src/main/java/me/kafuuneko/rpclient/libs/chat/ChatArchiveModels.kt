@@ -36,7 +36,9 @@ data class ChatArchive(
     /** 当前会话或故事使用的摘要内容。 */
     val summary: ChatArchiveSummary?,
     /** 本次导入暂存的所有者，只在当前进程使用，不写入归档。 */
-    val importOwner: String? = null
+    val importOwner: String? = null,
+    /** 会话级角色卡示例对话开关，旧归档缺省时保持开启。 */
+    val includeCharacterExamples: Boolean = true
 )
 
 /** 归档中的普通消息；列表顺序是唯一权威的对话顺序。 */

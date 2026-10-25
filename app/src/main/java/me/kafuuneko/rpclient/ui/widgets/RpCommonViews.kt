@@ -610,6 +610,7 @@ fun StoryUserPersonaCard(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    // 是否纳入用户人设由开关和描边表达，底板不额外叠乘页面不透明度。
     AppCard(
         modifier = modifier
             .fillMaxWidth()
@@ -630,11 +631,7 @@ fun StoryUserPersonaCard(
             },
         ),
         colors = CardDefaults.cardColors(
-            containerColor = if (checked) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
     ) {
         Row(

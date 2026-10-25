@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "98f4306d062ae5832b62e888404938ca",
+    "identityHash": "ab6b535ba490483c9ed4b4c7f8779781",
     "entities": [
       {
         "tableName": "search_sources",
@@ -888,7 +888,7 @@
       },
       {
         "tableName": "chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -960,6 +960,13 @@
             "columnName": "autoSummaryPaused",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "includeCharacterExamples",
+            "columnName": "includeCharacterExamples",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
           }
         ],
         "primaryKey": {
@@ -1285,7 +1292,7 @@
       },
       {
         "tableName": "group_chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1406,6 +1413,13 @@
             "columnName": "autoSummaryPaused",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "includeCharacterExamples",
+            "columnName": "includeCharacterExamples",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
           }
         ],
         "primaryKey": {
@@ -2499,7 +2513,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '98f4306d062ae5832b62e888404938ca')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ab6b535ba490483c9ed4b4c7f8779781')"
     ]
   }
 }

@@ -1363,4 +1363,6 @@
     <string name="json_value_truncated">此字段共 %1$d 个字符，已缩略显示；可导出查看已保存的完整内容。</string>
     <string name="json_preview_too_large">内容过大，无法显示。请从请求日志导出查看。</string>
     <string name="json_source_invalid">此日志无法格式化，当前显示已保存的原文。</string>
+    <string name="chat_include_character_examples">注入角色卡示例对话</string>
+    <string name="chat_include_character_examples_desc">将本次使用的角色卡示例对话加入生成上下文。</string>
 </resources>

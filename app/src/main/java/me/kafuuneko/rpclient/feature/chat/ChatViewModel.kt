@@ -74,6 +74,8 @@ import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -243,6 +245,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
     private val mFileRepository by inject<FileRepository>()
     private val mChatPromptBuilder by inject<ChatPromptBuilder>()
+    private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
     private val mSummaryPromptBuilder by inject<SummaryPromptBuilder>()
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexProcessor by inject<RegexMessageProcessor>()
@@ -1061,6 +1064,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mChatRepository.updateAutoSummaryPaused(sessionId, intent.paused)
         }
         refreshUiState(sessionId = sessionId, page = ChatPage.Settings)
+    }
+
+    /**
+     * 保存当前会话的角色卡示例对话开关，并刷新设置快照。
+     *
+     * @param intent 包含开关目标值的用户意图。
+     */
+    @UiIntentObserver(ChatUiIntent.ToggleIncludeCharacterExamples::class)
+    private suspend fun onToggleIncludeCharacterExamples(
+        intent: ChatUiIntent.ToggleIncludeCharacterExamples,
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        withContext(Dispatchers.IO) {
+            mChatRepository.updateIncludeCharacterExamples(uiState.session.id, intent.enabled)
+        }
+        refreshUiState(sessionId = uiState.session.id, page = ChatPage.Settings)
     }
 
     /**
@@ -2453,6 +2472,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
             },
             streamEnabled = AppModel.streamEnabled,
+            showCharacterExamplesSwitch =
+                mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState,

@@ -521,7 +521,10 @@ class ChatPromptBuilder(
         // 示例对话以 <START> 分块，每个块作为独立的上下文预算单元。
         val blocks = buildList {
             worldInfo.exampleBefore.forEach { entry -> add(entry.content) }
-            addAll(parseExampleBlocks(context.character.examplesOfDialogue))
+            // 会话开关仅控制角色卡示例，示例位置世界书继续遵循全局策略。
+            if (context.session.includeCharacterExamples) {
+                addAll(parseExampleBlocks(context.character.examplesOfDialogue))
+            }
             worldInfo.exampleAfter.forEach { entry -> add(entry.content) }
         }
         return blocks

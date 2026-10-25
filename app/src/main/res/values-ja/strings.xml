@@ -1362,4 +1362,6 @@
     <string name="json_value_truncated">この値は %1$d 文字あります。プレビューを省略しています。保存された全内容はエクスポートして確認できます。</string>
     <string name="json_preview_too_large">内容が大きすぎるため表示できません。リクエストログからエクスポートして確認してください。</string>
     <string name="json_source_invalid">このログは整形できません。保存された原文を表示しています。</string>
+    <string name="chat_include_character_examples">キャラクターカードの会話例を含める</string>
+    <string name="chat_include_character_examples_desc">このチャットで使用するキャラクターカードの会話例を生成コンテキストに追加します。</string>
 </resources>

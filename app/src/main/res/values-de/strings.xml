@@ -1366,4 +1366,6 @@
     <string name="json_value_truncated">Dieser Wert enthält %1$d Zeichen. Die Vorschau ist gekürzt; exportieren Sie den gesamten gespeicherten Inhalt zum Lesen.</string>
     <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
     <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
+    <string name="chat_include_character_examples">Dialogbeispiele der Charaktere einbeziehen</string>
+    <string name="chat_include_character_examples_desc">Fügt Dialogbeispiele der in diesem Chat verwendeten Charakterkarten zum Generierungskontext hinzu.</string>
 </resources>

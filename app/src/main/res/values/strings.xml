@@ -1371,4 +1371,6 @@
     <string name="json_value_truncated">This value contains %1$d characters. The preview is shortened; export to read all saved content.</string>
     <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
     <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
+    <string name="chat_include_character_examples">Include character dialogue examples</string>
+    <string name="chat_include_character_examples_desc">Add dialogue examples from the character cards used in this chat to the generation context.</string>
 </resources>

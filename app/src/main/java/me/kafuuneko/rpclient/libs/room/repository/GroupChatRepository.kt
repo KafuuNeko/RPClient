@@ -499,6 +499,8 @@ class GroupChatRepository(
      * - 批量插入有序成员关联记录；
      * - 批量插入已规划且非空的开场白消息；
      * - 更新会话最新活跃时间戳为最后一条开场白时间。
+     *
+     * @param includeCharacterExamples 是否允许注入本轮成员角色卡的示例对话，默认开启。
      */
     suspend fun createSession(
         title: String,
@@ -510,6 +512,7 @@ class GroupChatRepository(
         allowSelfResponses: Boolean,
         openingMessages: List<GroupChatOpeningMessage> = emptyList(),
         createTime: Long = System.currentTimeMillis(),
+        includeCharacterExamples: Boolean = true,
     ): Long {
         require(characterIds.distinct().size >= 2) {
             "A group chat requires at least two characters"
@@ -526,6 +529,7 @@ class GroupChatRepository(
                     lorebookEntrySet = mGson.toJson(lorebookEntryIds.distinct()),
                     activationStrategy = activationStrategy,
                     allowSelfResponses = allowSelfResponses,
+                    includeCharacterExamples = includeCharacterExamples,
                 ),
             )
             // 插入初始群成员列表

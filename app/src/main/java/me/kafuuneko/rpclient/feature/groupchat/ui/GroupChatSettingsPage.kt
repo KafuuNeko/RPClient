@@ -223,6 +223,15 @@ internal fun GroupChatSettingsPage(
                             )
                         }
                     }
+                    if (state.showCharacterExamplesSwitch) {
+                        SettingsSwitch(
+                            title = stringResource(R.string.chat_include_character_examples),
+                            checked = state.includeCharacterExamples,
+                            onCheckedChange = { enabled ->
+                                emitIntent(GroupChatUiIntent.ToggleIncludeCharacterExamples(enabled))
+                            },
+                        )
+                    }
                     SettingsSwitch(
                         title = stringResource(R.string.group_chat_include_muted_cards),
                         checked = state.includeMutedCards,

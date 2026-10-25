@@ -315,6 +315,7 @@ class ChatArchiveRepository(
                 creatorNotes = archive.creatorNotes,
                 worldInfoStateJson = "{}",
                 autoSummaryPaused = archive.autoSummaryPaused,
+                includeCharacterExamples = archive.includeCharacterExamples,
             ).withNormalizedCreatorNotes(),
         )
     }
@@ -390,6 +391,7 @@ class ChatArchiveRepository(
             lorebookEntrySet = session.lorebookEntrySet,
             worldInfoStateJson = session.worldInfoStateJson,
             autoSummaryPaused = session.autoSummaryPaused,
+            includeCharacterExamples = session.includeCharacterExamples,
             characterNameHint = character.name,
             characterFingerprint = ChatCharacterMatcher.fingerprintOf(character),
             messages = emptyList(),

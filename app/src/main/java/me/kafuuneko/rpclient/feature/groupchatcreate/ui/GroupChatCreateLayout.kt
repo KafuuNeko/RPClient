@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +54,7 @@ import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
+import me.kafuuneko.rpclient.ui.widgets.RpCreationSwitchCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
@@ -61,7 +63,6 @@ import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
 @Composable
@@ -148,9 +149,12 @@ private fun GroupChatCreateNormalView(
                     )
                 }
                 item {
-                    SelfResponseSetting(
-                        enabled = state.allowSelfResponses,
-                        onChange = { enabled ->
+                    RpCreationSwitchCard(
+                        title = stringResource(R.string.group_chat_allow_consecutive),
+                        subtitle = stringResource(R.string.group_chat_allow_consecutive_desc),
+                        icon = Icons.Rounded.AutoAwesome,
+                        checked = state.allowSelfResponses,
+                        onCheckedChange = { enabled ->
                             emitIntent(GroupChatCreateUiIntent.ToggleAllowSelfResponses(enabled))
                         },
                     )
@@ -160,6 +164,23 @@ private fun GroupChatCreateNormalView(
                         state = state.greetingState,
                         emitIntent = emitIntent,
                     )
+                }
+                if (state.showCharacterExamplesSwitch) {
+                    item {
+                        RpCreationSwitchCard(
+                            title = stringResource(R.string.chat_include_character_examples),
+                            subtitle = stringResource(R.string.chat_include_character_examples_desc),
+                            icon = Icons.Rounded.FormatQuote,
+                            checked = state.includeCharacterExamples,
+                            onCheckedChange = { enabled ->
+                                emitIntent(
+                                    GroupChatCreateUiIntent.ToggleIncludeCharacterExamples(
+                                        enabled
+                                    )
+                                )
+                            },
+                        )
+                    }
                 }
                 item {
                     RpSectionHeader(
@@ -254,58 +275,6 @@ private fun StrategySection(
 }
 
 @Composable
-private fun SelfResponseSetting(
-    enabled: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = { onChange(!enabled) }),
-        shape = RoundedCornerShape(16.dp),
-        color = if (enabled) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        },
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.AutoAwesome,
-                contentDescription = null,
-                tint = if (enabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.secondary
-                },
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.group_chat_allow_consecutive),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = stringResource(R.string.group_chat_allow_consecutive_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = enabled, onCheckedChange = onChange)
-        }
-    }
-}
-
-@Composable
 private fun GreetingSection(
     state: GroupChatCreateGreetingState,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
@@ -344,16 +313,13 @@ private fun GreetingModeOption(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    // 选中状态由单选按钮表达，底板直接使用页面统一的不透明度与模糊配置。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -399,6 +365,7 @@ private fun ManualGreetingEditor(
             style = MaterialTheme.typography.labelLarge,
         )
         selectedCharacter.greetings.forEachIndexed { index, greeting ->
+            // 手动开场白与模式选项共用底色，切换选中项不会改变底板的实际不透明度。
             AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -408,11 +375,7 @@ private fun ManualGreetingEditor(
                         },
                     ),
                 shape = RoundedCornerShape(14.dp),
-                color = if (state.selectedGreetingIndex == index) {
-                    MaterialTheme.colorScheme.secondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                },
+                color = MaterialTheme.colorScheme.surface,
             ) {
                 Row(
                     modifier = Modifier.padding(10.dp),
@@ -504,6 +467,7 @@ private fun CharacterChoiceCard(
     onClick: () -> Unit,
 ) {
     val accent = getMacaronColor(character.name)
+    // 成员选择继续由描边和勾选标记表达，底板与开场白选项保持一致。
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -518,11 +482,7 @@ private fun CharacterChoiceCard(
             },
         ),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (character.selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.32f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
     ) {
         Row(
@@ -561,10 +521,11 @@ private fun CharacterChoiceCard(
 
 @Composable
 private fun EmptyCharacterCard() {
+    // 空状态与普通成员卡沿用同一套页面底板设置。
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier.padding(28.dp),

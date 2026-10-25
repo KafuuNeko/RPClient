@@ -293,6 +293,7 @@ private fun CharacterOption(
     onActivationModeClick: (StoryCreateCharacterActivationMode) -> Unit,
 ) {
     val accent = getMacaronColor(character.name)
+    // 角色选中状态由勾选与描边表达，底板保持页面统一的外观设置。
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -307,11 +308,7 @@ private fun CharacterOption(
             },
         ),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.32f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -397,10 +394,11 @@ private fun UserPersonaOption(
 
 @Composable
 private fun EmptyCharacterSearchCard() {
+    // 空状态与角色选项沿用同一套页面底板设置。
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier.padding(28.dp),
@@ -533,6 +531,7 @@ private fun LorebookEntryOption(
         entry.order,
         entry.depth,
     )
+    // 条目启用状态由勾选和描边表达，底板与其他创建页的条目保持一致。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -546,11 +545,7 @@ private fun LorebookEntryOption(
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             },
         ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

@@ -189,6 +189,7 @@ private fun LorebookEntryRow(
     entry: GroupChatLorebookEntryItem,
     onToggle: () -> Unit,
 ) {
+    // 与单聊和故事创建页使用相同底板，启用状态只影响勾选与描边。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,11 +203,7 @@ private fun LorebookEntryRow(
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             },
         ),
-        color = if (entry.enabled) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

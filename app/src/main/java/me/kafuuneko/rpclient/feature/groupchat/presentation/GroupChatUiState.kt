@@ -104,6 +104,10 @@ data class GroupChatSettingsState(
     val allowSelfResponses: Boolean = false,
     /** 构建群聊 Prompt 时是否包含被禁言成员的角色卡。 */
     val includeMutedCards: Boolean = false,
+    /** 是否允许注入本轮参与 Prompt 的成员角色卡示例对话。 */
+    val includeCharacterExamples: Boolean = true,
+    /** 全局允许示例对话时才展示会话开关，隐藏不改变设置草稿。 */
+    val showCharacterExamplesSwitch: Boolean = true,
     /** 群聊是否启用自动选择发言者。 */
     val autoModeEnabled: Boolean = false,
     /** 群聊输出是否移除模型擅自生成的其他成员台词。 */

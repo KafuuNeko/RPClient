@@ -75,6 +75,7 @@ fun ChatLayout(
                             session = uiState.session,
                             lorebookState = uiState.lorebookState,
                             loadState = uiState.loadState,
+                            showCharacterExamplesSwitch = uiState.showCharacterExamplesSwitch,
                             emit = emit,
                         )
                     }

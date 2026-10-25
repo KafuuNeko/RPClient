@@ -35,6 +35,7 @@ fun ChatSession.toChatSessionItem(
         autoSummaryPaused = autoSummaryPaused,
         messageCount = messageCount,
         enabledLorebookEntryIds = enabledIds,
+        includeCharacterExamples = includeCharacterExamples,
     )
 }
 

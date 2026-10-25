@@ -90,6 +90,8 @@ sealed class GroupChatUiIntent {
 
     data class ToggleIncludeMutedCards(val enabled: Boolean) : GroupChatUiIntent()
 
+    data class ToggleIncludeCharacterExamples(val enabled: Boolean) : GroupChatUiIntent()
+
     data class ToggleAutoMode(val enabled: Boolean) : GroupChatUiIntent()
 
     data class ToggleTrimOtherSpeakers(val enabled: Boolean) : GroupChatUiIntent()

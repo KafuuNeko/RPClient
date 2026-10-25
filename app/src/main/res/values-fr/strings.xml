@@ -1367,4 +1367,6 @@
     <string name="json_value_truncated">Cette valeur contient %1$d caractères. L’aperçu est abrégé ; exportez pour lire tout le contenu enregistré.</string>
     <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
     <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
+    <string name="chat_include_character_examples">Inclure les exemples de dialogue des personnages</string>
+    <string name="chat_include_character_examples_desc">Ajoute au contexte de génération les exemples de dialogue des fiches de personnage utilisées dans cette discussion.</string>
 </resources>

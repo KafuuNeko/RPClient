@@ -16,6 +16,8 @@ sealed class ChatCreateUiIntent {
 
     data class ChangeUserNote(val value: String) : ChatCreateUiIntent()
 
+    data class ToggleIncludeCharacterExamples(val enabled: Boolean) : ChatCreateUiIntent()
+
     data class ChangeLorebookQuery(val value: String) : ChatCreateUiIntent()
 
     data class ToggleLorebookEntry(val entryId: Long) : ChatCreateUiIntent()

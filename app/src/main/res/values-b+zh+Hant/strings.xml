@@ -1361,4 +1361,6 @@
     <string name="json_value_truncated">此欄位共 %1$d 個字元，已縮略顯示；可匯出查看已儲存的完整內容。</string>
     <string name="json_preview_too_large">內容過大，無法顯示。請從請求日誌匯出查看。</string>
     <string name="json_source_invalid">此日誌無法格式化，目前顯示已儲存的原文。</string>
+    <string name="chat_include_character_examples">注入角色卡範例對話</string>
+    <string name="chat_include_character_examples_desc">將本次使用的角色卡範例對話加入生成上下文。</string>
 </resources>

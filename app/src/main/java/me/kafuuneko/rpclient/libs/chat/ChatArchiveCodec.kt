@@ -167,6 +167,8 @@ class ChatArchiveCodec(
             lorebookEntrySet = rpclient?.stringOrNull(KEY_LOREBOOK_ENTRY_SET) ?: "[]",
             worldInfoStateJson = rpclient?.stringOrNull(KEY_WORLD_INFO_STATE) ?: "{}",
             autoSummaryPaused = rpclient?.booleanOrNull(KEY_AUTO_SUMMARY_PAUSED) ?: false,
+            includeCharacterExamples = rpclient?.booleanOrNull(KEY_INCLUDE_CHARACTER_EXAMPLES)
+                ?: true,
             characterNameHint = characterNameHint.orEmpty(),
             characterFingerprint = characterObject?.stringOrNull(KEY_FINGERPRINT),
             messages = decodedMessages.map { it.message },
@@ -190,6 +192,7 @@ class ChatArchiveCodec(
             addProperty(KEY_LOREBOOK_ENTRY_SET, archive.lorebookEntrySet)
             addProperty(KEY_WORLD_INFO_STATE, archive.worldInfoStateJson)
             addProperty(KEY_AUTO_SUMMARY_PAUSED, archive.autoSummaryPaused)
+            addProperty(KEY_INCLUDE_CHARACTER_EXAMPLES, archive.includeCharacterExamples)
             add(
                 KEY_CHARACTER,
                 JsonObject().apply {
@@ -518,6 +521,7 @@ class ChatArchiveCodec(
         const val KEY_LOREBOOK_ENTRY_SET = "lorebook_entry_set"
         const val KEY_WORLD_INFO_STATE = "world_info_state_json"
         const val KEY_AUTO_SUMMARY_PAUSED = "auto_summary_paused"
+        const val KEY_INCLUDE_CHARACTER_EXAMPLES = "include_character_examples"
         const val KEY_CHARACTER = "character"
         const val KEY_CHARACTER_NAME = "character_name"
         const val KEY_FINGERPRINT = "fingerprint"

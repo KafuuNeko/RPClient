@@ -574,7 +574,9 @@ class GroupChatPromptBuilder(
         context: GroupChatPromptContext,
         behavior: ExampleDialogueBehavior,
     ): List<PromptMessageDraft> {
-        if (behavior == ExampleDialogueBehavior.Disabled) return emptyList()
+        if (!context.session.includeCharacterExamples || behavior == ExampleDialogueBehavior.Disabled) {
+            return emptyList()
+        }
         val retentionPriority = PromptRetentionPolicy.examplePriority(behavior)
         return context.cardMembers().flatMap { member ->
             member.character.examplesOfDialogue

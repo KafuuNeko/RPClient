@@ -12,6 +12,8 @@ data class ChatCreateForm(
     val title: String = "",
     /** 仅供当前会话 Prompt 使用的用户备注。 */
     val userNote: String = "",
+    /** 是否允许将角色卡示例对话注入当前会话的生成上下文。 */
+    val includeCharacterExamples: Boolean = true,
     /** 当前已选中的世界书条目 ID 集合。 */
     val selectedLorebookEntryIds: Set<Long> = emptySet()
 ) {

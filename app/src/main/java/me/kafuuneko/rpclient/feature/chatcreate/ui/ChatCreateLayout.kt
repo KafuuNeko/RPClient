@@ -61,6 +61,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
+import me.kafuuneko.rpclient.ui.widgets.RpCreationSwitchCard
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -128,7 +129,13 @@ private fun ChatCreateNormal(
                 if (state.loadState == ChatCreateLoadState.Loading) {
                     item { LoadingRow() }
                 } else {
-                    item { BasicForm(state.form, emit) }
+                    item {
+                        BasicForm(
+                            form = state.form,
+                            showCharacterExamplesSwitch = state.showCharacterExamplesSwitch,
+                            emit = emit,
+                        )
+                    }
                     item {
                         RpSectionHeader(title = stringResource(R.string.bind_character))
                     }
@@ -244,8 +251,10 @@ private fun ChatCreateNormal(
 @Composable
 private fun BasicForm(
     form: ChatCreateForm,
+    showCharacterExamplesSwitch: Boolean,
     emit: ChatCreateUiIntent.() -> Unit,
 ) {
+    // 创建页只维护表单草稿，提交时才将这些设置写入会话。
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
             modifier = Modifier
@@ -272,6 +281,18 @@ private fun BasicForm(
             maxLines = 8,
             shape = RoundedCornerShape(12.dp),
         )
+        // 示例开关与角色选择独立，切换角色时继续保留用户的选择。
+        if (showCharacterExamplesSwitch) {
+            RpCreationSwitchCard(
+                title = stringResource(R.string.chat_include_character_examples),
+                subtitle = stringResource(R.string.chat_include_character_examples_desc),
+                icon = Icons.Rounded.FormatQuote,
+                checked = form.includeCharacterExamples,
+                onCheckedChange = { enabled ->
+                    ChatCreateUiIntent.ToggleIncludeCharacterExamples(enabled).emit()
+                },
+            )
+        }
     }
 }
 
@@ -451,6 +472,7 @@ private fun LorebookEntryOption(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    // 勾选与描边表达启用状态，条目底板不再额外改变页面设定的不透明度。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -462,11 +484,7 @@ private fun LorebookEntryOption(
                 alpha = 0.4f
             ),
         ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        },
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

@@ -81,6 +81,8 @@ sealed class ChatUiIntent {
 
     data class ToggleAutoSummaryPaused(val paused: Boolean) : ChatUiIntent()
 
+    data class ToggleIncludeCharacterExamples(val enabled: Boolean) : ChatUiIntent()
+
     data object CancelSummary : ChatUiIntent()
 
     data object DeleteSessionClick : ChatUiIntent()

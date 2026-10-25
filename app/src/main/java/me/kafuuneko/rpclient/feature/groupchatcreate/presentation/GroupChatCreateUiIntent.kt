@@ -23,6 +23,8 @@ sealed class GroupChatCreateUiIntent {
 
     data class ToggleAllowSelfResponses(val enabled: Boolean) : GroupChatCreateUiIntent()
 
+    data class ToggleIncludeCharacterExamples(val enabled: Boolean) : GroupChatCreateUiIntent()
+
     data class SelectGreetingMode(
         val mode: GroupChatGreetingMode
     ) : GroupChatCreateUiIntent()

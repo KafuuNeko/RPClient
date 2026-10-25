@@ -1367,4 +1367,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="json_value_truncated">Giá trị này chứa %1$d ký tự. Bản xem trước đã được rút gọn; hãy xuất để đọc toàn bộ nội dung đã lưu.</string>
     <string name="json_preview_too_large">Nội dung quá lớn để hiển thị. Hãy xuất từ nhật ký yêu cầu để đọc.</string>
     <string name="json_source_invalid">Không thể định dạng nhật ký này. Đang hiển thị văn bản đã lưu.</string>
+    <string name="chat_include_character_examples">Bao gồm hội thoại mẫu của nhân vật</string>
+    <string name="chat_include_character_examples_desc">Thêm hội thoại mẫu từ các thẻ nhân vật dùng trong cuộc trò chuyện này vào ngữ cảnh tạo nội dung.</string>
 </resources>

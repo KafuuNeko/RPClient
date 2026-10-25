@@ -79,6 +79,8 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
+import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
@@ -248,6 +250,7 @@ class GroupChatViewModel :
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mProviderSelectionResolver by inject<LLMProviderSelectionResolver>()
+    private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
     private val mPromptBuilder by inject<GroupChatPromptBuilder>()
     private val mSpeakerSelector by inject<GroupChatSpeakerSelector>()
     private val mSummaryPromptBuilder by inject<GroupChatSummaryPromptBuilder>()
@@ -1027,6 +1030,19 @@ class GroupChatViewModel :
     }
 
     /**
+     * 修改群聊设置草稿中的角色卡示例对话开关，保存后用于后续生成。
+     *
+     * @param intent 包含开关目标值的用户意图。
+     */
+    @UiIntentObserver(GroupChatUiIntent.ToggleIncludeCharacterExamples::class)
+    private fun onToggleIncludeCharacterExamples(
+        intent: GroupChatUiIntent.ToggleIncludeCharacterExamples,
+    ) {
+        if (!isStateOf<GroupChatUiState.Normal>()) return
+        updateSettingsState { copy(includeCharacterExamples = intent.enabled) }
+    }
+
+    /**
      * 切换群聊自动模式（AutoMode）。
      *
      * 开启后，在非手动模式下，单轮角色生成完成后将在短暂延时后自动触发下一位角色发言，形成自主群聊。
@@ -1103,6 +1119,7 @@ class GroupChatViewModel :
                     allowSelfResponses = uiState.settingsState.allowSelfResponses,
                     characterCardMode = uiState.settingsState.characterCardMode.toEntity(),
                     includeMutedCards = uiState.settingsState.includeMutedCards,
+                    includeCharacterExamples = uiState.settingsState.includeCharacterExamples,
                     autoModeEnabled = uiState.settingsState.autoModeEnabled,
                     trimOtherSpeakers = uiState.settingsState.trimOtherSpeakers,
                     autoSummaryPaused = uiState.settingsState.autoSummaryPaused,
@@ -2411,6 +2428,9 @@ class GroupChatViewModel :
                     .toGroupChatCharacterCardMode(),
                 allowSelfResponses = data.session.allowSelfResponses,
                 includeMutedCards = data.session.includeMutedCards,
+                includeCharacterExamples = data.session.includeCharacterExamples,
+                showCharacterExamplesSwitch =
+                    mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
                 autoModeEnabled = data.session.autoModeEnabled,
                 trimOtherSpeakers = data.session.trimOtherSpeakers,
                 scenarioDraft = data.session.scenario,

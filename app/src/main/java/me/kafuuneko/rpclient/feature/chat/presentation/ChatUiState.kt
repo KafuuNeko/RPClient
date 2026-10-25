@@ -31,6 +31,8 @@ sealed class ChatUiState {
         val lorebookState: ChatLorebookState,
         /** 当前会话是否启用流式生成。 */
         val streamEnabled: Boolean,
+        /** 全局允许示例对话时才展示会话开关。 */
+        val showCharacterExamplesSwitch: Boolean = true,
         /** 当前会话是否存在可供查看的 Prompt 明细。 */
         val hasPromptInspection: Boolean = false,
         /** 当前是否存在可用于生成的模型配置。 */
