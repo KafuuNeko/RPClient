@@ -22,14 +22,33 @@ sealed interface AppearanceUiState {
 data class BackgroundEditorState(
     val settings: PageBackground,
     val image: ImageBitmap? = null,
-    val working: Boolean = false,
-    val rendering: Boolean = false,
+    val loadState: BackgroundEditorLoadState = BackgroundEditorLoadState.None,
     @param:StringRes val error: Int? = null,
     val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap(),
     val dialogState: BackgroundEditorDialogState = BackgroundEditorDialogState.None,
     /** 已解析继承的预览配置，只用于显示，保存时仍提交 settings。 */
     val effectiveSettings: PageBackground = settings
 )
+
+/** 背景编辑器的互斥任务阶段，预览渲染期间仍允许继续调整参数。 */
+sealed class BackgroundEditorLoadState {
+    data object None : BackgroundEditorLoadState()
+
+    data object Loading : BackgroundEditorLoadState()
+
+    data object ImportingImage : BackgroundEditorLoadState()
+
+    data object Rendering : BackgroundEditorLoadState()
+
+    data object Saving : BackgroundEditorLoadState()
+
+    /** 从当前阶段派生是否阻塞编辑，避免与任务阶段分别维护而产生矛盾状态。 */
+    val blocksEditing: Boolean
+        get() = when (this) {
+            None, Rendering -> false
+            Loading, ImportingImage, Saving -> true
+        }
+}
 
 /** 背景编辑器的返回确认状态，由 ViewModel 统一控制。 */
 enum class BackgroundEditorDialogState {

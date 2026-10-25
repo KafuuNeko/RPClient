@@ -53,6 +53,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustment
+import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorLoadState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
@@ -101,7 +102,14 @@ fun AppearanceLayout(state: AppearanceUiState, emit: (AppearanceUiIntent) -> Uni
             else AppearanceChoices(state = state, modifier = Modifier.padding(padding), emit = emit)
         },
     )
-    state.editor?.let { BackgroundEditorDialog(it, emit) }
+    state.editor?.let { editor ->
+        BackgroundEditorDialogSwitch(
+            dialogState = editor.dialogState,
+            loadState = editor.loadState,
+            emit = emit,
+        )
+        BackgroundEditorLoadSwitch(state = editor.loadState, emit = emit)
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -369,13 +377,13 @@ private fun BackgroundAdjustments(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = { emit(AppearanceUiIntent.PickImage) },
-                    enabled = !state.working
+                    enabled = !state.loadState.blocksEditing
                 ) {
                     Text(stringResource(R.string.appearance_choose_image))
                 }
                 TextButton(
                     onClick = { emit(AppearanceUiIntent.ResetBackground) },
-                    enabled = !state.working
+                    enabled = !state.loadState.blocksEditing
                 ) {
                     Text(stringResource(R.string.appearance_reset_background))
                 }
@@ -387,7 +395,7 @@ private fun BackgroundAdjustments(
                     title = R.string.appearance_use_character_background,
                     subtitle = R.string.appearance_character_background_hint,
                     checked = state.settings.useCharacterBackground,
-                    enabled = !state.working,
+                    enabled = !state.loadState.blocksEditing,
                     onCheckedChange = { enabled ->
                         emit(
                             AppearanceUiIntent.SetUseCharacterBackground(
@@ -404,7 +412,7 @@ private fun BackgroundAdjustments(
                     title = R.string.appearance_follow_general,
                     subtitle = R.string.appearance_follow_general_hint,
                     checked = state.settings.followGeneral,
-                    enabled = !state.working,
+                    enabled = !state.loadState.blocksEditing,
                     onCheckedChange = { enabled -> emit(AppearanceUiIntent.SetFollowGeneral(enabled)) },
                 )
             }
@@ -578,12 +586,12 @@ private fun BackgroundAdjustments(
             ) {
                 Button(
                     onClick = { emit(AppearanceUiIntent.ApplyBackground) },
-                    enabled = !state.working
+                    enabled = !state.loadState.blocksEditing
                 ) {
                     Text(stringResource(R.string.save))
                 }
                 TextButton(onClick = { emit(AppearanceUiIntent.Back) }) { Text(stringResource(R.string.cancel)) }
-                if (state.working || state.rendering) CircularProgressIndicator(
+                if (state.loadState !is BackgroundEditorLoadState.None) CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
                 )
@@ -739,7 +747,7 @@ private fun AdjustmentSlider(
             },
             onValueChangeFinished = { emit(AppearanceUiIntent.FinishAdjustment) },
             valueRange = range,
-            enabled = !state.working && enabled,
+            enabled = !state.loadState.blocksEditing && enabled,
         )
     }
 }

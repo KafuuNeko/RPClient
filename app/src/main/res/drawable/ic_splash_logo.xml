@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 图案缩进系统开屏的圆形安全区，圆角外保持透明，避免白底与边缘裁切。 -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.6666667"
+        android:scaleY="0.6666667">
+        <path
+            android:fillColor="#B6BBFF"
+            android:pathData="M31.5,13.5 H76.5 A18,18 0,0 1,94.5 31.5 V76.5 A18,18 0,0 1,76.5 94.5 H31.5 A18,18 0,0 1,13.5 76.5 V31.5 A18,18 0,0 1,31.5 13.5 Z" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M32.4,47.5 C32.4,42 43,37.6 54,37.6 C65,37.6 75.6,42 75.6,47.5 V64.6 C75.6,68.6 73.4,70.7 69.5,70.7 V79.3 L61,70.7 H38.4 C34.4,70.7 32.4,68.6 32.4,64.6 Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.4" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M32.4,47.5 C32.4,40.5 33.9,33.7 36.2,28.7 L45.6,38.2 M62.4,38.2 L71.8,28.7 C74.1,33.7 75.6,40.5 75.6,47.5"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.4" />
+    </group>
+</vector>

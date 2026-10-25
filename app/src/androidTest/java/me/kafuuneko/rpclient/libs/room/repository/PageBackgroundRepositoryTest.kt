@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -14,8 +15,10 @@ import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.character.CharacterCardMapper
+import me.kafuuneko.rpclient.libs.media.ImageCropCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.model.ImageCropSelection
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -203,6 +206,60 @@ class PageBackgroundRepositoryTest {
                     preview = true,
                 ).isEmpty(),
             )
+        } finally {
+            files.releasePrepared(prepared)
+        }
+    }
+
+    /** 裁剪预览可读取选中的源图，最终背景按同一矩形选区旋转后暂存。 */
+    @Test
+    fun cropPreviewAndBackgroundImportUseTheSameOrientedSelection() = runBlocking {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = object : ContextWrapper(base) {
+            override fun getCacheDir(): File = File(directory, "crop-cache").apply { mkdirs() }
+        }
+        val runtime = BackgroundImageRuntime(context, files)
+        val source = Bitmap.createBitmap(80, 40, Bitmap.Config.ARGB_8888)
+        val sourceFile = File(directory, "crop-source.png")
+        // 左右两种颜色可同时校验旋转方向和矩形宽高，避免只验证文件是否存在。
+        for (y in 0 until source.height) {
+            for (x in 0 until source.width) source.setPixel(
+                x,
+                y,
+                if (x < 40) Color.RED else Color.BLUE
+            )
+        }
+        sourceFile.outputStream().use { source.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        source.recycle()
+        val uri = Uri.fromFile(sourceFile)
+        val preview = requireNotNull(ImageCropCodec(context).loadBitmapForCrop(uri))
+        try {
+            assertEquals(80, preview.width)
+            assertEquals(40, preview.height)
+            assertEquals(Color.RED, preview.getPixel(10, 10))
+        } finally {
+            preview.recycle()
+        }
+        val prepared = runtime.prepare(
+            owner = "crop-test",
+            uri = uri,
+            selection = ImageCropSelection(0.5f, 0.5f, 0.5f, 1f, rotationDegrees = 90),
+        )
+        try {
+            val output = requireNotNull(
+                runtime.render(
+                    settings = PageBackground(
+                        BackgroundPage.General,
+                        fileUuid = prepared.file.uuid,
+                        blur = 0
+                    ),
+                    prepared = prepared,
+                )
+            )
+            assertEquals(20, output.width)
+            assertEquals(80, output.height)
+            assertEquals(Color.RED, output.getPixel(10, 10))
+            assertEquals(Color.BLUE, output.getPixel(10, 60))
         } finally {
             files.releasePrepared(prepared)
         }

@@ -1359,4 +1359,13 @@
     <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
     <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
     <string name="chat_include_character_examples">Inclure les exemples de dialogue des personnages</string>
+    <string name="image_crop_background_title">Recadrer le fond</string>
+    <string name="image_crop_background_helper">Pincez pour zoomer et faites glisser pour ajuster la zone du fond</string>
+    <string name="image_crop_ratio_screen">Écran</string>
+    <string name="image_crop_ratio_original">Original</string>
+    <string name="appearance_background_working">Traitement des paramètres du fond…</string>
+    <string name="character_background_enable_title">Utiliser les fonds des personnages ?</string>
+    <string name="character_background_enable_message">Le réglage « Utiliser le fond de la carte de personnage » est désactivé dans les paramètres du chat. L’activer maintenant ? Cela s’applique à toutes les conversations avec un fond de personnage.</string>
+    <string name="character_background_enable_confirm">Activer</string>
+    <string name="character_background_enable_later">Pas maintenant</string>
 </resources>

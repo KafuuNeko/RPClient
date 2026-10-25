@@ -12,7 +12,8 @@ class ImageCropTransformTest {
 
         assertEquals(0.5f, selection.centerX, EPSILON)
         assertEquals(0.5f, selection.centerY, EPSILON)
-        assertEquals(1f, selection.sizeFractionOfShortEdge, EPSILON)
+        assertEquals(0.5f, selection.widthFraction, EPSILON)
+        assertEquals(1f, selection.heightFraction, EPSILON)
         assertEquals(0, selection.rotationDegrees)
         assertFalse(selection.isFlippedHorizontal)
     }
@@ -36,7 +37,8 @@ class ImageCropTransformTest {
 
         assertEquals(before.centerX, after.centerX, EPSILON)
         assertEquals(before.centerY, after.centerY, EPSILON)
-        assertEquals(0.25f, after.sizeFractionOfShortEdge, EPSILON)
+        assertEquals(0.25f, after.widthFraction, EPSILON)
+        assertEquals(0.25f, after.heightFraction, EPSILON)
     }
 
     @Test
@@ -76,6 +78,83 @@ class ImageCropTransformTest {
 
         val selection = flipped.toSelection()
         assertTrue(selection.isFlippedHorizontal)
+    }
+
+    @Test
+    fun portraitBackgroundInLandscapeImageClampsBothCropEdges() {
+        val selection = ImageCropTransform(sourceAspectRatio = 2f, cropAspectRatio = 0.5f)
+            .update(panX = 10f, panY = -10f, zoomChange = 1f)
+            .toSelection()
+
+        assertEquals(0.25f, selection.widthFraction, EPSILON)
+        assertEquals(1f, selection.heightFraction, EPSILON)
+        assertEquals(selection.widthFraction / 2f, selection.centerX, EPSILON)
+        assertEquals(0.5f, selection.centerY, EPSILON)
+    }
+
+    @Test
+    fun landscapeBackgroundInPortraitImageUsesFullWidth() {
+        val selection = ImageCropTransform(sourceAspectRatio = 0.5f, cropAspectRatio = 2f)
+            .update(panX = -10f, panY = -10f, zoomChange = 1f)
+            .toSelection()
+
+        assertEquals(1f, selection.widthFraction, EPSILON)
+        assertEquals(0.25f, selection.heightFraction, EPSILON)
+        assertEquals(0.5f, selection.centerX, EPSILON)
+        assertEquals(1f - selection.heightFraction / 2f, selection.centerY, EPSILON)
+    }
+
+    @Test
+    fun rectangularSelectionStaysInsideImageAfterZoomPanAndEveryRotation() {
+        // 覆盖横竖图与横竖裁剪框组合，旋转后仍不能露出空白或改变目标比例。
+        for (sourceRatio in listOf(0.4f, 1f, 2.5f)) {
+            for (cropRatio in listOf(9f / 16f, 1f, 16f / 9f)) {
+                var transform =
+                    ImageCropTransform(sourceAspectRatio = sourceRatio, cropAspectRatio = cropRatio)
+                repeat(4) {
+                    transform = transform.update(panX = 10f, panY = -10f, zoomChange = 1.5f)
+                        .rotateRight()
+                    val selection = transform.toSelection()
+                    assertTrue(selection.centerX - selection.widthFraction / 2f >= -EPSILON)
+                    assertTrue(selection.centerX + selection.widthFraction / 2f <= 1f + EPSILON)
+                    assertTrue(selection.centerY - selection.heightFraction / 2f >= -EPSILON)
+                    assertTrue(selection.centerY + selection.heightFraction / 2f <= 1f + EPSILON)
+                    val actualRatio =
+                        transform.effectiveAspectRatio * selection.widthFraction / selection.heightFraction
+                    assertEquals(cropRatio, actualRatio, EPSILON)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun changingAspectRatioResetsCropButPreservesImageOrientation() {
+        val transformed = ImageCropTransform(sourceAspectRatio = 2f)
+            .update(panX = 0.2f, panY = 0.1f, zoomChange = 3f)
+            .rotateRight().flipHorizontal()
+        val originalRatio = transformed.withAspectRatio(transformed.effectiveAspectRatio)
+        val selection = originalRatio.toSelection()
+
+        assertEquals(1f, selection.widthFraction, EPSILON)
+        assertEquals(1f, selection.heightFraction, EPSILON)
+        assertEquals(0.5f, selection.centerX, EPSILON)
+        assertEquals(0.5f, selection.centerY, EPSILON)
+        assertEquals(90, selection.rotationDegrees)
+        assertTrue(selection.isFlippedHorizontal)
+    }
+
+    @Test
+    fun sourceHorizontalFlipAfterQuarterTurnMirrorsTheVerticalCropCenter() {
+        val rotated = ImageCropTransform(sourceAspectRatio = 2f, cropAspectRatio = 0.5f)
+            .rotateRight()
+            .update(panX = 0.1f, panY = -0.2f, zoomChange = 2f)
+        val before = rotated.toSelection()
+        val after = rotated.flipHorizontal().toSelection()
+
+        assertEquals(before.centerX, after.centerX, EPSILON)
+        assertEquals(1f - before.centerY, after.centerY, EPSILON)
+        assertEquals(before.widthFraction, after.widthFraction, EPSILON)
+        assertEquals(before.heightFraction, after.heightFraction, EPSILON)
     }
 
     private companion object {

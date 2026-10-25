@@ -4,10 +4,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -28,7 +32,9 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMod
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditViewEvent
+import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
+import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
@@ -70,6 +76,7 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     private val mBackgroundRuntime by inject<BackgroundImageRuntime>()
     private val mBackgroundOwner = UUID.randomUUID().toString()
     private var mPreparedBackground: PreparedFile? = null
+    private var mBackgroundImportJob: Job? = null
     private val mBackgroundDraft = MutableStateFlow<BackgroundDraft?>(value = null)
 
     init {
@@ -218,19 +225,52 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         if (state.loadState == CharacterEditLoadState.None) CharacterEditViewEvent.OpenBackgroundPicker.tryEmit()
     }
 
-    /** 替换尚未提交的背景草稿，旧关联直到角色保存成功后才回收。 */
+    /** 选择结果只用于打开通用裁剪页，取消裁剪不会改变背景草稿。 */
     @UiIntentObserver(CharacterEditUiIntent.BackgroundSelected::class)
-    private suspend fun onBackgroundSelected(intent: CharacterEditUiIntent.BackgroundSelected) {
+    private fun onBackgroundSelected(intent: CharacterEditUiIntent.BackgroundSelected) {
         val state = getOrNull<CharacterEditUiState.Normal>() ?: return
         if (state.loadState != CharacterEditLoadState.None) return
-        state.copy(loadState = CharacterEditLoadState.Loading).setup()
+        CharacterEditViewEvent.OpenBackgroundCrop(intent.uri).tryEmit()
+    }
+
+    /** 独立任务承载背景导入，使加载弹窗能够取消耗时的文件读取和预览。 */
+    @UiIntentObserver(CharacterEditUiIntent.BackgroundCropped::class)
+    private fun onBackgroundCropped(intent: CharacterEditUiIntent.BackgroundCropped) {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.loadState != CharacterEditLoadState.None) return
+        state.copy(loadState = CharacterEditLoadState.ImportingBackground).setup()
+        mBackgroundImportJob = viewModelScope.launch { importBackground(intent.result) }
+    }
+
+    /** 首轮预览成功后才接管新草稿，旧背景直到角色保存成功后才释放。 */
+    private suspend fun importBackground(result: BackgroundCropResult) {
+        var prepared: PreparedFile? = null
         try {
-            // 导入失败不改动表单及已保存背景，取消由图像管线清理未完成草稿。
-            val prepared = mBackgroundRuntime.prepare(mBackgroundOwner, intent.uri)
+            prepared =
+                mBackgroundRuntime.prepare(mBackgroundOwner, result.sourceUri, result.selection)
+            val settings = mBackgrounds.observe(BackgroundPage.General).first()
+                .copy(fileUuid = prepared.file.uuid)
+            val background = PageBackgroundUiState(
+                settings = settings,
+                image = mBackgroundRuntime.render(settings, prepared)?.asImageBitmap(),
+                surfaceImages = mBackgroundRuntime.renderSurfaces(settings, prepared)
+                    .mapValues { entry -> entry.value.asImageBitmap() },
+            )
+            // 提示记录持久化到全局偏好，更换角色或重启后不再重复询问。
+            val shouldOffer =
+                !AppModel.characterBackgroundPromptShown && !mBackgrounds.observe(BackgroundPage.Chat)
+                    .first().useCharacterBackground
+            if (shouldOffer) AppModel.characterBackgroundPromptShown = true
             val previous = mPreparedBackground
             mPreparedBackground = prepared
-            updateForm { copy(backgroundFileUuid = prepared.file.uuid) }
             mBackgroundDraft.value = BackgroundDraft(prepared.file.uuid, prepared)
+            val latest = getOrNull<CharacterEditUiState.Normal>() ?: return
+            latest.copy(
+                form = latest.form.copy(backgroundFileUuid = prepared.file.uuid),
+                background = background,
+                loadState = CharacterEditLoadState.None,
+                dialogState = if (shouldOffer) CharacterEditDialogState.EnableCharacterBackgroundConfirm else latest.dialogState,
+            ).setup()
             mBackgroundRuntime.discard(previous)
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -239,8 +279,39 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         } catch (_: OutOfMemoryError) {
             AppViewEvent.PopupToastMessageByResId(R.string.appearance_image_error).tryEmit()
         } finally {
-            getOrNull<CharacterEditUiState.Normal>()?.copy(loadState = CharacterEditLoadState.None)
-                ?.setup()
+            // 取消或失败的候选文件不接管旧草稿，也不能残留在暂存区。
+            if (prepared !== mPreparedBackground) mBackgroundRuntime.discard(prepared)
+            val latest = getOrNull<CharacterEditUiState.Normal>()
+            if (currentCoroutineContext().isActive && latest?.loadState == CharacterEditLoadState.ImportingBackground) {
+                latest.copy(loadState = CharacterEditLoadState.None).setup()
+            }
+        }
+    }
+
+    /** 取消本次背景导入，保留已选背景和所有角色字段。 */
+    @UiIntentObserver(CharacterEditUiIntent.CancelBackgroundImport::class)
+    private fun onCancelBackgroundImport() {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.loadState != CharacterEditLoadState.ImportingBackground) return
+        mBackgroundImportJob?.cancel()
+        state.copy(loadState = CharacterEditLoadState.None).setup()
+    }
+
+    /** 用户确认后立即启用角色背景，不依赖当前角色是否保存。 */
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmEnableCharacterBackground::class)
+    private suspend fun onConfirmEnableCharacterBackground() {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.dialogState != CharacterEditDialogState.EnableCharacterBackgroundConfirm) return
+        try {
+            // 复用背景设置的保存入口，仅改变开关，保留已有图片及显示参数。
+            val settings = mBackgrounds.observe(BackgroundPage.Chat).first()
+            mBackgrounds.save(settings.copy(useCharacterBackground = true), prepared = null)
+            getOrNull<CharacterEditUiState.Normal>()
+                ?.copy(dialogState = CharacterEditDialogState.None)?.setup()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.appearance_background_error).tryEmit()
         }
     }
 

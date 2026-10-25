@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.characteredit
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -38,10 +39,19 @@ class CharacterEditActivity : CoreActivityWithEvent() {
         }
     }
 
-    /** 背景保留原始比例，由背景管线校验及暂存，不经过头像裁剪。 */
+    /** 背景与头像共用裁剪页，背景结果仅携带源 URI 与矩形选区。 */
     private val mBackgroundPicker =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let { uri -> mViewModel.emit(CharacterEditUiIntent.BackgroundSelected(uri)) }
+        }
+
+    private val mBackgroundCropLauncher =
+        registerForActivityResult(StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                ImageCropActivity.getBackgroundResult(result.data)?.let { crop ->
+                    mViewModel.emit(CharacterEditUiIntent.BackgroundCropped(crop))
+                }
+            }
         }
 
     /** 编辑页以角色背景草稿为画布，通用参数由 ViewModel 统一合成。 */
@@ -77,6 +87,10 @@ class CharacterEditActivity : CoreActivityWithEvent() {
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
+            is CharacterEditViewEvent.OpenBackgroundCrop -> mBackgroundCropLauncher.launch(
+                ImageCropActivity.createBackgroundIntent(this, viewEvent.uri)
+            )
+
             CharacterEditViewEvent.OpenBackgroundPicker -> mBackgroundPicker.launch("image/*")
             CharacterEditViewEvent.OpenAvatarPicker -> mAvatarPickerLauncher.launch("image/*")
             is CharacterEditViewEvent.CopyText -> {

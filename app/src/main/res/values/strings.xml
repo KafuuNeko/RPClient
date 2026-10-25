@@ -1363,4 +1363,13 @@
     <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
     <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
     <string name="chat_include_character_examples">Include character dialogue examples</string>
+    <string name="image_crop_background_title">Crop Background</string>
+    <string name="image_crop_background_helper">Pinch to zoom and drag to adjust the background area</string>
+    <string name="image_crop_ratio_screen">Screen</string>
+    <string name="image_crop_ratio_original">Original</string>
+    <string name="appearance_background_working">Processing background settings…</string>
+    <string name="character_background_enable_title">Use character backgrounds?</string>
+    <string name="character_background_enable_message">The chat setting “Use character card background” is off. Enable it now? This applies to all chats with character backgrounds.</string>
+    <string name="character_background_enable_confirm">Enable</string>
+    <string name="character_background_enable_later">Not now</string>
 </resources>

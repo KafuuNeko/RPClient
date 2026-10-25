@@ -80,6 +80,8 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiI
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
@@ -134,7 +136,7 @@ fun CharacterEditLayout(
 
         is CharacterEditUiState.Normal -> {
             PageBackdrop(uiState.background) { CharacterEditNormal(uiState, emit) }
-            DialogSwitch(uiState.dialogState, emit)
+            DialogSwitch(uiState.dialogState, uiState.loadState, emit)
         }
     }
 }
@@ -848,10 +850,30 @@ private fun TopBarSaveButton(
 @Composable
 private fun DialogSwitch(
     dialogState: CharacterEditDialogState,
+    loadState: CharacterEditLoadState,
     emit: CharacterEditUiIntent.() -> Unit,
 ) {
+    // 首轮预览也属于图片处理，弹窗覆盖页面且保留其原有滚动与表单内容。
+    if (loadState == CharacterEditLoadState.ImportingBackground) {
+        LoadingDialog(
+            title = stringResource(R.string.loading),
+            description = stringResource(R.string.image_loading),
+            onCancel = { CharacterEditUiIntent.CancelBackgroundImport.emit() },
+            cancelOnBackPress = true,
+        )
+        return
+    }
     when (dialogState) {
         CharacterEditDialogState.None -> Unit
+        CharacterEditDialogState.EnableCharacterBackgroundConfirm -> AppConfirmDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.character_background_enable_title),
+            message = stringResource(R.string.character_background_enable_message),
+            confirmText = stringResource(R.string.character_background_enable_confirm),
+            dismissText = stringResource(R.string.character_background_enable_later),
+            onConfirm = { CharacterEditUiIntent.ConfirmEnableCharacterBackground.emit() },
+        )
+
         is CharacterEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_character_title),

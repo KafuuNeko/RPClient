@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.RPClient" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 开屏独立使用透明矢量图，避免继承启动器位图中固有的白色方底。 -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1358,4 +1358,13 @@
     <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
     <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
     <string name="chat_include_character_examples">Dialogbeispiele der Charaktere einbeziehen</string>
+    <string name="image_crop_background_title">Hintergrund zuschneiden</string>
+    <string name="image_crop_background_helper">Mit zwei Fingern zoomen und ziehen, um den Hintergrundbereich anzupassen</string>
+    <string name="image_crop_ratio_screen">Bildschirm</string>
+    <string name="image_crop_ratio_original">Original</string>
+    <string name="appearance_background_working">Hintergrundeinstellungen werden verarbeitet…</string>
+    <string name="character_background_enable_title">Charakterhintergründe verwenden?</string>
+    <string name="character_background_enable_message">Die Chat-Einstellung „Hintergrund der Charakterkarte verwenden“ ist deaktiviert. Jetzt aktivieren? Dies gilt für alle Chats mit Charakterhintergründen.</string>
+    <string name="character_background_enable_confirm">Aktivieren</string>
+    <string name="character_background_enable_later">Nicht jetzt</string>
 </resources>

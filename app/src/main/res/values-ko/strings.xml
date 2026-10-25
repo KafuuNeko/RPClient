@@ -1353,4 +1353,13 @@
     <string name="json_preview_too_large">내용이 너무 커서 표시할 수 없습니다. 요청 로그에서 내보내서 확인하세요.</string>
     <string name="json_source_invalid">이 로그는 서식을 지정할 수 없습니다. 저장된 원문을 표시합니다.</string>
     <string name="chat_include_character_examples">캐릭터 카드의 대화 예시 포함</string>
+    <string name="image_crop_background_title">배경 자르기</string>
+    <string name="image_crop_background_helper">두 손가락으로 확대하거나 축소하고 드래그하여 배경 영역을 조정하세요</string>
+    <string name="image_crop_ratio_screen">화면 비율</string>
+    <string name="image_crop_ratio_original">원본 비율</string>
+    <string name="appearance_background_working">배경 설정 처리 중…</string>
+    <string name="character_background_enable_title">캐릭터 배경을 사용할까요?</string>
+    <string name="character_background_enable_message">채팅 배경의 “캐릭터 카드 배경 사용”이 꺼져 있습니다. 지금 켤까요? 캐릭터 배경이 설정된 모든 채팅에 적용됩니다.</string>
+    <string name="character_background_enable_confirm">지금 켜기</string>
+    <string name="character_background_enable_later">나중에</string>
 </resources>

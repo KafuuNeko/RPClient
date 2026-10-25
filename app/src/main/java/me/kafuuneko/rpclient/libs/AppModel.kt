@@ -32,6 +32,9 @@ object AppModel : KotprefModel(), PromptPreferences {
     /** 编辑消息时只展示正文，保存时保留原消息的思考链。 */
     var separateThinkWhenEditing by booleanPref(default = true)
 
+    /** 是否已提示启用角色卡背景；跨角色和应用重启只提示一次。 */
+    var characterBackgroundPromptShown by booleanPref(default = false)
+
     // 最后一个成功清理旧存储的业务升级步骤 versionCode。
     var lastCleanedUpgradeVersionCode by intPref(default = 0, commitByDefault = true)
 

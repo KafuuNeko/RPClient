@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.appearance
 
+import android.app.Activity
 import android.content.Intent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,6 +14,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
 import me.kafuuneko.rpclient.feature.dialogappearance.DialogAppearanceActivity
+import me.kafuuneko.rpclient.feature.imagecrop.ImageCropActivity
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -25,6 +27,14 @@ class AppearanceActivity : CoreActivityWithEvent() {
     private val mPicker =
         registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             uri?.let { uri -> mViewModel.emit(AppearanceUiIntent.ImageSelected(uri)) }
+        }
+    private val mCropLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                ImageCropActivity.getBackgroundResult(result.data)?.let { crop ->
+                    mViewModel.emit(AppearanceUiIntent.ImageCropped(crop))
+                }
+            }
         }
 
     /** 提供外观页面的一次性宿主事件。 */
@@ -41,6 +51,10 @@ class AppearanceActivity : CoreActivityWithEvent() {
     /** 使用系统 Photo Picker，旧系统由 Activity 库自动回退文档选择器。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            is AppearanceViewEvent.OpenImageCrop -> mCropLauncher.launch(
+                ImageCropActivity.createBackgroundIntent(this, viewEvent.uri)
+            )
+
             AppearanceViewEvent.OpenDialogAppearance -> startActivity(
                 Intent(
                     this,

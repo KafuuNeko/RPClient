@@ -1354,4 +1354,13 @@
     <string name="json_preview_too_large">内容が大きすぎるため表示できません。リクエストログからエクスポートして確認してください。</string>
     <string name="json_source_invalid">このログは整形できません。保存された原文を表示しています。</string>
     <string name="chat_include_character_examples">キャラクターカードの会話例を含める</string>
+    <string name="image_crop_background_title">背景を切り抜く</string>
+    <string name="image_crop_background_helper">ピンチで拡大・縮小し、ドラッグして背景の範囲を調整</string>
+    <string name="image_crop_ratio_screen">画面比率</string>
+    <string name="image_crop_ratio_original">元の比率</string>
+    <string name="appearance_background_working">背景設定を処理しています…</string>
+    <string name="character_background_enable_title">キャラクターの背景を使用しますか？</string>
+    <string name="character_background_enable_message">チャット背景の「キャラクターカードの背景を使用」がオフになっています。今すぐ有効にしますか？背景が設定されたすべてのキャラクターとのチャットに適用されます。</string>
+    <string name="character_background_enable_confirm">今すぐ有効化</string>
+    <string name="character_background_enable_later">今はしない</string>
 </resources>

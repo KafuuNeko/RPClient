@@ -1337,4 +1337,13 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="json_preview_too_large">Il contenuto è troppo grande da visualizzare. Esportalo dal registro delle richieste.</string>
     <string name="json_source_invalid">Questo registro non può essere formattato. Viene mostrato il testo salvato.</string>
     <string name="chat_include_character_examples">Includi esempi di dialogo dei personaggi</string>
+    <string name="image_crop_background_title">Ritaglia sfondo</string>
+    <string name="image_crop_background_helper">Pizzica per ingrandire e trascina per regolare l’area dello sfondo</string>
+    <string name="image_crop_ratio_screen">Schermo</string>
+    <string name="image_crop_ratio_original">Originale</string>
+    <string name="appearance_background_working">Elaborazione delle impostazioni dello sfondo…</string>
+    <string name="character_background_enable_title">Usare gli sfondi dei personaggi?</string>
+    <string name="character_background_enable_message">L’opzione “Usa sfondo della scheda personaggio” è disattivata nelle impostazioni della chat. Attivarla ora? Si applica a tutte le chat con sfondi dei personaggi.</string>
+    <string name="character_background_enable_confirm">Attiva</string>
+    <string name="character_background_enable_later">Non ora</string>
 </resources>

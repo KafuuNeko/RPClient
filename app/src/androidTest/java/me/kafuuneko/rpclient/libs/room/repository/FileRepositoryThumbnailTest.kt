@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
@@ -101,12 +102,15 @@ class FileRepositoryThumbnailTest {
     }
 
     private suspend fun saveBitmap(width: Int, height: Int): String {
-        val file = File.createTempFile("avatar", ".png", cacheDir)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        file.outputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        try {
+            val bytes = ByteArrayOutputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                output.toByteArray()
+            }
+            return repository.saveFile(bytes, "image/png")
+        } finally {
+            bitmap.recycle()
         }
-        bitmap.recycle()
-        return repository.saveFile(file, "image/png").also { file.delete() }
     }
 }

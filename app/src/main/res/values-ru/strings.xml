@@ -1363,4 +1363,13 @@
     <string name="json_preview_too_large">Содержимое слишком велико для отображения. Экспортируйте его из журнала запросов.</string>
     <string name="json_source_invalid">Этот журнал невозможно отформатировать. Показан сохранённый текст.</string>
     <string name="chat_include_character_examples">Включать примеры диалогов персонажей</string>
+    <string name="image_crop_background_title">Обрезать фон</string>
+    <string name="image_crop_background_helper">Масштабируйте двумя пальцами и перетаскивайте, чтобы выбрать область фона</string>
+    <string name="image_crop_ratio_screen">Экран</string>
+    <string name="image_crop_ratio_original">Оригинал</string>
+    <string name="appearance_background_working">Обработка настроек фона…</string>
+    <string name="character_background_enable_title">Использовать фоны персонажей?</string>
+    <string name="character_background_enable_message">Настройка чата «Использовать фон карточки персонажа» выключена. Включить сейчас? Она применяется ко всем чатам с фонами персонажей.</string>
+    <string name="character_background_enable_confirm">Включить</string>
+    <string name="character_background_enable_later">Не сейчас</string>
 </resources>

@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.feature.imagecrop.model
 
-import me.kafuuneko.rpclient.model.SquareCropSelection
+import me.kafuuneko.rpclient.model.ImageCropSelection
 
 /**
- * 正方形裁剪框中的缩放、平移、旋转与翻转状态，偏移量以裁剪框边长为单位。
+ * 矩形裁剪框中的缩放、平移、旋转与翻转状态，偏移量分别以框的宽高为单位。
  *
  * 由已解码位图的宽高比创建；缩放和平移边界由 [update] 与 [rotateRight] 维持。
  */
@@ -19,8 +19,15 @@ data class ImageCropTransform(
     /** 图像当前顺时针旋转的角度。 */
     val rotationDegrees: Int = 0,
     /** 图像是否相对原始方向水平翻转。 */
-    val isFlippedHorizontal: Boolean = false
+    val isFlippedHorizontal: Boolean = false,
+    /** 裁剪框宽高比，头像固定为正方形。 */
+    val cropAspectRatio: Float = 1f,
 ) {
+    init {
+        require(sourceAspectRatio.isFinite() && sourceAspectRatio > 0f) { "Invalid image aspect ratio" }
+        require(cropAspectRatio.isFinite() && cropAspectRatio > 0f) { "Invalid crop aspect ratio" }
+    }
+
     /** 是否处于 90 度或 270 度垂直旋转状态。 */
     val isRotated90: Boolean
         get() = rotationDegrees % 180 != 0
@@ -28,6 +35,14 @@ data class ImageCropTransform(
     /** 考虑旋转后的有效宽高比。 */
     val effectiveAspectRatio: Float
         get() = if (isRotated90) 1f / sourceAspectRatio else sourceAspectRatio
+
+    /** 填满裁剪框时的图片宽度，以裁剪框宽度为单位。 */
+    val baseWidth: Float
+        get() = maxOf(effectiveAspectRatio / cropAspectRatio, 1f)
+
+    /** 填满裁剪框时的图片高度，以裁剪框高度为单位。 */
+    val baseHeight: Float
+        get() = maxOf(cropAspectRatio / effectiveAspectRatio, 1f)
 
     /** 是否处于未进行任何平移、缩放、旋转或翻转的初始默认状态。 */
     val isDefault: Boolean
@@ -45,10 +60,10 @@ data class ImageCropTransform(
      * @param zoomChange 缩放比例乘数。
      */
     fun update(panX: Float, panY: Float, zoomChange: Float): ImageCropTransform {
+        // 缩放与位移必须同时限制，保证目标比例下裁剪框始终被图片完全覆盖。
+        if (!panX.isFinite() || !panY.isFinite() || !zoomChange.isFinite() || zoomChange <= 0f) return this
         val newZoom = (zoom * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
         val appliedZoomChange = newZoom / zoom
-        val baseWidth = maxOf(a = effectiveAspectRatio, b = 1f)
-        val baseHeight = maxOf(a = 1f / effectiveAspectRatio, b = 1f)
         val maxOffsetX = (baseWidth * newZoom - 1f) / 2f
         val maxOffsetY = (baseHeight * newZoom - 1f) / 2f
         return copy(
@@ -60,25 +75,24 @@ data class ImageCropTransform(
 
     /** 顺时针旋转 90 度并重新限制平移边界。 */
     fun rotateRight(): ImageCropTransform {
-        val nextRotation = (rotationDegrees + 90) % 360
-        val isNextRotated90 = nextRotation % 180 != 0
-        val nextEffectiveAspect = if (isNextRotated90) 1f / sourceAspectRatio else sourceAspectRatio
-        val nextBaseW = maxOf(a = nextEffectiveAspect, b = 1f)
-        val nextBaseH = maxOf(a = 1f / nextEffectiveAspect, b = 1f)
-        val maxOffsetX = (nextBaseW * zoom - 1f) / 2f
-        val maxOffsetY = (nextBaseH * zoom - 1f) / 2f
-        return copy(
-            rotationDegrees = nextRotation,
-            offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX),
-            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY),
-        )
+        return copy(rotationDegrees = (rotationDegrees + 90) % 360)
+            .update(panX = 0f, panY = 0f, zoomChange = 1f)
     }
 
-    /** 水平镜像翻转并反转 X 轴偏移量。 */
+    /** 更换构图比例时保留旋转与镜像，并恢复填满裁剪框的初始选区。 */
+    fun withAspectRatio(aspectRatio: Float): ImageCropTransform = copy(
+        cropAspectRatio = aspectRatio,
+        zoom = MIN_ZOOM,
+        offsetX = 0f,
+        offsetY = 0f,
+    )
+
+    /** 沿原图水平方向镜像，旋转后同步反转对应的选区偏移。 */
     fun flipHorizontal(): ImageCropTransform {
         return copy(
             isFlippedHorizontal = !isFlippedHorizontal,
-            offsetX = -offsetX,
+            offsetX = if (isRotated90) offsetX else -offsetX,
+            offsetY = if (isRotated90) -offsetY else offsetY,
         )
     }
 
@@ -91,16 +105,15 @@ data class ImageCropTransform(
         isFlippedHorizontal = false,
     )
 
-    /** 将当前变换状态转换为与分辨率无关的 [SquareCropSelection] 归一化选区。 */
-    fun toSelection(): SquareCropSelection {
-        val baseWidth = maxOf(a = effectiveAspectRatio, b = 1f)
-        val baseHeight = maxOf(a = 1f / effectiveAspectRatio, b = 1f)
+    /** 将当前变换转换为预览和最终图片共用的归一化矩形选区。 */
+    fun toSelection(): ImageCropSelection {
         val displayedWidth = baseWidth * zoom
         val displayedHeight = baseHeight * zoom
-        return SquareCropSelection(
+        return ImageCropSelection(
             centerX = 0.5f - offsetX / displayedWidth,
             centerY = 0.5f - offsetY / displayedHeight,
-            sizeFractionOfShortEdge = 1f / zoom,
+            widthFraction = (1f / displayedWidth).coerceAtMost(1f),
+            heightFraction = (1f / displayedHeight).coerceAtMost(1f),
             rotationDegrees = rotationDegrees,
             isFlippedHorizontal = isFlippedHorizontal,
         )

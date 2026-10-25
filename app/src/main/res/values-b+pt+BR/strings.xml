@@ -1362,4 +1362,13 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="json_preview_too_large">O conteúdo é grande demais para exibir. Exporte pelo registro de solicitações para ler.</string>
     <string name="json_source_invalid">Este registro não pode ser formatado. Exibindo o texto salvo.</string>
     <string name="chat_include_character_examples">Incluir exemplos de diálogo dos personagens</string>
+    <string name="image_crop_background_title">Recortar fundo</string>
+    <string name="image_crop_background_helper">Use dois dedos para ampliar e arraste para ajustar a área do fundo</string>
+    <string name="image_crop_ratio_screen">Tela</string>
+    <string name="image_crop_ratio_original">Original</string>
+    <string name="appearance_background_working">Processando configurações do fundo…</string>
+    <string name="character_background_enable_title">Usar fundos de personagens?</string>
+    <string name="character_background_enable_message">A opção “Usar fundo do cartão de personagem” está desativada nas configurações de conversa. Ativar agora? Isso se aplica a todas as conversas com fundos de personagens.</string>
+    <string name="character_background_enable_confirm">Ativar</string>
+    <string name="character_background_enable_later">Agora não</string>
 </resources>

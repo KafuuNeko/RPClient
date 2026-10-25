@@ -3,11 +3,9 @@ package me.kafuuneko.rpclient.libs.room.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.net.Uri
 import android.os.CancellationSignal
 import androidx.core.graphics.scale
-import androidx.exifinterface.media.ExifInterface
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -23,9 +21,7 @@ import me.kafuuneko.rpclient.libs.room.entity.FileEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.utils.withBlockingIoCancellation
-import me.kafuuneko.rpclient.model.SquareCropSelection
 import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -87,6 +83,17 @@ class FileRepository(
             FileInputStream(file).use { inputStream ->
                 saveStream(inputStream, mimeType)
             }
+        }
+
+    /**
+     * 保存调用方已生成的文件字节，并建立独立的文件索引。
+     * @param bytes 已完成编码的文件内容。
+     * @param mimeType 文件的 MIME 类型。
+     * @return 保存成功后的文件 UUID；相同内容复用已有物理文件。
+     */
+    suspend fun saveFile(bytes: ByteArray, mimeType: String? = null): String =
+        withContext(Dispatchers.IO) {
+            ByteArrayInputStream(bytes).use { input -> saveStream(input, mimeType) }
         }
 
     /**
@@ -574,106 +581,6 @@ class FileRepository(
     )
 
     /**
-     * 解码供交互裁剪使用的图片，并在进入 UI 前应用 EXIF 方向。
-     *
-     * 解码长边受到限制，避免超大相册图片在裁剪页造成不必要的内存压力。
-     */
-    suspend fun loadBitmapForCrop(
-        uri: Uri,
-        maxDimensionPx: Int = MAX_CROP_SOURCE_DIMENSION,
-    ): Bitmap? = withContext(Dispatchers.IO) {
-        if (maxDimensionPx !in 1..MAX_THUMBNAIL_DIMENSION) return@withContext null
-        // 预先读取原始图片宽高边界
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        val boundsInput = mContext.contentResolver.openInputStream(uri) ?: return@withContext null
-        boundsInput.use { input ->
-            BitmapFactory.decodeStream(input, null, bounds)
-        }
-        val sourceWidth = bounds.outWidth.takeIf { value -> value > 0 } ?: return@withContext null
-        val sourceHeight = bounds.outHeight.takeIf { value -> value > 0 } ?: return@withContext null
-        // 计算长边下采样采样率
-        val sampleSize = calculateLongEdgeSampleSize(sourceWidth, sourceHeight, maxDimensionPx)
-        // 采样解码为 ARGB_8888 格式
-        val decoded = mContext.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(
-                input,
-                null,
-                BitmapFactory.Options().apply {
-                    inSampleSize = sampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                },
-            )
-        } ?: return@withContext null
-        // 读取并应用 EXIF 旋转与翻转
-        applyExifOrientation(decoded, readExifOrientation(uri))
-    }
-
-    /**
-     * 将选区生成固定尺寸的正方形头像并保存到文件仓库。
-     *
-     * 支持旋转与水平镜像变换；透明图片使用 PNG，普通照片使用高质量 JPEG。
-     */
-    suspend fun saveSquareCrop(
-        bitmap: Bitmap,
-        selection: SquareCropSelection,
-        outputSizePx: Int = AVATAR_OUTPUT_DIMENSION,
-    ): String = withContext(Dispatchers.IO) {
-        require(outputSizePx in 1..MAX_THUMBNAIL_DIMENSION)
-        // 构建旋转与镜像矩阵
-        val matrix = Matrix().apply {
-            if (selection.isFlippedHorizontal) postScale(-1f, 1f)
-            if (selection.rotationDegrees != 0) postRotate(selection.rotationDegrees.toFloat())
-        }
-        val transformed = if (matrix.isIdentity) {
-            bitmap
-        } else {
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        }
-        // 计算裁剪框尺寸与像素坐标
-        val shortEdge = minOf(transformed.width, transformed.height)
-        val cropSize = (shortEdge * selection.sizeFractionOfShortEdge)
-            .toInt()
-            .coerceIn(minimumValue = 1, maximumValue = shortEdge)
-        val centerX =
-            selection.centerX.coerceIn(minimumValue = 0f, maximumValue = 1f) * transformed.width
-        val centerY =
-            selection.centerY.coerceIn(minimumValue = 0f, maximumValue = 1f) * transformed.height
-        val cropLeft = (centerX - cropSize / 2f)
-            .toInt()
-            .coerceIn(minimumValue = 0, maximumValue = transformed.width - cropSize)
-        val cropTop = (centerY - cropSize / 2f)
-            .toInt()
-            .coerceIn(minimumValue = 0, maximumValue = transformed.height - cropSize)
-        // 截取正方形区域
-        val cropped = Bitmap.createBitmap(transformed, cropLeft, cropTop, cropSize, cropSize)
-        // 等比缩放至目标输出分辨率
-        val output = if (cropped.width == outputSizePx) {
-            cropped
-        } else {
-            cropped.scale(width = outputSizePx, height = outputSizePx, filter = true)
-        }
-        // 根据透明度选择 PNG 或高质量 JPEG 压缩
-        val hasAlpha = transformed.hasAlpha()
-        val format = if (hasAlpha) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-        val mimeType = if (hasAlpha) "image/png" else "image/jpeg"
-        try {
-            ByteArrayOutputStream().use { bytes ->
-                check(output.compress(format, AVATAR_JPEG_QUALITY, bytes))
-                ByteArrayInputStream(bytes.toByteArray()).use { byteArrayInputStream ->
-                    saveStream(
-                        inputStream = byteArrayInputStream,
-                        mimeType = mimeType,
-                    )
-                }
-            }
-        } finally {
-            if (output !== cropped) output.recycle()
-            if (cropped !== transformed && cropped !== bitmap) cropped.recycle()
-            if (transformed !== bitmap) transformed.recycle()
-        }
-    }
-
-    /**
      * 按目标边界采样并缩放私有存储图片，避免列表缩略图先解码完整原图。
      *
      * 目标尺寸必须为正数且不超过 4096；损坏文件或无效图片边界返回 null。
@@ -762,47 +669,6 @@ class FileRepository(
         return sampleSize.toInt()
     }
 
-    private fun calculateLongEdgeSampleSize(width: Int, height: Int, maxDimension: Int): Int {
-        var sampleSize = 1
-        val longEdge = maxOf(width, height)
-        while (longEdge / (sampleSize * 2) >= maxDimension) sampleSize *= 2
-        return sampleSize
-    }
-
-    private fun readExifOrientation(uri: Uri): Int = runCatching {
-        mContext.contentResolver.openInputStream(uri)?.use { input ->
-            ExifInterface(input).getAttributeInt(
-                ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_NORMAL,
-            )
-        }
-    }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL
-
-    private fun applyExifOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
-        val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
-            ExifInterface.ORIENTATION_TRANSPOSE -> {
-                matrix.setRotate(90f)
-                matrix.postScale(-1f, 1f)
-            }
-
-            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
-            ExifInterface.ORIENTATION_TRANSVERSE -> {
-                matrix.setRotate(-90f)
-                matrix.postScale(-1f, 1f)
-            }
-
-            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
-            else -> return bitmap
-        }
-        val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        if (oriented !== bitmap) bitmap.recycle()
-        return oriented
-    }
-
     /** 同目录的多个仓库实例共用保护状态，所有访问由文件锁串行化。 */
     private class StorageState {
         val activeDrafts = mutableSetOf<String>()
@@ -814,9 +680,6 @@ class FileRepository(
         val mStorageMutex = Mutex()
         const val STAGING_RETENTION_MILLIS = 24L * 60 * 60 * 1000
         const val MAX_THUMBNAIL_DIMENSION = 4_096
-        const val MAX_CROP_SOURCE_DIMENSION = 2_048
         const val AVATAR_DECODE_DIMENSION = 512
-        const val AVATAR_OUTPUT_DIMENSION = 1_024
-        const val AVATAR_JPEG_QUALITY = 92
     }
 }

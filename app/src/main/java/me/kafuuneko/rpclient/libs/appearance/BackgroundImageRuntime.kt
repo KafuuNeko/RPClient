@@ -19,6 +19,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.utils.cropBitmap
+import me.kafuuneko.rpclient.model.ImageCropSelection
 import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -42,7 +44,7 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     private val mDirectory by lazy { File(mContext.cacheDir, "backgrounds").apply { mkdirs() } }
 
     /** 有界导入并重编码，去掉无关元数据；取消或失败释放本次所有草稿。 */
-    suspend fun prepare(owner: String, uri: Uri): PreparedFile {
+    suspend fun prepare(owner: String, uri: Uri, selection: ImageCropSelection): PreparedFile {
         var result: PreparedFile? = null
         val source = mFiles.prepareFile(owner, uri)
         try {
@@ -51,7 +53,7 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
                 result = mFiles.prepareGenerated(owner) { target ->
                     mMutex.withLock {
                         mFiles.withPreparedFile(source) { file ->
-                            normalizeSource(file, source.byteCount, target)
+                            normalizeSource(file, source.byteCount, target, selection)
                         }
                     }
                     "image/png"
@@ -68,7 +70,12 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
     }
 
     /** 在像素分配前校验格式与资源上限，再生成不带 EXIF 的标准源图。 */
-    private fun normalizeSource(file: File, byteCount: Long, target: File) {
+    private fun normalizeSource(
+        file: File,
+        byteCount: Long,
+        target: File,
+        selection: ImageCropSelection,
+    ) {
         require(byteCount <= 32L * 1024 * 1024) { "Background is too large" }
         val info = bounds(file)
         require(
@@ -82,13 +89,18 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
             value = info.outWidth > 0 && info.outHeight > 0
                 && info.outWidth.toLong() * info.outHeight <= 48_000_000,
         ) { "Invalid background dimensions" }
-        // 始终从标准源图生成模糊结果，不叠加处理上一张预览。
+        // 按原图上的归一化选区裁剪，只编码一次最终源图，后续模糊不叠加旧预览。
         val bitmap = decode(file = file, edge = if (mLowMemory) 2048 else 3072, orient = true)
         try {
-            target.outputStream().use { output ->
-                check(
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-                ) { "Background encoding failed" }
+            val cropped = cropBitmap(bitmap, selection)
+            try {
+                target.outputStream().use { output ->
+                    check(cropped.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                        "Background encoding failed"
+                    }
+                }
+            } finally {
+                cropped.recycle()
             }
         } finally {
             bitmap.recycle()

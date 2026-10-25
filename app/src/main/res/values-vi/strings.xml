@@ -1359,4 +1359,13 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="json_preview_too_large">Nội dung quá lớn để hiển thị. Hãy xuất từ nhật ký yêu cầu để đọc.</string>
     <string name="json_source_invalid">Không thể định dạng nhật ký này. Đang hiển thị văn bản đã lưu.</string>
     <string name="chat_include_character_examples">Bao gồm hội thoại mẫu của nhân vật</string>
+    <string name="image_crop_background_title">Cắt ảnh nền</string>
+    <string name="image_crop_background_helper">Chụm hai ngón để thu phóng và kéo để điều chỉnh vùng ảnh nền</string>
+    <string name="image_crop_ratio_screen">Màn hình</string>
+    <string name="image_crop_ratio_original">Gốc</string>
+    <string name="appearance_background_working">Đang xử lý cài đặt ảnh nền…</string>
+    <string name="character_background_enable_title">Dùng ảnh nền nhân vật?</string>
+    <string name="character_background_enable_message">Tùy chọn “Dùng ảnh nền thẻ nhân vật” trong cài đặt trò chuyện đang tắt. Bật ngay? Cài đặt này áp dụng cho mọi cuộc trò chuyện có ảnh nền nhân vật.</string>
+    <string name="character_background_enable_confirm">Bật ngay</string>
+    <string name="character_background_enable_later">Để sau</string>
 </resources>

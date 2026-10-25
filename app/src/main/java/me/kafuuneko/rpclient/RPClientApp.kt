@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
+import me.kafuuneko.rpclient.libs.media.ImageCropCodec
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
@@ -127,6 +128,7 @@ internal val appModules = module {
     singleOf(::AppThemeManager)
     singleOf(::PageBackgroundRepository)
     singleOf(::BackgroundImageRuntime)
+    singleOf(::ImageCropCodec)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)
     singleOf(::ImageInputCapabilityResolver)

@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.appearance.presentation
 
 import android.net.Uri
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 
@@ -24,6 +25,10 @@ sealed interface AppearanceUiIntent {
     data object PickImage : AppearanceUiIntent
 
     data class ImageSelected(val uri: Uri) : AppearanceUiIntent
+
+    data class ImageCropped(val result: BackgroundCropResult) : AppearanceUiIntent
+
+    data object CancelImageImport : AppearanceUiIntent
 
     data class ChangeAdjustment(val field: BackgroundAdjustment, val value: Float) :
         AppearanceUiIntent

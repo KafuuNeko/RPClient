@@ -1360,4 +1360,13 @@
     <string name="json_preview_too_large">El contenido es demasiado grande para mostrarlo. Expórtalo desde el registro de solicitudes.</string>
     <string name="json_source_invalid">Este registro no se puede formatear. Se muestra el texto guardado.</string>
     <string name="chat_include_character_examples">Incluir ejemplos de diálogo de los personajes</string>
+    <string name="image_crop_background_title">Recortar fondo</string>
+    <string name="image_crop_background_helper">Pellizca para ampliar y arrastra para ajustar el área del fondo</string>
+    <string name="image_crop_ratio_screen">Pantalla</string>
+    <string name="image_crop_ratio_original">Original</string>
+    <string name="appearance_background_working">Procesando ajustes del fondo…</string>
+    <string name="character_background_enable_title">¿Usar fondos de personajes?</string>
+    <string name="character_background_enable_message">La opción «Usar fondo de la tarjeta de personaje» está desactivada en los ajustes del chat. ¿Activarla ahora? Se aplica a todos los chats con fondos de personajes.</string>
+    <string name="character_background_enable_confirm">Activar</string>
+    <string name="character_background_enable_later">Ahora no</string>
 </resources>

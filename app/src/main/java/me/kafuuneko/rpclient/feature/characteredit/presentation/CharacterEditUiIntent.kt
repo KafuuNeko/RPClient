@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
 
 /** 角色创建/编辑页面的字段变更、文件选择、保存与删除意图。 */
 sealed class CharacterEditUiIntent {
@@ -13,6 +14,12 @@ sealed class CharacterEditUiIntent {
     data object PickBackground : CharacterEditUiIntent()
 
     data class BackgroundSelected(val uri: Uri) : CharacterEditUiIntent()
+
+    data class BackgroundCropped(val result: BackgroundCropResult) : CharacterEditUiIntent()
+
+    data object CancelBackgroundImport : CharacterEditUiIntent()
+
+    data object ConfirmEnableCharacterBackground : CharacterEditUiIntent()
 
     data object RemoveBackground : CharacterEditUiIntent()
 

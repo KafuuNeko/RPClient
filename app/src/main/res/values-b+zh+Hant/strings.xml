@@ -1353,4 +1353,13 @@
     <string name="json_preview_too_large">內容過大，無法顯示。請從請求日誌匯出查看。</string>
     <string name="json_source_invalid">此日誌無法格式化，目前顯示已儲存的原文。</string>
     <string name="chat_include_character_examples">注入角色卡範例對話</string>
+    <string name="image_crop_background_title">裁剪背景</string>
+    <string name="image_crop_background_helper">雙指縮放並拖曳以調整背景區域</string>
+    <string name="image_crop_ratio_screen">螢幕比例</string>
+    <string name="image_crop_ratio_original">原圖比例</string>
+    <string name="appearance_background_working">正在處理背景設定…</string>
+    <string name="character_background_enable_title">使用角色卡背景？</string>
+    <string name="character_background_enable_message">對話背景中的「使用角色卡背景」尚未開啟，是否立即啟用？此設定將套用至所有設有角色背景的對話。</string>
+    <string name="character_background_enable_confirm">立即啟用</string>
+    <string name="character_background_enable_later">暫不啟用</string>
 </resources>

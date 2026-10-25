@@ -60,6 +60,8 @@ sealed class CharacterEditLoadState {
 
     data object Loading : CharacterEditLoadState()
 
+    data object ImportingBackground : CharacterEditLoadState()
+
     data object Saving : CharacterEditLoadState()
 
     data object Deleting : CharacterEditLoadState()
@@ -68,6 +70,8 @@ sealed class CharacterEditLoadState {
 /** 角色编辑页当前显示的业务对话框。 */
 sealed class CharacterEditDialogState {
     data object None : CharacterEditDialogState()
+
+    data object EnableCharacterBackgroundConfirm : CharacterEditDialogState()
 
     data class DeleteConfirm(
         /** 关联角色的显示名称快照。 */

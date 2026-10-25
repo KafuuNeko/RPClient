@@ -20,13 +20,16 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustment
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
+import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorLoadState
 import me.kafuuneko.rpclient.feature.appearance.ui.AppearanceLayout
+import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
+import me.kafuuneko.rpclient.model.ImageCropSelection
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -163,9 +166,17 @@ class AppearanceExitTest {
         val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
         source.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
-        send(AppearanceUiIntent.ImageSelected(Uri.fromFile(source)))
+        send(
+            AppearanceUiIntent.ImageCropped(
+                BackgroundCropResult(
+                    sourceUri = Uri.fromFile(source),
+                    selection = ImageCropSelection(0.5f, 0.5f, 1f, 1f),
+                )
+            )
+        )
         compose.waitUntil(timeoutMillis = 5_000) {
-            state().editor?.settings?.fileUuid != null && state().editor?.working == false
+            state().editor?.settings?.fileUuid != null
+                && state().editor?.loadState == BackgroundEditorLoadState.None
         }
         // 图像处理完成后通过同一返回确认保护新图片，不仅检测滑块值。
         send(AppearanceUiIntent.Back)
@@ -178,7 +189,7 @@ class AppearanceExitTest {
         compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
     }
 
-    /** 保存异常不会关闭编辑器，用户仍能重新选择保留或放弃草稿。 */
+    /** 保存异常恢复空闲状态并保留草稿，用户仍能重新选择保留或放弃。 */
     @Test
     fun failedSaveKeepsDraftAndAllowsAnotherExitChoice() {
         changeBlur(value = 65f)
@@ -186,7 +197,10 @@ class AppearanceExitTest {
         awaitDialog()
         mDatabase.close()
         compose.onNodeWithText(mContext.getString(R.string.save)).performClick()
-        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.error != null && state().editor?.working == false }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            state().editor?.error != null
+                && state().editor?.loadState == BackgroundEditorLoadState.None
+        }
         assertEquals(65, state().editor?.settings?.bubbleBlur)
         send(AppearanceUiIntent.Back)
         awaitDialog()
@@ -199,7 +213,9 @@ class AppearanceExitTest {
     /** 等待加载结束后再允许测试操作草稿。 */
     private fun openEditor() {
         send(AppearanceUiIntent.EditBackground(BackgroundPage.Chat))
-        compose.waitUntil(timeoutMillis = 5_000) { state().editor?.working == false && state().editor?.rendering == false }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            state().editor?.loadState == BackgroundEditorLoadState.None
+        }
     }
 
     private fun send(intent: AppearanceUiIntent) = compose.runOnIdle { mViewModel.emit(intent) }

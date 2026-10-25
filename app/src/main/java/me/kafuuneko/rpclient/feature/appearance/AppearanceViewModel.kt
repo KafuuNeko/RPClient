@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiIntent
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceViewEvent
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorDialogState
+import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorLoadState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.feature.appearance.presentation.withAdjustment
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
@@ -43,7 +44,6 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     private var mPrepared: PreparedFile? = null
     private var mPreviewJob: Job? = null
     private var mWorkJob: Job? = null
-    private var mSaving = false
     private var mOriginalSettings: PageBackground? = null
     private var mGeneralSettings = PageBackground(BackgroundPage.General)
 
@@ -86,7 +86,12 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         // 加载期间禁用编辑，避免默认参数抢先覆盖已有配置。
         val initial = PageBackground(intent.page)
         mOriginalSettings = initial
-        state.copy(editor = BackgroundEditorState(settings = initial, working = true)).setup()
+        state.copy(
+            editor = BackgroundEditorState(
+                settings = initial,
+                loadState = BackgroundEditorLoadState.Loading,
+            )
+        ).setup()
         mWorkJob = viewModelScope.launch {
             try {
                 val settings = mBackgrounds.observe(intent.page).first()
@@ -95,7 +100,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
                         settings = settings,
-                        working = false
+                        loadState = BackgroundEditorLoadState.None,
                     )
                 }
                 requestPreview(preview = false)
@@ -104,7 +109,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             } catch (_: Exception) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        working = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_background_error,
                     )
                 }
@@ -116,7 +121,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.SetFollowGeneral::class)
     private fun onSetFollowGeneral(intent: AppearanceUiIntent.SetFollowGeneral) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working || editor.settings.page == BackgroundPage.General) return
+        if (editor.loadState.blocksEditing || editor.settings.page == BackgroundPage.General) return
         updateEditor { it.copy(settings = it.settings.copy(followGeneral = intent.enabled)) }
         requestPreview(preview = false)
     }
@@ -125,7 +130,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.SetUseCharacterBackground::class)
     private fun onSetUseCharacterBackground(intent: AppearanceUiIntent.SetUseCharacterBackground) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working || editor.settings.page != BackgroundPage.Chat) return
+        if (editor.loadState.blocksEditing || editor.settings.page != BackgroundPage.Chat) return
         updateEditor { it.copy(settings = it.settings.copy(useCharacterBackground = intent.enabled)) }
     }
 
@@ -133,54 +138,90 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.PickImage::class)
     private fun onPickImage() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (!editor.working) AppearanceViewEvent.PickImage.tryEmit()
+        if (!editor.loadState.blocksEditing) AppearanceViewEvent.PickImage.tryEmit()
     }
 
-    /** 完成校验后才替换草稿；失败时保留原背景供重试。 */
+    /** 选图后立即进入裁剪页，裁剪确认前保留原有背景草稿。 */
     @UiIntentObserver(AppearanceUiIntent.ImageSelected::class)
     private fun onImageSelected(intent: AppearanceUiIntent.ImageSelected) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working) return
+        if (!editor.loadState.blocksEditing) AppearanceViewEvent.OpenImageCrop(intent.uri).tryEmit()
+    }
+
+    /** 导入、裁剪与首轮预览完成后一起替换草稿；失败或取消均保留原背景。 */
+    @UiIntentObserver(AppearanceUiIntent.ImageCropped::class)
+    private fun onImageCropped(intent: AppearanceUiIntent.ImageCropped) {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (editor.loadState.blocksEditing) return
         mPreviewJob?.cancel()
-        updateEditor { it.copy(working = true, error = null) }
+        updateEditor {
+            it.copy(
+                loadState = BackgroundEditorLoadState.ImportingImage,
+                error = null
+            )
+        }
         mWorkJob = viewModelScope.launch {
+            var prepared: PreparedFile? = null
             // 导入拥有独立生命周期，取消不会影响已经保存的文件。
             try {
-                val prepared = mRuntime.prepare(mOwner, intent.uri)
+                prepared =
+                    mRuntime.prepare(mOwner, intent.result.sourceUri, intent.result.selection)
+                val settings = editor.settings.copy(
+                    fileUuid = prepared.file.uuid,
+                    focalX = 0.5f,
+                    focalY = 0.5f
+                )
+                val effective = settings.resolveWith(mGeneralSettings)
+                val image = mRuntime.render(effective, prepared)?.asImageBitmap()
+                val surfaces = mRuntime.renderSurfaces(effective, prepared)
+                    .mapValues { entry -> entry.value.asImageBitmap() }
+                // 首轮预览也属于导入；发布前不释放旧草稿或隐藏加载反馈。
                 mRuntime.discard(mPrepared)
                 mPrepared = prepared
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        settings = backgroundEditorState.settings.copy(fileUuid = prepared.file.uuid),
-                        working = false,
+                        settings = settings,
+                        image = image,
+                        surfaceImages = surfaces,
+                        loadState = BackgroundEditorLoadState.None,
                     )
                 }
-                requestPreview(preview = false)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        working = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_image_error,
                     )
                 }
             } catch (_: OutOfMemoryError) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        working = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_image_error,
                     )
                 }
+            } finally {
+                if (prepared !== mPrepared) mRuntime.discard(prepared)
             }
         }
+    }
+
+    /** 取消本次图片处理，原有草稿与预览仍可继续编辑。 */
+    @UiIntentObserver(AppearanceUiIntent.CancelImageImport::class)
+    private fun onCancelImageImport() {
+        val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (editor.loadState !is BackgroundEditorLoadState.ImportingImage) return
+        mWorkJob?.cancel()
+        updateEditor { it.copy(loadState = BackgroundEditorLoadState.None) }
     }
 
     /** 高频滑块只更新草稿，并取消过期的小图预览任务。 */
     @UiIntentObserver(AppearanceUiIntent.ChangeAdjustment::class)
     private fun onChangeAdjustment(intent: AppearanceUiIntent.ChangeAdjustment) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        val shouldIgnoreAdjustment = editor.working
+        val shouldIgnoreAdjustment = editor.loadState.blocksEditing
             || !intent.value.isFinite()
             || (editor.settings.page != BackgroundPage.General
             && editor.settings.followGeneral)
@@ -194,14 +235,14 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.FinishAdjustment::class)
     private fun onFinishAdjustment() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (!editor.working) requestPreview(preview = false)
+        if (!editor.loadState.blocksEditing) requestPreview(preview = false)
     }
 
     /** 移除独立图片仅改变草稿；页面可回退通用图片，保存后才释放旧文件。 */
     @UiIntentObserver(AppearanceUiIntent.ResetBackground::class)
     private fun onResetBackground() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working) return
+        if (editor.loadState.blocksEditing) return
         mPreviewJob?.cancel()
         mRuntime.discard(mPrepared)
         mPrepared = null
@@ -210,7 +251,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
                 settings = backgroundEditorState.settings.copy(fileUuid = null),
                 image = null,
                 surfaceImages = emptyMap(),
-                rendering = false,
+                loadState = BackgroundEditorLoadState.None,
                 error = null,
             )
         }
@@ -221,12 +262,11 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.ApplyBackground::class)
     private fun onApplyBackground() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (editor.working) return
-        mSaving = true
+        if (editor.loadState.blocksEditing) return
         mPreviewJob?.cancel()
         updateEditor {
             it.copy(
-                working = true,
+                loadState = BackgroundEditorLoadState.Saving,
                 error = null,
                 dialogState = BackgroundEditorDialogState.None
             )
@@ -243,12 +283,10 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             } catch (_: Exception) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        working = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_background_error,
                     )
                 }
-            } finally {
-                mSaving = false
             }
         }
     }
@@ -257,8 +295,8 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.Back::class)
     private fun onBack() {
         val state = getOrNull<AppearanceUiState.Normal>() ?: return
-        if (mSaving) return
         val editor = state.editor
+        if (editor?.loadState is BackgroundEditorLoadState.Saving) return
         if (editor != null && editor.settings != mOriginalSettings) {
             updateEditor { it.copy(dialogState = BackgroundEditorDialogState.UnsavedChanges) }
             return
@@ -270,7 +308,9 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.DiscardBackgroundChanges::class)
     private fun onDiscardBackgroundChanges() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (mSaving || editor.dialogState != BackgroundEditorDialogState.UnsavedChanges) return
+        if (editor.loadState is BackgroundEditorLoadState.Saving
+            || editor.dialogState != BackgroundEditorDialogState.UnsavedChanges
+        ) return
         closeEditor()
     }
 
@@ -278,7 +318,9 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     @UiIntentObserver(AppearanceUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
-        if (mSaving || editor.dialogState == BackgroundEditorDialogState.None) return
+        if (editor.loadState is BackgroundEditorLoadState.Saving
+            || editor.dialogState == BackgroundEditorDialogState.None
+        ) return
         updateEditor { it.copy(dialogState = BackgroundEditorDialogState.None) }
     }
 
@@ -296,9 +338,10 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
     /** 预览请求只由外观参数触发，不参与聊天或正文的高频状态流。 */
     private fun requestPreview(preview: Boolean) {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return
+        if (editor.loadState.blocksEditing) return
         mPreviewJob?.cancel()
         val prepared = mPrepared
-        updateEditor { it.copy(rendering = true, error = null) }
+        updateEditor { it.copy(loadState = BackgroundEditorLoadState.Rendering, error = null) }
         mPreviewJob = viewModelScope.launch {
             try {
                 if (preview) delay(timeMillis = 80)
@@ -311,7 +354,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
                     backgroundEditorState.copy(
                         image = image,
                         surfaceImages = surfaces,
-                        rendering = false,
+                        loadState = BackgroundEditorLoadState.None,
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -319,14 +362,14 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             } catch (_: Exception) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        rendering = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_background_error,
                     )
                 }
             } catch (_: OutOfMemoryError) {
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        rendering = false,
+                        loadState = BackgroundEditorLoadState.None,
                         error = R.string.appearance_image_error,
                     )
                 }
