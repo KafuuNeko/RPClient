@@ -41,6 +41,19 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
   <img src="metadata/images/settings.jpg" alt="RPClient 设置页面" width="45%" />
 </p>
 
+### 自定义样式
+
+设置自定义背景与半透明样式后的主页、聊天、故事创作和设置页面。
+
+<p align="center">
+  <img src="metadata/images/home-styled.jpg" alt="RPClient 自定义样式主页" width="45%" />
+  <img src="metadata/images/chat-styled.jpg" alt="RPClient 自定义样式聊天页面" width="45%" />
+</p>
+<p align="center">
+  <img src="metadata/images/story-styled.jpg" alt="RPClient 自定义样式故事创作" width="45%" />
+  <img src="metadata/images/settings-styled.jpg" alt="RPClient 自定义样式设置页面" width="45%" />
+</p>
+
 ## 功能特性
 
 ### 对话

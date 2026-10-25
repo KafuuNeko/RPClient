@@ -41,6 +41,19 @@ The project draws on SillyTavern's ecosystem for character cards, lorebooks, pro
   <img src="metadata/images/settings.jpg" alt="RPClient settings screen" width="45%" />
 </p>
 
+### Custom Appearance
+
+Home, chat, story editor, and settings screens with a custom background and translucent styling.
+
+<p align="center">
+  <img src="metadata/images/home-styled.jpg" alt="RPClient home screen with custom styling" width="45%" />
+  <img src="metadata/images/chat-styled.jpg" alt="RPClient chat screen with custom styling" width="45%" />
+</p>
+<p align="center">
+  <img src="metadata/images/story-styled.jpg" alt="RPClient story editor screen with custom styling" width="45%" />
+  <img src="metadata/images/settings-styled.jpg" alt="RPClient settings screen with custom styling" width="45%" />
+</p>
+
 ## Features
 
 ### Conversations
