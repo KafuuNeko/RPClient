@@ -27,8 +27,19 @@ fun String.toMessageCopyText(includeThinkBlocks: Boolean): String {
     return if (includeThinkBlocks) this else stripThinkBlocks()
 }
 
-/** 生成适合列表展示的预览，并按需截断长度。 */
+/**
+ * 生成适合列表展示的预览，避免将完整长文本交给布局测量。
+ *
+ * @param maxLength 保留正文的 UTF-16 长度上限，零表示不截断；不拆分完整的代理对。
+ * @return 原文或带省略标记的预览，不修改原始字符串。
+ */
 fun String.toPreview(maxLength: Int = 0): String {
+    require(maxLength >= 0) { "Preview length must not be negative" }
     if (maxLength == 0 || length <= maxLength) return this
-    return take(maxLength) + "..."
+    val end = if (this[maxLength - 1].isHighSurrogate() && this[maxLength].isLowSurrogate()) {
+        maxLength - 1
+    } else {
+        maxLength
+    }
+    return substring(0, end) + "..."
 }

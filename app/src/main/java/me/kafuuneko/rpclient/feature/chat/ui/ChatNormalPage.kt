@@ -129,6 +129,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
+import me.kafuuneko.rpclient.utils.toPreview
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /**
@@ -569,8 +570,12 @@ private fun ConversationStartHeader(
             )
 
             if (character.description.isNotBlank()) {
+                // 介绍卡只展示三行，避免为完整角色设定执行段落测量。
+                val descriptionPreview = remember(character.description) {
+                    character.description.toPreview(maxLength = 1024)
+                }
                 Text(
-                    text = character.description,
+                    text = descriptionPreview,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center,
