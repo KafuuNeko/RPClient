@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -129,6 +128,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -1052,45 +1052,12 @@ private fun SummaryPanel(
 /** 分段选择与设置卡片使用同一层次，轻量底板和选中标记适应透明背景。 */
 @Composable
 private fun SummarySectionTabs(selectedTab: MainSummarySettingsTab, emit: MainUiIntent.() -> Unit) {
-    AppSurface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectableGroup()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // 选中状态通过强调色与字重表达，完全透明时仍能辨认。
-            MainSummarySettingsTab.entries.forEach { tab ->
-                val isSelected = tab == selectedTab
-                AppSurface(
-                    modifier = Modifier.weight(1f)
-                        .semantics { selected = isSelected; role = Role.Tab },
-                    onClick = { MainUiIntent.SelectSummarySettingsTab(tab).emit() },
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        val color =
-                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        Text(
-                            text = stringResource(tab.titleRes()),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = color,
-                        )
-                    }
-                }
-            }
-        }
-    }
+    RpSegmentedTabs(
+        tabs = MainSummarySettingsTab.entries,
+        selectedTab = selectedTab,
+        onTabSelected = { tab -> MainUiIntent.SelectSummarySettingsTab(tab).emit() },
+        tabLabel = { tab -> stringResource(tab.titleRes()) },
+    )
 }
 
 @Composable

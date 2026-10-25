@@ -28,14 +28,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
@@ -52,12 +49,12 @@ import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiIntent
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerUiState
 import me.kafuuneko.rpclient.feature.jsonviewer.presentation.JsonViewerTab
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /** 分层 JSON 查看器 Compose 入口。 */
@@ -145,30 +142,27 @@ private fun NormalView(
     }
 }
 
-/** 切换栏沿用顶栏外观，避免壁纸模式下额外铺设不透明底色。 */
+/** 可视化与源码共用统一的圆角分段 Tab 样式。 */
 @Composable
 private fun JsonViewTabs(
     selectedTab: JsonViewerTab,
     emit: JsonViewerUiIntent.() -> Unit,
 ) {
-    AppSurface(kind = PageSurfaceKind.TopBar, color = MaterialTheme.colorScheme.background) {
-        PrimaryTabRow(
-            selectedTabIndex = selectedTab.ordinal,
-            containerColor = Color.Transparent,
-            divider = {},
-        ) {
-            // Tab 本身保持透明，背景统一交给应用表面处理。
-            JsonViewerTab.entries.forEach { tab ->
-                Tab(
-                    selected = tab == selectedTab,
-                    onClick = { JsonViewerUiIntent.SelectTab(tab).emit() },
-                    text = {
-                        Text(stringResource(if (tab == JsonViewerTab.Tree) R.string.json_tab_tree else R.string.json_tab_source))
-                    },
-                )
-            }
-        }
-    }
+    // 只替换切换栏的展示，源码加载与两种视图的滚动状态仍由原有入口维护。
+    RpSegmentedTabs(
+        tabs = JsonViewerTab.entries,
+        selectedTab = selectedTab,
+        onTabSelected = { tab -> JsonViewerUiIntent.SelectTab(tab).emit() },
+        tabLabel = { tab ->
+            stringResource(
+                when (tab) {
+                    JsonViewerTab.Tree -> R.string.json_tab_tree
+                    JsonViewerTab.Source -> R.string.json_tab_source
+                },
+            )
+        },
+        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+    )
 }
 
 /** 当前层的条目和文本块共享外层懒列表，长字符串不会变成一个巨大的布局项目。 */

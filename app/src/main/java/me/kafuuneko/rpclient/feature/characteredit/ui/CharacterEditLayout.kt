@@ -79,7 +79,6 @@ import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditMod
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiIntent
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditUiState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterPromptField
-import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
@@ -99,6 +98,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
@@ -451,50 +451,22 @@ private fun CharacterEditTabBar(
     onTabSelected: (CharacterEditTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AppSurface(
-        kind = PageSurfaceKind.TopBar,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            val tabs = listOf(
-                CharacterEditTab.Profile to stringResource(R.string.tab_character_profile),
-                CharacterEditTab.Dialogue to stringResource(R.string.tab_character_dialogue),
-                CharacterEditTab.Advanced to stringResource(R.string.tab_character_advanced),
+    // 页内仍保留原来的分区状态，样式由公用组件统一维护。
+    RpSegmentedTabs(
+        tabs = CharacterEditTab.entries,
+        selectedTab = selectedTab,
+        onTabSelected = onTabSelected,
+        tabLabel = { tab ->
+            stringResource(
+                when (tab) {
+                    CharacterEditTab.Profile -> R.string.tab_character_profile
+                    CharacterEditTab.Dialogue -> R.string.tab_character_dialogue
+                    CharacterEditTab.Advanced -> R.string.tab_character_advanced
+                },
             )
-            tabs.forEach { (tab, title) ->
-                val selected = selectedTab == tab
-                AppSurface(
-                    onClick = { onTabSelected(tab) },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    shadowElevation = if (selected) 2.dp else 0.dp,
-                ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
+        },
+        modifier = modifier,
+    )
 }
 
 @Composable

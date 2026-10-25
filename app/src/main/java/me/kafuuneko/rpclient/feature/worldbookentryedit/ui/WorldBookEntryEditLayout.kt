@@ -9,7 +9,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,7 +72,6 @@ import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEn
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditMode
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiIntent
 import me.kafuuneko.rpclient.feature.worldbookentryedit.presentation.WorldBookEntryEditUiState
-import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
@@ -91,6 +89,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpNumberStepper
 import me.kafuuneko.rpclient.ui.widgets.RpPercentageSlider
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
@@ -474,50 +473,22 @@ private fun WorldBookEntryEditTabBar(
     onTabSelected: (WorldBookEntryEditTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AppSurface(
-        kind = PageSurfaceKind.TopBar,
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            val tabs = listOf(
-                WorldBookEntryEditTab.Content to stringResource(R.string.tab_entry_content),
-                WorldBookEntryEditTab.Trigger to stringResource(R.string.tab_entry_trigger),
-                WorldBookEntryEditTab.Advanced to stringResource(R.string.tab_entry_advanced),
+    // 分区状态继续由页面维护，避免独立绘制代码与公用样式逐渐产生差异。
+    RpSegmentedTabs(
+        tabs = WorldBookEntryEditTab.entries,
+        selectedTab = selectedTab,
+        onTabSelected = onTabSelected,
+        tabLabel = { tab ->
+            stringResource(
+                when (tab) {
+                    WorldBookEntryEditTab.Content -> R.string.tab_entry_content
+                    WorldBookEntryEditTab.Trigger -> R.string.tab_entry_trigger
+                    WorldBookEntryEditTab.Advanced -> R.string.tab_entry_advanced
+                },
             )
-            tabs.forEach { (tab, title) ->
-                val selected = selectedTab == tab
-                AppSurface(
-                    onClick = { onTabSelected(tab) },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                    shadowElevation = if (selected) 2.dp else 0.dp,
-                ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
+        },
+        modifier = modifier,
+    )
 }
 
 // -------------------- Tab 1: 设定正文 --------------------

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -66,6 +65,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageButton
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
@@ -117,7 +117,6 @@ internal fun StorySettingsPage(
                     .padding(paddingValues),
             ) {
                 SettingsSectionTabs(state.selectedSection, emit)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -175,56 +174,25 @@ private fun SettingsSectionTabs(
     selected: StorySettingsSection,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
-    // 分区选择回传原有意图，横向滚动只负责容纳标签。
-    Row(
+    // 与主设置页共用分段样式，分区选择继续回传原有意图。
+    RpSegmentedTabs(
+        tabs = StorySettingsSection.entries,
+        selectedTab = selected,
+        onTabSelected = { section ->
+            StoryEditorUiIntent.SelectSettingsSection(section).emit()
+        },
+        tabLabel = { section ->
+            stringResource(
+                when (section) {
+                    StorySettingsSection.Context -> R.string.story_context_settings
+                    StorySettingsSection.Characters -> R.string.story_character_references
+                    StorySettingsSection.Lorebook -> R.string.world_book
+                },
+            )
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        SettingsTab(
-            selected = selected == StorySettingsSection.Context,
-            label = stringResource(R.string.story_context_settings),
-            onClick = {
-                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Context).emit()
-            },
-        )
-        SettingsTab(
-            selected = selected == StorySettingsSection.Characters,
-            label = stringResource(R.string.story_character_references),
-            onClick = {
-                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Characters).emit()
-            },
-        )
-        SettingsTab(
-            selected = selected == StorySettingsSection.Lorebook,
-            label = stringResource(R.string.world_book),
-            onClick = {
-                StoryEditorUiIntent.SelectSettingsSection(StorySettingsSection.Lorebook).emit()
-            },
-        )
-    }
-}
-
-@Composable
-private fun SettingsTab(selected: Boolean, label: String, onClick: () -> Unit) {
-    // 选中标记只由外部状态控制，不在标签内部保存选择。
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = if (selected) {
-            {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        } else {
-            null
-        },
     )
 }
 
