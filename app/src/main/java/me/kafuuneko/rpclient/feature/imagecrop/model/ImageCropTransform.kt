@@ -58,6 +58,7 @@ data class ImageCropTransform(
      * @param panX X 轴平移增量。
      * @param panY Y 轴平移增量。
      * @param zoomChange 缩放比例乘数。
+     * @return 已限制缩放与平移边界的新状态；输入无效时返回原状态。
      */
     fun update(panX: Float, panY: Float, zoomChange: Float): ImageCropTransform {
         // 缩放与位移必须同时限制，保证目标比例下裁剪框始终被图片完全覆盖。
@@ -73,13 +74,21 @@ data class ImageCropTransform(
         )
     }
 
-    /** 顺时针旋转 90 度并重新限制平移边界。 */
+    /**
+     * 顺时针旋转 90 度并重新限制平移边界。
+     * @return 旋转后的裁剪变换，裁剪框比例保持不变。
+     */
     fun rotateRight(): ImageCropTransform {
         return copy(rotationDegrees = (rotationDegrees + 90) % 360)
             .update(panX = 0f, panY = 0f, zoomChange = 1f)
     }
 
-    /** 更换构图比例时保留旋转与镜像，并恢复填满裁剪框的初始选区。 */
+    /**
+     * 更换构图比例时保留旋转与镜像，并恢复填满裁剪框的初始选区。
+     * @param aspectRatio 裁剪框宽度除以高度，必须为有限正数。
+     * @return 使用新比例且已重置缩放与平移的裁剪变换。
+     * @throws IllegalArgumentException 比例不是有限正数时抛出。
+     */
     fun withAspectRatio(aspectRatio: Float): ImageCropTransform = copy(
         cropAspectRatio = aspectRatio,
         zoom = MIN_ZOOM,
@@ -87,7 +96,10 @@ data class ImageCropTransform(
         offsetY = 0f,
     )
 
-    /** 沿原图水平方向镜像，旋转后同步反转对应的选区偏移。 */
+    /**
+     * 沿原图水平方向镜像，旋转后同步反转对应的选区偏移。
+     * @return 切换镜像后的变换，选区跟随原图内容一起镜像。
+     */
     fun flipHorizontal(): ImageCropTransform {
         return copy(
             isFlippedHorizontal = !isFlippedHorizontal,
@@ -96,7 +108,10 @@ data class ImageCropTransform(
         )
     }
 
-    /** 重置为初始裁剪变换状态。 */
+    /**
+     * 重置缩放、平移、旋转与镜像，保留当前裁剪框比例。
+     * @return 当前比例下的初始裁剪变换。
+     */
     fun reset(): ImageCropTransform = copy(
         zoom = MIN_ZOOM,
         offsetX = 0f,
@@ -105,7 +120,10 @@ data class ImageCropTransform(
         isFlippedHorizontal = false,
     )
 
-    /** 将当前变换转换为预览和最终图片共用的归一化矩形选区。 */
+    /**
+     * 将当前变换转换为预览和最终图片共用的归一化矩形选区。
+     * @return 以旋转、镜像后的图片宽高归一化的选区。
+     */
     fun toSelection(): ImageCropSelection {
         val displayedWidth = baseWidth * zoom
         val displayedHeight = baseHeight * zoom
