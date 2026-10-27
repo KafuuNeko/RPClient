@@ -193,7 +193,7 @@ private fun BackupContent(
                 }
                 // 完整数据恢复操作卡片
                 item {
-                    StatusCard(state, emit)
+                    RestoreSection(state.busy, emit)
                 }
             }
         },
