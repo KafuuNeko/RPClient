@@ -128,6 +128,7 @@
     <string name="summary_role_user">ユーザー</string>
     <string name="summary_role_assistant">アシスタント</string>
     <string name="pause_auto_summary">このチャットの自動要約を一時停止</string>
+    <string name="pause_auto_summary_desc">手動要約は引き続き利用できます。</string>
     <string name="restore_previous_summary">前の要約を復元</string>
     <string name="restore_previous_summary_desc">最新のスナップショットを破棄し、前のメモリを復元します。</string>
     <string name="unknown_character">不明なキャラクター</string>
@@ -298,6 +299,7 @@
     <string name="enabled_entries_count">%1$d/%2$d 有効</string>
     <string name="session_world_books">セッションのワールドブック</string>
     <string name="manage_world_books">管理</string>
+    <string name="session_lore_note">エントリの切り替えは現在のセッションにのみ影響し、ワールドブックライブラリ自体には影響しません。</string>
     <string name="search_world_books">ワールドブックまたはエントリを検索</string>
     <string name="clear_search">検索をクリア</string>
     <string name="no_world_book_search_results">一致するワールドブックまたはエントリが見つかりません。</string>
@@ -333,6 +335,7 @@
     <string name="summarize_now">今すぐ要約</string>
     <string name="summarize_now_desc">グローバルな要約設定を使用して、このチャットのメモリを更新します</string>
     <string name="delete_chat_title">チャットを削除</string>
+    <string name="delete_chat_desc">このセッションとすべてのメッセージを永久に削除します</string>
     <string name="delete_chat_message">「%s」とすべてのメッセージを削除しますか？この操作は取り消せません。</string>
     <string name="session">セッション</string>
     <string name="title">タイトル</string>
@@ -390,6 +393,7 @@
     <string name="world_book_manager">ワールドブックマネージャー</string>
     <string name="create_world_book">ワールドブックを作成</string>
     <string name="world_book_title">ワールドブック</string>
+    <string name="world_book_subtitle">ロアブックとエントリの管理、およびセッションで有効にするデータの選択を行います</string>
     <string name="world_book_library">ワールドブックライブラリ</string>
     <string name="create">作成</string>
     <string name="entries">エントリ</string>
@@ -416,10 +420,12 @@
     <string name="unnamed_entry">名前のないエントリ</string>
     <string name="entry_name">エントリ名</string>
     <string name="entry_constant">常に有効</string>
+    <string name="entry_constant_desc">有効化されている場合、キーワードが一致しなくてもこのエントリを挿入します</string>
     <string name="entry_order">順序</string>
     <string name="entry_depth">深度</string>
     <string name="entry_content">コンテンツ</string>
     <string name="entry_disabled">無効</string>
+    <string name="entry_disabled_desc">有効化プロセスでこのエントリをスキップします</string>
     <string name="entry_position">位置</string>
     <string name="entry_role">ロール</string>
     <string name="entry_probability">確率</string>
@@ -482,9 +488,6 @@
     <string name="quick_presets">クイックプリセット</string>
     <string name="preset_custom">カスタム</string>
     <string name="advanced_settings">詳細設定と拡張</string>
-    <string name="provider_system_prompt">モデルのシステムプロンプト</string>
-    <string name="provider_system_prompt_description">要約や接続テストを含む、このモデルのすべてのリクエストの先頭に追加されます。コンテキスト予算には含まれないため、ご自身で余裕を確保してください。空欄の場合は追加されません。</string>
-    <string name="provider_system_prompt_placeholder">このモデル専用の指示（任意）</string>
     <string name="advanced_settings_desc">カスタムヘッダー、リクエスト本文パッチ、ルーティング</string>
     <string name="custom_headers_preview">カスタムヘッダーのプレビュー</string>
     <string name="request_body_patch_preview">リクエスト本文パッチのプレビュー</string>
@@ -892,6 +895,7 @@
     <string name="story_author_note">作者ノート</string>
     <string name="story_author_note_desc">文体、視点、次の場面を短く明確に指示します。</string>
     <string name="story_include_user_persona">ユーザーペルソナを含める</string>
+    <string name="story_include_user_persona_desc">現在のグローバルユーザーペルソナ説明を AI の執筆コンテキストに追加します。</string>
     <string name="story_character_primary">主人公</string>
     <string name="story_character_always">常時</string>
     <string name="story_character_auto">自動</string>
@@ -943,6 +947,7 @@
     <string name="story_library_title">物語を一つの連続した文書として執筆</string>
     <string name="story_linked_lorebook">リンク済み世界書：%1$s</string>
     <string name="story_loading_settings">ストーリー設定を読み込み中…</string>
+    <string name="story_lorebook_desc">このストーリーで使う項目を選択します。AI 執筆時にキーワードと常時有効化が適用されます。</string>
     <string name="story_lorebook_empty">この世界書には項目がありません。</string>
     <string name="story_memory">メモリー</string>
     <string name="story_memory_desc">長期設定、構成、今後の計画、執筆上の制約。</string>
@@ -1216,6 +1221,7 @@
     <string name="appearance_title">外観</string>
     <string name="appearance_entry_desc">テーマカラーとページの背景</string>
     <string name="appearance_palette_heading">お気に入りの配色を選ぶ</string>
+    <string name="appearance_palette_desc">柔らかな背景と調和のとれた色で、心地よい読書を。</string>
     <string name="appearance_classic">クラシックブルー</string>
     <string name="appearance_sakura">桜</string>
     <string name="appearance_forest">森</string>
@@ -1343,15 +1349,10 @@
     <string name="backup_status_title">現在の状態</string>
     <string name="message_edit_separate_think">思考過程を分離</string>
     <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
-    <string name="json_export_label">エクスポート</string>
-    <string name="json_export_working">ファイルをエクスポート中…</string>
-    <string name="json_export_success">ファイルをエクスポートしました</string>
-    <string name="json_export_failed">ファイルをエクスポートできませんでした。再試行してください。</string>
-    <string name="json_export_raw_notice">このログは整形できません。保存された原文をエクスポートします。</string>
-    <string name="json_tab_tree">ビジュアル</string>
-    <string name="json_tab_source">ソース</string>
-    <string name="json_value_truncated">この値は %1$d 文字あります。プレビューを省略しています。保存された全内容はエクスポートして確認できます。</string>
-    <string name="json_preview_too_large">内容が大きすぎるため表示できません。リクエストログからエクスポートして確認してください。</string>
-    <string name="json_source_invalid">このログは整形できません。保存された原文を表示しています。</string>
-    <string name="chat_include_character_examples">キャラクターカードの会話例を含める</string>
+    <string name="backup_details_title">技術的な詳細</string>
+    <string name="backup_details_copy">コピー</string>
+    <string name="backup_details_copied">詳細をコピーしました</string>
+    <string name="backup_restore_done">復元が完了しました。下の詳細を確認してから、RPClient を再起動して復元したデータを読み込んでください。</string>
+    <string name="backup_restart_required">データを開き直すには RPClient の再起動が必要です。下の詳細を確認してから再起動してください。</string>
+    <string name="backup_restart_now">RPClient を再起動</string>
 </resources>

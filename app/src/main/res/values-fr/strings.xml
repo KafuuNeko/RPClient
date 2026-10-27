@@ -127,6 +127,7 @@
     <string name="summary_role_user">Utilisateur</string>
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Suspendre le résumé automatique pour ce chat</string>
+    <string name="pause_auto_summary_desc">Les résumés manuels restent disponibles.</string>
     <string name="restore_previous_summary">Restaurer le résumé précédent</string>
     <string name="restore_previous_summary_desc">Ignorer le dernier instantané et restaurer la mémoire précédente.</string>
     <string name="unknown_character">Personnage inconnu</string>
@@ -297,6 +298,7 @@
     <string name="enabled_entries_count">%1$d/%2$d activées</string>
     <string name="session_world_books">Livres d\'univers de la session</string>
     <string name="manage_world_books">Gérer</string>
+    <string name="session_lore_note">Les commutateurs d\'entrées n\'affectent que la session en cours, pas la bibliothèque de livres d\'univers elle-même.</string>
     <string name="search_world_books">Rechercher des livres d\'univers ou des entrées</string>
     <string name="clear_search">Effacer la recherche</string>
     <string name="no_world_book_search_results">Aucun livre d\'univers ou entrée correspondante.</string>
@@ -332,6 +334,7 @@
     <string name="summarize_now">Résumer maintenant</string>
     <string name="summarize_now_desc">Mettre à jour la mémoire de cette discussion en utilisant les paramètres globaux de résumé</string>
     <string name="delete_chat_title">Supprimer la discussion</string>
+    <string name="delete_chat_desc">Supprimer définitivement cette session et tous ses messages</string>
     <string name="delete_chat_message">Supprimer "%s" et tous ses messages ? Cette action est irréversible.</string>
     <string name="session">Session</string>
     <string name="title">Titre</string>
@@ -389,6 +392,7 @@
     <string name="world_book_manager">Gestionnaire de livres d\'univers</string>
     <string name="create_world_book">Créer un livre d\'univers</string>
     <string name="world_book_title">Livre d\'univers</string>
+    <string name="world_book_subtitle">Gérer les lorebooks et les entrées ; décider quelles données activer dans les sessions</string>
     <string name="world_book_library">Bibliothèque de livres d\'univers</string>
     <string name="create">Créer</string>
     <string name="entries">Entrées</string>
@@ -415,10 +419,12 @@
     <string name="unnamed_entry">Entrée sans nom</string>
     <string name="entry_name">Nom de l\'entrée</string>
     <string name="entry_constant">Toujours active</string>
+    <string name="entry_constant_desc">Insérer cette entrée lorsqu\'elle est activée, même sans correspondance de mots-clés</string>
     <string name="entry_order">Ordre</string>
     <string name="entry_depth">Profondeur</string>
     <string name="entry_content">Contenu</string>
     <string name="entry_disabled">Désactivée</string>
+    <string name="entry_disabled_desc">Ignorer cette entrée lors de l\'activation</string>
     <string name="entry_position">Position</string>
     <string name="entry_role">Rôle</string>
     <string name="entry_probability">Probabilité</string>
@@ -481,9 +487,6 @@
     <string name="quick_presets">Préréglages rapides</string>
     <string name="preset_custom">Personnalisé</string>
     <string name="advanced_settings">Paramètres avancés et extensions</string>
-    <string name="provider_system_prompt">Prompt système du modèle</string>
-    <string name="provider_system_prompt_description">Toujours placé en premier dans chaque requête avec ce modèle, y compris les résumés et les tests de connexion. Non comptabilisé dans le budget de contexte ; prévoyez une marge. Laissez vide pour désactiver.</string>
-    <string name="provider_system_prompt_placeholder">Instructions facultatives pour ce modèle</string>
     <string name="advanced_settings_desc">En-têtes personnalisés, correctif du corps de requête et routage</string>
     <string name="custom_headers_preview">Aperçu des en-têtes personnalisés</string>
     <string name="request_body_patch_preview">Aperçu du correctif du corps de requête</string>
@@ -895,6 +898,7 @@
     <string name="story_author_note">Note d’auteur</string>
     <string name="story_author_note_desc">Une consigne brève et forte sur le style, le point de vue et la prochaine scène.</string>
     <string name="story_include_user_persona">Inclure le persona utilisateur</string>
+    <string name="story_include_user_persona_desc">Ajoute la description globale actuelle de l’utilisateur au contexte d’écriture de l’IA.</string>
     <string name="story_character_primary">Protagoniste</string>
     <string name="story_character_always">Toujours</string>
     <string name="story_character_auto">Auto</string>
@@ -946,6 +950,7 @@
     <string name="story_library_title">Vos histoires sous forme de documents continus</string>
     <string name="story_linked_lorebook">Lorebook lié : %1$s</string>
     <string name="story_loading_settings">Chargement des réglages…</string>
+    <string name="story_lorebook_desc">Choisissez les entrées disponibles. L’activation par mot-clé ou constante sera appliquée pendant l’écriture IA.</string>
     <string name="story_lorebook_empty">Ce lorebook ne contient aucune entrée.</string>
     <string name="story_memory">Mémoire</string>
     <string name="story_memory_desc">Faits à long terme, plan, projets futurs et contraintes d’écriture.</string>
@@ -1221,6 +1226,7 @@
     <string name="appearance_title">Apparence</string>
     <string name="appearance_entry_desc">Thèmes et arrière-plans</string>
     <string name="appearance_palette_heading">Choisissez votre palette</string>
+    <string name="appearance_palette_desc">Des surfaces douces et des couleurs harmonieuses pour une lecture agréable.</string>
     <string name="appearance_classic">Bleu classique</string>
     <string name="appearance_sakura">Fleur de cerisier</string>
     <string name="appearance_forest">Forêt</string>
@@ -1348,15 +1354,10 @@
     <string name="backup_status_title">État actuel</string>
     <string name="message_edit_separate_think">Séparer le raisonnement</string>
     <string name="message_edit_separate_think_desc">Modifiez seulement la réponse, en gardant le raisonnement initial.</string>
-    <string name="json_export_label">Exporter</string>
-    <string name="json_export_working">Exportation du fichier…</string>
-    <string name="json_export_success">Fichier exporté</string>
-    <string name="json_export_failed">Impossible d’exporter le fichier. Veuillez réessayer.</string>
-    <string name="json_export_raw_notice">Ce journal ne peut pas être mis en forme. Le texte enregistré sera exporté.</string>
-    <string name="json_tab_tree">Visuel</string>
-    <string name="json_tab_source">Source</string>
-    <string name="json_value_truncated">Cette valeur contient %1$d caractères. L’aperçu est abrégé ; exportez pour lire tout le contenu enregistré.</string>
-    <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
-    <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
-    <string name="chat_include_character_examples">Inclure les exemples de dialogue des personnages</string>
+    <string name="backup_details_title">Détails techniques</string>
+    <string name="backup_details_copy">Copier</string>
+    <string name="backup_details_copied">Détails copiés</string>
+    <string name="backup_restore_done">Restauration terminée. Consultez les détails ci-dessous, puis redémarrez RPClient pour charger les données restaurées.</string>
+    <string name="backup_restart_required">RPClient doit redémarrer pour rouvrir ses données. Consultez les détails ci-dessous, puis redémarrez.</string>
+    <string name="backup_restart_now">Redémarrer RPClient</string>
 </resources>

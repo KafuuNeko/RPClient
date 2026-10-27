@@ -35,12 +35,6 @@ class BackupRestoreActivity : CoreActivityWithEvent() {
     /** 提供文件选择与重启事件流。 */
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
-    /** 配置变化后补办尚未完成的重启动作。 */
-    override fun onResume() {
-        super.onResume()
-        mViewModel.emit(BackupRestoreUiIntent.Resume)
-    }
-
     /** 绑定页面状态，完成退出时保留最后一个可渲染状态。 */
     @Composable
     override fun ViewContent() {

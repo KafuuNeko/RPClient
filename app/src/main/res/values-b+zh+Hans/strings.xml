@@ -127,6 +127,7 @@
     <string name="summary_role_user">用户</string>
     <string name="summary_role_assistant">助手</string>
     <string name="pause_auto_summary">暂停此会话自动摘要</string>
+    <string name="pause_auto_summary_desc">仍可继续手动生成摘要。</string>
     <string name="restore_previous_summary">恢复上一版摘要</string>
     <string name="restore_previous_summary_desc">丢弃最新快照并恢复前一份记忆。</string>
     <string name="unknown_character">未知角色</string>
@@ -297,6 +298,7 @@
     <string name="enabled_entries_count">已启用 %1$d/%2$d</string>
     <string name="session_world_books">会话世界书</string>
     <string name="manage_world_books">管理</string>
+    <string name="session_lore_note">条目开关只影响当前会话，不会修改世界书库。</string>
     <string name="search_world_books">搜索世界书或条目</string>
     <string name="clear_search">清除搜索</string>
     <string name="no_world_book_search_results">没有匹配的世界书或条目。</string>
@@ -332,6 +334,7 @@
     <string name="summarize_now">立即摘要</string>
     <string name="summarize_now_desc">使用全局摘要设置更新此聊天记忆</string>
     <string name="delete_chat_title">删除聊天</string>
+    <string name="delete_chat_desc">永久删除此会话和全部消息</string>
     <string name="delete_chat_message">删除“%s”及其所有消息？此操作无法撤销。</string>
     <string name="session">会话</string>
     <string name="title">标题</string>
@@ -389,6 +392,7 @@
     <string name="world_book_manager">世界书管理器</string>
     <string name="create_world_book">创建世界书</string>
     <string name="world_book_title">世界书</string>
+    <string name="world_book_subtitle">管理世界书和条目；决定会话中启用哪些数据</string>
     <string name="world_book_library">世界书库</string>
     <string name="create">创建</string>
     <string name="entries">条目</string>
@@ -415,10 +419,12 @@
     <string name="unnamed_entry">未命名条目</string>
     <string name="entry_name">条目名称</string>
     <string name="entry_constant">始终激活</string>
+    <string name="entry_constant_desc">启用后即使没有关键词匹配也插入此条目</string>
     <string name="entry_order">顺序</string>
     <string name="entry_depth">深度</string>
     <string name="entry_content">内容</string>
     <string name="entry_disabled">已禁用</string>
+    <string name="entry_disabled_desc">激活时跳过此条目</string>
     <string name="entry_position">位置</string>
     <string name="entry_role">角色</string>
     <string name="entry_probability">概率</string>
@@ -561,9 +567,6 @@
     <string name="quick_presets">快捷预设模板</string>
     <string name="preset_custom">自定义</string>
     <string name="advanced_settings">高级与扩展配置</string>
-    <string name="provider_system_prompt">模型 System Prompt</string>
-    <string name="provider_system_prompt_description">使用此模型的每次请求都会置顶添加，包括摘要与连接测试。不计入上下文预算，请自行预留额度；留空则不添加。</string>
-    <string name="provider_system_prompt_placeholder">输入此模型专用的系统指令（可选）</string>
     <string name="advanced_settings_desc">自定义请求头、JSON Patch 与路由偏好</string>
     <string name="custom_headers_preview">自定义请求头预览</string>
     <string name="request_body_patch_preview">请求体 Patch 预览</string>
@@ -968,6 +971,7 @@
     <string name="story_author_note">作者备注</string>
     <string name="story_author_note_desc">用简短而明确的指令约束文风、视角和下一幕方向。</string>
     <string name="story_include_user_persona">注入用户人设</string>
+    <string name="story_include_user_persona_desc">将当前全局用户人设描述加入 AI 编写上下文。</string>
     <string name="story_character_primary">主角</string>
     <string name="story_character_always">常驻</string>
     <string name="story_character_auto">自动</string>
@@ -1043,6 +1047,7 @@
     <string name="story_library_title">按章节组织和创作长篇故事</string>
     <string name="story_linked_lorebook">绑定世界书：%1$s</string>
     <string name="story_loading_settings">正在加载故事设置……</string>
+    <string name="story_lorebook_desc">选择当前故事可用的条目；AI 写作阶段会继续应用关键词和常驻激活规则。</string>
     <string name="story_lorebook_empty">这本世界书还没有条目。</string>
     <string name="story_memory">长期记忆</string>
     <string name="story_memory_desc">长期设定、大纲、未来计划和写作约束。</string>
@@ -1217,6 +1222,7 @@
     <string name="appearance_title">外观</string>
     <string name="appearance_entry_desc">主题配色与页面背景</string>
     <string name="appearance_palette_heading">选择喜欢的配色</string>
+    <string name="appearance_palette_desc">柔和的底色、协调的层次，让阅读更舒适。</string>
     <string name="appearance_classic">经典蓝</string>
     <string name="appearance_sakura">樱花粉</string>
     <string name="appearance_forest">森林绿</string>
@@ -1344,15 +1350,10 @@
     <string name="backup_status_title">当前状态</string>
     <string name="message_edit_separate_think">分离思考链</string>
     <string name="message_edit_separate_think_desc">编辑时仅修改正文，保留原有思考链。</string>
-    <string name="json_export_label">导出</string>
-    <string name="json_export_working">正在导出文件…</string>
-    <string name="json_export_success">文件已导出</string>
-    <string name="json_export_failed">文件导出失败，请重试。</string>
-    <string name="json_export_raw_notice">此日志无法格式化，将导出已保存的原文。</string>
-    <string name="json_tab_tree">可视化</string>
-    <string name="json_tab_source">源码</string>
-    <string name="json_value_truncated">此字段共 %1$d 个字符，已缩略显示；可导出查看已保存的完整内容。</string>
-    <string name="json_preview_too_large">内容过大，无法显示。请从请求日志导出查看。</string>
-    <string name="json_source_invalid">此日志无法格式化，当前显示已保存的原文。</string>
-    <string name="chat_include_character_examples">注入角色卡示例对话</string>
+    <string name="backup_details_title">技术详情</string>
+    <string name="backup_details_copy">复制</string>
+    <string name="backup_details_copied">详情已复制</string>
+    <string name="backup_restore_done">恢复完成。请查看下方详情，然后重启 RPClient 以载入恢复的数据。</string>
+    <string name="backup_restart_required">RPClient 需要重启才能重新打开数据。请查看下方详情，然后重启。</string>
+    <string name="backup_restart_now">重启 RPClient</string>
 </resources>

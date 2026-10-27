@@ -128,6 +128,7 @@
     <string name="summary_role_user">Benutzer</string>
     <string name="summary_role_assistant">Assistent</string>
     <string name="pause_auto_summary">Automatische Zusammenfassung für diesen Chat pausieren</string>
+    <string name="pause_auto_summary_desc">Manuelle Zusammenfassungen bleiben verfügbar.</string>
     <string name="restore_previous_summary">Vorherige Zusammenfassung wiederherstellen</string>
     <string name="restore_previous_summary_desc">Den neuesten Snapshot verwerfen und den vorherigen Speicher wiederherstellen.</string>
     <string name="unknown_character">Unbekannter Charakter</string>
@@ -298,6 +299,7 @@
     <string name="enabled_entries_count">%1$d/%2$d aktiviert</string>
     <string name="session_world_books">Sitzungs-Weltbücher</string>
     <string name="manage_world_books">Verwalten</string>
+    <string name="session_lore_note">Eintragsänderungen betreffen nur die aktuelle Sitzung, nicht die Weltbuch-Bibliothek selbst.</string>
     <string name="search_world_books">Weltbücher oder Einträge suchen</string>
     <string name="clear_search">Suche löschen</string>
     <string name="no_world_book_search_results">Keine passenden Weltbücher oder Einträge gefunden.</string>
@@ -333,6 +335,7 @@
     <string name="summarize_now">Jetzt zusammenfassen</string>
     <string name="summarize_now_desc">Diesen Chat-Speicher mit den globalen Zusammenfassungseinstellungen aktualisieren</string>
     <string name="delete_chat_title">Chat löschen</string>
+    <string name="delete_chat_desc">Diese Sitzung und alle Nachrichten dauerhaft löschen</string>
     <string name="delete_chat_message">Möchtest du "%s" und alle zugehörigen Nachrichten löschen? Dies kann nicht rückgängig gemacht werden.</string>
     <string name="session">Sitzung</string>
     <string name="title">Titel</string>
@@ -390,6 +393,7 @@
     <string name="world_book_manager">Weltbuch-Manager</string>
     <string name="create_world_book">Weltbuch erstellen</string>
     <string name="world_book_title">Weltbuch</string>
+    <string name="world_book_subtitle">Lorebooks und Einträge verwalten; entscheiden, welche Daten in Sitzungen aktiviert werden sollen</string>
     <string name="world_book_library">Weltbuch-Bibliothek</string>
     <string name="create">Erstellen</string>
     <string name="entries">Einträge</string>
@@ -416,10 +420,12 @@
     <string name="unnamed_entry">Unbenannter Eintrag</string>
     <string name="entry_name">Eintragsname</string>
     <string name="entry_constant">Immer aktiv</string>
+    <string name="entry_constant_desc">Diesen Eintrag einfügen, wenn er aktiviert ist, auch ohne Schlüsselwort-Übereinstimmungen</string>
     <string name="entry_order">Reihenfolge</string>
     <string name="entry_depth">Tiefe</string>
     <string name="entry_content">Inhalt</string>
     <string name="entry_disabled">Deaktiviert</string>
+    <string name="entry_disabled_desc">Diesen Eintrag bei der Aktivierung überspringen</string>
     <string name="entry_position">Position</string>
     <string name="entry_role">Rolle</string>
     <string name="entry_probability">Wahrscheinlichkeit</string>
@@ -482,9 +488,6 @@
     <string name="quick_presets">Schnellvorlagen</string>
     <string name="preset_custom">Benutzerdefiniert</string>
     <string name="advanced_settings">Erweiterte Einstellungen</string>
-    <string name="provider_system_prompt">System-Prompt des Modells</string>
-    <string name="provider_system_prompt_description">Steht bei jeder Anfrage mit diesem Modell an erster Stelle, auch bei Zusammenfassungen und Verbindungstests. Wird nicht ins Kontextbudget eingerechnet; planen Sie selbst Platz ein. Zum Deaktivieren leer lassen.</string>
-    <string name="provider_system_prompt_placeholder">Optionale Anweisungen für dieses Modell</string>
     <string name="advanced_settings_desc">Benutzerdefinierte Header, Anfragekörper-Patch und Routing</string>
     <string name="custom_headers_preview">Vorschau benutzerdefinierter Header</string>
     <string name="request_body_patch_preview">Vorschau des Anfragekörper-Patches</string>
@@ -939,8 +942,10 @@
     <string name="story_character_always">Immer</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_include_user_persona">Benutzerpersona einbeziehen</string>
+    <string name="story_include_user_persona_desc">Fügt die aktuelle globale Benutzerbeschreibung zum KI-Schreibkontext hinzu.</string>
     <string name="story_character_primary">Protagonist</string>
     <string name="story_linked_lorebook">Verknüpftes Weltenbuch: %1$s</string>
+    <string name="story_lorebook_desc">Wähle verfügbare Einträge. Schlüsselwort- und Daueraktivierung werden beim KI-Schreiben angewendet.</string>
     <string name="story_lorebook_empty">Dieses Weltenbuch enthält keine Einträge.</string>
     <string name="story_settings_load_failed">Geschichtseinstellungen konnten nicht geladen werden</string>
     <string name="story_settings_save_failed">Geschichtseinstellungen konnten nicht gespeichert werden</string>
@@ -1220,6 +1225,7 @@
     <string name="appearance_title">Aussehen</string>
     <string name="appearance_entry_desc">Themen und Seitenhintergründe</string>
     <string name="appearance_palette_heading">Wähle deine Farben</string>
+    <string name="appearance_palette_desc">Sanfte Flächen und harmonische Farben für angenehmes Lesen.</string>
     <string name="appearance_classic">Klassisches Blau</string>
     <string name="appearance_sakura">Kirschblüte</string>
     <string name="appearance_forest">Wald</string>
@@ -1347,15 +1353,10 @@
     <string name="backup_status_title">Aktueller Status</string>
     <string name="message_edit_separate_think">Denkprozess trennen</string>
     <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
-    <string name="json_export_label">Exportieren</string>
-    <string name="json_export_working">Datei wird exportiert…</string>
-    <string name="json_export_success">Datei exportiert</string>
-    <string name="json_export_failed">Die Datei konnte nicht exportiert werden. Bitte erneut versuchen.</string>
-    <string name="json_export_raw_notice">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird exportiert.</string>
-    <string name="json_tab_tree">Visuell</string>
-    <string name="json_tab_source">Quelltext</string>
-    <string name="json_value_truncated">Dieser Wert enthält %1$d Zeichen. Die Vorschau ist gekürzt; exportieren Sie den gesamten gespeicherten Inhalt zum Lesen.</string>
-    <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
-    <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
-    <string name="chat_include_character_examples">Dialogbeispiele der Charaktere einbeziehen</string>
+    <string name="backup_details_title">Technische Details</string>
+    <string name="backup_details_copy">Kopieren</string>
+    <string name="backup_details_copied">Details kopiert</string>
+    <string name="backup_restore_done">Wiederherstellung abgeschlossen. Prüfe die Details unten und starte RPClient neu, um die wiederhergestellten Daten zu laden.</string>
+    <string name="backup_restart_required">RPClient muss neu starten, um seine Daten wieder zu öffnen. Prüfe die Details unten und starte dann neu.</string>
+    <string name="backup_restart_now">RPClient neu starten</string>
 </resources>

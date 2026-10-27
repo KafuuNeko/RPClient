@@ -127,6 +127,7 @@
     <string name="summary_role_user">User</string>
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Jeda ringkasan otomatis untuk obrolan ini</string>
+    <string name="pause_auto_summary_desc">Ringkasan manual tetap tersedia.</string>
     <string name="restore_previous_summary">Pulihkan ringkasan sebelumnya</string>
     <string name="restore_previous_summary_desc">Buang snapshot terbaru dan pulihkan memori sebelumnya.</string>
     <string name="unknown_character">Karakter tidak dikenal</string>
@@ -298,6 +299,7 @@ Gagal: %2$d</string>
     <string name="enabled_entries_count">%1$d/%2$d diaktifkan</string>
     <string name="session_world_books">Buku Dunia Sesi</string>
     <string name="manage_world_books">Kelola</string>
+    <string name="session_lore_note">Pengalihan entri hanya memengaruhi sesi saat ini, bukan pustaka buku dunia itu sendiri.</string>
     <string name="search_world_books">Cari buku dunia atau entri</string>
     <string name="clear_search">Hapus pencarian</string>
     <string name="no_world_book_search_results">Tidak ada buku dunia atau entri yang cocok.</string>
@@ -333,6 +335,7 @@ Gagal: %2$d</string>
     <string name="summarize_now">Ringkas sekarang</string>
     <string name="summarize_now_desc">Perbarui memori obrolan ini menggunakan pengaturan ringkasan global</string>
     <string name="delete_chat_title">Hapus obrolan</string>
+    <string name="delete_chat_desc">Hapus sesi ini dan semua pesannya secara permanen</string>
     <string name="delete_chat_message">Hapus "%s" dan semua pesannya? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="session">Sesi</string>
     <string name="title">Judul</string>
@@ -390,6 +393,7 @@ Gagal: %2$d</string>
     <string name="world_book_manager">Pengelola Buku Dunia</string>
     <string name="create_world_book">Buat buku dunia</string>
     <string name="world_book_title">Buku Dunia</string>
+    <string name="world_book_subtitle">Kelola buku dunia dan entri; tentukan data mana yang akan diaktifkan dalam sesi</string>
     <string name="world_book_library">Pustaka Buku Dunia</string>
     <string name="create">Buat</string>
     <string name="entries">Entri</string>
@@ -416,10 +420,12 @@ Gagal: %2$d</string>
     <string name="unnamed_entry">Entri tanpa nama</string>
     <string name="entry_name">Nama Entri</string>
     <string name="entry_constant">Konstan (Selalu Disuntikkan)</string>
+    <string name="entry_constant_desc">Sisipkan entri ini saat diaktifkan, bahkan tanpa pencocokan kata kunci</string>
     <string name="entry_order">Urutan Penyuntikan</string>
     <string name="entry_depth">Kedalaman Penyuntikan</string>
     <string name="entry_content">Konten Entri</string>
     <string name="entry_disabled">Dinonaktifkan</string>
+    <string name="entry_disabled_desc">Lewati entri ini selama aktivasi</string>
     <string name="entry_position">Posisi Penyuntikan</string>
     <string name="entry_role">Peran Penyuntikan</string>
     <string name="entry_probability">Probabilitas Aktivasi</string>
@@ -562,9 +568,6 @@ Gagal: %2$d</string>
     <string name="quick_presets">Preset Cepat</string>
     <string name="preset_custom">Kustom</string>
     <string name="advanced_settings">Lanjutan &amp; Ekstensi</string>
-    <string name="provider_system_prompt">Prompt Sistem Model</string>
-    <string name="provider_system_prompt_description">Selalu ditempatkan paling awal dalam setiap permintaan dengan model ini, termasuk ringkasan dan uji koneksi. Tidak dihitung dalam anggaran konteks; sisihkan ruang sendiri. Kosongkan untuk menonaktifkan.</string>
-    <string name="provider_system_prompt_placeholder">Instruksi opsional untuk model ini</string>
     <string name="advanced_settings_desc">Header kustom, patch badan permintaan, dan perutean</string>
     <string name="custom_headers_preview">Pratinjau Header Kustom</string>
     <string name="request_body_patch_preview">Pratinjau Patch Badan Permintaan</string>
@@ -1052,8 +1055,10 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="story_character_always">Selalu</string>
     <string name="story_character_auto">Otomatis</string>
     <string name="story_include_user_persona">Sertakan persona pengguna</string>
+    <string name="story_include_user_persona_desc">Tambahkan deskripsi persona pengguna global saat ini ke dalam konteks penulisan AI.</string>
     <string name="story_character_primary">Protagonis</string>
     <string name="story_linked_lorebook">Buku dunia tertaut: %1$s</string>
+    <string name="story_lorebook_desc">Pilih entri yang tersedia untuk cerita ini. Aktivasi kata kunci dan konstan akan diterapkan selama penulisan AI.</string>
     <string name="story_lorebook_empty">Buku dunia ini belum memiliki entri.</string>
     <string name="story_settings_load_failed">Tidak dapat memuat pengaturan cerita</string>
     <string name="story_settings_save_failed">Tidak dapat menyimpan pengaturan cerita</string>
@@ -1221,6 +1226,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_title">Tampilan</string>
     <string name="appearance_entry_desc">Tema dan latar halaman</string>
     <string name="appearance_palette_heading">Pilih palet favorit</string>
+    <string name="appearance_palette_desc">Permukaan lembut dan warna selaras untuk membaca dengan nyaman.</string>
     <string name="appearance_classic">Biru klasik</string>
     <string name="appearance_sakura">Sakura</string>
     <string name="appearance_forest">Hutan</string>
@@ -1348,15 +1354,10 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_status_title">Status Saat Ini</string>
     <string name="message_edit_separate_think">Pisahkan penalaran</string>
     <string name="message_edit_separate_think_desc">Edit hanya jawaban dan pertahankan penalaran asli.</string>
-    <string name="json_export_label">Ekspor</string>
-    <string name="json_export_working">Mengekspor file…</string>
-    <string name="json_export_success">File diekspor</string>
-    <string name="json_export_failed">Tidak dapat mengekspor file. Silakan coba lagi.</string>
-    <string name="json_export_raw_notice">Log ini tidak dapat diformat. Teks yang tersimpan akan diekspor.</string>
-    <string name="json_tab_tree">Visual</string>
-    <string name="json_tab_source">Sumber</string>
-    <string name="json_value_truncated">Nilai ini berisi %1$d karakter. Pratinjau dipersingkat; ekspor untuk membaca seluruh konten tersimpan.</string>
-    <string name="json_preview_too_large">Konten terlalu besar untuk ditampilkan. Ekspor dari log permintaan untuk membacanya.</string>
-    <string name="json_source_invalid">Log ini tidak dapat diformat. Menampilkan teks yang tersimpan.</string>
-    <string name="chat_include_character_examples">Sertakan contoh dialog karakter</string>
+    <string name="backup_details_title">Detail teknis</string>
+    <string name="backup_details_copy">Salin</string>
+    <string name="backup_details_copied">Detail disalin</string>
+    <string name="backup_restore_done">Pemulihan selesai. Periksa detail di bawah, lalu mulai ulang RPClient untuk memuat data yang dipulihkan.</string>
+    <string name="backup_restart_required">RPClient harus dimulai ulang untuk membuka kembali datanya. Periksa detail di bawah, lalu mulai ulang.</string>
+    <string name="backup_restart_now">Mulai ulang RPClient</string>
 </resources>

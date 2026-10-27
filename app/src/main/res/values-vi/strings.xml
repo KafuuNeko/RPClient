@@ -127,6 +127,7 @@
     <string name="summary_role_user">Người dùng</string>
     <string name="summary_role_assistant">Trợ lý</string>
     <string name="pause_auto_summary">Tạm dừng tự động tóm tắt cho trò chuyện này</string>
+    <string name="pause_auto_summary_desc">Vẫn có thể tạo tóm tắt thủ công.</string>
     <string name="restore_previous_summary">Khôi phục bản tóm tắt trước</string>
     <string name="restore_previous_summary_desc">Hủy ảnh chụp nhanh mới nhất và khôi phục bộ nhớ trước đó.</string>
     <string name="unknown_character">Nhân vật không xác định</string>
@@ -298,6 +299,7 @@ Thất bại: %2$d</string>
     <string name="enabled_entries_count">Đã bật %1$d/%2$d</string>
     <string name="session_world_books">Sách thế giới của phiên</string>
     <string name="manage_world_books">Quản lý</string>
+    <string name="session_lore_note">Bật/tắt mục chỉ ảnh hưởng đến phiên hiện tại, không làm thay đổi thư viện sách thế giới.</string>
     <string name="search_world_books">Tìm kiếm sách thế giới hoặc mục</string>
     <string name="clear_search">Xóa tìm kiếm</string>
     <string name="no_world_book_search_results">Không tìm thấy sách thế giới hoặc mục phù hợp.</string>
@@ -333,6 +335,7 @@ Thất bại: %2$d</string>
     <string name="summarize_now">Tóm tắt ngay</string>
     <string name="summarize_now_desc">Cập nhật bộ nhớ trò chuyện này bằng cài đặt tóm tắt toàn cục</string>
     <string name="delete_chat_title">Xóa cuộc trò chuyện</string>
+    <string name="delete_chat_desc">Xóa vĩnh viễn phiên này và tất cả tin nhắn</string>
     <string name="delete_chat_message">Xóa "%s" và tất cả tin nhắn trong đó? Thao tác này không thể hoàn tác.</string>
     <string name="session">Phiên trò chuyện</string>
     <string name="title">Tiêu đề</string>
@@ -390,6 +393,7 @@ Thất bại: %2$d</string>
     <string name="world_book_manager">Trình quản lý sách thế giới</string>
     <string name="create_world_book">Tạo sách thế giới</string>
     <string name="world_book_title">Sách thế giới</string>
+    <string name="world_book_subtitle">Quản lý sách thế giới và các mục; quyết định dữ liệu nào được bật trong phiên</string>
     <string name="world_book_library">Thư viện sách thế giới</string>
     <string name="create">Tạo</string>
     <string name="entries">Mục</string>
@@ -416,10 +420,12 @@ Thất bại: %2$d</string>
     <string name="unnamed_entry">Mục chưa đặt tên</string>
     <string name="entry_name">Tên mục</string>
     <string name="entry_constant">Luôn kích hoạt</string>
+    <string name="entry_constant_desc">Chèn mục này khi được bật, ngay cả khi không khớp từ khóa</string>
     <string name="entry_order">Thứ tự</string>
     <string name="entry_depth">Độ sâu</string>
     <string name="entry_content">Nội dung</string>
     <string name="entry_disabled">Đã tắt</string>
+    <string name="entry_disabled_desc">Bỏ qua mục này trong quá trình kích hoạt</string>
     <string name="entry_position">Vị trí</string>
     <string name="entry_role">Vai trò</string>
     <string name="entry_probability">Xác suất</string>
@@ -562,9 +568,6 @@ Thất bại: %2$d</string>
     <string name="quick_presets">Mẫu cấu hình nhanh</string>
     <string name="preset_custom">Tùy chỉnh</string>
     <string name="advanced_settings">Nâng cao &amp; Mở rộng</string>
-    <string name="provider_system_prompt">Prompt hệ thống của mô hình</string>
-    <string name="provider_system_prompt_description">Luôn được thêm vào đầu mọi yêu cầu dùng mô hình này, kể cả tóm tắt và kiểm tra kết nối. Không tính vào ngân sách ngữ cảnh; hãy tự dành dung lượng dự phòng. Để trống để tắt.</string>
-    <string name="provider_system_prompt_placeholder">Chỉ dẫn tùy chọn cho mô hình này</string>
     <string name="advanced_settings_desc">Tiêu đề tùy chỉnh, JSON Patch yêu cầu và định tuyến</string>
     <string name="custom_headers_preview">Xem trước tiêu đề tùy chỉnh</string>
     <string name="request_body_patch_preview">Xem trước Patch thân yêu cầu</string>
@@ -1052,8 +1055,10 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="story_character_always">Luôn bao gồm</string>
     <string name="story_character_auto">Tự động</string>
     <string name="story_include_user_persona">Bao gồm persona người dùng</string>
+    <string name="story_include_user_persona_desc">Danh tính và hồ sơ người dùng</string>
     <string name="story_character_primary">Chính</string>
     <string name="story_linked_lorebook">Sách thế giới liên kết: %1$s</string>
+    <string name="story_lorebook_desc">Chọn các mục khả dụng cho câu chuyện này. Quy tắc kích hoạt theo từ khóa và luôn kích hoạt sẽ được áp dụng trong quá trình AI viết.</string>
     <string name="story_lorebook_empty">Chưa bật mục nào</string>
     <string name="story_settings_load_failed">Tải cài đặt câu chuyện thất bại</string>
     <string name="story_settings_save_failed">Lưu cài đặt câu chuyện thất bại</string>
@@ -1221,6 +1226,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_title">Giao diện</string>
     <string name="appearance_entry_desc">Chủ đề và hình nền trang</string>
     <string name="appearance_palette_heading">Chọn bảng màu yêu thích</string>
+    <string name="appearance_palette_desc">Nền dịu nhẹ và màu sắc hài hòa giúp đọc thoải mái hơn.</string>
     <string name="appearance_classic">Xanh cổ điển</string>
     <string name="appearance_sakura">Hoa anh đào</string>
     <string name="appearance_forest">Rừng xanh</string>
@@ -1348,15 +1354,10 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_status_title">Trạng thái hiện tại</string>
     <string name="message_edit_separate_think">Tách suy luận</string>
     <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
-    <string name="json_export_label">Xuất</string>
-    <string name="json_export_working">Đang xuất tệp…</string>
-    <string name="json_export_success">Đã xuất tệp</string>
-    <string name="json_export_failed">Không thể xuất tệp. Vui lòng thử lại.</string>
-    <string name="json_export_raw_notice">Không thể định dạng nhật ký này. Văn bản đã lưu sẽ được xuất.</string>
-    <string name="json_tab_tree">Trực quan</string>
-    <string name="json_tab_source">Mã nguồn</string>
-    <string name="json_value_truncated">Giá trị này chứa %1$d ký tự. Bản xem trước đã được rút gọn; hãy xuất để đọc toàn bộ nội dung đã lưu.</string>
-    <string name="json_preview_too_large">Nội dung quá lớn để hiển thị. Hãy xuất từ nhật ký yêu cầu để đọc.</string>
-    <string name="json_source_invalid">Không thể định dạng nhật ký này. Đang hiển thị văn bản đã lưu.</string>
-    <string name="chat_include_character_examples">Bao gồm hội thoại mẫu của nhân vật</string>
+    <string name="backup_details_title">Chi tiết kỹ thuật</string>
+    <string name="backup_details_copy">Sao chép</string>
+    <string name="backup_details_copied">Đã sao chép chi tiết</string>
+    <string name="backup_restore_done">Khôi phục xong. Hãy xem chi tiết bên dưới rồi khởi động lại RPClient để tải dữ liệu đã khôi phục.</string>
+    <string name="backup_restart_required">RPClient cần khởi động lại để mở lại dữ liệu. Hãy xem chi tiết bên dưới rồi khởi động lại.</string>
+    <string name="backup_restart_now">Khởi động lại RPClient</string>
 </resources>

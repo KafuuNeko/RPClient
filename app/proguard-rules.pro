@@ -35,3 +35,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Portable backup maps SQLite column names to Gson field names at runtime.
+# This file is the one referenced by app/build.gradle.kts; keep Room entity field names here.
+-keepclassmembers class me.kafuuneko.rpclient.libs.room.entity.** { <fields>; }

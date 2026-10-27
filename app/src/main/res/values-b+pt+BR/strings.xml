@@ -127,6 +127,7 @@
     <string name="summary_role_user">Usuário</string>
     <string name="summary_role_assistant">Assistente</string>
     <string name="pause_auto_summary">Pausar resumo automático neste chat</string>
+    <string name="pause_auto_summary_desc">Os resumos manuais continuam disponíveis.</string>
     <string name="restore_previous_summary">Restaurar resumo anterior</string>
     <string name="restore_previous_summary_desc">Descarta o snapshot mais recente e restaura a memória anterior.</string>
     <string name="unknown_character">Personagem desconhecido</string>
@@ -298,6 +299,7 @@ Falhas: %2$d</string>
     <string name="enabled_entries_count">%1$d/%2$d ativadas</string>
     <string name="session_world_books">Livros do Mundo da Sessão</string>
     <string name="manage_world_books">Gerenciar</string>
+    <string name="session_lore_note">A ativação de entradas afeta apenas a sessão atual, não a biblioteca de livros do mundo.</string>
     <string name="search_world_books">Pesquisar livros do mundo ou entradas</string>
     <string name="clear_search">Limpar pesquisa</string>
     <string name="no_world_book_search_results">Nenhum livro do mundo ou entrada correspondente.</string>
@@ -333,6 +335,7 @@ Falhas: %2$d</string>
     <string name="summarize_now">Resumir agora</string>
     <string name="summarize_now_desc">Atualizar a memória deste chat usando as configurações globais de resumo</string>
     <string name="delete_chat_title">Excluir chat</string>
+    <string name="delete_chat_desc">Excluir permanentemente esta sessão e todas as mensagens</string>
     <string name="delete_chat_message">Excluir "%s" e todas as suas mensagens? Esta ação não pode ser desfeita.</string>
     <string name="session">Sessão</string>
     <string name="title">Título</string>
@@ -390,6 +393,7 @@ Falhas: %2$d</string>
     <string name="world_book_manager">Gerenciador de Livros do Mundo</string>
     <string name="create_world_book">Criar livro do mundo</string>
     <string name="world_book_title">Livro do Mundo</string>
+    <string name="world_book_subtitle">Gerencie livros do mundo e entradas; decida quais dados ativar nas sessões</string>
     <string name="world_book_library">Biblioteca de Livros do Mundo</string>
     <string name="create">Criar</string>
     <string name="entries">Entradas</string>
@@ -416,10 +420,12 @@ Falhas: %2$d</string>
     <string name="unnamed_entry">Entrada sem nome</string>
     <string name="entry_name">Nome da entrada</string>
     <string name="entry_constant">Sempre ativa</string>
+    <string name="entry_constant_desc">Inserir esta entrada quando estiver ativada, mesmo sem correspondência de palavras-chave</string>
     <string name="entry_order">Ordem</string>
     <string name="entry_depth">Profundidade</string>
     <string name="entry_content">Conteúdo</string>
     <string name="entry_disabled">Desativada</string>
+    <string name="entry_disabled_desc">Ignorar esta entrada durante a ativação</string>
     <string name="entry_position">Posição</string>
     <string name="entry_role">Papel</string>
     <string name="entry_probability">Probabilidade</string>
@@ -562,9 +568,6 @@ Falhas: %2$d</string>
     <string name="quick_presets">Predefinições Rápidas</string>
     <string name="preset_custom">Personalizado</string>
     <string name="advanced_settings">Avançado e Extensões</string>
-    <string name="provider_system_prompt">Prompt de sistema do modelo</string>
-    <string name="provider_system_prompt_description">Sempre aparece primeiro em cada solicitação com este modelo, incluindo resumos e testes de conexão. Não entra no orçamento de contexto; reserve espaço por conta própria. Deixe em branco para desativar.</string>
-    <string name="provider_system_prompt_placeholder">Instruções opcionais para este modelo</string>
     <string name="advanced_settings_desc">Cabeçalhos personalizados, patch do corpo da requisição e roteamento</string>
     <string name="custom_headers_preview">Prévia dos Cabeçalhos Personalizados</string>
     <string name="request_body_patch_preview">Prévia do Patch do Corpo da Requisição</string>
@@ -1054,8 +1057,10 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="story_character_always">Sempre</string>
     <string name="story_character_auto">Auto</string>
     <string name="story_include_user_persona">Incluir persona do usuário</string>
+    <string name="story_include_user_persona_desc">Adiciona a descrição da persona global do usuário ao contexto de escrita da IA.</string>
     <string name="story_character_primary">Protagonista</string>
     <string name="story_linked_lorebook">Livro do mundo vinculado: %1$s</string>
+    <string name="story_lorebook_desc">Escolha as entradas disponíveis para esta história. A ativação por palavras-chave e constante será aplicada durante a escrita com IA.</string>
     <string name="story_lorebook_empty">Este livro do mundo não tem entradas.</string>
     <string name="story_settings_load_failed">Não foi possível carregar as configurações da história</string>
     <string name="story_settings_save_failed">Não foi possível salvar as configurações da história</string>
@@ -1224,6 +1229,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_title">Aparência</string>
     <string name="appearance_entry_desc">Temas e fundos de página</string>
     <string name="appearance_palette_heading">Escolha sua paleta</string>
+    <string name="appearance_palette_desc">Superfícies suaves e cores harmoniosas para uma leitura agradável.</string>
     <string name="appearance_classic">Azul clássico</string>
     <string name="appearance_sakura">Flor de cerejeira</string>
     <string name="appearance_forest">Floresta</string>
@@ -1351,15 +1357,10 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="backup_status_title">Status atual</string>
     <string name="message_edit_separate_think">Separar raciocínio</string>
     <string name="message_edit_separate_think_desc">Edite só a resposta e preserve o raciocínio original.</string>
-    <string name="json_export_label">Exportar</string>
-    <string name="json_export_working">Exportando arquivo…</string>
-    <string name="json_export_success">Arquivo exportado</string>
-    <string name="json_export_failed">Não foi possível exportar o arquivo. Tente novamente.</string>
-    <string name="json_export_raw_notice">Este registro não pode ser formatado. O texto salvo será exportado.</string>
-    <string name="json_tab_tree">Visual</string>
-    <string name="json_tab_source">Código</string>
-    <string name="json_value_truncated">Este valor contém %1$d caracteres. A prévia foi reduzida; exporte para ler todo o conteúdo salvo.</string>
-    <string name="json_preview_too_large">O conteúdo é grande demais para exibir. Exporte pelo registro de solicitações para ler.</string>
-    <string name="json_source_invalid">Este registro não pode ser formatado. Exibindo o texto salvo.</string>
-    <string name="chat_include_character_examples">Incluir exemplos de diálogo dos personagens</string>
+    <string name="backup_details_title">Detalhes técnicos</string>
+    <string name="backup_details_copy">Copiar</string>
+    <string name="backup_details_copied">Detalhes copiados</string>
+    <string name="backup_restore_done">Restauração concluída. Veja os detalhes abaixo e reinicie o RPClient para carregar os dados restaurados.</string>
+    <string name="backup_restart_required">O RPClient precisa reiniciar para reabrir os dados. Veja os detalhes abaixo e reinicie.</string>
+    <string name="backup_restart_now">Reiniciar o RPClient</string>
 </resources>
