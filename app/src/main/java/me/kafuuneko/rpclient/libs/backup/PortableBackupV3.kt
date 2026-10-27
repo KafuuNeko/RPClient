@@ -436,6 +436,11 @@ internal class BackupV3Writer(
                 lorebookEntrySet = session.optString("lorebookEntrySet"),
                 worldInfoStateJson = session.optString("worldInfoStateJson"),
                 autoSummaryPaused = session.flag("autoSummaryPaused"),
+                includeCharacterExamples = if (session.has("includeCharacterExamples")) {
+                    session.flag("includeCharacterExamples")
+                } else {
+                    true
+                },
                 characterNameHint = character?.name.orEmpty(),
                 characterFingerprint = character?.let { ChatCharacterMatcher.fingerprintOf(it) },
                 messages = normal.map {
@@ -586,6 +591,7 @@ internal class BackupV3Reader(
     private val mOriginalLorebookRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalLorebookEntryRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalMessageRows = mutableMapOf<Long, MutableList<JSONObject>>()
+    private val mOriginalGroupMessageRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mPendingCards = mutableListOf<PendingCard>()
     private val mLinks = mutableListOf<Link>()
     private val mNow = System.currentTimeMillis()
@@ -909,16 +915,20 @@ internal class BackupV3Reader(
                     .put("userDescription", archive.userDescription)
                     .put("worldInfoStateJson", archive.worldInfoStateJson)
                     .put("autoSummaryPaused", archive.autoSummaryPaused)
+                    .put("includeCharacterExamples", archive.includeCharacterExamples)
                 archive.creatorNotes?.let { sessionRow.put("creatorNotes", it) }
                 sessionSide.longValue("id")?.takeIf { it > 0L }?.let { sessionRow.put("id", it) }
                 val sourceCharacterId = sessionSide.longValue("characterId")
                 val sourceCharacterRows = sourceCharacterId?.let { mOriginalCharacterRows[it] }.orEmpty()
                 val characterRow = sourceCharacterRows.singleOrNull()
                     ?: mCharacters.singleOrNull { it.optString("name") == archive.characterNameHint }
-                    ?: throw IllegalArgumentException(
-                        "No unambiguous restored character matches '${archive.characterNameHint}'. " +
-                            "Add the character file or fix rpclient_backup.session.characterId in the header line."
+                if (characterRow == null) {
+                    mReport.warn(
+                        "${rel(file)}: chat skipped because no unambiguous character match was restored. " +
+                            "Restore the character or import this chat separately using the existing chat import flow."
                     )
+                    return@at
+                }
                 link(sessionRow, "characterId", characterRow)
                 add("chat_sessions", sessionRow)
 
@@ -1014,10 +1024,59 @@ internal class BackupV3Reader(
                                 else -> throw IllegalArgumentException("unknown line type '$type'")
                             }
                             link(row, "sessionId", parent)
+                            when (type) {
+                                "member" -> {
+                                    val sourceCharacterId = row.optLong("characterId", 0L)
+                                    val candidates = mOriginalCharacterRows[sourceCharacterId].orEmpty()
+                                    if (candidates.size != 1) {
+                                        mReport.warn(
+                                            "${rel(file)} (line $lineNumber): group member references missing or ambiguous character $sourceCharacterId; member skipped"
+                                        )
+                                        return@at
+                                    }
+                                    link(row, "characterId", candidates.single())
+                                }
+                                "message" -> {
+                                    val sourceId = row.optLong("id", 0L)
+                                    if (sourceId > 0L) {
+                                        mOriginalGroupMessageRows.getOrPut(sourceId) { mutableListOf() }.add(row)
+                                    }
+                                    val sourceSpeakerId = row.optLong("speakerCharacterId", 0L)
+                                    if (sourceSpeakerId > 0L) {
+                                        val candidates = mOriginalCharacterRows[sourceSpeakerId].orEmpty()
+                                        if (candidates.size == 1) {
+                                            link(row, "speakerCharacterId", candidates.single())
+                                        } else {
+                                            row.put("speakerCharacterId", JSONObject.NULL)
+                                            mReport.warn(
+                                                "${rel(file)} (line $lineNumber): group message speaker references missing or ambiguous character $sourceSpeakerId; speaker link cleared"
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                             add(table, row)
                         }
                     }
                 }
+            }
+        }
+        // Summaries precede messages in each JSONL file, so resolve their source IDs after
+        // all group messages have been indexed across every archive file.
+        mTables["group_chat_summaries"].orEmpty().forEach { row ->
+            val sourceMessageId = row.optLong("coveredMessageId", 0L)
+            if (sourceMessageId <= 0L) {
+                row.put("coveredMessageId", 0L)
+                return@forEach
+            }
+            val candidates = mOriginalGroupMessageRows[sourceMessageId].orEmpty()
+            if (candidates.size == 1) {
+                link(row, "coveredMessageId", candidates.single())
+            } else {
+                row.put("coveredMessageId", 0L)
+                mReport.warn(
+                    "group_chat_summaries: covered message $sourceMessageId is missing or ambiguous; coverage was cleared"
+                )
             }
         }
     }

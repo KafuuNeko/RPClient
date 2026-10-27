@@ -238,6 +238,16 @@ class PortableBackupRepositoryTest {
             "firstMessages, examplesOfDialogue, postHistoryInstructions"
         db.execSQL("INSERT INTO character($columns) VALUES(5, 'Alice', '', '[]', 'desc', '', '', 'Hello', '', '')")
         db.execSQL("INSERT INTO character($columns) VALUES(6, 'Bob', '', '[]', 'desc', '', '', 'Hello', '', '')")
+        db.execSQL(
+            "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
+                "VALUES(15, 5, 1, 2, '', 'Alice chat', '', 'User', '', '{}', 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
+                "VALUES(16, 6, 1, 2, '', 'Bob chat', '', 'User', '', '{}', 0, 1)"
+        )
         val archive = File(root, "snapshot.zip")
         val repository = PortableBackupRepository(context, primary, logs, BackupArchiveRepository(context, primary))
         repository.exportArchive(Uri.fromFile(archive))
@@ -262,6 +272,15 @@ class PortableBackupRepositoryTest {
             assertFalse(it.moveToNext())
         }
         assertTrue(report.text().isNotBlank())
+        primary.openHelper.readableDatabase.query(
+            "SELECT title, includeCharacterExamples FROM chat_sessions ORDER BY id"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Alice chat", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
+            assertFalse(cursor.moveToNext())
+        }
+        assertTrue(report.text().contains("chat skipped", ignoreCase = true))
     }
 
     /** 替换中途失败时，回滚快照必须包含关闭前仍位于 WAL 的已提交数据。 */

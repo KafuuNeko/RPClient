@@ -16,11 +16,12 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import java.io.ByteArrayOutputStream
 import java.io.BufferedInputStream
+import java.io.File
 import java.io.PushbackInputStream
 import java.io.InputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -64,7 +65,8 @@ class CharacterCardRepository(
 
     /**
      * Read a single card or a ZIP archive produced by bulk export without extracting entries.
-     * Invalid JSON entries are skipped independently; archive resource limits fail closed.
+     * ZIP metadata is enumerated separately so non-JSON entries can be skipped without decompression.
+     * JSON entry sizes are not capped; malformed entries are skipped independently.
      */
     suspend fun readImportItemsFromUri(uri: Uri): CharacterCardArchiveReadResult =
         withContext(Dispatchers.IO) {
@@ -92,56 +94,54 @@ class CharacterCardRepository(
             var failureCount = 0
             var candidateCount = 0
             var entryCount = 0
-            var totalUncompressedBytes = 0L
-            ZipInputStream(pushback).use { zip ->
-                while (true) {
-                    currentCoroutineContext().ensureActive()
-                    val entry = zip.nextEntry ?: break
-                    entryCount++
-                    if (entryCount > MAX_ARCHIVE_ENTRIES) {
-                        throw ArchiveLimitException("Character archive contains too many entries")
-                    }
-                    val name = entry.name
-                    val unsafePath = name.startsWith("/") ||
-                        name.startsWith("\\") ||
-                        name.split('/', '\\').any { it == ".." } ||
-                        name.contains('\u0000')
-                    if (entry.isDirectory || !name.endsWith(".json", ignoreCase = true) || unsafePath) {
-                        zip.closeEntry()
-                        continue
-                    }
-
-                    candidateCount++
-                    var abortArchive = false
-                    try {
-                        val remainingBytes = MAX_ARCHIVE_TOTAL_BYTES - totalUncompressedBytes
-                        if (remainingBytes <= 0L) {
-                            throw ArchiveLimitException("Character archive exceeds the uncompressed size limit")
+            val archiveFile = File.createTempFile("rpclient-character-import-", ".zip", mContext.cacheDir)
+            try {
+                pushback.use { input ->
+                    archiveFile.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
                         }
-                        val maxEntryBytes = minOf(
-                            MAX_ARCHIVE_ENTRY_BYTES.toLong(),
-                            remainingBytes
-                        ).toInt()
-                        val bytes = zip.readBounded(maxEntryBytes)
-                        totalUncompressedBytes += bytes.size
-                        val json = bytes.toString(Charsets.UTF_8)
-                        drafts += CharacterCardImportDraft(
-                            card = mMapper.parseCharacter(json),
-                            avatarSourceUri = null,
-                            avatarMimeType = "application/json"
-                        )
-                    } catch (error: Exception) {
-                        if (error is kotlinx.coroutines.CancellationException) throw error
-                        if (error is ArchiveLimitException) {
-                            abortArchive = true
-                            throw error
-                        }
-                        failureCount++
-                    } finally {
-                        // Do not drain an oversized entry: closeEntry() would decompress its remainder.
-                        if (!abortArchive) zip.closeEntry()
                     }
                 }
+                ZipFile(archiveFile).use { zip ->
+                    val entries = zip.entries()
+                    while (entries.hasMoreElements()) {
+                        currentCoroutineContext().ensureActive()
+                        val entry = entries.nextElement()
+                        entryCount++
+                        if (entryCount > MAX_ARCHIVE_ENTRIES) {
+                            throw ArchiveLimitException("Character archive contains too many entries")
+                        }
+                        val name = entry.name
+                        val unsafePath = name.startsWith("/") ||
+                            name.startsWith("\\") ||
+                            name.split('/', '\\').any { it == ".." } ||
+                            name.contains('\\u0000')
+                        if (entry.isDirectory || !name.endsWith(".json", ignoreCase = true) || unsafePath) {
+                            continue
+                        }
+
+                        candidateCount++
+                        try {
+                            val bytes = zip.getInputStream(entry).use { it.readUnboundedWithCancellation() }
+                            val json = bytes.toString(Charsets.UTF_8)
+                            drafts += CharacterCardImportDraft(
+                                card = mMapper.parseCharacter(json),
+                                avatarSourceUri = null,
+                                avatarMimeType = "application/json"
+                            )
+                        } catch (error: Exception) {
+                            if (error is kotlinx.coroutines.CancellationException) throw error
+                            failureCount++
+                        }
+                    }
+                }
+            } finally {
+                archiveFile.delete()
             }
             if (candidateCount == 0) failureCount++
             CharacterCardArchiveReadResult(
@@ -151,18 +151,14 @@ class CharacterCardRepository(
             )
         }
 
-    private fun InputStream.readBounded(maxBytes: Int): ByteArray {
+    private suspend fun InputStream.readUnboundedWithCancellation(): ByteArray {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var count = 0
         while (true) {
-            val read = read(buffer)
-            if (read < 0) break
-            count += read
-            if (count > maxBytes) {
-                throw ArchiveLimitException("Character archive entry exceeds the size limit")
-            }
-            output.write(buffer, 0, read)
+            currentCoroutineContext().ensureActive()
+            val count = read(buffer)
+            if (count < 0) break
+            output.write(buffer, 0, count)
         }
         return output.toByteArray()
     }
@@ -329,8 +325,6 @@ class CharacterCardRepository(
     private companion object {
         val ZIP_SIGNATURE = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
         const val MAX_ARCHIVE_ENTRIES = 1_000
-        const val MAX_ARCHIVE_ENTRY_BYTES = 8 * 1024 * 1024
-        const val MAX_ARCHIVE_TOTAL_BYTES = 64L * 1024L * 1024L
 
         val OnePixelPng = byteArrayOf(
             0x89.toByte(),

@@ -14,6 +14,18 @@ sealed class CharacterListUiIntent {
 
     data class SelectCharacter(val characterId: Long) : CharacterListUiIntent()
 
+    data class BeginCharacterSelection(val characterId: Long) : CharacterListUiIntent()
+
+    data class ToggleCharacterSelection(val characterId: Long) : CharacterListUiIntent()
+
+    data object ToggleVisibleCharacterSelection : CharacterListUiIntent()
+
+    data object ClearCharacterSelection : CharacterListUiIntent()
+
+    data object ExportSelectedCharactersClick : CharacterListUiIntent()
+
+    data class ExportSelectedCharacters(val characterIds: List<Long>, val uri: Uri) : CharacterListUiIntent()
+
     data class VisibleCharactersChanged(
         val characterIds: Set<Long>,
         val targetSizePx: Int
