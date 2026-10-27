@@ -21,7 +21,9 @@ internal object BackupDatabaseCodec {
         // 不序列化 SQLite 自建表，避免恢复时与引擎创建的结构冲突。
         db.query(
             "SELECT type, name, tbl_name, sql FROM sqlite_master " +
-                "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' " +
+                "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' " +
+                "AND name NOT IN ('android_metadata', 'room_master_table') " +
+                "AND tbl_name != 'room_master_table' " +
                 "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name", emptyArray()
         ).use { cursor ->
             while (cursor.moveToNext()) {
@@ -46,7 +48,8 @@ internal object BackupDatabaseCodec {
         val result = mutableListOf<String>()
         db.query(
             "SELECT name FROM sqlite_master WHERE type='table' " +
-                "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' ORDER BY name", emptyArray()
+                "AND name NOT LIKE 'sqlite_%' " +
+                "AND name NOT IN ('android_metadata', 'room_master_table') ORDER BY name", emptyArray()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(0)
@@ -145,7 +148,7 @@ internal object BackupDatabaseCodec {
         val result = linkedMapOf<String, MutableList<JSONObject>>()
         File(snapshot, "tables").listFiles().orEmpty().filter { it.isFile && it.extension == "jsonl" }.forEach { file ->
             val table = tableNameForFile(objects, file.nameWithoutExtension)
-            if (table == "android_metadata") return@forEach
+            if (table == "android_metadata" || table == "room_master_table") return@forEach
             file.forEachLine(Charsets.UTF_8) { line ->
                 if (line.isNotBlank()) result.getOrPut(table) { mutableListOf() }.add(JSONObject(line))
             }
@@ -175,11 +178,14 @@ internal object BackupDatabaseCodec {
         val allowedTables = mutableSetOf<String>()
         for (index in 0 until objects.length()) {
             val item = objects.getJSONObject(index)
-            if (item.optString("type") == "table" && item.optString("name") != "android_metadata") {
+            if (item.optString("type") == "table" && item.optString("name") != "android_metadata" &&
+                item.optString("name") != "room_master_table") {
                 allowedTables.add(item.optString("name"))
             }
         }
-        val unknownTable = tableRows.keys.firstOrNull { it !in allowedTables }
+        val unknownTable = tableRows.keys.firstOrNull {
+            it != "room_master_table" && it !in allowedTables
+        }
         require(unknownTable == null) { "Backup contains rows for an unknown table: " + unknownTable }
         destination.parentFile?.mkdirs()
         if (destination.exists()) destination.delete()
@@ -191,7 +197,8 @@ internal object BackupDatabaseCodec {
                 if (item.optString("type") != "table") continue
                 val name = item.optString("name")
                 // android_metadata 由 Android 打开数据库时创建，不从归档重复创建。
-                if (name != "android_metadata" && !name.startsWith("search_chunks_fts_") &&
+                if (name != "android_metadata" && name != "room_master_table" &&
+                    !name.startsWith("search_chunks_fts_") &&
                     !sqliteTableExists(db, name)
                 ) {
                     db.execSQL(item.getString("sql"))
@@ -200,7 +207,8 @@ internal object BackupDatabaseCodec {
             db.beginTransaction()
             try {
                 tableRows.forEach { (table, rows) ->
-                    if (table != "search_chunks_fts" && !table.startsWith("search_chunks_fts_")) {
+                    if (table != "room_master_table" && table != "search_chunks_fts" &&
+                        !table.startsWith("search_chunks_fts_")) {
                         insertRows(db, table, rows)
                     }
                 }
@@ -214,7 +222,10 @@ internal object BackupDatabaseCodec {
             }
             for (index in 0 until objects.length()) {
                 val item = objects.getJSONObject(index)
-                if (item.optString("type") != "table" && item.optString("table") != "android_metadata") {
+                if (item.optString("type") != "table" &&
+                    item.optString("name") != "room_master_table" &&
+                    item.optString("table") != "android_metadata" &&
+                    item.optString("table") != "room_master_table") {
                     db.execSQL(item.getString("sql"))
                 }
             }

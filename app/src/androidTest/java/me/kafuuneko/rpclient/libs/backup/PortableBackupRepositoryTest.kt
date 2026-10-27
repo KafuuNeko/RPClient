@@ -118,6 +118,16 @@ class PortableBackupRepositoryTest {
             assertTrue(zip.entries().asSequence().none { it.name.contains("search_chunks_fts") })
             assertTrue(zip.getEntry("tables/search_chunks.jsonl") != null)
             assertTrue(zip.getEntry("manifest.json") != null)
+            assertTrue(zip.entries().asSequence().none { it.name.contains("room_master_table") })
+            val schemaEntry = zip.getEntry("app-data/database-schema.json")
+            val schema = JSONObject(zip.getInputStream(schemaEntry).bufferedReader().use { it.readText() })
+            assertTrue(
+                schema.getJSONArray("objects").let { objects ->
+                    (0 until objects.length()).none {
+                        objects.getJSONObject(it).optString("name") == "room_master_table"
+                    }
+                }
+            )
         }
         db.execSQL("DELETE FROM search_chunks")
         db.execSQL("DELETE FROM backup_probe")

@@ -3,6 +3,8 @@ package me.kafuuneko.rpclient.libs.room
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.TypeConverters
 import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterLLMProviderAssociationDao
@@ -87,7 +89,7 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
         LLMTokenUsageRecord::class,
         MessageImageEntity::class
     ],
-    version = 5,
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
@@ -125,4 +127,38 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun getLLMTokenUsageDao(): LLMTokenUsageDao
     abstract fun getMessageImageDao(): MessageImageDao
 
+}
+
+/**
+ * Repairs historical version-5 databases whose schema changed without a version bump.
+ * Each column is checked so both known version-5 layouts can be upgraded safely.
+ */
+object AppDatabaseMigration5To6 : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        addColumnIfMissing(database, "chat_sessions", "includeCharacterExamples", "INTEGER NOT NULL DEFAULT 1")
+        addColumnIfMissing(database, "llm_providers", "systemPrompt", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing(database, "group_chat_sessions", "includeCharacterExamples", "INTEGER NOT NULL DEFAULT 1")
+    }
+
+    private fun addColumnIfMissing(
+        database: SupportSQLiteDatabase,
+        tableName: String,
+        columnName: String,
+        definition: String,
+    ) {
+        val exists = database.query("PRAGMA table_info(`$tableName`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            var found = false
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == columnName) {
+                    found = true
+                    break
+                }
+            }
+            found
+        }
+        if (!exists) {
+            database.execSQL("ALTER TABLE `$tableName` ADD COLUMN `$columnName` $definition")
+        }
+    }
 }

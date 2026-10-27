@@ -4,6 +4,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.libs.llm.model.OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.room.AppDatabaseMigration5To6
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -308,6 +309,79 @@ class AppDatabaseMigrationTest {
                 assertEquals(true, cursor.moveToFirst())
                 repeat(times = 4) { value -> assertEquals(0, cursor.getInt(value)) }
             }
+    }
+
+    /** 5→6 为新增 Prompt 开关和模型系统提示词提供默认值，并保留已有行。 */
+    @Test
+    fun migrate5To6_addsPromptSettingsWithoutLosingExistingRows() {
+        migrationHelper.createDatabase(name = "app-prompt-settings-migration-test", version = 5).apply {
+            execSQL(
+                """
+                INSERT INTO character (
+                    id, name, avatar, characterTags, description, personality, scenario,
+                    firstMessages, examplesOfDialogue, postHistoryInstructions
+                ) VALUES (101, 'existing character', '', '[]', '', '', '', '', '', '')
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO chat_sessions (
+                    id, characterId, createTime, latestTime, lorebookEntrySet, title, userNote,
+                    userName, userDescription, worldInfoStateJson, autoSummaryPaused
+                ) VALUES (202, 101, 1, 2, '[]', 'existing chat', '', 'user', '', '{}', 0)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO llm_providers (
+                    id, name, providerType, protocol, baseUrl, apiKey, model,
+                    customHeadersJson, requestBodyPatchJson, temperature, topP, maxTokens,
+                    contextTokens, tokenEstimateReservePercent, localTokenEstimatorType,
+                    sendTemperature, sendTopP, useServerReportedUsage, promptPostProcessingMode,
+                    imageInputSetting, imageTokenEstimatorType, isEnabled, createTime, updateTime
+                ) VALUES (404, 'existing provider', 'Custom', 'OpenAICompatible',
+                    'https://example.invalid', '', 'model', '', '{}', 0.8, 1.0, 1200,
+                    8192, 15, 'Automatic', 1, 1, 0, 0, 'Auto', 'Automatic', 1, 4, 4)
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO group_chat_sessions (
+                    id, title, createTime, latestTime, userName, userDescription, scenario,
+                    userNote, lorebookEntrySet, worldInfoStateJson, systemPromptOverride,
+                    groupNudgePromptOverride, newGroupChatPromptOverride, activationStrategy,
+                    allowSelfResponses, characterCardMode, includeMutedCards, autoModeEnabled,
+                    trimOtherSpeakers, autoSummaryPaused
+                ) VALUES (505, 'existing group', 1, 2, 'user', '', '', '', '[]', '{}',
+                    '', '', '', 'Natural', 0, 'Swap', 0, 0, 1, 0)
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            "app-prompt-settings-migration-test",
+            6,
+            true,
+            AppDatabaseMigration5To6,
+        )
+
+        migrated.query("SELECT title, includeCharacterExamples FROM chat_sessions WHERE id = 202").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("existing chat", cursor.getString(0))
+            assertEquals(1, cursor.getInt(1))
+        }
+        migrated.query("SELECT systemPrompt FROM llm_providers WHERE id = 404").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("", cursor.getString(0))
+        }
+        migrated.query(
+            "SELECT title, includeCharacterExamples FROM group_chat_sessions WHERE id = 505",
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals("existing group", cursor.getString(0))
+            assertEquals(1, cursor.getInt(1))
+        }
     }
 
     private companion object {
