@@ -418,55 +418,53 @@ private fun BackgroundAdjustments(
             }
         }
         if (state.settings.page == BackgroundPage.General || !state.settings.followGeneral) {
-            // 参数数值清晰展示，拖动保持低分辨率预览，松手再渲染最终图。
-            if (state.effectiveSettings.fileUuid != null) {
-                item {
-                    AdjustmentSlider(
-                        title = R.string.appearance_blur,
-                        value = state.settings.blur.toFloat(),
-                        range = 0f..100f,
-                        field = BackgroundAdjustment.Blur,
-                        state = state,
-                        emit = emit,
-                    )
-                }
-                item {
-                    AdjustmentSlider(
-                        title = R.string.appearance_scrim,
-                        value = state.settings.scrim,
-                        range = 0f..0.9f,
-                        field = BackgroundAdjustment.Scrim,
-                        state = state,
-                        emit = emit,
-                    )
-                }
-                item {
-                    AdjustmentSlider(
-                        title = R.string.appearance_horizontal,
-                        value = state.settings.focalX,
-                        range = 0f..1f,
-                        field = BackgroundAdjustment.Horizontal,
-                        state = state,
-                        emit = emit,
-                    )
-                }
-                item {
-                    AdjustmentSlider(
-                        title = R.string.appearance_vertical,
-                        value = state.settings.focalY,
-                        range = 0f..1f,
-                        field = BackgroundAdjustment.Vertical,
-                        state = state,
-                        emit = emit,
-                    )
-                }
-                item {
-                    Text(
-                        text = stringResource(R.string.appearance_background_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            // 角色背景也使用这些参数，即使未设置页面或通用背景图片，也允许预先调整。
+            item {
+                AdjustmentSlider(
+                    title = R.string.appearance_blur,
+                    value = state.settings.blur.toFloat(),
+                    range = 0f..100f,
+                    field = BackgroundAdjustment.Blur,
+                    state = state,
+                    emit = emit,
+                )
+            }
+            item {
+                AdjustmentSlider(
+                    title = R.string.appearance_scrim,
+                    value = state.settings.scrim,
+                    range = 0f..0.9f,
+                    field = BackgroundAdjustment.Scrim,
+                    state = state,
+                    emit = emit,
+                )
+            }
+            item {
+                AdjustmentSlider(
+                    title = R.string.appearance_horizontal,
+                    value = state.settings.focalX,
+                    range = 0f..1f,
+                    field = BackgroundAdjustment.Horizontal,
+                    state = state,
+                    emit = emit,
+                )
+            }
+            item {
+                AdjustmentSlider(
+                    title = R.string.appearance_vertical,
+                    value = state.settings.focalY,
+                    range = 0f..1f,
+                    field = BackgroundAdjustment.Vertical,
+                    state = state,
+                    emit = emit,
+                )
+            }
+            item {
+                Text(
+                    text = stringResource(R.string.appearance_background_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             // 栏位背景独立于图片；0% 不透明、100% 完全透明，不降低文字和按钮透明度。
             item {

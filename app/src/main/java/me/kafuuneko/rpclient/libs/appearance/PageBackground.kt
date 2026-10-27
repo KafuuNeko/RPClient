@@ -15,8 +15,8 @@ enum class BackgroundPage(val key: String) {
 data class PageBackground(
     val page: BackgroundPage,
     val fileUuid: String? = null,
-    val blur: Int = 25,
-    val scrim: Float = 0.25f,
+    val blur: Int = 0,
+    val scrim: Float = 0.35f,
     val opacity: Float = 1f,
     val topBarOpacity: Float = 1f,
     val bottomBarOpacity: Float = 1f,
@@ -37,7 +37,7 @@ data class PageBackground(
         bottomBarBlur = bottomBarBlur.coerceIn(minimumValue = 0, maximumValue = 100),
         bubbleBlur = bubbleBlur.coerceIn(minimumValue = 0, maximumValue = 100),
         contentBlur = contentBlur.coerceIn(minimumValue = 0, maximumValue = 100),
-        scrim = scrim.finite(fallback = 0.25f).coerceIn(minimumValue = 0f, maximumValue = 0.9f),
+        scrim = scrim.finite(fallback = 0.35f).coerceIn(minimumValue = 0f, maximumValue = 0.9f),
         opacity = opacity.finite(fallback = 1f).coerceIn(minimumValue = 0f, maximumValue = 1f),
         topBarOpacity = topBarOpacity.finite(fallback = 1f)
             .coerceIn(minimumValue = 0f, maximumValue = 1f),
