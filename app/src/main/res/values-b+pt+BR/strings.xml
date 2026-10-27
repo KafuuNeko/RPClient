@@ -1259,7 +1259,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_top_bar_transparency">Transparência da barra de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparência da barra inferior</string>
     <string name="appearance_content_transparency">Transparência da área de conteúdo</string>
-    <string name="appearance_transparency_hint">0% é opaco; 100% é transparente. Texto e botões permanecem visíveis. Cada tipo de página tem suas próprias configurações.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% é opaco; 100% é transparente. Texto e botões permanecem visíveis. Cada tipo de página tem suas próprias configurações.</string>
     <string name="appearance_top_bar_blur">Desfoque do fundo do menu</string>
     <string name="appearance_bottom_bar_blur">Desfoque do fundo da barra inferior</string>
     <string name="appearance_content_blur">Desfoque da área de conteúdo</string>

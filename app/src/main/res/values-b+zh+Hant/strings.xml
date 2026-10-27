@@ -1250,7 +1250,7 @@
     <string name="appearance_top_bar_transparency">選單列透明度</string>
     <string name="appearance_bottom_bar_transparency">底部操作列透明度</string>
     <string name="appearance_content_transparency">內容區透明度</string>
-    <string name="appearance_transparency_hint">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
+    <string name="appearance_transparency_hint" formatted="false">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
     <string name="appearance_top_bar_blur">選單背景模糊度</string>
     <string name="appearance_bottom_bar_blur">底部操作列背景模糊度</string>
     <string name="appearance_content_blur">內容區模糊度</string>

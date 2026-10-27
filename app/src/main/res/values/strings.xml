@@ -1372,4 +1372,18 @@
     <string name="backup_restore_done">Restore finished. Review the details below, then restart RPClient to load the restored data.</string>
     <string name="backup_restart_required">RPClient must restart to reopen its data. Review the details below, then restart.</string>
     <string name="backup_restart_now">Restart RPClient</string>
+    <string name="chat_include_character_examples">Include character example messages</string>
+    <string name="json_preview_too_large">This JSON is too large to preview safely.</string>
+    <string name="json_source_invalid">The JSON source is invalid. The raw source is shown for inspection.</string>
+    <string name="json_tab_tree">Tree</string>
+    <string name="json_tab_source">Source</string>
+    <string name="json_value_truncated">%1$d characters omitted from this value.</string>
+    <string name="provider_system_prompt">System prompt</string>
+    <string name="provider_system_prompt_description">Instructions sent to the model before each request. Define its role, behavior, and response style here.</string>
+    <string name="provider_system_prompt_placeholder">Enter system instructions for this provider…</string>
+    <string name="json_export_failed">Could not export JSON. Please try again.</string>
+    <string name="json_export_raw_notice">This data is being exported as raw text because it is not valid JSON.</string>
+    <string name="json_export_success">JSON exported successfully.</string>
+    <string name="json_export_label">Export JSON</string>
+    <string name="json_export_working">Preparing JSON for export…</string>
 </resources>

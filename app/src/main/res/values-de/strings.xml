@@ -1255,7 +1255,7 @@
     <string name="appearance_top_bar_transparency">Transparenz der Menüleiste</string>
     <string name="appearance_bottom_bar_transparency">Transparenz der unteren Leiste</string>
     <string name="appearance_content_transparency">Transparenz des Inhaltsbereichs</string>
-    <string name="appearance_transparency_hint">0% ist undurchsichtig, 100% transparent. Text und Schaltflächen bleiben sichtbar. Jeder Seitentyp hat eigene Einstellungen.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% ist undurchsichtig, 100% transparent. Text und Schaltflächen bleiben sichtbar. Jeder Seitentyp hat eigene Einstellungen.</string>
     <string name="appearance_top_bar_blur">Unschärfe des Menühintergrunds</string>
     <string name="appearance_bottom_bar_blur">Unschärfe der unteren Leiste</string>
     <string name="appearance_content_blur">Unschärfe des Inhaltsbereichs</string>

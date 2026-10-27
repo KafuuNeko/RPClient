@@ -1234,7 +1234,7 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_top_bar_transparency">Trasparenza della barra menu</string>
     <string name="appearance_bottom_bar_transparency">Trasparenza della barra inferiore</string>
     <string name="appearance_content_transparency">Trasparenza dell’area dei contenuti</string>
-    <string name="appearance_transparency_hint">0% è opaco; 100% è trasparente. Testo e pulsanti restano visibili. Ogni tipo di pagina ha impostazioni indipendenti.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% è opaco; 100% è trasparente. Testo e pulsanti restano visibili. Ogni tipo di pagina ha impostazioni indipendenti.</string>
     <string name="appearance_top_bar_blur">Sfocatura dello sfondo del menu</string>
     <string name="appearance_bottom_bar_blur">Sfocatura dello sfondo della barra inferiore</string>
     <string name="appearance_content_blur">Sfocatura dell’area dei contenuti</string>

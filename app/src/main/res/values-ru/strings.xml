@@ -1260,7 +1260,7 @@
     <string name="appearance_top_bar_transparency">Прозрачность панели меню</string>
     <string name="appearance_bottom_bar_transparency">Прозрачность нижней панели</string>
     <string name="appearance_content_transparency">Прозрачность области содержимого</string>
-    <string name="appearance_transparency_hint">0% — непрозрачно, 100% — прозрачно. Текст и кнопки остаются видимыми. У каждого типа страницы свои настройки.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% — непрозрачно, 100% — прозрачно. Текст и кнопки остаются видимыми. У каждого типа страницы свои настройки.</string>
     <string name="appearance_top_bar_blur">Размытие фона меню</string>
     <string name="appearance_bottom_bar_blur">Размытие фона нижней панели</string>
     <string name="appearance_content_blur">Размытие области содержимого</string>

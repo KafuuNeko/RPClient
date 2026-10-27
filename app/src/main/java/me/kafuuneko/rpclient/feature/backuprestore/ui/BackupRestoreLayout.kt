@@ -184,7 +184,7 @@ private fun BackupContent(
                 // 任务执行进度指示与操作状态提示卡片
                 if (state.busy || state.status != null) {
                     item {
-                        StatusCard(state)
+                        StatusCard(state, emit)
                     }
                 }
                 // 完整数据导出操作卡片

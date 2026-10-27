@@ -1256,7 +1256,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_top_bar_transparency">Transparansi bilah menu</string>
     <string name="appearance_bottom_bar_transparency">Transparansi bilah bawah</string>
     <string name="appearance_content_transparency">Transparansi area konten</string>
-    <string name="appearance_transparency_hint">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
     <string name="appearance_top_bar_blur">Blur latar menu</string>
     <string name="appearance_bottom_bar_blur">Blur latar bilah bawah</string>
     <string name="appearance_content_blur">Keburaman area konten</string>

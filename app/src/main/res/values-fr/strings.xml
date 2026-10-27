@@ -1256,7 +1256,7 @@
     <string name="appearance_top_bar_transparency">Transparence de la barre de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparence de la barre inférieure</string>
     <string name="appearance_content_transparency">Transparence de la zone de contenu</string>
-    <string name="appearance_transparency_hint">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
     <string name="appearance_top_bar_blur">Flou du fond du menu</string>
     <string name="appearance_bottom_bar_blur">Flou du fond de la barre inférieure</string>
     <string name="appearance_content_blur">Flou de la zone de contenu</string>

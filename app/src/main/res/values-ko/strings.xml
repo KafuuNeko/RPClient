@@ -1250,7 +1250,7 @@
     <string name="appearance_top_bar_transparency">메뉴 바 투명도</string>
     <string name="appearance_bottom_bar_transparency">하단 작업 바 투명도</string>
     <string name="appearance_content_transparency">콘텐츠 영역 투명도</string>
-    <string name="appearance_transparency_hint">0%는 불투명, 100%는 완전 투명입니다. 텍스트와 버튼은 계속 표시됩니다. 페이지 유형별로 설정이 저장됩니다.</string>
+    <string name="appearance_transparency_hint" formatted="false">0%는 불투명, 100%는 완전 투명입니다. 텍스트와 버튼은 계속 표시됩니다. 페이지 유형별로 설정이 저장됩니다.</string>
     <string name="appearance_top_bar_blur">메뉴 배경 흐림</string>
     <string name="appearance_bottom_bar_blur">하단 작업 바 배경 흐림</string>
     <string name="appearance_content_blur">콘텐츠 영역 흐림</string>

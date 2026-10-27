@@ -1252,7 +1252,7 @@
     <string name="appearance_top_bar_transparency">菜单栏透明度</string>
     <string name="appearance_bottom_bar_transparency">底部操作栏透明度</string>
     <string name="appearance_content_transparency">内容区透明度</string>
-    <string name="appearance_transparency_hint">0% 为不透明，100% 为完全透明。文字和按钮保持清晰，每类页面独立保存设置。</string>
+    <string name="appearance_transparency_hint" formatted="false">0% 为不透明，100% 为完全透明。文字和按钮保持清晰，每类页面独立保存设置。</string>
     <string name="appearance_top_bar_blur">菜单背景模糊度</string>
     <string name="appearance_bottom_bar_blur">底部操作栏背景模糊度</string>
     <string name="appearance_content_blur">内容区模糊度</string>

@@ -1251,7 +1251,7 @@
     <string name="appearance_top_bar_transparency">メニューバーの透明度</string>
     <string name="appearance_bottom_bar_transparency">下部操作バーの透明度</string>
     <string name="appearance_content_transparency">コンテンツ領域の透明度</string>
-    <string name="appearance_transparency_hint">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
+    <string name="appearance_transparency_hint" formatted="false">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
     <string name="appearance_top_bar_blur">メニュー背景のぼかし</string>
     <string name="appearance_bottom_bar_blur">下部操作バー背景のぼかし</string>
     <string name="appearance_content_blur">コンテンツ領域のぼかし</string>
