@@ -18,5 +18,9 @@ sealed interface BackupRestoreUiIntent {
 
     data object Back : BackupRestoreUiIntent
 
-    data object Resume : BackupRestoreUiIntent
+    /** 用户查看详情后手动重启应用。 */
+    data object RestartClick : BackupRestoreUiIntent
+
+    /** 复制当前操作的安全技术摘要。 */
+    data object CopyDetailsClick : BackupRestoreUiIntent
 }

@@ -482,9 +482,6 @@
     <string name="quick_presets">クイックプリセット</string>
     <string name="preset_custom">カスタム</string>
     <string name="advanced_settings">詳細設定と拡張</string>
-    <string name="provider_system_prompt">モデルのシステムプロンプト</string>
-    <string name="provider_system_prompt_description">要約や接続テストを含む、このモデルのすべてのリクエストの先頭に追加されます。コンテキスト予算には含まれないため、ご自身で余裕を確保してください。空欄の場合は追加されません。</string>
-    <string name="provider_system_prompt_placeholder">このモデル専用の指示（任意）</string>
     <string name="advanced_settings_desc">カスタムヘッダー、リクエスト本文パッチ、ルーティング</string>
     <string name="custom_headers_preview">カスタムヘッダーのプレビュー</string>
     <string name="request_body_patch_preview">リクエスト本文パッチのプレビュー</string>
@@ -1245,7 +1242,7 @@
     <string name="appearance_top_bar_transparency">メニューバーの透明度</string>
     <string name="appearance_bottom_bar_transparency">下部操作バーの透明度</string>
     <string name="appearance_content_transparency">コンテンツ領域の透明度</string>
-    <string name="appearance_transparency_hint">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
+    <string name="appearance_transparency_hint" formatted="false">0% は不透明、100% は完全に透明です。文字とボタンは表示を維持します。ページの種類ごとに設定を保存します。</string>
     <string name="appearance_top_bar_blur">メニュー背景のぼかし</string>
     <string name="appearance_bottom_bar_blur">下部操作バー背景のぼかし</string>
     <string name="appearance_content_blur">コンテンツ領域のぼかし</string>
@@ -1343,6 +1340,15 @@
     <string name="backup_status_title">現在の状態</string>
     <string name="message_edit_separate_think">思考過程を分離</string>
     <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
+    <string name="backup_details_title">技術的な詳細</string>
+    <string name="backup_details_copy">コピー</string>
+    <string name="backup_details_copied">詳細をコピーしました</string>
+    <string name="backup_restore_done">復元が完了しました。下の詳細を確認してから、RPClient を再起動して復元したデータを読み込んでください。</string>
+    <string name="backup_restart_required">データを開き直すには RPClient の再起動が必要です。下の詳細を確認してから再起動してください。</string>
+    <string name="backup_restart_now">RPClient を再起動</string>
+    <string name="provider_system_prompt">モデルのシステムプロンプト</string>
+    <string name="provider_system_prompt_description">要約や接続テストを含む、このモデルのすべてのリクエストの先頭に追加されます。コンテキスト予算には含まれないため、ご自身で余裕を確保してください。空欄の場合は追加されません。</string>
+    <string name="provider_system_prompt_placeholder">このモデル専用の指示（任意）</string>
     <string name="json_export_label">エクスポート</string>
     <string name="json_export_working">ファイルをエクスポート中…</string>
     <string name="json_export_success">ファイルをエクスポートしました</string>
@@ -1354,4 +1360,12 @@
     <string name="json_preview_too_large">内容が大きすぎるため表示できません。リクエストログからエクスポートして確認してください。</string>
     <string name="json_source_invalid">このログは整形できません。保存された原文を表示しています。</string>
     <string name="chat_include_character_examples">キャラクターカードの会話例を含める</string>
+    <string name="character_selection_count">%1$d 件選択中</string>
+    <string name="select_all_characters">すべて選択</string>
+    <string name="deselect_all_characters">選択をすべて解除</string>
+    <string name="character_selected">選択済み</string>
+    <string name="character_not_selected">未選択</string>
+    <string name="export_selected_characters_zip">選択したキャラクターを ZIP でエクスポート</string>
+    <string name="export_character_archive_success">キャラクターの ZIP をエクスポートしました。</string>
+    <string name="export_character_archive_failed">キャラクターの ZIP をエクスポートできませんでした。保存されたファイルは不完全な可能性があります。</string>
 </resources>

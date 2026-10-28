@@ -562,9 +562,6 @@ Gagal: %2$d</string>
     <string name="quick_presets">Preset Cepat</string>
     <string name="preset_custom">Kustom</string>
     <string name="advanced_settings">Lanjutan &amp; Ekstensi</string>
-    <string name="provider_system_prompt">Prompt Sistem Model</string>
-    <string name="provider_system_prompt_description">Selalu ditempatkan paling awal dalam setiap permintaan dengan model ini, termasuk ringkasan dan uji koneksi. Tidak dihitung dalam anggaran konteks; sisihkan ruang sendiri. Kosongkan untuk menonaktifkan.</string>
-    <string name="provider_system_prompt_placeholder">Instruksi opsional untuk model ini</string>
     <string name="advanced_settings_desc">Header kustom, patch badan permintaan, dan perutean</string>
     <string name="custom_headers_preview">Pratinjau Header Kustom</string>
     <string name="request_body_patch_preview">Pratinjau Patch Badan Permintaan</string>
@@ -1250,7 +1247,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="appearance_top_bar_transparency">Transparansi bilah menu</string>
     <string name="appearance_bottom_bar_transparency">Transparansi bilah bawah</string>
     <string name="appearance_content_transparency">Transparansi area konten</string>
-    <string name="appearance_transparency_hint">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% buram; 100% transparan. Teks dan tombol tetap terlihat. Setiap jenis halaman memiliki pengaturan tersendiri.</string>
     <string name="appearance_top_bar_blur">Blur latar menu</string>
     <string name="appearance_bottom_bar_blur">Blur latar bilah bawah</string>
     <string name="appearance_content_blur">Keburaman area konten</string>
@@ -1348,6 +1345,15 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_status_title">Status Saat Ini</string>
     <string name="message_edit_separate_think">Pisahkan penalaran</string>
     <string name="message_edit_separate_think_desc">Edit hanya jawaban dan pertahankan penalaran asli.</string>
+    <string name="backup_details_title">Detail teknis</string>
+    <string name="backup_details_copy">Salin</string>
+    <string name="backup_details_copied">Detail disalin</string>
+    <string name="backup_restore_done">Pemulihan selesai. Periksa detail di bawah, lalu mulai ulang RPClient untuk memuat data yang dipulihkan.</string>
+    <string name="backup_restart_required">RPClient harus dimulai ulang untuk membuka kembali datanya. Periksa detail di bawah, lalu mulai ulang.</string>
+    <string name="backup_restart_now">Mulai ulang RPClient</string>
+    <string name="provider_system_prompt">Prompt Sistem Model</string>
+    <string name="provider_system_prompt_description">Selalu ditempatkan paling awal dalam setiap permintaan dengan model ini, termasuk ringkasan dan uji koneksi. Tidak dihitung dalam anggaran konteks; sisihkan ruang sendiri. Kosongkan untuk menonaktifkan.</string>
+    <string name="provider_system_prompt_placeholder">Instruksi opsional untuk model ini</string>
     <string name="json_export_label">Ekspor</string>
     <string name="json_export_working">Mengekspor file…</string>
     <string name="json_export_success">File diekspor</string>
@@ -1359,4 +1365,12 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="json_preview_too_large">Konten terlalu besar untuk ditampilkan. Ekspor dari log permintaan untuk membacanya.</string>
     <string name="json_source_invalid">Log ini tidak dapat diformat. Menampilkan teks yang tersimpan.</string>
     <string name="chat_include_character_examples">Sertakan contoh dialog karakter</string>
+    <string name="character_selection_count">%1$d dipilih</string>
+    <string name="select_all_characters">Pilih semua</string>
+    <string name="deselect_all_characters">Batalkan semua pilihan</string>
+    <string name="character_selected">Dipilih</string>
+    <string name="character_not_selected">Tidak dipilih</string>
+    <string name="export_selected_characters_zip">Ekspor karakter terpilih sebagai ZIP</string>
+    <string name="export_character_archive_success">ZIP karakter berhasil diekspor.</string>
+    <string name="export_character_archive_failed">Tidak dapat mengekspor ZIP karakter. Berkas yang disimpan mungkin tidak lengkap.</string>
 </resources>

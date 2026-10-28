@@ -6,6 +6,9 @@ import android.os.Bundle
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -154,6 +157,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.SelectCharacter::class)
     private fun onSelectCharacter(intent: CharacterListUiIntent.SelectCharacter) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.selectedCharacterIds.isNotEmpty()) {
+            onToggleCharacterSelection(CharacterListUiIntent.ToggleCharacterSelection(intent.characterId))
+            return
+        }
         if (uiState.characters.none { it.id == intent.characterId }) return
         uiState.copy(selectedCharacterId = intent.characterId).setup()
         AppViewEvent.StartActivity(
@@ -162,6 +169,96 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 putLong(CharacterEditActivity.EXTRA_CHARACTER_ID, intent.characterId)
             },
         ).tryEmit()
+    }
+
+    /** 长按角色后进入批量选择；传输期间保持已有选择不变。 */
+    @UiIntentObserver(CharacterListUiIntent.BeginCharacterSelection::class)
+    private fun onBeginCharacterSelection(intent: CharacterListUiIntent.BeginCharacterSelection) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (mAllCharacterItems.none { it.id == intent.characterId }) return
+        uiState.copy(selectedCharacterIds = setOf(intent.characterId)).setup()
+    }
+
+    /** 切换单个角色的批量选择状态，搜索过滤不会清空隐藏项的选择。 */
+    @UiIntentObserver(CharacterListUiIntent.ToggleCharacterSelection::class)
+    private fun onToggleCharacterSelection(intent: CharacterListUiIntent.ToggleCharacterSelection) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (mAllCharacterItems.none { it.id == intent.characterId }) return
+        val updated = uiState.selectedCharacterIds.toMutableSet().apply {
+            if (!add(intent.characterId)) remove(intent.characterId)
+        }
+        uiState.copy(selectedCharacterIds = updated).setup()
+    }
+
+    /** 全选或取消选择当前搜索结果，保留其他搜索结果中的已选项。 */
+    @UiIntentObserver(CharacterListUiIntent.ToggleVisibleCharacterSelection::class)
+    private fun onToggleVisibleCharacterSelection() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val visibleIds = uiState.characters.mapTo(mutableSetOf()) { it.id }
+        if (visibleIds.isEmpty()) return
+        val updated = uiState.selectedCharacterIds.toMutableSet()
+        if (visibleIds.all { it in updated }) updated.removeAll(visibleIds) else updated.addAll(
+            visibleIds
+        )
+        uiState.copy(selectedCharacterIds = updated).setup()
+    }
+
+    /** 清空批量选择并退出选择模式。 */
+    @UiIntentObserver(CharacterListUiIntent.ClearCharacterSelection::class)
+    private fun onClearCharacterSelection() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.selectedCharacterIds.isNotEmpty()) {
+            uiState.copy(selectedCharacterIds = emptySet()).setup()
+        }
+    }
+
+    /** 冻结所选角色 ID，请求宿主打开 ZIP 文件创建器。 */
+    @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharactersClick::class)
+    private fun onExportSelectedCharactersClick() {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val ids = uiState.selectedCharacterIds.toList()
+        if (ids.isEmpty()) return
+        val timestamp = OffsetDateTime.now().format(
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-'UTC'XX", Locale.ROOT)
+        )
+        CharacterListViewEvent.OpenCharacterArchiveExporter(
+            characterIds = ids,
+            fileName = "RPClient-Characters-$timestamp.zip"
+        ).tryEmit()
+    }
+
+    /** 串行导出所选角色；传输令牌只允许当前任务清理加载状态。 */
+    @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharacters::class)
+    private fun onExportSelectedCharacters(intent: CharacterListUiIntent.ExportSelectedCharacters) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val ids = intent.characterIds.distinct()
+        if (ids.isEmpty() || uiState.loadState != CharacterListLoadState.None ||
+            mTransferJob?.isActive == true
+        ) return
+        // 传输令牌隔离任务收尾，避免较早任务清除后续任务的加载状态。
+        val token = Any()
+        mTransferToken = token
+        uiState.copy(loadState = CharacterListLoadState.Loading).setup()
+        mTransferJob = viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    mCharacterCardRepository.exportJsonArchiveToUri(ids, intent.uri)
+                }
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_success)
+                    .tryEmit()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_failed)
+                    .tryEmit()
+            } finally {
+                finishTransfer(token)
+            }
+        }
     }
 
     /** 打开新建角色编辑页面。 */
@@ -313,13 +410,18 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val drafts = mutableListOf<CharacterCardImportDraft>()
         var failureCount = 0
         // 每个 URI 独立捕获格式或读取错误，确保后续有效卡片仍能进入保存阶段
+        var totalCount = 0
         uris.forEachIndexed { index, uri ->
             try {
-                drafts += mCharacterCardRepository.readImportFromUri(uri)
+                val result = mCharacterCardRepository.readImportItemsFromUri(uri)
+                drafts += result.drafts
+                failureCount += result.failureCount
+                totalCount += result.totalCount
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
                 failureCount++
+                totalCount++
             }
             updateImportProgress(
                 stage = CharacterImportStage.Reading,
@@ -330,7 +432,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         return CharacterCardImportBatch(
             drafts = drafts,
             parseFailureCount = failureCount,
-            totalCount = uris.size,
+            totalCount = maxOf(totalCount, 1)
         )
     }
 
@@ -505,7 +607,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         current.copy(
             loadState = CharacterListLoadState.None,
             selectedCharacterId = characters.firstOrNull { it.id == selectedCharacterId }?.id,
-            characters = renderCharacters(current.searchText),
+            selectedCharacterIds = current.selectedCharacterIds.intersect(avatarUuids.keys),
+            characters = renderCharacters(current.searchText)
         ).setup()
         scheduleVisibleAvatarLoads()
     }

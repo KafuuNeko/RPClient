@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
@@ -76,7 +77,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
-import java.util.concurrent.TimeUnit
 
 /** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
 class RPClientApp : Application() {

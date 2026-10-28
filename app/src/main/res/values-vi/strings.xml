@@ -562,9 +562,6 @@ Thất bại: %2$d</string>
     <string name="quick_presets">Mẫu cấu hình nhanh</string>
     <string name="preset_custom">Tùy chỉnh</string>
     <string name="advanced_settings">Nâng cao &amp; Mở rộng</string>
-    <string name="provider_system_prompt">Prompt hệ thống của mô hình</string>
-    <string name="provider_system_prompt_description">Luôn được thêm vào đầu mọi yêu cầu dùng mô hình này, kể cả tóm tắt và kiểm tra kết nối. Không tính vào ngân sách ngữ cảnh; hãy tự dành dung lượng dự phòng. Để trống để tắt.</string>
-    <string name="provider_system_prompt_placeholder">Chỉ dẫn tùy chọn cho mô hình này</string>
     <string name="advanced_settings_desc">Tiêu đề tùy chỉnh, JSON Patch yêu cầu và định tuyến</string>
     <string name="custom_headers_preview">Xem trước tiêu đề tùy chỉnh</string>
     <string name="request_body_patch_preview">Xem trước Patch thân yêu cầu</string>
@@ -1250,7 +1247,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="appearance_top_bar_transparency">Độ trong suốt thanh menu</string>
     <string name="appearance_bottom_bar_transparency">Độ trong suốt thanh thao tác dưới</string>
     <string name="appearance_content_transparency">Độ trong suốt vùng nội dung</string>
-    <string name="appearance_transparency_hint">0% là đục; 100% là trong suốt. Văn bản và nút vẫn hiển thị. Mỗi loại trang có cài đặt riêng.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% là đục; 100% là trong suốt. Văn bản và nút vẫn hiển thị. Mỗi loại trang có cài đặt riêng.</string>
     <string name="appearance_top_bar_blur">Độ mờ nền menu</string>
     <string name="appearance_bottom_bar_blur">Độ mờ nền thanh thao tác dưới</string>
     <string name="appearance_content_blur">Độ mờ vùng nội dung</string>
@@ -1348,6 +1345,15 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_status_title">Trạng thái hiện tại</string>
     <string name="message_edit_separate_think">Tách suy luận</string>
     <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
+    <string name="backup_details_title">Chi tiết kỹ thuật</string>
+    <string name="backup_details_copy">Sao chép</string>
+    <string name="backup_details_copied">Đã sao chép chi tiết</string>
+    <string name="backup_restore_done">Khôi phục xong. Hãy xem chi tiết bên dưới rồi khởi động lại RPClient để tải dữ liệu đã khôi phục.</string>
+    <string name="backup_restart_required">RPClient cần khởi động lại để mở lại dữ liệu. Hãy xem chi tiết bên dưới rồi khởi động lại.</string>
+    <string name="backup_restart_now">Khởi động lại RPClient</string>
+    <string name="provider_system_prompt">Prompt hệ thống của mô hình</string>
+    <string name="provider_system_prompt_description">Luôn được thêm vào đầu mọi yêu cầu dùng mô hình này, kể cả tóm tắt và kiểm tra kết nối. Không tính vào ngân sách ngữ cảnh; hãy tự dành dung lượng dự phòng. Để trống để tắt.</string>
+    <string name="provider_system_prompt_placeholder">Chỉ dẫn tùy chọn cho mô hình này</string>
     <string name="json_export_label">Xuất</string>
     <string name="json_export_working">Đang xuất tệp…</string>
     <string name="json_export_success">Đã xuất tệp</string>
@@ -1359,4 +1365,12 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="json_preview_too_large">Nội dung quá lớn để hiển thị. Hãy xuất từ nhật ký yêu cầu để đọc.</string>
     <string name="json_source_invalid">Không thể định dạng nhật ký này. Đang hiển thị văn bản đã lưu.</string>
     <string name="chat_include_character_examples">Bao gồm hội thoại mẫu của nhân vật</string>
+    <string name="character_selection_count">Đã chọn %1$d</string>
+    <string name="select_all_characters">Chọn tất cả</string>
+    <string name="deselect_all_characters">Bỏ chọn tất cả</string>
+    <string name="character_selected">Đã chọn</string>
+    <string name="character_not_selected">Chưa chọn</string>
+    <string name="export_selected_characters_zip">Xuất nhân vật đã chọn thành ZIP</string>
+    <string name="export_character_archive_success">Đã xuất tệp ZIP nhân vật.</string>
+    <string name="export_character_archive_failed">Không thể xuất tệp ZIP nhân vật. Tệp đã lưu có thể chưa đầy đủ.</string>
 </resources>

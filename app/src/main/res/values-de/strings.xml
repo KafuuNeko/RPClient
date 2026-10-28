@@ -482,9 +482,6 @@
     <string name="quick_presets">Schnellvorlagen</string>
     <string name="preset_custom">Benutzerdefiniert</string>
     <string name="advanced_settings">Erweiterte Einstellungen</string>
-    <string name="provider_system_prompt">System-Prompt des Modells</string>
-    <string name="provider_system_prompt_description">Steht bei jeder Anfrage mit diesem Modell an erster Stelle, auch bei Zusammenfassungen und Verbindungstests. Wird nicht ins Kontextbudget eingerechnet; planen Sie selbst Platz ein. Zum Deaktivieren leer lassen.</string>
-    <string name="provider_system_prompt_placeholder">Optionale Anweisungen für dieses Modell</string>
     <string name="advanced_settings_desc">Benutzerdefinierte Header, Anfragekörper-Patch und Routing</string>
     <string name="custom_headers_preview">Vorschau benutzerdefinierter Header</string>
     <string name="request_body_patch_preview">Vorschau des Anfragekörper-Patches</string>
@@ -1249,7 +1246,7 @@
     <string name="appearance_top_bar_transparency">Transparenz der Menüleiste</string>
     <string name="appearance_bottom_bar_transparency">Transparenz der unteren Leiste</string>
     <string name="appearance_content_transparency">Transparenz des Inhaltsbereichs</string>
-    <string name="appearance_transparency_hint">0% ist undurchsichtig, 100% transparent. Text und Schaltflächen bleiben sichtbar. Jeder Seitentyp hat eigene Einstellungen.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% ist undurchsichtig, 100% transparent. Text und Schaltflächen bleiben sichtbar. Jeder Seitentyp hat eigene Einstellungen.</string>
     <string name="appearance_top_bar_blur">Unschärfe des Menühintergrunds</string>
     <string name="appearance_bottom_bar_blur">Unschärfe der unteren Leiste</string>
     <string name="appearance_content_blur">Unschärfe des Inhaltsbereichs</string>
@@ -1347,6 +1344,15 @@
     <string name="backup_status_title">Aktueller Status</string>
     <string name="message_edit_separate_think">Denkprozess trennen</string>
     <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
+    <string name="backup_details_title">Technische Details</string>
+    <string name="backup_details_copy">Kopieren</string>
+    <string name="backup_details_copied">Details kopiert</string>
+    <string name="backup_restore_done">Wiederherstellung abgeschlossen. Prüfe die Details unten und starte RPClient neu, um die wiederhergestellten Daten zu laden.</string>
+    <string name="backup_restart_required">RPClient muss neu starten, um seine Daten wieder zu öffnen. Prüfe die Details unten und starte dann neu.</string>
+    <string name="backup_restart_now">RPClient neu starten</string>
+    <string name="provider_system_prompt">System-Prompt des Modells</string>
+    <string name="provider_system_prompt_description">Steht bei jeder Anfrage mit diesem Modell an erster Stelle, auch bei Zusammenfassungen und Verbindungstests. Wird nicht ins Kontextbudget eingerechnet; planen Sie selbst Platz ein. Zum Deaktivieren leer lassen.</string>
+    <string name="provider_system_prompt_placeholder">Optionale Anweisungen für dieses Modell</string>
     <string name="json_export_label">Exportieren</string>
     <string name="json_export_working">Datei wird exportiert…</string>
     <string name="json_export_success">Datei exportiert</string>
@@ -1358,4 +1364,12 @@
     <string name="json_preview_too_large">Der Inhalt ist zu groß zum Anzeigen. Exportieren Sie ihn aus dem Anfrageprotokoll.</string>
     <string name="json_source_invalid">Dieses Protokoll kann nicht formatiert werden. Der gespeicherte Text wird angezeigt.</string>
     <string name="chat_include_character_examples">Dialogbeispiele der Charaktere einbeziehen</string>
+    <string name="character_selection_count">%1$d ausgewählt</string>
+    <string name="select_all_characters">Alle auswählen</string>
+    <string name="deselect_all_characters">Auswahl aufheben</string>
+    <string name="character_selected">Ausgewählt</string>
+    <string name="character_not_selected">Nicht ausgewählt</string>
+    <string name="export_selected_characters_zip">Ausgewählte Charaktere als ZIP exportieren</string>
+    <string name="export_character_archive_success">Charakter-ZIP erfolgreich exportiert.</string>
+    <string name="export_character_archive_failed">Das Charakter-ZIP konnte nicht exportiert werden. Die gespeicherte Datei ist möglicherweise unvollständig.</string>
 </resources>

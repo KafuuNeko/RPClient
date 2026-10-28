@@ -114,11 +114,20 @@ class PortableBackupRepositoryTest {
             ),
         ).exportArchive(Uri.fromFile(archive))
         ZipFile(archive).use { zip ->
-            val rows = zip
-                .getInputStream(zip.getEntry("app-data/other-tables.jsonl"))
-                .reader()
-                .readText()
-            assertFalse(rows.contains("search_chunks_fts_segments"))
+            // FTS 影子表由 Room 与触发器维护，不能作为独立数据导出。
+            assertTrue(zip.entries().asSequence().none { it.name.contains("search_chunks_fts") })
+            assertTrue(zip.getEntry("tables/search_chunks.jsonl") != null)
+            assertTrue(zip.getEntry("manifest.json") != null)
+            assertTrue(zip.entries().asSequence().none { it.name.contains("room_master_table") })
+            val schemaEntry = zip.getEntry("app-data/database-schema.json")
+            val schema = JSONObject(zip.getInputStream(schemaEntry).bufferedReader().use { it.readText() })
+            assertTrue(
+                schema.getJSONArray("objects").let { objects ->
+                    (0 until objects.length()).none {
+                        objects.getJSONObject(it).optString("name") == "room_master_table"
+                    }
+                }
+            )
         }
         db.execSQL("DELETE FROM search_chunks")
         db.execSQL("DELETE FROM backup_probe")
@@ -225,12 +234,63 @@ class PortableBackupRepositoryTest {
         }
     }
 
-    /** 校验和正确但结构错误的行不能被静默跳过，否则会产生不完整恢复。 */
+    /** 结构错误的行不能被静默跳过，否则会产生不完整恢复。 */
     @Test
     fun malformedRowsLeaveLiveDataReadable() = runBlocking {
-        assertRejectedBeforeReplacement("app-data/other-tables.jsonl") {
-            "{\"_tableRows\":{\"search_chunks\":\"invalid rows\"}}\n"
+        assertRejectedBeforeReplacement("tables/backup_probe.jsonl") { "not json\n" }
+    }
+
+    /** 手动编辑角色卡、删除另一个角色文件后，恢复结果必须以文件内容为准。 */
+    @Test
+    fun editedAndDeletedCharacterFilesAreHonoured() = runBlocking {
+        val db = primary.openHelper.writableDatabase
+        val columns = "id, name, avatar, characterTags, description, personality, scenario, " +
+            "firstMessages, examplesOfDialogue, postHistoryInstructions"
+        db.execSQL("INSERT INTO character($columns) VALUES(5, 'Alice', '', '[]', 'desc', '', '', 'Hello', '', '')")
+        db.execSQL("INSERT INTO character($columns) VALUES(6, 'Bob', '', '[]', 'desc', '', '', 'Hello', '', '')")
+        db.execSQL(
+            "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
+                "VALUES(15, 5, 1, 2, '', 'Alice chat', '', 'User', '', '{}', 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
+                "VALUES(16, 6, 1, 2, '', 'Bob chat', '', 'User', '', '{}', 0, 1)"
+        )
+        val archive = File(root, "snapshot.zip")
+        val repository = PortableBackupRepository(context, primary, logs, BackupArchiveRepository(context, primary))
+        repository.exportArchive(Uri.fromFile(archive))
+        val unpacked = File(root, "unpacked").apply { mkdirs() }
+        BackupArchiveFiles.extractArchive(context, Uri.fromFile(archive), unpacked)
+        val cards = File(unpacked, "characters").listFiles().orEmpty()
+        val alice = cards.first { it.name.startsWith("Alice-") }
+        val bob = cards.first { it.name.startsWith("Bob-") }
+        val card = JSONObject(alice.readText())
+        card.getJSONObject("data").put("name", "Alicia")
+        alice.writeText(card.toString())
+        assertTrue(bob.delete())
+        zipDirectory(unpacked, archive)
+
+        val report = BackupReport()
+        repository.restoreArchive(Uri.fromFile(archive), report)
+        openDatabases()
+        primary.openHelper.readableDatabase.query("SELECT id, name FROM character ORDER BY id").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(5L, it.getLong(0))
+            assertEquals("Alicia", it.getString(1))
+            assertFalse(it.moveToNext())
         }
+        assertTrue(report.text().isNotBlank())
+        primary.openHelper.readableDatabase.query(
+            "SELECT title, includeCharacterExamples FROM chat_sessions ORDER BY id"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("Alice chat", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
+            assertFalse(cursor.moveToNext())
+        }
+        assertTrue(report.text().contains("chat skipped", ignoreCase = true))
     }
 
     /** 替换中途失败时，回滚快照必须包含关闭前仍位于 WAL 的已提交数据。 */
@@ -265,7 +325,7 @@ class PortableBackupRepositoryTest {
         }
     }
 
-    /** 修改内容后重算索引，确保测试命中结构校验，而非仅命中校验和失败。 */
+    /** 修改归档内文件后重新打包，确认结构错误会在覆盖当前数据之前被拒绝。 */
     private suspend fun assertRejectedBeforeReplacement(
         path: String,
         transform: (String) -> String
@@ -287,23 +347,7 @@ class PortableBackupRepositoryTest {
         BackupArchiveFiles.extractArchive(context, Uri.fromFile(archive), unpacked)
         val changed = File(unpacked, path)
         changed.writeText(transform(changed.readText()))
-        val manifestFile = File(unpacked, "manifest.json")
-        val manifest = JSONObject(manifestFile.readText())
-        manifest
-            .getJSONObject("files")
-            .getJSONObject(path)
-            .put("size", changed.length())
-            .put("sha256", BackupArchiveFiles.sha256(changed))
-        manifestFile.writeText(manifest.toString())
-        ZipOutputStream(archive.outputStream()).use { zip ->
-            unpacked.walkTopDown().drop(1).forEach { file ->
-                val name = file.relativeTo(unpacked).invariantSeparatorsPath
-                zip.putNextEntry(ZipEntry(if (file.isDirectory) "$name/" else name))
-                if (file.isFile) file.inputStream()
-                    .use { fileInputStream -> fileInputStream.copyTo(zip) }
-                zip.closeEntry()
-            }
-        }
+        zipDirectory(unpacked, archive)
         assertTrue(runCatching { repository.restoreArchive(Uri.fromFile(archive)) }.isFailure)
         primary.openHelper.readableDatabase.query("SELECT value FROM backup_probe").use { cursor ->
             assertTrue(cursor.moveToFirst())
@@ -325,5 +369,17 @@ class PortableBackupRepositoryTest {
             klass = RequestLogDatabase::class.java,
             name = context.getDatabasePath("request_logs.sqlite").path,
         ).build()
+    }
+
+    /** 把解包目录重新压成 ZIP，模拟用户用外部工具编辑后的归档。 */
+    private fun zipDirectory(directory: File, target: File) {
+        ZipOutputStream(target.outputStream()).use { zip ->
+            directory.walkTopDown().drop(1).forEach { file ->
+                val name = file.relativeTo(directory).invariantSeparatorsPath
+                zip.putNextEntry(ZipEntry(if (file.isDirectory) "$name/" else name))
+                if (file.isFile) file.inputStream().use { it.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
     }
 }

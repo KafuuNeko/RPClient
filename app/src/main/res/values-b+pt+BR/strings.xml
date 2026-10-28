@@ -562,9 +562,6 @@ Falhas: %2$d</string>
     <string name="quick_presets">Predefinições Rápidas</string>
     <string name="preset_custom">Personalizado</string>
     <string name="advanced_settings">Avançado e Extensões</string>
-    <string name="provider_system_prompt">Prompt de sistema do modelo</string>
-    <string name="provider_system_prompt_description">Sempre aparece primeiro em cada solicitação com este modelo, incluindo resumos e testes de conexão. Não entra no orçamento de contexto; reserve espaço por conta própria. Deixe em branco para desativar.</string>
-    <string name="provider_system_prompt_placeholder">Instruções opcionais para este modelo</string>
     <string name="advanced_settings_desc">Cabeçalhos personalizados, patch do corpo da requisição e roteamento</string>
     <string name="custom_headers_preview">Prévia dos Cabeçalhos Personalizados</string>
     <string name="request_body_patch_preview">Prévia do Patch do Corpo da Requisição</string>
@@ -1253,7 +1250,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_top_bar_transparency">Transparência da barra de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparência da barra inferior</string>
     <string name="appearance_content_transparency">Transparência da área de conteúdo</string>
-    <string name="appearance_transparency_hint">0% é opaco; 100% é transparente. Texto e botões permanecem visíveis. Cada tipo de página tem suas próprias configurações.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% é opaco; 100% é transparente. Texto e botões permanecem visíveis. Cada tipo de página tem suas próprias configurações.</string>
     <string name="appearance_top_bar_blur">Desfoque do fundo do menu</string>
     <string name="appearance_bottom_bar_blur">Desfoque do fundo da barra inferior</string>
     <string name="appearance_content_blur">Desfoque da área de conteúdo</string>
@@ -1351,6 +1348,15 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="backup_status_title">Status atual</string>
     <string name="message_edit_separate_think">Separar raciocínio</string>
     <string name="message_edit_separate_think_desc">Edite só a resposta e preserve o raciocínio original.</string>
+    <string name="backup_details_title">Detalhes técnicos</string>
+    <string name="backup_details_copy">Copiar</string>
+    <string name="backup_details_copied">Detalhes copiados</string>
+    <string name="backup_restore_done">Restauração concluída. Veja os detalhes abaixo e reinicie o RPClient para carregar os dados restaurados.</string>
+    <string name="backup_restart_required">O RPClient precisa reiniciar para reabrir os dados. Veja os detalhes abaixo e reinicie.</string>
+    <string name="backup_restart_now">Reiniciar o RPClient</string>
+    <string name="provider_system_prompt">Prompt de sistema do modelo</string>
+    <string name="provider_system_prompt_description">Sempre aparece primeiro em cada solicitação com este modelo, incluindo resumos e testes de conexão. Não entra no orçamento de contexto; reserve espaço por conta própria. Deixe em branco para desativar.</string>
+    <string name="provider_system_prompt_placeholder">Instruções opcionais para este modelo</string>
     <string name="json_export_label">Exportar</string>
     <string name="json_export_working">Exportando arquivo…</string>
     <string name="json_export_success">Arquivo exportado</string>
@@ -1362,4 +1368,12 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="json_preview_too_large">O conteúdo é grande demais para exibir. Exporte pelo registro de solicitações para ler.</string>
     <string name="json_source_invalid">Este registro não pode ser formatado. Exibindo o texto salvo.</string>
     <string name="chat_include_character_examples">Incluir exemplos de diálogo dos personagens</string>
+    <string name="character_selection_count">%1$d selecionados</string>
+    <string name="select_all_characters">Selecionar todos</string>
+    <string name="deselect_all_characters">Desmarcar todos</string>
+    <string name="character_selected">Selecionado</string>
+    <string name="character_not_selected">Não selecionado</string>
+    <string name="export_selected_characters_zip">Exportar personagens selecionados como ZIP</string>
+    <string name="export_character_archive_success">ZIP de personagens exportado com sucesso.</string>
+    <string name="export_character_archive_failed">Não foi possível exportar o ZIP de personagens. O arquivo salvo pode estar incompleto.</string>
 </resources>

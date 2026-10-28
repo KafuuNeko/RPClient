@@ -481,9 +481,6 @@
     <string name="quick_presets">Быстрые шаблоны</string>
     <string name="preset_custom">Пользовательский</string>
     <string name="advanced_settings">Расширенные настройки</string>
-    <string name="provider_system_prompt">Системный промпт модели</string>
-    <string name="provider_system_prompt_description">Всегда добавляется в начало каждого запроса к этой модели, включая сводки и проверки подключения. Не учитывается в бюджете контекста; самостоятельно оставьте запас. Оставьте пустым, чтобы отключить.</string>
-    <string name="provider_system_prompt_placeholder">Необязательные инструкции для этой модели</string>
     <string name="advanced_settings_desc">Пользовательские заголовки, патч тела запроса и маршрутизация</string>
     <string name="custom_headers_preview">Предпросмотр пользовательских заголовков</string>
     <string name="request_body_patch_preview">Предпросмотр патча тела запроса</string>
@@ -1254,7 +1251,7 @@
     <string name="appearance_top_bar_transparency">Прозрачность панели меню</string>
     <string name="appearance_bottom_bar_transparency">Прозрачность нижней панели</string>
     <string name="appearance_content_transparency">Прозрачность области содержимого</string>
-    <string name="appearance_transparency_hint">0% — непрозрачно, 100% — прозрачно. Текст и кнопки остаются видимыми. У каждого типа страницы свои настройки.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% — непрозрачно, 100% — прозрачно. Текст и кнопки остаются видимыми. У каждого типа страницы свои настройки.</string>
     <string name="appearance_top_bar_blur">Размытие фона меню</string>
     <string name="appearance_bottom_bar_blur">Размытие фона нижней панели</string>
     <string name="appearance_content_blur">Размытие области содержимого</string>
@@ -1352,6 +1349,15 @@
     <string name="backup_status_title">Текущий статус</string>
     <string name="message_edit_separate_think">Отделять рассуждения</string>
     <string name="message_edit_separate_think_desc">Редактировать только ответ, сохраняя исходные рассуждения.</string>
+    <string name="backup_details_title">Технические подробности</string>
+    <string name="backup_details_copy">Копировать</string>
+    <string name="backup_details_copied">Подробности скопированы</string>
+    <string name="backup_restore_done">Восстановление завершено. Просмотрите подробности ниже, затем перезапустите RPClient, чтобы загрузить восстановленные данные.</string>
+    <string name="backup_restart_required">RPClient необходимо перезапустить, чтобы заново открыть данные. Просмотрите подробности ниже и перезапустите.</string>
+    <string name="backup_restart_now">Перезапустить RPClient</string>
+    <string name="provider_system_prompt">Системный промпт модели</string>
+    <string name="provider_system_prompt_description">Всегда добавляется в начало каждого запроса к этой модели, включая сводки и проверки подключения. Не учитывается в бюджете контекста; самостоятельно оставьте запас. Оставьте пустым, чтобы отключить.</string>
+    <string name="provider_system_prompt_placeholder">Необязательные инструкции для этой модели</string>
     <string name="json_export_label">Экспорт</string>
     <string name="json_export_working">Экспорт файла…</string>
     <string name="json_export_success">Файл экспортирован</string>
@@ -1363,4 +1369,12 @@
     <string name="json_preview_too_large">Содержимое слишком велико для отображения. Экспортируйте его из журнала запросов.</string>
     <string name="json_source_invalid">Этот журнал невозможно отформатировать. Показан сохранённый текст.</string>
     <string name="chat_include_character_examples">Включать примеры диалогов персонажей</string>
+    <string name="character_selection_count">Выбрано: %1$d</string>
+    <string name="select_all_characters">Выбрать все</string>
+    <string name="deselect_all_characters">Снять выбор со всех</string>
+    <string name="character_selected">Выбрано</string>
+    <string name="character_not_selected">Не выбрано</string>
+    <string name="export_selected_characters_zip">Экспортировать выбранных персонажей в ZIP</string>
+    <string name="export_character_archive_success">ZIP с персонажами успешно экспортирован.</string>
+    <string name="export_character_archive_failed">Не удалось экспортировать ZIP с персонажами. Сохранённый файл может быть неполным.</string>
 </resources>

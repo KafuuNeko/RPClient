@@ -234,6 +234,14 @@
     <string name="batch_import_character_result_message">Imported: %1$d\nFailed: %2$d</string>
     <string name="batch_import_character_reading_progress">Reading %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Importing %1$d/%2$d</string>
+    <string name="character_selection_count">%1$d selected</string>
+    <string name="select_all_characters">Select all</string>
+    <string name="deselect_all_characters">Deselect all</string>
+    <string name="character_selected">Selected</string>
+    <string name="character_not_selected">Not selected</string>
+    <string name="export_selected_characters_zip">Export selected characters as ZIP</string>
+    <string name="export_character_archive_success">Character ZIP exported successfully.</string>
+    <string name="export_character_archive_failed">Could not export the character ZIP. The saved file may be incomplete.</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
     <string name="import_world_book">Import world book</string>
@@ -576,9 +584,6 @@
     <string name="quick_presets">Quick Presets</string>
     <string name="preset_custom">Custom</string>
     <string name="advanced_settings">Advanced &amp; Extensions</string>
-    <string name="provider_system_prompt">Model System Prompt</string>
-    <string name="provider_system_prompt_description">Always placed first in every request using this model, including summaries and connection tests. Not counted toward the context budget; reserve space yourself. Leave blank to disable.</string>
-    <string name="provider_system_prompt_placeholder">Optional instructions for this model</string>
     <string name="advanced_settings_desc">Custom headers, request body patch, and routing</string>
     <string name="custom_headers_preview">Custom Headers Preview</string>
     <string name="request_body_patch_preview">Request Body Patch Preview</string>
@@ -1268,7 +1273,7 @@
     <string name="appearance_top_bar_transparency">Menu bar transparency</string>
     <string name="appearance_bottom_bar_transparency">Bottom bar transparency</string>
     <string name="appearance_content_transparency">Content area transparency</string>
-    <string name="appearance_transparency_hint">0% is opaque; 100% is transparent. Text and buttons stay visible. Each page type has its own settings.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% is opaque; 100% is transparent. Text and buttons stay visible. Each page type has its own settings.</string>
     <string name="appearance_top_bar_blur">Menu background blur</string>
     <string name="appearance_bottom_bar_blur">Bottom bar background blur</string>
     <string name="appearance_content_blur">Content area blur</string>
@@ -1352,15 +1357,24 @@
     <string name="backup_status_title">Current Status</string>
     <string name="message_edit_separate_think">Separate thinking</string>
     <string name="message_edit_separate_think_desc">Edit only the reply, keeping the original thinking.</string>
-    <string name="json_export_label">Export</string>
-    <string name="json_export_working">Exporting file…</string>
-    <string name="json_export_success">File exported</string>
-    <string name="json_export_failed">Could not export the file. Please try again.</string>
-    <string name="json_export_raw_notice">This log cannot be formatted. The saved text will be exported instead.</string>
+    <string name="backup_details_title">Technical details</string>
+    <string name="backup_details_copy">Copy</string>
+    <string name="backup_details_copied">Details copied</string>
+    <string name="backup_restore_done">Restore finished. Review the details below, then restart RPClient to load the restored data.</string>
+    <string name="backup_restart_required">RPClient must restart to reopen its data. Review the details below, then restart.</string>
+    <string name="backup_restart_now">Restart RPClient</string>
+    <string name="chat_include_character_examples">Include character dialogue examples</string>
+    <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
+    <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
     <string name="json_tab_tree">Visual</string>
     <string name="json_tab_source">Source</string>
     <string name="json_value_truncated">This value contains %1$d characters. The preview is shortened; export to read all saved content.</string>
-    <string name="json_preview_too_large">Content is too large to display. Export it from the request log to read it.</string>
-    <string name="json_source_invalid">This log cannot be formatted. Showing the saved text.</string>
-    <string name="chat_include_character_examples">Include character dialogue examples</string>
+    <string name="provider_system_prompt">Model System Prompt</string>
+    <string name="provider_system_prompt_description">Always placed first in every request using this model, including summaries and connection tests. Not counted toward the context budget; reserve space yourself. Leave blank to disable.</string>
+    <string name="provider_system_prompt_placeholder">Optional instructions for this model</string>
+    <string name="json_export_failed">Could not export the file. Please try again.</string>
+    <string name="json_export_raw_notice">This log cannot be formatted. The saved text will be exported instead.</string>
+    <string name="json_export_success">File exported</string>
+    <string name="json_export_label">Export</string>
+    <string name="json_export_working">Exporting file…</string>
 </resources>

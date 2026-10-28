@@ -561,9 +561,6 @@
     <string name="quick_presets">Ajustes preestablecidos</string>
     <string name="preset_custom">Personalizado</string>
     <string name="advanced_settings">Avanzado y extensiones</string>
-    <string name="provider_system_prompt">Prompt de sistema del modelo</string>
-    <string name="provider_system_prompt_description">Siempre aparece al principio de cada solicitud con este modelo, incluidos resúmenes y pruebas de conexión. No se incluye en el presupuesto de contexto; reserva espacio por tu cuenta. Déjalo vacío para desactivarlo.</string>
-    <string name="provider_system_prompt_placeholder">Instrucciones opcionales para este modelo</string>
     <string name="advanced_settings_desc">Encabezados personalizados, patch del cuerpo de solicitud y enrutamiento</string>
     <string name="custom_headers_preview">Vista previa de encabezados personalizados</string>
     <string name="request_body_patch_preview">Vista previa del patch del cuerpo de solicitud</string>
@@ -1251,7 +1248,7 @@
     <string name="appearance_top_bar_transparency">Transparencia de la barra de menú</string>
     <string name="appearance_bottom_bar_transparency">Transparencia de la barra inferior</string>
     <string name="appearance_content_transparency">Transparencia del área de contenido</string>
-    <string name="appearance_transparency_hint">0% es opaco; 100% es transparente. El texto y los botones siguen visibles. Cada tipo de página tiene ajustes independientes.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% es opaco; 100% es transparente. El texto y los botones siguen visibles. Cada tipo de página tiene ajustes independientes.</string>
     <string name="appearance_top_bar_blur">Desenfoque del fondo del menú</string>
     <string name="appearance_bottom_bar_blur">Desenfoque del fondo de la barra inferior</string>
     <string name="appearance_content_blur">Desenfoque del área de contenido</string>
@@ -1349,6 +1346,15 @@
     <string name="backup_status_title">Estado actual</string>
     <string name="message_edit_separate_think">Separar razonamiento</string>
     <string name="message_edit_separate_think_desc">Edita solo la respuesta y conserva el razonamiento original.</string>
+    <string name="backup_details_title">Detalles técnicos</string>
+    <string name="backup_details_copy">Copiar</string>
+    <string name="backup_details_copied">Detalles copiados</string>
+    <string name="backup_restore_done">Restauración completada. Revisa los detalles de abajo y reinicia RPClient para cargar los datos restaurados.</string>
+    <string name="backup_restart_required">RPClient debe reiniciarse para volver a abrir sus datos. Revisa los detalles de abajo y reinicia.</string>
+    <string name="backup_restart_now">Reiniciar RPClient</string>
+    <string name="provider_system_prompt">Prompt de sistema del modelo</string>
+    <string name="provider_system_prompt_description">Siempre aparece al principio de cada solicitud con este modelo, incluidos resúmenes y pruebas de conexión. No se incluye en el presupuesto de contexto; reserva espacio por tu cuenta. Déjalo vacío para desactivarlo.</string>
+    <string name="provider_system_prompt_placeholder">Instrucciones opcionales para este modelo</string>
     <string name="json_export_label">Exportar</string>
     <string name="json_export_working">Exportando archivo…</string>
     <string name="json_export_success">Archivo exportado</string>
@@ -1360,4 +1366,12 @@
     <string name="json_preview_too_large">El contenido es demasiado grande para mostrarlo. Expórtalo desde el registro de solicitudes.</string>
     <string name="json_source_invalid">Este registro no se puede formatear. Se muestra el texto guardado.</string>
     <string name="chat_include_character_examples">Incluir ejemplos de diálogo de los personajes</string>
+    <string name="character_selection_count">%1$d seleccionados</string>
+    <string name="select_all_characters">Seleccionar todos</string>
+    <string name="deselect_all_characters">Deseleccionar todos</string>
+    <string name="character_selected">Seleccionado</string>
+    <string name="character_not_selected">No seleccionado</string>
+    <string name="export_selected_characters_zip">Exportar personajes seleccionados como ZIP</string>
+    <string name="export_character_archive_success">ZIP de personajes exportado correctamente.</string>
+    <string name="export_character_archive_failed">No se pudo exportar el ZIP de personajes. Es posible que el archivo guardado esté incompleto.</string>
 </resources>

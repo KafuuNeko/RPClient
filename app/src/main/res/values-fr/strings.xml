@@ -481,9 +481,6 @@
     <string name="quick_presets">Préréglages rapides</string>
     <string name="preset_custom">Personnalisé</string>
     <string name="advanced_settings">Paramètres avancés et extensions</string>
-    <string name="provider_system_prompt">Prompt système du modèle</string>
-    <string name="provider_system_prompt_description">Toujours placé en premier dans chaque requête avec ce modèle, y compris les résumés et les tests de connexion. Non comptabilisé dans le budget de contexte ; prévoyez une marge. Laissez vide pour désactiver.</string>
-    <string name="provider_system_prompt_placeholder">Instructions facultatives pour ce modèle</string>
     <string name="advanced_settings_desc">En-têtes personnalisés, correctif du corps de requête et routage</string>
     <string name="custom_headers_preview">Aperçu des en-têtes personnalisés</string>
     <string name="request_body_patch_preview">Aperçu du correctif du corps de requête</string>
@@ -1250,7 +1247,7 @@
     <string name="appearance_top_bar_transparency">Transparence de la barre de menu</string>
     <string name="appearance_bottom_bar_transparency">Transparence de la barre inférieure</string>
     <string name="appearance_content_transparency">Transparence de la zone de contenu</string>
-    <string name="appearance_transparency_hint">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
+    <string name="appearance_transparency_hint" formatted="false">0% est opaque ; 100% est transparent. Le texte et les boutons restent visibles. Chaque type de page a ses propres réglages.</string>
     <string name="appearance_top_bar_blur">Flou du fond du menu</string>
     <string name="appearance_bottom_bar_blur">Flou du fond de la barre inférieure</string>
     <string name="appearance_content_blur">Flou de la zone de contenu</string>
@@ -1348,6 +1345,15 @@
     <string name="backup_status_title">État actuel</string>
     <string name="message_edit_separate_think">Séparer le raisonnement</string>
     <string name="message_edit_separate_think_desc">Modifiez seulement la réponse, en gardant le raisonnement initial.</string>
+    <string name="backup_details_title">Détails techniques</string>
+    <string name="backup_details_copy">Copier</string>
+    <string name="backup_details_copied">Détails copiés</string>
+    <string name="backup_restore_done">Restauration terminée. Consultez les détails ci-dessous, puis redémarrez RPClient pour charger les données restaurées.</string>
+    <string name="backup_restart_required">RPClient doit redémarrer pour rouvrir ses données. Consultez les détails ci-dessous, puis redémarrez.</string>
+    <string name="backup_restart_now">Redémarrer RPClient</string>
+    <string name="provider_system_prompt">Prompt système du modèle</string>
+    <string name="provider_system_prompt_description">Toujours placé en premier dans chaque requête avec ce modèle, y compris les résumés et les tests de connexion. Non comptabilisé dans le budget de contexte ; prévoyez une marge. Laissez vide pour désactiver.</string>
+    <string name="provider_system_prompt_placeholder">Instructions facultatives pour ce modèle</string>
     <string name="json_export_label">Exporter</string>
     <string name="json_export_working">Exportation du fichier…</string>
     <string name="json_export_success">Fichier exporté</string>
@@ -1359,4 +1365,12 @@
     <string name="json_preview_too_large">Le contenu est trop volumineux pour être affiché. Exportez-le depuis le journal des requêtes.</string>
     <string name="json_source_invalid">Ce journal ne peut pas être mis en forme. Affichage du texte enregistré.</string>
     <string name="chat_include_character_examples">Inclure les exemples de dialogue des personnages</string>
+    <string name="character_selection_count">%1$d sélectionnés</string>
+    <string name="select_all_characters">Tout sélectionner</string>
+    <string name="deselect_all_characters">Tout désélectionner</string>
+    <string name="character_selected">Sélectionné</string>
+    <string name="character_not_selected">Non sélectionné</string>
+    <string name="export_selected_characters_zip">Exporter les personnages sélectionnés au format ZIP</string>
+    <string name="export_character_archive_success">Les personnages ont été exportés au format ZIP.</string>
+    <string name="export_character_archive_failed">Impossible de créer le ZIP des personnages. Le fichier enregistré peut être incomplet.</string>
 </resources>

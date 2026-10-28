@@ -481,9 +481,6 @@
     <string name="quick_presets">快速預設</string>
     <string name="preset_custom">自訂</string>
     <string name="advanced_settings">進階與擴充設定</string>
-    <string name="provider_system_prompt">模型 System Prompt</string>
-    <string name="provider_system_prompt_description">使用此模型的每次請求都會置頂新增，包括摘要與連線測試。不計入上下文預算，請自行預留額度；留空則不新增。</string>
-    <string name="provider_system_prompt_placeholder">輸入此模型專用的系統指令（選填）</string>
     <string name="advanced_settings_desc">自訂請求標頭、請求主體 Patch 與路由設定</string>
     <string name="custom_headers_preview">自訂請求標頭預覽</string>
     <string name="request_body_patch_preview">請求主體 Patch 預覽</string>
@@ -1244,7 +1241,7 @@
     <string name="appearance_top_bar_transparency">選單列透明度</string>
     <string name="appearance_bottom_bar_transparency">底部操作列透明度</string>
     <string name="appearance_content_transparency">內容區透明度</string>
-    <string name="appearance_transparency_hint">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
+    <string name="appearance_transparency_hint" formatted="false">0% 為不透明，100% 為完全透明。文字和按鈕保持清晰，每類頁面獨立儲存設定。</string>
     <string name="appearance_top_bar_blur">選單背景模糊度</string>
     <string name="appearance_bottom_bar_blur">底部操作列背景模糊度</string>
     <string name="appearance_content_blur">內容區模糊度</string>
@@ -1342,6 +1339,15 @@
     <string name="backup_status_title">目前狀態</string>
     <string name="message_edit_separate_think">分離思考鏈</string>
     <string name="message_edit_separate_think_desc">編輯時僅修改正文，保留原有思考鏈。</string>
+    <string name="backup_details_title">技術詳情</string>
+    <string name="backup_details_copy">複製</string>
+    <string name="backup_details_copied">詳情已複製</string>
+    <string name="backup_restore_done">還原完成。請查看下方詳情，然後重新啟動 RPClient 以載入還原的資料。</string>
+    <string name="backup_restart_required">RPClient 需要重新啟動才能重新開啟資料。請查看下方詳情，然後重新啟動。</string>
+    <string name="backup_restart_now">重新啟動 RPClient</string>
+    <string name="provider_system_prompt">模型 System Prompt</string>
+    <string name="provider_system_prompt_description">使用此模型的每次請求都會置頂新增，包括摘要與連線測試。不計入上下文預算，請自行預留額度；留空則不新增。</string>
+    <string name="provider_system_prompt_placeholder">輸入此模型專用的系統指令（選填）</string>
     <string name="json_export_label">匯出</string>
     <string name="json_export_working">正在匯出檔案…</string>
     <string name="json_export_success">檔案已匯出</string>
@@ -1353,4 +1359,12 @@
     <string name="json_preview_too_large">內容過大，無法顯示。請從請求日誌匯出查看。</string>
     <string name="json_source_invalid">此日誌無法格式化，目前顯示已儲存的原文。</string>
     <string name="chat_include_character_examples">注入角色卡範例對話</string>
+    <string name="character_selection_count">已選取 %1$d 個</string>
+    <string name="select_all_characters">全選</string>
+    <string name="deselect_all_characters">取消全選</string>
+    <string name="character_selected">已選取</string>
+    <string name="character_not_selected">未選取</string>
+    <string name="export_selected_characters_zip">將所選角色匯出為 ZIP</string>
+    <string name="export_character_archive_success">角色 ZIP 匯出成功。</string>
+    <string name="export_character_archive_failed">無法匯出角色 ZIP，儲存的檔案可能不完整。</string>
 </resources>
