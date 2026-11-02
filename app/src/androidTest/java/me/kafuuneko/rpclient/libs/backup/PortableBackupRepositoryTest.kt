@@ -120,7 +120,8 @@ class PortableBackupRepositoryTest {
             assertTrue(zip.getEntry("manifest.json") != null)
             assertTrue(zip.entries().asSequence().none { it.name.contains("room_master_table") })
             val schemaEntry = zip.getEntry("app-data/database-schema.json")
-            val schema = JSONObject(zip.getInputStream(schemaEntry).bufferedReader().use { it.readText() })
+            val schema =
+                JSONObject(zip.getInputStream(schemaEntry).bufferedReader().use { it.readText() })
             assertTrue(
                 schema.getJSONArray("objects").let { objects ->
                     (0 until objects.length()).none {
@@ -240,6 +241,123 @@ class PortableBackupRepositoryTest {
         assertRejectedBeforeReplacement("tables/backup_probe.jsonl") { "not json\n" }
     }
 
+    /** 完整备份保留多开场白的空段与空白，旧 v3 未带扩展的角色仍可恢复。 */
+    @Test
+    fun characterGreetingsRoundTripWithoutLosingLocalSegments() = runBlocking {
+        val greetings = listOf(
+            "  Hello\n<START> Second🙂 <START><START> Third <START>",
+            "<START>Second",
+            "Legacy hello",
+            ""
+        )
+        val database = primary.openHelper.writableDatabase
+        // 同时保留备用开场白，确认附加主开场白不会被合并到另一个业务字段。
+        greetings.forEachIndexed { index, firstMessages ->
+            database.execSQL(
+                "INSERT INTO character(id, name, avatar, characterTags, description, personality, scenario, " +
+                    "firstMessages, examplesOfDialogue, postHistoryInstructions, alternateGreetings) " +
+                    "VALUES(?, ?, '', '[]', '', '', '', ?, '', '', ?)",
+                arrayOf<Any>(index + 1, "Greeting-$index", firstMessages, "[\"Alternate\"]")
+            )
+        }
+        val archive = File(root, "greetings.zip")
+        val repository = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        repository.exportArchive(Uri.fromFile(archive))
+        val unpacked = File(root, "unpacked-greetings").apply { mkdirs() }
+        BackupArchiveFiles.extractArchive(context, Uri.fromFile(archive), unpacked)
+        val legacyCard = File(unpacked, "characters/Greeting-2-3.json")
+        val legacyDocument = JSONObject(legacyCard.readText())
+        legacyDocument.getJSONObject("rpclient_backup").remove("additionalFirstMessages")
+        legacyCard.writeText(legacyDocument.toString())
+        zipDirectory(unpacked, archive)
+
+        // 经过真实数据库替换与重新打开后验证原始字段，避免仅验证序列化表面结构。
+        repository.restoreArchive(Uri.fromFile(archive))
+        openDatabases()
+        primary.openHelper.readableDatabase.query(
+            "SELECT firstMessages, alternateGreetings FROM character ORDER BY id"
+        ).use { cursor ->
+            greetings.forEach { expected ->
+                assertTrue(cursor.moveToNext())
+                assertEquals(expected, cursor.getString(0))
+                assertEquals("[\"Alternate\"]", cursor.getString(1))
+            }
+            assertFalse(cursor.moveToNext())
+        }
+    }
+
+    /** 大于游标窗口的双正文保留跨块 Unicode、NUL 和扩展列，且能完整恢复。 */
+    @Test
+    fun largeRequestLogsRoundTripWithoutCursorWindowOverflow() = runBlocking {
+        val request = "a".repeat(65_535) + "🙂猫\u0000" + "猫🙂".repeat(450_000)
+        val response = "b".repeat(65_535) + "猫🙂\u0000" + "🙂猫".repeat(450_000)
+        val database = logs.openHelper.writableDatabase
+        database.execSQL(
+            "INSERT INTO llm_request_logs(id, createTime, providerName, providerType, protocol, model, " +
+                "isStreaming, requestJson, responseJson) " +
+                "VALUES(7, 1, 'test', 'Custom', 'OpenAICompatible', 'model', 0, ?, ?)",
+            arrayOf(request, response)
+        )
+        // 兼容旧调用的批量读取入口也必须使用与逐行导出相同的分块策略。
+        val row =
+            BackupDatabaseCodec.readRows(database, "llm_request_logs", "id", 7).getJSONObject(0)
+        assertEquals(request, row.getString("requestJson"))
+        assertEquals(response, row.getString("responseJson"))
+        val archive = File(root, "large-logs.zip")
+        val repository = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        repository.exportArchive(Uri.fromFile(archive))
+        repository.restoreArchive(Uri.fromFile(archive))
+        openDatabases()
+
+        // 仍通过安全入口读取，测试断言自身也不能把大正文装入普通 CursorWindow。
+        val restored =
+            BackupDatabaseCodec.readRows(logs.openHelper.readableDatabase, "llm_request_logs")
+        assertEquals(1, restored.length())
+        assertEquals(request, restored.getJSONObject(0).getString("requestJson"))
+        assertEquals(response, restored.getJSONObject(0).getString("responseJson"))
+        // 将来增加的小字段也应留在投影中，不因修复大正文而被固定列清单遗漏。
+        val restoredDatabase = logs.openHelper.writableDatabase
+        restoredDatabase.execSQL("ALTER TABLE llm_request_logs ADD COLUMN backup_extra TEXT")
+        restoredDatabase.execSQL("UPDATE llm_request_logs SET backup_extra = 'extra' WHERE id = 7")
+        BackupDatabaseCodec.forEachRow(restoredDatabase, "llm_request_logs") {
+            assertEquals("extra", it.getString("backup_extra"))
+            assertEquals(request, it.getString("requestJson"))
+        }
+    }
+
+    /** 单条正文超过读取预算时明确拒绝，目标旧备份不能被部分归档覆盖。 */
+    @Test
+    fun oversizedLogPayloadDoesNotOverwriteDestination() = runBlocking {
+        val database = logs.openHelper.writableDatabase
+        database.execSQL(
+            "INSERT INTO llm_request_logs(id, createTime, providerName, providerType, protocol, model, " +
+                "isStreaming, requestJson, responseJson) " +
+                "VALUES(7, 1, 'test', 'Custom', 'OpenAICompatible', 'model', 0, CAST(zeroblob(16777217) AS TEXT), '')"
+        )
+        val archive = File(root, "existing.zip").apply { writeText("existing backup") }
+        val repository = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+
+        // 导出先完整生成临时 ZIP，预算失败不能触碰系统选择器返回的目标文件。
+        assertTrue(runCatching { repository.exportArchive(Uri.fromFile(archive)) }.isFailure)
+        assertEquals("existing backup", archive.readText())
+        assertTrue(context.cacheDir.listFiles().orEmpty().isEmpty())
+    }
+
     /** 手动编辑角色卡、删除另一个角色文件后，恢复结果必须以文件内容为准。 */
     @Test
     fun editedAndDeletedCharacterFilesAreHonoured() = runBlocking {
@@ -248,6 +366,7 @@ class PortableBackupRepositoryTest {
             "firstMessages, examplesOfDialogue, postHistoryInstructions"
         db.execSQL("INSERT INTO character($columns) VALUES(5, 'Alice', '', '[]', 'desc', '', '', 'Hello', '', '')")
         db.execSQL("INSERT INTO character($columns) VALUES(6, 'Bob', '', '[]', 'desc', '', '', 'Hello', '', '')")
+        db.execSQL("UPDATE character SET firstMessages = 'Hello<START>Second<START>Third' WHERE id = 5")
         db.execSQL(
             "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
                 "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
@@ -259,7 +378,12 @@ class PortableBackupRepositoryTest {
                 "VALUES(16, 6, 1, 2, '', 'Bob chat', '', 'User', '', '{}', 0, 1)"
         )
         val archive = File(root, "snapshot.zip")
-        val repository = PortableBackupRepository(context, primary, logs, BackupArchiveRepository(context, primary))
+        val repository = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
         repository.exportArchive(Uri.fromFile(archive))
         val unpacked = File(root, "unpacked").apply { mkdirs() }
         BackupArchiveFiles.extractArchive(context, Uri.fromFile(archive), unpacked)
@@ -268,6 +392,7 @@ class PortableBackupRepositoryTest {
         val bob = cards.first { it.name.startsWith("Bob-") }
         val card = JSONObject(alice.readText())
         card.getJSONObject("data").put("name", "Alicia")
+        card.getJSONObject("data").put("first_mes", "Edited first")
         alice.writeText(card.toString())
         assertTrue(bob.delete())
         zipDirectory(unpacked, archive)
@@ -275,12 +400,14 @@ class PortableBackupRepositoryTest {
         val report = BackupReport()
         repository.restoreArchive(Uri.fromFile(archive), report)
         openDatabases()
-        primary.openHelper.readableDatabase.query("SELECT id, name FROM character ORDER BY id").use {
-            assertTrue(it.moveToFirst())
-            assertEquals(5L, it.getLong(0))
-            assertEquals("Alicia", it.getString(1))
-            assertFalse(it.moveToNext())
-        }
+        primary.openHelper.readableDatabase.query("SELECT id, name, firstMessages FROM character ORDER BY id")
+            .use {
+                assertTrue(it.moveToFirst())
+                assertEquals(5L, it.getLong(0))
+                assertEquals("Alicia", it.getString(1))
+                assertEquals("Edited first<START>Second<START>Third", it.getString(2))
+                assertFalse(it.moveToNext())
+            }
         assertTrue(report.text().isNotBlank())
         primary.openHelper.readableDatabase.query(
             "SELECT title, includeCharacterExamples FROM chat_sessions ORDER BY id"

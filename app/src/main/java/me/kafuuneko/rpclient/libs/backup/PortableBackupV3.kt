@@ -235,7 +235,7 @@ internal class BackupV3Writer(
     }
 
     /**
-     * 与 CharacterCardRepository.exportJson 相同：角色卡内嵌绑定的世界书和角色作用域正则。
+     * 复用 CharacterCardRepository.exportJson 的格式，内嵌绑定世界书和角色正则，并补齐本地开场白。
      * 恢复时 worldbooks/ 下的同一本世界书优先于卡内嵌入的副本。
      */
     private fun writeCharacters() {
@@ -259,6 +259,9 @@ internal class BackupV3Writer(
                 val scripts = scriptsByCharacter[id].orEmpty()
                     .map { entity(it, RegexScriptEntity::class.java).toDomain() }
                 val card = JSONObject(mCardMapper.toV2Json(character, lorebook, entries, scripts))
+                // 首条仍由标准字段承载；附加键只保存其余开场白，避免完整备份丢失本地多开场白。
+                val firstMessages = character.firstMessages.split("<START>")
+                card.getJSONObject("data").put("first_mes", firstMessages.first())
                 card.put(
                     BackupV3.SIDECAR,
                     JSONObject()
@@ -266,6 +269,7 @@ internal class BackupV3Writer(
                         .put("avatar", row.opt("avatar"))
                         .put("characterLorebookId", row.opt("characterLorebookId"))
                         .put("backgroundFileUuid", row.opt("backgroundFileUuid"))
+                        .put("additionalFirstMessages", JSONArray(firstMessages.drop(1)))
                 )
                 writeText(
                     docFile("characters", row.optString("name"), id, ".json"),
@@ -808,9 +812,19 @@ internal class BackupV3Reader(
             at(file) {
                 // 文档正文经过菜单级解码，sidecar 只回填本地技术列。
                 val text = file.readText(Charsets.UTF_8)
-                val side = JSONObject(text).optJSONObject(BackupV3.SIDECAR)
+                val document = JSONObject(text)
+                val side = document.optJSONObject(BackupV3.SIDECAR)
                 val parsed = mCardMapper.parseCharacter(text)
                 val row = entityRow(parsed.character)
+                // 旧 v3 没有附加开场白时沿用角色卡规则，新备份保留分隔符、空段与原始空白。
+                if (side?.has("additionalFirstMessages") == true) {
+                    val additional = side.getJSONArray("additionalFirstMessages")
+                    val first = document.getJSONObject("data").getString("first_mes")
+                    val messages = listOf(first) + (0 until additional.length()).map {
+                        additional.getString(it)
+                    }
+                    row.put("firstMessages", messages.joinToString("<START>"))
+                }
                 copyFrom(side, row, "avatar", "characterLorebookId", "backgroundFileUuid")
                 applyId(side, row)
                 add("character", row)

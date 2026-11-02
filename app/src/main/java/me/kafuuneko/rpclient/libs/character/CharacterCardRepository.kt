@@ -6,12 +6,9 @@ import android.net.Uri
 import com.google.gson.Gson
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.InputStream
 import java.io.PushbackInputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +41,7 @@ class CharacterCardRepository(
 ) {
     /** 无状态格式映射器，在 Repository 生命周期内复用。 */
     private val mMapper = CharacterCardMapper(mGson, mRegexCodec)
+    private val mArchiveReader = CharacterCardArchiveReader(mMapper)
 
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft =
@@ -68,7 +66,7 @@ class CharacterCardRepository(
      * 读取单张角色卡或批量导出的 ZIP，不将压缩条目解包到文件系统。
      * - 先检查文件签名，普通卡片继续使用既有 JSON/PNG 解码入口。
      * - 按 ZIP 元数据跳过非 JSON 和不安全路径，单个损坏条目不阻止后续卡片解析。
-     * - 当前仅限制条目数量，单个 JSON 的大小边界由后续资源限制修复处理。
+     * - 压缩数据、单卡和累计解压字节均受预算限制，超限不会提交半成品实体。
      *
      * @param uri 用户选择的角色卡或 ZIP 文档。
      * @return 当前文档解析出的草稿与失败数量。
@@ -78,13 +76,21 @@ class CharacterCardRepository(
             // 签名检查只负责分流，普通角色卡仍由原有入口处理。
             val source = mContext.contentResolver.openInputStream(uri)
                 ?: error("Cannot read character card")
-            val pushback = PushbackInputStream(BufferedInputStream(source), ZIP_SIGNATURE.size)
-            val signature = ByteArray(ZIP_SIGNATURE.size)
-            val signatureSize = pushback.read(signature)
-            if (signatureSize > 0) pushback.unread(signature, 0, signatureSize)
-            if (signatureSize != ZIP_SIGNATURE.size || !signature.contentEquals(ZIP_SIGNATURE)) {
-                pushback.close()
-                return@withContext try {
+            PushbackInputStream(BufferedInputStream(source), ZIP_SIGNATURE.size).use { input ->
+                val signature = ByteArray(ZIP_SIGNATURE.size)
+                var signatureSize = 0
+                while (signatureSize < signature.size) {
+                    val count = input.read(signature, signatureSize, signature.size - signatureSize)
+                    if (count < 0) break
+                    signatureSize += count
+                }
+                if (signatureSize > 0) input.unread(signature, 0, signatureSize)
+                if (signatureSize == ZIP_SIGNATURE.size && signature.contentEquals(ZIP_SIGNATURE)) {
+                    return@withContext mArchiveReader.read(input, mContext.cacheDir)
+                }
+                // 普通 JSON/PNG 沿用原有入口；重开 URI 前释放签名检查占用的流。
+                input.close()
+                try {
                     CharacterCardArchiveReadResult(
                         drafts = listOf(readImportFromUri(uri)),
                         failureCount = 0,
@@ -95,90 +101,7 @@ class CharacterCardRepository(
                     CharacterCardArchiveReadResult(emptyList(), failureCount = 1, totalCount = 1)
                 }
             }
-
-            val drafts = mutableListOf<CharacterCardImportDraft>()
-            var failureCount = 0
-            var candidateCount = 0
-            var entryCount = 0
-            // ZIP 需要随机访问目录，先复制到缓存并保证所有退出路径清理临时文件。
-            val archiveFile =
-                File.createTempFile("rpclient-character-import-", ".zip", mContext.cacheDir)
-            try {
-                pushback.use { input ->
-                    archiveFile.outputStream().buffered().use { output ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        while (true) {
-                            currentCoroutineContext().ensureActive()
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
-                        }
-                    }
-                }
-                // 逐项独立解析，路径过滤只影响当前条目，不提前提交任何业务实体。
-                ZipFile(archiveFile).use { zip ->
-                    val entries = zip.entries()
-                    while (entries.hasMoreElements()) {
-                        currentCoroutineContext().ensureActive()
-                        val entry = entries.nextElement()
-                        entryCount++
-                        if (entryCount > MAX_ARCHIVE_ENTRIES) {
-                            throw ArchiveLimitException("Character archive contains too many entries")
-                        }
-                        val name = entry.name
-                        val unsafePath = name.startsWith("/") ||
-                            name.startsWith("\\") ||
-                            name.split('/', '\\').any { it == ".." } ||
-                            name.contains('\u0000')
-                        if (entry.isDirectory || !name.endsWith(
-                                ".json",
-                                ignoreCase = true
-                            ) || unsafePath
-                        ) {
-                            continue
-                        }
-
-                        candidateCount++
-                        try {
-                            val bytes =
-                                zip.getInputStream(entry).use { it.readUnboundedWithCancellation() }
-                            val json = bytes.toString(Charsets.UTF_8)
-                            drafts += CharacterCardImportDraft(
-                                card = mMapper.parseCharacter(json),
-                                avatarSourceUri = null,
-                                avatarMimeType = "application/json"
-                            )
-                        } catch (error: Exception) {
-                            if (error is CancellationException) throw error
-                            failureCount++
-                        }
-                    }
-                }
-            } finally {
-                archiveFile.delete()
-            }
-            if (candidateCount == 0) failureCount++
-            CharacterCardArchiveReadResult(
-                drafts = drafts,
-                failureCount = failureCount,
-                totalCount = maxOf(candidateCount, 1)
-            )
         }
-
-    /** 分块读取当前条目，并在每次读取前检查批量导入是否已取消。 */
-    private suspend fun InputStream.readUnboundedWithCancellation(): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        while (true) {
-            currentCoroutineContext().ensureActive()
-            val count = read(buffer)
-            if (count < 0) break
-            output.write(buffer, 0, count)
-        }
-        return output.toByteArray()
-    }
-
-    private class ArchiveLimitException(message: String) : Exception(message)
 
     /**
      * 保存已解析的角色卡，并返回新角色 ID。
@@ -347,7 +270,6 @@ class CharacterCardRepository(
 
     private companion object {
         val ZIP_SIGNATURE = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
-        const val MAX_ARCHIVE_ENTRIES = 1_000
 
         val OnePixelPng = byteArrayOf(
             0x89.toByte(),

@@ -1,0 +1,136 @@
+package me.kafuuneko.rpclient.libs.character
+
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.InputStream
+import java.util.zip.ZipFile
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+
+/** 角色 ZIP 的磁盘与内存预算；累计量也计算解析失败条目已经读入的字节。 */
+internal data class CharacterCardArchiveLimits(
+    val archiveBytes: Long = 64L * 1024 * 1024,
+    val entryBytes: Int = 8 * 1024 * 1024,
+    val totalJsonBytes: Long = 32L * 1024 * 1024,
+    val entries: Int = 1_000
+)
+
+/**
+ * 在资源预算内解析角色 ZIP，不把条目解包到文件系统。
+ * - 压缩包先限量复制到缓存，所有退出路径都会删除临时文件。
+ * - 单卡超限或损坏计入失败后继续；归档累计超限时拒绝整包，不返回部分草稿。
+ * - ZIP 元数据仅用于提前拒绝，实际读取仍按字节计量，不能被伪造大小绕过。
+ */
+internal class CharacterCardArchiveReader(
+    private val mMapper: CharacterCardMapper,
+    private val mLimits: CharacterCardArchiveLimits = CharacterCardArchiveLimits()
+) {
+    /**
+     * 读取已确认签名的角色 ZIP，输入流由调用方关闭。
+     * @param input 从 ZIP 起始位置读取的输入流。
+     * @param cacheDirectory 用于随机访问 ZIP 的临时目录。
+     * @return 全部有效卡片草稿及失败计数，尚未写入任何业务实体。
+     */
+    suspend fun read(input: InputStream, cacheDirectory: File): CharacterCardArchiveReadResult {
+        val archive = File.createTempFile("rpclient-character-import-", ".zip", cacheDirectory)
+        try {
+            // 缓存复制也需要上限，非 JSON 附件不能无限占用应用磁盘。
+            copyArchive(input, archive)
+            return ZipFile(archive).use { readEntries(it) }
+        } finally {
+            archive.delete()
+        }
+    }
+
+    /** 分块复制压缩数据，取消或超限时由外层统一清理缓存文件。 */
+    private suspend fun copyArchive(input: InputStream, archive: File) {
+        var copiedBytes = 0L
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        archive.outputStream().buffered().use { output ->
+            // 不信任文件选择器报告的大小，按流中的实际字节数执行限制。
+            while (true) {
+                currentCoroutineContext().ensureActive()
+                val count = input.read(buffer)
+                if (count < 0) break
+                copiedBytes += count
+                if (copiedBytes > mLimits.archiveBytes) {
+                    throw ArchiveLimitException("Character archive exceeds the compressed size limit")
+                }
+                output.write(buffer, 0, count)
+            }
+        }
+    }
+
+    /** 枚举安全 JSON 条目；累计预算异常必须越过单卡容错边界。 */
+    private suspend fun readEntries(zip: ZipFile): CharacterCardArchiveReadResult {
+        if (zip.size() > mLimits.entries) {
+            throw ArchiveLimitException("Character archive contains too many entries")
+        }
+        val drafts = mutableListOf<CharacterCardImportDraft>()
+        var failureCount = 0
+        var candidateCount = 0
+        var totalJsonBytes = 0L
+        val entries = zip.entries()
+        // 元数据只提前拒绝明显过大的单卡；所有实际解压字节仍纳入整包预算。
+        while (entries.hasMoreElements()) {
+            currentCoroutineContext().ensureActive()
+            val entry = entries.nextElement()
+            if (entry.isDirectory || !entry.name.endsWith(".json", ignoreCase = true) ||
+                !isSafePath(entry.name)
+            ) continue
+            candidateCount++
+            if (entry.size > mLimits.entryBytes) {
+                failureCount++
+                continue
+            }
+            try {
+                val bytes = zip.getInputStream(entry).use { input ->
+                    readEntry(input) { count ->
+                        totalJsonBytes += count
+                        if (totalJsonBytes > mLimits.totalJsonBytes) {
+                            throw ArchiveLimitException("Character archive exceeds the total JSON size limit")
+                        }
+                    }
+                }
+                drafts += CharacterCardImportDraft(
+                    card = mMapper.parseCharacter(bytes.toString(Charsets.UTF_8)),
+                    avatarSourceUri = null,
+                    avatarMimeType = "application/json"
+                )
+            } catch (error: Exception) {
+                if (error is CancellationException || error is ArchiveLimitException) throw error
+                failureCount++
+            }
+        }
+        if (candidateCount == 0) failureCount++
+        return CharacterCardArchiveReadResult(drafts, failureCount, maxOf(candidateCount, 1))
+    }
+
+    /** 在扩容缓冲区之前核对实际解压大小，单卡超限不会耗尽剩余归档的内存。 */
+    private suspend fun readEntry(input: InputStream, consume: (Int) -> Unit): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        // ZIP 声明大小可能被伪造，必须在每次写入内存前重新检查预算。
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val count = input.read(buffer)
+            if (count < 0) break
+            consume(count)
+            if (output.size().toLong() + count > mLimits.entryBytes) {
+                throw EntryLimitException()
+            }
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray()
+    }
+
+    /** 非安全路径直接忽略；条目始终只在内存中解析，不作为磁盘路径使用。 */
+    private fun isSafePath(name: String): Boolean {
+        return !name.startsWith('/') && !name.startsWith('\\') &&
+            !name.contains('\u0000') && name.split('/', '\\').none { it == ".." }
+    }
+
+    private class ArchiveLimitException(message: String) : Exception(message)
+    private class EntryLimitException : Exception("Character JSON exceeds the entry size limit")
+}
