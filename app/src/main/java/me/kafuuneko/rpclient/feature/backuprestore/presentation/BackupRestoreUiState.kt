@@ -7,7 +7,9 @@ sealed interface BackupRestoreUiState {
     data class Normal(
         val loadState: BackupRestoreLoadState = BackupRestoreLoadState.None,
         @param:StringRes val status: Int? = null,
-        val dialogState: BackupRestoreDialogState = BackupRestoreDialogState.None
+        val dialogState: BackupRestoreDialogState = BackupRestoreDialogState.None,
+        /** 安全技术摘要；页面以可展开、可复制的区块展示。 */
+        val detail: String? = null
     ) : BackupRestoreUiState {
         val busy: Boolean get() = loadState != BackupRestoreLoadState.None
     }

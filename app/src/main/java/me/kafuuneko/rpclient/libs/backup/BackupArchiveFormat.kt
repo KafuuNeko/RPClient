@@ -7,6 +7,7 @@ import org.json.JSONObject
 internal object BackupArchiveFormat {
     const val FORMAT = "rpclient-portable-data"
     const val VERSION = 2
+    const val VERSION_3 = 3
     const val LEGACY_VERSION = 1
     const val PRIMARY_DB = "primary.sqlite"
     const val LOGS_DB = "request_logs.sqlite"
@@ -22,5 +23,5 @@ internal fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { ge
 
 /** 保持既有行顺序写入 JSON 数组。 */
 internal fun List<JSONObject>.toJsonArray(): JSONArray = JSONArray().apply {
-    this@toJsonArray.forEach { jSONObject -> put(jSONObject) }
+    this@toJsonArray.forEach { put(it) }
 }

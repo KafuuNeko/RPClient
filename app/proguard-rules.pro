@@ -35,3 +35,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# 可移植备份在运行时按 SQLite 列名映射 Gson 字段。
+# 应用构建引用本文件，Room 实体字段名需在此保持稳定。
+-keepclassmembers class me.kafuuneko.rpclient.libs.room.entity.** { <fields>; }

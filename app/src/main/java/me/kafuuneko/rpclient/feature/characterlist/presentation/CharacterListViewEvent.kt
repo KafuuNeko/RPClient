@@ -10,4 +10,9 @@ sealed class CharacterListViewEvent : IViewEvent {
         val characterId: Long,
         val fileName: String
     ) : CharacterListViewEvent()
+
+    data class OpenCharacterArchiveExporter(
+        val characterIds: List<Long>,
+        val fileName: String
+    ) : CharacterListViewEvent()
 }

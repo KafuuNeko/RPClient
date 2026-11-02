@@ -2,9 +2,10 @@ package me.kafuuneko.rpclient.feature.characterlist.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CheckBox
+import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
@@ -33,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -63,6 +67,8 @@ import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -70,8 +76,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 角色列表页 Compose 入口，包含搜索、选择及导入导出操作。 */
 @Composable
@@ -79,9 +83,14 @@ fun CharacterListLayout(
     uiState: CharacterListUiState,
     emit: CharacterListUiIntent.() -> Unit,
 ) {
-    BackHandler(
-        enabled = uiState is CharacterListUiState.Normal,
-        onBack = { CharacterListUiIntent.Back.emit() })
+    BackHandler(enabled = uiState is CharacterListUiState.Normal) {
+        val normalState = uiState as? CharacterListUiState.Normal
+        if (normalState != null && normalState.selectedCharacterIds.isNotEmpty()) {
+            CharacterListUiIntent.ClearCharacterSelection.emit()
+        } else {
+            CharacterListUiIntent.Back.emit()
+        }
+    }
     when (uiState) {
         CharacterListUiState.None -> Unit
         is CharacterListUiState.Finished -> CharacterListLayout(
@@ -118,21 +127,58 @@ private fun CharacterListNormal(
             .fillMaxSize()
             .background(pageCanvasColor()),
     ) {
+        val selectionMode = state.selectedCharacterIds.isNotEmpty()
+        val allVisibleSelected = state.characters.isNotEmpty() &&
+            state.characters.all { it.id in state.selectedCharacterIds }
         AppTopBar(
-            title = stringResource(R.string.character_manager),
-            onBack = { CharacterListUiIntent.Back.emit() },
-            actions = {
-                IconButton(onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
-                    Icon(
-                        imageVector = Icons.Rounded.FileDownload,
-                        contentDescription = stringResource(R.string.import_character),
-                    )
+            title = if (selectionMode) {
+                stringResource(R.string.character_selection_count, state.selectedCharacterIds.size)
+            } else {
+                stringResource(R.string.character_manager)
+            },
+            onBack = {
+                if (selectionMode) {
+                    CharacterListUiIntent.ClearCharacterSelection.emit()
+                } else {
+                    CharacterListUiIntent.Back.emit()
                 }
-                IconButton(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Add,
-                        contentDescription = stringResource(R.string.create_character),
-                    )
+            },
+            actions = {
+                if (selectionMode) {
+                    TextButton(
+                        onClick = { CharacterListUiIntent.ToggleVisibleCharacterSelection.emit() },
+                        enabled = state.loadState == CharacterListLoadState.None && state.characters.isNotEmpty()
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (allVisibleSelected) R.string.deselect_all_characters else R.string.select_all_characters
+                            ),
+                            maxLines = 1
+                        )
+                    }
+                    IconButton(
+                        onClick = { CharacterListUiIntent.ExportSelectedCharactersClick.emit() },
+                        enabled = state.loadState == CharacterListLoadState.None &&
+                            state.selectedCharacterIds.isNotEmpty()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FileUpload,
+                            contentDescription = stringResource(R.string.export_selected_characters_zip)
+                        )
+                    }
+                } else {
+                    IconButton(onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
+                        Icon(
+                            imageVector = Icons.Rounded.FileDownload,
+                            contentDescription = stringResource(R.string.import_character),
+                        )
+                    }
+                    IconButton(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = stringResource(R.string.create_character),
+                        )
+                    }
                 }
             },
         )
@@ -170,7 +216,20 @@ private fun CharacterListNormal(
                 CharacterListCard(
                     character = character,
                     selected = character.id == state.selectedCharacterId,
-                    onClick = { CharacterListUiIntent.SelectCharacter(character.id).emit() },
+                    selectionMode = selectionMode,
+                    bulkSelected = character.id in state.selectedCharacterIds,
+                    onClick = {
+                        if (selectionMode) {
+                            CharacterListUiIntent.ToggleCharacterSelection(character.id).emit()
+                        } else {
+                            CharacterListUiIntent.SelectCharacter(character.id).emit()
+                        }
+                    },
+                    onLongClick = {
+                        if (!selectionMode) {
+                            CharacterListUiIntent.BeginCharacterSelection(character.id).emit()
+                        }
+                    },
                     onExport = {
                         CharacterListUiIntent.ExportCharacterJsonClick(character.id).emit()
                     },
@@ -349,17 +408,24 @@ private fun EmptyCharacterCard(emit: CharacterListUiIntent.() -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CharacterListCard(
     character: CharacterListItem,
     selected: Boolean,
+    selectionMode: Boolean,
+    bulkSelected: Boolean,
     onClick: () -> Unit,
-    onExport: () -> Unit,
+    onLongClick: () -> Unit,
+    onExport: () -> Unit
 ) {
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { onClick() }),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
             width = if (selected) 1.dp else 0.5.dp,
@@ -402,22 +468,37 @@ private fun CharacterListCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = stringResource(R.string.edit),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        IconButton(
-                            onClick = onExport,
-                            modifier = Modifier.size(28.dp),
-                        ) {
+                        if (selectionMode) {
                             Icon(
-                                imageVector = Icons.Rounded.FileUpload,
-                                contentDescription = stringResource(R.string.export_character),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                imageVector = if (bulkSelected) {
+                                    Icons.Rounded.CheckBox
+                                } else {
+                                    Icons.Rounded.CheckBoxOutlineBlank
+                                },
+                                contentDescription = stringResource(
+                                    if (bulkSelected) R.string.character_selected else R.string.character_not_selected
+                                ),
+                                tint = if (bulkSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = stringResource(R.string.edit),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp),
                             )
+                            IconButton(
+                                onClick = onExport,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.FileUpload,
+                                    contentDescription = stringResource(R.string.export_character),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }

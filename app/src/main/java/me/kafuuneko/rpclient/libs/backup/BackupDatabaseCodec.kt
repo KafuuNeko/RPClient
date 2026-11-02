@@ -5,38 +5,43 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteStatement
 import android.util.Base64
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.io.ByteArrayOutputStream
+import java.io.File
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BLOB_KEY
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.TABLE_ROWS_KEY
 import me.kafuuneko.rpclient.libs.json.JsonResourceLimitException
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
-import java.io.File
 
 /** 编解码 SQLite 结构与无损数据行，重建派生 FTS 后校验完整性。 */
 internal object BackupDatabaseCodec {
+    private const val MAX_PRUNE_ROUNDS = 8
+    private const val LOG_PAYLOAD_CHUNK_BYTES = 65_536
+    private const val MAX_LOG_PAYLOAD_BYTES = 16_777_216
+
     /** 导出业务结构定义，FTS 影子表由虚表定义重建。 */
     fun schemaJson(db: SupportSQLiteDatabase): JSONObject {
         val objects = JSONArray()
         // 不序列化 SQLite 自建表，避免恢复时与引擎创建的结构冲突。
         db.query(
-            query = "SELECT type, name, tbl_name, sql FROM sqlite_master " +
-                "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' " +
-                "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name",
-            bindArgs = emptyArray(),
+            "SELECT type, name, tbl_name, sql FROM sqlite_master " +
+                "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' " +
+                "AND name NOT IN ('android_metadata', 'room_master_table') " +
+                "AND tbl_name != 'room_master_table' " +
+                "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name", emptyArray()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(1)
                 val tableName = cursor.getString(2)
-                if (name != "android_metadata" && tableName != "android_metadata"
-                    && !name.startsWith("search_chunks_fts_")
+                if (name != "android_metadata" && tableName != "android_metadata" &&
+                    !name.startsWith("search_chunks_fts_")
                 ) {
                     objects.put(
                         JSONObject()
                             .put("type", cursor.getString(0))
                             .put("name", name)
                             .put("table", tableName)
-                            .put("sql", cursor.getString(3)),
+                            .put("sql", cursor.getString(3))
                     )
                 }
             }
@@ -48,9 +53,10 @@ internal object BackupDatabaseCodec {
     fun tableNames(db: SupportSQLiteDatabase): List<String> {
         val result = mutableListOf<String>()
         db.query(
-            query = "SELECT name FROM sqlite_master WHERE type='table' " +
-                "AND name NOT LIKE 'sqlite_%' AND name != 'android_metadata' ORDER BY name",
-            bindArgs = emptyArray(),
+            "SELECT name FROM sqlite_master WHERE type='table' " +
+                "AND name NOT LIKE 'sqlite_%' " +
+                "AND name NOT IN ('android_metadata', 'room_master_table') ORDER BY name",
+            emptyArray()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(0)
@@ -68,66 +74,80 @@ internal object BackupDatabaseCodec {
         db: SupportSQLiteDatabase,
         table: String,
         whereColumn: String? = null,
-        value: Any? = null,
-    ): JSONArray {
-        val suffix = if (whereColumn == null) "" else " WHERE " + quote(whereColumn) + " = ?"
-        val projection = if (table == "llm_request_logs") logProjection(db) else "*"
-        val sql = "SELECT " + projection + " FROM " + quote(table) + suffix
-        val arguments: Array<Any?> = if (whereColumn == null) emptyArray() else arrayOf(value)
-        // 所有值通过绑定参数传递，列值按 SQLite 的实际类型编码。
-        val rows = db.query(sql, arguments).use { cursor ->
-            JSONArray().apply {
-                while (cursor.moveToNext()) {
-                    val row = JSONObject()
-                    for (index in 0 until cursor.columnCount) {
-                        row.put(cursor.getColumnName(index), cursorValue(cursor, index))
-                    }
-                    put(row)
-                }
-            }
-        }
-        if (table == "llm_request_logs") {
-            // 日志正文独立分块读取，备份格式仍保留原始 TEXT 字段，无需改变协议。
-            for (index in 0 until rows.length()) {
-                val row = rows.getJSONObject(index)
-                row.put("requestJson", readLogPayload(db, row.getLong("id"), "requestJson"))
-                row.put("responseJson", readLogPayload(db, row.getLong("id"), "responseJson"))
-            }
-        }
-        return rows
+        value: Any? = null
+    ): JSONArray = JSONArray().apply {
+        queryRows(db, table, whereColumn, value) { put(it) }
     }
 
-    /** 动态保留日志表扩展列，仅把两个大 TEXT 列从窗口投影中移除。 */
+    /** 逐行读取原始行；请求日志正文单独分块查询，避免单行超过 CursorWindow 容量。 */
+    fun forEachRow(db: SupportSQLiteDatabase, table: String, action: (JSONObject) -> Unit) {
+        queryRows(db, table, null, null, action)
+    }
+
+    /** 两种导出入口共用同一投影与正文读取策略，所有值通过绑定参数传递。 */
+    private fun queryRows(
+        db: SupportSQLiteDatabase,
+        table: String,
+        whereColumn: String?,
+        value: Any?,
+        action: (JSONObject) -> Unit
+    ) {
+        val suffix = if (whereColumn == null) "" else " WHERE " + quote(whereColumn) + " = ?"
+        val isRequestLog = table == "llm_request_logs"
+        val projection = if (isRequestLog) logProjection(db) else "*"
+        val sql = "SELECT " + projection + " FROM " + quote(table) + suffix
+        val arguments: Array<Any?> = if (whereColumn == null) emptyArray() else arrayOf(value)
+        // 普通列保持 SQLite 类型；两个大正文列不能进入外层游标窗口。
+        db.query(sql, arguments).use { cursor ->
+            while (cursor.moveToNext()) {
+                val row = JSONObject()
+                for (index in 0 until cursor.columnCount) {
+                    row.put(cursor.getColumnName(index), cursorValue(cursor, index))
+                }
+                if (isRequestLog) {
+                    val id = row.getLong("id")
+                    row.put("requestJson", readLogPayload(db, id, "requestJson"))
+                    row.put("responseJson", readLogPayload(db, id, "responseJson"))
+                }
+                action(row)
+            }
+        }
+    }
+
+    /** 动态保留日志表的扩展列，只用空占位替代两个可能超出窗口的正文列。 */
     private fun logProjection(db: SupportSQLiteDatabase): String {
         return db.query("PRAGMA table_info(llm_request_logs)").use { cursor ->
             val columns = mutableListOf<String>()
             while (cursor.moveToNext()) {
                 val name = cursor.getString(cursor.getColumnIndexOrThrow("name"))
                 columns += if (name == "requestJson" || name == "responseJson") {
-                    "'' AS " + quote(name)
+                    "NULL AS " + quote(name)
                 } else quote(name)
             }
             columns.joinToString(", ")
         }
     }
 
-    /** 从冻结备份库按 UTF-8 字节偏移读取正文，避免整行超过窗口容量。 */
-    private fun readLogPayload(db: SupportSQLiteDatabase, id: Long, column: String): String {
+    /** 按 UTF-8 字节偏移拼接正文，保留跨块多字节字符及 NUL；超过资源上限时拒绝导出。 */
+    private fun readLogPayload(db: SupportSQLiteDatabase, id: Long, column: String): Any {
         val result = ByteArrayOutputStream()
         var start = 1
-        // 列名只由本方法的固定调用点提供；记录 ID 和偏移继续使用绑定参数。
+        // 列名仅来自固定调用点；字节全部拼接后才解码，避免拆开代理对或截断 NUL 后的正文。
         while (true) {
             val chunk = db.query(
-                "SELECT SUBSTR(CAST(" + quote(column) + " AS BLOB), ?, 65536) FROM llm_request_logs WHERE id = ?",
-                arrayOf<Any>(start, id),
+                "SELECT SUBSTR(CAST(" + quote(column) + " AS BLOB), ?, ?) FROM llm_request_logs WHERE id = ?",
+                arrayOf<Any>(start, LOG_PAYLOAD_CHUNK_BYTES, id)
             ).use { cursor ->
                 check(cursor.moveToFirst()) { "Request log disappeared from backup snapshot." }
+                if (cursor.isNull(0)) return JSONObject.NULL
                 cursor.getBlob(0)
             }
-            if (result.size().toLong() + chunk.size > 16_777_216) throw JsonResourceLimitException()
+            if (result.size().toLong() + chunk.size > MAX_LOG_PAYLOAD_BYTES) {
+                throw JsonResourceLimitException()
+            }
             result.write(chunk)
-            if (chunk.size < 65_536) return result.toString(Charsets.UTF_8.name())
-            start += 65_536
+            if (chunk.size < LOG_PAYLOAD_CHUNK_BYTES) return result.toString(Charsets.UTF_8.name())
+            start += LOG_PAYLOAD_CHUNK_BYTES
         }
     }
 
@@ -142,7 +162,7 @@ internal object BackupDatabaseCodec {
     fun collectTableRows(
         root: File,
         includePath: String? = null,
-        excludePath: String? = null,
+        excludePath: String? = null
     ): Map<String, List<JSONObject>> {
         val result = linkedMapOf<String, MutableList<JSONObject>>()
         fun collect(document: JSONObject) {
@@ -182,7 +202,7 @@ internal object BackupDatabaseCodec {
         File(snapshot, "tables").listFiles().orEmpty()
             .filter { it.isFile && it.extension == "jsonl" }.forEach { file ->
                 val table = tableNameForFile(objects, file.nameWithoutExtension)
-                if (table == "android_metadata") return@forEach
+                if (table == "android_metadata" || table == "room_master_table") return@forEach
                 file.forEachLine(Charsets.UTF_8) { line ->
                     if (line.isNotBlank()) result.getOrPut(table) { mutableListOf() }
                         .add(JSONObject(line))
@@ -196,6 +216,7 @@ internal object BackupDatabaseCodec {
         schema: JSONObject,
         tableRows: Map<String, List<JSONObject>>,
         destination: File,
+        onPruned: ((String) -> Unit)? = null
     ) {
         val objects = schema.optJSONArray("objects") ?: error("Database schema is invalid.")
         objects.objects().forEach { item ->
@@ -216,11 +237,15 @@ internal object BackupDatabaseCodec {
         val allowedTables = mutableSetOf<String>()
         for (index in 0 until objects.length()) {
             val item = objects.getJSONObject(index)
-            if (item.optString("type") == "table" && item.optString("name") != "android_metadata") {
+            if (item.optString("type") == "table" && item.optString("name") != "android_metadata" &&
+                item.optString("name") != "room_master_table"
+            ) {
                 allowedTables.add(item.optString("name"))
             }
         }
-        val unknownTable = tableRows.keys.firstOrNull { it !in allowedTables }
+        val unknownTable = tableRows.keys.firstOrNull {
+            it != "room_master_table" && it !in allowedTables
+        }
         require(unknownTable == null) { "Backup contains rows for an unknown table: " + unknownTable }
         destination.parentFile?.mkdirs()
         if (destination.exists()) destination.delete()
@@ -232,8 +257,9 @@ internal object BackupDatabaseCodec {
                 if (item.optString("type") != "table") continue
                 val name = item.optString("name")
                 // android_metadata 由 Android 打开数据库时创建，不从归档重复创建。
-                if (name != "android_metadata" && !name.startsWith("search_chunks_fts_")
-                    && !sqliteTableExists(db, name)
+                if (name != "android_metadata" && name != "room_master_table" &&
+                    !name.startsWith("search_chunks_fts_") &&
+                    !sqliteTableExists(db, name)
                 ) {
                     db.execSQL(item.getString("sql"))
                 }
@@ -241,7 +267,9 @@ internal object BackupDatabaseCodec {
             db.beginTransaction()
             try {
                 tableRows.forEach { (table, rows) ->
-                    if (table != "search_chunks_fts" && !table.startsWith("search_chunks_fts_")) {
+                    if (table != "room_master_table" && table != "search_chunks_fts" &&
+                        !table.startsWith("search_chunks_fts_")
+                    ) {
                         insertRows(db, table, rows)
                     }
                 }
@@ -255,12 +283,18 @@ internal object BackupDatabaseCodec {
             }
             for (index in 0 until objects.length()) {
                 val item = objects.getJSONObject(index)
-                if (item.optString("type") != "table" && item.optString("table") != "android_metadata") {
+                if (item.optString("type") != "table" &&
+                    item.optString("name") != "room_master_table" &&
+                    item.optString("table") != "android_metadata" &&
+                    item.optString("table") != "room_master_table"
+                ) {
                     db.execSQL(item.getString("sql"))
                 }
             }
             db.version = schema.optInt("userVersion", 0)
             db.execSQL("PRAGMA foreign_keys=ON")
+            // 手工删除父级文件后，指向它的子记录按外键语义一并移除，并写入日志。
+            if (onPruned != null) pruneForeignKeyViolations(db, onPruned)
             db.rawQuery("PRAGMA integrity_check", null).use { cursor ->
                 require(cursor.moveToFirst() && cursor.getString(0) == "ok") {
                     "Reconstructed database failed SQLite integrity validation."
@@ -273,6 +307,26 @@ internal object BackupDatabaseCodec {
             }
         } finally {
             db.close()
+        }
+    }
+
+    /** 反复删除缺少父记录的行，直到外键检查通过；级联子记录由外键动作处理。 */
+    private fun pruneForeignKeyViolations(db: SQLiteDatabase, report: (String) -> Unit) {
+        repeat(MAX_PRUNE_ROUNDS) {
+            val violations = mutableListOf<Pair<String, Long>>()
+            db.rawQuery("PRAGMA foreign_key_check", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (!cursor.isNull(1)) violations.add(cursor.getString(0) to cursor.getLong(1))
+                }
+            }
+            if (violations.isEmpty()) return
+            violations.forEach { (table, rowId) ->
+                db.execSQL("DELETE FROM " + quote(table) + " WHERE rowid = ?", arrayOf<Any>(rowId))
+            }
+            report(
+                "Removed " + violations.size + " row(s) whose parent record is missing, in: " +
+                    violations.map { it.first }.distinct().joinToString()
+            )
         }
     }
 
@@ -290,7 +344,7 @@ internal object BackupDatabaseCodec {
             }
             if (columns.isNotEmpty()) {
                 val sql = "INSERT INTO " + quote(table) + " (" +
-                    columns.joinToString(",") { text -> quote(text) } + ") VALUES (" +
+                    columns.joinToString(",") { quote(it) } + ") VALUES (" +
                     columns.joinToString(",") { "?" } + ")"
                 val statement = db.compileStatement(sql)
                 try {
@@ -315,8 +369,8 @@ internal object BackupDatabaseCodec {
 
     private fun sqliteTableExists(db: SQLiteDatabase, table: String): Boolean {
         db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", arrayOf(table))
-            .use { cursor ->
-                return cursor.moveToFirst()
+            .use {
+                return it.moveToFirst()
             }
     }
 
@@ -327,10 +381,7 @@ internal object BackupDatabaseCodec {
         Cursor.FIELD_TYPE_STRING -> cursor.getString(index)
         Cursor.FIELD_TYPE_BLOB -> JSONObject().put(
             BLOB_KEY,
-            Base64.encodeToString(
-                cursor.getBlob(index),
-                Base64.NO_WRAP,
-            ),
+            Base64.encodeToString(cursor.getBlob(index), Base64.NO_WRAP)
         )
 
         else -> JSONObject.NULL

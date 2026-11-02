@@ -13,6 +13,8 @@ sealed class CharacterListUiState {
         val searchText: String = "",
         /** 当前选中角色的 ID。 */
         val selectedCharacterId: Long? = null,
+        /** 批量导出的角色 ID 集合，独立于当前搜索过滤结果。 */
+        val selectedCharacterIds: Set<Long> = emptySet(),
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<CharacterListItem> = emptyList(),
         /** 当前页面互斥展示的对话框状态。 */

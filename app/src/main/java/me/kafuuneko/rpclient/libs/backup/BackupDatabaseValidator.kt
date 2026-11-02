@@ -3,9 +3,9 @@ package me.kafuuneko.rpclient.libs.backup
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
+import java.io.File
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
-import java.io.File
 
 /**
  * 在暂存目录验证数据库的可打开性。
@@ -16,7 +16,8 @@ internal object BackupDatabaseValidator {
     /** 校验主库完整性、Room 标识和迁移兼容性，迁移只写入暂存副本。 */
     fun validatePrimary(context: Context, file: File) {
         validateIntegrity(file)
-        val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path).build()
+        val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path)
+            .build()
         try {
             candidate.openHelper.writableDatabase
         } finally {
