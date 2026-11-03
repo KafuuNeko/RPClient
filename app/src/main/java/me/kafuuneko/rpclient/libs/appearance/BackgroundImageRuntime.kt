@@ -177,6 +177,23 @@ class BackgroundImageRuntime(private val mContext: Context, private val mFiles: 
         return result
     }
 
+    /**
+     * 按同一配置准备底图和各栏位的派生图，供页面显示或编辑预览。
+     * @param settings 已解析继承关系的背景参数。
+     * @param prepared 编辑时尚未保存的图片草稿。
+     * @param preview 拖动参数时使用低分辨率预览。
+     * @return 包含配置和已加载位图的背景资源。
+     */
+    suspend fun renderBackground(
+        settings: PageBackground,
+        prepared: PreparedFile? = null,
+        preview: Boolean = false,
+    ): RenderedPageBackground = RenderedPageBackground(
+        settings = settings,
+        image = render(settings = settings, prepared = prepared, preview = preview),
+        surfaceImages = renderSurfaces(settings = settings, prepared = prepared, preview = preview),
+    )
+
     /** 模糊半径按标准图片长边归一化，预览和最终图使用相同视觉强度。 */
     private suspend fun blur(source: Bitmap, amount: Int): Bitmap {
         if (amount == 0) return source

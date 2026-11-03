@@ -15,7 +15,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.characteredit.model.BackgroundDraft
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
@@ -37,6 +36,7 @@ import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -89,18 +89,13 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
             }.collectLatest { (settings, prepared) ->
                 // 角色只覆盖图片；通用外观变化会取消过期渲染，并保留未保存的图片草稿。
                 val background = try {
-                    PageBackgroundUiState(
-                        settings = settings,
-                        image = mBackgroundRuntime.render(settings, prepared)?.asImageBitmap(),
-                        surfaceImages = mBackgroundRuntime.renderSurfaces(settings, prepared)
-                            .mapValues { entry -> entry.value.asImageBitmap() },
-                    )
+                    mBackgroundRuntime.renderBackground(settings = settings, prepared = prepared)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    PageBackgroundUiState(settings)
+                    RenderedPageBackground(settings)
                 } catch (_: OutOfMemoryError) {
-                    PageBackgroundUiState(settings)
+                    RenderedPageBackground(settings)
                 }
                 getOrNull<CharacterEditUiState.Normal>()?.copy(background = background)?.setup()
             }
@@ -250,12 +245,8 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                 mBackgroundRuntime.prepare(mBackgroundOwner, result.sourceUri, result.selection)
             val settings = mBackgrounds.observe(BackgroundPage.General).first()
                 .copy(fileUuid = prepared.file.uuid)
-            val background = PageBackgroundUiState(
-                settings = settings,
-                image = mBackgroundRuntime.render(settings, prepared)?.asImageBitmap(),
-                surfaceImages = mBackgroundRuntime.renderSurfaces(settings, prepared)
-                    .mapValues { entry -> entry.value.asImageBitmap() },
-            )
+            val background =
+                mBackgroundRuntime.renderBackground(settings = settings, prepared = prepared)
             // 提示记录持久化到全局偏好，更换角色或重启后不再重复询问。
             val shouldOffer =
                 !AppModel.characterBackgroundPromptShown && !mBackgrounds.observe(BackgroundPage.Chat)

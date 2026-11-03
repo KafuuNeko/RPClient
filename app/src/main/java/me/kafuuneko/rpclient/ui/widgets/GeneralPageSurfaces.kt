@@ -55,7 +55,7 @@ fun pageCanvasColor(color: Color = MaterialTheme.colorScheme.background): Color 
 @Composable
 fun Modifier.generalContentBackground(shape: Shape, hasLabel: Boolean = false): Modifier {
     if (!LocalGeneralPageSurfaces.current || LocalPageSurfaceCovered.current) return this
-    val settings = LocalPageBackdropState.current.settings ?: return this
+    val settings = LocalPageBackground.current?.settings ?: return this
     val kind = LocalGeneralSurfaceKind.current
     val opacity = settings.surfaceOpacity(kind)
     if (settings.fileUuid == null && opacity == 1f && settings.surfaceBlur(kind) == 0) return this
@@ -93,7 +93,7 @@ private data class LabelInsetShape(val shape: Shape, val inset: Dp) : Shape {
 @Composable
 internal fun generalOpacity(kind: PageSurfaceKind): Float =
     LocalDialogControlOpacity.current
-        ?: if (LocalGeneralPageSurfaces.current) LocalPageBackdropState.current.settings?.surfaceOpacity(
+        ?: if (LocalGeneralPageSurfaces.current) LocalPageBackground.current?.settings?.surfaceOpacity(
             kind
         ) ?: 1f else 1f
 

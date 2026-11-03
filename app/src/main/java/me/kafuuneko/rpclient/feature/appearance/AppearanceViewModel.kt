@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.appearance
 
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -19,6 +18,7 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.withAdjustment
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.appearance.resolveWith
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -172,17 +172,14 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
                     focalY = 0.5f
                 )
                 val effective = settings.resolveWith(mGeneralSettings)
-                val image = mRuntime.render(effective, prepared)?.asImageBitmap()
-                val surfaces = mRuntime.renderSurfaces(effective, prepared)
-                    .mapValues { entry -> entry.value.asImageBitmap() }
+                val rendered = mRuntime.renderBackground(settings = effective, prepared = prepared)
                 // 首轮预览也属于导入；发布前不释放旧草稿或隐藏加载反馈。
                 mRuntime.discard(mPrepared)
                 mPrepared = prepared
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
                         settings = settings,
-                        image = image,
-                        surfaceImages = surfaces,
+                        preview = rendered,
                         loadState = BackgroundEditorLoadState.None,
                     )
                 }
@@ -247,10 +244,10 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         mRuntime.discard(mPrepared)
         mPrepared = null
         updateEditor { backgroundEditorState ->
+            val settings = backgroundEditorState.settings.copy(fileUuid = null)
             backgroundEditorState.copy(
-                settings = backgroundEditorState.settings.copy(fileUuid = null),
-                image = null,
-                surfaceImages = emptyMap(),
+                settings = settings,
+                preview = RenderedPageBackground(settings),
                 loadState = BackgroundEditorLoadState.None,
                 error = null,
             )
@@ -346,14 +343,14 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
             try {
                 if (preview) delay(timeMillis = 80)
                 // 底图与栏位派生图一起发布，避免同一次预览出现不同处理版本。
-                val image =
-                    mRuntime.render(editor.effectiveSettings, prepared, preview)?.asImageBitmap()
-                val surfaces = mRuntime.renderSurfaces(editor.effectiveSettings, prepared, preview)
-                    .mapValues { entry -> entry.value.asImageBitmap() }
+                val rendered = mRuntime.renderBackground(
+                    settings = editor.preview.settings,
+                    prepared = prepared,
+                    preview = preview,
+                )
                 updateEditor { backgroundEditorState ->
                     backgroundEditorState.copy(
-                        image = image,
-                        surfaceImages = surfaces,
+                        preview = rendered,
                         loadState = BackgroundEditorLoadState.None,
                     )
                 }
@@ -382,12 +379,10 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         val state = getOrNull<AppearanceUiState.Normal>() ?: return
         val editor = state.editor ?: return
         val updated = change(editor)
+        // 遮罩、焦点等参数立即预览，位图在后台处理完成后替换。
+        val effective = updated.settings.resolveWith(mGeneralSettings)
         state.copy(
-            editor = updated.copy(
-                effectiveSettings = updated.settings.resolveWith(
-                    mGeneralSettings
-                )
-            )
+            editor = updated.copy(preview = updated.preview.copy(settings = effective))
         ).setup()
     }
 

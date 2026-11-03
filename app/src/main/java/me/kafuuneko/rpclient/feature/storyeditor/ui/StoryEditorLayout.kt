@@ -23,7 +23,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
@@ -37,6 +36,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructu
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
@@ -61,7 +61,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextFie
 fun StoryEditorLayout(
     uiState: StoryEditorUiState,
     document: StoryEditorDocument?,
-    background: PageBackgroundUiState = PageBackgroundUiState(),
+    background: RenderedPageBackground? = null,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
     when (uiState) {
@@ -86,7 +86,7 @@ fun StoryEditorLayout(
 private fun StoryEditorNormal(
     state: StoryEditorUiState.Normal,
     document: StoryEditorDocument?,
-    background: PageBackgroundUiState,
+    background: RenderedPageBackground?,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
     BackHandler(
@@ -101,7 +101,7 @@ private fun StoryEditorNormal(
     )
     // 章节、大纲及设置都属于当前故事，加载设置时也保留同一张背景。
     PageBackdrop(
-        state = background,
+        background = background,
         useContainerAppearance = state.pageState != StoryEditorPageState.Editor
     ) {
         when (val pageState = state.pageState) {

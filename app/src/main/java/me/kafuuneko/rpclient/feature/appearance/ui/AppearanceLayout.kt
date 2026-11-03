@@ -55,7 +55,6 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.AppearanceUiState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundAdjustment
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorLoadState
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
@@ -629,13 +628,7 @@ private fun BackgroundPreview(state: BackgroundEditorState, modifier: Modifier) 
         // 横屏高度较小时压缩内部留白，保留菜单、两条消息和底部栏的完整预览。
         val compact = maxHeight < 240.dp
         val padding = if (compact) 8.dp else 16.dp
-        PageBackdrop(
-            state = PageBackgroundUiState(
-                settings = state.effectiveSettings,
-                image = state.image,
-                surfaceImages = state.surfaceImages,
-            ),
-        ) {
+        PageBackdrop(background = state.preview) {
             // 预览与真实页面共用透明度来源，三块表面分别反映对应滑块。
             Column(Modifier.fillMaxSize()) {
                 PageSurface(

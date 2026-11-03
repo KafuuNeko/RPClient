@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.feature.characteredit.presentation
 
 import androidx.compose.ui.graphics.ImageBitmap
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterEditForm
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterLorebookItem
 import me.kafuuneko.rpclient.feature.characteredit.model.CharacterProviderItem
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 
 /** 角色创建/编辑页面状态树。 */
 sealed class CharacterEditUiState {
@@ -34,7 +34,7 @@ sealed class CharacterEditUiState {
         /** 当前页面允许选择的模型配置列表。 */
         val availableProviders: List<CharacterProviderItem> = emptyList(),
         /** 独立背景草稿的渲染结果，图片处理参数沿用通用页面。 */
-        val background: PageBackgroundUiState = PageBackgroundUiState()
+        val background: RenderedPageBackground? = null
     ) : CharacterEditUiState()
 
     data class Finished(val previous: CharacterEditUiState) : CharacterEditUiState()

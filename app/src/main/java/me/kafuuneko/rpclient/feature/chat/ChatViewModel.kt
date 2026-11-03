@@ -12,6 +12,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +57,7 @@ import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
@@ -252,6 +254,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mContext by inject<Context>()
+    private val mBackgrounds by inject<PageBackgroundProvider>()
+
+    /** 仅在会话角色变化时切换背景，生成消息不会触发重复解码。 */
+    val backgroundFlow by lazy {
+        val characterIds = uiStateFlow.mapNotNull { (it as? ChatUiState.Normal)?.character?.id }
+        mBackgrounds.observeChat(characterIds)
+    }
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
     private var mUnloadedNewerMessageCount = 0

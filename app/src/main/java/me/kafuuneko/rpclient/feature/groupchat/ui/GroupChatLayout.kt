@@ -22,7 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
@@ -32,6 +31,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
@@ -50,7 +50,7 @@ import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 @Composable
 fun GroupChatLayout(
     uiState: GroupChatUiState,
-    background: PageBackgroundUiState = PageBackgroundUiState(),
+    background: RenderedPageBackground? = null,
     emitIntent: (GroupChatUiIntent) -> Unit = {},
 ) {
     BackHandler(
@@ -67,7 +67,7 @@ fun GroupChatLayout(
             val pageStateHolder = rememberSaveableStateHolder()
             // 群聊设置与会话使用相同背景，不能落回 Activity 的通用背景。
             PageBackdrop(
-                state = background,
+                background = background,
                 useContainerAppearance = uiState.page == GroupChatPage.Settings,
             ) {
                 pageStateHolder.SaveableStateProvider("${uiState.sessionId}:${uiState.page.name}") {

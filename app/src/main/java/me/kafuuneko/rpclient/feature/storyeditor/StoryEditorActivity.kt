@@ -12,24 +12,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorViewEvent
 import me.kafuuneko.rpclient.feature.storyeditor.ui.StoryEditorLayout
-import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 分卷/章节编辑器宿主，负责页面生命周期与剪贴板系统能力。 */
 class StoryEditorActivity : CoreActivityWithEvent() {
-    private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
-    private val mBackgroundFlow by lazy {
-        mBackgroundViewModel.observe(BackgroundPage.Story).flowWithLifecycle(lifecycle)
-    }
     private val mViewModel by viewModels<StoryEditorViewModel>()
+    private val mBackgroundFlow by lazy { mViewModel.backgroundFlow.flowWithLifecycle(lifecycle) }
 
     private val mTextImporter = registerForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -56,7 +50,7 @@ class StoryEditorActivity : CoreActivityWithEvent() {
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
-        val background by mBackgroundFlow.collectAsState(PageBackgroundUiState())
+        val background by mBackgroundFlow.collectAsState(initial = null)
         val document by mViewModel.documentFlow.collectAsState()
 
         LaunchedEffect(uiState) {

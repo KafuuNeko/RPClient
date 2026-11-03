@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
@@ -24,6 +23,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
@@ -42,7 +42,7 @@ import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 @Composable
 fun ChatLayout(
     uiState: ChatUiState,
-    background: PageBackgroundUiState = PageBackgroundUiState(),
+    background: RenderedPageBackground? = null,
     emit: ChatUiIntent.() -> Unit,
 ) {
     BackHandler(enabled = uiState is ChatUiState.Normal, onBack = { ChatUiIntent.Back.emit() })
@@ -65,7 +65,7 @@ fun ChatLayout(
             val pageStateHolder = rememberSaveableStateHolder()
             // 设置子页沿用会话背景，公共表面按该页内容区参数装饰。
             PageBackdrop(
-                state = background,
+                background = background,
                 useContainerAppearance = uiState.page == ChatPage.Settings
             ) {
                 pageStateHolder.SaveableStateProvider("${uiState.session.id}:${uiState.page.name}") {

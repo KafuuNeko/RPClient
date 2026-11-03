@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveRepository
 import me.kafuuneko.rpclient.libs.backup.PortableBackupRepository
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
@@ -128,6 +129,7 @@ internal val appModules = module {
     singleOf(::AppThemeManager)
     singleOf(::PageBackgroundRepository)
     singleOf(::BackgroundImageRuntime)
+    singleOf(::PageBackgroundProvider)
     singleOf(::ImageCropCodec)
     singleOf(::LLMModelCatalogClientFactory)
     singleOf(::LLMModelCatalogRepository)

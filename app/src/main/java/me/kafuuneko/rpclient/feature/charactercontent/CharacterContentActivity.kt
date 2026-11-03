@@ -13,6 +13,10 @@ import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 /** 角色内容页宿主，沿用通用页面背景与应用导航事件。 */
 class CharacterContentActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<CharacterContentViewModel>()
+    private val mCharacterId get() = intent.getLongExtra(EXTRA_CHARACTER_ID, 0L)
+
+    /** 用当前角色的背景替换宿主底板，加载和退出时也沿用同一张图片。 */
+    override fun observePageBackground() = mViewModel.observeBackground(mCharacterId)
 
     /** 交由通用宿主执行导航和提示。 */
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -20,11 +24,7 @@ class CharacterContentActivity : CoreActivityWithEvent() {
     /** 首次进入和从子页面返回时，都刷新当前角色的关联内容。 */
     override fun onResume() {
         super.onResume()
-        mViewModel.emit(
-            CharacterContentUiIntent.Resume(
-                characterId = intent.getLongExtra(EXTRA_CHARACTER_ID, 0L)
-            )
-        )
+        mViewModel.emit(CharacterContentUiIntent.Resume(characterId = mCharacterId))
     }
 
     /** 保留退出动画所需的最后一帧页面。 */

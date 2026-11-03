@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,10 +13,11 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
-import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
+import kotlinx.coroutines.flow.Flow
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.LocalDialogAppearance
@@ -34,10 +34,17 @@ abstract class CoreActivity : ComponentActivity(), KoinComponent {
     private val mDialogAppearance by inject<DialogAppearanceManager>()
     private val mAppThemeManager by inject<AppThemeManager>()
 
-    private val mPageBackgroundViewModel by viewModels<PageBackgroundViewModel>()
-    private val mGeneralBackground by lazy {
-        mPageBackgroundViewModel.observe(BackgroundPage.General).flowWithLifecycle(lifecycle)
+    private val mPageBackgrounds by inject<PageBackgroundProvider>()
+    private val mPageBackground by lazy {
+        observePageBackground().flowWithLifecycle(lifecycle)
     }
+
+    /**
+     * 为宿主底板提供背景，子类可从自己的 ViewModel 提供页面专属背景。
+     * @return 随页面可见性收集的背景状态流。
+     */
+    protected open fun observePageBackground(): Flow<RenderedPageBackground> =
+        mPageBackgrounds.observe(BackgroundPage.General)
 
     /** 关于和配色页面可保留完整主题底色，避免外观设置遮蔽其展示内容。 */
     protected open fun usesGeneralBackground(): Boolean = true
@@ -74,7 +81,7 @@ abstract class CoreActivity : ComponentActivity(), KoinComponent {
     /** 背景订阅与 Activity 可见生命周期绑定，排除页面不启动图像加载。 */
     private fun getContent(): @Composable () -> Unit = {
         if (usesGeneralBackground()) {
-            val background by mGeneralBackground.collectAsState(PageBackgroundUiState())
+            val background by mPageBackground.collectAsState(initial = null)
             PageBackdrop(background) { ViewContent() }
         } else {
             ViewContent()

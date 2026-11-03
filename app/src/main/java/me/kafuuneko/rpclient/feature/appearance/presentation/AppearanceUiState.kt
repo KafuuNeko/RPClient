@@ -1,9 +1,8 @@
 package me.kafuuneko.rpclient.feature.appearance.presentation
 
 import androidx.annotation.StringRes
-import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
-import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.libs.theme.AppThemePalette
 
@@ -21,13 +20,11 @@ sealed interface AppearanceUiState {
 /** 背景编辑草稿，图片凭据由 ViewModel 持有，不把文件或路径暴露给 UI。 */
 data class BackgroundEditorState(
     val settings: PageBackground,
-    val image: ImageBitmap? = null,
     val loadState: BackgroundEditorLoadState = BackgroundEditorLoadState.None,
     @param:StringRes val error: Int? = null,
-    val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap(),
     val dialogState: BackgroundEditorDialogState = BackgroundEditorDialogState.None,
-    /** 已解析继承的预览配置，只用于显示，保存时仍提交 settings。 */
-    val effectiveSettings: PageBackground = settings
+    /** 草稿预览使用已解析的外观，保存时仍提交原始 settings。 */
+    val preview: RenderedPageBackground = RenderedPageBackground(settings),
 )
 
 /** 背景编辑器的互斥任务阶段，预览渲染期间仍允许继续调整参数。 */
@@ -56,10 +53,3 @@ sealed class BackgroundEditorDialogState {
 
     data object UnsavedChanges : BackgroundEditorDialogState()
 }
-
-/** 内容页可观察的背景子状态，图片不可用时使用原有主题表面。 */
-data class PageBackgroundUiState(
-    val settings: PageBackground? = null,
-    val image: ImageBitmap? = null,
-    val surfaceImages: Map<PageSurfaceKind, ImageBitmap> = emptyMap()
-)

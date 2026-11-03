@@ -65,6 +65,8 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryGenerationFailure
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -137,6 +139,12 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private val mStoryOutputSanitizer by inject<StoryOutputSanitizer>()
     private val mStoryArchiveRepository by inject<StoryArchiveRepository>()
     private val mContext by inject<Context>()
+    private val mBackgrounds by inject<PageBackgroundProvider>()
+
+    /** 正文与章节设置共用故事页的背景。 */
+    val backgroundFlow by lazy {
+        mBackgrounds.observe(BackgroundPage.Story)
+    }
 
     /** 正文文档流，供 Compose 编辑器组件监听并双向同步文本内容与最新编辑范围。 */
     private val mDocumentFlow = MutableStateFlow<StoryEditorDocument?>(value = null)

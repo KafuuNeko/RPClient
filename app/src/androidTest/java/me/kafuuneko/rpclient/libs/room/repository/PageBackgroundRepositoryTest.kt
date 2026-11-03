@@ -372,10 +372,17 @@ class PageBackgroundRepositoryTest {
         )
         assertEquals(portrait.file.uuid, backgrounds.observeChat(id).first().fileUuid)
         assertEquals(0.3f, backgrounds.observeChat(id).first().bubbleOpacity)
+        // 角色内容页只替换图片，完整保留通用页面的透明度和其他参数。
+        val general = backgrounds.observe(BackgroundPage.General).first()
+        assertEquals(
+            general.copy(fileUuid = portrait.file.uuid),
+            backgrounds.observeCharacterContent(id).first(),
+        )
         // 禁用角色背景后使用对话图片；再清除对话图片，独立参数仍可配合通用图片。
         val raw = backgrounds.observe(BackgroundPage.Chat).first()
         backgrounds.save(value = raw.copy(useCharacterBackground = false), prepared = null)
         assertEquals(chat.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertEquals(general, backgrounds.observeCharacterContent(id).first())
         backgrounds.save(
             value = raw.copy(
                 fileUuid = null,
@@ -388,9 +395,14 @@ class PageBackgroundRepositoryTest {
         assertEquals(1f, backgrounds.observeChat(id).first().bubbleOpacity)
         backgrounds.save(value = raw.copy(fileUuid = null), prepared = null)
         assertEquals(portrait.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertEquals(
+            general.copy(fileUuid = portrait.file.uuid),
+            backgrounds.observeCharacterContent(id).first(),
+        )
         characters.deleteCharacter(id)
         assertNull(files.getFileEntity(portrait.file.uuid))
         assertEquals(common.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertEquals(general, backgrounds.observeCharacterContent(id).first())
         files.withFileLease(common.file.uuid) { file -> assertEquals("shared", file.readText()) }
     }
 

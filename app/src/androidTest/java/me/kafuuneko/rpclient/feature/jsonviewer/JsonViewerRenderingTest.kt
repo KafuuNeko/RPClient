@@ -14,7 +14,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -35,7 +34,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.jsonviewer.ui.JsonViewerLayout
 import me.kafuuneko.rpclient.feature.requestlog.model.RequestLogItem
 import me.kafuuneko.rpclient.feature.requestlog.presentation.RequestLogUiState
@@ -44,6 +42,7 @@ import me.kafuuneko.rpclient.libs.appearance.BackgroundBlur
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.llm.adapter.LLMStreamLog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
@@ -146,7 +145,7 @@ class JsonViewerRenderingTest {
                 val viewModel = ViewModelProvider(activity)[JsonViewerViewModel::class.java]
                 activity.setContent {
                     AppTheme(darkTheme = darkTheme, dynamicColor = false) {
-                        PageBackdrop(state = backdrop) {
+                        PageBackdrop(background = backdrop) {
                             val uiState by viewModel.uiStateFlow.collectAsState()
                             JsonViewerLayout(uiState = uiState, emit = { viewModel.emit(this) })
                         }
@@ -160,7 +159,7 @@ class JsonViewerRenderingTest {
             // 关闭两个栏位的模糊，便于与开启状态比对；不改变底图和不透明度。
             compose.runOnIdle {
                 backdrop = blurred.copy(
-                    settings = blurred.settings?.copy(contentBlur = 0, topBarBlur = 0),
+                    settings = blurred.settings.copy(contentBlur = 0, topBarBlur = 0),
                     surfaceImages = emptyMap(),
                 )
             }
@@ -311,7 +310,7 @@ class JsonViewerRenderingTest {
     /** 用合成日志核查导出图标与无描边操作行，不启动系统导出或写入日志。 */
     private fun showRequestLogActions(
         scenario: ActivityScenario<JsonViewerActivity>,
-        backdrop: PageBackgroundUiState
+        backdrop: RenderedPageBackground
     ) {
         val sample = RequestLogItem(
             id = 1L,
@@ -324,7 +323,7 @@ class JsonViewerRenderingTest {
         scenario.onActivity { activity ->
             activity.setContent {
                 AppTheme(darkTheme = true, dynamicColor = false) {
-                    PageBackdrop(state = backdrop) {
+                    PageBackdrop(background = backdrop) {
                         RequestLogLayout(uiState = RequestLogUiState.Normal(logs = listOf(sample)))
                     }
                 }
@@ -335,7 +334,7 @@ class JsonViewerRenderingTest {
     }
 
     /** 使用带细线的合成渐变图检查坐标对齐，派生图使用应用现有模糊算法。 */
-    private fun createBackdrop(): PageBackgroundUiState = runBlocking {
+    private fun createBackdrop(): RenderedPageBackground = runBlocking {
         val width = 360
         val height = 800
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -373,7 +372,7 @@ class JsonViewerRenderingTest {
             height,
             Bitmap.Config.ARGB_8888
         )
-        PageBackgroundUiState(
+        RenderedPageBackground(
             settings = PageBackground(
                 page = BackgroundPage.General,
                 blur = 0,
@@ -383,10 +382,10 @@ class JsonViewerRenderingTest {
                 contentBlur = 80,
                 topBarBlur = 40,
             ),
-            image = bitmap.asImageBitmap(),
+            image = bitmap,
             surfaceImages = mapOf(
-                PageSurfaceKind.Content to content.asImageBitmap(),
-                PageSurfaceKind.TopBar to topBar.asImageBitmap()
+                PageSurfaceKind.Content to content,
+                PageSurfaceKind.TopBar to topBar
             ),
         )
     }

@@ -49,6 +49,8 @@ import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -260,6 +262,12 @@ class GroupChatViewModel :
     private val mRegexRepository by inject<RegexScriptRepository>()
     private val mRegexProcessor by inject<RegexMessageProcessor>()
     private val mContext by inject<Context>()
+    private val mBackgrounds by inject<PageBackgroundProvider>()
+
+    /** 群聊及其设置子页共享同一组背景参数。 */
+    val backgroundFlow by lazy {
+        mBackgrounds.observe(BackgroundPage.Group)
+    }
 
     /** 当前页面绑定的群聊会话 ID。 */
     private var mUnloadedNewerMessageCount = 0

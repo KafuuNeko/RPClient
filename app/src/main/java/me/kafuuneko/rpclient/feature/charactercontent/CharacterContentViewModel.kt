@@ -3,7 +3,6 @@ package me.kafuuneko.rpclient.feature.charactercontent
 import android.os.Bundle
 import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.character.CharacterContentKind
 import me.kafuuneko.rpclient.feature.charactercontent.model.toUiModel
 import me.kafuuneko.rpclient.feature.charactercontent.presentation.CharacterContentListState
 import me.kafuuneko.rpclient.feature.charactercontent.presentation.CharacterContentUiIntent
@@ -12,6 +11,8 @@ import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
+import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
+import me.kafuuneko.rpclient.libs.character.CharacterContentKind
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -29,7 +30,15 @@ class CharacterContentViewModel :
         CharacterContentUiState.Loading
     ), KoinComponent {
     private val mCharacterRepository by inject<CharacterRepository>()
+    private val mBackgrounds by inject<PageBackgroundProvider>()
     private var mCharacterId = 0L
+
+    /**
+     * 订阅当前角色在内容页使用的背景。
+     * @param characterId 此页面打开的角色 ID。
+     * @return 包含角色背景或通用背景的显示状态流。
+     */
+    fun observeBackground(characterId: Long) = mBackgrounds.observeCharacterContent(characterId)
 
     /**
      * 根据宿主传入的角色刷新列表。

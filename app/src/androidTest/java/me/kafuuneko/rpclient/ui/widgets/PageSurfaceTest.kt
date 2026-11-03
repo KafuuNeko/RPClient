@@ -18,17 +18,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -45,7 +44,7 @@ class PageSurfaceTest {
     fun roundedTranslucentSurfaceHasNoResidualOutline() {
         val mode = mutableIntStateOf(0)
         val white = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-            .apply { eraseColor(android.graphics.Color.WHITE) }.asImageBitmap()
+            .apply { eraseColor(android.graphics.Color.WHITE) }
         mCompose.setContent {
             AppTheme(darkTheme = mode.intValue % 2 == 1, dynamicColor = false) {
                 Box(
@@ -54,7 +53,7 @@ class PageSurfaceTest {
                         .testTag("corners"),
                 ) {
                     PageBackdrop(
-                        state = PageBackgroundUiState(
+                        background = RenderedPageBackground(
                             settings = PageBackground(
                                 page = if (mode.intValue < 4) BackgroundPage.Chat else BackgroundPage.General,
                                 scrim = 0f,
@@ -129,11 +128,11 @@ class PageSurfaceTest {
     @Test
     fun elevatedSurfaceDoesNotCastShadowOverItsOwnBackdrop() {
         val white = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-            .apply { eraseColor(android.graphics.Color.WHITE) }.asImageBitmap()
+            .apply { eraseColor(android.graphics.Color.WHITE) }
         mCompose.setContent {
             AppTheme(darkTheme = false) {
                 PageBackdrop(
-                    state = PageBackgroundUiState(
+                    background = RenderedPageBackground(
                         settings = PageBackground(
                             page = BackgroundPage.Chat,
                             scrim = 0f,
@@ -178,7 +177,7 @@ class PageSurfaceTest {
         val shift = mutableIntStateOf(0)
         val blur = mutableIntStateOf(70)
         val source = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-            .apply { eraseColor(android.graphics.Color.BLUE) }.asImageBitmap()
+            .apply { eraseColor(android.graphics.Color.BLUE) }
         val pixels = IntArray(size = 10000) { index ->
             android.graphics.Color.rgb(
                 index % 100 * 2,
@@ -186,7 +185,7 @@ class PageSurfaceTest {
                 0
             )
         }
-        val layer = Bitmap.createBitmap(pixels, 100, 100, Bitmap.Config.ARGB_8888).asImageBitmap()
+        val layer = Bitmap.createBitmap(pixels, 100, 100, Bitmap.Config.ARGB_8888)
         mCompose.setContent {
             AppTheme(darkTheme = false) {
                 Box(
@@ -200,7 +199,7 @@ class PageSurfaceTest {
                             .testTag("canvas"),
                     ) {
                         PageBackdrop(
-                            state = PageBackgroundUiState(
+                            background = RenderedPageBackground(
                                 settings = PageBackground(
                                     page = BackgroundPage.Chat,
                                     scrim = 0f,
@@ -289,7 +288,7 @@ class PageSurfaceTest {
     fun generalRegionsUseIndependentLayersWithoutFadingChildren() {
         val pageIndex = mutableIntStateOf(0)
         fun image(color: Int) = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
-            .apply { eraseColor(color) }.asImageBitmap()
+            .apply { eraseColor(color) }
 
         val source = image(android.graphics.Color.BLUE)
         val layers = mapOf(
@@ -302,7 +301,7 @@ class PageSurfaceTest {
             AppTheme(dynamicColor = false) {
                 Box(Modifier.size(width = 240.dp, height = 300.dp)) {
                     PageBackdrop(
-                        state = PageBackgroundUiState(
+                        background = RenderedPageBackground(
                             settings = PageBackground(
                                 page = BackgroundPage.entries[pageIndex.intValue],
                                 scrim = 0f,
@@ -415,12 +414,12 @@ class PageSurfaceTest {
     fun overlaySamplesActualContentInsteadOfErasingIt() {
         val mode = mutableIntStateOf(0)
         val wallpaper = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
-            .apply { eraseColor(android.graphics.Color.BLUE) }.asImageBitmap()
+            .apply { eraseColor(android.graphics.Color.BLUE) }
         mCompose.setContent {
             AppTheme(dynamicColor = false) {
                 Box(Modifier.size(width = 240.dp, height = 300.dp)) {
                     PageBackdrop(
-                        state = PageBackgroundUiState(
+                        background = RenderedPageBackground(
                             settings = PageBackground(
                                 page = BackgroundPage.General,
                                 scrim = 0f,

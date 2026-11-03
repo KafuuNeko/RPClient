@@ -14,10 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
-import kotlinx.coroutines.flow.mapNotNull
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.appearance.PageBackgroundViewModel
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
@@ -30,15 +27,8 @@ import me.kafuuneko.rpclient.libs.search.SearchNavigation
 
 /** 单角色聊天页面宿主，绑定会话 ID、状态流和一次性事件。 */
 class ChatActivity : CoreActivityWithEvent() {
-    private val mBackgroundViewModel by viewModels<PageBackgroundViewModel>()
-    private val mBackgroundFlow by lazy {
-        mBackgroundViewModel.observeChat(
-            characterIds = mViewModel.uiStateFlow.mapNotNull { chatUiState ->
-                (chatUiState as? ChatUiState.Normal)?.character?.id
-            },
-        ).flowWithLifecycle(lifecycle)
-    }
     private val mViewModel by viewModels<ChatViewModel>()
+    private val mBackgroundFlow by lazy { mViewModel.backgroundFlow.flowWithLifecycle(lifecycle) }
     private val mImagePicker = registerForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
     ) { uris ->
@@ -63,7 +53,7 @@ class ChatActivity : CoreActivityWithEvent() {
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
-        val background by mBackgroundFlow.collectAsState(PageBackgroundUiState())
+        val background by mBackgroundFlow.collectAsState(initial = null)
 
         LaunchedEffect(uiState) {
             if (uiState is ChatUiState.Finished) finish()

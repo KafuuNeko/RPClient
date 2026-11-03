@@ -16,14 +16,15 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import me.kafuuneko.rpclient.feature.appearance.presentation.PageBackgroundUiState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 
 /** 仅作用于消息／正文容器颜色，不降低文字或交互控件的透明度。 */
@@ -40,18 +41,18 @@ val LocalPageBubbleOpacity = staticCompositionLocalOf { 1f }
 
 /**
  * 绘制已准备的背景和主题遮罩，图片位于滚动内容之外且不处理任何 IO。
- * @param state 已解析继承关系并准备好图片的页面背景。
+ * @param background 已解析继承关系并准备好图片的页面背景。
  * @param useContainerAppearance 子页面启用公共容器装饰，仍使用所属页面已解析的背景配置。
  * @param content 使用该背景的页面内容。
  */
 @Composable
 fun PageBackdrop(
-    state: PageBackgroundUiState,
-    useContainerAppearance: Boolean = state.settings?.page == BackgroundPage.General,
+    background: RenderedPageBackground?,
+    useContainerAppearance: Boolean = background?.settings?.page == BackgroundPage.General,
     content: @Composable () -> Unit,
 ) {
-    val settings = state.settings
-    val image = state.image
+    val settings = background?.settings
+    val bitmap = background?.image
     val scrimColor = pageBackdropScrimColor()
     var frame by remember { mutableStateOf(PageBackdropFrame()) }
     // 图片失效只回退画布底色；各栏位透明度不依赖图片是否存在。
@@ -64,9 +65,9 @@ fun PageBackdrop(
                 frame = PageBackdropFrame(it.positionInRoot(), it.size)
             }),
     ) {
-        if (image != null && settings != null) {
+        if (bitmap != null && settings != null) {
             Image(
-                bitmap = image,
+                bitmap = remember(bitmap) { bitmap.asImageBitmap() },
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
@@ -85,7 +86,7 @@ fun PageBackdrop(
                 BackgroundPage.Chat, BackgroundPage.Group -> PageSurfaceKind.Bubble
                 else -> PageSurfaceKind.Content
             },
-            LocalPageBackdropState provides state,
+            LocalPageBackground provides background,
             LocalPageBackdropFrame provides frame,
             LocalPageContentOpacity provides (settings?.opacity ?: 1f),
             LocalPageTopBarOpacity provides (settings?.topBarOpacity ?: 1f),

@@ -68,9 +68,9 @@ fun PageOverlayHost(content: @Composable () -> Unit, overlay: @Composable () -> 
     val layer = rememberGraphicsLayer()
     val preview = rememberGraphicsLayer()
     val source = remember(layer, preview) { PageOverlaySource(layer, preview) }
-    val background = LocalPageBackdropState.current
+    val background = LocalPageBackground.current
     val appearance = LocalGeneralPageSurfaces.current
-    val settings = background.settings
+    val settings = background?.settings
     val record = LocalGeneralPageSurfaces.current && settings != null
         && settings.surfaceOpacity(PageSurfaceKind.BottomBar) < 1f && settings.surfaceBlur(
         PageSurfaceKind.BottomBar
@@ -104,7 +104,11 @@ fun PageOverlayHost(content: @Composable () -> Unit, overlay: @Composable () -> 
                 .then(capture),
         ) {
             // 记录完整后景，透明卡片下的壁纸也参与同一次合成。
-            PageBackdrop(state = background, useContainerAppearance = appearance, content = content)
+            PageBackdrop(
+                background = background,
+                useContainerAppearance = appearance,
+                content = content
+            )
         }
         CompositionLocalProvider(LocalPageOverlaySource provides if (record) source else null) { overlay() }
     }

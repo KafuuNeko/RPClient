@@ -66,6 +66,25 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
             if (settings.useCharacterBackground && characterImage != null) settings.copy(fileUuid = characterImage) else settings
         }.distinctUntilChanged()
 
+    /**
+     * 角色内容页使用通用外观，仅在开启角色背景时替换当前角色的图片。
+     *
+     * @param characterId 当前浏览的角色 ID。
+     * @return 随通用配置、角色背景开关和角色图片变化的显示配置。
+     */
+    fun observeCharacterContent(characterId: Long): Flow<PageBackground> =
+        combine(
+            observe(BackgroundPage.General),
+            observe(BackgroundPage.Chat),
+            observeCharacterImage(characterId),
+        ) { general, chat, characterImage ->
+            if (chat.useCharacterBackground && characterImage != null) {
+                general.copy(fileUuid = characterImage)
+            } else {
+                general
+            }
+        }.distinctUntilChanged()
+
     /** 原子应用预览草稿；prepared 非空时发布新源图，为空时只更新已有设置。 */
     suspend fun save(value: PageBackground, prepared: PreparedFile?) {
         val settings = value.normalized()
