@@ -31,8 +31,15 @@ class ChatCreateActivity : CoreActivityWithEvent() {
         )
     }
 
+    /** 从导航参数读取预选角色，表单初始化由 ViewModel 处理。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mViewModel.emit(ChatCreateUiIntent.Init)
+        val characterId = intent.getLongExtra(EXTRA_CHARACTER_ID, 0L).takeIf { it > 0L }
+        mViewModel.emit(ChatCreateUiIntent.Init(characterId = characterId))
+    }
+
+    companion object {
+        /** 角色内容页传入的预选角色，普通创建入口无需指定。 */
+        const val EXTRA_CHARACTER_ID = "character_id"
     }
 }

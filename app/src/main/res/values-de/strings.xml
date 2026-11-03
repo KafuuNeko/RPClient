@@ -1381,4 +1381,9 @@
     <string name="export_selected_characters_zip">Ausgewählte Charaktere als ZIP exportieren</string>
     <string name="export_character_archive_success">Charakter-ZIP erfolgreich exportiert.</string>
     <string name="export_character_archive_failed">Das Charakter-ZIP konnte nicht exportiert werden. Die gespeicherte Datei ist möglicherweise unvollständig.</string>
+    <string name="home_recent_characters">Letzte Charaktere</string>
+    <string name="home_recent_characters_empty">Hier erscheinen Charaktere mit Chats, Gruppenchats oder Geschichten.</string>
+    <string name="character_content_count">Einträge (%1$d)</string>
+    <string name="character_content_empty">Keine zugehörigen Inhalte in dieser Kategorie.</string>
+    <string name="character_content_load_failed">Die Inhalte dieses Charakters konnten nicht geladen werden.</string>
 </resources>

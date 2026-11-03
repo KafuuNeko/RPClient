@@ -1377,4 +1377,9 @@
     <string name="export_selected_characters_zip">選択したキャラクターを ZIP でエクスポート</string>
     <string name="export_character_archive_success">キャラクターの ZIP をエクスポートしました。</string>
     <string name="export_character_archive_failed">キャラクターの ZIP をエクスポートできませんでした。保存されたファイルは不完全な可能性があります。</string>
+    <string name="home_recent_characters">最近のキャラクター</string>
+    <string name="home_recent_characters_empty">チャット、グループチャット、ストーリーに関連するキャラクターがここに表示されます。</string>
+    <string name="character_content_count">%1$d 件</string>
+    <string name="character_content_empty">このカテゴリに関連するコンテンツはありません。</string>
+    <string name="character_content_load_failed">このキャラクターのコンテンツを読み込めませんでした。</string>
 </resources>

@@ -1382,4 +1382,9 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="export_selected_characters_zip">Ekspor karakter terpilih sebagai ZIP</string>
     <string name="export_character_archive_success">ZIP karakter berhasil diekspor.</string>
     <string name="export_character_archive_failed">Tidak dapat mengekspor ZIP karakter. Berkas yang disimpan mungkin tidak lengkap.</string>
+    <string name="home_recent_characters">Karakter terbaru</string>
+    <string name="home_recent_characters_empty">Karakter dengan obrolan, obrolan grup, atau cerita akan muncul di sini.</string>
+    <string name="character_content_count">%1$d item</string>
+    <string name="character_content_empty">Tidak ada konten terkait dalam kategori ini.</string>
+    <string name="character_content_load_failed">Konten karakter ini tidak dapat dimuat.</string>
 </resources>

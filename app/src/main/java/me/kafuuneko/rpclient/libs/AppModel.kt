@@ -29,6 +29,12 @@ object AppModel : KotprefModel(), PromptPreferences {
     /** 开启后以主题化 Markdown 预览故事章节；默认保留原文编辑方式。 */
     var storyMarkdownRenderingEnabled by booleanPref(default = false, commitByDefault = true)
 
+    /** 首页最近区域的稳定模式编码，默认显示最近内容。 */
+    var homeRecentMode by intPref(
+        default = HomeRecentMode.RecentContent.persistedValue,
+        commitByDefault = true
+    )
+
     /** 编辑消息时只展示正文，保存时保留原消息的思考链。 */
     var separateThinkWhenEditing by booleanPref(default = true)
 

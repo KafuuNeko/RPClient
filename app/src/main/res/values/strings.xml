@@ -1386,4 +1386,9 @@
     <string name="json_export_success">File exported</string>
     <string name="json_export_label">Export</string>
     <string name="json_export_working">Exporting file…</string>
+    <string name="home_recent_characters">Recent characters</string>
+    <string name="home_recent_characters_empty">Characters appear here when they have a chat, group chat, or story.</string>
+    <string name="character_content_count">Items (%1$d)</string>
+    <string name="character_content_empty">No related content in this category.</string>
+    <string name="character_content_load_failed">Could not load this character’s content.</string>
 </resources>

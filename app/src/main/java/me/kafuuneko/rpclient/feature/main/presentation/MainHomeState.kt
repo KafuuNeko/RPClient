@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.main.presentation
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainChatSessionGroup
 import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
@@ -7,50 +8,63 @@ import me.kafuuneko.rpclient.feature.main.model.MainHomeItemType
 import me.kafuuneko.rpclient.feature.main.model.items.MainChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
+import me.kafuuneko.rpclient.feature.main.model.items.MainRecentCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
+import me.kafuuneko.rpclient.libs.HomeRecentMode
 
-/** 首页状态树，组合资源统计、会话、故事、内容筛选 Tab 和多选交互状态。 */
+/** 首页常驻的资源入口，以及当前选中的最近区域。 */
 data class MainHomeState(
-    /** 主页角色和世界书资源统计的状态。 */
     val resourceState: MainHomeResourceState,
-    /** 主页最近单聊区域的加载和内容状态。 */
-    val recentChatsState: MainRecentChatsState,
-    /** 主页最近群聊区域的加载和内容状态。 */
-    val recentGroupChatsState: MainRecentGroupChatsState,
-    /** 主页最近故事区域的加载和内容状态。 */
-    val recentStoriesState: MainRecentStoriesState,
-    /** 合并单聊、群聊和故事后的最近项目列表。 */
-    val allRecentItems: List<MainHomeContentItem> = emptyList(),
-    /** 主页内容区域当前选中的标签页。 */
-    val selectedContentTab: MainHomeContentTab = MainHomeContentTab.All,
-    /** 主页多选模式与已选项目的状态。 */
-    val selectionState: MainHomeSelectionState = MainHomeSelectionState.None
+    val recentState: MainHomeRecentState,
 ) {
-    /** 从当前首页状态中按 ID 查找故事。 */
-    internal fun findStory(storyId: Long): MainStoryItem? {
-        val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
-        return content.stories.firstOrNull { it.id == storyId }
-    }
+    /** 页面顶栏和底栏只在最近内容进入多选时切换操作。 */
+    val activeSelection: MainHomeSelectionState.Selecting?
+        get() = (recentState as? MainHomeRecentState.RecentContent)?.selectionState as? MainHomeSelectionState.Selecting
+}
 
-    /** 从当前首页快照中读取可重命名内容的标题。 */
-    internal fun findItemTitle(item: MainHomeItemSelection): String? {
-        // 故事从故事分区读取；会话继续从合并列表读取，保留原有查找范围。
-        return when (item.type) {
-            MainHomeItemType.Chat -> allRecentItems
-                .filterIsInstance<MainChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
+/** 两种布局的数据互斥，每个分支决定自己的模式和交互状态。 */
+sealed class MainHomeRecentState(val mode: HomeRecentMode) {
+    data class RecentContent(
+        val recentChatsState: MainRecentChatsState = MainRecentChatsState.Empty,
+        val recentGroupChatsState: MainRecentGroupChatsState = MainRecentGroupChatsState.Empty,
+        val recentStoriesState: MainRecentStoriesState = MainRecentStoriesState.Empty,
+        val allRecentItems: List<MainHomeContentItem> = emptyList(),
+        val selectedContentTab: MainHomeContentTab = MainHomeContentTab.All,
+        val selectionState: MainHomeSelectionState = MainHomeSelectionState.None,
+    ) : MainHomeRecentState(HomeRecentMode.RecentContent) {
+        /** 从当前首页状态中按 ID 查找故事。 */
+        internal fun findStory(storyId: Long): MainStoryItem? {
+            val content = recentStoriesState as? MainRecentStoriesState.Content ?: return null
+            return content.stories.firstOrNull { it.id == storyId }
+        }
 
-            MainHomeItemType.GroupChat -> allRecentItems
-                .filterIsInstance<MainGroupChatSessionItem>()
-                .firstOrNull { it.id == item.itemId }
-                ?.title
+        /** 从当前首页快照中读取可重命名内容的标题。 */
+        internal fun findItemTitle(item: MainHomeItemSelection): String? {
+            // 故事从故事分区读取；会话继续从合并列表读取，保留原有查找范围。
+            return when (item.type) {
+                MainHomeItemType.Chat -> allRecentItems
+                    .filterIsInstance<MainChatSessionItem>()
+                    .firstOrNull { it.id == item.itemId }
+                    ?.title
 
-            MainHomeItemType.Story -> item.itemId.toLongOrNull()
-                ?.let { storyId -> findStory(storyId) }
-                ?.title
+                MainHomeItemType.GroupChat -> allRecentItems
+                    .filterIsInstance<MainGroupChatSessionItem>()
+                    .firstOrNull { it.id == item.itemId }
+                    ?.title
+
+                MainHomeItemType.Story -> item.itemId.toLongOrNull()
+                    ?.let { storyId -> findStory(storyId) }
+                    ?.title
+            }
         }
     }
+
+    data class RecentCharacters(
+        val characters: List<MainRecentCharacterItem>,
+        /** 只持有视口内头像，按文件 UUID 区分角色更换前后的图片。 */
+        val avatars: Map<String, ImageBitmap> = emptyMap(),
+        val avatarSizePx: Int = 0,
+    ) : MainHomeRecentState(HomeRecentMode.RecentCharacters)
 }
 
 /** 合并不同内容类型，并仅依据最近一次对话或写作时间倒序排列。 */
@@ -124,24 +138,34 @@ internal fun MainHomeSelectionState.Selecting.toggleItem(
     return copy(selectedItems = updated)
 }
 
-/**
- * 数据刷新后仅保留仍存在的单聊分组折叠状态。
- *
- * 多选状态不跨刷新恢复，避免数据库内容变化后保留失效的内容选择。
- */
-internal fun MainHomeState.preserveCollapsedGroupsFrom(
-    previous: MainHomeState,
-): MainHomeState {
-    val tabPreserved = copy(selectedContentTab = previous.selectedContentTab)
-    val refreshed =
-        tabPreserved.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
-    val previousContent =
-        previous.recentChatsState as? MainRecentChatsState.Content ?: return tabPreserved
-    val availableCharacterIds = refreshed.sessionGroups.mapTo(mutableSetOf()) { it.characterId }
-    return tabPreserved.copy(
-        recentChatsState = refreshed.copy(
-            collapsedCharacterIds = previousContent.collapsedCharacterIds
-                .intersect(availableCharacterIds),
-        ),
-    )
+/** 数据刷新后沿用有效的浏览状态，多选不跨数据刷新恢复。 */
+internal fun MainHomeState.preserveBrowsingFrom(previous: MainHomeState): MainHomeState {
+    // 两个模式各自恢复可保留的子状态，切换模式时直接采用新分支。
+    val recent = when (val current = recentState) {
+        is MainHomeRecentState.RecentContent -> {
+            val old = previous.recentState as? MainHomeRecentState.RecentContent ?: return this
+            current.copy(
+                selectedContentTab = old.selectedContentTab,
+                recentChatsState = current.recentChatsState.preserveCollapsedGroupsFrom(old.recentChatsState),
+            )
+        }
+
+        is MainHomeRecentState.RecentCharacters -> {
+            val old = previous.recentState as? MainHomeRecentState.RecentCharacters ?: return this
+            // 编辑角色或恢复备份后，不能把已替换的头像带入新的列表。
+            val uuids = current.characters.mapTo(mutableSetOf()) { it.avatarUuid }
+            current.copy(
+                avatars = old.avatars.filterKeys { it in uuids },
+                avatarSizePx = old.avatarSizePx
+            )
+        }
+    }
+    return copy(recentState = recent)
+}
+
+/** 折叠状态只在刷新后仍然存在的单聊分组间继承。 */
+private fun MainRecentChatsState.preserveCollapsedGroupsFrom(previous: MainRecentChatsState): MainRecentChatsState {
+    if (this !is MainRecentChatsState.Content || previous !is MainRecentChatsState.Content) return this
+    val available = sessionGroups.mapTo(mutableSetOf()) { it.characterId }
+    return copy(collapsedCharacterIds = previous.collapsedCharacterIds.intersect(available))
 }

@@ -63,12 +63,16 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
     private var mCharactersById: Map<Long, Character> = emptyMap()
 
-    /** 初始化页面，并发拉取数据库中的全量角色与世界书条目。 */
+    /**
+     * 初始化页面，读取全量角色与世界书条目。
+     *
+     * @param intent 包含定向创建时的预选角色 ID。
+     */
     @UiIntentObserver(ChatCreateUiIntent.Init::class)
-    private suspend fun onInit() {
+    private suspend fun onInit(intent: ChatCreateUiIntent.Init) {
         if (!isStateOf<ChatCreateUiState.None>()) return
         ChatCreateUiState.Normal(loadState = ChatCreateLoadState.Loading).setup()
-        // 在 IO 线程并发查询角色与带条目的世界书分组
+        // 在 IO 线程查询角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters()
             val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
@@ -76,8 +80,12 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             characters to groups
         }
         mCharactersById = data.first.associateBy { it.id }
-        // 默认选中第一个可用角色
-        val selectedCharacter = data.first.firstOrNull()
+        // 定向入口仅预选指定角色；已删除时保持未选择，避免误用其他角色开聊。
+        val selectedCharacter = if (intent.characterId == null) {
+            data.first.firstOrNull()
+        } else {
+            mCharactersById[intent.characterId]
+        }
         val selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty()
         val selectedLorebookEntryIds = selectedCharacter
             ?.defaultLorebookEntryIds(data.second)

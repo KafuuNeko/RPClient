@@ -40,7 +40,6 @@ import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
@@ -105,8 +104,7 @@ private fun MainNormal(
                 },
                 overlay = {
                     Box(Modifier.fillMaxSize()) {
-                        val selectionState =
-                            uiState.homeState.selectionState as? MainHomeSelectionState.Selecting
+                        val selectionState = uiState.homeState.activeSelection
                         val barModifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(horizontal = 24.dp, vertical = 16.dp)

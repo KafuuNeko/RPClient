@@ -1376,4 +1376,9 @@
     <string name="export_selected_characters_zip">선택한 캐릭터를 ZIP으로 내보내기</string>
     <string name="export_character_archive_success">캐릭터 ZIP을 내보냈습니다.</string>
     <string name="export_character_archive_failed">캐릭터 ZIP을 내보내지 못했습니다. 저장된 파일이 불완전할 수 있습니다.</string>
+    <string name="home_recent_characters">최근 캐릭터</string>
+    <string name="home_recent_characters_empty">대화, 그룹 대화 또는 스토리가 있는 캐릭터가 여기에 표시됩니다.</string>
+    <string name="character_content_count">콘텐츠 %1$d개</string>
+    <string name="character_content_empty">이 카테고리에 관련 콘텐츠가 없습니다.</string>
+    <string name="character_content_load_failed">이 캐릭터의 콘텐츠를 불러올 수 없습니다.</string>
 </resources>

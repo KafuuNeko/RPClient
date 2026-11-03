@@ -30,12 +30,21 @@ sealed class MainUiState {
     }
 }
 
+/**
+ * 更新当前最近区域，保留首页资源和其他页面状态。
+ *
+ * @param recent 已完成当前模式更新的最近区域状态。
+ * @return 应发布的首页状态。
+ */
+internal fun MainUiState.Normal.withRecentState(recent: MainHomeRecentState): MainUiState.Normal =
+    copy(homeState = homeState.copy(recentState = recent))
+
 internal fun MainUiState.Normal.mergeResumeRefresh(
     homeState: MainHomeState,
     settingsState: MainSettingsState,
 ): MainUiState.Normal {
     return copy(
-        homeState = homeState.preserveCollapsedGroupsFrom(this.homeState),
+        homeState = homeState.preserveBrowsingFrom(this.homeState),
         settingsState = settingsState.copy(
             chatDataManagementState = this.settingsState.chatDataManagementState,
             // 恢复页面的读取可能挂起，索引进度以订阅期间收到的最新状态为准。

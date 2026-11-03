@@ -1376,4 +1376,9 @@
     <string name="export_selected_characters_zip">將所選角色匯出為 ZIP</string>
     <string name="export_character_archive_success">角色 ZIP 匯出成功。</string>
     <string name="export_character_archive_failed">無法匯出角色 ZIP，儲存的檔案可能不完整。</string>
+    <string name="home_recent_characters">最近角色</string>
+    <string name="home_recent_characters_empty">有單聊、群聊或故事的角色會顯示在這裡。</string>
+    <string name="character_content_count">%1$d 項內容</string>
+    <string name="character_content_empty">此分類下暫無相關內容。</string>
+    <string name="character_content_load_failed">無法載入此角色的內容。</string>
 </resources>

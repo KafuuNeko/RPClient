@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.Route
+import me.kafuuneko.rpclient.libs.HomeRecentMode
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -32,6 +33,13 @@ sealed class MainUiIntent {
     data class SelectThemeMode(val themeMode: AppThemeMode) : MainUiIntent()
 
     data class SelectHomeContentTab(val tab: MainHomeContentTab) : MainUiIntent()
+
+    data class SelectRecentMode(val mode: HomeRecentMode) : MainUiIntent()
+
+    data class VisibleRecentAvatarsChanged(val avatarUuids: Set<String>, val sizePx: Int) :
+        MainUiIntent()
+
+    data class OpenCharacterContent(val characterId: Long) : MainUiIntent()
 
     data class OpenChat(val sessionId: String) : MainUiIntent()
 

@@ -83,14 +83,12 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsSta
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeRecentState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderSettingsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainRecentChatsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainRecentGroupChatsState
-import me.kafuuneko.rpclient.feature.main.presentation.MainRecentStoriesState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainSummarySettingsState
@@ -1443,9 +1441,7 @@ private fun MainSettingsLayoutPreview() {
                         totalCharacters = 24,
                         totalWorldBooks = 7,
                     ),
-                    recentChatsState = MainRecentChatsState.Empty,
-                    recentGroupChatsState = MainRecentGroupChatsState.Empty,
-                    recentStoriesState = MainRecentStoriesState.Empty,
+                    recentState = MainHomeRecentState.RecentContent(),
                 ),
                 settingsState = MainSettingsState(
                     appearanceState = MainAppearanceSettingsState(themeMode = AppThemeMode.FollowSystem),

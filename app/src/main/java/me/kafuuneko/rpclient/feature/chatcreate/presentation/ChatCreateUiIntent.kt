@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.chatcreate.presentation
 
 /** 新建单聊页面的表单操作和提交意图。 */
 sealed class ChatCreateUiIntent {
-    data object Init : ChatCreateUiIntent()
+    data class Init(val characterId: Long? = null) : ChatCreateUiIntent()
 
     data object Back : ChatCreateUiIntent()
 

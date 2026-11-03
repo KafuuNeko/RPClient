@@ -8,12 +8,19 @@ import me.kafuuneko.rpclient.libs.regex.toEntity
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
+import me.kafuuneko.rpclient.libs.room.model.CharacterContent
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
+import me.kafuuneko.rpclient.libs.room.model.RecentCharacterOverview
 import me.kafuuneko.rpclient.utils.toJsonString
 import me.kafuuneko.rpclient.utils.toStringList
 
-/** 角色实体读写及标签、开场白序列化的业务仓库。 */
+/**
+ * 角色卡读写和关联内容查询的业务仓库。
+ *
+ * - 编排角色卡、模型绑定和关联文件的事务保存与删除。
+ * - 提供角色概览及同一快照内的单聊、群聊和故事关联查询。
+ */
 class CharacterRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
@@ -24,6 +31,33 @@ class CharacterRepository(
     private val mCharacterLLMProviderAssociationDao =
         mAppDatabase.getCharacterLLMProviderAssociationDao()
     private val mRegexDao = mAppDatabase.getRegexScriptDao()
+
+    /**
+     * 返回首页资源入口所需的角色数量。
+     *
+     * @return 角色卡总数。
+     */
+    suspend fun countCharacters(): Int = mCharacterDao.countCharacters()
+
+    /**
+     * 按最近关联内容的活动时间返回角色概览。
+     *
+     * @return 按最近活动倒序排列的角色概览。
+     */
+    suspend fun getRecentCharacters(): List<RecentCharacterOverview> =
+        mCharacterDao.getRecentCharacters()
+
+    /**
+     * 在同一快照读取标题和关联内容。
+     *
+     * @param characterId 角色 ID。
+     * @return 名称与内容快照，角色被删除时返回 null。
+     */
+    suspend fun getCharacterContent(characterId: Long): CharacterContent? =
+        mAppDatabase.withTransaction {
+            val name = mCharacterDao.getCharacterName(characterId) ?: return@withTransaction null
+            CharacterContent(name = name, items = mCharacterDao.getCharacterContent(characterId))
+        }
 
     /**
      * 获取所有角色。

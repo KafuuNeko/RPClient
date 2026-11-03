@@ -1,23 +1,17 @@
 package me.kafuuneko.rpclient.feature.main.ui
 
-import androidx.compose.animation.animateColorAsState
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -27,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +40,6 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -59,11 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,8 +70,8 @@ import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeRecentState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
 import me.kafuuneko.rpclient.feature.main.presentation.MainProviderPostProcessingState
@@ -100,13 +90,12 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.RecentContentCard
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpMetaRow
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 
 @Composable
@@ -338,11 +327,17 @@ internal fun MainHomePage(
     emit: MainUiIntent.() -> Unit,
 ) {
     // 多选时收起创建入口，列表位置仍由主页面的独立保存域管理。
-    val selectionState = state.selectionState as? MainHomeSelectionState.Selecting
+    val selectionState = state.activeSelection
     val multiSelectMode = selectionState != null
     val selectedItems = selectionState?.selectedItems.orEmpty()
 
+    val listState = rememberLazyListState()
+    val recent = state.recentState
+    if (recent is MainHomeRecentState.RecentCharacters) {
+        RecentAvatarViewport(listState = listState, characters = recent.characters, emit = emit)
+    }
     RpLazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding(),
@@ -371,7 +366,7 @@ internal fun MainHomePage(
             homeEntryItems(state.resourceState, emit)
         }
         homeContentSection(
-            state = state,
+            state = recent,
             multiSelectMode = multiSelectMode,
             selectedItems = selectedItems,
             emit = emit,
@@ -415,11 +410,12 @@ private fun LazyListScope.homeEntryItems(
 }
 
 private fun LazyListScope.homeContentSection(
-    state: MainHomeState,
+    state: MainHomeRecentState,
     multiSelectMode: Boolean,
     selectedItems: Set<MainHomeItemSelection>,
     emit: MainUiIntent.() -> Unit,
 ) {
+    // 标题下拉与搜索共享最近区域，分类筛选只在内容分支显示。
     item {
         Column(
             modifier = Modifier
@@ -431,71 +427,106 @@ private fun LazyListScope.homeContentSection(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = stringResource(R.string.recent_content),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
+                RecentModeSelector(
+                    mode = state.mode,
+                    enabled = !multiSelectMode,
+                    onSelect = { MainUiIntent.SelectRecentMode(it).emit() },
                 )
-                if (!multiSelectMode) IconButton(
-                    onClick = { MainUiIntent.OpenContentSearch.emit() },
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(Icons.Rounded.Search, stringResource(R.string.content_search_title))
+                Spacer(modifier = Modifier.weight(1f))
+                if (!multiSelectMode) {
+                    IconButton(
+                        onClick = { MainUiIntent.OpenContentSearch.emit() },
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = stringResource(R.string.content_search_title),
+                        )
+                    }
                 }
             }
-            if (!multiSelectMode) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    FilterChip(
-                        selected = state.selectedContentTab == MainHomeContentTab.All,
-                        onClick = {
-                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.All).emit()
-                        },
-                        label = { Text(stringResource(R.string.home_session_filter_all)) },
-                    )
-                    FilterChip(
-                        selected = state.selectedContentTab == MainHomeContentTab.Single,
-                        onClick = {
-                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Single).emit()
-                        },
-                        label = { Text(stringResource(R.string.home_session_filter_single)) },
-                    )
-                    FilterChip(
-                        selected = state.selectedContentTab == MainHomeContentTab.Group,
-                        onClick = {
-                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Group).emit()
-                        },
-                        label = { Text(stringResource(R.string.home_session_filter_group)) },
-                    )
-                    FilterChip(
-                        selected = state.selectedContentTab == MainHomeContentTab.Story,
-                        onClick = {
-                            MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Story).emit()
-                        },
-                        label = { Text(stringResource(R.string.home_content_filter_story)) },
-                    )
-                }
+            if (!multiSelectMode && state is MainHomeRecentState.RecentContent) {
+                HomeContentFilters(selectedTab = state.selectedContentTab, emit = emit)
             }
         }
     }
 
+    when (state) {
+        is MainHomeRecentState.RecentCharacters -> {
+            recentCharacterItems(state = state, emit = emit)
+        }
+
+        is MainHomeRecentState.RecentContent -> {
+            recentContentItems(
+                state = state,
+                multiSelectMode = multiSelectMode,
+                selectedItems = selectedItems,
+                emit = emit,
+            )
+        }
+    }
+}
+
+/** 内容布局的类型筛选栏，横向滚动以适配长译文。 */
+@Composable
+private fun HomeContentFilters(
+    selectedTab: MainHomeContentTab,
+    emit: MainUiIntent.() -> Unit,
+) {
+    // 筛选只发送用户意图，列表计算继续由状态和 ViewModel 管理。
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        FilterChip(
+            selected = selectedTab == MainHomeContentTab.All,
+            onClick = {
+                MainUiIntent.SelectHomeContentTab(MainHomeContentTab.All).emit()
+            },
+            label = { Text(stringResource(R.string.home_session_filter_all)) },
+        )
+        FilterChip(
+            selected = selectedTab == MainHomeContentTab.Single,
+            onClick = {
+                MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Single).emit()
+            },
+            label = { Text(stringResource(R.string.home_session_filter_single)) },
+        )
+        FilterChip(
+            selected = selectedTab == MainHomeContentTab.Group,
+            onClick = {
+                MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Group).emit()
+            },
+            label = { Text(stringResource(R.string.home_session_filter_group)) },
+        )
+        FilterChip(
+            selected = selectedTab == MainHomeContentTab.Story,
+            onClick = {
+                MainUiIntent.SelectHomeContentTab(MainHomeContentTab.Story).emit()
+            },
+            label = { Text(stringResource(R.string.home_content_filter_story)) },
+        )
+    }
+}
+
+/** 按当前分类渲染最近内容；角色布局不会进入该分支。 */
+private fun LazyListScope.recentContentItems(
+    state: MainHomeRecentState.RecentContent,
+    multiSelectMode: Boolean,
+    selectedItems: Set<MainHomeItemSelection>,
+    emit: MainUiIntent.() -> Unit,
+) {
+    // 空分类保留对应创建提示，非空分类继续使用既有内容卡片。
     when (state.selectedContentTab) {
         MainHomeContentTab.All -> {
             if (state.allRecentItems.isEmpty()) {
-                item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.ChatBubble,
-                        title = stringResource(R.string.no_recent_content),
-                        subtitle = stringResource(R.string.no_recent_content_desc),
-                    )
-                }
+                recentEmptyItem(
+                    icon = Icons.Rounded.ChatBubble,
+                    titleRes = R.string.no_recent_content,
+                    subtitleRes = R.string.no_recent_content_desc,
+                )
             } else {
                 recentAllItems(
                     items = state.allRecentItems,
@@ -508,14 +539,11 @@ private fun LazyListScope.homeContentSection(
 
         MainHomeContentTab.Single -> {
             when (state.recentChatsState) {
-                MainRecentChatsState.Empty -> item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.ChatBubble,
-                        title = stringResource(R.string.no_recent_chats),
-                        subtitle = stringResource(R.string.no_recent_chats_desc),
-                    )
-                }
+                MainRecentChatsState.Empty -> recentEmptyItem(
+                    icon = Icons.Rounded.ChatBubble,
+                    titleRes = R.string.no_recent_chats,
+                    subtitleRes = R.string.no_recent_chats_desc,
+                )
 
                 is MainRecentChatsState.Content -> recentChatSessionItems(
                     state = state.recentChatsState,
@@ -528,14 +556,11 @@ private fun LazyListScope.homeContentSection(
 
         MainHomeContentTab.Group -> {
             when (state.recentGroupChatsState) {
-                MainRecentGroupChatsState.Empty -> item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.Groups,
-                        title = stringResource(R.string.no_group_chats),
-                        subtitle = stringResource(R.string.no_group_chats_desc),
-                    )
-                }
+                MainRecentGroupChatsState.Empty -> recentEmptyItem(
+                    icon = Icons.Rounded.Groups,
+                    titleRes = R.string.no_group_chats,
+                    subtitleRes = R.string.no_group_chats_desc,
+                )
 
                 is MainRecentGroupChatsState.Content -> recentGroupChatSessionItems(
                     state = state.recentGroupChatsState,
@@ -548,14 +573,11 @@ private fun LazyListScope.homeContentSection(
 
         MainHomeContentTab.Story -> {
             when (state.recentStoriesState) {
-                MainRecentStoriesState.Empty -> item {
-                    RpInfoCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = Icons.Rounded.AutoStories,
-                        title = stringResource(R.string.story_empty_title),
-                        subtitle = stringResource(R.string.story_empty_subtitle),
-                    )
-                }
+                MainRecentStoriesState.Empty -> recentEmptyItem(
+                    icon = Icons.Rounded.AutoStories,
+                    titleRes = R.string.story_empty_title,
+                    subtitleRes = R.string.story_empty_subtitle,
+                )
 
                 is MainRecentStoriesState.Content -> recentStoryItems(
                     state = state.recentStoriesState,
@@ -565,6 +587,22 @@ private fun LazyListScope.homeContentSection(
                 )
             }
         }
+    }
+}
+
+/** 分类为空时复用同一信息卡片，仅替换该分类的文案和图标。 */
+private fun LazyListScope.recentEmptyItem(
+    icon: ImageVector,
+    @StringRes titleRes: Int,
+    @StringRes subtitleRes: Int,
+) {
+    item {
+        RpInfoCard(
+            modifier = Modifier.fillMaxWidth(),
+            icon = icon,
+            title = stringResource(titleRes),
+            subtitle = stringResource(subtitleRes),
+        )
     }
 }
 
@@ -688,7 +726,7 @@ private fun LazyItemScope.RecentChatSessionCard(
     emit: MainUiIntent.() -> Unit,
 ) {
     val selection = MainHomeItemSelection(MainHomeItemType.Chat, session.id)
-    HomeContentCard(
+    RecentContentCard(
         modifier = Modifier.animateItem(),
         accentKey = session.characterName,
         icon = Icons.Rounded.ChatBubble,
@@ -733,7 +771,7 @@ private fun LazyItemScope.RecentGroupChatSessionCard(
     emit: MainUiIntent.() -> Unit,
 ) {
     val selection = MainHomeItemSelection(MainHomeItemType.GroupChat, session.id)
-    HomeContentCard(
+    RecentContentCard(
         modifier = Modifier.animateItem(),
         accentKey = session.title,
         icon = Icons.Rounded.Groups,
@@ -781,7 +819,7 @@ private fun LazyItemScope.RecentStoryCard(
         type = MainHomeItemType.Story,
         itemId = story.id.toString(),
     )
-    HomeContentCard(
+    RecentContentCard(
         modifier = Modifier.animateItem(),
         accentKey = story.title,
         icon = Icons.Rounded.AutoStories,
@@ -820,130 +858,6 @@ private fun LazyItemScope.RecentStoryCard(
             )
         },
     )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun HomeContentCard(
-    modifier: Modifier = Modifier,
-    accentKey: String,
-    icon: ImageVector,
-    title: String,
-    preview: String,
-    metadata: List<String>,
-    multiSelectMode: Boolean = false,
-    selected: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit = {},
-    trailingContent: (@Composable () -> Unit)? = null,
-) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
-        },
-        label = "homeContentCardBorder",
-    )
-    val containerColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        label = "homeContentCardContainer",
-    )
-
-    AppCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onClick()
-                },
-                onLongClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-            ),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(
-            width = if (selected) 1.dp else 0.5.dp,
-            color = borderColor,
-        ),
-    ) {
-        val accentColor = remember(accentKey) { getMacaronColor(accentKey) }
-        val ambientBrush = remember(accentColor) {
-            Brush.horizontalGradient(
-                colors = listOf(
-                    accentColor.copy(alpha = 0.08f),
-                    accentColor.copy(alpha = 0.02f),
-                    Color.Transparent,
-                ),
-            )
-        }
-        Row(
-            modifier = Modifier
-                .height(IntrinsicSize.Min)
-                .background(ambientBrush),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .background(accentColor, RoundedCornerShape(2.dp)),
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RpIconBubble(
-                        icon = icon,
-                        containerColor = accentColor.copy(alpha = 0.14f),
-                        contentColor = accentColor,
-                        modifier = Modifier.size(38.dp),
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = preview,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                RpMetaRow(items = metadata)
-            }
-            if (multiSelectMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onClick() },
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            } else {
-                trailingContent?.invoke()
-            }
-        }
-    }
 }
 
 @Composable
@@ -1031,6 +945,7 @@ private fun SessionCharacterHeader(
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun MainHomePagePreview() {
+    // 同一预览覆盖单聊、群聊和故事卡片的混排效果。
     AppTheme(dynamicColor = false) {
         MainLayout(
             uiState = MainUiState.Normal(
@@ -1039,29 +954,62 @@ private fun MainHomePagePreview() {
                         totalCharacters = 24,
                         totalWorldBooks = 7,
                     ),
-                    recentChatsState = MainRecentChatsState.Content(
-                        sessionGroups = listOf(
-                            element = MainChatSessionGroup(
-                                characterId = "1",
-                                characterName = "Luna",
-                                sessions = listOf(
-                                    element = MainChatSessionItem(
-                                        id = "1",
-                                        characterId = "1",
-                                        characterName = "Luna",
-                                        title = "Night train",
-                                        preview = "The city lights recede beyond the window.",
-                                        messageCount = 18,
-                                        updatedAt = "06-15 21:30",
-                                        latestTime = 1L,
+                    recentState = MainHomeRecentState.RecentContent(
+                        recentChatsState = MainRecentChatsState.Content(
+                            sessionGroups = listOf(
+                                element = MainChatSessionGroup(
+                                    characterId = "1",
+                                    characterName = "Luna",
+                                    sessions = listOf(
+                                        element = MainChatSessionItem(
+                                            id = "1",
+                                            characterId = "1",
+                                            characterName = "Luna",
+                                            title = "Night train",
+                                            preview = "The city lights recede beyond the window.",
+                                            messageCount = 18,
+                                            updatedAt = "06-15 21:30",
+                                            latestTime = 1L,
+                                        ),
                                     ),
                                 ),
                             ),
                         ),
-                    ),
-                    recentGroupChatsState = MainRecentGroupChatsState.Content(
-                        sessions = listOf(
-                            element = MainGroupChatSessionItem(
+                        recentGroupChatsState = MainRecentGroupChatsState.Content(
+                            sessions = listOf(
+                                element = MainGroupChatSessionItem(
+                                    id = "1",
+                                    title = "Expedition team",
+                                    memberNames = "Luna, Aster, Rowan",
+                                    preview = "We should reach the ruins before sunrise.",
+                                    messageCount = 42,
+                                    updatedAt = "06-15 22:10",
+                                    latestTime = 2L,
+                                ),
+                            ),
+                        ),
+                        recentStoriesState = MainRecentStoriesState.Content(
+                            stories = listOf(
+                                element = MainStoryItem(
+                                    id = 1L,
+                                    title = "Rain over the old city",
+                                    preview = "The station clock stopped at midnight.",
+                                    contentCharacterCount = 12840,
+                                    updatedAt = "06-15 22:30",
+                                    latestTime = 3L,
+                                ),
+                            ),
+                        ),
+                        allRecentItems = listOf(
+                            MainStoryItem(
+                                id = 1L,
+                                title = "Rain over the old city",
+                                preview = "The station clock stopped at midnight.",
+                                contentCharacterCount = 12840,
+                                updatedAt = "06-15 22:30",
+                                latestTime = 3L,
+                            ),
+                            MainGroupChatSessionItem(
                                 id = "1",
                                 title = "Expedition team",
                                 memberNames = "Luna, Aster, Rowan",
@@ -1070,47 +1018,16 @@ private fun MainHomePagePreview() {
                                 updatedAt = "06-15 22:10",
                                 latestTime = 2L,
                             ),
-                        ),
-                    ),
-                    recentStoriesState = MainRecentStoriesState.Content(
-                        stories = listOf(
-                            element = MainStoryItem(
-                                id = 1L,
-                                title = "Rain over the old city",
-                                preview = "The station clock stopped at midnight.",
-                                contentCharacterCount = 12840,
-                                updatedAt = "06-15 22:30",
-                                latestTime = 3L,
+                            MainChatSessionItem(
+                                id = "1",
+                                characterId = "1",
+                                characterName = "Luna",
+                                title = "Night train",
+                                preview = "The city lights recede beyond the window.",
+                                messageCount = 18,
+                                updatedAt = "06-15 21:30",
+                                latestTime = 1L,
                             ),
-                        ),
-                    ),
-                    allRecentItems = listOf(
-                        MainStoryItem(
-                            id = 1L,
-                            title = "Rain over the old city",
-                            preview = "The station clock stopped at midnight.",
-                            contentCharacterCount = 12840,
-                            updatedAt = "06-15 22:30",
-                            latestTime = 3L,
-                        ),
-                        MainGroupChatSessionItem(
-                            id = "1",
-                            title = "Expedition team",
-                            memberNames = "Luna, Aster, Rowan",
-                            preview = "We should reach the ruins before sunrise.",
-                            messageCount = 42,
-                            updatedAt = "06-15 22:10",
-                            latestTime = 2L,
-                        ),
-                        MainChatSessionItem(
-                            id = "1",
-                            characterId = "1",
-                            characterName = "Luna",
-                            title = "Night train",
-                            preview = "The city lights recede beyond the window.",
-                            messageCount = 18,
-                            updatedAt = "06-15 21:30",
-                            latestTime = 1L,
                         ),
                     ),
                 ),

@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.AboutActivity
 import me.kafuuneko.rpclient.feature.appearance.AppearanceActivity
 import me.kafuuneko.rpclient.feature.backuprestore.BackupRestoreActivity
+import me.kafuuneko.rpclient.feature.charactercontent.CharacterContentActivity
 import me.kafuuneko.rpclient.feature.characterlist.CharacterListActivity
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.ChatCreateActivity
@@ -36,6 +37,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainChatDataManagementSta
 import me.kafuuneko.rpclient.feature.main.presentation.MainChatImportLoadState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDialogState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeRecentState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeSelectionState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
@@ -62,10 +64,11 @@ import me.kafuuneko.rpclient.feature.main.presentation.hasInvalidTokenRelationsh
 import me.kafuuneko.rpclient.feature.main.presentation.mergeAllRecentItems
 import me.kafuuneko.rpclient.feature.main.presentation.mergeResumeRefresh
 import me.kafuuneko.rpclient.feature.main.presentation.postProcessingMode
-import me.kafuuneko.rpclient.feature.main.presentation.preserveCollapsedGroupsFrom
+import me.kafuuneko.rpclient.feature.main.presentation.preserveBrowsingFrom
 import me.kafuuneko.rpclient.feature.main.presentation.toGenerationParametersState
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
+import me.kafuuneko.rpclient.feature.main.presentation.withRecentState
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
@@ -74,6 +77,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
@@ -130,6 +134,10 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mChatArchiveRepository by inject<ChatArchiveRepository>()
     private val mAppThemeManager by inject<AppThemeManager>()
     private val mContext by inject<Context>()
+
+    /** 离开最近内容后仅记住筛选项，不保留隐藏的列表和选区。 */
+    private var mLastContentTab = MainHomeContentTab.All
+    private var mRecentAvatarJob: Job? = null
 
     /** 文件解析结果只在用户确认角色前暂存，不进入可持久状态或数据库。 */
     private var mPendingChatImport: ChatArchive? = null
@@ -214,9 +222,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 else -> Unit
             }
         }
-        if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) {
-            uiState.copy(homeState = uiState.homeState.copy(selectionState = MainHomeSelectionState.None))
-                .setup()
+        if (uiState.homeState.activeSelection != null) {
+            onExitMultiSelect()
             return
         }
         if (uiState.selectedPage != MainPage.Home) {
@@ -230,31 +237,28 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.EnterMultiSelect::class)
     private fun onEnterMultiSelect(intent: MainUiIntent.EnterMultiSelect) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.selectionState is MainHomeSelectionState.Selecting) return
-        uiState.copy(
-            homeState = uiState.homeState.copy(
-                selectionState = MainHomeSelectionState.Selecting(selectedItems = setOf(intent.item)),
-            ),
-        ).setup()
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        if (recent.selectionState is MainHomeSelectionState.Selecting) return
+        val selection = MainHomeSelectionState.Selecting(selectedItems = setOf(intent.item))
+        uiState.withRecentState(recent.copy(selectionState = selection)).setup()
     }
 
     /** 切换指定列表项在多选状态下的勾选/反选。 */
     @UiIntentObserver(MainUiIntent.ToggleItemSelection::class)
     private fun onToggleItemSelection(intent: MainUiIntent.ToggleItemSelection) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val selectionState = uiState.homeState.selectionState
-            as? MainHomeSelectionState.Selecting
-            ?: return
-        uiState.copy(
-            homeState = uiState.homeState.copy(selectionState = selectionState.toggleItem(intent.item)),
-        ).setup()
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        val selection = recent.selectionState as? MainHomeSelectionState.Selecting ?: return
+        uiState.withRecentState(recent.copy(selectionState = selection.toggleItem(intent.item)))
+            .setup()
     }
 
     /** 展开/折叠指定角色下的单聊会话分组折叠面板。 */
     @UiIntentObserver(MainUiIntent.ToggleSessionGroup::class)
     private fun onToggleSessionGroup(intent: MainUiIntent.ToggleSessionGroup) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        val recentChatsState = uiState.homeState.recentChatsState
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        val recentChatsState = recent.recentChatsState
             as? MainRecentChatsState.Content
             ?: return
         if (recentChatsState.sessionGroups.none { it.characterId == intent.characterId }) return
@@ -264,10 +268,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         } else {
             collapsedCharacterIds + intent.characterId
         }
-        uiState.copy(
-            homeState = uiState.homeState.copy(
-                recentChatsState = recentChatsState.copy(collapsedCharacterIds = updated),
-            ),
+        uiState.withRecentState(
+            recent.copy(recentChatsState = recentChatsState.copy(collapsedCharacterIds = updated)),
         ).setup()
     }
 
@@ -275,9 +277,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.ExitMultiSelect::class)
     private fun onExitMultiSelect() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.selectionState !is MainHomeSelectionState.Selecting) return
-        uiState.copy(homeState = uiState.homeState.copy(selectionState = MainHomeSelectionState.None))
-            .setup()
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        if (recent.selectionState !is MainHomeSelectionState.Selecting) return
+        uiState.withRecentState(recent.copy(selectionState = MainHomeSelectionState.None)).setup()
     }
 
     /** 点击批量删除按钮，弹出二次确认弹窗。 */
@@ -285,9 +287,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onShowDeleteSelectedDialog() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.canOpenDialog()) return
-        val selectionState = uiState.homeState.selectionState
-            as? MainHomeSelectionState.Selecting
-            ?: return
+        val selectionState = uiState.homeState.activeSelection ?: return
         val count = selectionState.selectedItems.size
         if (count == 0) return
         uiState.copy(dialogState = MainDialogState.DeleteSelectedItems(count = count)).setup()
@@ -299,8 +299,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.DeleteSelectedItems ?: return
         if (dialog.isDeleting) return
-        val selectionState =
-            uiState.homeState.selectionState as? MainHomeSelectionState.Selecting ?: return
+        val selectionState = uiState.homeState.activeSelection ?: return
         val selections = selectionState.selectedItems
         if (selections.isEmpty()) return
         uiState.copy(dialogState = dialog.copy(isDeleting = true)).setup()
@@ -316,12 +315,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     }
                 }
             }
-            // 重新拉取首页数据并继承折叠状态
+            // 用刷新后的快照替换条目，同时继承仍有效的浏览状态。
             val homeState = buildHomeState()
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
+                homeState = homeState.preserveBrowsingFrom(current.homeState),
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -338,7 +337,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onShowRenameItemDialog(intent: MainUiIntent.ShowRenameItemDialog) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         if (!uiState.canOpenDialog()) return
-        val title = uiState.homeState.findItemTitle(intent.item) ?: return
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        val title = recent.findItemTitle(intent.item) ?: return
         uiState.copy(
             dialogState = MainDialogState.RenameItem(
                 item = intent.item,
@@ -387,7 +387,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val current = getOrNull<MainUiState.Normal>() ?: return
             current.copy(
                 dialogState = MainDialogState.None,
-                homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
+                homeState = homeState.preserveBrowsingFrom(current.homeState),
             ).setup()
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -599,7 +599,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 val current = getOrNull<MainUiState.Normal>() ?: return@launch
                 // 更新首页会话列表并关闭导入弹窗
                 current.copy(
-                    homeState = homeState.preserveCollapsedGroupsFrom(current.homeState),
+                    homeState = homeState.preserveBrowsingFrom(current.homeState),
                     dialogState = if (
                         current.dialogState is MainDialogState.ImportChatCharacterSelection
                     ) {
@@ -774,8 +774,91 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.SelectHomeContentTab::class)
     private fun onSelectHomeContentTab(intent: MainUiIntent.SelectHomeContentTab) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.selectedContentTab == intent.tab) return
-        uiState.copy(homeState = uiState.homeState.copy(selectedContentTab = intent.tab)).setup()
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        if (recent.selectedContentTab == intent.tab) return
+        uiState.withRecentState(recent.copy(selectedContentTab = intent.tab)).setup()
+    }
+
+    /**
+     * 切换首页列表并持久化偏好，多选期间维持当前操作范围。
+     *
+     * @param intent 包含用户选择的首页显示模式。
+     */
+    @UiIntentObserver(MainUiIntent.SelectRecentMode::class)
+    private suspend fun onSelectRecentMode(intent: MainUiIntent.SelectRecentMode) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val recent = state.homeState.recentState
+        if (state.homeState.activeSelection != null || recent.mode == intent.mode) return
+        if (recent is MainHomeRecentState.RecentContent) mLastContentTab = recent.selectedContentTab
+        mRecentAvatarJob?.cancel()
+        // 先写入偏好，再加载列表；加载期间离开应用也能恢复刚选的模式。
+        withContext(Dispatchers.IO) { AppModel.homeRecentMode = intent.mode.persistedValue }
+        val refreshed = buildHomeState(mode = intent.mode)
+        val current = getOrNull<MainUiState.Normal>() ?: return
+        current.copy(homeState = refreshed.preserveBrowsingFrom(current.homeState)).setup()
+    }
+
+    /**
+     * 视口或密度变化时取消旧读取，仅保留仍可见且尺寸匹配的缩略图。
+     *
+     * @param intent 当前可见头像 UUID 集合与目标解码尺寸。
+     */
+    @UiIntentObserver(MainUiIntent.VisibleRecentAvatarsChanged::class)
+    private fun onVisibleRecentAvatarsChanged(intent: MainUiIntent.VisibleRecentAvatarsChanged) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val recent = state.homeState.recentState as? MainHomeRecentState.RecentCharacters ?: return
+        mRecentAvatarJob?.cancel()
+        val retained =
+            if (recent.avatarSizePx == intent.sizePx) recent.avatars.filterKeys { it in intent.avatarUuids }
+            else emptyMap()
+        state.withRecentState(recent.copy(avatars = retained, avatarSizePx = intent.sizePx)).setup()
+
+        // UUID 相同的角色共用一次解码，逐张发布以便快速滚动时能及时显示。
+        mRecentAvatarJob = viewModelScope.launch {
+            for (uuid in intent.avatarUuids - retained.keys) {
+                // 单张图片读取失败保留占位，协程取消仍应终止整个旧视口任务。
+                val image = try {
+                    mFileRepository.loadSampledBitmap(
+                        uuid = uuid,
+                        requestedWidthPx = intent.sizePx,
+                        requestedHeightPx = intent.sizePx,
+                    )?.asImageBitmap()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                val current = getOrNull<MainUiState.Normal>() ?: return@launch
+                val characters =
+                    current.homeState.recentState as? MainHomeRecentState.RecentCharacters
+                        ?: return@launch
+                val sameSize = characters.avatarSizePx == intent.sizePx
+                val stillReferenced = characters.characters.any { it.avatarUuid == uuid }
+                if (!sameSize || !stillReferenced) continue
+                current.withRecentState(characters.copy(avatars = characters.avatars + (uuid to image)))
+                    .setup()
+            }
+        }
+    }
+
+    /**
+     * 使用稳定角色 ID 进入独立内容页。
+     *
+     * @param intent 包含目标角色 ID 的导航意图。
+     */
+    @UiIntentObserver(MainUiIntent.OpenCharacterContent::class)
+    private fun onOpenCharacterContent(intent: MainUiIntent.OpenCharacterContent) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.homeState.recentState !is MainHomeRecentState.RecentCharacters) return
+        AppViewEvent.StartActivity(
+            activity = CharacterContentActivity::class.java,
+            extras = Bundle().apply {
+                putLong(
+                    CharacterContentActivity.EXTRA_CHARACTER_ID,
+                    intent.characterId
+                )
+            },
+        ).tryEmit()
     }
 
     /** 打开指定的单聊会话页面。 */
@@ -788,11 +871,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).tryEmit()
     }
 
-    /** 从最近内容标题进入独立搜索页，沿用当前内容分类。 */
+    /** 从首页打开内容搜索；有分类筛选时沿用该分类，其余情况搜索全部。 */
     @UiIntentObserver(MainUiIntent.OpenContentSearch::class)
     private fun onOpenContentSearch() {
         val state = getOrNull<MainUiState.Normal>() ?: return
-        val kind = when (state.homeState.selectedContentTab) {
+        val recent = state.homeState.recentState as? MainHomeRecentState.RecentContent
+        val kind = when (recent?.selectedContentTab ?: MainHomeContentTab.All) {
             MainHomeContentTab.All -> SearchKind.All
             MainHomeContentTab.Single -> SearchKind.Chat
             MainHomeContentTab.Group -> SearchKind.Group
@@ -834,7 +918,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenStory::class)
     private fun onOpenStory(intent: MainUiIntent.OpenStory) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        if (uiState.homeState.findStory(intent.storyId) == null) return
+        val recent = uiState.homeState.recentState as? MainHomeRecentState.RecentContent ?: return
+        if (recent.findStory(intent.storyId) == null) return
         AppViewEvent.StartActivity(
             activity = StoryEditorActivity::class.java,
             extras = Bundle().apply {
@@ -1512,58 +1597,64 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
-    /**
-     * 在 IO 线程并发装配首页各组件数据。
-     *
-     * 包括：角色总数、世界书总数、按角色聚合的单聊分组、群聊摘要列表及故事概览列表。
-     */
-    private suspend fun buildHomeState(): MainHomeState {
-        return withContext(Dispatchers.IO) {
-            // 并发拉取基础实体与会话概览
-            val characters = mCharacterRepository.getAllCharacters()
-            val characterMap = characters.associateBy { character -> character.id }
-            val sessions = mChatRepository.getSessionOverviews()
-            val groupSessions = mGroupChatRepository.getSessionOverviews()
-            val storyOverviews = mStoryRepository.getStoryOverviews()
-            // 将单聊会话按角色聚合分组
-            val sessionItems = sessions.map { session ->
-                session.toUiModel(
-                    characterName = characterMap[session.characterId]?.name.orEmpty()
-                        .ifBlank { mContext.getString(R.string.unknown_character) },
-                    preview = messagePreview(
-                        session.latestMessageContent,
-                        session.latestMessageHasImages
-                    ),
-                )
+    /** 在 IO 线程读取当前浏览模式，只装配该模式需要的首页数据。 */
+    private suspend fun buildHomeState(mode: HomeRecentMode? = null): MainHomeState =
+        withContext(Dispatchers.IO) {
+            when (mode ?: HomeRecentMode.fromPersistedValue(AppModel.homeRecentMode)) {
+                HomeRecentMode.RecentContent -> buildRecentContentState()
+                HomeRecentMode.RecentCharacters -> buildRecentCharactersState()
             }
-            val sessionGroups =
-                sessionItems.groupBy { mainChatSessionItem -> mainChatSessionItem.characterId }
-                    .map { (id, items) ->
-                        MainChatSessionGroup(
-                            characterId = id,
-                            characterName = items.firstOrNull()?.characterName.orEmpty(),
-                            sessions = items,
-                        )
-                    }
-            // 格式化群聊会话列表项
-            val groupChatItems = groupSessions.map { session ->
-                session.toUiModel(
-                    preview = messagePreview(
-                        session.latestMessageContent,
-                        session.latestMessageHasImages
-                    ),
-                )
-            }
-            // 格式化故事列表项
-            val storyItems = storyOverviews.map { story ->
-                story.toUiModel()
-            }
-            // 装配完整的首页状态模型
-            MainHomeState(
-                resourceState = MainHomeResourceState(
-                    totalCharacters = characters.size,
-                    totalWorldBooks = mLorebookRepository.getAllLorebooks().size,
+        }
+
+    /** 只在内容布局内构建会话预览、分组和故事摘要。 */
+    private suspend fun buildRecentContentState(): MainHomeState {
+        // 拉取基础实体与会话概览
+        val characters = mCharacterRepository.getAllCharacters()
+        val characterMap = characters.associateBy { character -> character.id }
+        val sessions = mChatRepository.getSessionOverviews()
+        val groupSessions = mGroupChatRepository.getSessionOverviews()
+        val storyOverviews = mStoryRepository.getStoryOverviews()
+        // 将单聊会话按角色聚合分组
+        val sessionItems = sessions.map { session ->
+            session.toUiModel(
+                characterName = characterMap[session.characterId]?.name.orEmpty()
+                    .ifBlank { mContext.getString(R.string.unknown_character) },
+                preview = messagePreview(
+                    session.latestMessageContent,
+                    session.latestMessageHasImages
                 ),
+            )
+        }
+        val sessionGroups =
+            sessionItems.groupBy { mainChatSessionItem -> mainChatSessionItem.characterId }
+                .map { (id, items) ->
+                    MainChatSessionGroup(
+                        characterId = id,
+                        characterName = items.firstOrNull()?.characterName.orEmpty(),
+                        sessions = items,
+                    )
+                }
+        // 格式化群聊会话列表项
+        val groupChatItems = groupSessions.map { session ->
+            session.toUiModel(
+                preview = messagePreview(
+                    session.latestMessageContent,
+                    session.latestMessageHasImages
+                ),
+            )
+        }
+        // 格式化故事列表项
+        val storyItems = storyOverviews.map { story ->
+            story.toUiModel()
+        }
+        // 装配完整的首页状态模型
+        return MainHomeState(
+            resourceState = MainHomeResourceState(
+                totalCharacters = characters.size,
+                totalWorldBooks = mLorebookRepository.getAllLorebooks().size,
+            ),
+            recentState = MainHomeRecentState.RecentContent(
+                selectedContentTab = mLastContentTab,
                 recentChatsState = if (sessionGroups.isEmpty()) {
                     MainRecentChatsState.Empty
                 } else {
@@ -1584,9 +1675,19 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                     groupChats = groupChatItems,
                     stories = storyItems,
                 ),
-            )
-        }
+            ),
+        )
     }
+
+    /** 角色模式只查询资源数量与角色导航元数据，无需读取会话预览和角色卡正文。 */
+    private suspend fun buildRecentCharactersState(): MainHomeState = MainHomeState(
+        resourceState = MainHomeResourceState(
+            totalCharacters = mCharacterRepository.countCharacters(),
+            totalWorldBooks = mLorebookRepository.getAllLorebooks().size,
+        ),
+        recentState = MainHomeRecentState.RecentCharacters(
+            characters = mCharacterRepository.getRecentCharacters().map { it.toUiModel() }),
+    )
 
     /** 装配设置页全量子状态（用户身份、供应商模型参数、提示词行为、预算、总结与调试）。 */
     private suspend fun buildSettingsState(
