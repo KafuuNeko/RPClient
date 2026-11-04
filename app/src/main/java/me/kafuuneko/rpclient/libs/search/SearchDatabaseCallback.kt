@@ -81,6 +81,27 @@ object SearchDatabaseCallback : RoomDatabase.Callback() {
         install(db)
     }
 
+    /**
+     * 完整恢复后清空派生检索数据并关闭加速，等待用户重新确认构建。
+     * - 只修改暂存库，不继承归档中的开关、来源或构建进度。
+     * - 恢复不登记正文来源，也不启动后台索引任务。
+     * @param db 已完成 Room 迁移、尚未替换当前数据的数据库。
+     */
+    internal fun resetAfterRestore(db: SupportSQLiteDatabase) {
+        db.beginTransaction()
+        try {
+            // 先停用业务触发器再清理，避免生成多余待办；Room 的 FTS 同步触发器仍保留。
+            uninstall(db)
+            db.execSQL("DELETE FROM search_chunks")
+            db.execSQL("DELETE FROM search_sources")
+            db.execSQL("DELETE FROM search_progress")
+            setPhase(db, SearchIndexPhase.Disabled)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     /** 校验实际定义再替换，重复打开无 DDL；安装失败由调用方事务完整回滚。 */
     private fun install(db: SupportSQLiteDatabase) {
         val installed = installedTriggers(db)

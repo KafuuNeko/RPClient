@@ -59,7 +59,7 @@ class BackupArchiveRepository(
                 "The database checksum does not match manifest.json."
             }
 
-            BackupDatabaseValidator.validatePrimary(mContext, stagedDatabase)
+            BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedDatabase)
             val stagedPrefs = File(stageRoot, "settings/shared_prefs")
             val stagedRepository = File(stageRoot, "files/repository")
             // 旧导出器不写空目录条目；缺省目录按旧协议恢复为空目录。

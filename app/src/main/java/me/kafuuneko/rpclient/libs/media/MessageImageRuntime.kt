@@ -7,6 +7,11 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -24,12 +29,6 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageWithFile
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.RandomAccessFile
-import kotlin.math.roundToInt
 
 /**
  * 共享图片处理服务。
@@ -397,40 +396,9 @@ class MessageImageRuntime(
         }
     }
 
-    /** 通过解码器与容器结构校验真实格式，禁止伪 MIME、动画和超大像素。 */
+    /** 使用所有图片入口共用的格式与资源限制校验原始文件。 */
     private fun validate(file: File) {
-        requireValidImage(file.length() <= MessageImagePolicy.MAX_ORIGINAL_BYTES)
-        val bounds = bounds(file)
-        requireValidImage(bounds.outWidth > 0 && bounds.outHeight > 0)
-        requireValidImage(bounds.outWidth.toLong() * bounds.outHeight <= MessageImagePolicy.MAX_ORIGINAL_PIXELS)
-        requireValidImage(
-            valid = bounds.outMimeType in setOf(
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-                "image/heic",
-                "image/heif",
-            ),
-        )
-        // PNG / WebP 按容器块跳转检查动画标记，不将压缩像素误识别成块头。
-        RandomAccessFile(file, "r").use { input ->
-            var offset = if (bounds.outMimeType == "image/png") 8L else 12L
-            while (bounds.outMimeType in setOf(
-                    "image/png",
-                    "image/webp"
-                ) && offset + 8 <= input.length()
-            ) {
-                input.seek(offset)
-                val png = bounds.outMimeType == "image/png"
-                val size = if (png) input.readInt().toLong() and 0xffffffffL else 0L
-                val name = ByteArray(4).also { byteArray -> input.readFully(byteArray) }
-                    .toString(Charsets.US_ASCII)
-                val length = if (png) size else Integer.reverseBytes(input.readInt())
-                    .toLong() and 0xffffffffL
-                requireValidImage(name !in setOf("acTL", "ANIM", "ANMF"))
-                offset += 8 + length + if (png) 4 else length % 2
-            }
-        }
+        MessageImageValidator.mimeType(file)
     }
 
     /** 解码和格式限制属于受控资源错误，不能与程序性 require 混淆。 */

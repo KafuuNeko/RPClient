@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.room.withTransaction
+import java.io.BufferedWriter
+import java.io.FilterInputStream
+import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
@@ -19,11 +22,12 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryVolume
 import me.kafuuneko.rpclient.libs.room.model.StoryChapterOverview
-import java.io.BufferedWriter
-import java.io.FilterInputStream
-import java.io.InputStream
 
-/** 故事文本与 `.rpstory.json` 的 URI 读写和事务导入入口。 */
+/**
+ * 故事文本与 `.rpstory.json` 的 URI 读写和事务导入入口。
+ * - 流式导出章节，导入草稿与用户确认后的持久化分离。
+ * - 复用归档关联匹配规则，在同一事务中保存故事、章节与选择关系。
+ */
 class StoryArchiveRepository(
     private val mContext: Context,
     private val mAppDatabase: AppDatabase,
@@ -336,44 +340,31 @@ class StoryArchiveRepository(
         )
     }
 
+    /** 按提示顺序匹配角色并去重，同一角色最多保留一个激活配置。 */
     private fun matchCharacters(
         hints: List<StoryCharacterHint>,
         characters: List<Character>,
     ): List<Pair<Long, StoryCharacterHint>> {
+        if (hints.isEmpty()) return emptyList()
         val selected = mutableSetOf<Long>()
+        val matcher = StoryArchiveMatcher(characters = characters)
         return hints.mapNotNull { hint ->
-            val fingerprintMatches = characters.filter { character ->
-                hint.fingerprint.equals(
-                    other = ChatCharacterMatcher.fingerprintOf(character),
-                    ignoreCase = true
-                )
-            }
-            val match = fingerprintMatches.singleOrNull()
-                ?: characters.singleOrNull { character ->
-                    character.name.trim().equals(other = hint.name.trim(), ignoreCase = true)
-                }
+            val match = matcher.matchCharacter(hint)
             match?.takeIf { character -> selected.add(character.id) }?.id?.let { id -> id to hint }
         }
     }
 
+    /** 使用共享指纹与书名规则匹配条目，按提示顺序保留唯一选择。 */
     private fun matchLorebookEntries(
         hints: List<StoryLorebookHint>,
         entries: List<LorebookEntry>,
         lorebooks: List<Lorebook>,
     ): List<Long> {
-        val lorebookNames = lorebooks.associate { it.id to it.name }
+        if (hints.isEmpty()) return emptyList()
         val selectedEntryIds = mutableSetOf<Long>()
+        val matcher = StoryArchiveMatcher(entries = entries, lorebooks = lorebooks)
         return hints.mapNotNull { hint ->
-            val fingerprintMatches = entries.filter { entry ->
-                hint.fingerprint.equals(other = fingerprintOf(entry), ignoreCase = true)
-            }
-            val match = fingerprintMatches.singleOrNull()
-                ?: entries.singleOrNull { entry ->
-                    entry.name.trim().equals(other = hint.entryName.trim(), ignoreCase = true)
-                        && lorebookNames[entry.lorebookId]
-                        ?.trim()
-                        ?.equals(other = hint.lorebookName.trim(), ignoreCase = true) == true
-                }
+            val match = matcher.matchLorebookEntry(hint)
             match?.takeIf { entry -> selectedEntryIds.add(entry.id) }?.id
         }
     }

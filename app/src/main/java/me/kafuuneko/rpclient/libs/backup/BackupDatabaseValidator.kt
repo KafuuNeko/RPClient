@@ -6,20 +6,27 @@ import androidx.room.Room
 import java.io.File
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 
 /**
- * 在暂存目录验证数据库的可打开性。
+ * 在暂存目录校验并准备可恢复的数据库。
  * - 使用应用既有迁移，禁止降级时破坏性重建。
+ * - 所有完整恢复入口在结构验证后清空检索副本并关闭搜索加速。
  * - 校验失败时尚未关闭或替换当前数据库。
  */
 internal object BackupDatabaseValidator {
-    /** 校验主库完整性、Room 标识和迁移兼容性，迁移只写入暂存副本。 */
-    fun validatePrimary(context: Context, file: File) {
+    /**
+     * 校验、迁移暂存主库，并为恢复后的手动搜索加速构建准备空状态。
+     * @param context 用于创建独立 Room 实例。
+     * @param file 尚未替换当前数据的暂存文件。
+     */
+    fun preparePrimaryForRestore(context: Context, file: File) {
         validateIntegrity(file)
         val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path)
             .build()
         try {
-            candidate.openHelper.writableDatabase
+            val db = candidate.openHelper.writableDatabase
+            SearchDatabaseCallback.resetAfterRestore(db)
         } finally {
             candidate.close()
         }

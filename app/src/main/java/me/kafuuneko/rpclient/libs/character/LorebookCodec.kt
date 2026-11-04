@@ -157,17 +157,18 @@ class LorebookCodec(
         entry.addProperty("depth", depth)
         entry.addProperty("group", group)
         entry.addProperty("groupOverride", groupOverride)
-        groupWeight?.let { entry.addProperty("groupWeight", it) }
-        scanDepth?.let { entry.addProperty("scanDepth", it) }
-        caseSensitive?.let { entry.addProperty("caseSensitive", it) }
-        matchWholeWords?.let { entry.addProperty("matchWholeWords", it) }
+        // 空值也必须覆盖旧底稿，避免用户清空的设置在导出后重新生效。
+        entry.addProperty("groupWeight", groupWeight)
+        entry.addProperty("scanDepth", scanDepth)
+        entry.addProperty("caseSensitive", caseSensitive)
+        entry.addProperty("matchWholeWords", matchWholeWords)
         entry.addProperty("useGroupScoring", useGroupScoring)
         entry.add("triggers", parseArrayOrEmpty(triggers))
         if (!entry.has("automationId")) entry.addProperty("automationId", "")
         entry.addProperty("role", role)
-        sticky?.let { entry.addProperty("sticky", it) }
-        cooldown?.let { entry.addProperty("cooldown", it) }
-        delay?.let { entry.addProperty("delay", it) }
+        entry.addProperty("sticky", sticky)
+        entry.addProperty("cooldown", cooldown)
+        entry.addProperty("delay", delay)
         entry.addProperty("displayIndex", uid)
 
         val extensions = parseObjectOrEmpty(extensionsJson)

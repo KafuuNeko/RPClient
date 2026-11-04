@@ -294,18 +294,19 @@ class CharacterCardMapper(
         extensions.addProperty("probability", probability)
         extensions.addProperty("ignore_budget", ignoreBudget)
         extensions.addProperty("selectiveLogic", selectiveLogic)
-        scanDepth?.let { extensions.addProperty("scan_depth", it) }
-        matchWholeWords?.let { extensions.addProperty("match_whole_words", it) }
-        caseSensitive?.let { extensions.addProperty("case_sensitive", it) }
+        // 显式清空已支持字段，不能从历史 extensions 中重新带回旧值。
+        extensions.addProperty("scan_depth", scanDepth)
+        extensions.addProperty("match_whole_words", matchWholeWords)
+        extensions.addProperty("case_sensitive", caseSensitive)
         extensions.addProperty("use_group_scoring", useGroupScoring)
         extensions.addProperty("group", group)
         extensions.addProperty("group_override", groupOverride)
-        groupWeight?.let { extensions.addProperty("group_weight", it) }
+        extensions.addProperty("group_weight", groupWeight)
         extensions.addProperty("prevent_recursion", preventRecursion)
         extensions.addProperty("delay_until_recursion", delayUntilRecursion)
-        sticky?.let { extensions.addProperty("sticky", it) }
-        cooldown?.let { extensions.addProperty("cooldown", it) }
-        delay?.let { extensions.addProperty("delay", it) }
+        extensions.addProperty("sticky", sticky)
+        extensions.addProperty("cooldown", cooldown)
+        extensions.addProperty("delay", delay)
         extensions.addProperty("outlet_name", outletName)
         extensions.add("triggers", parseArrayOrEmpty(triggers))
         extensions.addProperty("match_character_description", matchCharacterDescription)

@@ -6,6 +6,12 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.util.UUID
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
@@ -23,12 +29,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.util.UUID
-import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
-import java.util.zip.ZipOutputStream
 
 /** 使用隔离目录和真实 SQLite 验证备份与 Develop 搜索、背景资源的兼容性。 */
 @RunWith(AndroidJUnit4::class)
@@ -70,9 +70,9 @@ class PortableBackupRepositoryTest {
         root.deleteRecursively()
     }
 
-    /** 原始行、FTS rowid、开关、背景资源和同名私有文件均应无损往返。 */
+    /** 备份只保存业务行与文件，搜索派生数据不导出，完整恢复后默认关闭加速。 */
     @Test
-    fun roundTripPreservesSearchBackgroundAndPrivateFiles() = runBlocking {
+    fun roundTripPreservesBusinessBackgroundAndPrivateFilesWithoutSearchData() = runBlocking {
         val db = primary.openHelper.writableDatabase
         db.execSQL(sql = "INSERT INTO search_chunks(rowid, kind, sourceId, parentId, revision, position, tokens) VALUES(42, 1, 7, 3, 1, 0, 'hello world')")
         db.execSQL("INSERT OR REPLACE INTO search_progress(kind, cursor, complete) VALUES(-2, 2, 1)")
@@ -84,6 +84,8 @@ class PortableBackupRepositoryTest {
             sql = "INSERT INTO search_progress(kind, cursor, complete) VALUES(?, 7, 1)",
             bindArgs = arrayOf(kind),
         )
+        db.execSQL("INSERT INTO search_sources(kind, sourceId, parentId, revision, indexedRevision, deleted, dirty, changedTime) VALUES(1, 7, 3, 1, 1, 0, 0, 0)")
+        SearchDatabaseCallback.onOpen(db)
         db.execSQL("CREATE TABLE backup_probe(id INTEGER PRIMARY KEY, payload BLOB, note TEXT)")
         db.execSQL("INSERT INTO backup_probe VALUES(9, X'010203', NULL)")
         val logDb = logs.openHelper.writableDatabase
@@ -114,9 +116,11 @@ class PortableBackupRepositoryTest {
             ),
         ).exportArchive(Uri.fromFile(archive))
         ZipFile(archive).use { zip ->
-            // FTS 影子表由 Room 与触发器维护，不能作为独立数据导出。
+            // 词条、来源、进度和 FTS 物理存储都可重建，不进入备份的数据文件。
             assertTrue(zip.entries().asSequence().none { it.name.contains("search_chunks_fts") })
-            assertTrue(zip.getEntry("tables/search_chunks.jsonl") != null)
+            assertTrue(zip.getEntry("tables/search_chunks.jsonl") == null)
+            assertTrue(zip.getEntry("tables/search_sources.jsonl") == null)
+            assertTrue(zip.getEntry("tables/search_progress.jsonl") == null)
             assertTrue(zip.getEntry("manifest.json") != null)
             assertTrue(zip.entries().asSequence().none { it.name.contains("room_master_table") })
             val schemaEntry = zip.getEntry("app-data/database-schema.json")
@@ -125,7 +129,9 @@ class PortableBackupRepositoryTest {
             assertTrue(
                 schema.getJSONArray("objects").let { objects ->
                     (0 until objects.length()).none {
-                        objects.getJSONObject(it).optString("name") == "room_master_table"
+                        val name = objects.getJSONObject(it).optString("name")
+                        name == "room_master_table" || name.startsWith("search_source_")
+                            || name.startsWith("search_meta_")
                     }
                 }
             )
@@ -143,18 +149,22 @@ class PortableBackupRepositoryTest {
             ),
         ).restoreArchive(Uri.fromFile(archive))
         openDatabases()
-        // 重新打开 Room 验证结构身份，并直接查询恢复后的倒排索引。
+        // 空检索结构仍须通过 Room 校验；之前的启用状态也不会随归档恢复。
         val restored = primary.openHelper.writableDatabase
         restored.query("SELECT docid FROM search_chunks_fts WHERE search_chunks_fts MATCH 'hello'")
             .use { cursor ->
-                assertTrue(cursor.moveToFirst())
-                assertEquals(42L, cursor.getLong(0))
-                assertFalse(cursor.moveToNext())
+                assertFalse(cursor.moveToFirst())
             }
         restored.query("SELECT cursor FROM search_progress WHERE kind = -2").use { cursor ->
             assertTrue(cursor.moveToFirst())
-            assertEquals(2L, cursor.getLong(0))
+            assertEquals(0L, cursor.getLong(0))
         }
+        restored.query("SELECT (SELECT COUNT(*) FROM search_chunks), (SELECT COUNT(*) FROM search_sources)")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0L, cursor.getLong(0))
+                assertEquals(0L, cursor.getLong(1))
+            }
         restored.query("SELECT hex(payload), note FROM backup_probe WHERE id = 9").use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertEquals("010203", cursor.getString(0))
@@ -196,9 +206,9 @@ class PortableBackupRepositoryTest {
         }
     }
 
-    /** FTS4 的完整性检查在部分系统上需要可写连接，暂存库不能被只读校验误拒绝。 */
+    /** FTS4 暂存库正确通过完整性校验，恢复准备后仅保留可供手动重建的空结构。 */
     @Test
-    fun stagedFtsDatabasePassesValidation() {
+    fun stagedFtsDatabasePassesValidationAndStartsWithSearchDisabled() {
         val staged = File(root, "staged-fts.sqlite")
         val base = InstrumentationRegistry.getInstrumentation().targetContext
         val candidate = Room.databaseBuilder(base, AppDatabase::class.java, staged.path).build()
@@ -207,21 +217,25 @@ class PortableBackupRepositoryTest {
                 sql = "INSERT INTO search_chunks(rowid, kind, sourceId, parentId, revision, position, tokens) " +
                     "VALUES(42, 1, 7, 3, 1, 0, 'hello world')",
             )
+            candidate.openHelper.writableDatabase.execSQL("INSERT INTO search_progress(kind, cursor, complete) VALUES(-2, 2, 1)")
         } finally {
             candidate.close()
         }
 
-        BackupDatabaseValidator.validatePrimary(context, staged)
+        BackupDatabaseValidator.preparePrimaryForRestore(context, staged)
 
         val reopened = Room.databaseBuilder(base, AppDatabase::class.java, staged.path).build()
         try {
             reopened.openHelper.readableDatabase.query(
                 query = "SELECT docid FROM search_chunks_fts WHERE search_chunks_fts MATCH 'hello'",
             ).use { cursor ->
-                assertTrue(cursor.moveToFirst())
-                assertEquals(42L, cursor.getLong(0))
-                assertFalse(cursor.moveToNext())
+                assertFalse(cursor.moveToFirst())
             }
+            reopened.openHelper.readableDatabase.query("SELECT cursor FROM search_progress WHERE kind = -2")
+                .use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals(0L, cursor.getLong(0))
+                }
         } finally {
             reopened.close()
         }

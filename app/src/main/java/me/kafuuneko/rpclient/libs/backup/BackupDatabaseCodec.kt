@@ -5,21 +5,21 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteStatement
 import android.util.Base64
 import androidx.sqlite.db.SupportSQLiteDatabase
-import java.io.ByteArrayOutputStream
-import java.io.File
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BLOB_KEY
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.TABLE_ROWS_KEY
 import me.kafuuneko.rpclient.libs.json.JsonResourceLimitException
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.File
 
-/** 编解码 SQLite 结构与无损数据行，重建派生 FTS 后校验完整性。 */
+/** 编解码业务结构与无损数据行，排除可重建的搜索数据并校验暂存库完整性。 */
 internal object BackupDatabaseCodec {
     private const val MAX_PRUNE_ROUNDS = 8
     private const val LOG_PAYLOAD_CHUNK_BYTES = 65_536
     private const val MAX_LOG_PAYLOAD_BYTES = 16_777_216
 
-    /** 导出业务结构定义，FTS 影子表由虚表定义重建。 */
+    /** 保留 Room 所需的空表与约束定义，FTS 影子表和运行期搜索维护触发器不参与导出。 */
     fun schemaJson(db: SupportSQLiteDatabase): JSONObject {
         val objects = JSONArray()
         // 不序列化 SQLite 自建表，避免恢复时与引擎创建的结构冲突。
@@ -34,7 +34,7 @@ internal object BackupDatabaseCodec {
                 val name = cursor.getString(1)
                 val tableName = cursor.getString(2)
                 if (name != "android_metadata" && tableName != "android_metadata" &&
-                    !name.startsWith("search_chunks_fts_")
+                    !name.startsWith("search_chunks_fts_") && !isSearchMaintenanceTrigger(name)
                 ) {
                     objects.put(
                         JSONObject()
@@ -49,7 +49,7 @@ internal object BackupDatabaseCodec {
         return JSONObject().put("userVersion", db.version).put("objects", objects)
     }
 
-    /** 列出需要保存数据行的表，不重复导出派生 FTS 数据。 */
+    /** 列出需要保存业务数据行的表，搜索词条、来源、开关与进度均由本地重新生成。 */
     fun tableNames(db: SupportSQLiteDatabase): List<String> {
         val result = mutableListOf<String>()
         db.query(
@@ -60,14 +60,27 @@ internal object BackupDatabaseCodec {
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val name = cursor.getString(0)
-                // FTS 内容由 search_chunks 持久化；虚表和影子表在恢复时重建。
-                if (name != "search_chunks_fts" && !name.startsWith("search_chunks_fts_")) {
+                // 搜索状态与正文可以分离恢复，归档只保存原始业务数据。
+                if (!isSearchDataTable(name)) {
                     result += name
                 }
             }
         }
         return result
     }
+
+    /**
+     * 判断可从原文重建的搜索表，旧归档的同名数据也必须忽略。
+     * @param table 归档或 SQLite 提供的表名。
+     * @return 是否属于派生搜索数据、进度或 FTS 存储。
+     */
+    fun isSearchDataTable(table: String): Boolean = table in setOf(
+        "search_sources", "search_chunks", "search_progress", "search_chunks_fts"
+    ) || table.startsWith("search_chunks_fts_")
+
+    /** 运行期维护入口由搜索模块安装，恢复完成前不能继承归档中的启用状态。 */
+    private fun isSearchMaintenanceTrigger(name: String): Boolean =
+        name.startsWith("search_source_") || name.startsWith("search_meta_")
 
     /** 按可选条件读取原始行，保留整数、浮点数、空值和 BLOB 类型。 */
     fun readRows(
@@ -170,6 +183,7 @@ internal object BackupDatabaseCodec {
             val keys = tableRows.keys()
             while (keys.hasNext()) {
                 val table = keys.next()
+                if (isSearchDataTable(table)) continue
                 val rows = tableRows.getJSONArray(table)
                 val target = result.getOrPut(table) { mutableListOf() }
                 rows.objects().forEach { target.add(it) }
@@ -202,7 +216,10 @@ internal object BackupDatabaseCodec {
         File(snapshot, "tables").listFiles().orEmpty()
             .filter { it.isFile && it.extension == "jsonl" }.forEach { file ->
                 val table = tableNameForFile(objects, file.nameWithoutExtension)
-                if (table == "android_metadata" || table == "room_master_table") return@forEach
+                if (table == "android_metadata"
+                    || table == "room_master_table"
+                    || isSearchDataTable(table)
+                ) return@forEach
                 file.forEachLine(Charsets.UTF_8) { line ->
                     if (line.isNotBlank()) result.getOrPut(table) { mutableListOf() }
                         .add(JSONObject(line))
@@ -267,9 +284,7 @@ internal object BackupDatabaseCodec {
             db.beginTransaction()
             try {
                 tableRows.forEach { (table, rows) ->
-                    if (table != "room_master_table" && table != "search_chunks_fts" &&
-                        !table.startsWith("search_chunks_fts_")
-                    ) {
+                    if (table != "room_master_table" && !isSearchDataTable(table)) {
                         insertRows(db, table, rows)
                     }
                 }
@@ -277,16 +292,14 @@ internal object BackupDatabaseCodec {
             } finally {
                 db.endTransaction()
             }
-            // 在业务行和 rowid 恢复后重建倒排索引，保留搜索进度与用户开关。
-            if (sqliteTableExists(db, "search_chunks_fts")) {
-                db.execSQL("INSERT INTO search_chunks_fts(search_chunks_fts) VALUES('rebuild')")
-            }
+            // 搜索数据保持为空，普通约束与 Room 的 FTS 同步结构按 schema 正常创建。
             for (index in 0 until objects.length()) {
                 val item = objects.getJSONObject(index)
                 if (item.optString("type") != "table" &&
                     item.optString("name") != "room_master_table" &&
                     item.optString("table") != "android_metadata" &&
-                    item.optString("table") != "room_master_table"
+                    item.optString("table") != "room_master_table" &&
+                    !isSearchMaintenanceTrigger(item.optString("name"))
                 ) {
                     db.execSQL(item.getString("sql"))
                 }

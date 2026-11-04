@@ -3,8 +3,6 @@ package me.kafuuneko.rpclient.libs.backup
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
-import com.google.gson.Strictness
 import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
@@ -12,7 +10,6 @@ import com.google.gson.stream.JsonWriter
 import java.io.File
 import java.io.StringWriter
 import java.io.Writer
-import java.security.MessageDigest
 import me.kafuuneko.rpclient.libs.character.CharacterBookImport
 import me.kafuuneko.rpclient.libs.character.CharacterCardMapper
 import me.kafuuneko.rpclient.libs.character.LorebookCodec
@@ -33,13 +30,16 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.story.ArchivedChapter
 import me.kafuuneko.rpclient.libs.story.ArchivedStory
 import me.kafuuneko.rpclient.libs.story.ArchivedVolume
 import me.kafuuneko.rpclient.libs.story.StoryArchive
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
+import me.kafuuneko.rpclient.libs.story.StoryArchiveMatcher
 import me.kafuuneko.rpclient.libs.story.StoryCharacterHint
 import me.kafuuneko.rpclient.libs.story.StoryLorebookHint
+import me.kafuuneko.rpclient.libs.story.storyTextHash
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -296,13 +296,18 @@ internal class BackupV3Writer(
             val doc = JSONObject(mLorebookCodec.toLorebookJson(lorebook, entries))
             // 酒馆世界书的条目键是序号；这里记录“序号 -> 条目主键”，新增或删除条目不影响其他条目。
             val entryIds = JSONObject()
+            val entryCategories = JSONObject()
             entryRows.forEachIndexed { index, row ->
-                entryIds.put(
-                    index.toString(),
-                    row.optLong("id")
-                )
+                val key = index.toString()
+                entryIds.put(key, row.optLong("id"))
+                // 本地分类不属于酒馆协议，与来源 ID 使用相同条目键，保留原始分类 JSON。
+                entryCategories.put(key, row.getString("category"))
             }
-            doc.put(BackupV3.SIDECAR, JSONObject().put("id", id).put("entryIds", entryIds))
+            doc.put(
+                BackupV3.SIDECAR,
+                JSONObject().put("id", id).put("entryIds", entryIds)
+                    .put("entryCategories", entryCategories)
+            )
             writeText(
                 docFile("worldbooks", bookRow.optString("name"), id, ".json"),
                 doc.toString(2)
@@ -392,7 +397,7 @@ internal class BackupV3Writer(
                     StoryLorebookHint(
                         lorebookName = book?.optString("name").orEmpty(),
                         entryName = entry.optString("name"),
-                        fingerprint = textFingerprint(entry.optString("content"))
+                        fingerprint = storyTextHash(entry.optString("content"))
                     )
                 }
             // 菜单级格式承载正文与匹配提示，本地标识另外记录。
@@ -465,12 +470,6 @@ internal class BackupV3Writer(
         .put("contentRevision", chapter.opt("contentRevision"))
         .put("createTime", chapter.opt("createTime"))
         .put("latestTime", chapter.opt("latestTime"))
-
-    /** 生成内容指纹，为独立故事导入提供世界书条目匹配提示。 */
-    private fun textFingerprint(value: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
 
     /** 写出单聊 JSONL，并以消息来源 ID 保留本地关联和摘要覆盖边界。 */
     private suspend fun writeChats() {
@@ -699,11 +698,14 @@ internal class BackupV3Reader(
     private val mOriginalCharacterRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalLorebookRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalLorebookEntryRows = mutableMapOf<Long, MutableList<JSONObject>>()
-    private val mOriginalMessageRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalGroupMessageRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mPendingCards = mutableListOf<PendingCard>()
     private val mLinks = mutableListOf<Link>()
     private val mNow = System.currentTimeMillis()
+    private val mImageStore = BackupImageStore(File(mRoot, "attachments"))
+    private val mOriginalSingleImages = mutableMapOf<Long, List<JSONObject>>()
+    private val mFilesByUuid = mutableMapOf<String, JSONObject>()
+    private val mUsedImageUuids = mutableSetOf<String>()
 
     /** 角色卡内嵌的世界书要等 worldbooks/ 读完后才能决定是否使用。 */
     private class PendingCard(
@@ -728,6 +730,7 @@ internal class BackupV3Reader(
         readStories()
         readChats()
         readGroups()
+        resolveGroupImages()
         resolveIds()
         mLinks.forEach { it.child.put(it.field, it.parent.getLong("id")) }
         mTables.forEach { (table, list) -> mReport.info("rows to restore: $table = ${list.size}") }
@@ -795,6 +798,7 @@ internal class BackupV3Reader(
     private fun readRowFiles(dir: String, target: MutableMap<String, MutableList<JSONObject>>) {
         files(dir, ".jsonl").forEach { file ->
             val table = file.nameWithoutExtension
+            if (BackupDatabaseCodec.isSearchDataTable(table)) return@forEach
             var lineNumber = 0
             file.forEachLine(Charsets.UTF_8) { line ->
                 lineNumber += 1
@@ -883,9 +887,14 @@ internal class BackupV3Reader(
             mOriginalLorebookRows.getOrPut(sourceId) { mutableListOf() }.add(bookRow)
         }
         val ids = side?.optJSONObject("entryIds")
+        val categories = side?.optJSONObject("entryCategories")
         imported.entries.forEachIndexed { index, entry ->
             val row = entityRow(entry)
-            val entryId = keys.getOrNull(index)?.let { ids?.optLong(it, 0L) } ?: 0L
+            val key = keys.getOrNull(index)
+            val entryId = key?.let { ids?.optLong(it, 0L) } ?: 0L
+            if (key != null && categories?.has(key) == true) {
+                row.put("category", categories.getString(key))
+            }
             if (entryId > 0L) {
                 row.put("id", entryId)
                 mOriginalLorebookEntryRows.getOrPut(entryId) { mutableListOf() }.add(row)
@@ -1003,36 +1012,135 @@ internal class BackupV3Reader(
                 story.ungroupedChapters.forEachIndexed { index, chapter ->
                     addChapter(chapter, index, ungroupedSides?.optJSONObject(index), null)
                 }
-                // 角色与世界书状态没有菜单级导入格式，按数据库行原样保存在附加键里。
-                side?.optJSONArray("characters")?.objects()?.forEach { relation ->
-                    val sourceCharacters =
-                        mOriginalCharacterRows[relation.optLong("characterId")].orEmpty()
-                    if (sourceCharacters.size == 1) {
-                        link(relation, "storyId", storyRow)
-                        link(relation, "characterId", sourceCharacters.single())
-                        add("story_characters", relation)
-                    } else {
-                        mReport.warn("${rel(file)}: story character reference ${relation.optLong("characterId")} is ambiguous or missing; relation skipped")
-                    }
-                }
-                side?.optJSONArray("lorebookStates")?.objects()?.forEach { relation ->
-                    val sourceEntries =
-                        mOriginalLorebookEntryRows[relation.optLong("lorebookEntryId")].orEmpty()
-                    if (sourceEntries.size == 1) {
-                        link(relation, "storyId", storyRow)
-                        link(relation, "lorebookEntryId", sourceEntries.single())
-                        add("story_lorebook_entries", relation)
-                    } else {
-                        mReport.warn(
-                            "${rel(file)}: story lorebook entry reference ${
-                                relation.optLong(
-                                    "lorebookEntryId"
-                                )
-                            } is ambiguous or missing; relation skipped"
-                        )
-                    }
-                }
+                restoreStoryRelations(file, side, archive, storyRow)
             }
+        }
+    }
+
+    /** 已有本地关系严格按来源 ID 恢复；没有关系附加信息的文档使用菜单提示规则。 */
+    private fun restoreStoryRelations(
+        file: File,
+        side: JSONObject?,
+        archive: StoryArchive,
+        story: JSONObject
+    ) {
+        if (side?.has("characters") == true) {
+            restoreStoryCharacterIds(file, side.getJSONArray("characters"), story)
+        } else {
+            restoreStoryCharacterHints(file, archive.characterHints, story)
+        }
+        if (side?.has("lorebookStates") == true) {
+            restoreStoryEntryIds(file, side.getJSONArray("lorebookStates"), story)
+        } else {
+            restoreStoryEntryHints(file, archive.lorebookHints, story)
+        }
+    }
+
+    /** 来源角色缺失或歧义时移除关系，不把明确的旧主键改绑到另一个候选。 */
+    private fun restoreStoryCharacterIds(file: File, relations: JSONArray, story: JSONObject) {
+        relations.objects().forEach { relation ->
+            val sourceId = relation.optLong("characterId")
+            val character = mOriginalCharacterRows[sourceId].orEmpty().singleOrNull()
+            if (character == null) {
+                mReport.warn("${rel(file)}: story character reference $sourceId is missing or ambiguous; relation skipped")
+                return@forEach
+            }
+            link(relation, "storyId", story)
+            link(relation, "characterId", character)
+            add("story_characters", relation)
+        }
+    }
+
+    /** 保留已有世界书条目的运行状态，但不保留无法解析的旧主键。 */
+    private fun restoreStoryEntryIds(file: File, relations: JSONArray, story: JSONObject) {
+        relations.objects().forEach { relation ->
+            val sourceId = relation.optLong("lorebookEntryId")
+            val entry = mOriginalLorebookEntryRows[sourceId].orEmpty().singleOrNull()
+            if (entry == null) {
+                mReport.warn("${rel(file)}: story lorebook entry reference $sourceId is missing or ambiguous; relation skipped")
+                return@forEach
+            }
+            link(relation, "storyId", story)
+            link(relation, "lorebookEntryId", entry)
+            add("story_lorebook_entries", relation)
+        }
+    }
+
+    /** 新增故事按唯一指纹或名称恢复候选角色，顺序与激活方式来自文档提示。 */
+    private fun restoreStoryCharacterHints(
+        file: File,
+        hints: List<StoryCharacterHint>,
+        story: JSONObject
+    ) {
+        if (hints.isEmpty()) return
+        val candidates =
+            mCharacters.map { row -> mRowGson.fromJson(row.toString(), Character::class.java) }
+        val matcher = StoryArchiveMatcher(characters = candidates)
+        val selected = mutableSetOf<JSONObject>()
+        hints.forEach { hint ->
+            val match = matcher.matchCharacter(hint)
+            val index = candidates.indexOfFirst { candidate -> candidate === match }
+            if (index < 0) {
+                mReport.warn("${rel(file)}: story character hint could not be matched uniquely; relation skipped")
+                return@forEach
+            }
+            val character = mCharacters[index]
+            if (!selected.add(character)) return@forEach
+            // 主键在后续统一分配，此处只记录与候选对象的关系。
+            val mode = when (hint.activationMode) {
+                StoryArchiveCodec.MODE_PRIMARY -> StoryCharacter.ACTIVATION_PRIMARY
+                StoryArchiveCodec.MODE_ALWAYS -> StoryCharacter.ACTIVATION_ALWAYS
+                else -> StoryCharacter.ACTIVATION_AUTO
+            }
+            val relation = entityRow(
+                StoryCharacter(
+                    storyId = 0L,
+                    characterId = 0L,
+                    sortOrder = selected.size - 1,
+                    activationMode = mode
+                )
+            )
+            link(relation, "storyId", story)
+            link(relation, "characterId", character)
+            add("story_characters", relation)
+        }
+    }
+
+    /** 新增故事匹配世界书提示，只创建选择关系，不沿用其他故事的时序状态。 */
+    private fun restoreStoryEntryHints(
+        file: File,
+        hints: List<StoryLorebookHint>,
+        story: JSONObject
+    ) {
+        if (hints.isEmpty()) return
+        val bookRows = mTables["lorebooks"].orEmpty()
+        val entryRows = mTables["lorebook_entries"].orEmpty()
+        // 候选仍可能没有主键；临时书籍 ID 只供名称匹配，实际关联继续引用对象。
+        val bookIds = bookRows.withIndex().associate { (index, row) -> row to index + 1L }
+        val parents = mLinks.filter { relation -> relation.field == "lorebookId" }
+            .associate { relation -> relation.child to relation.parent }
+        val books = bookRows.map { row ->
+            mRowGson.fromJson(row.toString(), Lorebook::class.java).copy(id = bookIds.getValue(row))
+        }
+        val entries = entryRows.map { row ->
+            mRowGson.fromJson(row.toString(), LorebookEntry::class.java)
+                .copy(lorebookId = parents[row]?.let(bookIds::get) ?: 0L)
+        }
+        val matcher = StoryArchiveMatcher(entries = entries, lorebooks = books)
+        val selected = mutableSetOf<JSONObject>()
+        hints.forEach { hint ->
+            val match = matcher.matchLorebookEntry(hint)
+            val index = entries.indexOfFirst { candidate -> candidate === match }
+            if (index < 0) {
+                mReport.warn("${rel(file)}: story lorebook hint could not be matched uniquely; relation skipped")
+                return@forEach
+            }
+            val entry = entryRows[index]
+            if (!selected.add(entry)) return@forEach
+            val relation = entityRow(StoryLorebookEntry(storyId = 0L, lorebookEntryId = 0L))
+            link(relation, "storyId", story)
+            link(relation, "lorebookEntryId", entry)
+            add("story_lorebook_entries", relation)
         }
     }
 
@@ -1041,139 +1149,179 @@ internal class BackupV3Reader(
         return this?.get(name)?.takeIf { it.isJsonPrimitive }?.asLong
     }
 
-    /** 按 JSONL 对象顺序提取 sidecar，使其与功能编解码器产出的消息对齐。 */
-    private fun readJsonObjects(text: String): List<JsonObject> {
-        val result = mutableListOf<JsonObject>()
-        val reader = JsonReader(text.reader()).apply { strictness = Strictness.LENIENT }
-        while (reader.peek() != JsonToken.END_DOCUMENT) {
-            result.add(JsonParser.parseReader(reader).asJsonObject)
-        }
-        return result
-    }
-
-    /** 与 ChatArchiveCodec 解码消息的取舍一致，用来让附加键与解码后的消息一一对应。 */
-    private fun isDecodedMessage(json: JsonObject): Boolean {
-        val content = json.get("mes")
-        if (content == null || !content.isJsonPrimitive || !content.asJsonPrimitive.isString) return false
-        val extraType = json.getAsJsonObject("extra")?.get("type")
-            ?.takeIf { it.isJsonPrimitive }?.asString
-        if (extraType.equals("narrator", ignoreCase = true)) return true
-        fun flag(name: String): Boolean {
-            val value = json.get(name)
-            return value != null && value.isJsonPrimitive && value.asJsonPrimitive.isBoolean && value.asBoolean
-        }
-        if (flag("is_user")) return true
-        return !flag("is_system")
-    }
-
-    /** 还原单聊和摘要关系，消息读取完毕后统一解析已有附件的来源 ID。 */
+    /** 还原单聊，以文档里的图片内容重建关系，不再使用旧单聊图片表作为正文来源。 */
     private fun readChats() {
+        prepareChatImages()
         files("chats", ".jsonl").forEach { file ->
             at(file) {
-                val text = file.readText(Charsets.UTF_8)
-                // 先复用单聊解码，再按相同消息过滤规则提取附加来源 ID。
-                val archive: ChatArchive = mChatCodec.decode(text, file.nameWithoutExtension)
-                val objects = readJsonObjects(text)
-                val headerSide = objects.firstOrNull()?.getAsJsonObject(BackupV3.SIDECAR)
-                val messageSides = objects.drop(1).filter { isDecodedMessage(it) }
-                    .map { it.getAsJsonObject(BackupV3.SIDECAR) }
-                if (messageSides.size != archive.messages.size) {
-                    mReport.warn("${rel(file)}: message count differs from decoded messages; message ids are reassigned")
-                }
-                val sessionSide = headerSide?.getAsJsonObject("session")
-                val sessionRow = JSONObject()
-                    .put("createTime", archive.createTime)
-                    .put("latestTime", archive.latestTime)
-                    .put("lorebookEntrySet", archive.lorebookEntrySet)
-                    .put("title", archive.title)
-                    .put("userNote", archive.userNote)
-                    .put("userName", archive.userName)
-                    .put("userDescription", archive.userDescription)
-                    .put("worldInfoStateJson", archive.worldInfoStateJson)
-                    .put("autoSummaryPaused", archive.autoSummaryPaused)
-                    .put("includeCharacterExamples", archive.includeCharacterExamples)
-                archive.creatorNotes?.let { sessionRow.put("creatorNotes", it) }
-                sessionSide.longValue("id")?.takeIf { it > 0L }?.let { sessionRow.put("id", it) }
-                // 角色匹配沿用当前规则；已登记的对象关联在统一分配主键后回填。
-                val sourceCharacterId = sessionSide.longValue("characterId")
-                val sourceCharacterRows =
-                    sourceCharacterId?.let { mOriginalCharacterRows[it] }.orEmpty()
-                val characterRow = sourceCharacterRows.singleOrNull()
-                    ?: mCharacters.singleOrNull { it.optString("name") == archive.characterNameHint }
-                if (characterRow == null) {
-                    mReport.warn(
-                        "${rel(file)}: chat skipped because no unambiguous character match was restored. " +
-                            "Restore the character or import this chat separately using the existing chat import flow."
+                val archive = file.bufferedReader(Charsets.UTF_8).use { reader ->
+                    mChatCodec.decode(
+                        reader = reader,
+                        fallbackTitle = file.nameWithoutExtension,
+                        transformImage = mImageStore::stage
                     )
+                }
+                val metadata = BackupChatMetadataReader.read(file)
+                val character = resolveChatCharacter(archive, metadata.headerSide)
+                if (character == null) {
+                    mReport.warn("${rel(file)}: chat skipped because its character reference is missing or ambiguous")
                     return@at
                 }
-                link(sessionRow, "characterId", characterRow)
-                add("chat_sessions", sessionRow)
-
-                // 普通消息先建立来源索引，摘要覆盖边界才能定位到本次恢复对象。
-                val messageRowsBySourceId = mutableMapOf<Long, MutableList<JSONObject>>()
-                val messageRows = archive.messages.mapIndexed { index, message ->
-                    val row = JSONObject()
-                        .put("createTime", message.createTime)
-                        .put("source", sourceOf(message.role))
-                        .put("content", message.content)
-                    messageSides.getOrNull(index).longValue("id")?.takeIf { it > 0L }?.let {
-                        row.put("id", it)
-                        messageRowsBySourceId.getOrPut(it) { mutableListOf() }.add(row)
-                        mOriginalMessageRows.getOrPut(it) { mutableListOf() }.add(row)
-                    }
-                    link(row, "sessionId", sessionRow)
-                    add("chat_messages", row)
-                    row
-                }
-                archive.summary?.let { summary ->
-                    val row = JSONObject()
-                        .put("createTime", summary.createTime)
-                        .put("source", "Summary")
-                        .put("content", summary.content)
-                    headerSide.longValue("summaryId")?.takeIf { it > 0L }?.let { row.put("id", it) }
-                    val covered = messageRows.getOrNull(summary.coveredMessageIndex)
-                    if (covered != null) link(
-                        row,
-                        "coveredMessageId",
-                        covered
-                    ) else row.put("coveredMessageId", 0L)
-                    link(row, "sessionId", sessionRow)
-                    add("chat_messages", row)
-                }
-                headerSide?.getAsJsonArray("olderSummaries")?.forEach { element ->
-                    val row = JSONObject(element.toString())
-                    val sourceCoveredId = row.optLong("coveredMessageId", 0L)
-                    if (sourceCoveredId > 0L) {
-                        val coveredRows = messageRowsBySourceId[sourceCoveredId].orEmpty()
-                        if (coveredRows.size == 1) {
-                            link(row, "coveredMessageId", coveredRows.single())
-                        } else {
-                            // 丢失或歧义的覆盖边界不能保留旧 ID，避免误指向其他恢复消息。
-                            row.put("coveredMessageId", 0L)
-                            mReport.warn(
-                                "${rel(file)}: older summary references message $sourceCoveredId that is ambiguous or missing; coverage was cleared"
-                            )
-                        }
-                    }
-                    link(row, "sessionId", sessionRow)
-                    add("chat_messages", row)
-                }
+                // 本地标识只用于重建关联，正文和图片均已从菜单协议解码。
+                val session = restoreChatSession(archive, metadata.headerSide)
+                link(session, "characterId", character)
+                add("chat_sessions", session)
+                val messages = restoreChatMessages(file, archive, session, metadata.messageSides)
+                restoreChatSummaries(file, archive, session, messages, metadata.headerSide)
             }
         }
-        // 全部聊天读完后再解析附件来源 ID，将跨文件的重复来源视为歧义，避免后读覆盖前读。
-        val imageRelations = mTables["message_images"] ?: return
-        imageRelations.toList().forEach { relation ->
-            if (relation.optString("messageType") == "single") {
-                val sourceId = relation.optLong("messageId", 0L)
-                val messageRow = mOriginalMessageRows[sourceId].orEmpty().singleOrNull()
-                if (messageRow != null) {
-                    link(relation, "messageId", messageRow)
-                } else {
-                    mReport.warn("message_images references missing or ambiguous message $sourceId; relation was removed")
-                    imageRelations.remove(relation)
-                }
+    }
+
+    /** 保存旧图片索引供稳定 UUID 复用；实际单聊关系全部由文档重新建立。 */
+    private fun prepareChatImages() {
+        val relations = mTables["message_images"].orEmpty()
+        val original = relations.filter { row -> row.optString("messageType") == "single" }
+        mOriginalSingleImages.putAll(original.groupBy { row -> row.optLong("messageId") })
+        mTables["message_images"]?.removeAll(original.toSet())
+        // 群聊索引继续保留，单聊不能抢占其他关系拥有的文件 UUID。
+        mUsedImageUuids.addAll(
+            mTables["message_images"].orEmpty().map { row -> row.optString("imageUuid") })
+        mFilesByUuid.putAll(mTables["files"].orEmpty().associateBy { row -> row.optString("uuid") })
+    }
+
+    /** 明确来源 ID 缺失或歧义时不能改绑；无来源 ID 的新增文档才使用菜单匹配规则。 */
+    private fun resolveChatCharacter(archive: ChatArchive, header: JsonObject?): JSONObject? {
+        val session = header?.getAsJsonObject("session")
+        if (session?.has("characterId") == true) {
+            val sourceId = session.longValue("characterId")
+            return sourceId?.let { mOriginalCharacterRows[it] }.orEmpty().singleOrNull()
+        }
+        // 临时 ID 只定位候选位置，不参与指纹或最终数据库关系。
+        val candidates = mCharacters.mapIndexed { index, row ->
+            mRowGson.fromJson(row.toString(), Character::class.java).copy(id = index + 1L)
+        }
+        val suggested = ChatCharacterMatcher.suggestCharacterId(archive, candidates) ?: return null
+        return mCharacters[(suggested - 1L).toInt()]
+    }
+
+    /** 还原会话设置，仅从附加信息读取本地主键。 */
+    private fun restoreChatSession(archive: ChatArchive, header: JsonObject?): JSONObject {
+        val row = JSONObject()
+            .put("createTime", archive.createTime)
+            .put("latestTime", archive.latestTime)
+            .put("lorebookEntrySet", archive.lorebookEntrySet)
+            .put("title", archive.title)
+            .put("userNote", archive.userNote)
+            .put("userName", archive.userName)
+            .put("userDescription", archive.userDescription)
+            .put("worldInfoStateJson", archive.worldInfoStateJson)
+            .put("autoSummaryPaused", archive.autoSummaryPaused)
+            .put("includeCharacterExamples", archive.includeCharacterExamples)
+        // 可空作者备注缺省时继续继承角色卡，不写入字符串形式的 null。
+        archive.creatorNotes?.let { row.put("creatorNotes", it) }
+        header?.getAsJsonObject("session").longValue("id")?.takeIf { it > 0L }
+            ?.let { row.put("id", it) }
+        return row
+    }
+
+    /** 按文档顺序还原普通消息，并将图片关联到尚未分配最终主键的消息对象。 */
+    private fun restoreChatMessages(
+        file: File,
+        archive: ChatArchive,
+        session: JSONObject,
+        sides: List<JsonObject?>
+    ): List<JSONObject> {
+        check(sides.size == archive.messages.size) { "Message metadata does not match decoded messages" }
+        return archive.messages.mapIndexed { index, message ->
+            val row = JSONObject()
+                .put("createTime", message.createTime)
+                .put("source", sourceOf(message.role))
+                .put("content", message.content)
+            sides[index].longValue("id")?.takeIf { it > 0L }?.let { row.put("id", it) }
+            // 关系引用对象，复制文档造成的主键重分配不会错绑图片。
+            link(row, "sessionId", session)
+            add("chat_messages", row)
+            restoreChatImages(file, message, row)
+            row
+        }
+    }
+
+    /** 图片内容以 JSONL 为准；未修改的原始关系尽量复用文件索引，避免反复恢复产生新索引。 */
+    private fun restoreChatImages(file: File, message: ChatArchiveMessage, row: JSONObject) {
+        val originals = mOriginalSingleImages[row.optLong("id", 0L)].orEmpty()
+        message.images.forEachIndexed { position, image ->
+            val restored = mImageStore.restoredFile(mImageStore.stage(image))
+            if (restored == null) {
+                mReport.warn("${rel(file)}: an image has no local bytes and was skipped")
+                return@forEachIndexed
             }
+            // 同消息、同位置、同内容才复用；重复文件仍必须各自持有独立 UUID。
+            val original = originals.singleOrNull { relation ->
+                relation.optInt("position") == position
+                    && mFilesByUuid[relation.optString("imageUuid")]?.optString("hash") == restored.hash
+            }
+            val reusedUuid = original?.optString("imageUuid")?.takeIf(mUsedImageUuids::add)
+            val uuid = reusedUuid ?: restored.uuid.also { newUuid ->
+                val fileRow = entityRow(restored)
+                add("files", fileRow)
+                mFilesByUuid[newUuid] = fileRow
+                mUsedImageUuids.add(newUuid)
+            }
+            mFilesByUuid.getValue(uuid).put("mimeType", restored.mimeType)
+            val relation = JSONObject().put("messageType", "single")
+                .put("position", position).put("imageUuid", uuid)
+            link(relation, "messageId", row)
+            add("message_images", relation)
+        }
+    }
+
+    /** 还原最新与历史摘要，将覆盖边界限定为当前会话中唯一的来源消息。 */
+    private fun restoreChatSummaries(
+        file: File,
+        archive: ChatArchive,
+        session: JSONObject,
+        messages: List<JSONObject>,
+        header: JsonObject?
+    ) {
+        archive.summary?.let { summary ->
+            val row = JSONObject().put("createTime", summary.createTime)
+                .put("source", "Summary").put("content", summary.content)
+            header.longValue("summaryId")?.takeIf { it > 0L }?.let { row.put("id", it) }
+            val covered = messages.getOrNull(summary.coveredMessageIndex)
+            if (covered == null) row.put("coveredMessageId", 0L)
+            else link(row, "coveredMessageId", covered)
+            link(row, "sessionId", session)
+            add("chat_messages", row)
+        }
+        // 较早摘要保留原有快照，但不能把缺失或歧义的来源 ID 留给新数据库复用。
+        val bySourceId =
+            messages.filter { row -> row.has("id") }.groupBy { row -> row.getLong("id") }
+        header?.getAsJsonArray("olderSummaries")?.forEach { element ->
+            val row = JSONObject(element.toString())
+            val sourceId = row.optLong("coveredMessageId", 0L)
+            val covered = bySourceId[sourceId].orEmpty().singleOrNull()
+            if (covered != null) link(row, "coveredMessageId", covered)
+            else {
+                row.put("coveredMessageId", 0L)
+                if (sourceId > 0L) mReport.warn("${rel(file)}: older summary coverage was missing or ambiguous and was cleared")
+            }
+            link(row, "sessionId", session)
+            add("chat_messages", row)
+        }
+    }
+
+    /** 群聊图片没有消息侧外键，必须显式解析来源并移除缺失或歧义关系。 */
+    private fun resolveGroupImages() {
+        val relations = mTables["message_images"] ?: return
+        relations.toList().forEach { relation ->
+            if (relation.optString("messageType") != "group") return@forEach
+            val sourceId = relation.optLong("messageId", 0L)
+            val message = mOriginalGroupMessageRows[sourceId].orEmpty().singleOrNull()
+            // 只登记唯一来源，避免删除群聊后遗留关系附着到复用相同数字的新消息。
+            if (message == null) {
+                relations.remove(relation)
+                mReport.warn("message_images: missing or ambiguous group message $sourceId; relation removed")
+            } else link(relation, "messageId", message)
         }
     }
 
