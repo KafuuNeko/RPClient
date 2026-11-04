@@ -146,4 +146,5 @@ When reporting compatibility issues, include sanitized character cards, lorebook
 ## Contact
 
 - GitHub: [KafuuNeko/RPClient](https://github.com/KafuuNeko/RPClient)
+- Discord: [Join the community](https://discord.gg/EqY7AhvNh)
 - Email: kafuuneko@gmail.com

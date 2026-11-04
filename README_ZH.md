@@ -145,4 +145,5 @@ API Key 仅保存在应用本地，但会随模型请求发送给所配置的服
 ## 联系方式
 
 - GitHub：[KafuuNeko/RPClient](https://github.com/KafuuNeko/RPClient)
+- Discord：[加入社区](https://discord.gg/EqY7AhvNh)
 - Email：kafuuneko@gmail.com
