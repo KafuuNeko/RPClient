@@ -37,6 +37,39 @@ class CharacterCardArchiveReaderTest {
         assertCacheEmpty()
     }
 
+    /** 同包的清单、世界书和普通配置不会变成角色，旧版名称别名仍可导入。 */
+    @Test
+    fun metadataAndWorldbooksCannotBecomeCharacters() = runBlocking {
+        val result = read(
+            zip(
+                "manifest.json" to """{"version":3}""",
+                "book.json" to """{"name":"Book","description":"Lore","entries":{}}""",
+                "package.json" to """{"name":"Bundle","version":"1","description":"Metadata"}""",
+                "short.json" to """{"name":"Iris","description":"Character"}""",
+                "settings.json" to """{"data":{"theme":"dark"}}""",
+                "legacy.json" to """{"char_name":"Alice","char_greeting":"Hello"}""",
+                "modern.json" to card("Bob")
+            )
+        )
+        assertEquals(listOf("Iris", "Alice", "Bob"), result.drafts.map { it.card.character.name })
+        assertEquals(4, result.failureCount)
+        assertCacheEmpty()
+    }
+
+    /** 选错入口时，完整备份即使先遇到有效角色也不会返回可保存的草稿。 */
+    @Test
+    fun fullBackupIsRejectedRegardlessOfManifestOrder() = runBlocking {
+        val result = read(
+            zip(
+                "characters/Alice.json" to card("Alice"),
+                "manifest.json" to """{"format":"rpclient-portable-data","version":3}"""
+            )
+        )
+        assertTrue(result.drafts.isEmpty())
+        assertEquals(1, result.failureCount)
+        assertCacheEmpty()
+    }
+
     /** 多字节正文按字节限制；伪造较小的 ZIP 声明大小也不能绕过实际读取上限。 */
     @Test
     fun oversizedEntryIsSkippedEvenWhenDeclaredSizeIsForged() = runBlocking {

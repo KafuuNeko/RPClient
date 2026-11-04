@@ -6,6 +6,7 @@ import android.net.Uri
 import com.google.gson.Gson
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.PushbackInputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
@@ -20,6 +21,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
+import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -160,10 +162,15 @@ class CharacterCardRepository(
     suspend fun exportJson(characterId: Long): String = withContext(Dispatchers.IO) {
         val character =
             mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
+        encodeCharacter(character)
+    }
+
+    /** JSON 与 ZIP 从同一角色快照生成正文，确保文件名与角色名一致。 */
+    private suspend fun encodeCharacter(character: Character): String {
         val regexScripts = mRegexRepository.getScripts(
-            target = RegexScriptTarget(RegexScriptScope.Character, characterId),
+            target = RegexScriptTarget(RegexScriptScope.Character, character.id),
         )
-        mMapper.toV2Json(
+        return mMapper.toV2Json(
             character = character,
             lorebook = character.characterLorebookId.takeIf { id -> id != 0L }
                 ?.let { id -> mLorebookRepository.getLorebookById(id) },
@@ -188,35 +195,61 @@ class CharacterCardRepository(
      */
     suspend fun exportJsonArchiveToUri(characterIds: List<Long>, uri: Uri) =
         withContext(Dispatchers.IO) {
-            // 去重后再打开目标文件，避免空选择产生无效归档。
             val ids = characterIds.distinct()
+            val limits = CharacterCardArchiveLimits()
             require(ids.isNotEmpty()) { "No characters selected" }
-            val output = mContext.contentResolver.openOutputStream(uri)
-                ?: error("Cannot open character archive destination")
-            output.buffered().use { buffered ->
-                ZipOutputStream(buffered).use { zip ->
-                    // 名称按忽略大小写去重，兼容对文件名大小写不敏感的解压工具。
-                    val usedNames = mutableSetOf<String>()
-                    ids.forEach { characterId ->
-                        currentCoroutineContext().ensureActive()
-                        val character = mCharacterRepository.getCharacterById(characterId)
-                            ?: error("Character not found: $characterId")
-                        val json = exportJson(characterId)
-                        val baseName = safeArchiveEntryName(character.name, characterId)
-                        var entryName = "$baseName.json"
-                        var suffix = 2
-                        while (!usedNames.add(entryName.lowercase(Locale.ROOT))) {
-                            entryName = "$baseName-$characterId-$suffix.json"
-                            suffix++
-                        }
-                        zip.putNextEntry(ZipEntry(entryName))
-                        zip.write(json.toByteArray(Charsets.UTF_8))
-                        zip.closeEntry()
-                    }
-                    zip.finish()
+            if (ids.size > limits.entries) throw CharacterArchiveExportLimitException()
+
+            // 先封包并计量，避免发现后续卡片超限时目标文件已有部分内容。
+            val archive =
+                File.createTempFile("rpclient-character-export-", ".zip", mContext.cacheDir)
+            try {
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    writeArchiveCards(ids, zip, limits)
                 }
+                if (archive.length() > limits.archiveBytes) throw CharacterArchiveExportLimitException()
+                currentCoroutineContext().ensureActive()
+                val output = mContext.contentResolver.openOutputStream(uri, "wt")
+                    ?: error("Cannot open character archive destination")
+                output.use { target -> archive.inputStream().use { it.copyTo(target) } }
+                Unit
+            } finally {
+                archive.delete()
             }
         }
+
+    /** 以与导入相同的 UTF-8 字节预算写卡，条目名按忽略大小写去重。 */
+    private suspend fun writeArchiveCards(
+        ids: List<Long>,
+        zip: ZipOutputStream,
+        limits: CharacterCardArchiveLimits
+    ) {
+        val usedNames = mutableSetOf<String>()
+        var totalBytes = 0L
+        for (id in ids) {
+            currentCoroutineContext().ensureActive()
+            val character =
+                mCharacterRepository.getCharacterById(id) ?: error("Character not found")
+            val json = encodeCharacter(character)
+            if (json.length > limits.entryBytes) throw CharacterArchiveExportLimitException()
+            val bytes = json.toByteArray(Charsets.UTF_8)
+            totalBytes += bytes.size
+            if (bytes.size > limits.entryBytes || totalBytes > limits.totalJsonBytes) {
+                throw CharacterArchiveExportLimitException()
+            }
+            // 同名角色仍分别占用独立条目，文件名变化不会修改角色本身。
+            val baseName = safeArchiveEntryName(character.name, id)
+            var entryName = "$baseName.json"
+            var suffix = 2
+            while (!usedNames.add(entryName.lowercase(Locale.ROOT))) {
+                entryName = "$baseName-$id-$suffix.json"
+                suffix++
+            }
+            zip.putNextEntry(ZipEntry(entryName))
+            zip.write(bytes)
+            zip.closeEntry()
+        }
+    }
 
     /** 清理路径分隔符与文件系统保留字符，生成受长度约束的 ZIP 条目名称。 */
     private fun safeArchiveEntryName(name: String, characterId: Long): String {

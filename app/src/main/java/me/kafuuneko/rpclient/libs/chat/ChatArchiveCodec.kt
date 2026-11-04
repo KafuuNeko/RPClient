@@ -56,8 +56,9 @@ class ChatArchiveCodec(
         message: ChatArchiveMessage,
         writer: Writer,
         writtenHashes: MutableSet<String> = mutableSetOf(),
+        addFields: JsonObject.() -> Unit = {},
     ) {
-        writeJsonLine(buildMessage(archive, message, writtenHashes), writer)
+        writeJsonLine(buildMessage(archive, message, writtenHashes).apply(addFields), writer)
     }
 
     /** 分段写出含图消息；图片字节由仓库在文件读取保护范围内编码。 */
@@ -65,9 +66,10 @@ class ChatArchiveCodec(
         archive: ChatArchive,
         message: ChatArchiveMessage,
         writer: Writer,
+        addFields: JsonObject.() -> Unit = {},
         writeImages: suspend () -> Unit,
     ) {
-        val json = buildMessage(archive, message.copy(images = emptyList()))
+        val json = buildMessage(archive, message.copy(images = emptyList())).apply(addFields)
         val extra = json.remove(KEY_EXTRA).asJsonObject
         // 保留旁白等原有 extra 字段，仅将图片数组交给文件仓库分段写入。
         writer.write(json.toString().dropLast(1))
@@ -112,9 +114,34 @@ class ChatArchiveCodec(
         fallbackUserName: String = DefaultNames.USER,
         transformImage: (ChatArchiveImage) -> ChatArchiveImage = { it },
     ): ChatArchive {
+        val messages = mutableListOf<ChatArchiveMessage>()
+        val archive = decodeTo(
+            reader = reader, fallbackTitle = fallbackTitle, fallbackTime = fallbackTime,
+            fallbackUserName = fallbackUserName, maxMessageCount = MAX_MESSAGE_COUNT,
+            transformImage = transformImage,
+            onMessage = { message, _ -> messages.add(message) }
+        )
+        return archive.copy(messages = messages)
+    }
+
+    /**
+     * 逐条交付消息与对应的原始字段，返回只含会话设置和摘要的归档头。
+     * - 单聊菜单按对象数限制输入；完整备份由解包阶段限制总字节，并直接消费数据库行。
+     * - 角色过滤、时间归一化和摘要边界共用同一轮解析，备份附加字段不会与消息错位。
+     */
+    internal fun decodeTo(
+        reader: Reader,
+        fallbackTitle: String,
+        transformImage: (ChatArchiveImage) -> ChatArchiveImage,
+        fallbackTime: Long = System.currentTimeMillis(),
+        fallbackUserName: String = DefaultNames.USER,
+        maxMessageCount: Int?,
+        onHeader: (JsonObject) -> Unit = {},
+        onMessage: (ChatArchiveMessage, JsonObject) -> Unit,
+    ): ChatArchive {
         // 对外保持归档格式错误类型稳定；协程取消必须继续交给资源所有者处理。
         val parsed = try {
-            parseLines(reader, fallbackTime, transformImage)
+            parseLines(reader, fallbackTime, transformImage, maxMessageCount, onMessage)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: IllegalArgumentException) {
@@ -123,31 +150,28 @@ class ChatArchiveCodec(
             throw IllegalArgumentException("Invalid chat archive JSON", error)
         }
         val header = parsed.header
-        require(header.isChatHeader()) { "Chat archive header is missing" }
+        onHeader(header)
         val metadata = header.objectOrNull(KEY_CHAT_METADATA)
         val rpclient = metadata
             ?.objectOrNull(KEY_RPCLIENT)
             ?.supportedMetadataOrNull()
-        val decodedMessages = parsed.messages.normalizeTimes()
 
         val customCreateTime = rpclient?.longOrNull(KEY_CREATE_TIME)
         val createTime = customCreateTime
-            ?: decodedMessages.firstOrNull()?.message?.createTime
+            ?: parsed.firstTime
             ?: fallbackTime
         val customLatestTime = rpclient?.longOrNull(KEY_LATEST_TIME)
         val latestTime = customLatestTime
-            ?: decodedMessages.lastOrNull()?.message?.createTime
+            ?: parsed.lastTime
             ?: createTime
         val characterObject = rpclient?.objectOrNull(KEY_CHARACTER)
         val characterNameHint = characterObject?.stringOrNull(KEY_NAME)
             .takeUnlessUnused()
             ?: header.stringOrNull(KEY_CHARACTER_NAME).takeUnlessUnused()
-            ?: decodedMessages.characterNameHint()
+            ?: parsed.characterNames.maxByOrNull { it.value }?.key
         val userName = rpclient?.stringOrNull(KEY_USER_NAME)
             .takeUnlessUnused()
-            ?: decodedMessages.firstOrNull { it.message.role == ChatArchiveMessageRole.User }
-                ?.speakerName
-                .takeUnlessUnused()
+            ?: parsed.firstUserName.takeUnlessUnused()
             ?: header.stringOrNull(KEY_USER_NAME).takeUnlessUnused()
             ?: fallbackUserName.normalizedUserName()
 
@@ -158,7 +182,7 @@ class ChatArchiveCodec(
             createTime = createTime,
             latestTime = maxOf(
                 latestTime,
-                decodedMessages.lastOrNull()?.message?.createTime ?: createTime
+                parsed.lastTime ?: createTime
             ),
             userName = userName,
             userDescription = rpclient?.stringOrNull(KEY_USER_DESCRIPTION).orEmpty(),
@@ -171,11 +195,11 @@ class ChatArchiveCodec(
                 ?: true,
             characterNameHint = characterNameHint.orEmpty(),
             characterFingerprint = characterObject?.stringOrNull(KEY_FINGERPRINT),
-            messages = decodedMessages.map { it.message },
+            messages = emptyList(),
             summary = rpclient
                 ?.objectOrNull(KEY_SUMMARY)
                 ?.toSummary(createTime)
-                ?.takeIf { summary -> summary.hasValidBoundary(decodedMessages.size) },
+                ?.takeIf { summary -> summary.hasValidBoundary(parsed.messageCount) },
         )
     }
 
@@ -264,35 +288,30 @@ class ChatArchiveCodec(
         reader: Reader,
         fallbackTime: Long,
         transformImage: (ChatArchiveImage) -> ChatArchiveImage,
+        maxMessageCount: Int?,
+        onMessage: (ChatArchiveMessage, JsonObject) -> Unit,
     ): ParsedArchiveLines {
-        var header: JsonObject? = null
-        val messages = mutableListOf<DecodedMessage>()
-        var messageObjectCount = 0
-        val resolver = ChatArchiveImageCodec.Resolver(transformImage)
-        // Gson 按对象消费字符流，避免 readLine 先复制整条含图消息。
         val input = JsonReader(reader.buffered()).apply { strictness = Strictness.LENIENT }
+        require(input.peek() != JsonToken.END_DOCUMENT) { "Chat archive is empty" }
+        val header = JsonParser.parseReader(input).asJsonObject
+        require(header.isChatHeader()) { "Chat archive header is missing" }
+        val parsed = ParsedArchiveLines(header)
+        val resolver = ChatArchiveImageCodec.Resolver(transformImage)
+        var objectCount = 0
+        // 只保留推断会话默认值所需的统计量；正文、图片和来源 ID 在同一回调交付。
         while (input.peek() != JsonToken.END_DOCUMENT) {
-            if (header == null) {
-                header = JsonParser.parseReader(input).asJsonObject
-                continue
-            }
-            require(messageObjectCount < MAX_MESSAGE_COUNT) { "Chat archive has too many messages" }
+            require(maxMessageCount == null || objectCount < maxMessageCount) { "Chat archive has too many messages" }
             val (json, images) = readMessage(input, resolver::resolve)
-            decodeMessage(json, fallbackTime + messageObjectCount)?.let { decoded ->
-                messages.add(
-                    element = decoded.copy(
-                        message = decoded.message.copy(
-                            images = images ?: decoded.message.images.map(resolver::resolve),
-                        ),
-                    ),
-                )
-            }
-            messageObjectCount += 1
+            val messageTime = fallbackTime + objectCount
+            objectCount++
+            val decoded = decodeMessage(json, messageTime) ?: continue
+            val time = parsed.record(decoded)
+            val message = decoded.message.copy(
+                createTime = time, images = images ?: decoded.message.images.map(resolver::resolve)
+            )
+            onMessage(message, json)
         }
-        return ParsedArchiveLines(
-            header = requireNotNull(header) { "Chat archive is empty" },
-            messages = messages,
-        )
+        return parsed
     }
 
     /** 流式提取自有扩展图片，其他酒馆消息字段仍交给原有解码逻辑。 */
@@ -351,33 +370,6 @@ class ChatArchiveCodec(
             ),
             speakerName = json.stringOrNull(KEY_NAME).orEmpty(),
         )
-    }
-
-    private fun List<DecodedMessage>.normalizeTimes(): List<DecodedMessage> {
-        var previousTime = Long.MIN_VALUE
-        return map { decoded ->
-            val normalizedTime = if (decoded.message.createTime > previousTime) {
-                decoded.message.createTime
-            } else {
-                require(previousTime < Long.MAX_VALUE) {
-                    "Chat archive message timestamps cannot be normalized"
-                }
-                previousTime + 1L
-            }
-            previousTime = normalizedTime
-            decoded.copy(message = decoded.message.copy(createTime = normalizedTime))
-        }
-    }
-
-    private fun List<DecodedMessage>.characterNameHint(): String? {
-        return asSequence()
-            .filter { it.message.role == ChatArchiveMessageRole.Character }
-            .map { it.speakerName.trim() }
-            .filter { it.isNotBlank() && !it.equals(other = UNUSED_NAME, ignoreCase = true) }
-            .groupingBy { it }
-            .eachCount()
-            .maxByOrNull { it.value }
-            ?.key
     }
 
     private fun JsonObject.isChatHeader(): Boolean {
@@ -495,10 +487,41 @@ class ChatArchiveCodec(
         val speakerName: String
     )
 
-    private data class ParsedArchiveLines(
-        val header: JsonObject,
-        val messages: List<DecodedMessage>
-    )
+    /** 从已接收消息推断酒馆头部缺省值，名称计数保持首次出现的顺序。 */
+    private class ParsedArchiveLines(val header: JsonObject) {
+        var messageCount = 0
+        var firstTime: Long? = null
+        var lastTime: Long? = null
+        var firstUserName: String? = null
+        val characterNames = mutableMapOf<String, Int>()
+
+        /** 归一化消息时间，并更新角色与用户名称候选。 */
+        fun record(decoded: DecodedMessage): Long {
+            val previous = lastTime ?: Long.MIN_VALUE
+            val time = if (decoded.message.createTime > previous) decoded.message.createTime else {
+                require(previous < Long.MAX_VALUE) { "Chat archive message timestamps cannot be normalized" }
+                previous + 1L
+            }
+            if (firstTime == null) firstTime = time
+            lastTime = time
+            messageCount++
+            // 第一个用户的空名称也占位，保持旧文件的身份回退顺序。
+            when (decoded.message.role) {
+                ChatArchiveMessageRole.User -> if (firstUserName == null) firstUserName =
+                    decoded.speakerName
+
+                ChatArchiveMessageRole.Character -> {
+                    val name = decoded.speakerName.trim()
+                    if (name.isNotBlank() && !name.equals(UNUSED_NAME, ignoreCase = true)) {
+                        characterNames[name] = (characterNames[name] ?: 0) + 1
+                    }
+                }
+
+                ChatArchiveMessageRole.Narrator -> Unit
+            }
+            return time
+        }
+    }
 
     private companion object {
         const val SCHEMA_VERSION = 1

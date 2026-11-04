@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.Base64
 import java.util.UUID
 import java.util.zip.ZipEntry
@@ -96,6 +97,46 @@ class PortableBackupRecoveryTest {
         mLogs.close()
         mRoot.deleteRecursively()
         Unit
+    }
+
+    /** 即使所有本地条目还能解压，缺失中央目录的备份也必须在替换前失败。 */
+    @Test
+    fun truncatedBackupLeavesLiveDataIntact() = runBlocking {
+        val archive = File(mRoot, "truncated.zip")
+        repository().exportArchive(Uri.fromFile(archive))
+        mPrimary.getCharacterDao().insertOrReplace(character())
+        RandomAccessFile(archive, "rw").use { file ->
+            // 普通导出没有 ZIP 注释，移除目录结束记录即可模拟尾部传输中断。
+            file.setLength(file.length() - 22)
+        }
+
+        val result = runCatching { repository().restoreArchive(Uri.fromFile(archive)) }
+        assertTrue(result.isFailure)
+        assertEquals("Alice", mPrimary.getCharacterDao().getCharacterById(5L)?.name)
+    }
+
+    /** 完整备份的长会话可往返，覆盖超过单聊菜单导入上限的最后一条消息。 */
+    @Test
+    fun largeChatRoundTripsBeyondStandaloneImportLimit() = runBlocking {
+        mPrimary.getCharacterDao().insertOrReplace(character())
+        seedChat()
+        val db = mPrimary.openHelper.writableDatabase
+        db.execSQL(
+            """WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n + 1 FROM seq WHERE n < 100000)
+               INSERT INTO chat_messages(id, sessionId, createTime, source, content)
+               SELECT n + 20, 15, n + 20, 'User', 'Message ' || n FROM seq"""
+        )
+        val archive = File(mRoot, "long-chat.zip")
+        repository().exportArchive(Uri.fromFile(archive))
+        db.execSQL("DELETE FROM chat_messages")
+        // 使用用户入口还原原样导出的 ZIP，再从重新打开的库检查数量和尾条主键。
+        repository().restoreArchive(Uri.fromFile(archive))
+        openDatabases()
+        assertEquals(100001L, scalar("SELECT COUNT(*) FROM chat_messages"))
+        assertEquals(
+            100020L,
+            scalar("SELECT id FROM chat_messages WHERE content = 'Message 100000'")
+        )
     }
 
     /** 完整往返保留分类及空值，角色内嵌与独立世界书的历史字段都不能复活。 */

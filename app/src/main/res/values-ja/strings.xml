@@ -1376,6 +1376,7 @@
     <string name="character_not_selected">未選択</string>
     <string name="export_selected_characters_zip">選択したキャラクターを ZIP でエクスポート</string>
     <string name="export_character_archive_success">キャラクターの ZIP をエクスポートしました。</string>
+    <string name="export_character_archive_limit">キャラクター ZIP がインポートの上限を超えています。選択するカードを減らすか、大きなカードの内容を減らしてください。</string>
     <string name="export_character_archive_failed">キャラクターの ZIP をエクスポートできませんでした。保存されたファイルは不完全な可能性があります。</string>
     <string name="home_recent_characters">最近のキャラクター</string>
     <string name="home_recent_characters_empty">チャット、グループチャット、ストーリーに関連するキャラクターがここに表示されます。</string>

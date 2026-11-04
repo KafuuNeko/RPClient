@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
@@ -13,8 +14,16 @@ internal data class CharacterCardArchiveLimits(
     val archiveBytes: Long = 64L * 1024 * 1024,
     val entryBytes: Int = 8 * 1024 * 1024,
     val totalJsonBytes: Long = 32L * 1024 * 1024,
-    val entries: Int = 1_000
-)
+    val entries: Int = MAX_ENTRIES
+) {
+    companion object {
+        const val MAX_ENTRIES = 1_000
+    }
+}
+
+/** 导出内容超过角色 ZIP 的导入预算，宿主可提示用户拆分或缩小卡片。 */
+internal class CharacterArchiveExportLimitException :
+    Exception("Character archive exceeds import limits")
 
 /**
  * 在资源预算内解析角色 ZIP，不把条目解包到文件系统。
@@ -93,8 +102,17 @@ internal class CharacterCardArchiveReader(
                         }
                     }
                 }
+                val document = JsonParser.parseString(bytes.toString(Charsets.UTF_8)).asJsonObject
+                // 误选完整备份时不导入其中的散卡；以根清单的格式标记识别，普通同名文件不影响其他卡。
+                if (entry.name == "manifest.json" && document.get("format")?.asString in BACKUP_FORMATS) {
+                    return CharacterCardArchiveReadResult(
+                        emptyList(),
+                        failureCount = 1,
+                        totalCount = 1
+                    )
+                }
                 drafts += CharacterCardImportDraft(
-                    card = mMapper.parseCharacter(bytes.toString(Charsets.UTF_8)),
+                    card = mMapper.parseArchiveCharacter(document),
                     avatarSourceUri = null,
                     avatarMimeType = "application/json"
                 )
@@ -129,6 +147,10 @@ internal class CharacterCardArchiveReader(
     private fun isSafePath(name: String): Boolean {
         return !name.startsWith('/') && !name.startsWith('\\') &&
             !name.contains('\u0000') && name.split('/', '\\').none { it == ".." }
+    }
+
+    private companion object {
+        val BACKUP_FORMATS = setOf("rpclient-portable-data", "rpclient-backup")
     }
 
     private class ArchiveLimitException(message: String) : Exception(message)

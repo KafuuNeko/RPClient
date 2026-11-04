@@ -33,7 +33,40 @@ class CharacterCardMapper(
         characterLorebookId: Long = 0L
     ): CharacterCardImport {
         val root = JsonParser.parseString(json).asJsonObject
+        return parseCharacter(root, avatar, characterLorebookId)
+    }
+
+    /** ZIP 可能夹带清单和世界书。显式卡片格式或旧版角色字段才能作为批量导入候选。 */
+    internal fun parseArchiveCharacter(root: JsonObject): CharacterCardImport {
         val data = root.optJsonObject("data")
+        val fields = data ?: root
+        val named = fields.hasString("name") || (data == null && fields.hasString("char_name"))
+        // 明示格式优先；无格式标记时需有角色字段，另兼容仅含名称与描述的精简旧卡。
+        val recognized = if (root.has("spec")) {
+            data != null && root.optString("spec") in ARCHIVE_CARD_SPECS
+        } else {
+            val minimalCard =
+                fields.size() == 2 && fields.hasString("name") && fields.hasString("description")
+            !fields.has("entries") && (minimalCard || ARCHIVE_CHARACTER_FIELDS.any {
+                fields.hasString(
+                    it
+                )
+            })
+        }
+        require(named && recognized) { "Not a character card" }
+        return parseCharacter(root, avatar = "", characterLorebookId = 0L)
+    }
+
+    private fun JsonObject.hasString(key: String): Boolean =
+        get(key)?.let { it.isJsonPrimitive && it.asJsonPrimitive.isString } == true
+
+    private fun parseCharacter(
+        root: JsonObject,
+        avatar: String,
+        characterLorebookId: Long
+    ): CharacterCardImport {
+        val data = root.optJsonObject("data")
+        // 新版扩展内的正则另行落库，旧版根字段继续使用其历史别名。
         return if (data != null) {
             val character = data.toCharacter(avatar, characterLorebookId)
             val regexExtraction =
@@ -399,6 +432,14 @@ class CharacterCardMapper(
 
     private fun parseObjectOrEmpty(json: String): JsonObject {
         return runCatching { JsonParser.parseString(json).asJsonObject }.getOrDefault(JsonObject())
+    }
+
+    private companion object {
+        val ARCHIVE_CARD_SPECS = setOf("chara_card_v2", "chara_card_v3")
+        val ARCHIVE_CHARACTER_FIELDS = setOf(
+            "char_name", "personality", "scenario", "first_mes", "mes_example",
+            "char_persona", "world_scenario", "char_greeting", "example_dialogue"
+        )
     }
 }
 

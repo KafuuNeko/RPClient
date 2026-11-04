@@ -1375,6 +1375,7 @@
     <string name="character_not_selected">선택되지 않음</string>
     <string name="export_selected_characters_zip">선택한 캐릭터를 ZIP으로 내보내기</string>
     <string name="export_character_archive_success">캐릭터 ZIP을 내보냈습니다.</string>
+    <string name="export_character_archive_limit">캐릭터 ZIP이 가져오기 한도를 초과합니다. 선택한 카드 수를 줄이거나 큰 카드의 크기를 줄이세요.</string>
     <string name="export_character_archive_failed">캐릭터 ZIP을 내보내지 못했습니다. 저장된 파일이 불완전할 수 있습니다.</string>
     <string name="home_recent_characters">최근 캐릭터</string>
     <string name="home_recent_characters_empty">대화, 그룹 대화 또는 스토리가 있는 캐릭터가 여기에 표시됩니다.</string>

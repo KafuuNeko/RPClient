@@ -67,7 +67,23 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 系统可能重建进程，必须在启动阶段的结果回调之前恢复导出目标。
+        mPendingExportCharacterId =
+            savedInstanceState?.takeIf { it.containsKey(KEY_EXPORT_ID) }?.getLong(KEY_EXPORT_ID)
+        mPendingArchiveCharacterIds = savedInstanceState?.getLongArray(KEY_ARCHIVE_IDS)?.toList()
         mViewModel.emit(CharacterListUiIntent.Init)
+    }
+
+    /** 只保存发起选择时的标识，用户取消或交付结果后即清空。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mPendingExportCharacterId?.let { outState.putLong(KEY_EXPORT_ID, it) }
+        mPendingArchiveCharacterIds?.let {
+            outState.putLongArray(
+                KEY_ARCHIVE_IDS,
+                it.toLongArray()
+            )
+        }
     }
 
     override fun onResume() {
@@ -79,7 +95,14 @@ class CharacterListActivity : CoreActivityWithEvent() {
         when (viewEvent) {
             CharacterListViewEvent.OpenCharacterCardImporter -> {
                 mImportCharacterCardLauncher.launch(
-                    arrayOf("application/json", "text/*", "image/png", "image/*", "application/zip", "application/x-zip-compressed")
+                    arrayOf(
+                        "application/json",
+                        "text/*",
+                        "image/png",
+                        "image/*",
+                        "application/zip",
+                        "application/x-zip-compressed"
+                    )
                 )
             }
 
@@ -95,5 +118,10 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
             else -> super.onReceivedViewEvent(viewEvent)
         }
+    }
+
+    private companion object {
+        const val KEY_EXPORT_ID = "pendingExportCharacterId"
+        const val KEY_ARCHIVE_IDS = "pendingArchiveCharacterIds"
     }
 }

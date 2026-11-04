@@ -487,132 +487,155 @@ internal class BackupV3Writer(
         sessions.forEach { session ->
             val id = session.optLong("id")
             val character = characters[session.optLong("characterId")]
-            val all =
-                BackupDatabaseCodec.readRows(mDatabase, "chat_messages", "sessionId", id).objects()
-                    .sortedWith(compareBy<JSONObject> { it.optLong("createTime") }.thenBy {
-                        it.optLong(
-                            "id"
-                        )
-                    })
-            // 归档格式只承载最新摘要，较早快照保留在技术附加信息中。
-            val normal = all.filter { it.optString("source") != SOURCE_SUMMARY }
-            val summaries = all.filter { it.optString("source") == SOURCE_SUMMARY }
-            val latest = summaries.lastOrNull()
-            val coveredIndex = latest?.let { summary ->
-                val coveredId = summary.optLong("coveredMessageId")
-                if (coveredId > 0L) normal.indexOfFirst { it.optLong("id") == coveredId } else -1
-            } ?: -1
-            val archive = ChatArchive(
-                title = session.optString("title"),
-                createTime = session.optLong("createTime"),
-                latestTime = session.optLong("latestTime"),
-                userName = session.optString("userName"),
-                userDescription = session.optString("userDescription"),
-                userNote = session.optString("userNote"),
-                creatorNotes = session.textOrNull("creatorNotes"),
-                lorebookEntrySet = session.optString("lorebookEntrySet"),
-                worldInfoStateJson = session.optString("worldInfoStateJson"),
-                autoSummaryPaused = session.flag("autoSummaryPaused"),
-                includeCharacterExamples = if (session.has("includeCharacterExamples")) {
-                    session.flag("includeCharacterExamples")
-                } else {
-                    true
-                },
-                characterNameHint = character?.name.orEmpty(),
-                characterFingerprint = character?.let { ChatCharacterMatcher.fingerprintOf(it) },
-                messages = normal.map {
-                    ChatArchiveMessage(
-                        createTime = it.optLong("createTime"),
-                        role = roleOf(it.optString("source")),
-                        content = it.optString("content")
-                    )
-                },
-                summary = latest?.let {
-                    ChatArchiveSummary(
-                        content = it.optString("content"),
-                        createTime = it.optLong("createTime"),
-                        coveredMessageIndex = coveredIndex
-                    )
-                }
-            )
-            // 先写头部，再逐条附加消息来源 ID，保证 sidecar 顺序与消息一致。
-            val output = StringBuilder()
-            val headerWriter = StringWriter()
-            mChatCodec.encodeHeader(archive, headerWriter)
-            val header = JSONObject(headerWriter.toString().trimEnd())
-            val headerSide = JSONObject()
-                .put(
-                    "session",
-                    JSONObject().put("id", id).put("characterId", session.opt("characterId"))
-                )
-            if (latest != null) headerSide.put("summaryId", latest.optLong("id"))
-            headerSide.put("olderSummaries", JSONArray().apply {
-                summaries.dropLast(1).forEach { put(it) }
-            })
-            header.put(BackupV3.SIDECAR, headerSide)
-            output.append(header.toString()).append('\n')
-
-            // 同一会话内的重复图片使用已有哈希引用，避免重复写入载荷。
-            val writtenHashes = mutableSetOf<String>()
-            normal.forEachIndexed { index, messageRow ->
-                val originalId = messageRow.optLong("id")
-                val attachments = imagesByMessage[originalId].orEmpty().mapNotNull { relation ->
-                    val fileRow =
-                        fileRows[relation.optString("imageUuid")] ?: return@mapNotNull null
-                    val hash = fileRow.optString("hash")
-                    val file =
-                        File(mAttachmentDirectory, hash).takeIf { hash.isNotBlank() && it.isFile }
-                            ?: return@mapNotNull null
-                    val mimeType = fileRow.optString("mimeType")
-                        .takeIf { it.startsWith("image/", ignoreCase = true) }
-                        ?: "image/jpeg"
-                    Triple(file, hash, mimeType)
-                }
-                val message = ChatArchiveMessage(
-                    createTime = messageRow.optLong("createTime"),
-                    role = roleOf(messageRow.optString("source")),
-                    content = messageRow.optString("content"),
-                    images = attachments.map { (_, hash, mime) ->
-                        ChatArchiveImage(
-                            mimeType = mime,
-                            hash = hash
-                        )
-                    }
-                )
-                val lineWriter = StringWriter()
-                if (attachments.isEmpty()) {
-                    mChatCodec.encodeMessage(archive, message, lineWriter, writtenHashes)
-                } else {
-                    mChatCodec.encodeMessageWithImages(archive, message, lineWriter) {
-                        var first = true
-                        attachments.forEach { (file, hash, mime) ->
-                            if (!first) lineWriter.write(",")
-                            first = false
-                            if (hash in writtenHashes) {
-                                ChatArchiveImageCodec.writeImage(
-                                    ChatArchiveImage(hash = hash),
-                                    lineWriter
-                                )
-                            } else {
-                                ChatArchiveImageCodec.writeImage(
-                                    ChatArchiveImage(mimeType = mime, hash = hash),
-                                    lineWriter
-                                ) { encoded ->
-                                    file.inputStream().use { input -> input.copyTo(encoded) }
-                                }
-                                writtenHashes.add(hash)
-                            }
-                        }
-                    }
-                }
-                val json = JSONObject(lineWriter.toString().trimEnd())
-                json.put(BackupV3.SIDECAR, JSONObject().put("id", originalId))
-                output.append(json.toString()).append('\n')
+            val summaries = mDatabase.query(
+                "SELECT * FROM chat_messages WHERE sessionId = ? AND source = ? ORDER BY createTime, id",
+                arrayOf<Any>(id, SOURCE_SUMMARY)
+            ).use { cursor ->
+                buildList { while (cursor.moveToNext()) add(BackupDatabaseCodec.rowJson(cursor)) }
             }
-            writeText(docFile("chats", session.optString("title"), id, ".jsonl"), output.toString())
-            messageCount += all.size
+            val archive = chatHeader(session, character, summaries.lastOrNull())
+            val file = docFile("chats", session.optString("title"), id, ".jsonl")
+            file.parentFile?.mkdirs()
+            file.bufferedWriter().use { writer ->
+                writeChatHeader(writer, archive, session, summaries)
+                val hashes = mutableSetOf<String>()
+                // 有序游标随 CursorWindow 分段读取正文，不在内存聚合完整会话或图片。
+                mDatabase.query(
+                    "SELECT id, createTime, source, content FROM chat_messages " +
+                        "WHERE sessionId = ? AND source != ? ORDER BY createTime, id",
+                    arrayOf<Any>(id, SOURCE_SUMMARY)
+                ).use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val messageId = cursor.getLong(0)
+                        val message = ChatArchiveMessage(
+                            cursor.getLong(1),
+                            roleOf(cursor.getString(2)),
+                            cursor.getString(3)
+                        )
+                        val files = imagesByMessage[messageId].orEmpty()
+                            .mapNotNull { fileRows[it.optString("imageUuid")] }
+                        writeChatMessage(writer, archive, messageId, message, files, hashes)
+                        messageCount++
+                    }
+                }
+            }
+            messageCount += summaries.size
         }
         mReport.info("chats: ${sessions.size}, messages: $messageCount")
+    }
+
+    /** 构造酒馆会话头；历史正文由游标单独写出。 */
+    private fun chatHeader(
+        session: JSONObject,
+        character: Character?,
+        latest: JSONObject?
+    ): ChatArchive {
+        // 头部只保留会话状态和最新摘要，普通消息由同一读事务内的游标继续写出。
+        return ChatArchive(
+            title = session.optString("title"),
+            createTime = session.optLong("createTime"),
+            latestTime = session.optLong("latestTime"),
+            userName = session.optString("userName"),
+            userDescription = session.optString("userDescription"),
+            userNote = session.optString("userNote"),
+            creatorNotes = session.textOrNull("creatorNotes"),
+            lorebookEntrySet = session.optString("lorebookEntrySet"),
+            worldInfoStateJson = session.optString("worldInfoStateJson"),
+            autoSummaryPaused = session.flag("autoSummaryPaused"),
+            includeCharacterExamples = if (session.has("includeCharacterExamples")) {
+                session.flag("includeCharacterExamples")
+            } else {
+                true
+            },
+            characterNameHint = character?.name.orEmpty(),
+            characterFingerprint = character?.let { ChatCharacterMatcher.fingerprintOf(it) },
+            messages = emptyList(),
+            summary = latest?.let {
+                ChatArchiveSummary(
+                    content = it.optString("content"),
+                    createTime = it.optLong("createTime"),
+                    coveredMessageIndex = coveredMessageIndex(
+                        session.getLong("id"),
+                        it.optLong("coveredMessageId")
+                    )
+                )
+            }
+        )
+    }
+
+    /** 按与正文相同的顺序计算摘要边界；跨会话、缺失或摘要行都视作空边界。 */
+    private fun coveredMessageIndex(sessionId: Long, coveredId: Long): Int {
+        if (coveredId <= 0L) return -1
+        return mDatabase.query(
+            """SELECT (SELECT COUNT(*) FROM chat_messages m WHERE m.sessionId = b.sessionId
+                AND m.source != ? AND (m.createTime < b.createTime OR (m.createTime = b.createTime AND m.id < b.id)))
+                FROM chat_messages b WHERE b.sessionId = ? AND b.id = ? AND b.source != ?""",
+            arrayOf<Any>(SOURCE_SUMMARY, sessionId, coveredId, SOURCE_SUMMARY)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else -1 }
+    }
+
+    /** 摘要与来源标识仍保存在旧版读取器支持的头部附加字段中。 */
+    private fun writeChatHeader(
+        writer: Writer,
+        archive: ChatArchive,
+        session: JSONObject,
+        summaries: List<JSONObject>
+    ) {
+        val headerWriter = StringWriter()
+        mChatCodec.encodeHeader(archive, headerWriter)
+        val side = JSONObject().put(
+            "session",
+            JSONObject().put("id", session.getLong("id"))
+                .put("characterId", session.opt("characterId"))
+        )
+        summaries.lastOrNull()?.let { side.put("summaryId", it.getLong("id")) }
+        side.put("olderSummaries", JSONArray(summaries.dropLast(1)))
+        BackupV3.writeJsonLine(
+            JSONObject(headerWriter.toString()).put(BackupV3.SIDECAR, side),
+            writer
+        )
+    }
+
+    /** 将消息 ID 与正文一同写入；同一会话的重复图片只写哈希。 */
+    private suspend fun writeChatMessage(
+        writer: Writer, archive: ChatArchive, id: Long, message: ChatArchiveMessage,
+        files: List<JSONObject>, hashes: MutableSet<String>
+    ) {
+        val addSourceId: JsonObject.() -> Unit =
+            { add(BackupV3.SIDECAR, JsonObject().apply { addProperty("id", id) }) }
+        if (files.isEmpty()) {
+            mChatCodec.encodeMessage(
+                archive,
+                message,
+                writer,
+                writtenHashes = hashes,
+                addFields = addSourceId
+            )
+            return
+        }
+        // 图片直接编码到目标文件，不能回读整条 JSON 来追加来源字段。
+        mChatCodec.encodeMessageWithImages(archive, message, writer, addFields = addSourceId) {
+            var first = true
+            for (row in files) {
+                val hash = row.optString("hash")
+                val file = File(mAttachmentDirectory, hash)
+                if (hash.isBlank() || !file.isFile) continue
+                if (!first) writer.write(",")
+                first = false
+                if (hashes.add(hash)) {
+                    val mime = row.optString("mimeType")
+                        .takeIf { it.startsWith("image/", ignoreCase = true) } ?: "image/jpeg"
+                    ChatArchiveImageCodec.writeImage(
+                        ChatArchiveImage(mimeType = mime, hash = hash),
+                        writer
+                    ) { encoded ->
+                        file.inputStream().use { it.copyTo(encoded) }
+                    }
+                } else {
+                    ChatArchiveImageCodec.writeImage(ChatArchiveImage(hash = hash), writer)
+                }
+            }
+        }
     }
 
     /** 将本地消息来源映射为单聊归档角色。 */
@@ -1154,25 +1177,41 @@ internal class BackupV3Reader(
         prepareChatImages()
         files("chats", ".jsonl").forEach { file ->
             at(file) {
-                val archive = file.bufferedReader(Charsets.UTF_8).use { reader ->
-                    mChatCodec.decode(
-                        reader = reader,
-                        fallbackTitle = file.nameWithoutExtension,
-                        transformImage = mImageStore::stage
+                var side: JsonObject? = null
+                val messages = mutableListOf<JSONObject>()
+                val images = mutableMapOf<JSONObject, List<ChatArchiveImage>>()
+                val archive = file.bufferedReader().use { reader ->
+                    mChatCodec.decodeTo(
+                        reader = reader, fallbackTitle = file.nameWithoutExtension,
+                        maxMessageCount = null,
+                        transformImage = mImageStore::stage,
+                        onHeader = { side = it.getAsJsonObject(BackupV3.SIDECAR) },
+                        onMessage = { message, json ->
+                            val row = JSONObject().put("createTime", message.createTime)
+                                .put("source", sourceOf(message.role))
+                                .put("content", message.content)
+                            json.getAsJsonObject(BackupV3.SIDECAR).longValue("id")
+                                ?.takeIf { it > 0L }?.let { row.put("id", it) }
+                            messages.add(row)
+                            if (message.images.isNotEmpty()) images[row] = message.images
+                        }
                     )
                 }
-                val metadata = BackupChatMetadataReader.read(file)
-                val character = resolveChatCharacter(archive, metadata.headerSide)
+                // 编辑过的酒馆文件可能只能靠正文匹配角色；确认父记录后才登记消息及图片。
+                val character = resolveChatCharacter(archive, side)
                 if (character == null) {
                     mReport.warn("${rel(file)}: chat skipped because its character reference is missing or ambiguous")
                     return@at
                 }
-                // 本地标识只用于重建关联，正文和图片均已从菜单协议解码。
-                val session = restoreChatSession(archive, metadata.headerSide)
+                val session = restoreChatSession(archive, side)
                 link(session, "characterId", character)
                 add("chat_sessions", session)
-                val messages = restoreChatMessages(file, archive, session, metadata.messageSides)
-                restoreChatSummaries(file, archive, session, messages, metadata.headerSide)
+                messages.forEach { row ->
+                    link(row, "sessionId", session)
+                    add("chat_messages", row)
+                }
+                images.forEach { (row, attachments) -> restoreChatImages(file, attachments, row) }
+                restoreChatSummaries(file, archive, session, messages, side)
             }
         }
     }
@@ -1224,32 +1263,10 @@ internal class BackupV3Reader(
         return row
     }
 
-    /** 按文档顺序还原普通消息，并将图片关联到尚未分配最终主键的消息对象。 */
-    private fun restoreChatMessages(
-        file: File,
-        archive: ChatArchive,
-        session: JSONObject,
-        sides: List<JsonObject?>
-    ): List<JSONObject> {
-        check(sides.size == archive.messages.size) { "Message metadata does not match decoded messages" }
-        return archive.messages.mapIndexed { index, message ->
-            val row = JSONObject()
-                .put("createTime", message.createTime)
-                .put("source", sourceOf(message.role))
-                .put("content", message.content)
-            sides[index].longValue("id")?.takeIf { it > 0L }?.let { row.put("id", it) }
-            // 关系引用对象，复制文档造成的主键重分配不会错绑图片。
-            link(row, "sessionId", session)
-            add("chat_messages", row)
-            restoreChatImages(file, message, row)
-            row
-        }
-    }
-
     /** 图片内容以 JSONL 为准；未修改的原始关系尽量复用文件索引，避免反复恢复产生新索引。 */
-    private fun restoreChatImages(file: File, message: ChatArchiveMessage, row: JSONObject) {
+    private fun restoreChatImages(file: File, images: List<ChatArchiveImage>, row: JSONObject) {
         val originals = mOriginalSingleImages[row.optLong("id", 0L)].orEmpty()
-        message.images.forEachIndexed { position, image ->
+        images.forEachIndexed { position, image ->
             val restored = mImageStore.restoredFile(mImageStore.stage(image))
             if (restored == null) {
                 mReport.warn("${rel(file)}: an image has no local bytes and was skipped")
@@ -1294,9 +1311,11 @@ internal class BackupV3Reader(
             add("chat_messages", row)
         }
         // 较早摘要保留原有快照，但不能把缺失或歧义的来源 ID 留给新数据库复用。
+        val older = header?.getAsJsonArray("olderSummaries") ?: return
+        if (older.size() == 0) return
         val bySourceId =
             messages.filter { row -> row.has("id") }.groupBy { row -> row.getLong("id") }
-        header?.getAsJsonArray("olderSummaries")?.forEach { element ->
+        older.forEach { element ->
             val row = JSONObject(element.toString())
             val sourceId = row.optLong("coveredMessageId", 0L)
             val covered = bySourceId[sourceId].orEmpty().singleOrNull()

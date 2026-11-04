@@ -113,10 +113,7 @@ internal object BackupDatabaseCodec {
         // 普通列保持 SQLite 类型；两个大正文列不能进入外层游标窗口。
         db.query(sql, arguments).use { cursor ->
             while (cursor.moveToNext()) {
-                val row = JSONObject()
-                for (index in 0 until cursor.columnCount) {
-                    row.put(cursor.getColumnName(index), cursorValue(cursor, index))
-                }
+                val row = rowJson(cursor)
                 if (isRequestLog) {
                     val id = row.getLong("id")
                     row.put("requestJson", readLogPayload(db, id, "requestJson"))
@@ -124,6 +121,13 @@ internal object BackupDatabaseCodec {
                 }
                 action(row)
             }
+        }
+    }
+
+    /** 读取游标当前行，保留 SQLite 的列类型及空值。 */
+    fun rowJson(cursor: Cursor): JSONObject = JSONObject().apply {
+        for (index in 0 until cursor.columnCount) {
+            put(cursor.getColumnName(index), cursorValue(cursor, index))
         }
     }
 

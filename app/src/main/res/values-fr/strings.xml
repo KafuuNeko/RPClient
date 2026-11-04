@@ -1381,6 +1381,7 @@
     <string name="character_not_selected">Non sélectionné</string>
     <string name="export_selected_characters_zip">Exporter les personnages sélectionnés au format ZIP</string>
     <string name="export_character_archive_success">Les personnages ont été exportés au format ZIP.</string>
+    <string name="export_character_archive_limit">Le ZIP de personnages dépasse les limites d’importation. Sélectionnez moins de cartes ou réduisez la taille d’une carte volumineuse.</string>
     <string name="export_character_archive_failed">Impossible de créer le ZIP des personnages. Le fichier enregistré peut être incomplet.</string>
     <string name="home_recent_characters">Personnages récents</string>
     <string name="home_recent_characters_empty">Les personnages ayant des discussions, des discussions de groupe ou des histoires apparaissent ici.</string>

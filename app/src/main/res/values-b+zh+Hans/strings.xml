@@ -1377,6 +1377,7 @@
     <string name="character_not_selected">未选择</string>
     <string name="export_selected_characters_zip">将所选角色导出为 ZIP</string>
     <string name="export_character_archive_success">角色 ZIP 导出成功。</string>
+    <string name="export_character_archive_limit">角色 ZIP 超出导入限制。请减少所选角色数量，或缩小单张大卡的内容。</string>
     <string name="export_character_archive_failed">无法导出角色 ZIP，保存的文件可能不完整。</string>
     <string name="home_recent_characters">最近角色</string>
     <string name="home_recent_characters_empty">有单聊、群聊或故事的角色会显示在这里。</string>

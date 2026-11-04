@@ -1381,6 +1381,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="character_not_selected">Chưa chọn</string>
     <string name="export_selected_characters_zip">Xuất nhân vật đã chọn thành ZIP</string>
     <string name="export_character_archive_success">Đã xuất tệp ZIP nhân vật.</string>
+    <string name="export_character_archive_limit">ZIP nhân vật vượt quá giới hạn nhập. Hãy chọn ít thẻ hơn hoặc giảm kích thước của thẻ lớn.</string>
     <string name="export_character_archive_failed">Không thể xuất tệp ZIP nhân vật. Tệp đã lưu có thể chưa đầy đủ.</string>
     <string name="home_recent_characters">Nhân vật gần đây</string>
     <string name="home_recent_characters_empty">Nhân vật có cuộc trò chuyện, cuộc trò chuyện nhóm hoặc truyện sẽ xuất hiện ở đây.</string>

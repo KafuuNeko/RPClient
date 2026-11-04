@@ -1381,6 +1381,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="character_not_selected">Tidak dipilih</string>
     <string name="export_selected_characters_zip">Ekspor karakter terpilih sebagai ZIP</string>
     <string name="export_character_archive_success">ZIP karakter berhasil diekspor.</string>
+    <string name="export_character_archive_limit">ZIP karakter melebihi batas impor. Pilih lebih sedikit kartu atau perkecil ukuran kartu yang besar.</string>
     <string name="export_character_archive_failed">Tidak dapat mengekspor ZIP karakter. Berkas yang disimpan mungkin tidak lengkap.</string>
     <string name="home_recent_characters">Karakter terbaru</string>
     <string name="home_recent_characters_empty">Karakter dengan obrolan, obrolan grup, atau cerita akan muncul di sini.</string>

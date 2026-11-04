@@ -11,7 +11,8 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.Writer
 import java.security.MessageDigest
-import java.util.zip.ZipInputStream
+import java.util.zip.CRC32
+import java.util.zip.ZipFile
 
 /** 归档路径与校验、流式 ZIP 读取及文件替换的公共操作。 */
 internal object BackupArchiveFiles {
@@ -39,54 +40,74 @@ internal object BackupArchiveFiles {
         require(actual == listed) { "The archive contains files not listed in manifest.json." }
     }
 
-    /** 流式解压到独立目录，拒绝越界路径、重复条目和超过恢复限额的内容。 */
+    /** 从完整的中央目录读取条目，截断的归档不能进入数据库重建阶段。 */
     fun extractArchive(context: Context, source: Uri, stage: File) {
-        val input = context.contentResolver.openInputStream(source)
-            ?: error("Could not read the selected archive.")
-        input.use { raw ->
-            ZipInputStream(raw.buffered()).use { zip ->
-                var entries = 0
-                var totalBytes = 0L
-                val seenPaths = mutableSetOf<String>()
-                while (true) {
-                    val entry = zip.nextEntry ?: break
-                    entries++
-                    require(entries <= MAX_ENTRIES) { "The archive contains too many files." }
-                    require(isSafePath(entry.name)) { "Unsafe archive path: " + entry.name }
-                    require(seenPaths.add(entry.name)) { "The archive contains a duplicate path: " + entry.name }
-                    // 规范化后的目标仍须位于暂存目录，不能只检查原始路径片段。
-                    if (entry.isDirectory) {
-                        val target = File(stage, entry.name).canonicalFile
-                        require(
-                            value = target.path == stage.canonicalPath
-                                || target.path.startsWith(stage.canonicalPath + File.separator),
-                        ) {
-                            "Unsafe archive path: " + entry.name
-                        }
-                        target.mkdirs()
-                    } else {
-                        val target = File(stage, entry.name).canonicalFile
-                        require(target.path.startsWith(stage.canonicalPath + File.separator)) {
-                            "Unsafe archive path: " + entry.name
-                        }
-                        target.parentFile?.mkdirs()
-                        FileOutputStream(target).use { output ->
-                            val buffer = ByteArray(BUFFER_SIZE)
-                            while (true) {
-                                val count = zip.read(buffer)
-                                if (count < 0) break
-                                totalBytes += count
-                                require(totalBytes <= MAX_BYTES) { "The archive exceeds the 2 GiB restore limit." }
-                                output.write(buffer, 0, count)
-                            }
-                            output.fd.sync()
-                        }
+        val archive = File.createTempFile("restore-source-", ".zip", context.cacheDir)
+        try {
+            // 文档提供方可能只支持顺序读取，先限量暂存到业务目录之外。
+            val input = context.contentResolver.openInputStream(source)
+                ?: error("Could not read the selected archive.")
+            input.use { raw ->
+                archive.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var copied = 0L
+                    while (true) {
+                        val count = raw.read(buffer)
+                        if (count < 0) break
+                        copied += count
+                        require(copied <= MAX_ARCHIVE_BYTES) { "The compressed archive is too large." }
+                        output.write(buffer, 0, count)
                     }
-                    zip.closeEntry()
                 }
             }
+            ZipFile(archive).use { zip -> extractEntries(zip, stage) }
+        } finally {
+            archive.delete()
         }
     }
+
+    /** 按实际解压字节核对 CRC 和大小，保留路径、重复条目与累计大小保护。 */
+    private fun extractEntries(zip: ZipFile, stage: File) {
+        require(zip.size() <= MAX_ENTRIES) { "The archive contains too many files." }
+        val seenPaths = mutableSetOf<String>()
+        val rootPath = stage.canonicalPath + File.separator
+        val buffer = ByteArray(BUFFER_SIZE)
+        var totalBytes = 0L
+        for (entry in zip.entries()) {
+            require(isSafePath(entry.name)) { "Unsafe archive path: " + entry.name }
+            val target = File(stage, entry.name).canonicalFile
+            require(target.path.startsWith(rootPath)) { "Unsafe archive path: " + entry.name }
+            require(seenPaths.add(target.path)) { "The archive contains a duplicate path: " + entry.name }
+            if (entry.isDirectory) {
+                require(entry.size == 0L && entry.crc == 0L) { "Invalid archive directory." }
+                target.mkdirs()
+                continue
+            }
+            // ZipFile 的条目流不保证核对 CRC；校验必须先于任何在线数据替换。
+            require(entry.size in 0..MAX_BYTES - totalBytes) { "The archive exceeds the 2 GiB restore limit." }
+            target.parentFile?.mkdirs()
+            val crc = CRC32()
+            var size = 0L
+            zip.getInputStream(entry).use { input ->
+                FileOutputStream(target).use { output ->
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        size += count
+                        require(size <= entry.size) { "Archive entry size mismatch." }
+                        crc.update(buffer, 0, count)
+                        output.write(buffer, 0, count)
+                    }
+                    require(size == entry.size && crc.value == entry.crc) { "Archive entry integrity check failed." }
+                    output.fd.sync()
+                }
+            }
+            totalBytes += size
+        }
+    }
+
+    // 压缩输入另留空间给不可压缩数据、各条目文件头和中央目录。
+    private const val MAX_ARCHIVE_BYTES = MAX_BYTES + 64L * 1024 * 1024
 
     private fun isSafePath(name: String): Boolean {
         val hasUnsafePathSyntax = name.isBlank()

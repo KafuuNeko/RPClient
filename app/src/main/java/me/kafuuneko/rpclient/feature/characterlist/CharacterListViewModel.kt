@@ -27,6 +27,8 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiI
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.character.CharacterArchiveExportLimitException
+import me.kafuuneko.rpclient.libs.character.CharacterCardArchiveLimits
 import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
@@ -222,6 +224,11 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         val ids = uiState.selectedCharacterIds.toList()
         if (ids.isEmpty()) return
+        // 在打开系统选择器之前限制数量，也限制待恢复的 ID 快照大小。
+        if (ids.size > CharacterCardArchiveLimits.MAX_ENTRIES) {
+            AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_limit).tryEmit()
+            return
+        }
         val timestamp = OffsetDateTime.now().format(
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-'UTC'XX", Locale.ROOT)
         )
@@ -252,6 +259,9 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                     .tryEmit()
             } catch (cancellation: CancellationException) {
                 throw cancellation
+            } catch (_: CharacterArchiveExportLimitException) {
+                AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_limit)
+                    .tryEmit()
             } catch (_: Exception) {
                 AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_failed)
                     .tryEmit()

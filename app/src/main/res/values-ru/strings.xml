@@ -1385,6 +1385,7 @@
     <string name="character_not_selected">Не выбрано</string>
     <string name="export_selected_characters_zip">Экспортировать выбранных персонажей в ZIP</string>
     <string name="export_character_archive_success">ZIP с персонажами успешно экспортирован.</string>
+    <string name="export_character_archive_limit">ZIP с персонажами превышает ограничения импорта. Выберите меньше карточек или уменьшите размер большой карточки.</string>
     <string name="export_character_archive_failed">Не удалось экспортировать ZIP с персонажами. Сохранённый файл может быть неполным.</string>
     <string name="home_recent_characters">Недавние персонажи</string>
     <string name="home_recent_characters_empty">Здесь появятся персонажи, у которых есть чаты, групповые чаты или истории.</string>

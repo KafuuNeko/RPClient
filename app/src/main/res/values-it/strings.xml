@@ -1359,6 +1359,7 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="character_not_selected">Non selezionato</string>
     <string name="export_selected_characters_zip">Esporta i personaggi selezionati come ZIP</string>
     <string name="export_character_archive_success">ZIP dei personaggi esportato correttamente.</string>
+    <string name="export_character_archive_limit">Lo ZIP dei personaggi supera i limiti di importazione. Seleziona meno schede o riduci le dimensioni di una scheda grande.</string>
     <string name="export_character_archive_failed">Impossibile esportare lo ZIP dei personaggi. Il file salvato potrebbe essere incompleto.</string>
     <string name="home_recent_characters">Personaggi recenti</string>
     <string name="home_recent_characters_empty">Qui compaiono i personaggi con chat, chat di gruppo o storie.</string>
