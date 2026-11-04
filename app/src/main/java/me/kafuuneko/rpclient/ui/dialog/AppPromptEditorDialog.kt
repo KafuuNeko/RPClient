@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -30,10 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,8 +43,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -54,7 +50,8 @@ import androidx.compose.ui.unit.sp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
-import me.kafuuneko.rpclient.utils.rememberPromptMacroVisualTransformation
+import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
+import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
 import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 
 /**
@@ -80,32 +77,16 @@ fun AppPromptEditorDialog(
     editorHeightMin: Dp = 180.dp,
     editorHeightMax: Dp = 320.dp,
     placeholder: String = stringResource(R.string.prompt_editor_placeholder),
-    visualTransformation: VisualTransformation = rememberPromptMacroVisualTransformation(),
+    outputTransformation: OutputTransformation = rememberPromptMacroOutputTransformation(),
     confirmText: String = stringResource(R.string.save),
     dismissText: String? = stringResource(R.string.cancel),
     confirmEnabled: Boolean = true,
     isConfirmLoading: Boolean = false,
 ) {
-    var textFieldValue by remember {
-        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
-    }
-
-    LaunchedEffect(value) {
-        if (value != textFieldValue.text) {
-            textFieldValue = textFieldValue.copy(
-                text = value,
-                selection = TextRange(
-                    start = textFieldValue.selection.start.coerceIn(
-                        minimumValue = 0,
-                        maximumValue = value.length
-                    ),
-                    end = textFieldValue.selection.end.coerceIn(
-                        minimumValue = 0,
-                        maximumValue = value.length
-                    ),
-                ),
-            )
-        }
+    val textFieldState = rememberBoundTextFieldState(value, onValueChange)
+    // 保留首次打开时从文末开始编辑的行为，后续外部更新由绑定组件保留选择区。
+    LaunchedEffect(textFieldState) {
+        textFieldState.edit { selection = TextRange(length) }
     }
 
     val charCount = value.length
@@ -135,34 +116,23 @@ fun AppPromptEditorDialog(
                 charCount = charCount,
                 estimatedTokens = estimatedTokens,
                 defaultValue = defaultValue,
-                onClear = {
-                    textFieldValue = TextFieldValue("")
-                    onValueChange("")
-                },
+                onClear = { textFieldState.setTextAndPlaceCursorAtEnd("") },
                 onCopyRequest = onCopyRequest,
                 onRestoreDefault = { restored ->
-                    textFieldValue = TextFieldValue(restored, TextRange(restored.length))
-                    onValueChange(restored)
+                    textFieldState.setTextAndPlaceCursorAtEnd(restored)
                 },
             )
             PromptEditorViewport(
-                value = value,
-                textFieldValue = textFieldValue,
-                onTextFieldValueChange = { newValue ->
-                    textFieldValue = newValue
-                    if (newValue.text != value) onValueChange(newValue.text)
-                },
+                modifier = Modifier.weight(weight = 1f, fill = false),
+                state = textFieldState,
                 placeholder = placeholder,
-                visualTransformation = visualTransformation,
+                outputTransformation = outputTransformation,
                 editorHeightMin = editorHeightMin,
                 editorHeightMax = editorHeightMax,
             )
             PromptMacroChips(
                 macros = availableMacros,
-                onInsert = { macro ->
-                    textFieldValue = textFieldValue.insertMacro(macro)
-                    onValueChange(textFieldValue.text)
-                },
+                onInsert = { macro -> textFieldState.insertMacro(macro) },
             )
         }
     }
@@ -293,17 +263,17 @@ private fun RestoreDefaultAction(onClick: () -> Unit) {
 
 @Composable
 private fun PromptEditorViewport(
-    value: String,
-    textFieldValue: TextFieldValue,
-    onTextFieldValueChange: (TextFieldValue) -> Unit,
+    state: TextFieldState,
     placeholder: String,
-    visualTransformation: VisualTransformation,
+    outputTransformation: OutputTransformation,
     editorHeightMin: Dp,
     editorHeightMax: Dp,
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
+    // 滚动与光标避让使用文本框同一份状态，不能再套 verticalScroll 争抢可见区域。
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = editorHeightMin, max = editorHeightMax)
             .clip(RoundedCornerShape(16.dp))
@@ -315,7 +285,7 @@ private fun PromptEditorViewport(
             )
             .padding(14.dp),
     ) {
-        if (value.isEmpty()) {
+        if (state.text.isEmpty()) {
             Text(
                 text = placeholder,
                 style = MaterialTheme.typography.bodyMedium,
@@ -323,17 +293,16 @@ private fun PromptEditorViewport(
             )
         }
         BasicTextField(
-            value = textFieldValue,
-            onValueChange = onTextFieldValueChange,
+            state = state,
             modifier = Modifier
                 .fillMaxSize()
-                .draggableScrollIndicator(scrollState)
-                .verticalScroll(scrollState),
+                .draggableScrollIndicator(scrollState),
+            scrollState = scrollState,
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 22.sp,
             ),
-            visualTransformation = visualTransformation,
+            outputTransformation = outputTransformation,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         )
     }
@@ -388,19 +357,20 @@ private fun PromptMacroChips(
     }
 }
 
-private fun TextFieldValue.insertMacro(macro: String): TextFieldValue {
-    val start = selection.min.coerceIn(minimumValue = 0, maximumValue = text.length)
-    val end = selection.max.coerceIn(minimumValue = 0, maximumValue = text.length)
-    val before = text.substring(startIndex = 0, endIndex = start)
-    val insertion = if (macro == "<START>" && before.isNotEmpty() && !before.endsWith("\n")) {
-        "\n<START>\n"
-    } else if (macro == "<START>") {
-        "<START>\n"
-    } else {
-        macro
+private fun TextFieldState.insertMacro(macro: String) {
+    // 直接更新原始选择区，让宏插入与普通输入共用文本和光标状态。
+    edit {
+        val start = selection.min
+        val end = selection.max
+        val needsLeadingNewline = start > 0 && asCharSequence()[start - 1] != '\n'
+        val insertion = when {
+            macro != "<START>" -> macro
+            needsLeadingNewline -> "\n<START>\n"
+            else -> "<START>\n"
+        }
+        replace(start = start, end = end, text = insertion)
+        selection = TextRange(start + insertion.length)
     }
-    val updated = before + insertion + text.substring(end)
-    return TextFieldValue(updated, TextRange(start + insertion.length))
 }
 
 @Preview(name = "AppPromptEditorDialog Preview", showBackground = true)

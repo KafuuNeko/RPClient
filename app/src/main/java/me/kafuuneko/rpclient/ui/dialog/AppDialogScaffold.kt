@@ -86,6 +86,7 @@ fun AppDialogScaffold(
     scrollableContent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
+    // 正文统一受剩余高度约束，避免键盘展开后先测量的内容挤掉底部操作区。
     AppDialogWindow(
         onDismissRequest = onDismissRequest,
         properties = properties,
@@ -255,16 +256,17 @@ private fun ColumnScope.AppDialogContent(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val contentModifier = Modifier
+        .weight(weight = 1f, fill = false)
+        .fillMaxWidth()
     val modifier = if (scrollable) {
-        // 优先为标题和操作按钮保留空间，小高度窗口只滚动正文。
-        Modifier
-            .weight(weight = 1f, fill = false)
-            .fillMaxWidth()
+        // 普通正文由容器滚动，编辑器则使用受约束的内部视口，避免重复滚动。
+        contentModifier
             .heightIn(max = 380.dp)
             .draggableScrollIndicator(scrollState)
             .verticalScroll(scrollState)
     } else {
-        Modifier.fillMaxWidth()
+        contentModifier
     }
     Column(modifier = modifier, content = content)
 }

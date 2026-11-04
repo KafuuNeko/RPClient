@@ -65,6 +65,7 @@ fun AppCodeEditorDialog(
     isConfirmLoading: Boolean = false,
     onConfirm: () -> Unit,
 ) {
+    // 代码视口参与剩余高度分配，键盘展开时为标题、说明和操作按钮保留空间。
     AppDialogScaffold(
         modifier = modifier,
         onDismissRequest = onDismissRequest,
@@ -95,6 +96,7 @@ fun AppCodeEditorDialog(
 
             Box(
                 modifier = Modifier
+                    .weight(weight = 1f, fill = false)
                     .fillMaxWidth()
                     .height(editorHeight)
                     .clip(RoundedCornerShape(16.dp))
