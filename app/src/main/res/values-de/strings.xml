@@ -25,12 +25,14 @@
     <string name="feedback_label">Feedback</string>
     <string name="feedback_desc">Melde Fehler oder reiche Vorschläge ein, um uns zu verbessern</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Discord-Community</string>
+    <string name="about_discord_desc">Tausche dich mit anderen aus und teile dein Feedback</string>
+    <string name="about_discord_join">Discord beitreten</string>
     <string name="section_community">Community &amp; Feedback</string>
     <string name="section_about">Über die App &amp; Support</string>
     <string name="copy_email_hint">Tippen zum Kopieren der Entwickler-E-Mail</string>
     <string name="open_source_license">Open-Source-Lizenz</string>
     <string name="open_source_license_desc">Frei &amp; Open-Source · Unter MIT-Lizenz</string>
-    <string name="about_app_summary">Immersiver KI-Rollenspiel- und Storytelling-Client</string>
     <string name="about_crafted_with_love">Mit Leidenschaft für Rollenspieler und Geschichtenerzähler entwickelt</string>
     <string name="about_copyright">RPClient · Open-Source-Software</string>
 
@@ -1190,7 +1192,6 @@
     <string name="about_app_information">App-Informationen</string>
     <string name="about_version">Version</string>
     <string name="about_build_number">Build-Nummer</string>
-    <string name="about_brand_keywords">Charaktere · Geschichten · Kreativität · Möglichkeiten</string>
     <string name="about_rate_action">App bewerten</string>
     <string name="image_send_title">Bildversand (erweitert)</string>
     <string name="image_send_description">Gilt nur für neu hinzugefügte Bilder beim Senden oder Speichern einer Bearbeitung. Nur das verarbeitete Bild wird gespeichert; vorhandene Anhänge bleiben unverändert.</string>

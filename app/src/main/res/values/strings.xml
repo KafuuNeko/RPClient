@@ -25,12 +25,14 @@
     <string name="feedback_label">Feedback</string>
     <string name="feedback_desc">Submit bug reports or feature requests</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Discord Community</string>
+    <string name="about_discord_desc">Chat with other users and share feedback</string>
+    <string name="about_discord_join">Join Discord</string>
     <string name="section_community">Community &amp; Feedback</string>
     <string name="section_about">About &amp; Support</string>
     <string name="copy_email_hint">Tap to copy email</string>
     <string name="open_source_license">Open Source License</string>
     <string name="open_source_license_desc">Free &amp; Open Source · Under MIT License</string>
-    <string name="about_app_summary">Immersive AI roleplay &amp; storytelling client</string>
     <string name="about_crafted_with_love">Crafted with passion for roleplayers &amp; storytellers</string>
     <string name="about_copyright">RPClient · Open source software</string>
 
@@ -1215,7 +1217,6 @@
     <string name="about_app_information">App information</string>
     <string name="about_version">Version</string>
     <string name="about_build_number">Build number</string>
-    <string name="about_brand_keywords">Characters · Stories · Creation · Possibilities</string>
     <string name="about_rate_action">Rate app</string>
     <string name="about_brand_name" translatable="false">RPClient</string>
     <string name="about_dev_badge" translatable="false">DEV</string>

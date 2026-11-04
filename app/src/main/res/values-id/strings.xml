@@ -24,12 +24,14 @@
     <string name="feedback_label">Umpan Balik</string>
     <string name="feedback_desc">Kirim laporan bug atau permintaan fitur</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Komunitas Discord</string>
+    <string name="about_discord_desc">Mengobrol dengan pengguna lain dan bagikan masukan</string>
+    <string name="about_discord_join">Gabung Discord</string>
     <string name="section_community">Komunitas &amp; Umpan Balik</string>
     <string name="section_about">Tentang &amp; Dukungan</string>
     <string name="copy_email_hint">Ketuk untuk menyalin email</string>
     <string name="open_source_license">Lisensi Sumber Terbuka</string>
     <string name="open_source_license_desc">Gratis &amp; Sumber Terbuka · Di bawah Lisensi MIT</string>
-    <string name="about_app_summary">Klien bermain peran &amp; penulisan cerita AI yang imersif</string>
     <string name="about_crafted_with_love">Dibuat dengan penuh semangat untuk para pemain peran &amp; pendongeng</string>
     <string name="about_copyright">RPClient · Perangkat lunak sumber terbuka</string>
 
@@ -1191,7 +1193,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="about_app_information">Informasi aplikasi</string>
     <string name="about_version">Versi</string>
     <string name="about_build_number">Nomor build</string>
-    <string name="about_brand_keywords">Karakter · Cerita · Kreasi · Kemungkinan</string>
     <string name="about_rate_action">Beri rating</string>
     <string name="image_send_title">Pengiriman gambar (lanjutan)</string>
     <string name="image_send_description">Hanya berlaku untuk gambar yang ditambahkan saat mengirim pesan atau menyimpan edit. Hanya gambar yang telah diproses yang disimpan; lampiran yang ada tidak berubah.</string>

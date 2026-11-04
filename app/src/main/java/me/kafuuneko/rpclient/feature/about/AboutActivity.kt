@@ -54,6 +54,7 @@ class AboutActivity : CoreActivity() {
                 onOpenRepository = { safeOpenUrl(uiState.githubRepoUrl) },
                 onRateApp = { openGooglePlay() },
                 onOpenFeedback = { safeOpenUrl(uiState.githubIssuesUrl) },
+                onOpenDiscord = { safeOpenUrl("https://discord.gg/xAwBTbtbe") },
             )
         }
     }

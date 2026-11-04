@@ -24,12 +24,14 @@
     <string name="feedback_label">Отзывы и предложения</string>
     <string name="feedback_desc">Сообщайте об ошибках или предлагайте идеи для улучшения RPClient</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Сообщество Discord</string>
+    <string name="about_discord_desc">Общайтесь с другими пользователями и делитесь отзывами</string>
+    <string name="about_discord_join">Вступить в Discord</string>
     <string name="section_community">Сообщество и отзывы</string>
     <string name="section_about">О приложении и поддержка</string>
     <string name="copy_email_hint">Нажмите, чтобы скопировать почту разработчика</string>
     <string name="open_source_license">Лицензия открытого ПО</string>
     <string name="open_source_license_desc">Свободно и открыто · Лицензия MIT</string>
-    <string name="about_app_summary">Иммерсивный клиент для ролевых игр и создания историй с ИИ</string>
     <string name="about_crafted_with_love">Создано с заботой для ролевиков и рассказчиков</string>
     <string name="about_copyright">RPClient · Открытое программное обеспечение</string>
 
@@ -1195,7 +1197,6 @@
     <string name="about_app_information">О приложении</string>
     <string name="about_version">Версия</string>
     <string name="about_build_number">Номер сборки</string>
-    <string name="about_brand_keywords">Персонажи · Истории · Творчество · Возможности</string>
     <string name="about_rate_action">Оценить</string>
     <string name="image_send_title">Отправка изображений (дополнительно)</string>
     <string name="image_send_description">Применяется только к изображениям, добавленным при отправке сообщения или сохранении правки. Сохраняется только обработанное изображение; существующие вложения не меняются.</string>

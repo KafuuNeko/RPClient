@@ -24,12 +24,14 @@
     <string name="feedback_label">Retours et suggestions</string>
     <string name="feedback_desc">Signalez des bugs ou proposez des améliorations pour faire grandir RPClient</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Communauté Discord</string>
+    <string name="about_discord_desc">Discutez avec les autres utilisateurs et partagez vos avis</string>
+    <string name="about_discord_join">Rejoindre Discord</string>
     <string name="section_community">Communauté et retours</string>
     <string name="section_about">À propos et support</string>
     <string name="copy_email_hint">Appuyer pour copier l\'adresse e-mail</string>
     <string name="open_source_license">Licence open source</string>
     <string name="open_source_license_desc">Libre et ouvert · Sous licence MIT</string>
-    <string name="about_app_summary">Client immersif pour le jeu de rôle et la création d\'histoires avec l\'IA</string>
     <string name="about_crafted_with_love">Conçu avec passion pour les rôlistes et les conteurs</string>
     <string name="about_copyright">RPClient · Logiciel open source</string>
 
@@ -1191,7 +1193,6 @@
     <string name="about_app_information">Informations sur l’application</string>
     <string name="about_version">Version</string>
     <string name="about_build_number">Numéro de build</string>
-    <string name="about_brand_keywords">Personnages · Histoires · Création · Possibilités</string>
     <string name="about_rate_action">Noter l’application</string>
     <string name="image_send_title">Envoi des images (avancé)</string>
     <string name="image_send_description">S’applique uniquement aux images ajoutées lors de l’envoi ou de l’enregistrement d’une modification. Seule l’image traitée est conservée ; les pièces jointes existantes restent inchangées.</string>

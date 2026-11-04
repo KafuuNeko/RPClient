@@ -24,12 +24,14 @@
     <string name="feedback_label">Comentarios</string>
     <string name="feedback_desc">Envía informes de errores o sugerencias para ayudarnos a mejorar</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Comunidad de Discord</string>
+    <string name="about_discord_desc">Chatea con otros usuarios y comparte tus comentarios</string>
+    <string name="about_discord_join">Unirse a Discord</string>
     <string name="section_community">Comunidad y comentarios</string>
     <string name="section_about">Acerca de y soporte</string>
     <string name="copy_email_hint">Toca para copiar el correo del desarrollador</string>
     <string name="open_source_license">Licencia de código abierto</string>
     <string name="open_source_license_desc">Libre y abierto · Bajo licencia MIT</string>
-    <string name="about_app_summary">Cliente inmersivo de rol e historias con IA</string>
     <string name="about_crafted_with_love">Creado con pasión para jugadores de rol y narradores</string>
     <string name="about_copyright">RPClient · Software de código abierto</string>
 
@@ -1192,7 +1194,6 @@
     <string name="about_app_information">Información de la aplicación</string>
     <string name="about_version">Versión</string>
     <string name="about_build_number">Número de compilación</string>
-    <string name="about_brand_keywords">Personajes · Historias · Creación · Posibilidades</string>
     <string name="about_rate_action">Valorar app</string>
     <string name="image_send_title">Envío de imágenes (avanzado)</string>
     <string name="image_send_description">Solo se aplica a las imágenes añadidas al enviar un mensaje o guardar una edición. Solo se conserva la imagen procesada; los archivos adjuntos existentes no cambian.</string>

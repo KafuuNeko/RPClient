@@ -24,12 +24,14 @@
     <string name="feedback_label">问题反馈</string>
     <string name="feedback_desc">提交缺陷或功能建议，帮助我们变得更好</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Discord 社区</string>
+    <string name="about_discord_desc">与其他用户交流，分享建议与反馈</string>
+    <string name="about_discord_join">加入 Discord</string>
     <string name="section_community">社区与反馈</string>
     <string name="section_about">关于与支持</string>
     <string name="copy_email_hint">点击复制开发者邮箱</string>
     <string name="open_source_license">开源协议</string>
     <string name="open_source_license_desc">自由与开放 · 基于 MIT License</string>
-    <string name="about_app_summary">沉浸式 AI 角色扮演与故事创作客户端</string>
     <string name="about_crafted_with_love">为角色扮演与故事创作者精心打造</string>
     <string name="about_copyright">RPClient · 基于开源协议发布</string>
 
@@ -1187,7 +1189,6 @@
     <string name="about_app_information">应用信息</string>
     <string name="about_version">版本</string>
     <string name="about_build_number">Build 编号</string>
-    <string name="about_brand_keywords">角色 · 故事 · 创作 · 更多可能</string>
     <string name="about_rate_action">去评分</string>
     <string name="image_send_title">图片发送（高级）</string>
     <string name="image_send_description">仅在发送消息或保存编辑时处理新增图片。只保留处理后的图片，已有附件保持不变。</string>

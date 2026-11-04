@@ -24,12 +24,14 @@
     <string name="feedback_label">Feedback</string>
     <string name="feedback_desc">Invia segnalazioni di bug o richieste di funzionalità</string>
     <string name="feedback_github_issues">Problemi GitHub</string>
+    <string name="about_discord_community">Community Discord</string>
+    <string name="about_discord_desc">Chatta con altri utenti e condividi i tuoi suggerimenti</string>
+    <string name="about_discord_join">Unisciti a Discord</string>
     <string name="section_community">Community e feedback</string>
     <string name="section_about">Info e supporto</string>
     <string name="copy_email_hint">Tocca per copiare l\'email</string>
     <string name="open_source_license">Licenza Open Source</string>
     <string name="open_source_license_desc">Gratuito e open source · Con licenza MIT</string>
-    <string name="about_app_summary">Client immersivo per giochi di ruolo e narrazione con IA</string>
     <string name="about_crafted_with_love">Creato con passione per appassionati di giochi di ruolo e narratori</string>
     <string name="about_copyright">RPClient · Software open source</string>
     <string name="home">Home</string>
@@ -1169,7 +1171,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="about_app_information">Informazioni sull’app</string>
     <string name="about_version">Versione</string>
     <string name="about_build_number">Numero build</string>
-    <string name="about_brand_keywords">Personaggi · Storie · Creazione · Possibilità</string>
     <string name="about_rate_action">Valuta app</string>
     <string name="image_send_title">Invio immagini (avanzato)</string>
     <string name="image_send_description">Si applica solo alle immagini aggiunte quando si invia un messaggio o si salva una modifica. Viene conservata solo l’immagine elaborata; gli allegati esistenti restano invariati.</string>

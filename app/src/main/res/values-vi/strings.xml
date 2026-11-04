@@ -24,12 +24,14 @@
     <string name="feedback_label">Phản hồi</string>
     <string name="feedback_desc">Gửi báo cáo lỗi hoặc đề xuất tính năng để giúp chúng tôi hoàn thiện hơn</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Cộng đồng Discord</string>
+    <string name="about_discord_desc">Trò chuyện với người dùng khác và chia sẻ góp ý</string>
+    <string name="about_discord_join">Tham gia Discord</string>
     <string name="section_community">Cộng đồng &amp; Phản hồi</string>
     <string name="section_about">Giới thiệu &amp; Hỗ trợ</string>
     <string name="copy_email_hint">Chạm để sao chép email</string>
     <string name="open_source_license">Giấy phép mã nguồn mở</string>
     <string name="open_source_license_desc">Tự do &amp; Mã nguồn mở · Theo giấy phép MIT</string>
-    <string name="about_app_summary">Ứng dụng nhập vai AI &amp; sáng tác câu chuyện sống động</string>
     <string name="about_crafted_with_love">Được tạo ra với niềm đam mê dành cho người nhập vai &amp; người kể chuyện</string>
     <string name="about_copyright">RPClient · Phần mềm mã nguồn mở</string>
 
@@ -1191,7 +1193,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="about_app_information">Thông tin ứng dụng</string>
     <string name="about_version">Phiên bản</string>
     <string name="about_build_number">Số bản dựng</string>
-    <string name="about_brand_keywords">Nhân vật · Câu chuyện · Sáng tạo · Khả năng</string>
     <string name="about_rate_action">Đánh giá</string>
     <string name="image_send_title">Gửi ảnh (nâng cao)</string>
     <string name="image_send_description">Chỉ áp dụng cho ảnh mới thêm khi gửi tin nhắn hoặc lưu chỉnh sửa. Chỉ giữ ảnh đã xử lý; các tệp đính kèm hiện có không thay đổi.</string>

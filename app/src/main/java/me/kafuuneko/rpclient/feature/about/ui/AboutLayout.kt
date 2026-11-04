@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.ViewInAr
@@ -46,6 +47,7 @@ fun AboutLayout(
     onOpenRepository: () -> Unit,
     onRateApp: () -> Unit,
     onOpenFeedback: () -> Unit,
+    onOpenDiscord: () -> Unit,
 ) {
     // 装饰与正文共享背景，系统栏和内容避让仍由 Scaffold 处理。
     Box(modifier = Modifier.fillMaxSize()) {
@@ -60,6 +62,7 @@ fun AboutLayout(
                     onOpenRepository = onOpenRepository,
                     onRateApp = onRateApp,
                     onOpenFeedback = onOpenFeedback,
+                    onOpenDiscord = onOpenDiscord,
                     modifier = Modifier.padding(paddingValues),
                 )
             },
@@ -74,6 +77,7 @@ private fun AboutViewContent(
     onOpenRepository: () -> Unit,
     onRateApp: () -> Unit,
     onOpenFeedback: () -> Unit,
+    onOpenDiscord: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -95,6 +99,7 @@ private fun AboutViewContent(
                 repoName = uiState.githubRepoName,
                 onOpenFeedback = onOpenFeedback,
                 onOpenRepository = onOpenRepository,
+                onOpenDiscord = onOpenDiscord,
             )
             AboutSupportSection(
                 developerEmail = uiState.developerEmail,
@@ -112,9 +117,20 @@ private fun AboutCommunitySection(
     repoName: String,
     onOpenFeedback: () -> Unit,
     onOpenRepository: () -> Unit,
+    onOpenDiscord: () -> Unit,
 ) {
-    // 统一外链尾标，保留现有反馈与仓库跳转行为。
+    // 社区交流、问题反馈和代码仓库使用统一的外链样式。
     AboutSection(stringResource(R.string.section_community)) {
+        AboutActionRow(
+            icon = Icons.Rounded.Forum,
+            accent = MaterialTheme.colorScheme.primary,
+            title = stringResource(R.string.about_discord_community),
+            subtitle = stringResource(R.string.about_discord_desc),
+            action = stringResource(R.string.about_discord_join),
+            actionIcon = Icons.AutoMirrored.Rounded.OpenInNew,
+            onClick = onOpenDiscord,
+        )
+        AboutDivider()
         AboutActionRow(
             icon = Icons.Rounded.BugReport,
             accent = MaterialTheme.colorScheme.secondary,
@@ -238,5 +254,6 @@ private fun AboutPreviewContent() {
         onOpenRepository = {},
         onRateApp = {},
         onOpenFeedback = {},
+        onOpenDiscord = {},
     )
 }

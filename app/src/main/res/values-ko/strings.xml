@@ -24,12 +24,14 @@
     <string name="feedback_label">문제 신고 및 피드백</string>
     <string name="feedback_desc">버그 신고나 기능 제안으로 앱 개선에 참여하기</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Discord 커뮤니티</string>
+    <string name="about_discord_desc">다른 사용자와 소통하고 의견을 나누세요</string>
+    <string name="about_discord_join">Discord 참여</string>
     <string name="section_community">커뮤니티 및 피드백</string>
     <string name="section_about">정보 및 지원</string>
     <string name="copy_email_hint">탭하여 개발자 이메일 주소 복사</string>
     <string name="open_source_license">오픈 소스 라이선스</string>
     <string name="open_source_license_desc">자유와 개방 · MIT License</string>
-    <string name="about_app_summary">몰입형 AI 롤플레잉 및 스토리 창작 클라이언트</string>
     <string name="about_crafted_with_love">롤플레이어와 스토리 작가를 위해 정성껏 제작되었습니다</string>
     <string name="about_copyright">RPClient · 오픈 소스 소프트웨어</string>
 
@@ -1185,7 +1187,6 @@
     <string name="about_app_information">앱 정보</string>
     <string name="about_version">버전</string>
     <string name="about_build_number">빌드 번호</string>
-    <string name="about_brand_keywords">캐릭터 · 이야기 · 창작 · 더 많은 가능성</string>
     <string name="about_rate_action">앱 평가</string>
     <string name="image_send_title">이미지 전송 (고급)</string>
     <string name="image_send_description">메시지 전송 또는 편집 저장 시 새로 추가된 이미지만 처리합니다. 처리된 이미지만 보관하며 기존 첨부 이미지는 변경하지 않습니다.</string>

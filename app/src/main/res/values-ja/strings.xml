@@ -25,12 +25,14 @@
     <string name="feedback_label">フィードバックと提案</string>
     <string name="feedback_desc">不具合の報告や新機能の提案でアプリ改善を支援</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Discord コミュニティ</string>
+    <string name="about_discord_desc">他のユーザーと交流し、意見や感想を共有しましょう</string>
+    <string name="about_discord_join">Discord に参加</string>
     <string name="section_community">コミュニティとフィードバック</string>
     <string name="section_about">アプリ情報とサポート</string>
     <string name="copy_email_hint">タップしてメールアドレスをコピー</string>
     <string name="open_source_license">オープンソースライセンス</string>
     <string name="open_source_license_desc">自由とオープン · MIT License</string>
-    <string name="about_app_summary">没入型 AI ロールプレイ＆ストーリー執筆クライアント</string>
     <string name="about_crafted_with_love">ロールプレイヤーとストーリーテラーのために情熱を込めて制作</string>
     <string name="about_copyright">RPClient · オープンソースソフトウェア</string>
 
@@ -1186,7 +1188,6 @@
     <string name="about_app_information">アプリ情報</string>
     <string name="about_version">バージョン</string>
     <string name="about_build_number">ビルド番号</string>
-    <string name="about_brand_keywords">キャラクター · 物語 · 創作 · 広がる可能性</string>
     <string name="about_rate_action">評価する</string>
     <string name="image_send_title">画像送信（詳細設定）</string>
     <string name="image_send_description">メッセージ送信時や編集保存時に追加した画像のみを処理します。処理後の画像のみを保存し、既存の添付画像は変更しません。</string>

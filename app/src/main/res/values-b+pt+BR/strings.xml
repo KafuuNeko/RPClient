@@ -24,12 +24,14 @@
     <string name="feedback_label">Feedback</string>
     <string name="feedback_desc">Envie relatórios de bugs ou sugestões de recursos</string>
     <string name="feedback_github_issues">GitHub Issues</string>
+    <string name="about_discord_community">Comunidade no Discord</string>
+    <string name="about_discord_desc">Converse com outros usuários e compartilhe sugestões</string>
+    <string name="about_discord_join">Entrar no Discord</string>
     <string name="section_community">Comunidade e Feedback</string>
     <string name="section_about">Sobre e Suporte</string>
     <string name="copy_email_hint">Toque para copiar o e-mail</string>
     <string name="open_source_license">Licença de Código Aberto</string>
     <string name="open_source_license_desc">Gratuito e de Código Aberto · Sob Licença MIT</string>
-    <string name="about_app_summary">Cliente imersivo de RPG e contação de histórias com IA</string>
     <string name="about_crafted_with_love">Criado com paixão para jogadores de RPG e narradores de histórias</string>
     <string name="about_copyright">RPClient · Software de código aberto</string>
 
@@ -1194,7 +1196,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="about_app_information">Informações do aplicativo</string>
     <string name="about_version">Versão</string>
     <string name="about_build_number">Número da compilação</string>
-    <string name="about_brand_keywords">Personagens · Histórias · Criação · Possibilidades</string>
     <string name="about_rate_action">Avaliar app</string>
     <string name="image_send_title">Envio de imagens (avançado)</string>
     <string name="image_send_description">Aplica-se apenas às imagens adicionadas ao enviar uma mensagem ou salvar uma edição. Somente a imagem processada é mantida; os anexos existentes não são alterados.</string>
