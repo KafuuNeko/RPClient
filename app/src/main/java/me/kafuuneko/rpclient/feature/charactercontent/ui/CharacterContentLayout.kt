@@ -167,7 +167,7 @@ private fun CharacterContentRow(item: CharacterContentItem, onClick: () -> Unit)
         accentKey = item.title,
         icon = icon,
         title = item.title,
-        preview = stringResource(item.type.label()),
+        preview = item.preview.ifBlank { stringResource(item.previewFallbackResId) },
         metadata = listOf(item.latestTime.formatTimestamp("MM-dd HH:mm")),
         onClick = onClick,
     )
@@ -195,6 +195,8 @@ private fun CharacterContentPreview() {
                             contentId = 1L,
                             title = "Harbor",
                             latestTime = 0L,
+                            preview = "The harbor lights shimmer on the water.",
+                            previewFallbackResId = R.string.no_messages_yet,
                         ),
                     ),
                 ),

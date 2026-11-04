@@ -48,7 +48,7 @@ class CharacterRepository(
         mCharacterDao.getRecentCharacters()
 
     /**
-     * 在同一快照读取标题和关联内容。
+     * 在同一快照读取角色名称、关联内容和轻量预览。
      *
      * @param characterId 角色 ID。
      * @return 名称与内容快照，角色被删除时返回 null。
@@ -56,7 +56,14 @@ class CharacterRepository(
     suspend fun getCharacterContent(characterId: Long): CharacterContent? =
         mAppDatabase.withTransaction {
             val name = mCharacterDao.getCharacterName(characterId) ?: return@withTransaction null
-            CharacterContent(name = name, items = mCharacterDao.getCharacterContent(characterId))
+            CharacterContent(
+                name = name,
+                items = mCharacterDao.getCharacterContent(
+                    characterId = characterId,
+                    singleMessageType = MessageType.Single,
+                    groupMessageType = MessageType.Group,
+                ),
+            )
         }
 
     /**

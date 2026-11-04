@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import me.kafuuneko.rpclient.libs.room.MutableDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.model.CharacterContentItem
+import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.RecentCharacterOverview
 
 /** 两个入口共用同一成员口径。候选故事角色与静音群成员都保留关联。 */
@@ -53,16 +54,79 @@ interface CharacterDao : MutableDao<Character> {
     suspend fun getRecentCharacters(): List<RecentCharacterOverview>
 
     /**
-     * 按稳定顺序读取指定角色的全部关联内容。
+     * 按稳定顺序读取指定角色的关联内容及轻量预览。
+     *
+     * 每个会话只关联最新一条普通消息；故事仅截取与首页一致的章节片段。
+     * 不加载完整消息历史、图片附件或章节正文，也不统计消息数。
      *
      * @param characterId 角色 ID。
-     * @return 关联的单聊、群聊与故事元数据。
+     * @param singleMessageType 单聊图片的稳定消息类型编码。
+     * @param groupMessageType 群聊图片的稳定消息类型编码。
+     * @return 关联的单聊、群聊与故事元数据及预览。
      */
     @Query(
-        "SELECT kind, contentId, title, latestTime FROM (" + CHARACTER_CONTENT + ") " +
-            "WHERE characterId = :characterId ORDER BY latestTime DESC, kind, contentId DESC"
+        """
+        SELECT content.kind, content.contentId, content.title, content.latestTime,
+               CASE content.kind
+                   WHEN 'Chat' THEN chatMessage.content
+                   WHEN 'Group' THEN groupMessage.content
+                   WHEN 'Story' THEN (
+                       SELECT SUBSTR(
+                           REPLACE(REPLACE(TRIM(chapter.content), CHAR(13), ' '), CHAR(10), ' '),
+                           1,
+                           160
+                       )
+                       FROM story_chapters AS chapter
+                       LEFT JOIN story_volumes AS volume ON volume.id = chapter.volumeId
+                       WHERE chapter.storyId = content.contentId
+                         AND TRIM(chapter.content) != ''
+                       ORDER BY CASE WHEN chapter.volumeId IS NULL THEN 0 ELSE 1 END ASC,
+                                COALESCE(volume.sortOrder, chapter.sortOrder) ASC,
+                                CASE WHEN chapter.volumeId IS NULL THEN 0 ELSE chapter.sortOrder END ASC,
+                                chapter.id ASC
+                       LIMIT 1
+                   )
+               END AS previewContent,
+               CASE content.kind
+                   WHEN 'Chat' THEN EXISTS (
+                       SELECT 1 FROM message_images AS images
+                       WHERE images.messageType = :singleMessageType
+                         AND images.messageId = chatMessage.id
+                   )
+                   WHEN 'Group' THEN EXISTS (
+                       SELECT 1 FROM message_images AS images
+                       WHERE images.messageType = :groupMessageType
+                         AND images.messageId = groupMessage.id
+                   )
+                   ELSE 0
+               END AS previewHasImages
+        FROM (
+        """ + CHARACTER_CONTENT + """
+        ) AS content
+        LEFT JOIN chat_messages AS chatMessage
+            ON content.kind = 'Chat' AND chatMessage.id = (
+                SELECT messages.id FROM chat_messages AS messages
+                WHERE messages.sessionId = content.contentId
+                  AND messages.source != 'Summary'
+                ORDER BY messages.createTime DESC, messages.id DESC
+                LIMIT 1
+            )
+        LEFT JOIN group_chat_messages AS groupMessage
+            ON content.kind = 'Group' AND groupMessage.id = (
+                SELECT messages.id FROM group_chat_messages AS messages
+                WHERE messages.sessionId = content.contentId
+                ORDER BY messages.createTime DESC, messages.id DESC
+                LIMIT 1
+            )
+        WHERE content.characterId = :characterId
+        ORDER BY content.latestTime DESC, content.kind, content.contentId DESC
+        """
     )
-    suspend fun getCharacterContent(characterId: Long): List<CharacterContentItem>
+    suspend fun getCharacterContent(
+        characterId: Long,
+        singleMessageType: MessageType,
+        groupMessageType: MessageType,
+    ): List<CharacterContentItem>
 
     /**
      * 获取所有角色。
