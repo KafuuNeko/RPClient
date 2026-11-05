@@ -1389,4 +1389,18 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="character_content_count">%1$d item</string>
     <string name="character_content_empty">Tidak ada konten terkait dalam kategori ini.</string>
     <string name="character_content_load_failed">Konten karakter ini tidak dapat dimuat.</string>
+
+    <string name="selection_select_all">Pilih semua</string>
+    <string name="selection_deselect_all">Batalkan semua pilihan</string>
+    <string name="batch_import_result_message">Berhasil diimpor: %1$d
+Gagal: %2$d</string>
+    <string name="batch_import_reading_progress">Membaca %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Mengimpor %1$d/%2$d</string>
+    <string name="character_batch_delete_message">Hapus %1$d karakter terpilih dan obrolan pribadi mereka? Buku dunia terkait akan disimpan. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="world_book_batch_delete_message">Hapus %1$d buku dunia terpilih beserta semua entrinya? Tautan karakter akan dihapus. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="world_book_entry_batch_delete_message">Hapus %1$d entri terpilih? Penghapusan langsung berlaku dan tidak dapat dibatalkan.</string>
+    <string name="world_book_batch_import_result_title">Impor buku dunia selesai</string>
+    <string name="world_book_batch_low_budget_message">%1$d buku dunia terpilih memiliki anggaran tetap yang rendah. Anggaran terendah adalah %2$d token. Gunakan anggaran global untuk buku-buku ini?</string>
+    <string name="world_book_archive_limit">ZIP buku dunia melebihi batas impor. Pilih lebih sedikit buku atau kurangi ukuran buku yang besar.</string>
+    <string name="world_book_export_selected">Ekspor buku dunia terpilih sebagai ZIP</string>
 </resources>

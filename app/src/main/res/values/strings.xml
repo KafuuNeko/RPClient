@@ -1393,4 +1393,17 @@
     <string name="character_content_count">Items (%1$d)</string>
     <string name="character_content_empty">No related content in this category.</string>
     <string name="character_content_load_failed">Could not load this character’s content.</string>
+
+    <string name="selection_select_all">Select all</string>
+    <string name="selection_deselect_all">Deselect all</string>
+    <string name="batch_import_result_message">Imported: %1$d\nFailed: %2$d</string>
+    <string name="batch_import_reading_progress">Reading %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Importing %1$d/%2$d</string>
+    <string name="character_batch_delete_message">Delete %1$d selected characters and their one-to-one chats? Associated world books will be kept. This cannot be undone.</string>
+    <string name="world_book_batch_delete_message">Delete %1$d selected world books and all their entries? Character bindings will be removed. This cannot be undone.</string>
+    <string name="world_book_entry_batch_delete_message">Delete %1$d selected entries? This takes effect immediately and cannot be undone.</string>
+    <string name="world_book_batch_import_result_title">World book import complete</string>
+    <string name="world_book_batch_low_budget_message">%1$d selected world books have low fixed budgets. The lowest is %2$d tokens. Use the global budget for these books?</string>
+    <string name="world_book_archive_limit">The world book ZIP exceeds the import limits. Select fewer books or reduce the size of a large book.</string>
+    <string name="world_book_export_selected">Export selected world books as ZIP</string>
 </resources>

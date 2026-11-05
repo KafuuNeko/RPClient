@@ -1384,4 +1384,17 @@
     <string name="character_content_count">%1$d 件</string>
     <string name="character_content_empty">このカテゴリに関連するコンテンツはありません。</string>
     <string name="character_content_load_failed">このキャラクターのコンテンツを読み込めませんでした。</string>
+
+    <string name="selection_select_all">すべて選択</string>
+    <string name="selection_deselect_all">選択をすべて解除</string>
+    <string name="batch_import_result_message">成功：%1$d\n失敗：%2$d</string>
+    <string name="batch_import_reading_progress">解析中 %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">インポート中 %1$d/%2$d</string>
+    <string name="character_batch_delete_message">選択した %1$d 人のキャラクターと個別チャットを削除しますか？関連するワールドブックは保持されます。この操作は取り消せません。</string>
+    <string name="world_book_batch_delete_message">選択した %1$d 冊のワールドブックとすべてのエントリーを削除しますか？キャラクターとの関連付けも解除されます。この操作は取り消せません。</string>
+    <string name="world_book_entry_batch_delete_message">選択した %1$d 件のエントリーを削除しますか？削除は直ちに反映され、取り消せません。</string>
+    <string name="world_book_batch_import_result_title">ワールドブックのインポートが完了しました</string>
+    <string name="world_book_batch_low_budget_message">選択した %1$d 冊のワールドブックの固定予算が低く設定されています。最小値は %2$d トークンです。これらのブックにグローバル予算を使用しますか？</string>
+    <string name="world_book_archive_limit">ワールドブックの ZIP がインポート上限を超えています。選択数を減らすか、大きなブックの内容を減らしてください。</string>
+    <string name="world_book_export_selected">選択したワールドブックを ZIP としてエクスポート</string>
 </resources>

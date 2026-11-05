@@ -13,7 +13,7 @@ sealed class CharacterListUiState {
         val searchText: String = "",
         /** 当前选中角色的 ID。 */
         val selectedCharacterId: Long? = null,
-        /** 批量导出的角色 ID 集合，独立于当前搜索过滤结果。 */
+        /** 批量操作的角色 ID 集合，独立于当前搜索过滤结果。 */
         val selectedCharacterIds: Set<Long> = emptySet(),
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<CharacterListItem> = emptyList(),
@@ -41,6 +41,8 @@ sealed class CharacterListDialogState {
         /** 本次批量操作会影响的角色数量。 */
         val affectedCharacterCount: Int
     ) : CharacterListDialogState()
+
+    data class DeleteSelectedConfirm(val characterIds: Set<Long>) : CharacterListDialogState()
 
     data class BatchImportResult(
         /** 批量操作中已经成功处理的项目数量。 */

@@ -1383,4 +1383,17 @@
     <string name="character_content_count">%1$d 項內容</string>
     <string name="character_content_empty">此分類下暫無相關內容。</string>
     <string name="character_content_load_failed">無法載入此角色的內容。</string>
+
+    <string name="selection_select_all">全選</string>
+    <string name="selection_deselect_all">取消全選</string>
+    <string name="batch_import_result_message">成功匯入：%1$d\n匯入失敗：%2$d</string>
+    <string name="batch_import_reading_progress">正在解析 %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">正在匯入 %1$d/%2$d</string>
+    <string name="character_batch_delete_message">刪除選取的 %1$d 個角色及其單聊記錄？關聯的世界書將保留。此操作無法復原。</string>
+    <string name="world_book_batch_delete_message">刪除選取的 %1$d 本世界書及其全部條目？角色綁定也將解除。此操作無法復原。</string>
+    <string name="world_book_entry_batch_delete_message">刪除選取的 %1$d 個條目？刪除將立即生效，且無法復原。</string>
+    <string name="world_book_batch_import_result_title">世界書匯入完成</string>
+    <string name="world_book_batch_low_budget_message">選取的 %1$d 本世界書使用了較低的固定預算，最低為 %2$d Token。是否讓這些世界書跟隨全域預算？</string>
+    <string name="world_book_archive_limit">世界書 ZIP 超出匯入限制。請減少選取數量，或縮減較大世界書的內容。</string>
+    <string name="world_book_export_selected">將選取的世界書匯出為 ZIP</string>
 </resources>

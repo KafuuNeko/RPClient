@@ -1389,4 +1389,18 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="character_content_count">%1$d mục</string>
     <string name="character_content_empty">Không có nội dung liên quan trong danh mục này.</string>
     <string name="character_content_load_failed">Không thể tải nội dung của nhân vật này.</string>
+
+    <string name="selection_select_all">Chọn tất cả</string>
+    <string name="selection_deselect_all">Bỏ chọn tất cả</string>
+    <string name="batch_import_result_message">Đã nhập: %1$d
+Thất bại: %2$d</string>
+    <string name="batch_import_reading_progress">Đang phân tích %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Đang nhập %1$d/%2$d</string>
+    <string name="character_batch_delete_message">Xóa %1$d nhân vật đã chọn và các cuộc trò chuyện riêng của họ? Các sách thế giới liên kết sẽ được giữ lại. Không thể hoàn tác thao tác này.</string>
+    <string name="world_book_batch_delete_message">Xóa %1$d sách thế giới đã chọn và tất cả mục của chúng? Liên kết với nhân vật cũng sẽ bị xóa. Không thể hoàn tác thao tác này.</string>
+    <string name="world_book_entry_batch_delete_message">Xóa %1$d mục đã chọn? Việc xóa có hiệu lực ngay và không thể hoàn tác.</string>
+    <string name="world_book_batch_import_result_title">Đã nhập xong sách thế giới</string>
+    <string name="world_book_batch_low_budget_message">%1$d sách thế giới đã chọn có ngân sách cố định thấp. Mức thấp nhất là %2$d token. Dùng ngân sách chung cho các sách này?</string>
+    <string name="world_book_archive_limit">ZIP sách thế giới vượt giới hạn nhập. Hãy chọn ít sách hơn hoặc giảm kích thước của sách lớn.</string>
+    <string name="world_book_export_selected">Xuất sách thế giới đã chọn thành ZIP</string>
 </resources>

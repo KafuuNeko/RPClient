@@ -1390,4 +1390,17 @@
     <string name="character_content_count">Elementos (%1$d)</string>
     <string name="character_content_empty">No hay contenido relacionado en esta categoría.</string>
     <string name="character_content_load_failed">No se pudo cargar el contenido de este personaje.</string>
+
+    <string name="selection_select_all">Seleccionar todos</string>
+    <string name="selection_deselect_all">Deseleccionar todos</string>
+    <string name="batch_import_result_message">Importadas: %1$d\nFallidas: %2$d</string>
+    <string name="batch_import_reading_progress">Leyendo %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Importando %1$d/%2$d</string>
+    <string name="character_batch_delete_message">¿Eliminar %1$d personajes seleccionados y sus chats individuales? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</string>
+    <string name="world_book_batch_delete_message">¿Eliminar %1$d libros de mundo seleccionados y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</string>
+    <string name="world_book_entry_batch_delete_message">¿Eliminar %1$d entradas seleccionadas? La eliminación es inmediata y no se puede deshacer.</string>
+    <string name="world_book_batch_import_result_title">Importación de libros de mundo completada</string>
+    <string name="world_book_batch_low_budget_message">%1$d libros de mundo seleccionados tienen presupuestos fijos bajos. El menor es de %2$d tokens. ¿Usar el presupuesto global para estos libros?</string>
+    <string name="world_book_archive_limit">El ZIP de libros de mundo supera los límites de importación. Selecciona menos libros o reduce el tamaño de un libro grande.</string>
+    <string name="world_book_export_selected">Exportar libros de mundo seleccionados como ZIP</string>
 </resources>

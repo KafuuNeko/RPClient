@@ -4,10 +4,19 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.character.CharacterBookImport
 import me.kafuuneko.rpclient.libs.character.LorebookCodec
+import me.kafuuneko.rpclient.libs.character.LorebookArchiveLimits
+import me.kafuuneko.rpclient.libs.character.LorebookArchiveLimitException
+import me.kafuuneko.rpclient.libs.character.LorebookArchiveReader
+import me.kafuuneko.rpclient.libs.character.LorebookImportBatch
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -130,10 +139,26 @@ class LorebookRepository(
      * @param id 世界书 id。
      */
     suspend fun deleteLorebook(id: Long) {
+        deleteLorebooks(listOf(id))
+    }
+
+    /** 在同一事务内删除所选世界书、条目并解除角色绑定。 */
+    suspend fun deleteLorebooks(ids: List<Long>) {
         mAppDatabase.withTransaction {
-            mCharacterDao.clearLorebookAssociations(id)
-            mLorebookEntryDao.deleteEntriesByLorebookId(id)
-            mLorebookDao.deleteLorebookById(id)
+            ids.distinct().forEach { id ->
+                mCharacterDao.clearLorebookAssociations(id)
+                mLorebookEntryDao.deleteEntriesByLorebookId(id)
+                mLorebookDao.deleteLorebookById(id)
+            }
+        }
+    }
+
+    /** 只删除指定世界书内的所选条目，分批绑定参数并保持整批原子性。 */
+    suspend fun deleteEntries(lorebookId: Long, ids: List<Long>) {
+        mAppDatabase.withTransaction {
+            ids.distinct().chunked(900).forEach { batch ->
+                mLorebookEntryDao.deleteEntriesByIds(lorebookId, batch)
+            }
         }
     }
 
@@ -262,6 +287,14 @@ class LorebookRepository(
         codec.parseLorebook(json)
     }
 
+    /** 解析独立 JSON 或 ZIP；损坏的 ZIP 条目计入失败，不阻断同包的有效世界书。 */
+    suspend fun readImportItemsFromUri(uri: Uri): LorebookImportBatch =
+        withContext(Dispatchers.IO) {
+            val source = mContext.contentResolver.openInputStream(uri)
+                ?: error("Cannot read world book file")
+            source.use { LorebookArchiveReader(LorebookCodec(mGson)).read(it, mContext.cacheDir) }
+        }
+
     /** 将已解析的世界书及其条目作为一个事务写入数据库。 */
     suspend fun saveImport(parsed: CharacterBookImport): Long = withContext(Dispatchers.IO) {
         mAppDatabase.withTransaction {
@@ -291,4 +324,62 @@ class LorebookRepository(
             output.write(json.toByteArray(Charsets.UTF_8))
         } ?: error("Cannot open world book export destination")
     }
+
+    /**
+     * 将所选世界书写为可重新导入的 JSON ZIP，完整封包成功后才写目标文档。
+     * @param lorebookIds 用户选择的世界书 ID。
+     * @param uri 系统文件创建器返回的目标文档。
+     */
+    suspend fun exportArchiveToUri(lorebookIds: List<Long>, uri: Uri) =
+        withContext(Dispatchers.IO) {
+            val ids = lorebookIds.distinct()
+            require(ids.isNotEmpty()) { "No world books selected" }
+            val limits = LorebookArchiveLimits()
+            if (ids.size > limits.entries) throw LorebookArchiveLimitException()
+            // 先生成完整归档，导出与导入共用限额，保证成功导出的归档能够重新读取。
+            val archive =
+                File.createTempFile("rpclient-worldbook-export-", ".zip", mContext.cacheDir)
+            try {
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    writeArchiveBooks(ids, zip, limits)
+                }
+                if (archive.length() > limits.archiveBytes) throw LorebookArchiveLimitException()
+                currentCoroutineContext().ensureActive()
+                val output = mContext.contentResolver.openOutputStream(uri, "wt")
+                    ?: error("Cannot open world book archive destination")
+                output.use { target -> archive.inputStream().use { it.copyTo(target) } }
+            } finally {
+                archive.delete()
+            }
+        }
+
+    /** 在读取事务中获取一致快照，并逐本编码以限制瞬时内存。 */
+    private suspend fun writeArchiveBooks(
+        ids: List<Long>,
+        zip: ZipOutputStream,
+        limits: LorebookArchiveLimits
+    ) {
+        var totalBytes = 0L
+        mAppDatabase.withTransaction {
+            for (id in ids) {
+                currentCoroutineContext().ensureActive()
+                val book = getLorebookById(id) ?: error("World book not found")
+                val json = exportJson(id)
+                if (json.length > limits.entryBytes) throw LorebookArchiveLimitException()
+                val bytes = json.toByteArray(Charsets.UTF_8)
+                totalBytes += bytes.size
+                if (bytes.size > limits.entryBytes || totalBytes > limits.totalJsonBytes) {
+                    throw LorebookArchiveLimitException()
+                }
+                // ID 后缀避免同名冲突；名称永远不成为可逃逸目录的文件路径。
+                val name = book.name.map { char ->
+                    if (char.code < 0x20 || char in "/\\:*?\"<>|") '_' else char
+                }.joinToString("").trim(' ', '.').take(80).ifBlank { "worldbook" }
+                zip.putNextEntry(ZipEntry("$name-$id.json"))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+    }
+
 }

@@ -11,6 +11,8 @@ sealed class WorldBookListUiState {
         val loadState: WorldBookListLoadState = WorldBookListLoadState.None,
         /** 当前页面或流程可使用的世界书列表。 */
         val lorebooks: List<WorldBookListItem> = emptyList(),
+        /** 当前批量操作的世界书 ID 集合。 */
+        val selectedLorebookIds: Set<Long> = emptySet(),
         /** 当前页面互斥展示的对话框状态。 */
         val dialogState: WorldBookListDialogState = WorldBookListDialogState.None
     ) : WorldBookListUiState()
@@ -30,8 +32,14 @@ sealed class WorldBookListDialogState {
     data object None : WorldBookListDialogState()
 
     data class LowTokenBudgetConfirm(
-        val importedTokenBudget: Int
+        val importedTokenBudget: Int,
+        val affectedBookCount: Int
     ) : WorldBookListDialogState()
+
+    data class BatchImportResult(val successCount: Int, val failureCount: Int) :
+        WorldBookListDialogState()
+
+    data class DeleteSelectedConfirm(val lorebookIds: Set<Long>) : WorldBookListDialogState()
 }
 
 /** 世界书列表读取或导入期间的加载状态。 */
@@ -39,4 +47,7 @@ sealed class WorldBookListLoadState {
     data object None : WorldBookListLoadState()
 
     data object Loading : WorldBookListLoadState()
+
+    data class Importing(val saving: Boolean, val completedCount: Int, val totalCount: Int) :
+        WorldBookListLoadState()
 }

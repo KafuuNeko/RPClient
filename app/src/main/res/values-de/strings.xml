@@ -1388,4 +1388,17 @@
     <string name="character_content_count">Einträge (%1$d)</string>
     <string name="character_content_empty">Keine zugehörigen Inhalte in dieser Kategorie.</string>
     <string name="character_content_load_failed">Die Inhalte dieses Charakters konnten nicht geladen werden.</string>
+
+    <string name="selection_select_all">Alle auswählen</string>
+    <string name="selection_deselect_all">Auswahl aufheben</string>
+    <string name="batch_import_result_message">Importiert: %1$d\nFehlgeschlagen: %2$d</string>
+    <string name="batch_import_reading_progress">Dateien werden gelesen: %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Import läuft: %1$d/%2$d</string>
+    <string name="character_batch_delete_message">%1$d ausgewählte Charaktere und ihre Einzelchats löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="world_book_batch_delete_message">%1$d ausgewählte Weltbücher und alle ihre Einträge löschen? Charakterverknüpfungen werden entfernt. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="world_book_entry_batch_delete_message">%1$d ausgewählte Einträge löschen? Die Löschung erfolgt sofort und kann nicht rückgängig gemacht werden.</string>
+    <string name="world_book_batch_import_result_title">Weltbuchimport abgeschlossen</string>
+    <string name="world_book_batch_low_budget_message">%1$d ausgewählte Weltbücher haben niedrige feste Budgets. Das niedrigste beträgt %2$d Tokens. Das globale Budget für diese Bücher verwenden?</string>
+    <string name="world_book_archive_limit">Die Weltbuch-ZIP überschreitet die Importgrenzen. Wähle weniger Bücher oder verkleinere ein großes Buch.</string>
+    <string name="world_book_export_selected">Ausgewählte Weltbücher als ZIP exportieren</string>
 </resources>

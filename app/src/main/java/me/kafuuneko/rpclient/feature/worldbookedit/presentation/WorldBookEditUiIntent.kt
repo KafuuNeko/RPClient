@@ -27,6 +27,18 @@ sealed class WorldBookEditUiIntent {
     data class ToggleEntryDisabled(val entryId: Long, val disabled: Boolean) :
         WorldBookEditUiIntent()
 
+    data class BeginEntrySelection(val entryId: Long) : WorldBookEditUiIntent()
+
+    data class ToggleEntrySelection(val entryId: Long) : WorldBookEditUiIntent()
+
+    data object ToggleVisibleEntrySelection : WorldBookEditUiIntent()
+
+    data object ClearEntrySelection : WorldBookEditUiIntent()
+
+    data object DeleteSelectedEntriesClick : WorldBookEditUiIntent()
+
+    data object ConfirmDeleteSelectedEntries : WorldBookEditUiIntent()
+
     data object SaveWorldBook : WorldBookEditUiIntent()
 
     data object DeleteWorldBookClick : WorldBookEditUiIntent()

@@ -20,6 +20,8 @@ class LorebookCodec(
     /** 解析独立世界书，返回尚未写入数据库的书籍与条目集合。 */
     fun parseLorebook(json: String): CharacterBookImport {
         val root = JsonParser.parseString(json).asJsonObject
+        // 独立世界书必须包含 entries 对象，避免将角色卡、清单或普通配置导入为空书。
+        require(root.get("entries")?.isJsonObject == true) { "Missing world book entries object" }
 
         val name = root.optString("name")
         val lorebook = Lorebook(

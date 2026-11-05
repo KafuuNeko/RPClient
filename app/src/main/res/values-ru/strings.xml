@@ -1393,4 +1393,17 @@
     <string name="character_content_count">Всего: %1$d</string>
     <string name="character_content_empty">В этой категории пока нет связанных материалов.</string>
     <string name="character_content_load_failed">Не удалось загрузить материалы этого персонажа.</string>
+
+    <string name="selection_select_all">Выбрать все</string>
+    <string name="selection_deselect_all">Снять выбор со всех</string>
+    <string name="batch_import_result_message">Импортировано: %1$d\nОшибок: %2$d</string>
+    <string name="batch_import_reading_progress">Чтение: %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Импорт: %1$d/%2$d</string>
+    <string name="character_batch_delete_message">Удалить выбранных персонажей (%1$d) и их личные чаты? Связанные книги мира сохранятся. Это действие нельзя отменить.</string>
+    <string name="world_book_batch_delete_message">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</string>
+    <string name="world_book_entry_batch_delete_message">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</string>
+    <string name="world_book_batch_import_result_title">Импорт книг мира завершён</string>
+    <string name="world_book_batch_low_budget_message">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</string>
+    <string name="world_book_archive_limit">ZIP книг мира превышает ограничения импорта. Выберите меньше книг или уменьшите размер большой книги.</string>
+    <string name="world_book_export_selected">Экспортировать выбранные книги мира в ZIP</string>
 </resources>

@@ -44,11 +44,14 @@ data class WorldBookEntryListState(
     /** 当前查询或统计包含的总数量。 */
     val totalCount: Int = 0,
     /** 当前列表中处于启用状态的条目数量。 */
-    val activeCount: Int = 0
+    val activeCount: Int = 0,
+    /** 跨搜索和筛选保留的批量选择。 */
+    val selectedEntryIds: Set<Long> = emptySet()
 ) {
     fun rebuild(entries: List<WorldBookEntryListItem>): WorldBookEntryListState {
         return copy(
             visibleEntries = entries.filter(::matches),
+            selectedEntryIds = selectedEntryIds.intersect(entries.mapTo(mutableSetOf()) { it.id }),
             totalCount = entries.size,
             activeCount = entries.count { !it.disabled },
         )
@@ -123,6 +126,8 @@ sealed class WorldBookEditDialogState {
     data class DeleteConfirm(
         val worldBookName: String
     ) : WorldBookEditDialogState()
+
+    data class DeleteEntriesConfirm(val entryIds: Set<Long>) : WorldBookEditDialogState()
 
     data object UnsavedChangesConfirm : WorldBookEditDialogState()
 }

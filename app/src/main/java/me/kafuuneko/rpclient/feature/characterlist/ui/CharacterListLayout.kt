@@ -22,8 +22,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CheckBox
-import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
@@ -36,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -48,6 +45,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,12 +61,15 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDia
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
+import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.BatchSelectionActions
+import me.kafuuneko.rpclient.ui.widgets.BatchSelectionIndicator
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
@@ -84,12 +88,7 @@ fun CharacterListLayout(
     emit: CharacterListUiIntent.() -> Unit,
 ) {
     BackHandler(enabled = uiState is CharacterListUiState.Normal) {
-        val normalState = uiState as? CharacterListUiState.Normal
-        if (normalState != null && normalState.selectedCharacterIds.isNotEmpty()) {
-            CharacterListUiIntent.ClearCharacterSelection.emit()
-        } else {
-            CharacterListUiIntent.Back.emit()
-        }
+        CharacterListUiIntent.Back.emit()
     }
     when (uiState) {
         CharacterListUiState.None -> Unit
@@ -106,6 +105,7 @@ private fun CharacterListNormal(
     state: CharacterListUiState.Normal,
     emit: CharacterListUiIntent.() -> Unit,
 ) {
+    // 保持列表状态，选择模式切换时只更新操作区和卡片尾部。
     val listState = rememberLazyListState()
     val avatarSizePx = with(LocalDensity.current) { 54.dp.roundToPx() }
     LaunchedEffect(key1 = listState, key2 = state.characters, key3 = avatarSizePx) {
@@ -132,7 +132,7 @@ private fun CharacterListNormal(
             state.characters.all { it.id in state.selectedCharacterIds }
         AppTopBar(
             title = if (selectionMode) {
-                stringResource(R.string.character_selection_count, state.selectedCharacterIds.size)
+                stringResource(R.string.selected_count, state.selectedCharacterIds.size)
             } else {
                 stringResource(R.string.character_manager)
             },
@@ -145,35 +145,27 @@ private fun CharacterListNormal(
             },
             actions = {
                 if (selectionMode) {
-                    TextButton(
-                        onClick = { CharacterListUiIntent.ToggleVisibleCharacterSelection.emit() },
-                        enabled = state.loadState == CharacterListLoadState.None && state.characters.isNotEmpty()
-                    ) {
-                        Text(
-                            text = stringResource(
-                                if (allVisibleSelected) R.string.deselect_all_characters else R.string.select_all_characters
-                            ),
-                            maxLines = 1
-                        )
-                    }
-                    IconButton(
-                        onClick = { CharacterListUiIntent.ExportSelectedCharactersClick.emit() },
-                        enabled = state.loadState == CharacterListLoadState.None &&
-                            state.selectedCharacterIds.isNotEmpty()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.FileUpload,
-                            contentDescription = stringResource(R.string.export_selected_characters_zip)
-                        )
-                    }
+                    BatchSelectionActions(
+                        allSelected = allVisibleSelected,
+                        canSelectAll = state.characters.isNotEmpty(),
+                        enabled = state.loadState == CharacterListLoadState.None,
+                        onToggleAll = { CharacterListUiIntent.ToggleVisibleCharacterSelection.emit() },
+                        onDelete = { CharacterListUiIntent.DeleteSelectedCharactersClick.emit() },
+                        exportDescription = stringResource(R.string.export_selected_characters_zip),
+                        onExport = { CharacterListUiIntent.ExportSelectedCharactersClick.emit() },
+                    )
                 } else {
-                    IconButton(onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
+                    IconButton(
+                        enabled = state.loadState == CharacterListLoadState.None,
+                        onClick = { CharacterListUiIntent.ImportCharacterClick.emit() }) {
                         Icon(
                             imageVector = Icons.Rounded.FileDownload,
                             contentDescription = stringResource(R.string.import_character),
                         )
                     }
-                    IconButton(onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
+                    IconButton(
+                        enabled = state.loadState == CharacterListLoadState.None,
+                        onClick = { CharacterListUiIntent.CreateCharacter.emit() }) {
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = stringResource(R.string.create_character),
@@ -199,7 +191,9 @@ private fun CharacterListNormal(
             item {
                 RpSectionHeader(
                     title = stringResource(R.string.all_characters),
-                    action = stringResource(R.string.create),
+                    action = if (selectionMode || state.loadState != CharacterListLoadState.None) null else stringResource(
+                        R.string.create
+                    ),
                     onAction = { CharacterListUiIntent.CreateCharacter.emit() },
                 )
             }
@@ -218,6 +212,7 @@ private fun CharacterListNormal(
                     selected = character.id == state.selectedCharacterId,
                     selectionMode = selectionMode,
                     bulkSelected = character.id in state.selectedCharacterIds,
+                    enabled = state.loadState == CharacterListLoadState.None,
                     onClick = {
                         if (selectionMode) {
                             CharacterListUiIntent.ToggleCharacterSelection(character.id).emit()
@@ -248,6 +243,16 @@ private fun DialogSwitch(
     // 低预算确认在单卡与批量场景复用同一策略入口
     when (dialogState) {
         CharacterListDialogState.None -> Unit
+        is CharacterListDialogState.DeleteSelectedConfirm -> AppDangerDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_selected_items_title),
+            message = stringResource(
+                R.string.character_batch_delete_message,
+                dialogState.characterIds.size
+            ),
+            onConfirm = { CharacterListUiIntent.ConfirmDeleteSelectedCharacters.emit() },
+        )
+
         is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> {
             val importBudgetMessage = if (dialogState.affectedCharacterCount == 1) {
                 stringResource(
@@ -415,26 +420,36 @@ private fun CharacterListCard(
     selected: Boolean,
     selectionMode: Boolean,
     bulkSelected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onExport: () -> Unit
 ) {
+    // 批量选择优先于最近打开的角色高亮，三处列表使用相同的主题选中色。
+    val highlighted = if (selectionMode) bulkSelected else selected
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
+            .semantics {
+                if (selectionMode) {
+                    this.selected = bulkSelected
+                    role = Role.Checkbox
+                }
+            }
             .combinedClickable(
+                enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
-            width = if (selected) 1.dp else 0.5.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
+            width = if (highlighted) 1.dp else 0.5.dp,
+            color = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(
                 alpha = 0.20f
             ),
         ),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
+            containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
         ),
     ) {
         Row(
@@ -469,18 +484,7 @@ private fun CharacterListCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         if (selectionMode) {
-                            Icon(
-                                imageVector = if (bulkSelected) {
-                                    Icons.Rounded.CheckBox
-                                } else {
-                                    Icons.Rounded.CheckBoxOutlineBlank
-                                },
-                                contentDescription = stringResource(
-                                    if (bulkSelected) R.string.character_selected else R.string.character_not_selected
-                                ),
-                                tint = if (bulkSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            BatchSelectionIndicator(selected = bulkSelected)
                         } else {
                             Icon(
                                 imageVector = Icons.Rounded.Edit,
@@ -490,6 +494,7 @@ private fun CharacterListCard(
                             )
                             IconButton(
                                 onClick = onExport,
+                                enabled = enabled,
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(

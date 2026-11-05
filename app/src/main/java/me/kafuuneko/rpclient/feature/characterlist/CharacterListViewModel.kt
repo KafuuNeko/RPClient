@@ -88,10 +88,17 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
     }
 
-    /** 处理返回操作，取消未完成的传输作业与头像加载任务并迁移至 Finished 状态。 */
+    /** 返回时优先退出多选，持久化期间保留页面，离开时取消头像加载。 */
     @UiIntentObserver(CharacterListUiIntent.Back::class)
     private fun onBack() {
         if (isStateOf<CharacterListUiState.Finished>()) return
+        val state = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (state.loadState != CharacterListLoadState.None) return
+        // 多选退出不触发页面结束，避免返回键误丢当前搜索与滚动状态。
+        if (state.selectedCharacterIds.isNotEmpty()) {
+            onClearCharacterSelection()
+            return
+        }
         mRefreshGeneration++
         mTransferJob?.cancel()
         mPendingImport = null
@@ -159,6 +166,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.SelectCharacter::class)
     private fun onSelectCharacter(intent: CharacterListUiIntent.SelectCharacter) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (uiState.dialogState != CharacterListDialogState.None) return
         if (uiState.selectedCharacterIds.isNotEmpty()) {
             onToggleCharacterSelection(CharacterListUiIntent.ToggleCharacterSelection(intent.characterId))
             return
@@ -212,8 +221,48 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.ClearCharacterSelection::class)
     private fun onClearCharacterSelection() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         if (uiState.selectedCharacterIds.isNotEmpty()) {
             uiState.copy(selectedCharacterIds = emptySet()).setup()
+        }
+    }
+
+    /** 冻结待删除集合，确认内容不随搜索或列表刷新发生变化。 */
+    @UiIntentObserver(CharacterListUiIntent.DeleteSelectedCharactersClick::class)
+    private fun onDeleteSelectedCharactersClick() {
+        val state = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (state.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (state.dialogState != CharacterListDialogState.None || state.selectedCharacterIds.isEmpty()) return
+        state.copy(dialogState = CharacterListDialogState.DeleteSelectedConfirm(state.selectedCharacterIds))
+            .setup()
+    }
+
+    /** 确认后原子删除所选角色及其单聊，失败时保留选择以便重试。 */
+    @UiIntentObserver(CharacterListUiIntent.ConfirmDeleteSelectedCharacters::class)
+    private fun onConfirmDeleteSelectedCharacters() {
+        val state = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialog = state.dialogState as? CharacterListDialogState.DeleteSelectedConfirm ?: return
+        if (state.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        val token = Any()
+        mTransferToken = token
+        mRefreshGeneration++
+        // 复用传输锁阻止重复删除，刷新负责清理已不存在的选择和头像缓存。
+        state.copy(
+            loadState = CharacterListLoadState.Loading,
+            dialogState = CharacterListDialogState.None
+        ).setup()
+        mTransferJob = viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { mCharacterRepository.deleteCharacters(dialog.characterIds.toList()) }
+                refreshCharacters(selectedCharacterId = state.selectedCharacterId)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                AppViewEvent.PopupToastMessageByResId(R.string.delete_selected_items_failed)
+                    .tryEmit()
+            } finally {
+                finishTransfer(token)
+            }
         }
     }
 
@@ -274,7 +323,9 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     /** 打开新建角色编辑页面。 */
     @UiIntentObserver(CharacterListUiIntent.CreateCharacter::class)
     private fun onCreateCharacter() {
-        if (!isStateOf<CharacterListUiState.Normal>()) return
+        val state = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (state.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (state.dialogState != CharacterListDialogState.None || state.selectedCharacterIds.isNotEmpty()) return
         AppViewEvent.StartActivity(CharacterEditActivity::class.java).tryEmit()
     }
 
@@ -283,6 +334,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private fun onImportCharacterClick() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState != CharacterListDialogState.None) return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         CharacterListViewEvent.OpenCharacterCardImporter.tryEmit()
     }
 
@@ -411,7 +463,9 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
-        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult) return
+        if (uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
+            uiState.dialogState !is CharacterListDialogState.DeleteSelectedConfirm
+        ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
 
@@ -527,6 +581,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     @UiIntentObserver(CharacterListUiIntent.ExportCharacterJsonClick::class)
     private fun onExportCharacterJsonClick(intent: CharacterListUiIntent.ExportCharacterJsonClick) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        if (uiState.dialogState != CharacterListDialogState.None) return
         val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
         CharacterListViewEvent.OpenCharacterCardJsonExporter(
             characterId = intent.characterId,

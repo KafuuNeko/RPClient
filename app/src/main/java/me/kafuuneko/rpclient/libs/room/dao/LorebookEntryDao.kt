@@ -73,6 +73,10 @@ interface LorebookEntryDao : MutableDao<LorebookEntry> {
     @Query("DELETE FROM lorebook_entries WHERE id = :id")
     suspend fun deleteEntryById(id: Long)
 
+    /** 限定世界书归属后批量删除条目，避免跨书误删。 */
+    @Query("DELETE FROM lorebook_entries WHERE lorebookId = :lorebookId AND id IN (:ids)")
+    suspend fun deleteEntriesByIds(lorebookId: Long, ids: List<Long>)
+
     /**
      * 清空指定世界书下的所有条目。
      *

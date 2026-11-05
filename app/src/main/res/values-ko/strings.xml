@@ -1383,4 +1383,17 @@
     <string name="character_content_count">콘텐츠 %1$d개</string>
     <string name="character_content_empty">이 카테고리에 관련 콘텐츠가 없습니다.</string>
     <string name="character_content_load_failed">이 캐릭터의 콘텐츠를 불러올 수 없습니다.</string>
+
+    <string name="selection_select_all">모두 선택</string>
+    <string name="selection_deselect_all">모두 선택 해제</string>
+    <string name="batch_import_result_message">성공: %1$d\n실패: %2$d</string>
+    <string name="batch_import_reading_progress">분석 중 %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">가져오는 중 %1$d/%2$d</string>
+    <string name="character_batch_delete_message">선택한 캐릭터 %1$d개와 해당 일대일 채팅을 삭제할까요? 연결된 월드북은 유지됩니다. 이 작업은 되돌릴 수 없습니다.</string>
+    <string name="world_book_batch_delete_message">선택한 월드북 %1$d개와 모든 항목을 삭제할까요? 캐릭터 연결도 해제됩니다. 이 작업은 되돌릴 수 없습니다.</string>
+    <string name="world_book_entry_batch_delete_message">선택한 항목 %1$d개를 삭제할까요? 삭제는 즉시 적용되며 되돌릴 수 없습니다.</string>
+    <string name="world_book_batch_import_result_title">월드북 가져오기 완료</string>
+    <string name="world_book_batch_low_budget_message">선택한 월드북 %1$d개의 고정 예산이 낮습니다. 최솟값은 %2$d토큰입니다. 이 월드북에 전역 예산을 사용할까요?</string>
+    <string name="world_book_archive_limit">월드북 ZIP이 가져오기 한도를 초과합니다. 더 적은 월드북을 선택하거나 큰 월드북의 크기를 줄이세요.</string>
+    <string name="world_book_export_selected">선택한 월드북을 ZIP으로 내보내기</string>
 </resources>

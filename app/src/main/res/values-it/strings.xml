@@ -1367,4 +1367,18 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="character_content_count">Elementi (%1$d)</string>
     <string name="character_content_empty">Nessun contenuto correlato in questa categoria.</string>
     <string name="character_content_load_failed">Impossibile caricare i contenuti di questo personaggio.</string>
+
+    <string name="selection_select_all">Seleziona tutti</string>
+    <string name="selection_deselect_all">Deseleziona tutti</string>
+    <string name="batch_import_result_message">Importati: %1$d
+Non riusciti: %2$d</string>
+    <string name="batch_import_reading_progress">Lettura di %1$d/%2$d</string>
+    <string name="batch_import_saving_progress">Importazione di %1$d/%2$d</string>
+    <string name="character_batch_delete_message">Eliminare %1$d personaggi selezionati e le loro chat individuali? I libri del mondo associati verranno mantenuti. Questa azione non può essere annullata.</string>
+    <string name="world_book_batch_delete_message">Eliminare %1$d libri del mondo selezionati e tutte le loro voci? I collegamenti ai personaggi verranno rimossi. Questa azione non può essere annullata.</string>
+    <string name="world_book_entry_batch_delete_message">Eliminare %1$d voci selezionate? L’eliminazione è immediata e non può essere annullata.</string>
+    <string name="world_book_batch_import_result_title">Importazione dei libri del mondo completata</string>
+    <string name="world_book_batch_low_budget_message">%1$d libri del mondo selezionati hanno budget fissi bassi. Il più basso è di %2$d token. Usare il budget globale per questi libri?</string>
+    <string name="world_book_archive_limit">Lo ZIP dei libri del mondo supera i limiti di importazione. Seleziona meno libri o riduci le dimensioni di un libro grande.</string>
+    <string name="world_book_export_selected">Esporta i libri del mondo selezionati come ZIP</string>
 </resources>

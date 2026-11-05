@@ -6,6 +6,9 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 sealed class WorldBookListViewEvent : IViewEvent {
     data object OpenWorldBookImporter : WorldBookListViewEvent()
 
+    data class OpenWorldBookArchiveExporter(val lorebookIds: List<Long>, val fileName: String) :
+        WorldBookListViewEvent()
+
     data class OpenWorldBookExporter(
         val lorebookId: Long,
         val fileName: String

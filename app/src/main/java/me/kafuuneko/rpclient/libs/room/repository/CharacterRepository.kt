@@ -200,19 +200,36 @@ class CharacterRepository(
      * @param id 角色 id。
      */
     suspend fun deleteCharacter(id: Long) {
+        deleteCharacters(listOf(id))
+    }
+
+    /**
+     * 在同一文件事务内删除所选角色、单聊与专属附件，保留关联世界书。
+     * @param ids 要删除的角色 ID，重复项只处理一次。
+     */
+    suspend fun deleteCharacters(ids: List<Long>) {
+        if (ids.isEmpty()) return
         mImages.mutate {
-            // 角色删除会级联单聊，群聊用户图片不属于该角色，必须保留。
-            mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
-                mImages.deleteInTransaction(
-                    mutation = this,
-                    type = MessageType.Single,
-                    ids = mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id),
+            // 所有角色共用事务，失败时不会留下部分删除的数据和失效的附件引用。
+            for (id in ids.distinct()) {
+                val character = mCharacterDao.getCharacterById(id) ?: continue
+                mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
+                    mImages.deleteInTransaction(
+                        mutation = this,
+                        type = MessageType.Single,
+                        ids = mAppDatabase.getChatMessageDao().getMessageIdsBySessionId(session.id),
+                    )
+                }
+                // 群聊用户图片不属于角色；角色头像和背景在事务提交后统一回收。
+                mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
+                mCharacterDao.deleteCharacterById(id)
+                removeFiles(
+                    listOfNotNull(
+                        character.avatar.takeIf { it.isNotBlank() },
+                        character.backgroundFileUuid
+                    )
                 )
             }
-            val backgroundUuid = mCharacterDao.getCharacterById(id)?.backgroundFileUuid
-            mCharacterLLMProviderAssociationDao.deleteByCharacterId(id)
-            mCharacterDao.deleteCharacterById(id)
-            backgroundUuid?.let { text -> removeFiles(listOf(text)) }
         }
     }
 

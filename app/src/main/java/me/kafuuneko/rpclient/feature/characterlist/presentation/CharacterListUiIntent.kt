@@ -22,9 +22,14 @@ sealed class CharacterListUiIntent {
 
     data object ClearCharacterSelection : CharacterListUiIntent()
 
+    data object DeleteSelectedCharactersClick : CharacterListUiIntent()
+
+    data object ConfirmDeleteSelectedCharacters : CharacterListUiIntent()
+
     data object ExportSelectedCharactersClick : CharacterListUiIntent()
 
-    data class ExportSelectedCharacters(val characterIds: List<Long>, val uri: Uri) : CharacterListUiIntent()
+    data class ExportSelectedCharacters(val characterIds: List<Long>, val uri: Uri) :
+        CharacterListUiIntent()
 
     data class VisibleCharactersChanged(
         val characterIds: Set<Long>,

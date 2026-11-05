@@ -3,7 +3,8 @@ package me.kafuuneko.rpclient.feature.worldbookedit.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,6 +66,8 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.BatchSelectionActions
+import me.kafuuneko.rpclient.ui.widgets.BatchSelectionIndicator
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -101,18 +108,35 @@ private fun WorldBookEditNormal(
     state: WorldBookEditUiState.Normal,
     emit: WorldBookEditUiIntent.() -> Unit,
 ) {
+    // 多选时保留搜索与过滤入口，隐藏保存操作以免与批量删除混淆。
+    val selectionMode = state.entryListState.selectedEntryIds.isNotEmpty()
+    val enabled = state.loadState == WorldBookEditLoadState.None
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(pageCanvasColor()),
     ) {
         AppTopBar(
-            title = if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(
+            title = if (selectionMode) stringResource(
+                R.string.selected_count,
+                state.entryListState.selectedEntryIds.size
+            )
+            else if (state.mode == WorldBookEditMode.Create) stringResource(R.string.create_world_book) else stringResource(
                 R.string.edit_world_book_title
             ),
             onBack = { WorldBookEditUiIntent.Back.emit() },
             actions = {
-                TopBarSaveButton(state, emit)
+                if (selectionMode) {
+                    BatchSelectionActions(
+                        allSelected = state.entryListState.visibleEntries.all { it.id in state.entryListState.selectedEntryIds },
+                        canSelectAll = state.entryListState.visibleEntries.isNotEmpty(),
+                        enabled = enabled,
+                        onToggleAll = { WorldBookEditUiIntent.ToggleVisibleEntrySelection.emit() },
+                        onDelete = { WorldBookEditUiIntent.DeleteSelectedEntriesClick.emit() },
+                    )
+                } else {
+                    TopBarSaveButton(state, emit)
+                }
             },
         )
         RpLazyColumn(
@@ -135,10 +159,20 @@ private fun WorldBookEditNormal(
                         form = state.form,
                         activeCount = state.entryListState.activeCount,
                         loadState = state.loadState,
+                        selectionMode = selectionMode,
                         emit = emit,
                     )
                 }
-                item { EntryHeader(state.entryListState.totalCount, emit) }
+                if (state.loadState == WorldBookEditLoadState.Deleting) {
+                    item { LoadingPanel() }
+                }
+                item {
+                    EntryHeader(
+                        totalCount = state.entryListState.totalCount,
+                        canAdd = enabled && !selectionMode,
+                        emit = emit
+                    )
+                }
                 if (state.entryListState.totalCount > 0) {
                     item {
                         EntrySearchBar(
@@ -164,6 +198,12 @@ private fun WorldBookEditNormal(
                     item(key = entry.id) {
                         EntryCard(
                             entry = entry,
+                            selectionMode = selectionMode,
+                            selected = entry.id in state.entryListState.selectedEntryIds,
+                            enabled = enabled,
+                            onLongClick = {
+                                WorldBookEditUiIntent.BeginEntrySelection(entry.id).emit()
+                            },
                             onClick = { WorldBookEditUiIntent.EditEntry(entry.id).emit() },
                             onToggleDisabled = { enabled ->
                                 WorldBookEditUiIntent.ToggleEntryDisabled(
@@ -174,7 +214,9 @@ private fun WorldBookEditNormal(
                         )
                     }
                 }
-                item { ActionPanel(state, emit) }
+                if (!selectionMode) {
+                    item { ActionPanel(state, emit) }
+                }
             }
         }
     }
@@ -199,8 +241,10 @@ private fun BasicPanel(
     form: WorldBookEditForm,
     activeCount: Int,
     loadState: WorldBookEditLoadState,
+    selectionMode: Boolean,
     emit: WorldBookEditUiIntent.() -> Unit,
 ) {
+    // 多选期间保留元数据面板的位置，但冻结编辑入口，避免与条目删除混用。
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RpIconBubble(Icons.AutoMirrored.Rounded.MenuBook)
@@ -224,7 +268,7 @@ private fun BasicPanel(
                 )
             }
             IconButton(
-                enabled = loadState == WorldBookEditLoadState.None,
+                enabled = loadState == WorldBookEditLoadState.None && !selectionMode,
                 onClick = { WorldBookEditUiIntent.DeleteWorldBookClick.emit() },
             ) {
                 Icon(
@@ -240,12 +284,12 @@ private fun BasicPanel(
             value = form.name,
             onValueChange = { text -> WorldBookEditUiIntent.ChangeName(text).emit() },
             label = { Text(stringResource(R.string.name)) },
-            enabled = loadState == WorldBookEditLoadState.None,
+            enabled = loadState == WorldBookEditLoadState.None && !selectionMode,
             shape = RoundedCornerShape(12.dp),
         )
         WorldBookBudgetEditor(
             form = form,
-            enabled = loadState == WorldBookEditLoadState.None,
+            enabled = loadState == WorldBookEditLoadState.None && !selectionMode,
             emit = emit,
         )
     }
@@ -315,11 +359,12 @@ private fun WorldBookBudgetMode.titleRes(): Int {
 @Composable
 private fun EntryHeader(
     totalCount: Int,
+    canAdd: Boolean,
     emit: WorldBookEditUiIntent.() -> Unit,
 ) {
     RpSectionHeader(
         title = stringResource(R.string.entries_with_count, totalCount),
-        action = stringResource(R.string.add),
+        action = if (canAdd) stringResource(R.string.add) else null,
         onAction = { WorldBookEditUiIntent.AddEntry.emit() },
     )
 }
@@ -414,14 +459,20 @@ private fun EmptyEntriesPanel(hasEntries: Boolean = false) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EntryCard(
     entry: WorldBookEntryListItem,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    enabled: Boolean = true,
+    onLongClick: () -> Unit = {},
     onClick: () -> Unit,
     onToggleDisabled: (Boolean) -> Unit,
 ) {
     val alpha = if (entry.disabled) 0.55f else 1f
     val borderColor = when {
+        selected -> MaterialTheme.colorScheme.primary
         entry.disabled -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
         entry.constant -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
         else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
@@ -430,14 +481,25 @@ private fun EntryCard(
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { onClick() }),
+            .semantics {
+                if (selectionMode) {
+                    this.selected = selected
+                    role = Role.Checkbox
+                }
+            }
+            .combinedClickable(
+                enabled = enabled,
+                onClick = onClick,
+                onLongClick = if (selectionMode) null else onLongClick
+            ),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(width = 1.dp, color = borderColor),
         colors = CardDefaults.cardColors(
-            containerColor = if (entry.disabled)
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            else
-                MaterialTheme.colorScheme.surface,
+            containerColor = when {
+                selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                entry.disabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.surface
+            },
         ),
     ) {
         Row(
@@ -503,10 +565,15 @@ private fun EntryCard(
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Switch(
-                checked = !entry.disabled,
-                onCheckedChange = { enabled -> onToggleDisabled(!enabled) },
-            )
+            if (selectionMode) {
+                BatchSelectionIndicator(selected = selected)
+            } else {
+                Switch(
+                    checked = !entry.disabled,
+                    enabled = enabled,
+                    onCheckedChange = { enabled -> onToggleDisabled(!enabled) },
+                )
+            }
         }
     }
 }
@@ -577,8 +644,19 @@ private fun DialogSwitch(
     dialogState: WorldBookEditDialogState,
     emit: WorldBookEditUiIntent.() -> Unit,
 ) {
+    // 条目删除立即持久化，与世界书元数据的放弃修改确认分别处理。
     when (dialogState) {
         WorldBookEditDialogState.None -> Unit
+        is WorldBookEditDialogState.DeleteEntriesConfirm -> AppDangerDialog(
+            onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_selected_items_title),
+            message = stringResource(
+                R.string.world_book_entry_batch_delete_message,
+                dialogState.entryIds.size
+            ),
+            onConfirm = { WorldBookEditUiIntent.ConfirmDeleteSelectedEntries.emit() },
+        )
+
         is WorldBookEditDialogState.DeleteConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_world_book_title),

@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.worldbookedit
 
 import android.os.Bundle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -76,6 +77,10 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
     private fun onBack() {
         val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
         if (uiState.loadState != WorldBookEditLoadState.None) return
+        if (uiState.entryListState.selectedEntryIds.isNotEmpty()) {
+            onClearEntrySelection()
+            return
+        }
         if (uiState.form.hasUnsavedChangesFrom(uiState.initialForm)) {
             uiState.copy(dialogState = WorldBookEditDialogState.UnsavedChangesConfirm).setup()
             return
@@ -144,6 +149,12 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
     /** 预保存世界书并打开指定条目的编辑页面。 */
     @UiIntentObserver(WorldBookEditUiIntent.EditEntry::class)
     private suspend fun onEditEntry(intent: WorldBookEditUiIntent.EditEntry) {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.entryListState.selectedEntryIds.isNotEmpty()) {
+            onToggleEntrySelection(WorldBookEditUiIntent.ToggleEntrySelection(intent.entryId))
+            return
+        }
+        if (state.form.entries.none { it.id == intent.entryId }) return
         val lorebookId = saveWorldBookForEntryNavigation() ?: return
         AppViewEvent.StartActivity(
             activity = WorldBookEntryEditActivity::class.java,
@@ -158,6 +169,7 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
     @UiIntentObserver(WorldBookEditUiIntent.ToggleEntryDisabled::class)
     private suspend fun onToggleEntryDisabled(intent: WorldBookEditUiIntent.ToggleEntryDisabled) {
         val uiState = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (uiState.loadState != WorldBookEditLoadState.None || uiState.entryListState.selectedEntryIds.isNotEmpty()) return
         val entry = uiState.form.entries.firstOrNull { it.id == intent.entryId } ?: return
         if (entry.disabled == intent.disabled) return
 
@@ -175,6 +187,95 @@ class WorldBookEditViewModel : CoreViewModelWithEvent<WorldBookEditUiIntent, Wor
         // 同步更新内存状态并重构列表展示
         val latestState = getOrNull<WorldBookEditUiState.Normal>() ?: return
         latestState.withPersistedEntryDisabled(intent.entryId, intent.disabled).setup()
+    }
+
+    /** 长按有效条目进入多选，不触发自动保存或页面跳转。 */
+    @UiIntentObserver(WorldBookEditUiIntent.BeginEntrySelection::class)
+    private fun onBeginEntrySelection(intent: WorldBookEditUiIntent.BeginEntrySelection) {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.loadState != WorldBookEditLoadState.None) return
+        if (state.form.entries.none { it.id == intent.entryId }) return
+        state.copy(entryListState = state.entryListState.copy(selectedEntryIds = setOf(intent.entryId)))
+            .setup()
+    }
+
+    /** 切换条目选中状态，搜索和筛选之外的选择继续保留。 */
+    @UiIntentObserver(WorldBookEditUiIntent.ToggleEntrySelection::class)
+    private fun onToggleEntrySelection(intent: WorldBookEditUiIntent.ToggleEntrySelection) {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.loadState != WorldBookEditLoadState.None) return
+        if (state.form.entries.none { it.id == intent.entryId }) return
+        val selected = state.entryListState.selectedEntryIds
+        val updated =
+            if (intent.entryId in selected) selected - intent.entryId else selected + intent.entryId
+        state.copy(entryListState = state.entryListState.copy(selectedEntryIds = updated)).setup()
+    }
+
+    /** 全选或取消选择当前过滤结果，保留被筛选隐藏的选择。 */
+    @UiIntentObserver(WorldBookEditUiIntent.ToggleVisibleEntrySelection::class)
+    private fun onToggleVisibleEntrySelection() {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.loadState != WorldBookEditLoadState.None) return
+        val visible = state.entryListState.visibleEntries.mapTo(mutableSetOf()) { it.id }
+        val selected = state.entryListState.selectedEntryIds
+        val updated = if (selected.containsAll(visible)) selected - visible else selected + visible
+        state.copy(entryListState = state.entryListState.copy(selectedEntryIds = updated)).setup()
+    }
+
+    /** 返回时优先退出条目多选，保留未保存的元数据修改。 */
+    @UiIntentObserver(WorldBookEditUiIntent.ClearEntrySelection::class)
+    private fun onClearEntrySelection() {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.loadState != WorldBookEditLoadState.None) return
+        state.copy(entryListState = state.entryListState.copy(selectedEntryIds = emptySet()))
+            .setup()
+    }
+
+    /** 冻结条目删除集合，防止确认时误用后来发生变化的选择。 */
+    @UiIntentObserver(WorldBookEditUiIntent.DeleteSelectedEntriesClick::class)
+    private fun onDeleteSelectedEntriesClick() {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        if (state.loadState != WorldBookEditLoadState.None || state.entryListState.selectedEntryIds.isEmpty()) return
+        state.copy(dialogState = WorldBookEditDialogState.DeleteEntriesConfirm(state.entryListState.selectedEntryIds))
+            .setup()
+    }
+
+    /** 删除条目后同步更新表单和基线，名称与预算草稿仍保持未保存状态。 */
+    @UiIntentObserver(WorldBookEditUiIntent.ConfirmDeleteSelectedEntries::class)
+    private suspend fun onConfirmDeleteSelectedEntries() {
+        val state = getOrNull<WorldBookEditUiState.Normal>() ?: return
+        val dialog = state.dialogState as? WorldBookEditDialogState.DeleteEntriesConfirm ?: return
+        if (state.loadState != WorldBookEditLoadState.None) return
+        state.copy(
+            loadState = WorldBookEditLoadState.Deleting,
+            dialogState = WorldBookEditDialogState.None
+        ).setup()
+        try {
+            // 删除只限定当前世界书，事务失败时保留原条目与选择。
+            withContext(Dispatchers.IO) {
+                mLorebookRepository.deleteEntries(
+                    state.form.id,
+                    dialog.entryIds.toList()
+                )
+            }
+            val latest = getOrNull<WorldBookEditUiState.Normal>() ?: return
+            val form =
+                latest.form.copy(entries = latest.form.entries.filterNot { it.id in dialog.entryIds })
+            val initial =
+                latest.initialForm.copy(entries = latest.initialForm.entries.filterNot { it.id in dialog.entryIds })
+            latest.copy(
+                form = form,
+                initialForm = initial,
+                entryListState = latest.entryListState.rebuild(form.entries)
+            ).setup()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.delete_selected_items_failed).tryEmit()
+        } finally {
+            getOrNull<WorldBookEditUiState.Normal>()?.copy(loadState = WorldBookEditLoadState.None)
+                ?.setup()
+        }
     }
 
     /** 校验并保存世界书元数据，成功后关闭页面。 */
