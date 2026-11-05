@@ -231,8 +231,6 @@ Room 数据库和 Repository 都在 `RPClientApp.kt` 注册：
 private val appModules = module {
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
-            .fallbackToDestructiveMigration(true)
-            .fallbackToDestructiveMigrationOnDowngrade(true)
             .build()
     }
 
@@ -243,6 +241,8 @@ private val appModules = module {
     singleOf(::GroupChatRepository)
 }
 ```
+
+主业务数据库不配置破坏性迁移兜底。缺少升级或降级迁移路径时，应拒绝打开并保留数据，不能自动清库重建。
 
 ViewModel 只注入 Repository 或跨模块业务能力：
 
