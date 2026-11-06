@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.room.dao.LorebookDao
 import me.kafuuneko.rpclient.libs.room.dao.LorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.MessageImageDao
 import me.kafuuneko.rpclient.libs.room.dao.PageBackgroundDao
+import me.kafuuneko.rpclient.libs.room.dao.PromptPresetDao
 import me.kafuuneko.rpclient.libs.room.dao.RegexScriptDao
 import me.kafuuneko.rpclient.libs.room.dao.SearchSourceDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryChapterDao
@@ -42,6 +43,8 @@ import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.entity.PageBackgroundEntity
+import me.kafuuneko.rpclient.libs.room.entity.PromptPreset
+import me.kafuuneko.rpclient.libs.room.entity.PromptPresetEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexCharacterAuthorization
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.SearchChunk
@@ -60,6 +63,8 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        PromptPreset::class,
+        PromptPresetEntry::class,
         SearchSource::class,
         SearchChunk::class,
         SearchChunkFts::class,
@@ -87,17 +92,21 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
         LLMTokenUsageRecord::class,
         MessageImageEntity::class
     ],
-    version = 5,
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
         AutoMigration(from = 3, to = 4, spec = AppDatabaseAutoMigration3To4Spec::class),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
     ],
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** 提供提示词模板与当前选择的数据访问入口。 */
+    abstract fun getPromptPresetDao(): PromptPresetDao
+
     /** 提供独立内容搜索的数据访问入口。 */
     abstract fun getContentSearchDao(): ContentSearchDao
 

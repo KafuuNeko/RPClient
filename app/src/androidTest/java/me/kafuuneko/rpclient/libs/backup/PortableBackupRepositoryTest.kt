@@ -13,6 +13,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -37,10 +40,12 @@ class PortableBackupRepositoryTest {
     private lateinit var context: Context
     private lateinit var primary: AppDatabase
     private lateinit var logs: RequestLogDatabase
+    private var previousPresetId = -1L
 
     /** 所有数据库和文件均位于本项测试的临时目录。 */
     @Before
     fun setUp() {
+        previousPresetId = AppModel.activePromptPresetId
         val base = InstrumentationRegistry.getInstrumentation().targetContext
         root = File(base.cacheDir, "portable-test-${UUID.randomUUID()}").apply { mkdirs() }
         context = object : ContextWrapper(base) {
@@ -65,6 +70,7 @@ class PortableBackupRepositoryTest {
     /** 关闭测试库后只清理测试创建的目录。 */
     @After
     fun tearDown() {
+        AppModel.activePromptPresetId = previousPresetId
         primary.close()
         logs.close()
         root.deleteRecursively()
@@ -73,6 +79,15 @@ class PortableBackupRepositoryTest {
     /** 备份只保存业务行与文件，搜索派生数据不导出，完整恢复后默认关闭加速。 */
     @Test
     fun roundTripPreservesBusinessBackgroundAndPrivateFilesWithoutSearchData() = runBlocking {
+        val presets = PromptPresetRepository(primary)
+        val presetId = presets.create(name = "Backup template", description = "Whole-set copy")
+        presets.savePrompt(presetId, 1, PromptType.Main, "")
+        presets.savePrompt(presetId, 2, PromptType.StoryMain, "\n  {{char}} custom story  \n")
+        presets.activate(presetId)
+        File(
+            root,
+            "shared_prefs/" + AppModel.kotprefName + ".xml"
+        ).writeText("<map><long name=\"activePromptPresetId\" value=\"$presetId\" /></map>")
         val db = primary.openHelper.writableDatabase
         db.execSQL(sql = "INSERT INTO search_chunks(rowid, kind, sourceId, parentId, revision, position, tokens) VALUES(42, 1, 7, 3, 1, 0, 'hello world')")
         db.execSQL("INSERT OR REPLACE INTO search_progress(kind, cursor, complete) VALUES(-2, 2, 1)")
@@ -136,6 +151,7 @@ class PortableBackupRepositoryTest {
                 }
             )
         }
+        presets.delete(presetId)
         db.execSQL("DELETE FROM search_chunks")
         db.execSQL("DELETE FROM backup_probe")
         File(context.filesDir, "manifest.json").writeText("changed")
@@ -149,6 +165,16 @@ class PortableBackupRepositoryTest {
             ),
         ).restoreArchive(Uri.fromFile(archive))
         openDatabases()
+        // 正文与 SP 选择分别随完整备份恢复，空串不能变回默认值。
+        val restoredPreset = PromptPresetRepository(primary).getDetail(presetId).snapshot
+        assertTrue(
+            File(root, "shared_prefs/" + AppModel.kotprefName + ".xml").readText()
+                .contains("value=\"$presetId\"")
+        )
+        assertEquals(presetId, restoredPreset.presetId)
+        assertEquals(3L, restoredPreset.revision)
+        assertEquals("", restoredPreset.mainPrompt)
+        assertEquals("\n  {{char}} custom story  \n", restoredPreset.storyMainPrompt)
         // 空检索结构仍须通过 Room 校验；之前的启用状态也不会随归档恢复。
         val restored = primary.openHelper.writableDatabase
         restored.query("SELECT docid FROM search_chunks_fts WHERE search_chunks_fts MATCH 'hello'")

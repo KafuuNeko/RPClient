@@ -1,10 +1,16 @@
 package me.kafuuneko.rpclient.feature.promptpreset.presentation
 
-import me.kafuuneko.rpclient.feature.promptpreset.model.PromptType
+import me.kafuuneko.rpclient.libs.prompt.PromptType
 
 /** Prompt 预设页的用户意图。 */
 sealed class PromptPresetUiIntent {
-    data object Init : PromptPresetUiIntent()
+    data class Init(val presetId: Long) : PromptPresetUiIntent()
+
+    data object Retry : PromptPresetUiIntent()
+    data object CopyTemplate : PromptPresetUiIntent()
+    data class ChangeCopyName(val value: String) : PromptPresetUiIntent()
+    data object ConfirmCopy : PromptPresetUiIntent()
+    data object ConfirmDiscard : PromptPresetUiIntent()
 
     data object Back : PromptPresetUiIntent()
 

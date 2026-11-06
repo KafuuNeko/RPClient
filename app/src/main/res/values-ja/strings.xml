@@ -287,6 +287,10 @@
     <string name="saving">保存中…</string>
     <string name="delete_character_title">キャラクターを削除</string>
     <string name="delete_character_message">「%s」を削除しますか？この操作は取り消せません。</string>
+    <string name="delete_character_with_chats_title">関連するチャット</string>
+    <string name="delete_character_with_chats_message">関連する個別チャットとそのメッセージは完全に削除されます。キャラクターは参加中のグループチャットから外れますが、グループチャットの履歴は保持されます。</string>
+    <string name="delete_character_with_chats_confirm">削除する</string>
+    <string name="delete_character_failed">キャラクターを削除できませんでした</string>
     <string name="delete_character_with_world_book_title">関連ワールドブックも削除しますか？</string>
     <string name="delete_character_with_world_book_message">「%1$s」は「%2$s」に関連付けられています。ワールドブックも削除しますか？</string>
     <string name="delete_character_and_world_book">両方削除</string>
@@ -1390,11 +1394,34 @@
     <string name="batch_import_result_message">成功：%1$d\n失敗：%2$d</string>
     <string name="batch_import_reading_progress">解析中 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">インポート中 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">選択した %1$d 人のキャラクターと個別チャットを削除しますか？関連するワールドブックは保持されます。この操作は取り消せません。</string>
+    <string name="character_batch_delete_message">選択した %1$d 人のキャラクターを削除しますか？関連するワールドブックは保持されます。この操作は取り消せません。</string>
     <string name="world_book_batch_delete_message">選択した %1$d 冊のワールドブックとすべてのエントリーを削除しますか？キャラクターとの関連付けも解除されます。この操作は取り消せません。</string>
     <string name="world_book_entry_batch_delete_message">選択した %1$d 件のエントリーを削除しますか？削除は直ちに反映され、取り消せません。</string>
     <string name="world_book_batch_import_result_title">ワールドブックのインポートが完了しました</string>
     <string name="world_book_batch_low_budget_message">選択した %1$d 冊のワールドブックの固定予算が低く設定されています。最小値は %2$d トークンです。これらのブックにグローバル予算を使用しますか？</string>
     <string name="world_book_archive_limit">ワールドブックの ZIP がインポート上限を超えています。選択数を減らすか、大きなブックの内容を減らしてください。</string>
     <string name="world_book_export_selected">選択したワールドブックを ZIP としてエクスポート</string>
+
+    <string name="prompt_template_default">システム既定</string>
+    <string name="prompt_template_migrated">カスタムプリセット1</string>
+    <string name="prompt_template_create">テンプレートを作成</string>
+    <string name="prompt_template_activated">テンプレートを有効にしました</string>
+    <string name="prompt_template_copy_name">%1$s のコピー</string>
+    <string name="prompt_template_copy">テンプレートをコピー</string>
+    <string name="prompt_template_edit_details">詳細を編集</string>
+    <string name="prompt_template_failed">テンプレートを読み込むか保存できませんでした。再試行してください。</string>
+    <string name="prompt_template_conflict">テンプレートが変更されました。下書きをコピーしてから、エディターを開き直してください。</string>
+    <string name="prompt_template_active">使用中</string>
+    <string name="prompt_template_scope">今後のチャット、グループチャット、物語、要約の生成に適用されます。キャラクターやセッションの個別設定は引き続き優先されます。</string>
+    <string name="prompt_template_search">テンプレートを検索</string>
+    <string name="prompt_template_all">プロンプトテンプレート</string>
+    <string name="prompt_template_no_results">一致するテンプレートがありません</string>
+    <string name="prompt_template_empty">テンプレートを作成して、自分のプロンプト一式を保存できます。</string>
+    <string name="prompt_template_activate">有効にする</string>
+    <string name="prompt_template_delete_title">テンプレートを削除しますか？</string>
+    <string name="prompt_template_delete_active">「%1$s」を削除してシステム既定に切り替えますか？今後の生成には既定のテンプレートが使用されます。</string>
+    <string name="prompt_template_delete_message">テンプレート「%1$s」を削除しますか？</string>
+    <string name="prompt_template_name">テンプレート名</string>
+    <string name="prompt_template_description">説明（任意）</string>
+    <string name="prompt_template_read_only">システムのデフォルトプリセットは編集できません。</string>
 </resources>

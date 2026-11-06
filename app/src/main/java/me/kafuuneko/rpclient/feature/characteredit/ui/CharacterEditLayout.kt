@@ -900,6 +900,14 @@ private fun DialogSwitch(
             onDismiss = { CharacterEditUiIntent.ConfirmDeleteCharacterOnly.emit() },
         )
 
+        is CharacterEditDialogState.DeleteWithChatsConfirm -> AppDangerDialog(
+            onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_character_with_chats_title),
+            message = stringResource(R.string.delete_character_with_chats_message),
+            confirmText = stringResource(R.string.delete_character_with_chats_confirm),
+            onConfirm = { CharacterEditUiIntent.ConfirmDeleteCharacterWithChats.emit() },
+        )
+
         is CharacterEditDialogState.PromptEditor -> AppPromptEditorDialog(
             onDismissRequest = { CharacterEditUiIntent.DismissDialog.emit() },
             title = dialogState.field.editorTitle(),

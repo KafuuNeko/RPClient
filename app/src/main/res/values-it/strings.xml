@@ -283,6 +283,10 @@ Non riusciti: %2$d</string>
     <string name="saving">Salvataggio in corso…</string>
     <string name="delete_character_title">Elimina personaggio</string>
     <string name="delete_character_message">Eliminare "%s"? Questa azione non può essere annullata.</string>
+    <string name="delete_character_with_chats_title">Chat associate</string>
+    <string name="delete_character_with_chats_message">Le chat individuali associate e i relativi messaggi verranno eliminati definitivamente. I personaggi verranno rimossi dalle chat di gruppo, la cui cronologia verrà conservata.</string>
+    <string name="delete_character_with_chats_confirm">Elimina comunque</string>
+    <string name="delete_character_failed">Impossibile eliminare il personaggio</string>
     <string name="delete_character_with_world_book_title">Eliminare il grimorio associato?</string>
     <string name="delete_character_with_world_book_message">"%1$s" è associato a "%2$s". Vuoi eliminare anche il grimorio associato?</string>
     <string name="delete_character_and_world_book">Elimina entrambi</string>
@@ -1374,11 +1378,34 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
 Non riusciti: %2$d</string>
     <string name="batch_import_reading_progress">Lettura di %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importazione di %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Eliminare %1$d personaggi selezionati e le loro chat individuali? I libri del mondo associati verranno mantenuti. Questa azione non può essere annullata.</string>
+    <string name="character_batch_delete_message">Eliminare %1$d personaggi selezionati? I libri del mondo associati verranno mantenuti. Questa azione non può essere annullata.</string>
     <string name="world_book_batch_delete_message">Eliminare %1$d libri del mondo selezionati e tutte le loro voci? I collegamenti ai personaggi verranno rimossi. Questa azione non può essere annullata.</string>
     <string name="world_book_entry_batch_delete_message">Eliminare %1$d voci selezionate? L’eliminazione è immediata e non può essere annullata.</string>
     <string name="world_book_batch_import_result_title">Importazione dei libri del mondo completata</string>
     <string name="world_book_batch_low_budget_message">%1$d libri del mondo selezionati hanno budget fissi bassi. Il più basso è di %2$d token. Usare il budget globale per questi libri?</string>
     <string name="world_book_archive_limit">Lo ZIP dei libri del mondo supera i limiti di importazione. Seleziona meno libri o riduci le dimensioni di un libro grande.</string>
     <string name="world_book_export_selected">Esporta i libri del mondo selezionati come ZIP</string>
+
+    <string name="prompt_template_default">Predefinito di sistema</string>
+    <string name="prompt_template_migrated">Preimpostazione personalizzata 1</string>
+    <string name="prompt_template_create">Nuovo modello</string>
+    <string name="prompt_template_activated">Modello attivato</string>
+    <string name="prompt_template_copy_name">Copia di %1$s</string>
+    <string name="prompt_template_copy">Copia modello</string>
+    <string name="prompt_template_edit_details">Modifica dettagli</string>
+    <string name="prompt_template_failed">Impossibile caricare o salvare il modello. Riprova.</string>
+    <string name="prompt_template_conflict">Questo modello è stato modificato. Copia la bozza, poi chiudi e riapri l’editor.</string>
+    <string name="prompt_template_active">Attivo</string>
+    <string name="prompt_template_scope">Si applica alle prossime generazioni di chat, gruppi, storie e riassunti. Restano valide le istruzioni specifiche di personaggi e sessioni.</string>
+    <string name="prompt_template_search">Cerca modelli</string>
+    <string name="prompt_template_all">Modelli di prompt</string>
+    <string name="prompt_template_no_results">Nessun modello corrispondente</string>
+    <string name="prompt_template_empty">Crea un modello per salvare il tuo insieme di prompt.</string>
+    <string name="prompt_template_activate">Attiva</string>
+    <string name="prompt_template_delete_title">Eliminare il modello?</string>
+    <string name="prompt_template_delete_active">Eliminare “%1$s” e usare i valori di sistema? Le prossime generazioni useranno il modello predefinito.</string>
+    <string name="prompt_template_delete_message">Eliminare il modello “%1$s”?</string>
+    <string name="prompt_template_name">Nome del modello</string>
+    <string name="prompt_template_description">Descrizione (facoltativa)</string>
+    <string name="prompt_template_read_only">La preimpostazione predefinita del sistema non può essere modificata.</string>
 </resources>

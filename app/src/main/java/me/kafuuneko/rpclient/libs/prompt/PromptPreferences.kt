@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.libs.prompt
 /**
  * 单聊与群聊构建器使用的只读偏好。
  *
- * 生产环境由已初始化的 AppModel 提供当前值；测试显式传入配置，避免依赖存储异常兜底。
+ * 生产环境使用 Repository 捕获的不可变模板快照；测试显式传入配置，不依赖 Android 存储。
  */
 interface PromptPreferences {
     /** 全局主提示词。 */

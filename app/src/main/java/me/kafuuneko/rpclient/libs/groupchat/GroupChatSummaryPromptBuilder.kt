@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
 import me.kafuuneko.rpclient.libs.prompt.countSummaryTokens
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
@@ -42,6 +43,7 @@ class GroupChatSummaryPromptBuilder(
         provider: LLMProvider,
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
         unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
+        templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
     ): GroupChatSummaryBuildResult {
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
@@ -53,6 +55,7 @@ class GroupChatSummaryPromptBuilder(
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
         val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
             val requestMessages = renderRequestMessages(
+                templates = templates,
                 session = session,
                 memberNames = memberNames,
                 existingSummary = safeExistingSummary,
@@ -69,6 +72,7 @@ class GroupChatSummaryPromptBuilder(
         }
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
+                templates = templates,
                 session = session,
                 memberNames = memberNames,
                 existingSummary = safeExistingSummary,
@@ -83,6 +87,7 @@ class GroupChatSummaryPromptBuilder(
             )
         }
         val requestMessages = renderRequestMessages(
+            templates = templates,
             session = session,
             memberNames = memberNames,
             existingSummary = safeExistingSummary,
@@ -108,6 +113,7 @@ class GroupChatSummaryPromptBuilder(
 
     /** 渲染群聊摘要使用的 system 指令和 user 原始素材。 */
     private fun renderRequestMessages(
+        templates: PromptTemplateSnapshot,
         session: GroupChatSession,
         memberNames: List<String>,
         existingSummary: String,
@@ -118,7 +124,7 @@ class GroupChatSummaryPromptBuilder(
         val history = messages.joinToString("\n") { message ->
             "${message.speakerNameSnapshot}: ${message.content}"
         }
-        val instruction = AppModel
+        val instruction = templates
             .groupSummarizePrompt
             .replace(oldValue = "{{user}}", newValue = session.userName, ignoreCase = true)
             .replace(

@@ -310,6 +310,10 @@
     <string name="saving">Saving…</string>
     <string name="delete_character_title">Delete character</string>
     <string name="delete_character_message">Delete “%s”? This cannot be undone.</string>
+    <string name="delete_character_with_chats_title">Linked conversations</string>
+    <string name="delete_character_with_chats_message">Any linked one-to-one chats and messages will be permanently deleted. The characters will also be removed from their group chats. Group chat history will be kept.</string>
+    <string name="delete_character_with_chats_confirm">Delete anyway</string>
+    <string name="delete_character_failed">Could not delete the character</string>
     <string name="delete_character_with_world_book_title">Delete associated world book?</string>
     <string name="delete_character_with_world_book_message">“%1$s” is associated with “%2$s”. Delete the associated world book too?</string>
     <string name="delete_character_and_world_book">Delete both</string>
@@ -1399,11 +1403,34 @@
     <string name="batch_import_result_message">Imported: %1$d\nFailed: %2$d</string>
     <string name="batch_import_reading_progress">Reading %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importing %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Delete %1$d selected characters and their one-to-one chats? Associated world books will be kept. This cannot be undone.</string>
+    <string name="character_batch_delete_message">Delete %1$d selected characters? Associated world books will be kept. This cannot be undone.</string>
     <string name="world_book_batch_delete_message">Delete %1$d selected world books and all their entries? Character bindings will be removed. This cannot be undone.</string>
     <string name="world_book_entry_batch_delete_message">Delete %1$d selected entries? This takes effect immediately and cannot be undone.</string>
     <string name="world_book_batch_import_result_title">World book import complete</string>
     <string name="world_book_batch_low_budget_message">%1$d selected world books have low fixed budgets. The lowest is %2$d tokens. Use the global budget for these books?</string>
     <string name="world_book_archive_limit">The world book ZIP exceeds the import limits. Select fewer books or reduce the size of a large book.</string>
     <string name="world_book_export_selected">Export selected world books as ZIP</string>
+
+    <string name="prompt_template_default">System default</string>
+    <string name="prompt_template_migrated">Custom preset 1</string>
+    <string name="prompt_template_create">New template</string>
+    <string name="prompt_template_activated">Template activated</string>
+    <string name="prompt_template_copy_name">%1$s copy</string>
+    <string name="prompt_template_copy">Copy template</string>
+    <string name="prompt_template_edit_details">Edit details</string>
+    <string name="prompt_template_failed">Could not load or save the template. Please retry.</string>
+    <string name="prompt_template_conflict">This template has changed. Copy your draft, then close and reopen the editor.</string>
+    <string name="prompt_template_active">Active</string>
+    <string name="prompt_template_scope">Applies to future chat, group chat, story and summary generations. Existing character and session overrides still apply.</string>
+    <string name="prompt_template_search">Search templates</string>
+    <string name="prompt_template_all">Templates</string>
+    <string name="prompt_template_no_results">No matching templates</string>
+    <string name="prompt_template_empty">Create a template to save your own set of prompts.</string>
+    <string name="prompt_template_activate">Activate</string>
+    <string name="prompt_template_delete_title">Delete template?</string>
+    <string name="prompt_template_delete_active">Delete “%1$s” and switch to system defaults? Future generations will use the default template.</string>
+    <string name="prompt_template_delete_message">Delete template “%1$s”?</string>
+    <string name="prompt_template_name">Template name</string>
+    <string name="prompt_template_description">Description (optional)</string>
+    <string name="prompt_template_read_only">The system default preset cannot be edited.</string>
 </resources>

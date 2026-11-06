@@ -286,6 +286,10 @@
     <string name="saving">Guardando…</string>
     <string name="delete_character_title">Eliminar personaje</string>
     <string name="delete_character_message">¿Eliminar «%s»? Esta acción no se puede deshacer.</string>
+    <string name="delete_character_with_chats_title">Chats asociados</string>
+    <string name="delete_character_with_chats_message">Se eliminarán permanentemente los chats individuales asociados y sus mensajes. Los personajes se quitarán de los chats grupales, cuyo historial se conservará.</string>
+    <string name="delete_character_with_chats_confirm">Eliminar de todos modos</string>
+    <string name="delete_character_failed">No se pudo eliminar el personaje</string>
     <string name="delete_character_with_world_book_title">¿Eliminar libro del mundo asociado?</string>
     <string name="delete_character_with_world_book_message">«%1$s» está asociado con «%2$s». ¿Desea eliminar también el libro del mundo asociado?</string>
     <string name="delete_character_and_world_book">Eliminar ambos</string>
@@ -1396,11 +1400,34 @@
     <string name="batch_import_result_message">Importadas: %1$d\nFallidas: %2$d</string>
     <string name="batch_import_reading_progress">Leyendo %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importando %1$d/%2$d</string>
-    <string name="character_batch_delete_message">¿Eliminar %1$d personajes seleccionados y sus chats individuales? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</string>
+    <string name="character_batch_delete_message">¿Eliminar %1$d personajes seleccionados? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</string>
     <string name="world_book_batch_delete_message">¿Eliminar %1$d libros de mundo seleccionados y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</string>
     <string name="world_book_entry_batch_delete_message">¿Eliminar %1$d entradas seleccionadas? La eliminación es inmediata y no se puede deshacer.</string>
     <string name="world_book_batch_import_result_title">Importación de libros de mundo completada</string>
     <string name="world_book_batch_low_budget_message">%1$d libros de mundo seleccionados tienen presupuestos fijos bajos. El menor es de %2$d tokens. ¿Usar el presupuesto global para estos libros?</string>
     <string name="world_book_archive_limit">El ZIP de libros de mundo supera los límites de importación. Selecciona menos libros o reduce el tamaño de un libro grande.</string>
     <string name="world_book_export_selected">Exportar libros de mundo seleccionados como ZIP</string>
+
+    <string name="prompt_template_default">Predeterminado del sistema</string>
+    <string name="prompt_template_migrated">Preajuste personalizado 1</string>
+    <string name="prompt_template_create">Nueva plantilla</string>
+    <string name="prompt_template_activated">Plantilla activada</string>
+    <string name="prompt_template_copy_name">Copia de %1$s</string>
+    <string name="prompt_template_copy">Copiar plantilla</string>
+    <string name="prompt_template_edit_details">Editar detalles</string>
+    <string name="prompt_template_failed">No se pudo cargar o guardar la plantilla. Inténtalo de nuevo.</string>
+    <string name="prompt_template_conflict">Esta plantilla ha cambiado. Copia tu borrador y vuelve a abrir el editor.</string>
+    <string name="prompt_template_active">Activa</string>
+    <string name="prompt_template_scope">Se aplica a futuras generaciones de chats, grupos, historias y resúmenes. Se mantienen las instrucciones específicas del personaje y de la sesión.</string>
+    <string name="prompt_template_search">Buscar plantillas</string>
+    <string name="prompt_template_all">Plantillas de instrucciones</string>
+    <string name="prompt_template_no_results">No hay plantillas coincidentes</string>
+    <string name="prompt_template_empty">Crea una plantilla para guardar tu propio conjunto de instrucciones.</string>
+    <string name="prompt_template_activate">Activar</string>
+    <string name="prompt_template_delete_title">¿Eliminar plantilla?</string>
+    <string name="prompt_template_delete_active">¿Eliminar «%1$s» y usar los valores del sistema? Las próximas generaciones usarán la plantilla predeterminada.</string>
+    <string name="prompt_template_delete_message">¿Eliminar la plantilla «%1$s»?</string>
+    <string name="prompt_template_name">Nombre de la plantilla</string>
+    <string name="prompt_template_description">Descripción (opcional)</string>
+    <string name="prompt_template_read_only">El preajuste predeterminado del sistema no se puede editar.</string>
 </resources>

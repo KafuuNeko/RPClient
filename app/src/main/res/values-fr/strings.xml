@@ -286,6 +286,10 @@
     <string name="saving">Enregistrement…</string>
     <string name="delete_character_title">Supprimer le personnage</string>
     <string name="delete_character_message">Supprimer “%s” ? Cette action est irréversible.</string>
+    <string name="delete_character_with_chats_title">Discussions associées</string>
+    <string name="delete_character_with_chats_message">Les discussions individuelles associées et leurs messages seront définitivement supprimés. Les personnages seront retirés des discussions de groupe, dont l\'historique sera conservé.</string>
+    <string name="delete_character_with_chats_confirm">Supprimer quand même</string>
+    <string name="delete_character_failed">Impossible de supprimer le personnage</string>
     <string name="delete_character_with_world_book_title">Supprimer le livre d\'univers associé ?</string>
     <string name="delete_character_with_world_book_message">“%1$s” est associé à “%2$s”. Supprimer également ce livre d\'univers ?</string>
     <string name="delete_character_and_world_book">Supprimer les deux</string>
@@ -1395,11 +1399,34 @@
     <string name="batch_import_result_message">Importées : %1$d\nÉchecs : %2$d</string>
     <string name="batch_import_reading_progress">Lecture : %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importation : %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Supprimer les %1$d personnages sélectionnés et leurs discussions individuelles ? Les livres de monde associés seront conservés. Cette action est irréversible.</string>
+    <string name="character_batch_delete_message">Supprimer les %1$d personnages sélectionnés ? Les livres de monde associés seront conservés. Cette action est irréversible.</string>
     <string name="world_book_batch_delete_message">Supprimer les %1$d livres de monde sélectionnés et toutes leurs entrées ? Les liens avec les personnages seront supprimés. Cette action est irréversible.</string>
     <string name="world_book_entry_batch_delete_message">Supprimer les %1$d entrées sélectionnées ? La suppression est immédiate et irréversible.</string>
     <string name="world_book_batch_import_result_title">Importation des livres de monde terminée</string>
     <string name="world_book_batch_low_budget_message">Les %1$d livres de monde sélectionnés ont des budgets fixes faibles. Le plus bas est de %2$d tokens. Utiliser le budget global pour ces livres ?</string>
     <string name="world_book_archive_limit">Le ZIP des livres de monde dépasse les limites d’importation. Sélectionnez moins de livres ou réduisez la taille d’un livre volumineux.</string>
     <string name="world_book_export_selected">Exporter les livres de monde sélectionnés en ZIP</string>
+
+    <string name="prompt_template_default">Valeurs système</string>
+    <string name="prompt_template_migrated">Préréglage personnalisé 1</string>
+    <string name="prompt_template_create">Nouveau modèle</string>
+    <string name="prompt_template_activated">Modèle activé</string>
+    <string name="prompt_template_copy_name">Copie de %1$s</string>
+    <string name="prompt_template_copy">Copier le modèle</string>
+    <string name="prompt_template_edit_details">Modifier les détails</string>
+    <string name="prompt_template_failed">Impossible de charger ou enregistrer le modèle. Réessayez.</string>
+    <string name="prompt_template_conflict">Ce modèle a été modifié. Copiez votre brouillon, puis fermez et rouvrez l’éditeur.</string>
+    <string name="prompt_template_active">Actif</string>
+    <string name="prompt_template_scope">S’applique aux prochaines générations de discussions, groupes, histoires et résumés. Les instructions propres aux personnages et aux sessions restent prioritaires.</string>
+    <string name="prompt_template_search">Rechercher des modèles</string>
+    <string name="prompt_template_all">Modèles de prompts</string>
+    <string name="prompt_template_no_results">Aucun modèle correspondant</string>
+    <string name="prompt_template_empty">Créez un modèle pour enregistrer votre propre ensemble de prompts.</string>
+    <string name="prompt_template_activate">Activer</string>
+    <string name="prompt_template_delete_title">Supprimer le modèle ?</string>
+    <string name="prompt_template_delete_active">Supprimer « %1$s » et revenir aux valeurs système ? Les prochaines générations utiliseront le modèle par défaut.</string>
+    <string name="prompt_template_delete_message">Supprimer le modèle « %1$s » ?</string>
+    <string name="prompt_template_name">Nom du modèle</string>
+    <string name="prompt_template_description">Description (facultative)</string>
+    <string name="prompt_template_read_only">Le préréglage système par défaut ne peut pas être modifié.</string>
 </resources>

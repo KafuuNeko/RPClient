@@ -6,6 +6,8 @@ import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
+import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +83,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -107,6 +110,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
@@ -116,8 +120,6 @@ import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import java.util.UUID
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 多角色群聊页面的 ViewModel（状态持有者与业务控制器）。
@@ -139,6 +141,7 @@ class GroupChatViewModel :
         GroupChatUiState.None
     ), KoinComponent {
     // 数据仓库与服务依赖注入
+    private val mPromptPresets by inject<PromptPresetRepository>()
     private val mFileRepository by inject<FileRepository>()
 
     /** 以文件 UUID 共享头像，按像素内存限制缓存，避免每条消息重复解码。 */
@@ -1670,12 +1673,13 @@ class GroupChatViewModel :
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
+                var completedTemplates: PromptTemplateSnapshot? = null
                 var pendingSpeakers = speakers
                 var nextGenerationMode = generationMode
                 var batchTriggerMessageId = triggerUserMessageId
                 // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
                 while (pendingSpeakers.isNotEmpty()) {
-                    generateReplyBatch(
+                    completedTemplates = generateReplyBatch(
                         batch = ReplyRetryContext(
                             sessionId = sessionId,
                             speakers = pendingSpeakers,
@@ -1711,7 +1715,10 @@ class GroupChatViewModel :
                     }
                 }
                 // 续写仅追加一条回复，保持原入口不自动总结的语义。
-                if (generationMode != GroupChatGenerationMode.Continue) maybeAutoSummarize(sessionId)
+                if (generationMode != GroupChatGenerationMode.Continue) maybeAutoSummarize(
+                    sessionId,
+                    completedTemplates
+                )
                 // 恢复 UI 为空闲状态
                 refreshState(generationState = GroupChatGenerationState.Idle)
             }.onFailure { throwable ->
@@ -1735,7 +1742,8 @@ class GroupChatViewModel :
     }
 
     /** 顺序执行同一用户触发的发言批次，每完成一个角色就推进恢复快照。 */
-    private suspend fun generateReplyBatch(batch: ReplyRetryContext) {
+    private suspend fun generateReplyBatch(batch: ReplyRetryContext): PromptTemplateSnapshot {
+        val templates = mPromptPresets.getActiveSnapshot()
         val batchId = UUID.randomUUID().toString()
         var mode = batch.generationMode
         mReplyRetryContext = batch
@@ -1744,6 +1752,7 @@ class GroupChatViewModel :
         batch.speakers.forEachIndexed { index, speaker ->
             currentCoroutineContext().ensureActive()
             generateSpeakerReply(
+                templates = templates,
                 sessionId = batch.sessionId,
                 speaker = speaker,
                 batchId = batchId,
@@ -1761,6 +1770,7 @@ class GroupChatViewModel :
         }
         // 必须在 AutoMode 选取下一批之前解除保护，不能等整个 Job 结束。
         clearReplyRetry()
+        return templates
     }
 
     /** 用户触发图片受保护，预检所有角色；普通历史由各角色裁剪后的请求执行能力检查。 */
@@ -1806,6 +1816,7 @@ class GroupChatViewModel :
         total: Int,
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
         triggerUserMessageId: Long? = null,
+        templates: PromptTemplateSnapshot,
     ) {
         // 加载群聊快照、模型提供商与世界书上下文
         val promptData = withContext(Dispatchers.IO) {
@@ -1826,6 +1837,7 @@ class GroupChatViewModel :
         // 构建多角色群聊 Prompt 请求
         val buildResult = withContext(Dispatchers.Default) {
             mPromptBuilder.buildWithMetadata(
+                preferences = templates,
                 context = GroupChatPromptContext(
                     session = data.session,
                     members = data.members,
@@ -2014,7 +2026,7 @@ class GroupChatViewModel :
      *
      * @param sessionId 会话 ID
      */
-    private suspend fun maybeAutoSummarize(sessionId: Long) {
+    private suspend fun maybeAutoSummarize(sessionId: Long, templates: PromptTemplateSnapshot?) {
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mGroupChatRepository.getSessionById(sessionId) ?: return@withContext false
@@ -2023,7 +2035,7 @@ class GroupChatViewModel :
                 AppModel.summaryTriggerMessageCount
         }
         if (!shouldSummarize) return
-        summarizeSession(sessionId = sessionId, showToast = false)
+        summarizeSession(sessionId = sessionId, showToast = false, templates = templates)
     }
 
     /**
@@ -2034,7 +2046,11 @@ class GroupChatViewModel :
      * @param sessionId 会话 ID
      * @param showToast 是否显示 Toast 提示信息
      */
-    private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
+    private suspend fun summarizeSession(
+        sessionId: Long,
+        showToast: Boolean,
+        templates: PromptTemplateSnapshot? = null
+    ) {
         runCatching {
             // 先解析模型预算，再按小窗口读取最早的未总结消息
             val provider = withContext(Dispatchers.IO) {
@@ -2057,6 +2073,7 @@ class GroupChatViewModel :
             } ?: return
             // 格式化与 Token 统计在后台线程按需扩展，主线程只负责状态调度
             val prepared = buildGroupSummaryRequest(
+                templates = templates ?: mPromptPresets.getActiveSnapshot(),
                 sessionId = sessionId,
                 provider = provider,
                 initialData = initialData,
@@ -2131,6 +2148,7 @@ class GroupChatViewModel :
         initialData: GroupChatSummaryGenerationData,
         initialWindowSize: Int,
         maximumCandidates: Int,
+        templates: PromptTemplateSnapshot,
     ): PreparedGroupSummaryRequest? {
         var windowSize = initialWindowSize
         var generationData = initialData
@@ -2152,6 +2170,7 @@ class GroupChatViewModel :
             // 群聊历史格式化和 BPE 统计不得阻塞 Compose 所在的主线程
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
+                    templates = templates,
                     session = data.session,
                     memberNames = data.members.map { member -> member.character.name },
                     existingSummary = data.summary?.content.orEmpty(),

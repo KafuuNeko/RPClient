@@ -26,6 +26,8 @@ sealed class CharacterListUiIntent {
 
     data object ConfirmDeleteSelectedCharacters : CharacterListUiIntent()
 
+    data object ConfirmDeleteSelectedCharactersWithChats : CharacterListUiIntent()
+
     data object ExportSelectedCharactersClick : CharacterListUiIntent()
 
     data class ExportSelectedCharacters(val characterIds: List<Long>, val uri: Uri) :

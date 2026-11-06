@@ -287,6 +287,10 @@ Thất bại: %2$d</string>
     <string name="saving">Đang lưu…</string>
     <string name="delete_character_title">Xóa nhân vật</string>
     <string name="delete_character_message">Xóa "%s"? Thao tác này không thể hoàn tác.</string>
+    <string name="delete_character_with_chats_title">Cuộc trò chuyện liên kết</string>
+    <string name="delete_character_with_chats_message">Các cuộc trò chuyện riêng được liên kết và tin nhắn trong đó sẽ bị xóa vĩnh viễn. Nhân vật sẽ bị gỡ khỏi các cuộc trò chuyện nhóm, còn lịch sử nhóm sẽ được giữ lại.</string>
+    <string name="delete_character_with_chats_confirm">Vẫn xóa</string>
+    <string name="delete_character_failed">Không thể xóa nhân vật</string>
     <string name="delete_character_with_world_book_title">Xóa luôn sách thế giới liên kết?</string>
     <string name="delete_character_with_world_book_message">"%1$s" có liên kết với "%2$s". Bạn có muốn xóa luôn sách thế giới liên kết không?</string>
     <string name="delete_character_and_world_book">Xóa cả hai</string>
@@ -1396,11 +1400,34 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
 Thất bại: %2$d</string>
     <string name="batch_import_reading_progress">Đang phân tích %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Đang nhập %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Xóa %1$d nhân vật đã chọn và các cuộc trò chuyện riêng của họ? Các sách thế giới liên kết sẽ được giữ lại. Không thể hoàn tác thao tác này.</string>
+    <string name="character_batch_delete_message">Xóa %1$d nhân vật đã chọn? Các sách thế giới liên kết sẽ được giữ lại. Không thể hoàn tác thao tác này.</string>
     <string name="world_book_batch_delete_message">Xóa %1$d sách thế giới đã chọn và tất cả mục của chúng? Liên kết với nhân vật cũng sẽ bị xóa. Không thể hoàn tác thao tác này.</string>
     <string name="world_book_entry_batch_delete_message">Xóa %1$d mục đã chọn? Việc xóa có hiệu lực ngay và không thể hoàn tác.</string>
     <string name="world_book_batch_import_result_title">Đã nhập xong sách thế giới</string>
     <string name="world_book_batch_low_budget_message">%1$d sách thế giới đã chọn có ngân sách cố định thấp. Mức thấp nhất là %2$d token. Dùng ngân sách chung cho các sách này?</string>
     <string name="world_book_archive_limit">ZIP sách thế giới vượt giới hạn nhập. Hãy chọn ít sách hơn hoặc giảm kích thước của sách lớn.</string>
     <string name="world_book_export_selected">Xuất sách thế giới đã chọn thành ZIP</string>
+
+    <string name="prompt_template_default">Mặc định hệ thống</string>
+    <string name="prompt_template_migrated">Cấu hình tùy chỉnh 1</string>
+    <string name="prompt_template_create">Mẫu mới</string>
+    <string name="prompt_template_activated">Đã kích hoạt mẫu</string>
+    <string name="prompt_template_copy_name">Bản sao của %1$s</string>
+    <string name="prompt_template_copy">Sao chép mẫu</string>
+    <string name="prompt_template_edit_details">Sửa thông tin</string>
+    <string name="prompt_template_failed">Không thể tải hoặc lưu mẫu. Vui lòng thử lại.</string>
+    <string name="prompt_template_conflict">Mẫu này đã thay đổi. Hãy sao chép bản nháp, rồi đóng và mở lại trình soạn thảo.</string>
+    <string name="prompt_template_active">Đang dùng</string>
+    <string name="prompt_template_scope">Áp dụng cho các lần tạo trò chuyện, nhóm, truyện và tóm tắt tiếp theo. Thiết lập riêng của nhân vật và phiên vẫn được ưu tiên.</string>
+    <string name="prompt_template_search">Tìm mẫu</string>
+    <string name="prompt_template_all">Mẫu lời nhắc</string>
+    <string name="prompt_template_no_results">Không có mẫu phù hợp</string>
+    <string name="prompt_template_empty">Tạo mẫu để lưu bộ lời nhắc của riêng bạn.</string>
+    <string name="prompt_template_activate">Kích hoạt</string>
+    <string name="prompt_template_delete_title">Xóa mẫu?</string>
+    <string name="prompt_template_delete_active">Xóa “%1$s” và chuyển về mặc định hệ thống? Các lần tạo tiếp theo sẽ dùng mẫu mặc định.</string>
+    <string name="prompt_template_delete_message">Xóa mẫu “%1$s”?</string>
+    <string name="prompt_template_name">Tên mẫu</string>
+    <string name="prompt_template_description">Mô tả (không bắt buộc)</string>
+    <string name="prompt_template_read_only">Không thể chỉnh sửa cấu hình mặc định của hệ thống.</string>
 </resources>

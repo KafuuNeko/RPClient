@@ -40,6 +40,21 @@ interface CharacterDao : MutableDao<Character> {
     @Query("SELECT name FROM character WHERE id = :characterId")
     suspend fun getCharacterName(characterId: Long): String?
 
+    /** 检查所选角色是否绑定单聊或仍是群聊成员，不读取对话内容。 */
+    @Query(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM character AS selected
+            WHERE selected.id IN (:characterIds)
+              AND (
+                  EXISTS (SELECT 1 FROM chat_sessions WHERE characterId = selected.id)
+                  OR EXISTS (SELECT 1 FROM group_chat_members WHERE characterId = selected.id)
+              )
+        )
+        """
+    )
+    suspend fun hasAssociatedChats(characterIds: List<Long>): Boolean
+
     /**
      * 按最近活动聚合角色，单个 MAX 使标题取自该时间对应的一项内容。
      *

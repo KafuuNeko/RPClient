@@ -286,6 +286,10 @@
     <string name="saving">Сохранение…</string>
     <string name="delete_character_title">Удалить персонажа</string>
     <string name="delete_character_message">Удалить «%s»? Это действие нельзя отменить.</string>
+    <string name="delete_character_with_chats_title">Связанные чаты</string>
+    <string name="delete_character_with_chats_message">Связанные личные чаты и их сообщения будут удалены навсегда. Персонажи будут удалены из групповых чатов, история которых сохранится.</string>
+    <string name="delete_character_with_chats_confirm">Всё равно удалить</string>
+    <string name="delete_character_failed">Не удалось удалить персонажа</string>
     <string name="delete_character_with_world_book_title">Удалить связанную книгу мира?</string>
     <string name="delete_character_with_world_book_message">«%1$s» связан с книгой «%2$s». Удалить также эту книгу мира?</string>
     <string name="delete_character_and_world_book">Удалить оба</string>
@@ -1399,11 +1403,34 @@
     <string name="batch_import_result_message">Импортировано: %1$d\nОшибок: %2$d</string>
     <string name="batch_import_reading_progress">Чтение: %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Импорт: %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Удалить выбранных персонажей (%1$d) и их личные чаты? Связанные книги мира сохранятся. Это действие нельзя отменить.</string>
+    <string name="character_batch_delete_message">Удалить выбранных персонажей (%1$d)? Связанные книги мира сохранятся. Это действие нельзя отменить.</string>
     <string name="world_book_batch_delete_message">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</string>
     <string name="world_book_entry_batch_delete_message">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</string>
     <string name="world_book_batch_import_result_title">Импорт книг мира завершён</string>
     <string name="world_book_batch_low_budget_message">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</string>
     <string name="world_book_archive_limit">ZIP книг мира превышает ограничения импорта. Выберите меньше книг или уменьшите размер большой книги.</string>
     <string name="world_book_export_selected">Экспортировать выбранные книги мира в ZIP</string>
+
+    <string name="prompt_template_default">Системный шаблон</string>
+    <string name="prompt_template_migrated">Пользовательский пресет 1</string>
+    <string name="prompt_template_create">Новый шаблон</string>
+    <string name="prompt_template_activated">Шаблон активирован</string>
+    <string name="prompt_template_copy_name">Копия %1$s</string>
+    <string name="prompt_template_copy">Копировать шаблон</string>
+    <string name="prompt_template_edit_details">Изменить сведения</string>
+    <string name="prompt_template_failed">Не удалось загрузить или сохранить шаблон. Повторите попытку.</string>
+    <string name="prompt_template_conflict">Шаблон изменён. Скопируйте черновик, затем закройте и снова откройте редактор.</string>
+    <string name="prompt_template_active">Активен</string>
+    <string name="prompt_template_scope">Применяется к последующим генерациям чатов, групп, историй и сводок. Индивидуальные настройки персонажей и сеансов сохраняют приоритет.</string>
+    <string name="prompt_template_search">Поиск шаблонов</string>
+    <string name="prompt_template_all">Шаблоны промптов</string>
+    <string name="prompt_template_no_results">Подходящих шаблонов нет</string>
+    <string name="prompt_template_empty">Создайте шаблон, чтобы сохранить собственный набор промптов.</string>
+    <string name="prompt_template_activate">Активировать</string>
+    <string name="prompt_template_delete_title">Удалить шаблон?</string>
+    <string name="prompt_template_delete_active">Удалить «%1$s» и включить системный шаблон? Последующие генерации будут использовать шаблон по умолчанию.</string>
+    <string name="prompt_template_delete_message">Удалить шаблон «%1$s»?</string>
+    <string name="prompt_template_name">Название шаблона</string>
+    <string name="prompt_template_description">Описание (необязательно)</string>
+    <string name="prompt_template_read_only">Системный пресет по умолчанию нельзя редактировать.</string>
 </resources>

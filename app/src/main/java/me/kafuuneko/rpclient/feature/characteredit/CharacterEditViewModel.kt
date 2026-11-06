@@ -569,11 +569,14 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
     @UiIntentObserver(CharacterEditUiIntent.DeleteCharacterClick::class)
     private suspend fun onDeleteCharacterClick() {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (uiState.loadState != CharacterEditLoadState.None) return
+        if (uiState.dialogState != CharacterEditDialogState.None) return
         if (uiState.form.isNew) {
             cleanupPendingImages()
             CharacterEditUiState.finished(uiStateFlow.value).setup()
             return
         }
+        // 依据已持久化的绑定提示是否删除世界书，避免把未保存的表单选项当作删除目标。
         val savedCharacter = withContext(Dispatchers.IO) {
             mCharacterRepository.getCharacterById(uiState.form.id)
         } ?: run {
@@ -625,40 +628,54 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
         deleteCharacter(lorebookId = dialogState.lorebookId)
     }
 
+    /** 再次确认后删除角色，沿用首次确认选定的世界书。 */
+    @UiIntentObserver(CharacterEditUiIntent.ConfirmDeleteCharacterWithChats::class)
+    private suspend fun onConfirmDeleteCharacterWithChats() {
+        val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
+        val dialogState =
+            uiState.dialogState as? CharacterEditDialogState.DeleteWithChatsConfirm ?: return
+        deleteCharacter(lorebookId = dialogState.lorebookId, chatsConfirmed = true)
+    }
+
     /**
-     * 删除角色及其头像；只有用户在关联确认中明确选择时才一并删除世界书。
-     *
-     * 表单尚未提交的新头像不受数据库实体追踪，需要在同一流程中额外清理。
+     * 在对话关联获得确认后删除角色，并清理编辑页尚未提交的图片。
      *
      * @param lorebookId 需一并删除的关联世界书 ID（若有）
+     * @param chatsConfirmed 是否已再次确认处理关联对话
      */
-    private suspend fun deleteCharacter(lorebookId: Long? = null) {
+    private suspend fun deleteCharacter(lorebookId: Long? = null, chatsConfirmed: Boolean = false) {
         val uiState = getOrNull<CharacterEditUiState.Normal>() ?: return
-        if (uiState.form.isNew) return
+        if (uiState.form.isNew || uiState.loadState != CharacterEditLoadState.None) return
         uiState.copy(
             loadState = CharacterEditLoadState.Deleting,
             dialogState = CharacterEditDialogState.None,
         ).setup()
-        val pendingAvatar = uiState.form.avatar
-            .takeIf { it.isNotBlank() && it != uiState.form.originalAvatar }
-        withContext(Dispatchers.IO) {
-            val character = mCharacterRepository.getCharacterById(uiState.form.id)
-            // 可选删除关联的世界书
-            lorebookId?.let { id ->
-                mLorebookRepository.deleteLorebook(id)
-            }
-            // 删除角色实体
-            mCharacterRepository.deleteCharacter(uiState.form.id)
-            // 删除已持久化的旧头像文件
-            character?.avatar?.takeIf { text -> text.isNotBlank() }?.let { text ->
-                mFileRepository.deleteFile(text)
-            }
-            // 删除未持久化的新头像临时文件
-            pendingAvatar?.let { text ->
-                mFileRepository.deleteFile(text)
-            }
+        // 检查对话和持久化删除共享事务；需要再次确认时恢复编辑状态。
+        val deleted = try {
+            mCharacterRepository.deleteCharacters(
+                ids = listOf(uiState.form.id),
+                chatsConfirmed = chatsConfirmed,
+                lorebookId = lorebookId,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            uiState.copy(dialogState = CharacterEditDialogState.None).setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.delete_character_failed).tryEmit()
+            return
         }
-        discardBackgroundDraft()
+        if (!deleted) {
+            uiState.copy(dialogState = CharacterEditDialogState.DeleteWithChatsConfirm(lorebookId))
+                .setup()
+            return
+        }
+        try {
+            cleanupPendingImages()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // 删除已提交，临时图片清理失败不应让已删除的角色回到可编辑状态。
+        }
         AppViewEvent.PopupToastMessageByResId(R.string.character_deleted).tryEmit()
         CharacterEditUiState.finished(uiStateFlow.value).setup()
     }

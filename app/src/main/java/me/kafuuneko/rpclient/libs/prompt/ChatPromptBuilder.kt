@@ -48,6 +48,43 @@ class ChatPromptBuilder(
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
     private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
+    /** 使用调用方捕获的偏好构建请求，测试可复用构造时的固定配置。 */
+    fun build(
+        context: PromptBuildContext,
+        preferences: PromptPreferences = mPreferences
+    ): LLMGenerationRequest =
+        buildWithMetadata(context, preferences).request
+
+    /** 每次构建创建独立会话，避免并发请求或模板切换相互覆盖配置。 */
+    fun buildWithMetadata(
+        context: PromptBuildContext,
+        preferences: PromptPreferences = mPreferences
+    ): PromptBuildResult {
+        return ChatPromptBuildSession(
+            mPreferences = preferences,
+            mMacroResolver = mMacroResolver,
+            mHistoryBuilder = mHistoryBuilder,
+            mWorldBookActivator = mWorldBookActivator,
+            mRegexRuntime = mRegexRuntime,
+            mRequestFinalizer = mRequestFinalizer,
+            mExampleDialogueBehaviorProvider = mExampleDialogueBehaviorProvider,
+            mRegexProcessor = mRegexProcessor,
+        ).buildWithMetadata(context)
+    }
+}
+
+/** 一次构建的只读依赖与提示词快照，不跨请求复用。 */
+private class ChatPromptBuildSession(
+    private val mPreferences: PromptPreferences,
+    private val mMacroResolver: PromptMacroResolver,
+    private val mHistoryBuilder: FormattedHistoryBuilder,
+    private val mWorldBookActivator: WorldBookActivator,
+    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(mEngine = RegexScriptEngine()),
+    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
+    private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
+) {
     /**
      * 构建最终提交给模型的请求。
      *

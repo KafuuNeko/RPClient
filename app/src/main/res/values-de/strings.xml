@@ -287,6 +287,10 @@
     <string name="saving">Speichern…</string>
     <string name="delete_character_title">Charakter löschen</string>
     <string name="delete_character_message">Möchtest du „%s“ löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_character_with_chats_title">Verknüpfte Chats</string>
+    <string name="delete_character_with_chats_message">Verknüpfte Einzelchats und ihre Nachrichten werden dauerhaft gelöscht. Die Charaktere werden aus ihren Gruppenchats entfernt. Der Gruppenchatverlauf bleibt erhalten.</string>
+    <string name="delete_character_with_chats_confirm">Trotzdem löschen</string>
+    <string name="delete_character_failed">Charakter konnte nicht gelöscht werden</string>
     <string name="delete_character_with_world_book_title">Verknüpftes Weltbuch löschen?</string>
     <string name="delete_character_with_world_book_message">„%1$s“ ist mit „%2$s“ verknüpft. Soll das Weltbuch ebenfalls gelöscht werden?</string>
     <string name="delete_character_and_world_book">Beide löschen</string>
@@ -1394,11 +1398,34 @@
     <string name="batch_import_result_message">Importiert: %1$d\nFehlgeschlagen: %2$d</string>
     <string name="batch_import_reading_progress">Dateien werden gelesen: %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Import läuft: %1$d/%2$d</string>
-    <string name="character_batch_delete_message">%1$d ausgewählte Charaktere und ihre Einzelchats löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="character_batch_delete_message">%1$d ausgewählte Charaktere löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="world_book_batch_delete_message">%1$d ausgewählte Weltbücher und alle ihre Einträge löschen? Charakterverknüpfungen werden entfernt. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="world_book_entry_batch_delete_message">%1$d ausgewählte Einträge löschen? Die Löschung erfolgt sofort und kann nicht rückgängig gemacht werden.</string>
     <string name="world_book_batch_import_result_title">Weltbuchimport abgeschlossen</string>
     <string name="world_book_batch_low_budget_message">%1$d ausgewählte Weltbücher haben niedrige feste Budgets. Das niedrigste beträgt %2$d Tokens. Das globale Budget für diese Bücher verwenden?</string>
     <string name="world_book_archive_limit">Die Weltbuch-ZIP überschreitet die Importgrenzen. Wähle weniger Bücher oder verkleinere ein großes Buch.</string>
     <string name="world_book_export_selected">Ausgewählte Weltbücher als ZIP exportieren</string>
+
+    <string name="prompt_template_default">Systemstandard</string>
+    <string name="prompt_template_migrated">Benutzerdefinierte Vorlage 1</string>
+    <string name="prompt_template_create">Neue Vorlage</string>
+    <string name="prompt_template_activated">Vorlage aktiviert</string>
+    <string name="prompt_template_copy_name">Kopie von %1$s</string>
+    <string name="prompt_template_copy">Vorlage kopieren</string>
+    <string name="prompt_template_edit_details">Details bearbeiten</string>
+    <string name="prompt_template_failed">Vorlage konnte nicht geladen oder gespeichert werden. Bitte erneut versuchen.</string>
+    <string name="prompt_template_conflict">Diese Vorlage wurde geändert. Kopiere deinen Entwurf und öffne den Editor erneut.</string>
+    <string name="prompt_template_active">Aktiv</string>
+    <string name="prompt_template_scope">Gilt für künftige Chats, Gruppenchats, Geschichten und Zusammenfassungen. Individuelle Vorgaben für Charaktere und Sitzungen gelten weiterhin.</string>
+    <string name="prompt_template_search">Vorlagen suchen</string>
+    <string name="prompt_template_all">Prompt-Vorlagen</string>
+    <string name="prompt_template_no_results">Keine passenden Vorlagen</string>
+    <string name="prompt_template_empty">Erstelle eine Vorlage für deinen eigenen Satz von Prompts.</string>
+    <string name="prompt_template_activate">Aktivieren</string>
+    <string name="prompt_template_delete_title">Vorlage löschen?</string>
+    <string name="prompt_template_delete_active">„%1$s“ löschen und zum Systemstandard wechseln? Künftige Generierungen verwenden die Standardvorlage.</string>
+    <string name="prompt_template_delete_message">Vorlage „%1$s“ löschen?</string>
+    <string name="prompt_template_name">Vorlagenname</string>
+    <string name="prompt_template_description">Beschreibung (optional)</string>
+    <string name="prompt_template_read_only">Die Systemvorlage kann nicht bearbeitet werden.</string>
 </resources>

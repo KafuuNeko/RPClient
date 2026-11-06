@@ -286,6 +286,10 @@
     <string name="saving">保存中…</string>
     <string name="delete_character_title">删除角色</string>
     <string name="delete_character_message">删除“%s”？此操作无法撤销。</string>
+    <string name="delete_character_with_chats_title">关联对话</string>
+    <string name="delete_character_with_chats_message">继续删除将永久删除角色的关联单聊及消息，并将角色移出所在群聊。群聊记录会保留。</string>
+    <string name="delete_character_with_chats_confirm">仍要删除</string>
+    <string name="delete_character_failed">无法删除角色</string>
     <string name="delete_character_with_world_book_title">同时删除关联世界书？</string>
     <string name="delete_character_with_world_book_message">“%1$s”关联了世界书“%2$s”。是否同时删除该世界书？</string>
     <string name="delete_character_and_world_book">全部删除</string>
@@ -1391,11 +1395,34 @@
     <string name="batch_import_result_message">成功导入：%1$d\n导入失败：%2$d</string>
     <string name="batch_import_reading_progress">正在解析 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">正在导入 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">删除选中的 %1$d 个角色及其单聊记录？关联的世界书将保留。此操作无法撤销。</string>
+    <string name="character_batch_delete_message">删除选中的 %1$d 个角色？关联的世界书将保留。此操作无法撤销。</string>
     <string name="world_book_batch_delete_message">删除选中的 %1$d 本世界书及其全部条目？角色绑定也将解除。此操作无法撤销。</string>
     <string name="world_book_entry_batch_delete_message">删除选中的 %1$d 个条目？删除将立即生效，且无法撤销。</string>
     <string name="world_book_batch_import_result_title">世界书导入完成</string>
     <string name="world_book_batch_low_budget_message">选中的 %1$d 本世界书使用了较低的固定预算，最低为 %2$d Token。是否让这些世界书跟随全局预算？</string>
     <string name="world_book_archive_limit">世界书 ZIP 超出导入限制。请减少选择数量，或缩减较大世界书的内容。</string>
     <string name="world_book_export_selected">将选中的世界书导出为 ZIP</string>
+
+    <string name="prompt_template_default">系统默认</string>
+    <string name="prompt_template_migrated">自定义预设1</string>
+    <string name="prompt_template_create">新建模板</string>
+    <string name="prompt_template_activated">已启用模板</string>
+    <string name="prompt_template_copy_name">%1$s 副本</string>
+    <string name="prompt_template_copy">复制模板</string>
+    <string name="prompt_template_edit_details">编辑信息</string>
+    <string name="prompt_template_failed">模板读取或保存失败，请重试。</string>
+    <string name="prompt_template_conflict">模板已被修改。请先复制草稿，再关闭并重新打开编辑器。</string>
+    <string name="prompt_template_active">当前启用</string>
+    <string name="prompt_template_scope">用于后续单聊、群聊、故事与摘要生成。角色和会话的单独覆盖仍然生效。</string>
+    <string name="prompt_template_search">搜索模板</string>
+    <string name="prompt_template_all">提示词模板</string>
+    <string name="prompt_template_no_results">没有匹配的模板</string>
+    <string name="prompt_template_empty">新建模板，保存你自己的整套提示词。</string>
+    <string name="prompt_template_activate">启用</string>
+    <string name="prompt_template_delete_title">删除模板？</string>
+    <string name="prompt_template_delete_active">删除“%1$s”并切换到系统默认？后续生成将使用默认模板。</string>
+    <string name="prompt_template_delete_message">确定删除模板“%1$s”？</string>
+    <string name="prompt_template_name">模板名称</string>
+    <string name="prompt_template_description">简介（可选）</string>
+    <string name="prompt_template_read_only">系统默认预设无法编辑</string>
 </resources>

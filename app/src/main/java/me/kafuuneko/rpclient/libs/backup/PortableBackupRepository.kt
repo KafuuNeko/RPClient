@@ -326,7 +326,7 @@ class PortableBackupRepository(
         require(stagedRepository.isDirectory) { "Backup attachments are missing." }
         require(stagedFiles.isDirectory) { "Backup app-private files are missing." }
         // 先在暂存库执行正常迁移；不兼容的新版本不能进入覆盖流程。
-        BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedPrimary)
+        BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedPrimary, stagedPrefs)
         BackupDatabaseValidator.validateLogs(mContext, stagedLogs)
         BackupDataReplacer.replace(
             rollback, listOf(

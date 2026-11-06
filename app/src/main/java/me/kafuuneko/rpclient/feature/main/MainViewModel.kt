@@ -69,7 +69,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.toGenerationParametersSta
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.main.presentation.withRecentState
-import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
+import me.kafuuneko.rpclient.feature.prompttemplatelist.PromptTemplateListActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
@@ -1118,7 +1118,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.OpenPromptPreset::class)
     private fun onOpenPromptPreset() {
         if (!isStateOf<MainUiState.Normal>()) return
-        AppViewEvent.StartActivity(PromptPresetActivity::class.java).tryEmit()
+        AppViewEvent.StartActivity(PromptTemplateListActivity::class.java).tryEmit()
     }
 
     /** 打开正则脚本管理器页面。 */

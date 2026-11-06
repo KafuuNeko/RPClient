@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
@@ -34,6 +35,7 @@ class StorySummaryPromptBuilder(
         provider: LLMProvider,
         userName: String,
         primaryCharacterName: String?,
+        templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
     ): LLMGenerationRequest {
         require(content.isNotBlank()) { "Story manuscript cannot be blank" }
         // 校验并计算可用 Prompt 输入预算
@@ -54,7 +56,7 @@ class StorySummaryPromptBuilder(
         val drafts = buildList {
             addRequired(
                 content = renderStoryInstructionTemplate(
-                    template = AppModel.storySummarizePrompt.replace(
+                    template = templates.storySummarizePrompt.replace(
                         oldValue = "{{words}}",
                         newValue = AppModel.summaryWordsLimit.toString(),
                         ignoreCase = true,
@@ -65,12 +67,12 @@ class StorySummaryPromptBuilder(
                 sourceKind = PromptSourceKind.StoryMainPrompt,
             )
             addRequired(
-                content = renderStoryMemoryTemplate(AppModel.storyMemoryTemplate, memory),
+                content = renderStoryMemoryTemplate(templates.storyMemoryTemplate, memory),
                 sourceKind = PromptSourceKind.StoryMemory,
             )
             addRequired(
                 content = renderStorySummaryTemplate(
-                    template = AppModel.storySummaryTemplate,
+                    template = templates.storySummaryTemplate,
                     summary = currentSummary,
                 ),
                 sourceKind = PromptSourceKind.StorySummary,

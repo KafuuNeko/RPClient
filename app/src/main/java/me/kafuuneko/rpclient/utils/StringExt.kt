@@ -7,6 +7,11 @@ fun String?.takeIfNotBlank(): String? {
     return this?.takeIf { it.isNotBlank() }
 }
 
+/** 去除字符串首尾的 CR 和 LF，保留正文中的换行及其他空白。 */
+fun String.trimLineBreaks(): String {
+    return trim('\n', '\r')
+}
+
 /** 移除 think 块并保留块外原始空白。 */
 fun String.removeThinkBlocks(): String {
     return replace(ThinkBlockRegex, "")

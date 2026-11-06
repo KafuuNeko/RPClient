@@ -87,6 +87,11 @@ sealed class CharacterEditDialogState {
         val lorebookName: String
     ) : CharacterEditDialogState()
 
+    data class DeleteWithChatsConfirm(
+        /** 首次确认时选定一并删除的世界书 ID。 */
+        val lorebookId: Long?
+    ) : CharacterEditDialogState()
+
     data class PromptEditor(
         /** 当前操作对应的可编辑字段。 */
         val field: CharacterPromptField,

@@ -37,6 +37,7 @@ import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
@@ -60,6 +61,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
@@ -74,6 +76,7 @@ import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260103
+import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260404
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -145,7 +148,8 @@ internal val appModules = module {
             ExampleDialogueBehavior.fromPersistedValue(AppModel.exampleDialogueBehavior)
         }
     }
-    single<PromptPreferences> { AppModel }
+    single<PromptPreferences> { PromptTemplateSnapshot.defaults() }
+    singleOf(::PromptPresetRepository)
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::ChatArchiveCodec)
@@ -175,11 +179,12 @@ internal val appModules = module {
     singleOf(::AndroidAppVersionCodeProvider)
     singleOf(::AppModelUpgradeVersionStore)
     singleOf(::Upgrade20260103)
+    singleOf(::Upgrade20260404)
     single {
         AppUpgradeManager(
             versionCodeProvider = get<AndroidAppVersionCodeProvider>(),
             versionStore = get<AppModelUpgradeVersionStore>(),
-            upgrades = listOf(get<Upgrade20260103>()),
+            upgrades = listOf(get<Upgrade20260103>(), get<Upgrade20260404>()),
         )
     }
 

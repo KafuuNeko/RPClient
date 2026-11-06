@@ -237,11 +237,29 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             .setup()
     }
 
-    /** 确认后原子删除所选角色及其单聊，失败时保留选择以便重试。 */
+    /** 首次确认后尝试删除，无需处理关联对话时直接完成。 */
     @UiIntentObserver(CharacterListUiIntent.ConfirmDeleteSelectedCharacters::class)
     private fun onConfirmDeleteSelectedCharacters() {
         val state = getOrNull<CharacterListUiState.Normal>() ?: return
         val dialog = state.dialogState as? CharacterListDialogState.DeleteSelectedConfirm ?: return
+        deleteSelectedCharacters(state, dialog.characterIds, chatsConfirmed = false)
+    }
+
+    /** 仅在关联对话确认弹窗中接受继续删除。 */
+    @UiIntentObserver(CharacterListUiIntent.ConfirmDeleteSelectedCharactersWithChats::class)
+    private fun onConfirmDeleteSelectedCharactersWithChats() {
+        val state = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialog =
+            state.dialogState as? CharacterListDialogState.DeleteSelectedWithChatsConfirm ?: return
+        deleteSelectedCharacters(state, dialog.characterIds, chatsConfirmed = true)
+    }
+
+    /** 串行检查并删除弹窗锁定的角色，取消或失败时保留选择。 */
+    private fun deleteSelectedCharacters(
+        state: CharacterListUiState.Normal,
+        characterIds: Set<Long>,
+        chatsConfirmed: Boolean,
+    ) {
         if (state.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         val token = Any()
         mTransferToken = token
@@ -253,7 +271,19 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
         mTransferJob = viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { mCharacterRepository.deleteCharacters(dialog.characterIds.toList()) }
+                val deleted = mCharacterRepository.deleteCharacters(
+                    ids = characterIds.toList(),
+                    chatsConfirmed = chatsConfirmed,
+                )
+                // 检查命中时事务尚未删除任何数据，沿用同一组 ID 等待再次确认。
+                if (!deleted) {
+                    getOrNull<CharacterListUiState.Normal>()?.copy(
+                        dialogState = CharacterListDialogState.DeleteSelectedWithChatsConfirm(
+                            characterIds
+                        )
+                    )?.setup()
+                    return@launch
+                }
                 refreshCharacters(selectedCharacterId = state.selectedCharacterId)
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -459,12 +489,13 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 关闭当前非阻塞结果对话框。 */
+    /** 关闭结果或删除确认弹窗，保留当前选择。 */
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
-            uiState.dialogState !is CharacterListDialogState.DeleteSelectedConfirm
+            uiState.dialogState !is CharacterListDialogState.DeleteSelectedConfirm &&
+            uiState.dialogState !is CharacterListDialogState.DeleteSelectedWithChatsConfirm
         ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }

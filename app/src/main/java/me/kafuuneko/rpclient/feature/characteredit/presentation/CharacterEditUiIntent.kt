@@ -93,6 +93,8 @@ sealed class CharacterEditUiIntent {
 
     data object ConfirmDeleteCharacterWithLorebook : CharacterEditUiIntent()
 
+    data object ConfirmDeleteCharacterWithChats : CharacterEditUiIntent()
+
     data object ConfirmDiscardChanges : CharacterEditUiIntent()
 
     data object DismissDialog : CharacterEditUiIntent()

@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
@@ -20,5 +21,6 @@ internal data class BuiltGenerationRequest(
     /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
     val inspection: PromptInspection,
     /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
+    val templates: PromptTemplateSnapshot,
     val worldInfoStateJson: String
 )

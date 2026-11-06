@@ -132,6 +132,39 @@ class GroupChatPromptBuilder(
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
     private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
+    /** 使用调用方捕获的偏好构建请求，测试可复用构造时的固定配置。 */
+    fun build(
+        context: GroupChatPromptContext,
+        preferences: PromptPreferences = mPreferences
+    ): LLMGenerationRequest =
+        buildWithMetadata(context, preferences).request
+
+    /** 每次构建创建独立会话，避免并发请求或模板切换相互覆盖配置。 */
+    fun buildWithMetadata(
+        context: GroupChatPromptContext,
+        preferences: PromptPreferences = mPreferences
+    ): GroupChatPromptBuildResult {
+        return GroupChatPromptBuildSession(
+            mPreferences = preferences,
+            mWorldBookActivator = mWorldBookActivator,
+            mRegexRuntime = mRegexRuntime,
+            mRequestFinalizer = mRequestFinalizer,
+            mExampleDialogueBehaviorProvider = mExampleDialogueBehaviorProvider,
+            mRegexProcessor = mRegexProcessor,
+        ).buildWithMetadata(context)
+    }
+}
+
+/** 一次构建的只读依赖与提示词快照，不跨请求复用。 */
+private class GroupChatPromptBuildSession(
+    private val mPreferences: PromptPreferences,
+    private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
+    private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(mEngine = RegexScriptEngine()),
+    private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer(),
+    private val mExampleDialogueBehaviorProvider: ExampleDialogueBehaviorProvider =
+        ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
+    private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
+) {
     /**
      * 构建可直接发送给模型的群聊生成请求。
      *

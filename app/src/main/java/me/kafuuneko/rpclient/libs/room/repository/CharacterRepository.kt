@@ -200,18 +200,34 @@ class CharacterRepository(
      * @param id 角色 id。
      */
     suspend fun deleteCharacter(id: Long) {
-        deleteCharacters(listOf(id))
+        deleteCharacters(ids = listOf(id), chatsConfirmed = true)
     }
 
     /**
-     * 在同一文件事务内删除所选角色、单聊与专属附件，保留关联世界书。
+     * 在同一事务内检查对话关联并删除所选角色、单聊与专属附件。
+     *
      * @param ids 要删除的角色 ID，重复项只处理一次。
+     * @param chatsConfirmed 用户是否已确认处理关联对话。
+     * @param lorebookId 单卡编辑时已选择一并删除的世界书 ID。
+     * @return 无需进一步确认时返回 true，存在未确认的对话关联时整批保留并返回 false。
      */
-    suspend fun deleteCharacters(ids: List<Long>) {
-        if (ids.isEmpty()) return
-        mImages.mutate {
-            // 所有角色共用事务，失败时不会留下部分删除的数据和失效的附件引用。
-            for (id in ids.distinct()) {
+    suspend fun deleteCharacters(
+        ids: List<Long>,
+        chatsConfirmed: Boolean,
+        lorebookId: Long? = null,
+    ): Boolean {
+        if (ids.isEmpty()) return true
+        val characterIds = ids.distinct()
+        return mImages.mutate {
+            // 分批绑定 ID，在同一事务内检查整个选择，防止并发创建的对话绕过确认。
+            if (!chatsConfirmed && characterIds.chunked(900)
+                    .any { mCharacterDao.hasAssociatedChats(it) }
+            ) {
+                return@mutate false
+            }
+            // 世界书也在对话确认后处理，取消时不会提前解除绑定或删除条目。
+            if (lorebookId != null) mAppDatabase.deleteLorebookInTransaction(lorebookId)
+            for (id in characterIds) {
                 val character = mCharacterDao.getCharacterById(id) ?: continue
                 mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
                     mImages.deleteInTransaction(
@@ -230,6 +246,7 @@ class CharacterRepository(
                     )
                 )
             }
+            true
         }
     }
 

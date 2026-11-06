@@ -36,7 +36,6 @@ class LorebookRepository(
 ) {
     private val mLorebookDao = mAppDatabase.getLorebookDao()
     private val mLorebookEntryDao = mAppDatabase.getLorebookEntryDao()
-    private val mCharacterDao = mAppDatabase.getCharacterDao()
 
     /**
      * 获取所有世界书。
@@ -145,11 +144,7 @@ class LorebookRepository(
     /** 在同一事务内删除所选世界书、条目并解除角色绑定。 */
     suspend fun deleteLorebooks(ids: List<Long>) {
         mAppDatabase.withTransaction {
-            ids.distinct().forEach { id ->
-                mCharacterDao.clearLorebookAssociations(id)
-                mLorebookEntryDao.deleteEntriesByLorebookId(id)
-                mLorebookDao.deleteLorebookById(id)
-            }
+            ids.distinct().forEach { id -> mAppDatabase.deleteLorebookInTransaction(id) }
         }
     }
 
@@ -382,4 +377,11 @@ class LorebookRepository(
         }
     }
 
+}
+
+/** 在调用方已开启的事务内解除角色绑定，并删除世界书及其条目。 */
+internal suspend fun AppDatabase.deleteLorebookInTransaction(id: Long) {
+    getCharacterDao().clearLorebookAssociations(id)
+    getLorebookEntryDao().deleteEntriesByLorebookId(id)
+    getLorebookDao().deleteLorebookById(id)
 }

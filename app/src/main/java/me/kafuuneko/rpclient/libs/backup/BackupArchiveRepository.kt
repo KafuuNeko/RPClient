@@ -2,13 +2,13 @@ package me.kafuuneko.rpclient.libs.backup
 
 import android.content.Context
 import android.net.Uri
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.extractArchive
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.sha256
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import org.json.JSONObject
-import java.io.File
 
 /**
  * 旧版 SQLite 快照的只读兼容入口。
@@ -59,11 +59,11 @@ class BackupArchiveRepository(
                 "The database checksum does not match manifest.json."
             }
 
-            BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedDatabase)
             val stagedPrefs = File(stageRoot, "settings/shared_prefs")
             val stagedRepository = File(stageRoot, "files/repository")
             // 旧导出器不写空目录条目；缺省目录按旧协议恢复为空目录。
             stagedPrefs.mkdirs()
+            BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedDatabase, stagedPrefs)
             stagedRepository.mkdirs()
             BackupDataReplacer.replace(
                 rollback = rollbackRoot,

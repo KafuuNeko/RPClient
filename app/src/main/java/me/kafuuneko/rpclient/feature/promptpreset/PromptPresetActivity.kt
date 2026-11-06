@@ -20,6 +20,10 @@ import me.kafuuneko.rpclient.libs.core.IViewEvent
 
 /** Prompt 预设管理页面宿主。 */
 class PromptPresetActivity : CoreActivityWithEvent() {
+    companion object {
+        const val EXTRA_PRESET_ID = "preset_id"
+    }
+
     private val mViewModel by viewModels<PromptPresetViewModel>()
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -40,7 +44,11 @@ class PromptPresetActivity : CoreActivityWithEvent() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mViewModel.emit(PromptPresetUiIntent.Init)
+        mViewModel.emit(
+            PromptPresetUiIntent.Init(
+                intent.getLongExtra(EXTRA_PRESET_ID, -1L)
+            )
+        )
     }
 
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {

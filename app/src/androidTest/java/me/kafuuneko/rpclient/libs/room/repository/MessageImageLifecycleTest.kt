@@ -26,8 +26,10 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
@@ -554,7 +556,7 @@ class MessageImageLifecycleTest {
     }
 
     @Test
-        /** 验证群聊截断和角色级联删除不影响其他会话与类型。 */
+        /** 验证单聊保护覆盖整个批次，确认后的级联删除仍隔离不同类型的附件。 */
     fun groupTruncationAndCharacterCascadeRespectSessionAndType() = runBlocking {
         val a = prepared()
         val single =
@@ -594,12 +596,72 @@ class MessageImageLifecycleTest {
         group.deleteMessagesFrom(removed.key.messageId)
         assertNull(files.getFileEntity(c.file.uuid))
         assertNotNull(files.getFileEntity(d.file.uuid))
-        characters.deleteCharacter(characterId)
+
+        val unlinkedId = characters.saveCharacter(
+            checkNotNull(characters.getCharacterById(characterId)).copy(id = 0L),
+        )
+        val selected = listOf(unlinkedId, characterId)
+        // 即使先选中的是无对话角色，未确认时也必须保留整个批次及单聊附件。
+        assertFalse(characters.deleteCharacters(ids = selected, chatsConfirmed = false))
+        assertNotNull(characters.getCharacterById(unlinkedId))
+        assertNotNull(characters.getCharacterById(characterId))
+        assertNotNull(database.getChatSessionDao().getSessionById(sessionId))
+        assertNotNull(files.getFileEntity(a.file.uuid))
+
+        assertTrue(characters.deleteCharacters(ids = selected, chatsConfirmed = true))
+        assertNull(characters.getCharacterById(unlinkedId))
+        assertNull(characters.getCharacterById(characterId))
+        assertNull(database.getChatSessionDao().getSessionById(sessionId))
         assertNull(files.getFileEntity(a.file.uuid))
         files.withFileLease(b.file.uuid) { file -> assertEquals("same original", file.readText()) }
         group.deleteSession(groupId)
         assertNull(files.getFileEntity(b.file.uuid))
         assertNotNull(files.getFileEntity(d.file.uuid))
+    }
+
+    @Test
+        /** 仅有关联群聊的角色也需要确认，世界书随角色一起等待确认。 */
+    fun groupChatConfirmationDefersCharacterAndLorebookDeletion() = runBlocking {
+        val lorebookDao = database.getLorebookDao()
+        val lorebookId = lorebookDao.insertOrReplace(Lorebook(name = "linked"))
+        val memberId = characters.saveCharacter(
+            checkNotNull(characters.getCharacterById(characterId))
+                .copy(id = 0L, characterLorebookId = lorebookId),
+        )
+        val members = database.getGroupChatMemberDao()
+        members.insertOrReplace(
+            GroupChatMember(
+                sessionId = groupId,
+                characterId = memberId,
+                sortOrder = 0
+            )
+        )
+
+        // 该角色没有单聊，群聊成员关系仍应阻止未确认的删除。
+        val ids = listOf(memberId)
+        assertFalse(
+            characters.deleteCharacters(
+                ids = ids,
+                chatsConfirmed = false,
+                lorebookId = lorebookId
+            )
+        )
+        assertEquals(lorebookId, characters.getCharacterById(memberId)?.characterLorebookId)
+        assertNotNull(lorebookDao.getLorebookById(lorebookId))
+        assertEquals(memberId, members.getMembers(groupId).single().characterId)
+
+        // 允许删除角色和世界书后，群聊会话仍然保留。
+        assertTrue(
+            characters.deleteCharacters(
+                ids = ids,
+                chatsConfirmed = true,
+                lorebookId = lorebookId
+            )
+        )
+        assertNull(characters.getCharacterById(memberId))
+        assertNull(lorebookDao.getLorebookById(lorebookId))
+        assertTrue(members.getMembers(groupId).isEmpty())
+        assertNotNull(database.getGroupChatSessionDao().getSessionById(groupId))
     }
 
     @Test

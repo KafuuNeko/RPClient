@@ -56,6 +56,7 @@ class SummaryPromptBuilder(
         provider: LLMProvider?,
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
         unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
+        templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
@@ -76,6 +77,7 @@ class SummaryPromptBuilder(
             countSummaryTokens(
                 tokenizer = tokenizer,
                 messages = renderRequestMessages(
+                    templates = templates,
                     userName = userName,
                     userDescription = userDescription,
                     character = character,
@@ -94,6 +96,7 @@ class SummaryPromptBuilder(
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val required = tokenizer.countMessages(
                 messages = renderRequestMessages(
+                    templates = templates,
                     userName = userName,
                     userDescription = userDescription,
                     character = character,
@@ -116,6 +119,7 @@ class SummaryPromptBuilder(
         // 组装最终的总结生成请求
         val request = LLMGenerationRequest(
             messages = renderRequestMessages(
+                templates = templates,
                 userName = userName,
                 userDescription = userDescription,
                 character = character,
@@ -140,6 +144,7 @@ class SummaryPromptBuilder(
 
     /** 渲染摘要指令和原始聊天素材两条消息。 */
     private fun renderRequestMessages(
+        templates: PromptTemplateSnapshot,
         userName: String,
         userDescription: String,
         character: Character,
@@ -166,7 +171,7 @@ class SummaryPromptBuilder(
         )
         val instruction = mMacroResolver
             .resolve(
-                template = AppModel.summarizePrompt,
+                template = templates.summarizePrompt,
                 context = context,
                 history = "",
             )

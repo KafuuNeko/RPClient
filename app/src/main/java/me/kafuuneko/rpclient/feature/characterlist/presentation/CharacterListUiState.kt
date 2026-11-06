@@ -44,6 +44,9 @@ sealed class CharacterListDialogState {
 
     data class DeleteSelectedConfirm(val characterIds: Set<Long>) : CharacterListDialogState()
 
+    data class DeleteSelectedWithChatsConfirm(val characterIds: Set<Long>) :
+        CharacterListDialogState()
+
     data class BatchImportResult(
         /** 批量操作中已经成功处理的项目数量。 */
         val successCount: Int,

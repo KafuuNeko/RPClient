@@ -253,6 +253,14 @@ private fun DialogSwitch(
             onConfirm = { CharacterListUiIntent.ConfirmDeleteSelectedCharacters.emit() },
         )
 
+        is CharacterListDialogState.DeleteSelectedWithChatsConfirm -> AppDangerDialog(
+            onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.delete_character_with_chats_title),
+            message = stringResource(R.string.delete_character_with_chats_message),
+            confirmText = stringResource(R.string.delete_character_with_chats_confirm),
+            onConfirm = { CharacterListUiIntent.ConfirmDeleteSelectedCharactersWithChats.emit() },
+        )
+
         is CharacterListDialogState.LowEmbeddedLorebookBudgetConfirm -> {
             val importBudgetMessage = if (dialogState.affectedCharacterCount == 1) {
                 stringResource(

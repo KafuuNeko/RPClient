@@ -140,6 +140,11 @@
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".feature.prompttemplatelist.PromptTemplateListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.promptpreset.PromptPresetActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

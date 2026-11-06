@@ -36,6 +36,30 @@ class ChatPromptBuilderTest {
     )
 
     @Test
+    fun capturedTemplateSurvivesOtherBuildsAndOriginalKeepsCharacterOverrideSemantics() {
+        val old = PromptTemplateSnapshot.resolve(
+            1L,
+            1,
+            mapOf("main" to "old {{char}}", "auxiliary" to "")
+        )
+        val next = PromptTemplateSnapshot.resolve(2L, 2, mapOf("main" to "new {{char}}"))
+        val input =
+            context(character = context().character.copy(systemPrompt = "override {{original}}"))
+        val first = builder.build(input, old)
+        val second = builder.build(input, next)
+        val repeated = builder.build(input, old)
+        assertTrue(first.messages.any { it.content == "override old Char" })
+        assertTrue(second.messages.any { it.content == "override new Char" })
+        assertEquals(first.messages, repeated.messages)
+        val empty = PromptTemplateSnapshot.resolve(3L, 1, mapOf("main" to ""))
+        assertFalse(
+            builder.buildWithMetadata(
+                context(),
+                empty
+            ).inspection.items.any { item -> item.sources.any { it.kind == PromptSourceKind.MainPrompt } })
+    }
+
+    @Test
     fun userPersonaUsesCurrentPreferencesAndChatMacros() {
         val preferences = object : PromptPreferences by TestPromptPreferences() {
             override var userPersonaFormat = "Profile of {{user}}: {{persona}}"

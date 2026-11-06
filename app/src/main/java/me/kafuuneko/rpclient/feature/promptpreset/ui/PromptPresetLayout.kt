@@ -21,11 +21,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Compress
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,10 +40,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.promptpreset.model.PromptType
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetLoadState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiIntent
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiState
+import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
+import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -65,7 +72,7 @@ fun PromptPresetLayout(
         is PromptPresetUiState.Finished -> PromptPresetLayout(uiState = uiState.previous, emit = {})
         is PromptPresetUiState.Normal -> {
             NormalView(uiState, emit)
-            DialogSwitch(uiState.dialogState, emit)
+            DialogSwitch(uiState.dialogState, uiState.busy, emit)
         }
     }
 }
@@ -81,7 +88,18 @@ private fun NormalView(
         contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
-                title = stringResource(R.string.prompt_preset_title),
+                title = uiState.name.ifBlank { stringResource(R.string.prompt_preset_title) },
+                actions = {
+                    IconButton(
+                        onClick = { PromptPresetUiIntent.CopyTemplate.emit() },
+                        enabled = !uiState.busy && uiState.loadState == PromptPresetLoadState.Ready
+                    ) {
+                        Icon(
+                            Icons.Rounded.ContentCopy,
+                            stringResource(R.string.prompt_template_copy)
+                        )
+                    }
+                },
                 onBack = { PromptPresetUiIntent.Back.emit() },
             )
         },
@@ -100,13 +118,29 @@ private fun NormalView(
                 ),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                promptGroups.forEach { group ->
+                if (uiState.loadState != PromptPresetLoadState.Ready) item {
+                    when (uiState.loadState) {
+                        PromptPresetLoadState.Loading -> CircularProgressIndicator()
+                        PromptPresetLoadState.Failed -> {
+                            Text(stringResource(R.string.prompt_template_failed))
+                            TextButton(onClick = { PromptPresetUiIntent.Retry.emit() }) {
+                                Text(
+                                    stringResource(R.string.retry)
+                                )
+                            }
+                        }
+
+                        PromptPresetLoadState.Ready -> Unit
+                    }
+                }
+                if (uiState.loadState == PromptPresetLoadState.Ready) promptGroups.forEach { group ->
                     item {
                         RpSectionHeader(title = stringResource(group.titleRes))
                     }
                     group.types.forEach { type ->
                         item {
                             PromptCard(
+                                showEditHint = !uiState.isBuiltin,
                                 icon = type.icon(),
                                 title = stringResource(type.titleRes()),
                                 description = stringResource(type.descriptionRes()),
@@ -123,6 +157,7 @@ private fun NormalView(
 
 @Composable
 private fun PromptCard(
+    showEditHint: Boolean,
     icon: ImageVector,
     title: String,
     description: String,
@@ -205,8 +240,8 @@ private fun PromptCard(
                 )
             }
 
-            // 编辑标签
-            Row(
+            // 默认项不显示可编辑标签，点击时由 ViewModel 给出只读提示。
+            if (showEditHint) Row(
                 modifier = Modifier.align(Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -354,12 +389,34 @@ private fun PromptType.descriptionRes(): Int {
 @Composable
 private fun DialogSwitch(
     dialogState: PromptPresetDialogState,
+    busy: Boolean,
     emit: PromptPresetUiIntent.() -> Unit,
 ) {
     when (dialogState) {
         is PromptPresetDialogState.None -> Unit
+        is PromptPresetDialogState.CopyTemplate -> AppInputDialog(
+            onDismissRequest = { PromptPresetUiIntent.DismissPromptDialog.emit() },
+            title = stringResource(R.string.prompt_template_copy),
+            value = dialogState.name,
+            label = stringResource(R.string.prompt_template_name),
+            onValueChange = { PromptPresetUiIntent.ChangeCopyName(it).emit() },
+            enabled = !busy,
+            confirmEnabled = !busy && dialogState.name.isNotBlank(),
+            isConfirmLoading = busy,
+            onConfirm = { PromptPresetUiIntent.ConfirmCopy.emit() },
+        )
+
+        is PromptPresetDialogState.Discard -> AppConfirmDialog(
+            onDismissRequest = { PromptPresetUiIntent.DismissPromptDialog.emit() },
+            title = stringResource(R.string.unsaved_changes_title),
+            message = stringResource(R.string.unsaved_changes_message),
+            confirmText = stringResource(R.string.discard_changes),
+            onConfirm = { PromptPresetUiIntent.ConfirmDiscard.emit() },
+        )
+
         is PromptPresetDialogState.EditPrompt -> EditPromptDialog(
             dialogState = dialogState,
+            busy = busy,
             onDismiss = { PromptPresetUiIntent.DismissPromptDialog.emit() },
             onChange = { PromptPresetUiIntent.ChangePromptDraft(it).emit() },
             onCopy = { PromptPresetUiIntent.CopyPromptDraft.emit() },
@@ -371,6 +428,7 @@ private fun DialogSwitch(
 @Composable
 private fun EditPromptDialog(
     dialogState: PromptPresetDialogState.EditPrompt,
+    busy: Boolean,
     onDismiss: () -> Unit,
     onChange: (String) -> Unit,
     onCopy: () -> Unit,
@@ -388,6 +446,8 @@ private fun EditPromptDialog(
         availableMacros = dialogState.availableMacros,
         onCopyRequest = { onCopy() },
         onConfirm = onSave,
+        confirmEnabled = !busy,
+        isConfirmLoading = busy,
     )
 }
 

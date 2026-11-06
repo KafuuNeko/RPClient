@@ -286,6 +286,10 @@
     <string name="saving">저장 중…</string>
     <string name="delete_character_title">캐릭터 삭제</string>
     <string name="delete_character_message">“%s”을(를) 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
+    <string name="delete_character_with_chats_title">연결된 대화</string>
+    <string name="delete_character_with_chats_message">연결된 일대일 채팅과 메시지가 영구 삭제됩니다. 캐릭터는 참여 중인 그룹 채팅에서 제거되며, 그룹 채팅 기록은 유지됩니다.</string>
+    <string name="delete_character_with_chats_confirm">그래도 삭제</string>
+    <string name="delete_character_failed">캐릭터를 삭제하지 못했습니다</string>
     <string name="delete_character_with_world_book_title">연결된 월드북도 삭제하시겠습니까?</string>
     <string name="delete_character_with_world_book_message">“%1$s”은(는) “%2$s”과(와) 연결되어 있습니다. 월드북도 삭제하시겠습니까?</string>
     <string name="delete_character_and_world_book">둘 다 삭제</string>
@@ -1389,11 +1393,34 @@
     <string name="batch_import_result_message">성공: %1$d\n실패: %2$d</string>
     <string name="batch_import_reading_progress">분석 중 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">가져오는 중 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">선택한 캐릭터 %1$d개와 해당 일대일 채팅을 삭제할까요? 연결된 월드북은 유지됩니다. 이 작업은 되돌릴 수 없습니다.</string>
+    <string name="character_batch_delete_message">선택한 캐릭터 %1$d개를 삭제할까요? 연결된 월드북은 유지됩니다. 이 작업은 되돌릴 수 없습니다.</string>
     <string name="world_book_batch_delete_message">선택한 월드북 %1$d개와 모든 항목을 삭제할까요? 캐릭터 연결도 해제됩니다. 이 작업은 되돌릴 수 없습니다.</string>
     <string name="world_book_entry_batch_delete_message">선택한 항목 %1$d개를 삭제할까요? 삭제는 즉시 적용되며 되돌릴 수 없습니다.</string>
     <string name="world_book_batch_import_result_title">월드북 가져오기 완료</string>
     <string name="world_book_batch_low_budget_message">선택한 월드북 %1$d개의 고정 예산이 낮습니다. 최솟값은 %2$d토큰입니다. 이 월드북에 전역 예산을 사용할까요?</string>
     <string name="world_book_archive_limit">월드북 ZIP이 가져오기 한도를 초과합니다. 더 적은 월드북을 선택하거나 큰 월드북의 크기를 줄이세요.</string>
     <string name="world_book_export_selected">선택한 월드북을 ZIP으로 내보내기</string>
+
+    <string name="prompt_template_default">시스템 기본값</string>
+    <string name="prompt_template_migrated">사용자 지정 프리셋 1</string>
+    <string name="prompt_template_create">새 템플릿</string>
+    <string name="prompt_template_activated">템플릿을 활성화했습니다</string>
+    <string name="prompt_template_copy_name">%1$s 사본</string>
+    <string name="prompt_template_copy">템플릿 복사</string>
+    <string name="prompt_template_edit_details">정보 편집</string>
+    <string name="prompt_template_failed">템플릿을 불러오거나 저장하지 못했습니다. 다시 시도하세요.</string>
+    <string name="prompt_template_conflict">템플릿이 변경되었습니다. 초안을 복사한 후 편집기를 닫고 다시 여세요.</string>
+    <string name="prompt_template_active">사용 중</string>
+    <string name="prompt_template_scope">이후 채팅, 그룹 채팅, 이야기 및 요약 생성에 적용됩니다. 캐릭터와 세션의 개별 설정은 계속 우선 적용됩니다.</string>
+    <string name="prompt_template_search">템플릿 검색</string>
+    <string name="prompt_template_all">프롬프트 템플릿</string>
+    <string name="prompt_template_no_results">일치하는 템플릿이 없습니다</string>
+    <string name="prompt_template_empty">템플릿을 만들어 나만의 프롬프트 모음을 저장하세요.</string>
+    <string name="prompt_template_activate">활성화</string>
+    <string name="prompt_template_delete_title">템플릿을 삭제할까요?</string>
+    <string name="prompt_template_delete_active">“%1$s”을(를) 삭제하고 시스템 기본값으로 전환할까요? 이후 생성에는 기본 템플릿이 사용됩니다.</string>
+    <string name="prompt_template_delete_message">템플릿 “%1$s”을(를) 삭제할까요?</string>
+    <string name="prompt_template_name">템플릿 이름</string>
+    <string name="prompt_template_description">설명 (선택 사항)</string>
+    <string name="prompt_template_read_only">시스템 기본 프리셋은 편집할 수 없습니다.</string>
 </resources>

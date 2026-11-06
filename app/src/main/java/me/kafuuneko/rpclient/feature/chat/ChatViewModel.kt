@@ -75,6 +75,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
@@ -100,6 +101,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -152,8 +154,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     generationState = ChatGenerationState.Requesting
                 )
-                generateCommittedReply(sessionId)
-                maybeAutoSummarize(sessionId)
+                val templates = generateCommittedReply(sessionId)
+                maybeAutoSummarize(sessionId, templates)
             } catch (error: Exception) {
                 val failure = error.toGenerationFailurePresentation(
                     context = mContext, fallbackMessageResId = R.string.generation_failed,
@@ -188,6 +190,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
 
+    private val mPromptPresets by inject<PromptPresetRepository>()
     private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
     private val mImageRuntime by inject<MessageImageRuntime>()
     private val mImageCoordinator by lazy {
@@ -564,11 +567,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         if (mImageCoordinator.state.loadState.isBusy) return
         val images = mImageCoordinator.draftInputs()
+        val templates = try {
+            mPromptPresets.getActiveSnapshot()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_template_failed).tryEmit()
+            return
+        }
         val rawInput = uiState.conversationState.inputDraft.trim()
-            .ifBlank { if (images.isEmpty()) AppModel.replaceEmptyMessagePrompt.trim() else "" }
+            .ifBlank { if (images.isEmpty()) templates.replaceEmptyMessagePrompt.trim() else "" }
         // 若最终输入为空，退化为续写角色消息
         if (rawInput.isBlank() && images.isEmpty()) {
-            continueLastAssistantMessage(sessionId)
+            continueLastAssistantMessage(sessionId, templates)
             return
         }
         if (mGenerationJob?.isCompleted == false) {
@@ -612,9 +623,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     inputDraft = "",
                     generationState = ChatGenerationState.Requesting,
                 )
-                generateCommittedReply(sessionId)
-                // 检查并按需触发自动总结
-                maybeAutoSummarize(sessionId)
+                generateCommittedReply(sessionId, templates)
+                // 回复和它触发的摘要复用同一模板，期间切换只影响后续操作。
+                maybeAutoSummarize(sessionId, templates)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 失败状态
                 val failure = throwable.toGenerationFailurePresentation(
@@ -635,8 +646,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /** 为已提交的用户消息生成回复；成功后先释放恢复目标，再运行独立的摘要流程。 */
-    private suspend fun generateCommittedReply(sessionId: Long) {
-        val built = withContext(Dispatchers.IO) { buildGenerationRequest(sessionId) }
+    private suspend fun generateCommittedReply(
+        sessionId: Long,
+        templates: PromptTemplateSnapshot? = null
+    ): PromptTemplateSnapshot {
+        val built =
+            withContext(Dispatchers.IO) { buildGenerationRequest(sessionId, templates = templates) }
         recordPromptInspection(built.inspection)
         val output = GenerationOutput.Create(ChatMessage.Source.Char)
         // 首次发送和失败恢复共享相同分发，恢复时不再提交用户正文或附件。
@@ -652,6 +667,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             generateOnce(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
         }
         clearReplyRetry()
+        return built.templates
     }
 
     /**
@@ -1629,7 +1645,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId)
+                maybeAutoSummarize(sessionId, built.templates)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 状态
                 val failure = throwable.toGenerationFailurePresentation(
@@ -1657,7 +1673,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * @param sessionId 会话 ID
      */
-    private suspend fun continueLastAssistantMessage(sessionId: Long) {
+    private suspend fun continueLastAssistantMessage(
+        sessionId: Long,
+        templates: PromptTemplateSnapshot? = null
+    ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         uiState.copy(page = ChatPage.Conversation).setup()
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
@@ -1690,7 +1709,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 val generationMode =
                     if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
                 val built = withContext(Dispatchers.IO) {
-                    buildGenerationRequest(sessionId, generationMode)
+                    buildGenerationRequest(sessionId, generationMode, templates = templates)
                 }
                 recordPromptInspection(built.inspection)
                 // 调用模型生成，续写结果作为新建角色消息保存
@@ -1712,7 +1731,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId)
+                maybeAutoSummarize(sessionId, built.templates)
             }.onFailure { throwable ->
                 val errorResId =
                     if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
@@ -1783,7 +1802,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId)
+                maybeAutoSummarize(sessionId, built.templates)
             }.onFailure { throwable ->
                 val failure = throwable.toGenerationFailurePresentation(
                     context = mContext, fallbackMessageResId = R.string.impersonation_failed,
@@ -2002,14 +2021,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param showToast 是否在总结完成或出错时弹出 Toast（手动触发为 true，自动触发为 false）
      * @return 启动的任务 Job
      */
-    private suspend fun launchSummaryJob(sessionId: Long, showToast: Boolean): Job {
+    private suspend fun launchSummaryJob(
+        sessionId: Long,
+        showToast: Boolean,
+        templates: PromptTemplateSnapshot? = null
+    ): Job {
         return mSummaryJobMutex.withLock {
             // 取消并等待上一个可能正在执行的总结任务
             mSummaryJob?.cancelAndJoin()
             // 启动新的总结协程任务
             viewModelScope.launch {
                 try {
-                    summarizeSession(sessionId, showToast)
+                    summarizeSession(sessionId, showToast, templates)
                 } finally {
                     // 收尾处理：若弹窗仍处于“总结中”状态，则安全关闭弹窗
                     withContext(NonCancellable) {
@@ -2038,7 +2061,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * @param sessionId 会话 ID
      */
-    private suspend fun maybeAutoSummarize(sessionId: Long) {
+    private suspend fun maybeAutoSummarize(sessionId: Long, templates: PromptTemplateSnapshot) {
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mChatRepository.getSessionById(sessionId)
@@ -2047,7 +2070,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messageCount > 0 && messageCount >= AppModel.summaryTriggerMessageCount
         }
         if (shouldSummarize) {
-            val job = launchSummaryJob(sessionId = sessionId, showToast = false)
+            val job =
+                launchSummaryJob(sessionId = sessionId, showToast = false, templates = templates)
             job.join()
         }
     }
@@ -2064,8 +2088,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param showToast 是否显示 Toast 提示
      */
-    private suspend fun summarizeSession(sessionId: Long, showToast: Boolean) {
+    private suspend fun summarizeSession(
+        sessionId: Long,
+        showToast: Boolean,
+        templates: PromptTemplateSnapshot?
+    ) {
         runCatching {
+            val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
             // 异步组装不会随候选窗口变化的会话、角色和模型配置
             val data = withContext(Dispatchers.IO) {
                 val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
@@ -2113,6 +2142,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
             val prepared = buildSummaryRequest(
+                templates = promptTemplates,
                 sessionId = sessionId,
                 allowRefreshLatest = showToast,
                 data = data,
@@ -2194,6 +2224,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         initialContext: ChatSummaryGenerationContext,
         initialWindowSize: Int,
         maximumCandidates: Int,
+        templates: PromptTemplateSnapshot,
     ): PreparedSummaryRequest? {
         var windowSize = initialWindowSize
         var context = initialContext
@@ -2215,6 +2246,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 格式化与 BPE Token 统计属于 CPU 密集任务，不能占用 UI 主线程
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
+                    templates = templates,
                     userName = data.session.userName,
                     userDescription = data.session.userDescription,
                     character = data.character,
@@ -2267,7 +2299,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         sessionId: Long,
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         excludedMessageId: Long? = null,
+        templates: PromptTemplateSnapshot? = null,
     ): BuiltGenerationRequest {
+        val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
         val session = mChatRepository.getSessionById(sessionId)
             ?: error(mContext.getString(R.string.session_not_found))
@@ -2298,6 +2332,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val imageReferences = mImageRuntime.prepareCandidates(generationHistory.messages)
         val buildResult = withContext(Dispatchers.Default) {
             mChatPromptBuilder.buildWithMetadata(
+                preferences = promptTemplates,
                 context = PromptBuildContext(
                     userName = session.userName,
                     userDescription = session.userDescription,
@@ -2331,6 +2366,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         }
         return BuiltGenerationRequest(
+            templates = promptTemplates,
             provider = provider,
             request = buildResult.request,
             inspection = buildResult.inspection,

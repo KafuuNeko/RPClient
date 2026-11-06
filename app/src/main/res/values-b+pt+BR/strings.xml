@@ -287,6 +287,10 @@ Falhas: %2$d</string>
     <string name="saving">Salvando…</string>
     <string name="delete_character_title">Excluir personagem</string>
     <string name="delete_character_message">Excluir “%s”? Esta ação não pode ser desfeita.</string>
+    <string name="delete_character_with_chats_title">Conversas associadas</string>
+    <string name="delete_character_with_chats_message">As conversas individuais associadas e suas mensagens serão excluídas permanentemente. Os personagens serão removidos das conversas em grupo, cujo histórico será mantido.</string>
+    <string name="delete_character_with_chats_confirm">Excluir mesmo assim</string>
+    <string name="delete_character_failed">Não foi possível excluir o personagem</string>
     <string name="delete_character_with_world_book_title">Excluir livro do mundo associado?</string>
     <string name="delete_character_with_world_book_message">“%1$s” está associado a “%2$s”. Deseja excluir também o livro do mundo associado?</string>
     <string name="delete_character_and_world_book">Excluir ambos</string>
@@ -1399,11 +1403,34 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
 Falhas: %2$d</string>
     <string name="batch_import_reading_progress">Lendo %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importando %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Excluir %1$d personagens selecionados e suas conversas individuais? Os livros de mundo associados serão mantidos. Esta ação não pode ser desfeita.</string>
+    <string name="character_batch_delete_message">Excluir %1$d personagens selecionados? Os livros de mundo associados serão mantidos. Esta ação não pode ser desfeita.</string>
     <string name="world_book_batch_delete_message">Excluir %1$d livros de mundo selecionados e todas as suas entradas? Os vínculos com personagens serão removidos. Esta ação não pode ser desfeita.</string>
     <string name="world_book_entry_batch_delete_message">Excluir %1$d entradas selecionadas? A exclusão é imediata e não pode ser desfeita.</string>
     <string name="world_book_batch_import_result_title">Importação de livros de mundo concluída</string>
     <string name="world_book_batch_low_budget_message">%1$d livros de mundo selecionados têm orçamentos fixos baixos. O menor é de %2$d tokens. Usar o orçamento global para esses livros?</string>
     <string name="world_book_archive_limit">O ZIP de livros de mundo excede os limites de importação. Selecione menos livros ou reduza o tamanho de um livro grande.</string>
     <string name="world_book_export_selected">Exportar livros de mundo selecionados como ZIP</string>
+
+    <string name="prompt_template_default">Padrão do sistema</string>
+    <string name="prompt_template_migrated">Predefinição personalizada 1</string>
+    <string name="prompt_template_create">Novo modelo</string>
+    <string name="prompt_template_activated">Modelo ativado</string>
+    <string name="prompt_template_copy_name">Cópia de %1$s</string>
+    <string name="prompt_template_copy">Copiar modelo</string>
+    <string name="prompt_template_edit_details">Editar detalhes</string>
+    <string name="prompt_template_failed">Não foi possível carregar ou salvar o modelo. Tente novamente.</string>
+    <string name="prompt_template_conflict">Este modelo foi alterado. Copie seu rascunho, feche e reabra o editor.</string>
+    <string name="prompt_template_active">Ativo</string>
+    <string name="prompt_template_scope">Aplica-se às próximas gerações de conversas, grupos, histórias e resumos. As substituições de personagem e sessão continuam válidas.</string>
+    <string name="prompt_template_search">Buscar modelos</string>
+    <string name="prompt_template_all">Modelos de prompts</string>
+    <string name="prompt_template_no_results">Nenhum modelo encontrado</string>
+    <string name="prompt_template_empty">Crie um modelo para salvar seu próprio conjunto de prompts.</string>
+    <string name="prompt_template_activate">Ativar</string>
+    <string name="prompt_template_delete_title">Excluir modelo?</string>
+    <string name="prompt_template_delete_active">Excluir “%1$s” e usar o padrão do sistema? As próximas gerações usarão o modelo padrão.</string>
+    <string name="prompt_template_delete_message">Excluir o modelo “%1$s”?</string>
+    <string name="prompt_template_name">Nome do modelo</string>
+    <string name="prompt_template_description">Descrição (opcional)</string>
+    <string name="prompt_template_read_only">A predefinição padrão do sistema não pode ser editada.</string>
 </resources>

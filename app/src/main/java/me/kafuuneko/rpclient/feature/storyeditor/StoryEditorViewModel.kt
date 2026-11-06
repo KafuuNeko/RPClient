@@ -84,6 +84,7 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryChapterPlacement
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryEditorData
@@ -129,6 +130,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     StoryEditorUiState.None
 ), KoinComponent {
     // 仓库与依赖注入
+    private val mPromptPresets by inject<PromptPresetRepository>()
     private val mStoryRepository by inject<StoryRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
@@ -1654,9 +1656,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         primaryCharacterName: String?,
     ) {
         try {
+            val templates = mPromptPresets.getActiveSnapshot()
             // 在后台线程构建摘要 Prompt 请求体
             val request = withContext(Dispatchers.Default) {
                 mStorySummaryPromptBuilder.build(
+                    templates = templates,
                     memory = memory,
                     currentSummary = currentSummary,
                     content = sourceContent,
@@ -1788,7 +1792,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 )
             }
             provider to withContext(Dispatchers.Default) {
-                mStoryPromptBuilder.build(promptContext)
+                mStoryPromptBuilder.build(promptContext, mPromptPresets.getActiveSnapshot())
             }
         } catch (error: CancellationException) {
             throw error

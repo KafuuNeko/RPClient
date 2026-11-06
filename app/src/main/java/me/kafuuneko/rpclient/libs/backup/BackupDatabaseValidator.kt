@@ -19,13 +19,19 @@ internal object BackupDatabaseValidator {
      * 校验、迁移暂存主库，并为恢复后的手动搜索加速构建准备空状态。
      * @param context 用于创建独立 Room 实例。
      * @param file 尚未替换当前数据的暂存文件。
+     * @param preferences 备份自己的偏好目录，旧提示词迁入不能读取在线偏好。
      */
-    fun preparePrimaryForRestore(context: Context, file: File) {
+    fun preparePrimaryForRestore(context: Context, file: File, preferences: File? = null) {
         validateIntegrity(file)
+        // 保留迁移前版本，用于区分旧偏好导入与新版模板状态校验。
+        val sourceVersion =
+            SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
+                .use { it.version }
         val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path)
             .build()
         try {
             val db = candidate.openHelper.writableDatabase
+            PromptPresetRestore.prepare(context, db, sourceVersion, preferences)
             SearchDatabaseCallback.resetAfterRestore(db)
         } finally {
             candidate.close()

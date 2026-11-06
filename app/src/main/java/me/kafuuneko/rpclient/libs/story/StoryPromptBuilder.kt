@@ -1,13 +1,13 @@
 package me.kafuuneko.rpclient.libs.story
 
 import com.google.gson.Gson
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
@@ -91,6 +91,29 @@ class StoryPromptBuilder(
     private val mWorldBookActivator: WorldBookActivator,
     private val mRequestFinalizer: PromptRequestFinalizer
 ) {
+    /** 使用本轮模板构建正文，已有渲染与预算流程在独立会话中执行。 */
+    fun build(
+        context: StoryPromptContext,
+        templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults()
+    ): StoryPromptBuildResult {
+        return StoryPromptBuildSession(
+            mCharacterActivator,
+            mContextSelector,
+            mWorldBookActivator,
+            mRequestFinalizer,
+            templates
+        ).build(context)
+    }
+}
+
+/** 每次故事生成独享模板引用，辅助渲染函数不会读到另一轮配置。 */
+private class StoryPromptBuildSession(
+    private val mCharacterActivator: StoryCharacterActivator,
+    private val mContextSelector: StoryContextSelector,
+    private val mWorldBookActivator: WorldBookActivator,
+    private val mRequestFinalizer: PromptRequestFinalizer,
+    private val mTemplates: PromptTemplateSnapshot
+) {
     private val mGson = Gson()
 
     /**
@@ -156,8 +179,8 @@ class StoryPromptBuilder(
         // 解析世界书 Token 预算并执行裁剪
         val worldBudget = resolveWorldInfoBudget(
             promptTokenBudget = promptBudget,
-            contextPercent = AppModel.worldInfoBudgetPercent,
-            tokenBudgetCap = AppModel.worldInfoBudgetCap,
+            contextPercent = mTemplates.worldInfoBudgetPercent,
+            tokenBudgetCap = mTemplates.worldInfoBudgetCap,
         )
         val worldSelection = fitWorldInfoToBudget(
             result = rawWorldInfo,
@@ -239,7 +262,7 @@ class StoryPromptBuilder(
         addRequired(
             role = LLMMessageRole.System,
             content = renderStoryInstructionTemplate(
-                template = resolveOutlets(AppModel.storyMainPrompt, outlets),
+                template = resolveOutlets(mTemplates.storyMainPrompt, outlets),
                 userName = context.userName,
                 primaryCharacterName = context.characterCandidates.primaryCharacterName(),
             ),
@@ -249,7 +272,7 @@ class StoryPromptBuilder(
         addRequired(
             role = LLMMessageRole.System,
             content = renderStoryMemoryTemplate(
-                template = AppModel.storyMemoryTemplate,
+                template = mTemplates.storyMemoryTemplate,
                 memory = context.story.memory,
             ),
             sourceKind = PromptSourceKind.StoryMemory,
@@ -257,7 +280,7 @@ class StoryPromptBuilder(
         addRequired(
             role = LLMMessageRole.System,
             content = renderStorySummaryTemplate(
-                template = AppModel.storySummaryTemplate,
+                template = mTemplates.storySummaryTemplate,
                 summary = context.story.summary,
             ),
             sourceKind = PromptSourceKind.StorySummary,
@@ -266,7 +289,7 @@ class StoryPromptBuilder(
             addRequired(
                 role = LLMMessageRole.System,
                 content = renderUserPersonaTemplate(
-                    template = AppModel.userPersonaFormat,
+                    template = mTemplates.userPersonaFormat,
                     userName = context.userName,
                     userDescription = context.userDescription,
                     characterName = null,
@@ -352,7 +375,7 @@ class StoryPromptBuilder(
             role = LLMMessageRole.System,
             content = resolveOutlets(
                 content = renderContinuationGuidancePrompt(
-                    template = AppModel.storyContinuationGuidancePrompt,
+                    template = mTemplates.storyContinuationGuidancePrompt,
                     guidance = context.continuationGuidance,
                 ),
                 outlets = outlets,
@@ -361,7 +384,7 @@ class StoryPromptBuilder(
         )
         addRequired(
             role = LLMMessageRole.User,
-            content = resolveOutlets(AppModel.storyContinuePrompt, outlets),
+            content = resolveOutlets(mTemplates.storyContinuePrompt, outlets),
             sourceKind = PromptSourceKind.StoryTask,
             detail = "Continue",
         )
@@ -480,7 +503,7 @@ class StoryPromptBuilder(
 
     /** 使用全局模板格式化世界书条目内容。 */
     private fun formatWorldInfo(entry: LorebookEntry): String {
-        return AppModel.worldInfoFormat.replace("{0}", entry.content)
+        return mTemplates.worldInfoFormat.replace("{0}", entry.content)
     }
 
     /** 替换内容中形如 `{{outlet::key}}` 的自定义世界书插槽占位符。 */

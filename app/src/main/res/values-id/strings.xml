@@ -287,6 +287,10 @@ Gagal: %2$d</string>
     <string name="saving">Menyimpan…</string>
     <string name="delete_character_title">Hapus karakter</string>
     <string name="delete_character_message">Hapus “%s”? Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="delete_character_with_chats_title">Obrolan terkait</string>
+    <string name="delete_character_with_chats_message">Obrolan pribadi terkait dan pesannya akan dihapus permanen. Karakter akan dikeluarkan dari obrolan grup, tetapi riwayat obrolan grup akan tetap tersimpan.</string>
+    <string name="delete_character_with_chats_confirm">Tetap hapus</string>
+    <string name="delete_character_failed">Karakter tidak dapat dihapus</string>
     <string name="delete_character_with_world_book_title">Hapus buku dunia tertaut juga?</string>
     <string name="delete_character_with_world_book_message">“%1$s” tertaut dengan “%2$s”. Hapus buku dunia tertaut juga?</string>
     <string name="delete_character_and_world_book">Hapus keduanya</string>
@@ -1396,11 +1400,34 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
 Gagal: %2$d</string>
     <string name="batch_import_reading_progress">Membaca %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Mengimpor %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Hapus %1$d karakter terpilih dan obrolan pribadi mereka? Buku dunia terkait akan disimpan. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="character_batch_delete_message">Hapus %1$d karakter terpilih? Buku dunia terkait akan disimpan. Tindakan ini tidak dapat dibatalkan.</string>
     <string name="world_book_batch_delete_message">Hapus %1$d buku dunia terpilih beserta semua entrinya? Tautan karakter akan dihapus. Tindakan ini tidak dapat dibatalkan.</string>
     <string name="world_book_entry_batch_delete_message">Hapus %1$d entri terpilih? Penghapusan langsung berlaku dan tidak dapat dibatalkan.</string>
     <string name="world_book_batch_import_result_title">Impor buku dunia selesai</string>
     <string name="world_book_batch_low_budget_message">%1$d buku dunia terpilih memiliki anggaran tetap yang rendah. Anggaran terendah adalah %2$d token. Gunakan anggaran global untuk buku-buku ini?</string>
     <string name="world_book_archive_limit">ZIP buku dunia melebihi batas impor. Pilih lebih sedikit buku atau kurangi ukuran buku yang besar.</string>
     <string name="world_book_export_selected">Ekspor buku dunia terpilih sebagai ZIP</string>
+
+    <string name="prompt_template_default">Default sistem</string>
+    <string name="prompt_template_migrated">Preset kustom 1</string>
+    <string name="prompt_template_create">Templat baru</string>
+    <string name="prompt_template_activated">Templat diaktifkan</string>
+    <string name="prompt_template_copy_name">Salinan %1$s</string>
+    <string name="prompt_template_copy">Salin templat</string>
+    <string name="prompt_template_edit_details">Edit detail</string>
+    <string name="prompt_template_failed">Tidak dapat memuat atau menyimpan templat. Coba lagi.</string>
+    <string name="prompt_template_conflict">Templat ini telah berubah. Salin draf Anda, lalu tutup dan buka kembali editor.</string>
+    <string name="prompt_template_active">Aktif</string>
+    <string name="prompt_template_scope">Berlaku untuk pembuatan obrolan, grup, cerita, dan ringkasan berikutnya. Penggantian khusus karakter dan sesi tetap berlaku.</string>
+    <string name="prompt_template_search">Cari templat</string>
+    <string name="prompt_template_all">Templat prompt</string>
+    <string name="prompt_template_no_results">Tidak ada templat yang cocok</string>
+    <string name="prompt_template_empty">Buat templat untuk menyimpan kumpulan prompt Anda sendiri.</string>
+    <string name="prompt_template_activate">Aktifkan</string>
+    <string name="prompt_template_delete_title">Hapus templat?</string>
+    <string name="prompt_template_delete_active">Hapus “%1$s” dan gunakan default sistem? Pembuatan berikutnya akan menggunakan templat default.</string>
+    <string name="prompt_template_delete_message">Hapus templat “%1$s”?</string>
+    <string name="prompt_template_name">Nama templat</string>
+    <string name="prompt_template_description">Deskripsi (opsional)</string>
+    <string name="prompt_template_read_only">Preset default sistem tidak dapat diedit.</string>
 </resources>
