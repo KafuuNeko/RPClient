@@ -1433,4 +1433,13 @@
     <string name="prompt_template_name">Название шаблона</string>
     <string name="prompt_template_description">Описание (необязательно)</string>
     <string name="prompt_template_read_only">Системный пресет по умолчанию нельзя редактировать.</string>
+    <!-- 用户代写草稿 -->
+    <string name="user_writing_output_title">Куда выводить текст от лица пользователя</string>
+    <string name="user_writing_output_message">История чата (прежний способ)</string>
+    <string name="user_writing_output_message_desc">Сохранять созданное сообщение пользователя сразу в беседе.</string>
+    <string name="user_writing_output_draft">Поле ввода (можно редактировать)</string>
+    <string name="user_writing_output_draft_desc">Создать черновик в поле ввода, затем отредактировать и отправить.</string>
+    <string name="user_writing_no_body">Текст сообщения не был создан. Ваш черновик сохранён.</string>
+    <string name="prompt_user_writing_title">Промпт продолжения в поле ввода</string>
+    <string name="prompt_user_writing_desc">Используется для написания текста от лица пользователя в поле ввода. {{draft}} вставляет текущий текст; без этого макроса текст добавляется в конец.</string>
 </resources>

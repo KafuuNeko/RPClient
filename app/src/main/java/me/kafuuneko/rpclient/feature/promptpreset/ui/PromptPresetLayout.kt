@@ -280,6 +280,7 @@ private val promptGroups = listOf(
         titleRes = R.string.prompt_utility_section,
         types = listOf(
             PromptType.Impersonation,
+            PromptType.UserWriting,
             PromptType.NewChat,
             PromptType.NewExampleChat,
             PromptType.ContinueNudge,
@@ -338,6 +339,7 @@ private fun PromptType.titleRes(): Int {
         PromptType.Summarize -> R.string.prompt_summarize_title
         PromptType.SummaryInjection -> R.string.summary_injection_template
         PromptType.Impersonation -> R.string.prompt_impersonation_title
+        PromptType.UserWriting -> R.string.prompt_user_writing_title
         PromptType.NewChat -> R.string.prompt_new_chat_title
         PromptType.NewExampleChat -> R.string.prompt_new_example_chat_title
         PromptType.ContinueNudge -> R.string.prompt_continue_nudge_title
@@ -366,6 +368,7 @@ private fun PromptType.descriptionRes(): Int {
         PromptType.Summarize -> R.string.prompt_summarize_desc
         PromptType.SummaryInjection -> R.string.summary_injection_template_desc
         PromptType.Impersonation -> R.string.prompt_impersonation_desc
+        PromptType.UserWriting -> R.string.prompt_user_writing_desc
         PromptType.NewChat -> R.string.prompt_new_chat_desc
         PromptType.NewExampleChat -> R.string.prompt_new_example_chat_desc
         PromptType.ContinueNudge -> R.string.prompt_continue_nudge_desc

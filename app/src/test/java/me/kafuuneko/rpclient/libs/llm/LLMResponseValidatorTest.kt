@@ -13,6 +13,22 @@ import org.junit.Test
 
 class LLMResponseValidatorTest {
     @Test
+    fun explicitReasoningCapturePreservesReasoningOnlyWithoutAcceptingEmptyResponses() {
+        val response = LLMGenerationResponse(
+            content = "",
+            model = "writing-model",
+            provider = LLMProviderType.Custom,
+            reasoningContent = "Only planning was returned.",
+            rawResponse = "{}",
+        )
+        assertEquals(response, response.requireNonEmptyContent(allowReasoningOnly = true))
+        assertThrows(LLMEmptyResponseException::class.java) { response.requireNonEmptyContent() }
+        assertThrows(LLMEmptyResponseException::class.java) {
+            response.copy(reasoningContent = "").requireNonEmptyContent(allowReasoningOnly = true)
+        }
+    }
+
+    @Test
     fun nonStreamingEmptyResponseUsesFixedSafeMessage() {
         val error = assertThrows(LLMEmptyResponseException::class.java) {
             LLMGenerationResponse(

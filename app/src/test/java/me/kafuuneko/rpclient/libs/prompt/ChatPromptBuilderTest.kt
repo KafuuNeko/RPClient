@@ -36,6 +36,99 @@ class ChatPromptBuilderTest {
     )
 
     @Test
+    fun userWritingKeepsUnsentMaterialsLiteralAndPreservesSelectedTemplate() {
+        val templates = PromptTemplateSnapshot.resolve(
+            41L,
+            2,
+            mapOf(
+                "impersonation" to "CUSTOM_USER_TASK {{user}}",
+                "user_writing" to "CUSTOM_CONTINUATION {{user}}/{{char}}\n{{ DRAFT }}\nEND",
+            )
+        )
+        val original = "  我指着纸上的 {{history}}、{{char}}、{{draft}} 与 <USER>，轻声说：  "
+        // 续写复用人格和模板，但起始文字既不展开宏也不作为历史消息。
+        val result = builder.buildWithMetadata(
+            context = context(
+                userDescription = "PERSONA_MARKER",
+                messages = listOf(chatMessage(1, ChatMessage.Source.Char, "HISTORY_MARKER")),
+                generationMode = PromptGenerationMode.Impersonate,
+            ).copy(userWritingDraft = original),
+            preferences = templates,
+        )
+        val text = result.request.messages.joinToString("\n") { it.content }
+        assertTrue(text.contains("CUSTOM_USER_TASK User"))
+        assertTrue(text.contains("PERSONA_MARKER"))
+        assertTrue(text.contains(original))
+        assertEquals(
+            "CUSTOM_CONTINUATION User/Char\n${original}\nEND",
+            result.request.messages.last().content
+        )
+        assertFalse(result.request.includeReasoningInContent)
+        assertTrue(result.request.captureReasoning)
+        assertEquals(LLMMessageRole.User, result.request.messages.last().role)
+        assertFalse(result.inspection.items.any { item ->
+            item.sources.any { it.kind == PromptSourceKind.ChatHistory } && item.content.contains(
+                original
+            )
+        })
+    }
+
+    @Test
+    fun writingContinuesExistingTextOrStartsEmptyInputWithoutAdvancingWorldInfoSnapshot() {
+        val input = context(generationMode = PromptGenerationMode.Impersonate)
+        val baseline = builder.buildWithMetadata(input)
+        val continuation = builder.buildWithMetadata(
+            input.copy(
+                userWritingDraft = "我走到门口",
+            )
+        )
+        val emptyInput = builder.buildWithMetadata(
+            input.copy(
+                userWritingDraft = "",
+            )
+        )
+        // 已有文字要求只返回续写增量，空输入生成下一条用户消息，两者都不推进对话时序。
+        assertTrue(continuation.request.messages.last().content.contains("Output only the continuation"))
+        assertTrue(continuation.request.messages.last().content.contains("do not repeat or rewrite the existing text"))
+        assertTrue(emptyInput.request.messages.last().content.contains("If the unsent text is empty, write the user's next message"))
+        assertTrue(baseline.request.includeReasoningInContent)
+        assertEquals(baseline.worldInfoStateJson, continuation.worldInfoStateJson)
+        assertEquals(baseline.worldInfoStateJson, emptyInput.worldInfoStateJson)
+    }
+
+    @Test
+    fun writingPresetWithoutDraftMacroRetainsInputAndExplicitEmptyDoesNotRestoreInstructions() {
+        val original = "  原文 {{user}} 与 {{draft}}  "
+        val input = context(generationMode = PromptGenerationMode.Impersonate)
+            .copy(userWritingDraft = original)
+        // 缺少占位符也不能静默丢失待续写文字；用户清空模板时不偷偷注入默认指令。
+        val custom =
+            PromptTemplateSnapshot.resolve(7, 1, mapOf("user_writing" to "CUSTOM {{user}}"))
+        val empty = PromptTemplateSnapshot.resolve(7, 2, mapOf("user_writing" to ""))
+        val customResult = builder.build(input, custom)
+        val emptyResult = builder.build(input, empty)
+        assertEquals("CUSTOM User\n\n$original", customResult.messages.last().content)
+        assertEquals(original, emptyResult.messages.last().content)
+        assertEquals(customResult, builder.build(input, custom))
+        assertFalse(emptyResult.messages.any { it.content.contains("[User writing task]") })
+    }
+
+    @Test
+    fun oversizedWritingMaterialCannotBeSilentlyDropped() {
+        assertThrows(PromptBudgetExceededException::class.java) {
+            builder(ExampleDialogueBehavior.Normal).buildWithMetadata(
+                context(
+                    generationMode = PromptGenerationMode.Impersonate,
+                    maxContextTokens = 2000,
+                    maxResponseTokens = 100,
+                ).copy(
+                    userWritingDraft = "x".repeat(4000),
+                )
+            )
+        }
+    }
+
+    @Test
     fun capturedTemplateSurvivesOtherBuildsAndOriginalKeepsCharacterOverrideSemantics() {
         val old = PromptTemplateSnapshot.resolve(
             1L,

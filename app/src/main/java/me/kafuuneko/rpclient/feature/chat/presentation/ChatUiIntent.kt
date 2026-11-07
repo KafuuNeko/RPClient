@@ -37,6 +37,8 @@ sealed class ChatUiIntent {
 
     data object ImpersonateUser : ChatUiIntent()
 
+    data object ToggleWritingReasoning : ChatUiIntent()
+
     data class RegenerateFromMessage(val messageId: String) : ChatUiIntent()
 
     data class BranchFromMessage(val messageId: String) : ChatUiIntent()

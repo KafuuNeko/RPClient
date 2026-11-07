@@ -20,6 +20,7 @@ data class PromptTemplateSnapshot(
     val summarizePrompt: String get() = values.getValue(PromptType.Summarize)
     override val summaryInjectionTemplate: String get() = values.getValue(PromptType.SummaryInjection)
     override val impersonationPrompt: String get() = values.getValue(PromptType.Impersonation)
+    override val userWritingPrompt: String get() = values.getValue(PromptType.UserWriting)
     override val newChatPrompt: String get() = values.getValue(PromptType.NewChat)
     override val newExampleChatPrompt: String get() = values.getValue(PromptType.NewExampleChat)
     override val continueNudgePrompt: String get() = values.getValue(PromptType.ContinueNudge)

@@ -37,6 +37,9 @@ object AppModel : KotprefModel() {
     /** 编辑消息时只展示正文，保存时保留原消息的思考链。 */
     var separateThinkWhenEditing by booleanPref(default = true)
 
+    // 未设置时保留扮演用户直接写入聊天记录的行为。
+    var impersonationOutput by stringPref(default = "message")
+
     /** 是否已提示启用角色卡背景；跨角色和应用重启只提示一次。 */
     var characterBackgroundPromptShown by booleanPref(default = false)
 

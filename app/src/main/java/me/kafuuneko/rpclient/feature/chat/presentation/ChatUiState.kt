@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chat.presentation
 import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
@@ -64,6 +65,8 @@ data class ChatConversationState(
     val historyLoadState: MessageHistoryLoadState = MessageHistoryLoadState.None,
     /** 消息输入框中尚未发送的草稿。 */
     val inputDraft: String = "",
+    /** 仅在输入框代写期间存在，结束后不保留状态栏或思考内容。 */
+    val writingState: ChatWritingState? = null,
     /** 当前模型生成任务的生命周期状态。 */
     val generationState: ChatGenerationState = ChatGenerationState.Idle,
     /** 当前已展开显示的推理块 ID 集合。 */
@@ -107,6 +110,9 @@ sealed class ChatLoadState {
 
 /** 单聊页面互斥显示的业务对话框。 */
 sealed class ChatDialogState {
+    /** 代写失败后保留错误原因，直到用户关闭提示。 */
+    data class WritingFailure(val message: String) : ChatDialogState()
+
     /** 摘要被输出额度截断，等待用户前往全局设置调整。 */
     data object SummaryTokenLimit : ChatDialogState()
 

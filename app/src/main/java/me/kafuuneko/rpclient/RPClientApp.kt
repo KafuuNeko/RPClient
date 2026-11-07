@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveCodec
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveImageStore
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.UserWritingRuntime
 import me.kafuuneko.rpclient.libs.core.releaseObsoletePersistedUriPermissions
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
@@ -203,6 +204,7 @@ internal val appModules = module {
     singleOf(::CharacterRepository)
     singleOf(::LorebookRepository)
     singleOf(::ChatRepository)
+    singleOf(::UserWritingRuntime)
     singleOf(::LLMRepository)
     singleOf(::LLMRequestLogRepository)
     singleOf(::LLMTokenUsageRepository)

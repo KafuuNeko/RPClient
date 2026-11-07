@@ -243,6 +243,7 @@ private class ChatPromptBuildSession(
             buildGenerationControlPiece(context)?.let { piece ->
                 add(piece.resolve(context, historyText, outlets))
             }
+            buildUserWritingDraft(context, historyText, outlets)?.let(::add)
         }
         // 若生成草稿为空，使用兜底提示词
         val fallbackDrafts = rawDrafts.ifEmpty {
@@ -273,7 +274,8 @@ private class ChatPromptBuildSession(
                 maxTokens = context.maxResponseTokens,
                 topP = context.provider?.topP,
             ),
-            includeReasoningInContent = true,
+            includeReasoningInContent = context.userWritingDraft == null,
+            captureReasoning = true,
             maxContextTokens = context.maxContextTokens,
             maxResponseTokens = context.maxResponseTokens,
             postProcessingMode = readPostProcessingMode(context.provider),
@@ -760,6 +762,45 @@ private class ChatPromptBuildSession(
                 sourceKind = PromptSourceKind.ImpersonationNudge,
             )
         }?.takeIf { it.content.isNotBlank() }
+    }
+
+    /**
+     * 根据本轮预设快照追加输入框续写任务，让检查器和预算器追踪该必需区段。
+     *
+     * 按草稿宏分段解析模板后再插入原文，避免原文或其他宏展开结果被二次解析。
+     * 模板省略草稿宏时把原文附在末尾，显式清空模板不会重新注入默认指令。
+     * @param context 本次只读生成上下文。
+     * @param history 已准备的历史正文。
+     * @param outlets 世界书插槽。
+     * @return 仅输入框代写模式存在的末尾任务消息。
+     */
+    private fun buildUserWritingDraft(
+        context: PromptBuildContext,
+        history: String,
+        outlets: Map<String, String>,
+    ): PromptMessageDraft? {
+        val originalDraft = context.userWritingDraft ?: return null
+        require(context.generationMode == PromptGenerationMode.Impersonate) { "User writing requires impersonation mode" }
+        val template = mPreferences.userWritingPrompt
+        val draftMacro = Regex("""\{\{\s*draft\s*\}\}""", RegexOption.IGNORE_CASE)
+        // 只解析模板区段；草稿中的字面宏和旧式标签都保持原样。
+        val content = if (draftMacro.containsMatchIn(template)) {
+            draftMacro.split(template).joinToString(originalDraft) { part ->
+                resolve(part, context, history, template, outlets)
+            }
+        } else {
+            listOf(resolve(template, context, history, template, outlets), originalDraft)
+                .filter { it.isNotBlank() }.joinToString("\n\n")
+        }
+        if (content.isBlank()) return null
+        // 独立来源沿用扮演用户分类，必需材料过长时明确报预算不足，不悄悄丢失用户要求。
+        return PromptMessageDraft(
+            role = LLMMessageRole.User,
+            content = content,
+            source = PromptSource(PromptSourceKind.ImpersonationNudge),
+            retentionPriority = PRIORITY_ESSENTIAL,
+            canDrop = false,
+        )
     }
 
     /**

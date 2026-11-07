@@ -1429,4 +1429,13 @@
     <string name="prompt_template_name">Nom du modèle</string>
     <string name="prompt_template_description">Description (facultative)</string>
     <string name="prompt_template_read_only">Le préréglage système par défaut ne peut pas être modifié.</string>
+    <!-- 用户代写草稿 -->
+    <string name="user_writing_output_title">Destination du texte généré</string>
+    <string name="user_writing_output_message">Historique du chat (mode initial)</string>
+    <string name="user_writing_output_message_desc">Enregistrer directement le message généré de l’utilisateur dans la conversation.</string>
+    <string name="user_writing_output_draft">Zone de saisie (modifiable)</string>
+    <string name="user_writing_output_draft_desc">Créer un brouillon dans la zone de saisie, puis le modifier et l’envoyer.</string>
+    <string name="user_writing_no_body">Aucun texte de message n’a été généré. Votre brouillon a été conservé.</string>
+    <string name="prompt_user_writing_title">Prompt de continuation dans le champ de saisie</string>
+    <string name="prompt_user_writing_desc">Utilisé pour écrire à la place de l’utilisateur dans le champ de saisie. {{draft}} insère le texte actuel ; sans cette macro, le texte est ajouté à la fin.</string>
 </resources>

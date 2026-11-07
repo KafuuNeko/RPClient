@@ -8,6 +8,7 @@ internal class TestPromptPreferences(
     override val postHistoryInstructions: String = PromptType.PostHistory.defaultValue,
     override val auxiliaryPrompt: String = PromptType.Auxiliary.defaultValue,
     override val impersonationPrompt: String = PromptType.Impersonation.defaultValue,
+    override val userWritingPrompt: String = PromptType.UserWriting.defaultValue,
     override val newChatPrompt: String = PromptType.NewChat.defaultValue,
     override val newExampleChatPrompt: String = PromptType.NewExampleChat.defaultValue,
     override val continueNudgePrompt: String = PromptType.ContinueNudge.defaultValue,

@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryItem
@@ -93,6 +94,16 @@ private fun DialogSwitch(
 ) {
     when (val dialogState = state.dialogState) {
         ChatDialogState.None -> Unit
+
+        is ChatDialogState.WritingFailure -> AppConfirmDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.impersonation_failed),
+            message = dialogState.message,
+            confirmText = stringResource(R.string.close),
+            dismissText = null,
+            onConfirm = { ChatUiIntent.DismissDialog.emit() },
+            properties = DialogProperties(dismissOnClickOutside = false),
+        )
 
         is ChatDialogState.SessionLorebook -> ChatSessionLorebookDialog(
             groups = state.lorebookState.groups,

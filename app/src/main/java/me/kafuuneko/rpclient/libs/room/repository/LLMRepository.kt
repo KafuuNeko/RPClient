@@ -230,11 +230,15 @@ class LLMRepository(
             .requireNonEmptyContent()
     }
 
-    /** 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。 */
+    /**
+     * 使用调用方指定的模型配置生成，并可为网关附加稳定的业务会话路由键。
+     * @param allowReasoningOnly 允许独立推理展示保留纯推理响应；调用方仍须检查可用正文。
+     */
     suspend fun generateWithProvider(
         provider: LLMProvider,
         request: LLMGenerationRequest,
         routingSessionKey: String? = null,
+        allowReasoningOnly: Boolean = false,
     ): LLMGenerationResponse {
         return try {
             mLLMClientFactory
@@ -243,7 +247,7 @@ class LLMRepository(
                     request = request.postProcessPrompt(provider)
                         .withRoutingSession(routingSessionKey)
                 )
-                .requireNonEmptyContent()
+                .requireNonEmptyContent(allowReasoningOnly = allowReasoningOnly)
         } catch (error: Exception) {
             throw error.withProviderRequestContext(provider.name)
         }

@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.Route
 import me.kafuuneko.rpclient.libs.HomeRecentMode
+import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -16,6 +17,8 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
+    data class SelectImpersonationOutput(val output: ImpersonationOutput) : MainUiIntent()
+
     data class Init(val route: Route = Route.Main) : MainUiIntent()
 
     data object Resume : MainUiIntent()

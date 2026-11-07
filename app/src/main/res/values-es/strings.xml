@@ -1430,4 +1430,13 @@
     <string name="prompt_template_name">Nombre de la plantilla</string>
     <string name="prompt_template_description">Descripción (opcional)</string>
     <string name="prompt_template_read_only">El preajuste predeterminado del sistema no se puede editar.</string>
+    <!-- 用户代写草稿 -->
+    <string name="user_writing_output_title">Destino de la suplantación</string>
+    <string name="user_writing_output_message">Historial del chat (original)</string>
+    <string name="user_writing_output_message_desc">Guardar el mensaje generado del usuario directamente en la conversación.</string>
+    <string name="user_writing_output_draft">Cuadro de texto (editable)</string>
+    <string name="user_writing_output_draft_desc">Crear un borrador en el cuadro de texto para editarlo y enviarlo cuando quieras.</string>
+    <string name="user_writing_no_body">No se generó texto para el mensaje. Se ha conservado tu borrador.</string>
+    <string name="prompt_user_writing_title">Prompt para continuar en el campo de entrada</string>
+    <string name="prompt_user_writing_desc">Se usa al escribir como el usuario en el campo de entrada. {{draft}} inserta el texto actual; sin esta macro, el texto se añade al final.</string>
 </resources>

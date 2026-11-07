@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
+import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -37,7 +38,9 @@ data class MainSettingsState(
     /** 搜索加速开关与应用级索引维护进度。 */
     val searchIndexState: SearchIndexState = SearchIndexState.Disabled,
     /** 单聊与群聊的消息编辑是否分离思考链。 */
-    val separateThinkWhenEditing: Boolean = true
+    val separateThinkWhenEditing: Boolean = true,
+    /** 扮演用户生成结果写入聊天记录或可编辑输入框。 */
+    val impersonationOutput: ImpersonationOutput = ImpersonationOutput.Message,
 )
 
 /** 应用外观设置面板状态。 */

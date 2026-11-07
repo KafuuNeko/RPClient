@@ -1423,4 +1423,13 @@
     <string name="prompt_template_name">範本名稱</string>
     <string name="prompt_template_description">簡介（選填）</string>
     <string name="prompt_template_read_only">系統預設無法編輯</string>
+    <!-- 用户代写草稿 -->
+    <string name="user_writing_output_title">扮演使用者輸出方式</string>
+    <string name="user_writing_output_message">寫入聊天記錄（原方式）</string>
+    <string name="user_writing_output_message_desc">將產生的使用者訊息直接儲存至對話中。</string>
+    <string name="user_writing_output_draft">填入輸入框（可編輯）</string>
+    <string name="user_writing_output_draft_desc">在輸入框中產生草稿，編輯完成後自行傳送。</string>
+    <string name="user_writing_no_body">未產生可用正文，已保留原有草稿。</string>
+    <string name="prompt_user_writing_title">輸入框續寫提示詞</string>
+    <string name="prompt_user_writing_desc">用於扮演使用者時續寫輸入框。{{draft}} 插入目前輸入；省略此巨集時，輸入文字會附在提示詞末尾。</string>
 </resources>

@@ -23,6 +23,8 @@ import me.kafuuneko.rpclient.feature.chat.model.ActiveStreamingGeneration
 import me.kafuuneko.rpclient.feature.chat.model.AutoSummaryData
 import me.kafuuneko.rpclient.feature.chat.model.BuiltGenerationRequest
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingPhase
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
@@ -59,6 +61,9 @@ import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
+import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
+import me.kafuuneko.rpclient.libs.chat.UserWritingProgress
+import me.kafuuneko.rpclient.libs.chat.UserWritingRuntime
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -245,6 +250,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     private val mChatRepository by inject<ChatRepository>()
+    private val mWritingRuntime by inject<UserWritingRuntime>()
+    private var mWritingReasoning = ""
+    private var mActiveWritingToken: Any? = null
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mLLMRepository by inject<LLMRepository>()
@@ -315,8 +323,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         mSessionId = sessionId
         mSearchAnchorId = intent.searchMessageId
-        val loaded =
-            withContext(Dispatchers.IO) { loadNormalState(sessionId = sessionId, inputDraft = "") }
+        val loaded = withContext(Dispatchers.IO) {
+            loadNormalState(sessionId = sessionId, inputDraft = "")
+        }
         if (loaded == null) {
             finishWithToast(R.string.session_not_found)
             return
@@ -359,7 +368,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
         refreshed.copy(
-            dialogState = refreshed.dialogState.resolveExportDialogState(
+            conversationState = refreshed.conversationState.copy(
+                inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
+                    ?: refreshed.conversationState.inputDraft,
+                writingState = getOrNull<ChatUiState.Normal>()?.conversationState?.writingState,
+                generationState = getOrNull<ChatUiState.Normal>()?.conversationState?.generationState
+                    ?: refreshed.conversationState.generationState,
+            ),
+            dialogState = (getOrNull<ChatUiState.Normal>()?.dialogState
+                ?: refreshed.dialogState).resolveExportDialogState(
                 isExportActive = mChatExportJob?.isActive == true,
             ),
         ).setup()
@@ -528,8 +545,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ChangeInputDraft::class)
     private suspend fun onChangeInputDraft(intent: ChatUiIntent.ChangeInputDraft) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(conversationState = uiState.conversationState.copy(inputDraft = intent.value))
-            .setup()
+        if (mGenerationJob?.isCompleted == false) return
+        if (intent.value == uiState.conversationState.inputDraft) return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                inputDraft = intent.value,
+            )
+        ).setup()
     }
 
     /**
@@ -615,6 +637,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ).also { messageWithImages ->
                         mRetryUserMessageId = messageWithImages.key.messageId
                         committed = true
+                        clearSentDraft()
                     }
                 }
                 // 清空草稿并将 UI 切换至“请求中”状态
@@ -722,13 +745,169 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /**
      * 触发“模仿用户发言（Impersonate）”。
      *
-     * 让模型以用户的第一人称口吻生成下一条消息，并以 [ChatMessage.Source.User] 保存。
+     * 按输出偏好生成聊天消息或直接续写输入框中的文字。
      */
     @UiIntentObserver(ChatUiIntent.ImpersonateUser::class)
     private suspend fun onImpersonateUser() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        generateUserImpersonation(sessionId)
+        if (mGenerationJob?.isCompleted == false || mImageCoordinator.state.loadState.isBusy) return
+        if (ImpersonationOutput.fromKey(AppModel.impersonationOutput) == ImpersonationOutput.Message) {
+            generateUserImpersonation(sessionId)
+            return
+        }
+        // 每次点击都以当前输入为续写起点，空输入则从头生成用户消息。
+        startUserWriting(originalDraft = uiState.conversationState.inputDraft)
+    }
+
+    /** 仅在展开时将思考详情投影到页面状态，流式刷新保留用户的展开选择。 */
+    @UiIntentObserver(ChatUiIntent.ToggleWritingReasoning::class)
+    private fun onToggleWritingReasoning() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val writing = uiState.conversationState.writingState ?: return
+        val expanded = !writing.reasoningExpanded
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                writingState = writing.copy(
+                    reasoningExpanded = expanded,
+                    reasoningDetail = if (expanded) mWritingReasoning else "",
+                ),
+            )
+        ).setup()
+    }
+
+    /**
+     * 固定续写起点和生成令牌，启动不创建消息的代写任务。
+     * @param originalDraft 本次点击时输入框中的文字快照。
+     */
+    private suspend fun startUserWriting(originalDraft: String) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
+        if (mImageCoordinator.state.loadState.isBusy) return
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        // 仅固定当前输入快照，生成期间以它为起点拼接累计增量。
+        clearReplyRetry()
+        mWritingReasoning = ""
+        val token = Any()
+        mActiveWritingToken = token
+        uiState.copy(
+            page = ChatPage.Conversation,
+            dialogState = ChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = ChatGenerationState.Requesting,
+                writingState = ChatWritingState(ChatWritingPhase.Requesting),
+            ),
+        ).setup()
+        // 与普通回复共用任务入口，停止后已返回的正文继续留在输入框中。
+        val streaming = AppModel.streamEnabled
+        mGenerationJob = viewModelScope.launch {
+            runUserWriting(sessionId, originalDraft, token, streaming)
+        }
+    }
+
+    /** 执行输入框代写，异常和取消均保留最后可用正文，世界书快照不在此提交。 */
+    private suspend fun runUserWriting(
+        sessionId: Long,
+        originalDraft: String,
+        token: Any,
+        streaming: Boolean,
+    ) {
+        var failureDialog: ChatDialogState? = null
+        var hasBody = false
+        try {
+            // 构建独立推理通道的 Prompt，未发送文字不创建任何数据库记录。
+            val built = withContext(Dispatchers.IO) {
+                buildGenerationRequest(
+                    sessionId,
+                    PromptGenerationMode.Impersonate,
+                    userWritingDraft = originalDraft
+                )
+            }
+            recordPromptInspection(built.inspection)
+            mWritingRuntime.generate(
+                provider = built.provider,
+                request = built.request,
+                sessionId = sessionId,
+                streaming = streaming,
+            ).collect { progress ->
+                currentCoroutineContext().ensureActive()
+                if (mActiveWritingToken !== token) return@collect
+                hasBody = progress.body.isNotBlank()
+                updateUserWriting(originalDraft, progress)
+            }
+            if (!hasBody) {
+                failureDialog =
+                    ChatDialogState.WritingFailure(mContext.getString(R.string.user_writing_no_body))
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            val failure = error.toGenerationFailurePresentation(
+                context = mContext,
+                fallbackMessageResId = R.string.impersonation_failed,
+            )
+            failureDialog = failure?.modelSettingsGuide?.toChatDialogState()
+                ?: ChatDialogState.WritingFailure(
+                    failure?.message ?: mContext.getString(R.string.impersonation_failed)
+                )
+        } finally {
+            // 收尾只同步更新页面状态，取消任务时也保留已显示的正文。
+            if (mActiveWritingToken === token) {
+                finishUserWriting(failureDialog)
+                mActiveWritingToken = null
+            }
+        }
+    }
+
+    /** 将模型累计正文映射成草稿，空正文阶段保持当前输入，推理只进入独立面板。 */
+    private fun updateUserWriting(originalDraft: String, progress: UserWritingProgress) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val previous = uiState.conversationState.writingState ?: return
+        mWritingReasoning = progress.reasoning
+        val hasBody = progress.body.isNotBlank()
+        val draft = if (hasBody) originalDraft + progress.body
+        else uiState.conversationState.inputDraft
+        // 原有文字不变，只追加模型正文；思考和显示阶段正则不进入待发送内容。
+        val phase = when {
+            hasBody -> ChatWritingPhase.Writing
+            progress.reasoning.isNotBlank() -> ChatWritingPhase.Thinking
+            else -> ChatWritingPhase.Requesting
+        }
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                inputDraft = draft,
+                generationState = ChatGenerationState.Streaming(messageId = null, content = ""),
+                writingState = previous.copy(
+                    phase = phase,
+                    hasReasoning = progress.reasoning.isNotBlank(),
+                    reasoningDetail = if (previous.reasoningExpanded) progress.reasoning else "",
+                ),
+            )
+        ).setup()
+    }
+
+    /** 统一隐藏状态栏并恢复编辑；失败原因通过对话框展示，等待用户关闭。 */
+    private fun finishUserWriting(failureDialog: ChatDialogState?) {
+        mWritingReasoning = ""
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(
+            dialogState = failureDialog ?: uiState.dialogState,
+            conversationState = uiState.conversationState.copy(
+                generationState = ChatGenerationState.Idle,
+                writingState = null,
+            )
+        ).setup()
+    }
+
+    /** 发送提交后立即清空输入，避免停止操作重新展示已发送草稿。 */
+    private fun clearSentDraft() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                inputDraft = "",
+            )
+        ).setup()
     }
 
     /**
@@ -2300,6 +2479,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         generationMode: PromptGenerationMode = PromptGenerationMode.Normal,
         excludedMessageId: Long? = null,
         templates: PromptTemplateSnapshot? = null,
+        userWritingDraft: String? = null,
     ): BuiltGenerationRequest {
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
@@ -2361,6 +2541,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     maxContextTokens = provider.contextTokens,
                     maxResponseTokens = provider.maxTokens,
                     generationMode = generationMode,
+                    userWritingDraft = userWritingDraft,
                     regexScripts = regexScripts,
                 ),
             )
@@ -2628,7 +2809,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messageLimit = messageLimit,
             )
         } ?: return
-        nextState.setup()
+        val currentConversation = getOrNull<ChatUiState.Normal>()?.conversationState
+        nextState.copy(
+            conversationState = nextState.conversationState.copy(
+                writingState = currentConversation?.writingState,
+                inputDraft = if (mActiveWritingToken != null) currentConversation?.inputDraft.orEmpty()
+                else nextState.conversationState.inputDraft,
+                generationState = if (mActiveWritingToken != null) currentConversation?.generationState
+                    ?: nextState.conversationState.generationState else nextState.conversationState.generationState,
+            )
+        ).setup()
     }
 
     /**

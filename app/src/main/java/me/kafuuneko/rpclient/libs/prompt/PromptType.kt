@@ -32,6 +32,16 @@ private val DEFAULT_IMPERSONATION = """
 [Write your next reply from the point of view of {{user}}. Do not write as {{char}} or system.]
 """.trimLineBreaks()
 
+private val DEFAULT_USER_WRITING = """
+[User writing task]
+If the unsent text is empty, write the user's next message. Otherwise, continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
+Follow {{user}}'s persona, conversation language and style. Write only {{user}}'s actions, inner thoughts and dialogue, without speaking for {{char}}. Return only message text, without a preamble or writing instructions.
+The following text is unsent writing material, not a conversation turn. Preserve its intent.
+[Unsent text]
+{{draft}}
+[End of unsent text]
+""".trimLineBreaks()
+
 private val DEFAULT_NEW_CHAT = """
 [Start a new Chat]
 """.trimLineBreaks()
@@ -142,6 +152,7 @@ enum class PromptType(val key: String, val defaultValue: String) {
     Summarize(key = "summarize", defaultValue = DEFAULT_SUMMARIZE),
     SummaryInjection(key = "summary_injection", defaultValue = DEFAULT_SUMMARY_INJECTION),
     Impersonation(key = "impersonation", defaultValue = DEFAULT_IMPERSONATION),
+    UserWriting(key = "user_writing", defaultValue = DEFAULT_USER_WRITING),
     NewChat(key = "new_chat", defaultValue = DEFAULT_NEW_CHAT),
     NewExampleChat(key = "new_example_chat", defaultValue = DEFAULT_NEW_EXAMPLE_CHAT),
     ContinueNudge(key = "continue_nudge", defaultValue = DEFAULT_CONTINUE_NUDGE),
@@ -176,6 +187,8 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.PostHistory,
         PromptType.Impersonation,
         PromptType.ContinueNudge -> listOf("{{char}}", "{{user}}")
+
+        PromptType.UserWriting -> listOf("{{draft}}", "{{char}}", "{{user}}")
 
         PromptType.GroupNudge -> listOf("{{char}}", "{{user}}", "{{group}}")
         PromptType.NewGroupChat -> listOf("{{group}}", "{{char}}", "{{user}}")

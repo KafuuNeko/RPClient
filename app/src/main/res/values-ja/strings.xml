@@ -1424,4 +1424,13 @@
     <string name="prompt_template_name">テンプレート名</string>
     <string name="prompt_template_description">説明（任意）</string>
     <string name="prompt_template_read_only">システムのデフォルトプリセットは編集できません。</string>
+    <!-- 用户代写草稿 -->
+    <string name="user_writing_output_title">ユーザー模倣の出力先</string>
+    <string name="user_writing_output_message">チャット履歴（従来の方式）</string>
+    <string name="user_writing_output_message_desc">生成したユーザーメッセージを会話に直接保存します。</string>
+    <string name="user_writing_output_draft">入力欄（編集可能）</string>
+    <string name="user_writing_output_draft_desc">入力欄に下書きを生成し、編集してから送信します。</string>
+    <string name="user_writing_no_body">メッセージ本文が生成されませんでした。元の下書きを保持しました。</string>
+    <string name="prompt_user_writing_title">入力欄の続き書きプロンプト</string>
+    <string name="prompt_user_writing_desc">ユーザーの代わりに入力欄の続きを書く際に使用します。{{draft}} で現在の入力を挿入します。このマクロがない場合、入力はプロンプトの末尾に追加されます。</string>
 </resources>

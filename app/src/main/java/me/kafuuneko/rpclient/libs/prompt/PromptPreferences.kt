@@ -18,6 +18,9 @@ interface PromptPreferences {
     /** 扮演用户提示词。 */
     val impersonationPrompt: String
 
+    /** 扮演用户时的输入框续写模板，使用 {{draft}} 放置未发送文字。 */
+    val userWritingPrompt: String
+
     /** 新聊天边界标记。 */
     val newChatPrompt: String
 

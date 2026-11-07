@@ -17,9 +17,14 @@ class LLMEmptyResponseException(
     val outputTokenLimitReached: Boolean = false
 ) : IllegalStateException("The model returned an empty response")
 
-/** 校验非流式结果，避免上层把空 stop 当作成功并静默结束。 */
-internal fun LLMGenerationResponse.requireNonEmptyContent(): LLMGenerationResponse {
-    if (content.isBlank()) {
+/**
+ * 校验非流式结果，避免上层把空 stop 当作成功并静默结束。
+ * @param allowReasoningOnly 仅代写等独立展示推理的调用方可接收纯推理响应，再自行报告无正文。
+ */
+internal fun LLMGenerationResponse.requireNonEmptyContent(
+    allowReasoningOnly: Boolean = false,
+): LLMGenerationResponse {
+    if (content.isBlank() && !(allowReasoningOnly && reasoningContent.isNotBlank())) {
         throw LLMEmptyResponseException(outputTokenLimitReached = isOutputTokenLimitReached())
     }
     return this

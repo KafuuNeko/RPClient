@@ -100,6 +100,7 @@ import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
@@ -382,6 +383,7 @@ internal fun ChatNormalPage(
             emit = { action -> ChatUiIntent.ImageAction(action).emit() })
         ChatInputBar(
             draft = state.conversationState.inputDraft,
+            writingState = state.conversationState.writingState,
             isGenerating = state.conversationState.generationState.isGenerating(),
             hasAssistantMessage = state.conversationState.hasAssistantMessage,
             imageState = state.imageState,
@@ -1091,6 +1093,7 @@ private fun MessageActions(
 @Composable
 private fun ChatInputBar(
     draft: String,
+    writingState: ChatWritingState?,
     isGenerating: Boolean,
     hasAssistantMessage: Boolean,
     imageState: MessageImageState,
@@ -1130,6 +1133,13 @@ private fun ChatInputBar(
             )
 
             // - 快捷操作胶囊条（随页面整体上移平推，常驻方便快速操作）
+            writingState?.let { writing ->
+                ChatWritingPanel(
+                    state = writing,
+                    emit = emit,
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1174,7 +1184,8 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                     value = draft,
                     onValueChange = { text -> ChatUiIntent.ChangeInputDraft(text).emit() },
-                    enabled = !isGenerating && !imageState.loadState.isSubmitting,
+                    enabled = (!isGenerating || writingState != null) && !imageState.loadState.isSubmitting,
+                    readOnly = writingState != null,
                     minLines = 1,
                     maxLines = 5,
                     shape = RoundedCornerShape(24.dp),

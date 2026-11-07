@@ -211,6 +211,7 @@ internal fun MainSettingsPage(
         }
         item { PromptPresetEntryCard(onClick = { MainUiIntent.OpenPromptPreset.emit() }) }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
+        item { MainUserWritingSettings(state.impersonationOutput, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
         item { SummaryPanel(state.summaryState, emit) }
         item { ImageSendPanel(state.imageSendState, emit) }

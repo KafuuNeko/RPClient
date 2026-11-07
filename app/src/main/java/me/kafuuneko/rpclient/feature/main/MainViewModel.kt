@@ -77,6 +77,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
@@ -753,6 +754,15 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         AppModel.separateThinkWhenEditing = intent.enabled
         uiState.copy(settingsState = uiState.settingsState.copy(separateThinkWhenEditing = intent.enabled))
+            .setup()
+    }
+
+    /** 保存扮演用户输出位置，已有生成任务继续使用启动时的选择。 */
+    @UiIntentObserver(MainUiIntent.SelectImpersonationOutput::class)
+    private fun onSelectImpersonationOutput(intent: MainUiIntent.SelectImpersonationOutput) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.impersonationOutput = intent.output.key
+        uiState.copy(settingsState = uiState.settingsState.copy(impersonationOutput = intent.output))
             .setup()
     }
 
@@ -1698,6 +1708,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         // 全量装配读取共享仓库的当前值，持续变化由状态订阅更新。
         return MainSettingsState(
             separateThinkWhenEditing = AppModel.separateThinkWhenEditing,
+            impersonationOutput = ImpersonationOutput.fromKey(AppModel.impersonationOutput),
             searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(
