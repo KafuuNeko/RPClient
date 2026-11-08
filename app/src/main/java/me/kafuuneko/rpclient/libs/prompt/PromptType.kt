@@ -24,8 +24,9 @@ Rules:
 """.trimLineBreaks()
 
 private val DEFAULT_SUMMARY_INJECTION = """
-Story memory:
+<summary>
 {{summary}}
+</summary>
 """.trimLineBreaks()
 
 private val DEFAULT_IMPERSONATION = """
@@ -62,16 +63,24 @@ private val DEFAULT_WORLD_INFO_FORMAT = """
 """.trimLineBreaks()
 
 private val DEFAULT_SCENARIO_FORMAT = """
+<scenario>
+Char Scenario ({{char}}):
 {{scenario}}
+</scenario>
 """.trimLineBreaks()
 
 private val DEFAULT_PERSONALITY_FORMAT = """
+<personality>
+Char Personality ({{char}}):
 {{personality}}
+</personality>
 """.trimLineBreaks()
 
 private val DEFAULT_USER_PERSONA_FORMAT = """
+<user_persona>
 User Persona ({{user}}):
 {{persona}}
+</user_persona>
 """.trimLineBreaks()
 
 private val DEFAULT_GROUP_NUDGE = """
@@ -105,13 +114,15 @@ Preserve the manuscript's language, narrative voice, tense, style, and establish
 """.trimLineBreaks()
 
 private val DEFAULT_STORY_MEMORY = """
-Story Memory:
+<story_memory>
 {{memory}}
+</story_memory>
 """.trimLineBreaks()
 
 private val DEFAULT_STORY_SUMMARY = """
-Current Story Summary:
+<story_summary>
 {{summary}}
+</story_summary>
 """.trimLineBreaks()
 
 private val DEFAULT_STORY_SUMMARIZE = """
@@ -202,8 +213,8 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.StoryMemory -> listOf("{{memory}}")
         PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
         PromptType.WorldInfoFormat -> listOf("{0}")
-        PromptType.ScenarioFormat -> listOf("{{scenario}}")
-        PromptType.PersonalityFormat -> listOf("{{personality}}")
+        PromptType.ScenarioFormat -> listOf("{{scenario}}", "{{char}}")
+        PromptType.PersonalityFormat -> listOf("{{personality}}", "{{char}}")
         PromptType.UserPersonaFormat -> listOf("{{persona}}", "{{user}}")
         else -> listOf("{{char}}", "{{user}}")
     }
