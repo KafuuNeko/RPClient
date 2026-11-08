@@ -1427,9 +1427,9 @@ Thất bại: %2$d</string>
     <string name="prompt_template_read_only">Không thể chỉnh sửa cấu hình mặc định của hệ thống.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Nơi xuất nội dung đóng vai người dùng</string>
-    <string name="user_writing_output_message">Lịch sử trò chuyện (cách cũ)</string>
+    <string name="user_writing_output_message">Lịch sử trò chuyện</string>
     <string name="user_writing_output_message_desc">Lưu trực tiếp tin nhắn người dùng được tạo vào cuộc trò chuyện.</string>
-    <string name="user_writing_output_draft">Ô nhập (có thể chỉnh sửa)</string>
+    <string name="user_writing_output_draft">Ô nhập</string>
     <string name="user_writing_output_draft_desc">Tạo bản nháp trong ô nhập, sau đó chỉnh sửa và gửi khi sẵn sàng.</string>
     <string name="user_writing_no_body">Không tạo được nội dung tin nhắn. Bản nháp của bạn đã được giữ lại.</string>
     <string name="prompt_user_writing_title">Prompt viết tiếp trong ô nhập</string>

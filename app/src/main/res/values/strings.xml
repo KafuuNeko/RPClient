@@ -1430,9 +1430,9 @@
     <string name="prompt_template_read_only">The system default preset cannot be edited.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Impersonation output</string>
-    <string name="user_writing_output_message">Chat history (original)</string>
+    <string name="user_writing_output_message">Chat history</string>
     <string name="user_writing_output_message_desc">Save the generated user message directly to the conversation.</string>
-    <string name="user_writing_output_draft">Input box (editable)</string>
+    <string name="user_writing_output_draft">Input box</string>
     <string name="user_writing_output_draft_desc">Draft in the input box, then edit and send when ready.</string>
     <string name="user_writing_no_body">No message text was generated. Your draft has been kept.</string>
     <string name="prompt_user_writing_title">Input-box continuation prompt</string>

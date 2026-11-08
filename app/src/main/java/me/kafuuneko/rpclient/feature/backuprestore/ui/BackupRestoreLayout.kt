@@ -72,7 +72,6 @@ import me.kafuuneko.rpclient.ui.widgets.PageButton
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpPageTitle
 import me.kafuuneko.rpclient.ui.widgets.RpPanel
 
 /**
@@ -105,7 +104,7 @@ fun BackupRestoreLayout(
 }
 
 /**
- * 备份页主体滚动区域，包含顶栏、标题、试验性风险警示、安全说明、操作面板与任务状态。
+ * 备份页主体滚动区域，包含顶栏、试验性风险警示、安全说明、操作面板与任务状态。
  *
  * 布局规则与时序：
  * - 采用 AppPageScaffold 统一管理页面画布与透明度槽位。
@@ -145,13 +144,6 @@ private fun BackupContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 顶部页面标题与功能概要说明
-                item {
-                    RpPageTitle(
-                        title = stringResource(R.string.backup_restore_title),
-                        subtitle = stringResource(R.string.backup_restore_description),
-                    )
-                }
                 // 试验性功能风险警示卡片，提醒用户尚未验证可靠性与数据覆盖风险
                 item {
                     NoticeCard(

@@ -37,7 +37,6 @@ internal fun MainUserWritingSettings(
             val isDraft = choice == ImpersonationOutput.Draft
             RpSettingsTile(
                 title = stringResource(if (isDraft) R.string.user_writing_output_draft else R.string.user_writing_output_message),
-                subtitle = stringResource(if (isDraft) R.string.user_writing_output_draft_desc else R.string.user_writing_output_message_desc),
                 modifier = Modifier.semantics {
                     selected = output == choice; role = Role.RadioButton
                 },

@@ -216,7 +216,6 @@ private fun ContextSettings(
         SettingIntro(
             icon = Icons.AutoMirrored.Rounded.MenuBook,
             title = stringResource(R.string.story_memory),
-            subtitle = stringResource(R.string.story_memory_desc),
         )
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
@@ -231,7 +230,6 @@ private fun ContextSettings(
         SettingIntro(
             icon = Icons.Rounded.AutoAwesome,
             title = stringResource(R.string.story_summary),
-            subtitle = stringResource(R.string.story_summary_desc),
         )
         StorySummarySettings(state, emit)
         SettingIntro(
@@ -340,13 +338,6 @@ private fun CharacterSettings(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.story_character_references_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         items(
             items = state.characters,
             key = { storyCharacterOptionItem -> storyCharacterOptionItem.id }) { character ->
@@ -573,7 +564,12 @@ private fun LorebookGroupCard(
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = group.name, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = group.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         text = stringResource(
                             R.string.enabled_entries_count,
@@ -689,19 +685,21 @@ private fun LorebookEntryRow(
 private fun SettingIntro(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
 ) {
-    // 说明区沿用相同图标和文案层级，保持各设置分区的视觉结构。
+    // 标题图标保持一致，只有提供说明时才占用第二行。
     Row(verticalAlignment = Alignment.CenterVertically) {
         RpIconBubble(icon)
         Spacer(Modifier.width(12.dp))
         Column {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

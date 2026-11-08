@@ -1405,9 +1405,9 @@ Non riusciti: %2$d</string>
     <string name="prompt_template_read_only">La preimpostazione predefinita del sistema non può essere modificata.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Destinazione dell’impersonificazione</string>
-    <string name="user_writing_output_message">Cronologia chat (originale)</string>
+    <string name="user_writing_output_message">Cronologia chat</string>
     <string name="user_writing_output_message_desc">Salva il messaggio utente generato direttamente nella conversazione.</string>
-    <string name="user_writing_output_draft">Campo di testo (modificabile)</string>
+    <string name="user_writing_output_draft">Campo di testo</string>
     <string name="user_writing_output_draft_desc">Crea una bozza nel campo di testo, poi modificala e inviala quando vuoi.</string>
     <string name="user_writing_no_body">Non è stato generato alcun testo del messaggio. La bozza è stata mantenuta.</string>
     <string name="prompt_user_writing_title">Prompt di continuazione nel campo di input</string>

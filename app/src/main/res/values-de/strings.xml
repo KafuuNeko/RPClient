@@ -1425,9 +1425,9 @@
     <string name="prompt_template_read_only">Die Systemvorlage kann nicht bearbeitet werden.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Ausgabe der Benutzerimitation</string>
-    <string name="user_writing_output_message">Chatverlauf (bisherige Methode)</string>
+    <string name="user_writing_output_message">Chatverlauf</string>
     <string name="user_writing_output_message_desc">Die erzeugte Benutzernachricht direkt im Gespräch speichern.</string>
-    <string name="user_writing_output_draft">Eingabefeld (bearbeitbar)</string>
+    <string name="user_writing_output_draft">Eingabefeld</string>
     <string name="user_writing_output_draft_desc">Einen Entwurf im Eingabefeld erstellen, anschließend bearbeiten und senden.</string>
     <string name="user_writing_no_body">Es wurde kein Nachrichtentext erzeugt. Der Entwurf wurde beibehalten.</string>
     <string name="prompt_user_writing_title">Prompt zum Weiterschreiben im Eingabefeld</string>

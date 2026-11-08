@@ -1430,9 +1430,9 @@ Falhas: %2$d</string>
     <string name="prompt_template_read_only">A predefinição padrão do sistema não pode ser editada.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Saída da personificação</string>
-    <string name="user_writing_output_message">Histórico do chat (original)</string>
+    <string name="user_writing_output_message">Histórico do chat</string>
     <string name="user_writing_output_message_desc">Salvar a mensagem gerada do usuário diretamente na conversa.</string>
-    <string name="user_writing_output_draft">Caixa de texto (editável)</string>
+    <string name="user_writing_output_draft">Caixa de texto</string>
     <string name="user_writing_output_draft_desc">Gerar um rascunho na caixa de texto para editar e enviar quando quiser.</string>
     <string name="user_writing_no_body">Nenhum texto de mensagem foi gerado. Seu rascunho foi mantido.</string>
     <string name="prompt_user_writing_title">Prompt de continuação no campo de entrada</string>

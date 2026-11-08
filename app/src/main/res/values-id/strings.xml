@@ -1427,9 +1427,9 @@ Gagal: %2$d</string>
     <string name="prompt_template_read_only">Preset default sistem tidak dapat diedit.</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Tujuan hasil peniruan pengguna</string>
-    <string name="user_writing_output_message">Riwayat chat (cara lama)</string>
+    <string name="user_writing_output_message">Riwayat chat</string>
     <string name="user_writing_output_message_desc">Simpan pesan pengguna yang dihasilkan langsung ke percakapan.</string>
-    <string name="user_writing_output_draft">Kotak input (dapat diedit)</string>
+    <string name="user_writing_output_draft">Kotak input</string>
     <string name="user_writing_output_draft_desc">Buat draf di kotak input, lalu edit dan kirim saat siap.</string>
     <string name="user_writing_no_body">Tidak ada teks pesan yang dihasilkan. Draf Anda tetap disimpan.</string>
     <string name="prompt_user_writing_title">Prompt lanjutan di kotak input</string>

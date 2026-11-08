@@ -52,16 +52,12 @@ internal fun ChatDataManagementPanel(
     state: MainChatDataManagementState,
     emit: MainUiIntent.() -> Unit,
 ) {
+    // 读取文件期间保留进度反馈并禁用重复导入。
     val isReading = state == MainChatDataManagementState.Reading
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.FileDownload,
             title = stringResource(R.string.import_chat),
-            subtitle = if (isReading) {
-                stringResource(R.string.reading_chat_file)
-            } else {
-                stringResource(R.string.import_chat_desc)
-            },
             enabled = !isReading,
             onClick = { MainUiIntent.ImportChatClick.emit() },
             trailing = {

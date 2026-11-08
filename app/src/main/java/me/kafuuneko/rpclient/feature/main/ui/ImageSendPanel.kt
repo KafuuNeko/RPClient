@@ -44,11 +44,6 @@ internal fun ImageSendPanel(state: MainImageSendState, emit: MainUiIntent.() -> 
                 text = stringResource(R.string.image_send_title),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Text(
-                text = stringResource(R.string.image_send_description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             // 窄屏与较长译文允许换行，避免模式按钮挤压参数输入。
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ImageSendMode.entries.forEach { mode ->

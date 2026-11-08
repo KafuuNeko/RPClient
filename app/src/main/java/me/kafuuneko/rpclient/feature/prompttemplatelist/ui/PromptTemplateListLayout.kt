@@ -177,11 +177,6 @@ private fun ActiveTemplateCard(name: String) {
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
-            Text(
-                stringResource(R.string.prompt_template_scope),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
         }
     }
 }

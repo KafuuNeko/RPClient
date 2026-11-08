@@ -1422,9 +1422,9 @@
     <string name="prompt_template_read_only">系统默认预设无法编辑</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">扮演用户输出方式</string>
-    <string name="user_writing_output_message">写入聊天记录（原方式）</string>
+    <string name="user_writing_output_message">写入聊天记录</string>
     <string name="user_writing_output_message_desc">将生成的用户消息直接保存到对话中。</string>
-    <string name="user_writing_output_draft">填入输入框（可编辑）</string>
+    <string name="user_writing_output_draft">填入输入框</string>
     <string name="user_writing_output_draft_desc">在输入框中生成草稿，编辑完成后自行发送。</string>
     <string name="user_writing_no_body">未生成可用正文，已保留原有草稿。</string>
     <string name="prompt_user_writing_title">输入框续写提示词</string>

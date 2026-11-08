@@ -27,7 +27,6 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Edit
@@ -286,7 +285,6 @@ private fun MessageEditingPanel(
             iconColor = AccentVioletColor,
             iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.message_edit_separate_think),
-            subtitle = stringResource(R.string.message_edit_separate_think_desc),
             checked = separateThinkWhenEditing,
             onCheckedChange = { enabled ->
                 MainUiIntent.ToggleSeparateThinkWhenEditing(enabled).emit()
@@ -306,7 +304,6 @@ private fun StoryMarkdownRenderingPanel(
             iconColor = AccentEmeraldColor,
             iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
             title = stringResource(R.string.story_markdown_rendering),
-            subtitle = stringResource(R.string.story_markdown_rendering_desc),
             checked = state.storyMarkdownRenderingEnabled,
             onCheckedChange = { enabled ->
                 MainUiIntent.ToggleStoryMarkdownRendering(enabled).emit()
@@ -324,7 +321,6 @@ private fun BackupRestoreEntryCard(onClick: () -> Unit) {
             iconColor = AccentSkyColor,
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.backup_restore_title),
-            subtitle = stringResource(R.string.backup_restore_entry_desc),
             onClick = onClick,
         )
     }
@@ -333,24 +329,10 @@ private fun BackupRestoreEntryCard(onClick: () -> Unit) {
 /** 全局搜索加速开关使用共享索引状态，确认与维护进度由主页弹窗宿主承载。 */
 @Composable
 private fun SearchAccelerationPanel(index: SearchIndexState, emit: MainUiIntent.() -> Unit) {
-    // 忙碌和失败状态使用现有本地化说明，避免把尚未完成的构建显示为已开启。
-    val subtitle = when (index) {
-        is SearchIndexState.Building -> stringResource(
-            R.string.content_search_index_building,
-            index.processed
-        )
-
-        SearchIndexState.Preparing -> stringResource(R.string.loading)
-        SearchIndexState.Cleaning -> stringResource(R.string.content_search_index_cleaning)
-        SearchIndexState.CleanupFailed -> stringResource(R.string.content_search_index_cleanup_failed)
-        SearchIndexState.Unavailable -> stringResource(R.string.content_search_index_failed)
-        SearchIndexState.Ready, SearchIndexState.Updating -> stringResource(R.string.content_search_index_enabled)
-        SearchIndexState.Disabled -> stringResource(R.string.content_search_index_disabled)
-    }
+    // 索引维护期间禁用开关，避免重复提交构建或清理操作。
     RpSettingsGroup {
         RpSettingsSwitchTile(
             title = stringResource(R.string.content_search_index_title),
-            subtitle = subtitle,
             icon = Icons.Rounded.Search,
             iconColor = AccentSkyColor,
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
@@ -370,7 +352,6 @@ private fun TokenUsageEntryCard(onClick: () -> Unit) {
             iconColor = AccentSkyColor,
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.token_usage),
-            subtitle = stringResource(R.string.token_usage_entry_subtitle),
             onClick = onClick,
             trailing = {
                 Icon(
@@ -425,7 +406,6 @@ private fun WorldInfoBudgetPanel(
             iconColor = AccentEmeraldColor,
             iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
             title = stringResource(R.string.world_info_overflow_alert),
-            subtitle = stringResource(R.string.world_info_overflow_alert_desc),
             checked = state.overflowAlert,
             onCheckedChange = { enabled ->
                 MainUiIntent.ToggleWorldInfoOverflowAlert(enabled).emit()
@@ -650,60 +630,22 @@ private fun PromptBehaviorPanel(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.prompt_behavior_section),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+            // 后处理模式绑定当前模型，其他上下文选项继续使用全局配置。
+            PromptPostProcessingModeDropdown(
+                state = state.providerPostProcessingState,
+                onSelect = { mode -> MainUiIntent.SelectPostProcessingMode(mode).emit() },
             )
-            Text(
-                text = stringResource(R.string.prompt_post_processing_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            )
-            val postProcessingState = state.providerPostProcessingState
-            val selectedMode =
-                (postProcessingState as? MainProviderPostProcessingState.Available)?.mode
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PromptPostProcessingMode.entries.forEach { mode ->
-                    PromptPostProcessingModeRow(
-                        mode = mode,
-                        selected = mode == selectedMode,
-                        enabled = postProcessingState is MainProviderPostProcessingState.Available,
-                        onClick = { MainUiIntent.SelectPostProcessingMode(mode).emit() },
-                    )
-                }
-            }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.prompt_example_behavior_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+            SettingsDropdown(
+                label = stringResource(R.string.prompt_example_behavior_title),
+                selected = state.exampleDialogueBehavior,
+                options = ExampleDialogueBehavior.entries,
+                optionTitleRes = { it.titleRes() },
+                onSelect = { behavior ->
+                    MainUiIntent.SelectExampleDialogueBehavior(behavior).emit()
+                },
             )
-            Text(
-                text = stringResource(R.string.prompt_example_behavior_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ExampleDialogueBehavior.entries.forEach { behavior ->
-                    FilterChip(
-                        selected = behavior == state.exampleDialogueBehavior,
-                        onClick = {
-                            MainUiIntent.SelectExampleDialogueBehavior(behavior).emit()
-                        },
-                        label = { Text(stringResource(behavior.titleRes())) },
-                        shape = RoundedCornerShape(10.dp),
-                    )
-                }
-            }
             NumberSettingRow(
                 title = stringResource(R.string.prompt_max_history_messages),
                 value = state.maxHistoryMessages.toString(),
@@ -719,7 +661,6 @@ private fun PromptBehaviorPanel(
             iconColor = AccentIndigoColor,
             iconContainerColor = AccentIndigoColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_include_think_context_title),
-            subtitle = stringResource(R.string.prompt_include_think_context_desc),
             checked = state.includeThinkInContext,
             onCheckedChange = { enabled ->
                 MainUiIntent.ToggleIncludeThinkInContext(enabled).emit()
@@ -731,7 +672,6 @@ private fun PromptBehaviorPanel(
             iconColor = AccentPinkColor,
             iconContainerColor = AccentPinkColor.copy(alpha = 0.14f),
             title = stringResource(R.string.context_trimming_alert),
-            subtitle = stringResource(R.string.context_trimming_alert_desc),
             checked = state.contextTrimmingAlert,
             onCheckedChange = { enabled ->
                 MainUiIntent.ToggleContextTrimmingAlert(enabled).emit()
@@ -743,63 +683,61 @@ private fun PromptBehaviorPanel(
             iconColor = AccentSkyColor,
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.streaming_response),
-            subtitle = stringResource(R.string.streaming_response_desc),
             checked = state.streamEnabled,
             onCheckedChange = { enabled -> MainUiIntent.ToggleStreamEnabled(enabled).emit() },
         )
     }
 }
 
+/** 使用下拉菜单选择当前模型的请求后处理模式，并仅展示所选模式的说明。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PromptPostProcessingModeRow(
-    mode: PromptPostProcessingMode,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
+private fun PromptPostProcessingModeDropdown(
+    state: MainProviderPostProcessingState,
+    onSelect: (PromptPostProcessingMode) -> Unit,
 ) {
-    AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = { onClick() }),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(
-            width = if (selected) 1.5.dp else 0.5.dp,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
-            },
-        ),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        },
+    val selectedMode = (state as? MainProviderPostProcessingState.Available)?.mode
+    val enabled = selectedMode != null
+    // 模型不可用时关闭菜单，避免编辑不存在的配置。
+    var expanded by remember(enabled) { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it && enabled },
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        OutlinedTextField(
+            value = stringResource(selectedMode?.titleRes() ?: R.string.no_enabled_model),
+            onValueChange = {},
+            enabled = enabled,
+            readOnly = true,
+            singleLine = true,
+            label = { Text(stringResource(R.string.prompt_behavior_section)) },
+            supportingText = {
+                Text(
+                    text = stringResource(
+                        selectedMode?.descriptionRes() ?: R.string.prompt_post_processing_desc,
+                    ),
+                )
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = enabled)
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
+            shape = RoundedCornerShape(12.dp),
+        )
+        // 菜单只维护展开状态，配置仍通过页面 Intent 持久化。
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(mode.titleRes()),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(mode.descriptionRes()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
+            PromptPostProcessingMode.entries.forEach { mode ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(mode.titleRes())) },
+                    onClick = {
+                        onSelect(mode)
+                        expanded = false
+                    },
                 )
             }
         }
@@ -857,6 +795,7 @@ private fun ProviderCard(
             },
         ),
     ) {
+        // 正文按可用宽度截断，为右侧的配置状态保留空间。
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -875,11 +814,15 @@ private fun ProviderCard(
                     text = provider.name,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = provider.model,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = provider.baseUrl,
@@ -1014,7 +957,6 @@ private fun PromptPresetEntryCard(onClick: () -> Unit) {
             iconColor = AccentVioletColor,
             iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_preset_title),
-            subtitle = stringResource(R.string.prompt_preset_entry_subtitle),
             onClick = onClick,
             trailing = {
                 Icon(
@@ -1110,7 +1052,6 @@ private fun SummaryProviderSelector(
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.summary_model_config)) },
-            supportingText = { Text(stringResource(R.string.summary_model_config_helper)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -1169,7 +1110,7 @@ private fun ConversationSummarySettings(
             value = state.triggerMessageCount.toString(),
             onValueChange = { text -> MainUiIntent.ChangeSummaryTriggerMessageCount(text).emit() },
         )
-        SummarySettingsDropdown(
+        SettingsDropdown(
             label = stringResource(R.string.summary_mode),
             selected = state.mode,
             options = SummaryMode.entries,
@@ -1186,7 +1127,7 @@ private fun ConversationSummarySettings(
                 },
             )
         }
-        SummarySettingsDropdown(
+        SettingsDropdown(
             label = stringResource(R.string.summary_injection_position),
             selected = state.injectionState.position,
             options = SummaryInjectionPosition.entries,
@@ -1238,7 +1179,7 @@ private fun ConversationSummarySettings(
 }
 
 /**
- * 使用与摘要模型选择器一致的带边框下拉组件展示摘要设置。
+ * 使用统一的带边框下拉组件展示枚举设置。
  * @param label 字段标题。
  * @param selected 当前选中的设置值。
  * @param options 下拉菜单中的可选值。
@@ -1247,7 +1188,7 @@ private fun ConversationSummarySettings(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> SummarySettingsDropdown(
+private fun <T> SettingsDropdown(
     label: String,
     selected: T,
     options: List<T>,
@@ -1362,7 +1303,6 @@ private fun DebugPanel(
             iconColor = AccentRedColor,
             iconContainerColor = AccentRedColor.copy(alpha = 0.14f),
             title = stringResource(R.string.debug_mode),
-            subtitle = stringResource(R.string.debug_mode_desc),
             checked = state.enabled,
             onCheckedChange = { enabled -> MainUiIntent.ToggleDebugModeEnabled(enabled).emit() },
         )
@@ -1373,7 +1313,6 @@ private fun DebugPanel(
                 iconColor = AccentVioletColor,
                 iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
                 title = stringResource(R.string.request_logs),
-                subtitle = stringResource(R.string.request_logs_entry_subtitle),
                 onClick = { MainUiIntent.OpenRequestLogs.emit() },
                 trailing = {
                     Icon(
@@ -1398,7 +1337,6 @@ private fun AboutEntryCard(
             iconColor = MaterialTheme.colorScheme.primary,
             iconContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
             title = stringResource(R.string.about),
-            subtitle = stringResource(R.string.about_desc),
             onClick = onClick,
             trailing = {
                 Icon(
