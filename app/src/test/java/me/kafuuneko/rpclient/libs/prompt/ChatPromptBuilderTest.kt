@@ -27,6 +27,55 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatPromptBuilderTest {
+    @Test
+    fun classicSummaryKeepsRecentContextMemoryAndSummaryTaskWithinBudget() {
+        val preferences = TestPromptPreferences(
+            mainPrompt = "MAIN_CONTEXT",
+            summaryInjectionPosition = -1,
+            includeThinkInContext = true,
+        )
+        val old = chatMessage(1, ChatMessage.Source.User, "OLD_EVENT ".repeat(400))
+        val recent =
+            chatMessage(2, ChatMessage.Source.Char, "<think>PRIVATE_REASONING</think>LATEST_EVENT")
+        val input = context(
+            character = context().character.copy(description = "CHARACTER_BACKGROUND"),
+            messages = listOf(old, recent),
+            summary = "<think>PRIVATE_MEMORY</think>KNOWN_MEMORY",
+        ).copy(summaryInstruction = "SUMMARIZE_CURRENT_CONTEXT")
+        // 预算以只保留近期消息的真实请求为基准，要求裁掉旧历史并保留已有记忆。
+        val minimum = builder.buildWithMetadata(input.copy(messages = listOf(recent)), preferences)
+            .inspection.finalTokenCount
+        val result = builder.buildWithMetadata(
+            input.copy(maxContextTokens = minimum + input.maxResponseTokens + 32), preferences,
+        )
+        val text = result.request.messages.joinToString("\n") { it.content }
+        assertTrue(text.contains("MAIN_CONTEXT"))
+        assertTrue(text.contains("CHARACTER_BACKGROUND"))
+        assertTrue(text.contains("KNOWN_MEMORY"))
+        assertTrue(text.contains("LATEST_EVENT"))
+        assertFalse(text.contains("OLD_EVENT"))
+        assertFalse(text.contains("PRIVATE_"))
+        assertEquals("SUMMARIZE_CURRENT_CONTEXT", result.request.messages.last().content)
+        assertTrue(result.inspection.finalTokenCount <= result.inspection.promptBudget)
+        // 摘要目标不能被角色回复引导覆盖，检查器仍能解释被裁掉的历史。
+        assertFalse(result.inspection.items.any { item ->
+            item.sources.any { it.kind == PromptSourceKind.CharacterReplyNudge }
+        })
+        assertTrue(result.inspection.omittedItems.any {
+            it.source.referenceId == old.id && it.reason == PromptOmissionReason.ContextBudget
+        })
+    }
+
+    @Test
+    fun classicSummaryRejectsHistoryContainingOnlyReasoning() {
+        val input = context(
+            messages = listOf(chatMessage(1, ChatMessage.Source.Char, "<think>private</think>")),
+        ).copy(summaryInstruction = "Summarize current context")
+        assertThrows(IllegalArgumentException::class.java) {
+            builder.build(input, TestPromptPreferences(includeThinkInContext = true))
+        }
+    }
+
     private val historyBuilder = FormattedHistoryBuilder()
     private val builder = ChatPromptBuilder(
         mPreferences = TestPromptPreferences(),

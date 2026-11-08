@@ -106,7 +106,6 @@
     <string name="auto">Tự động</string>
     <string name="manual">Thủ công</string>
     <string name="auto_summarize">Tự động tóm tắt</string>
-    <string name="auto_summarize_desc">Cập nhật bộ nhớ trò chuyện sau khi đạt số lượng tin nhắn chưa tóm tắt đã cấu hình</string>
     <string name="summary_update_every_messages">Cập nhật sau mỗi số tin nhắn</string>
     <string name="summary_target_words">Số từ mục tiêu</string>
     <string name="summary_max_messages_per_request">Số tin nhắn tối đa mỗi yêu cầu</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Trợ lý</string>
     <string name="pause_auto_summary">Tạm dừng tự động tóm tắt cho trò chuyện này</string>
     <string name="restore_previous_summary">Khôi phục bản tóm tắt trước</string>
-    <string name="restore_previous_summary_desc">Hủy ảnh chụp nhanh mới nhất và khôi phục bộ nhớ trước đó.</string>
     <string name="unknown_character">Nhân vật không xác định</string>
     <string name="no_messages_yet">Chưa có tin nhắn nào</string>
     <string name="debug_mode">Chế độ gỡ lỗi</string>
@@ -331,11 +329,8 @@ Thất bại: %2$d</string>
     <string name="chat_settings">Cài đặt trò chuyện</string>
     <string name="chat_settings_actions">Thao tác</string>
     <string name="regenerate_latest_reply">Tạo lại phản hồi mới nhất</string>
-    <string name="regenerate_latest_reply_desc">Tạo lại phản hồi mới nhất của trợ lý</string>
     <string name="continue_latest_reply">Viết tiếp phản hồi mới nhất</string>
-    <string name="continue_latest_reply_desc">Tạo một tin nhắn mới viết tiếp phản hồi mới nhất của trợ lý</string>
     <string name="impersonate_user">Đóng vai người dùng</string>
-    <string name="impersonate_user_desc">Tạo tin nhắn tiếp theo từ góc nhìn của người dùng</string>
     <string name="summarize_now">Tóm tắt ngay</string>
     <string name="summarize_now_desc">Cập nhật bộ nhớ trò chuyện này bằng cài đặt tóm tắt toàn cục</string>
     <string name="delete_chat_title">Xóa cuộc trò chuyện</string>
@@ -1439,4 +1434,7 @@ Thất bại: %2$d</string>
     <string name="user_writing_no_body">Không tạo được nội dung tin nhắn. Bản nháp của bạn đã được giữ lại.</string>
     <string name="prompt_user_writing_title">Prompt viết tiếp trong ô nhập</string>
     <string name="prompt_user_writing_desc">Dùng khi viết thay người dùng trong ô nhập. {{draft}} chèn văn bản hiện tại; nếu không có macro này, văn bản được thêm vào cuối.</string>
+    <string name="summary_mode">Chế độ tóm tắt hội thoại</string>
+    <string name="summary_mode_raw">Raw (tăng dần)</string>
+    <string name="summary_mode_classic">Classic (ngữ cảnh hiện tại)</string>
 </resources>

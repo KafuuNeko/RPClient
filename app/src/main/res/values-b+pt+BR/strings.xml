@@ -106,7 +106,6 @@
     <string name="auto">Automático</string>
     <string name="manual">Manual</string>
     <string name="auto_summarize">Resumo automático</string>
-    <string name="auto_summarize_desc">Atualiza a memória do chat após o número configurado de mensagens não resumidas</string>
     <string name="summary_update_every_messages">Atualizar a cada n mensagens</string>
     <string name="summary_target_words">Meta de palavras</string>
     <string name="summary_max_messages_per_request">Máx. de mensagens por solicitação</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Assistente</string>
     <string name="pause_auto_summary">Pausar resumo automático neste chat</string>
     <string name="restore_previous_summary">Restaurar resumo anterior</string>
-    <string name="restore_previous_summary_desc">Descarta o snapshot mais recente e restaura a memória anterior.</string>
     <string name="unknown_character">Personagem desconhecido</string>
     <string name="no_messages_yet">Nenhuma mensagem ainda</string>
     <string name="debug_mode">Modo de Depuração</string>
@@ -331,11 +329,8 @@ Falhas: %2$d</string>
     <string name="chat_settings">Configurações do Chat</string>
     <string name="chat_settings_actions">Ações</string>
     <string name="regenerate_latest_reply">Regenerar última resposta</string>
-    <string name="regenerate_latest_reply_desc">Gerar novamente a última resposta do assistente</string>
     <string name="continue_latest_reply">Continuar última resposta</string>
-    <string name="continue_latest_reply_desc">Gerar uma nova mensagem continuando a última resposta do assistente</string>
     <string name="impersonate_user">Personificar usuário</string>
-    <string name="impersonate_user_desc">Gerar a próxima mensagem sob a perspectiva do usuário</string>
     <string name="summarize_now">Resumir agora</string>
     <string name="summarize_now_desc">Atualizar a memória deste chat usando as configurações globais de resumo</string>
     <string name="delete_chat_title">Excluir chat</string>
@@ -1442,4 +1437,7 @@ Falhas: %2$d</string>
     <string name="user_writing_no_body">Nenhum texto de mensagem foi gerado. Seu rascunho foi mantido.</string>
     <string name="prompt_user_writing_title">Prompt de continuação no campo de entrada</string>
     <string name="prompt_user_writing_desc">Usado para escrever como o usuário no campo de entrada. {{draft}} insere o texto atual; sem essa macro, o texto é acrescentado ao final.</string>
+    <string name="summary_mode">Modo de resumo da conversa</string>
+    <string name="summary_mode_raw">Raw (incremental)</string>
+    <string name="summary_mode_classic">Classic (contexto atual)</string>
 </resources>

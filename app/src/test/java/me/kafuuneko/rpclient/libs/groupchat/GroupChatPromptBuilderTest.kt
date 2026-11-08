@@ -32,6 +32,61 @@ import org.junit.Test
 
 class GroupChatPromptBuilderTest {
     @Test
+    fun classicGroupSummaryTrimsOldHistoryAndReplacesSpeakerTask() {
+        val lyra = character(1, "Lyra")
+        val builder = GroupChatPromptBuilder(
+            TestPromptPreferences(
+                mainPrompt = "GROUP_MAIN_CONTEXT",
+                groupNudgePrompt = "CHARACTER_REPLY_TASK",
+                summaryInjectionPosition = -1,
+                includeThinkInContext = true,
+            )
+        )
+        val old =
+            message(GroupChatMessage.Source.User, "Alex", "OLD_EVENT ".repeat(400)).copy(id = 1)
+        val recent = message(
+            GroupChatMessage.Source.Character,
+            "Lyra",
+            "<think>PRIVATE_REASONING</think>LATEST_EVENT"
+        ).copy(id = 2)
+        val input = GroupChatPromptContext(
+            session = GroupChatSession(
+                id = 1,
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex",
+                userDescription = ""
+            ),
+            members = listOf(member(lyra, 0)), speaker = lyra,
+            messages = listOf(old, recent), provider = provider(),
+            summary = "<think>PRIVATE_MEMORY</think>KNOWN_MEMORY",
+            summaryInstruction = "SUMMARIZE_CURRENT_CONTEXT",
+        )
+        // 缩小输入预算后必须留下近期消息、角色背景和摘要任务。
+        val minimum =
+            builder.buildWithMetadata(input.copy(messages = listOf(recent))).inspection.finalTokenCount
+        val result = builder.buildWithMetadata(
+            input.copy(
+                provider = provider(contextTokens = minimum + input.provider.maxTokens + 32),
+            )
+        )
+        val text = result.request.messages.joinToString("\n") { it.content }
+        assertTrue(text.contains("Lyra description"))
+        assertTrue(text.contains("GROUP_MAIN_CONTEXT"))
+        assertTrue(text.contains("KNOWN_MEMORY"))
+        assertTrue(text.contains("LATEST_EVENT"))
+        assertFalse(text.contains("OLD_EVENT"))
+        assertFalse(text.contains("PRIVATE_"))
+        assertFalse(text.contains("CHARACTER_REPLY_TASK"))
+        assertEquals("SUMMARIZE_CURRENT_CONTEXT", result.request.messages.last().content)
+        assertTrue(result.inspection.finalTokenCount <= result.inspection.promptBudget)
+        assertTrue(result.inspection.omittedItems.any {
+            it.source.referenceId == old.id && it.reason == PromptOmissionReason.ContextBudget
+        })
+    }
+
+    @Test
     fun userPersonaUsesSharedFormatAndCurrentSpeakerMacros() {
         val lyra = character(id = 1, name = "Lyra")
         val request = GroupChatPromptBuilder(

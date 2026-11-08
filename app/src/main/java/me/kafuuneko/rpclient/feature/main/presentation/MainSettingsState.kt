@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
@@ -144,6 +145,8 @@ enum class MainSummarySettingsTab {
 
 /** 通用摘要参数与对话摘要行为面板状态。 */
 data class MainSummarySettingsState(
+    /** 单聊与群聊生成摘要时采用的历史选择策略。 */
+    val mode: SummaryMode = SummaryMode.Raw,
     /** 当前选中的模型配置 ID。 */
     val selectedProviderId: Long = 0L,
     /** 当前页面或设置允许选择的模型配置列表。 */

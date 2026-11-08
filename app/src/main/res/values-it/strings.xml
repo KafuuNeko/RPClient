@@ -104,7 +104,6 @@
     <string name="auto">Automatico</string>
     <string name="manual">Manuale</string>
     <string name="auto_summarize">Riassunto automatico</string>
-    <string name="auto_summarize_desc">Aggiorna la memoria della chat dopo il numero configurato di messaggi non riassunti</string>
     <string name="summary_update_every_messages">Aggiorna ogni quanti messaggi</string>
     <string name="summary_target_words">Parole di destinazione</string>
     <string name="summary_max_messages_per_request">Messaggi massimi per richiesta</string>
@@ -128,7 +127,6 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Sospendi riassunto automatico per questa chat</string>
     <string name="restore_previous_summary">Ripristina riassunto precedente</string>
-    <string name="restore_previous_summary_desc">Elimina l\'ultima istantanea e ripristina la memoria precedente.</string>
     <string name="unknown_character">Personaggio sconosciuto</string>
     <string name="no_messages_yet">Ancora nessun messaggio</string>
     <string name="debug_mode">Modalità debug</string>
@@ -325,11 +323,8 @@ Non riusciti: %2$d</string>
     <string name="chat_settings">Impostazioni chat</string>
     <string name="chat_settings_actions">Azioni</string>
     <string name="regenerate_latest_reply">Rigenera ultima risposta</string>
-    <string name="regenerate_latest_reply_desc">Genera di nuovo l\'ultima risposta dell\'assistente</string>
     <string name="continue_latest_reply">Continua ultima risposta</string>
-    <string name="continue_latest_reply_desc">Genera un nuovo messaggio continuando l\'ultima risposta dell\'assistente</string>
     <string name="impersonate_user">Impersona utente</string>
-    <string name="impersonate_user_desc">Genera il prossimo messaggio dalla prospettiva dell\'utente</string>
     <string name="summarize_now">Riassumi ora</string>
     <string name="summarize_now_desc">Aggiorna la memoria di questa chat usando le impostazioni di riassunto globali</string>
     <string name="delete_chat_title">Elimina chat</string>
@@ -1417,4 +1412,7 @@ Non riusciti: %2$d</string>
     <string name="user_writing_no_body">Non è stato generato alcun testo del messaggio. La bozza è stata mantenuta.</string>
     <string name="prompt_user_writing_title">Prompt di continuazione nel campo di input</string>
     <string name="prompt_user_writing_desc">Usato per scrivere come l’utente nel campo di input. {{draft}} inserisce il testo attuale; senza questa macro, il testo viene aggiunto alla fine.</string>
+    <string name="summary_mode">Modalità di riepilogo delle conversazioni</string>
+    <string name="summary_mode_raw">Raw (incrementale)</string>
+    <string name="summary_mode_classic">Classic (contesto attuale)</string>
 </resources>

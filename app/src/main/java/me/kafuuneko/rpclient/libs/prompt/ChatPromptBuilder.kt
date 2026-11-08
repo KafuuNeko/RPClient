@@ -55,11 +55,22 @@ class ChatPromptBuilder(
     ): LLMGenerationRequest =
         buildWithMetadata(context, preferences).request
 
-    /** 每次构建创建独立会话，避免并发请求或模板切换相互覆盖配置。 */
+    /**
+     * 每次构建创建独立会话，Classic 摘要始终排除推理块。
+     * @param context 本轮只读上下文。
+     * @param preferences 已捕获的预设与偏好。
+     * @return 最终请求、检查信息及未持久化的世界书计算结果。
+     */
     fun buildWithMetadata(
         context: PromptBuildContext,
         preferences: PromptPreferences = mPreferences
     ): PromptBuildResult {
+        // 摘要的历史和扫描素材统一去除推理，不能受普通聊天的思考链开关影响。
+        val safeContext = if (context.summaryInstruction == null) context else context.copy(
+            summary = context.summary.summarySafeContent(),
+            messages = context.messages.map { it.copy(content = it.content.summarySafeContent()) },
+        )
+        // 构建会话不跨请求共享状态，摘要调用方不提交计算出的世界书时序。
         return ChatPromptBuildSession(
             mPreferences = preferences,
             mMacroResolver = mMacroResolver,
@@ -69,7 +80,7 @@ class ChatPromptBuilder(
             mRequestFinalizer = mRequestFinalizer,
             mExampleDialogueBehaviorProvider = mExampleDialogueBehaviorProvider,
             mRegexProcessor = mRegexProcessor,
-        ).buildWithMetadata(context)
+        ).buildWithMetadata(safeContext)
     }
 }
 
@@ -287,6 +298,12 @@ private class ChatPromptBuildSession(
             preOmittedItems = worldSelection.omittedItems,
             tokenizer = tokenizer,
         )
+        // 没有任何可用历史时拒绝推进摘要位置，避免仅凭指令或旧摘要覆盖新范围。
+        if (context.summaryInstruction != null) {
+            require(finalized.inspection.items.any { item ->
+                item.sources.any { it.kind == PromptSourceKind.ChatHistory }
+            }) { "No chat history fits in classic summary context" }
+        }
         // 组装检查器元数据
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
@@ -321,7 +338,11 @@ private class ChatPromptBuildSession(
         worldInfo: WorldBookActivationResult,
     ): PromptSections {
         val beforeHistory = mutableListOf<PromptPiece>()
-        val summaryPosition = readSummaryInjectionPosition()
+        val summaryPosition = readSummaryInjectionPosition().let { position ->
+            if (context.summaryInstruction != null && position == SummaryInjectionPosition.None) {
+                SummaryInjectionPosition.BeforeMain
+            } else position
+        }
         // 摘要注入：位于主提示词之前
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
             buildSummaryPiece(context)?.let { beforeHistory += it }
@@ -746,6 +767,14 @@ private class ChatPromptBuildSession(
      * @return 控制指令 PromptPiece，普通模式返回 null
      */
     private fun buildGenerationControlPiece(context: PromptBuildContext): PromptPiece? {
+        // Classic 复用普通上下文，但最终任务必须明确要求生成摘要。
+        context.summaryInstruction?.let { instruction ->
+            return PromptPiece.required(
+                role = LLMMessageRole.User,
+                content = instruction,
+                sourceKind = PromptSourceKind.SummaryTask,
+            )
+        }
         return when (context.generationMode) {
             PromptGenerationMode.Normal,
             PromptGenerationMode.Regenerate -> null
@@ -821,6 +850,7 @@ private class ChatPromptBuildSession(
         history: String,
         outlets: Map<String, String>,
     ): List<PromptMessageDraft> {
+        if (context.summaryInstruction != null) return drafts
         if (!context.generationMode.usesCharacterReplyTask()) return drafts
         if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
         val nudge = PromptPiece.required(

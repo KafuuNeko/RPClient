@@ -90,6 +90,9 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
+import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
+import me.kafuuneko.rpclient.libs.room.repository.ChatPromptHistoryContext
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
@@ -2256,16 +2259,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 生成增量摘要核心执行逻辑。
+     * 根据全局模式生成 Raw 增量摘要或 Classic 当前上下文摘要。
      *
      * 处理流程：
      * - 读取待总结的消息切片（手动触发时允许重新覆盖最新摘要）。
-     * - 使用 [SummaryPromptBuilder] 构建增量总结 Prompt 请求。
+     * - Raw 使用 [SummaryPromptBuilder] 选择连续前缀，Classic 复用普通聊天上下文。
      * - 调用模型生成摘要正文并进行安全字符清洗（[summarySafeContent]）。
      * - 将新摘要及其实际覆盖的消息边界 ID（coveredMessageId）保存至数据库。
      *
      * @param sessionId 会话 ID
      * @param showToast 是否显示 Toast 提示
+     * @param templates 调用方固定的预设快照，为空时读取当前预设。
      */
     private suspend fun summarizeSession(
         sessionId: Long,
@@ -2274,6 +2278,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ) {
         runCatching {
             val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
+            val summaryMode = SummaryMode.fromPersistedValue(AppModel.summaryMode)
             // 异步组装不会随候选窗口变化的会话、角色和模型配置
             val data = withContext(Dispatchers.IO) {
                 val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
@@ -2296,17 +2301,21 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val maximumCandidates = summaryCandidateMessageLimit(
                 maxContextTokens = data.provider.contextTokens,
                 responseTokens = AppModel.summaryResponseTokens,
-                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest,
+                configuredMaxMessages = if (summaryMode == SummaryMode.Raw) {
+                    AppModel.summaryMaxMessagesPerRequest
+                } else AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
             )
-            val initialWindowSize = minOf(
-                a = INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
-                b = maximumCandidates,
-            )
+            val initialWindowSize =
+                if (summaryMode == SummaryMode.Classic) maximumCandidates else minOf(
+                    a = INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                    b = maximumCandidates,
+                )
             val initialContext = withContext(Dispatchers.IO) {
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
                     allowRefreshLatest = showToast,
                     maxCandidateMessages = initialWindowSize,
+                    mode = summaryMode,
                 )
             }
             if (initialContext.messages.isEmpty()) {
@@ -2328,6 +2337,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 initialContext = initialContext,
                 initialWindowSize = initialWindowSize,
                 maximumCandidates = maximumCandidates,
+                mode = summaryMode,
             ) ?: return
 
             currentCoroutineContext().ensureActive()
@@ -2395,6 +2405,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * 只有当前窗口全部进入预算且数据库仍有更早候选时才扩大窗口；一旦 Token 预算截断，
      * 立即返回与完整历史构建相同的连续前缀及覆盖边界。
+     * @param sessionId 单聊会话 ID。
+     * @param allowRefreshLatest 是否允许重做已覆盖末尾的 Raw 摘要。
+     * @param data 固定的会话、角色和模型配置。
+     * @param initialContext 初次读取的摘要窗口。
+     * @param initialWindowSize 初次读取窗口的条数上限。
+     * @param maximumCandidates Raw 可以扩展到的最终上限。
+     * @param templates 本轮预设快照。
+     * @param mode 本轮固定的历史选择策略。
+     * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
     private suspend fun buildSummaryRequest(
         sessionId: Long,
@@ -2404,7 +2423,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         initialWindowSize: Int,
         maximumCandidates: Int,
         templates: PromptTemplateSnapshot,
+        mode: SummaryMode,
     ): PreparedSummaryRequest? {
+        if (mode == SummaryMode.Classic) {
+            return buildClassicSummaryRequest(
+                sessionId,
+                data,
+                initialContext,
+                initialWindowSize,
+                templates
+            )
+        }
         var windowSize = initialWindowSize
         var context = initialContext
         while (true) {
@@ -2463,6 +2492,59 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
+     * 使用近期普通聊天上下文生成 Classic 摘要请求。
+     *
+     * - 最新一条保留在请求中，覆盖位置取前一条，与酒馆的稳定边界一致。
+     * - 乐观快照仍校验原始消息和旧摘要，网络失败或输入变更不会推进位置。
+     * @param sessionId 单聊会话 ID。
+     * @param data 会话、角色及摘要模型。
+     * @param context 近期消息与已有摘要。
+     * @param windowSize 查询使用的近期窗口大小。
+     * @param templates 本轮预设快照。
+     * @return 可以提交的摘要请求；不足两条消息时返回 null。
+     */
+    private suspend fun buildClassicSummaryRequest(
+        sessionId: Long,
+        data: AutoSummaryData,
+        context: ChatSummaryGenerationContext,
+        windowSize: Int,
+        templates: PromptTemplateSnapshot,
+    ): PreparedSummaryRequest? {
+        val boundary = context.messages.dropLast(1).lastOrNull()?.id ?: return null
+        // 读取原始图文快照后复核摘要基线，避免预算构建和写回使用不同版本。
+        val snapshot =
+            mChatRepository.getSummaryInputSnapshot(sessionId, context.messages.map { it.id })
+        require(
+            mChatRepository.getSummaryGenerationContext(
+                sessionId = sessionId, allowRefreshLatest = false,
+                maxCandidateMessages = windowSize, mode = SummaryMode.Classic,
+            ) == context
+        ) { "Summary input changed, retry" }
+        val historyLimit =
+            AppModel.maxPromptHistoryMessages.takeIf { it > 0 } ?: snapshot.messages.size
+        val history = ChatPromptHistoryContext(
+            summary = context.existingSummary,
+            messages = snapshot.messages.takeLast(historyLimit),
+            totalMessageCount = mChatRepository.getMessageCountBySessionId(sessionId),
+        )
+        // 复用聊天构建器的背景、Regex、图片和裁剪规则，末尾任务改为摘要。
+        val built = buildGenerationRequest(
+            sessionId = sessionId,
+            templates = templates,
+            historyOverride = history,
+            providerOverride = data.provider.copy(maxTokens = AppModel.summaryResponseTokens),
+            summaryInstruction = classicSummaryInstruction(
+                templates.summarizePrompt,
+                AppModel.summaryWordsLimit
+            ),
+        )
+        return PreparedSummaryRequest(
+            request = built.request, coveredMessageId = boundary,
+            summaryIdToUpdate = null, inputSnapshot = snapshot,
+        )
+    }
+
+    /**
      * 收集单聊 Prompt 所需的完整上下文数据并交给 [ChatPromptBuilder] 构建大模型请求。
      *
      * 特殊边界处理：
@@ -2472,6 +2554,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param generationMode 生成模式（Normal, Regenerate, Continue, Impersonate）
      * @param excludedMessageId 需要从 Prompt 历史中排除的消息 ID（如重生成时的待替换消息）
+     * @param historyOverride Classic 摘要已经校验的近期图文快照。
+     * @param providerOverride 摘要专用模型与回复预留；普通生成时自动解析角色模型。
+     * @param summaryInstruction Classic 摘要的末尾任务模板。
      * @return 构建完成的生成请求数据包装对象
      */
     private suspend fun buildGenerationRequest(
@@ -2480,6 +2565,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         excludedMessageId: Long? = null,
         templates: PromptTemplateSnapshot? = null,
         userWritingDraft: String? = null,
+        historyOverride: ChatPromptHistoryContext? = null,
+        providerOverride: LLMProvider? = null,
+        summaryInstruction: String? = null,
     ): BuiltGenerationRequest {
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
@@ -2487,7 +2575,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId)
             ?: error(mContext.getString(R.string.character_not_found))
-        val generationHistory = mChatRepository.getPromptHistoryContext(
+        val generationHistory = historyOverride ?: mChatRepository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = excludedMessageId,
             maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
@@ -2505,7 +2593,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .map { it.id }
             .toSet()
         // 解析角色绑定的模型服务提供商
-        val provider = mProviderSelectionResolver.requireCharacterProvider(character)
+        val provider =
+            providerOverride ?: mProviderSelectionResolver.requireCharacterProvider(character)
         // 组装 PromptBuildContext 并调用 Prompt 构建器
         val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val regexScripts = mRegexRepository.activeScripts(listOf(character))
@@ -2542,6 +2631,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     maxResponseTokens = provider.maxTokens,
                     generationMode = generationMode,
                     userWritingDraft = userWritingDraft,
+                    summaryInstruction = summaryInstruction,
                     regexScripts = regexScripts,
                 ),
             )

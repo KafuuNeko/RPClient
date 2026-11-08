@@ -91,6 +91,7 @@ import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -1292,6 +1293,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /**
+     * 保存单聊与群聊的摘要模式，并同步设置面板。
+     * @param intent 用户选择的摘要策略。
+     */
+    @UiIntentObserver(MainUiIntent.SelectSummaryMode::class)
+    private fun onSelectSummaryMode(intent: MainUiIntent.SelectSummaryMode) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.summaryMode = intent.mode.persistedValue
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                summaryState = uiState.settingsState.summaryState.copy(mode = intent.mode),
+            ),
+        ).setup()
+    }
+
     /** 选择用于执行会话总结的专用 LLM 供应商（ID 为 0 时继承当前主供应商）。 */
     @UiIntentObserver(MainUiIntent.SelectSummaryProvider::class)
     private fun onSelectSummaryProvider(intent: MainUiIntent.SelectSummaryProvider) {
@@ -1749,6 +1765,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 overflowAlert = AppModel.worldInfoOverflowAlert,
             ),
             summaryState = MainSummarySettingsState(
+                mode = SummaryMode.fromPersistedValue(AppModel.summaryMode),
                 selectedProviderId = AppModel.summaryLLMProvider,
                 providers = allProviders
                     .filter { it.isEnabled || it.id == AppModel.summaryLLMProvider }

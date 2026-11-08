@@ -4,10 +4,23 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SummaryPromptBuilderTest {
+    @Test
+    fun classicTaskKeepsHistoryUnderContextBudgetAndExpandsWordLimit() {
+        val instruction = classicSummaryInstruction(
+            template = "Summarize {{char}} in {{ WORDS }} words. {{ HISTORY }} {{Summary}}",
+            wordsLimit = 500,
+        )
+        assertEquals("Summarize {{char}} in 500 words.  ", instruction)
+        assertThrows(IllegalArgumentException::class.java) {
+            classicSummaryInstruction("{{history}} {{summary}}", 500)
+        }
+    }
+
     @Test
     fun selectionCountsTemplateAndFormattingOverheadForEveryPrefix() {
         val messages = listOf("one", "two", "three")

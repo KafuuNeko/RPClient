@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
 import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
@@ -80,7 +81,9 @@ data class GroupChatPromptContext(
     val regexScripts: List<ScopedRegexScript> = emptyList(),
     val messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
     val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
-    val protectedUserMessageId: Long? = null
+    val protectedUserMessageId: Long? = null,
+    /** Classic 摘要复用普通上下文，末尾任务取代群聊发言引导。 */
+    val summaryInstruction: String? = null,
 )
 
 /** 群聊回复的生成模式。 */
@@ -139,11 +142,22 @@ class GroupChatPromptBuilder(
     ): LLMGenerationRequest =
         buildWithMetadata(context, preferences).request
 
-    /** 每次构建创建独立会话，避免并发请求或模板切换相互覆盖配置。 */
+    /**
+     * 使用独立构建会话准备群聊请求，Classic 摘要始终排除推理块。
+     * @param context 本轮群聊只读快照。
+     * @param preferences 本轮预设与偏好。
+     * @return 请求、检查信息及尚未持久化的世界书时序结果。
+     */
     fun buildWithMetadata(
         context: GroupChatPromptContext,
         preferences: PromptPreferences = mPreferences
     ): GroupChatPromptBuildResult {
+        // 清洗发生在世界书扫描之前，防止推理内容重新进入摘要背景。
+        val safeContext = if (context.summaryInstruction == null) context else context.copy(
+            summary = context.summary.summarySafeContent(),
+            messages = context.messages.map { it.copy(content = it.content.summarySafeContent()) },
+        )
+        // 单次构建不回写任何消息或世界书状态。
         return GroupChatPromptBuildSession(
             mPreferences = preferences,
             mWorldBookActivator = mWorldBookActivator,
@@ -151,7 +165,7 @@ class GroupChatPromptBuilder(
             mRequestFinalizer = mRequestFinalizer,
             mExampleDialogueBehaviorProvider = mExampleDialogueBehaviorProvider,
             mRegexProcessor = mRegexProcessor,
-        ).buildWithMetadata(context)
+        ).buildWithMetadata(safeContext)
     }
 }
 
@@ -298,7 +312,7 @@ private class GroupChatPromptBuildSession(
             null
         }
         // 注入群聊任务提示（Group Nudge）
-        if (context.generationMode.usesCharacterReplyTask()) {
+        if (context.summaryInstruction == null && context.generationMode.usesCharacterReplyTask()) {
             context.groupNudgePrompt()
                 .resolve(context, context.memberNames())
                 .takeIf { it.isNotBlank() }
@@ -336,6 +350,12 @@ private class GroupChatPromptBuildSession(
             preOmittedItems = worldSelection.omittedItems,
             tokenizer = tokenizer,
         )
+        // 没有可用历史时不能用空素材摘要推进覆盖位置。
+        if (context.summaryInstruction != null) {
+            require(finalized.inspection.items.any { item ->
+                item.sources.any { it.kind == PromptSourceKind.ChatHistory }
+            }) { "No chat history fits in classic summary context" }
+        }
         // 组装调试检查器元数据
         val inspection = finalized.inspection.copy(
             regexExecutions = regexHits,
@@ -420,7 +440,11 @@ private class GroupChatPromptBuildSession(
         val before = mutableListOf<PromptMessageDraft>()
         val after = mutableListOf<PromptMessageDraft>()
         val memberNames = context.memberNames()
-        val summaryPosition = readSummaryInjectionPosition()
+        val summaryPosition = readSummaryInjectionPosition().let { position ->
+            if (context.summaryInstruction != null && position == SummaryInjectionPosition.None) {
+                SummaryInjectionPosition.BeforeMain
+            } else position
+        }
 
         // 摘要注入（BeforeMain 模式）
         if (summaryPosition == SummaryInjectionPosition.BeforeMain) {
@@ -1020,6 +1044,13 @@ private class GroupChatPromptBuildSession(
      * 两种特殊模式统一使用 user 角色，使所有模型服务都接收到明确且位于末尾的生成目标。
      */
     private fun buildGenerationControlDraft(context: GroupChatPromptContext): PromptMessageDraft? {
+        // 保留角色卡和世界背景，末尾只保留摘要这一生成目标。
+        context.summaryInstruction?.let { instruction ->
+            return requiredUser(
+                content = instruction.resolve(context, context.memberNames()),
+                sourceKind = PromptSourceKind.SummaryTask,
+            )
+        }
         val content = when (context.generationMode) {
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
@@ -1041,6 +1072,7 @@ private class GroupChatPromptBuildSession(
         drafts: List<PromptMessageDraft>,
         context: GroupChatPromptContext,
     ): List<PromptMessageDraft> {
+        if (context.summaryInstruction != null) return drafts
         if (!context.generationMode.usesCharacterReplyTask()) return drafts
         if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
         return drafts + requiredUser(

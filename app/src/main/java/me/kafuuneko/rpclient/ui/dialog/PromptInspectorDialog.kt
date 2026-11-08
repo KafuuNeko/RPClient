@@ -500,6 +500,7 @@ private fun PromptSource.label(): String {
         PromptSourceKind.CharacterPersonality -> R.string.prompt_source_character_personality
         PromptSourceKind.Scenario -> R.string.prompt_source_scenario
         PromptSourceKind.Summary -> R.string.prompt_source_summary
+        PromptSourceKind.SummaryTask -> R.string.summarize_now
         PromptSourceKind.AuxiliaryPrompt -> R.string.prompt_source_auxiliary
         PromptSourceKind.ExampleDialogue -> R.string.prompt_source_examples
         PromptSourceKind.NewChatMarker -> R.string.prompt_source_new_chat

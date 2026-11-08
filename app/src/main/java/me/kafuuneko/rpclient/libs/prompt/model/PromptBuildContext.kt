@@ -54,6 +54,8 @@ data class PromptBuildContext(
     val unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
     /** 输入框续写起点；null 表示非代写请求，空字符串表示从头生成，不加入历史或推进世界书时序。 */
     val userWritingDraft: String? = null,
+    /** Classic 摘要的末尾任务；非空时复用普通上下文预算并停止追加角色回复引导。 */
+    val summaryInstruction: String? = null,
 )
 
 /** 本次构建对应的用户操作，会影响尾部指令和世界书生成类型过滤。 */

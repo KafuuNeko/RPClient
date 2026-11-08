@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /**
@@ -93,6 +94,9 @@ object AppModel : KotprefModel() {
 
     // 是否启用自动摘要。
     var autoSummaryEnabled by booleanPref(default = true)
+
+    // 单聊与群聊的历史选择策略；默认保持逐段处理未摘要历史。
+    var summaryMode by intPref(default = SummaryMode.Raw.persistedValue)
 
     // 自动摘要触发消息数，未摘要消息达到该数量后触发。
     var summaryTriggerMessageCount by intPref(default = 20)

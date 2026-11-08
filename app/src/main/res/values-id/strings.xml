@@ -106,7 +106,6 @@
     <string name="auto">Otomatis</string>
     <string name="manual">Manual</string>
     <string name="auto_summarize">Ringkas otomatis</string>
-    <string name="auto_summarize_desc">Perbarui memori obrolan setelah mencapai jumlah pesan yang belum diringkas sesuai konfigurasi</string>
     <string name="summary_update_every_messages">Perbarui setiap berapa pesan</string>
     <string name="summary_target_words">Target kata</string>
     <string name="summary_max_messages_per_request">Pesan maksimum per permintaan</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Jeda ringkasan otomatis untuk obrolan ini</string>
     <string name="restore_previous_summary">Pulihkan ringkasan sebelumnya</string>
-    <string name="restore_previous_summary_desc">Buang snapshot terbaru dan pulihkan memori sebelumnya.</string>
     <string name="unknown_character">Karakter tidak dikenal</string>
     <string name="no_messages_yet">Belum ada pesan</string>
     <string name="debug_mode">Mode Debug</string>
@@ -331,11 +329,8 @@ Gagal: %2$d</string>
     <string name="chat_settings">Pengaturan Obrolan</string>
     <string name="chat_settings_actions">Tindakan</string>
     <string name="regenerate_latest_reply">Hasilkan ulang balasan terbaru</string>
-    <string name="regenerate_latest_reply_desc">Hasilkan kembali balasan asisten terbaru</string>
     <string name="continue_latest_reply">Lanjutkan balasan terbaru</string>
-    <string name="continue_latest_reply_desc">Hasilkan pesan baru yang melanjutkan balasan asisten terbaru</string>
     <string name="impersonate_user">Tirukan pengguna</string>
-    <string name="impersonate_user_desc">Hasilkan pesan berikutnya dari sudut pandang pengguna</string>
     <string name="summarize_now">Ringkas sekarang</string>
     <string name="summarize_now_desc">Perbarui memori obrolan ini menggunakan pengaturan ringkasan global</string>
     <string name="delete_chat_title">Hapus obrolan</string>
@@ -1439,4 +1434,7 @@ Gagal: %2$d</string>
     <string name="user_writing_no_body">Tidak ada teks pesan yang dihasilkan. Draf Anda tetap disimpan.</string>
     <string name="prompt_user_writing_title">Prompt lanjutan di kotak input</string>
     <string name="prompt_user_writing_desc">Digunakan saat menulis sebagai pengguna di kotak input. {{draft}} menyisipkan teks saat ini; tanpa makro ini, teks ditambahkan di akhir.</string>
+    <string name="summary_mode">Mode ringkasan percakapan</string>
+    <string name="summary_mode_raw">Raw (bertahap)</string>
+    <string name="summary_mode_classic">Classic (konteks saat ini)</string>
 </resources>

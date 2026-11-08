@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
@@ -150,13 +151,11 @@ internal fun GroupChatSettingsPage(
                     SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.summarize_now),
-                        subtitle = stringResource(R.string.summarize_now_desc),
                         onClick = { emitIntent(GroupChatUiIntent.SummarizeNow) },
                     )
                     SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.restore_previous_summary),
-                        subtitle = stringResource(R.string.restore_previous_summary_desc),
                         onClick = {
                             emitIntent(GroupChatUiIntent.RestorePreviousSummary)
                         },
@@ -389,19 +388,19 @@ private fun GroupSettingsSection(
     }
 }
 
-/** 展示带图标、标题和可选说明的设置操作项。 */
+/** 展示带图标和标题的设置操作项。 */
 @Composable
 private fun SettingsActionRow(
     icon: ImageVector,
     title: String,
-    subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit,
 ) {
-    // 整行点击与图标颜色共享可用状态。
+    // 操作项保持统一的最小点击高度和图标配色。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -416,16 +415,12 @@ private fun SettingsActionRow(
                 contentDescription = null,
                 tint = iconTint,
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleSmall)
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }

@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOpeningMessage
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -228,17 +229,37 @@ class GroupChatRepository(
      *
      * @param sessionId 群聊会话 ID。
      * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
+     * @param mode Raw 读取增量前缀，Classic 读取与旧摘要边界无关的近期窗口。
      * @return 群聊摘要聚合数据；会话不存在时返回 null。
      */
     suspend fun getGroupChatSummaryData(
         sessionId: Long,
         maxCandidateMessages: Int = 0,
+        mode: SummaryMode = SummaryMode.Raw,
     ): GroupChatSummaryGenerationData? {
         require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
             // 会话、成员和摘要必须与候选消息共享同一数据库快照
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
             val summary = mSummaryDao.getLatest(sessionId)
+            // Classic 同时保留最新消息和前一条，写回时使用前一条作为稳定覆盖位置。
+            if (mode == SummaryMode.Classic) {
+                val recent = if (maxCandidateMessages == 0) {
+                    mMessageDao.getMessages(sessionId)
+                } else {
+                    mMessageDao.getLatestMessagePage(
+                        sessionId = sessionId,
+                        limit = maxCandidateMessages.coerceAtMost(Int.MAX_VALUE - 1) + 1,
+                    ).asReversed()
+                }
+                return@withTransaction GroupChatSummaryGenerationData(
+                    data = GroupChatData(
+                        session = session, members = getMemberData(sessionId),
+                        messages = recent, summary = summary,
+                    ),
+                    hasMoreCandidateMessages = false,
+                )
+            }
             val messageWindow = loadSummaryMessagesAfterId(
                 sessionId = sessionId,
                 coveredMessageId = summary?.coveredMessageId ?: 0L,

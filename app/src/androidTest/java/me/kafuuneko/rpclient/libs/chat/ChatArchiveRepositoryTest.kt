@@ -157,6 +157,47 @@ class ChatArchiveRepositoryTest {
     }
 
     @Test
+    fun sillyTavernMemoryImportsWithLocalBoundaryAndExportsAtLatestMessage() = runBlocking {
+        val codec = ChatArchiveCodec(Gson())
+        val imported = codec.decode(
+            """
+            {"chat_metadata":{}}
+            {"mes":"first","extra":{"memory":"imported memory"}}
+            {"mes":"filtered notice","is_system":true}
+            {"mes":"latest"}
+            """.trimIndent(),
+            "SillyTavern",
+        )
+        val sessionId = repository.saveImport(imported, characterId).sessionId
+        val chatRepository =
+            ChatRepository(database, Gson(), MessageImageRepository(database, files))
+        val messages = database.getChatMessageDao().getMessagesBySessionId(sessionId)
+        assertEquals(
+            messages.first().id,
+            chatRepository.getLatestSummary(sessionId)?.coveredMessageId
+        )
+        assertEquals(1, chatRepository.getUnsummarizedMessageCount(sessionId))
+        // 手动编辑摘要后，通过分页导出路径验证已有末条覆盖记录的往返兼容。
+        chatRepository.updateCurrentSummary(sessionId, "imported memory")
+        val exportFile = File.createTempFile("chat-memory-", ".jsonl", context.cacheDir)
+        try {
+            repository.exportToUri(sessionId, Uri.fromFile(exportFile))
+            val lines = exportFile.readLines().filter { it.isNotBlank() }
+                .map { JsonParser.parseString(it).asJsonObject }
+            assertEquals(3, lines.size)
+            assertEquals("imported memory", lines[2].getAsJsonObject("extra")["memory"].asString)
+            assertFalse(lines.last()["is_system"].asBoolean)
+            assertEquals("latest", lines.last()["mes"].asString)
+            val restored = codec.decode(exportFile.readText(), "Restored")
+            assertEquals(2, restored.messages.size)
+            assertEquals(1, restored.summary?.coveredMessageIndex)
+            assertEquals("imported memory", restored.summary?.content)
+        } finally {
+            exportFile.delete()
+        }
+    }
+
+    @Test
     fun confirmedCharacterIsUsedAndSummaryBoundaryUsesNewMessageId() = runBlocking {
         val sessionId = repository.saveImport(archive(), characterId).sessionId
         val session = database.getChatSessionDao().getSessionById(sessionId)
@@ -188,6 +229,7 @@ class ChatArchiveRepositoryTest {
 
     @Test
     fun exportStreamsMultiplePagesInStableOrderAndPreservesSummaryBoundary() = runBlocking {
+        // 覆盖点位于第二页，摘要标记必须使用全局消息索引。
         val archive = largeArchive()
         val sessionId = repository.saveImport(archive, characterId).sessionId
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -208,6 +250,15 @@ class ChatArchiveRepositoryTest {
                 decoded.messages.map { chatArchiveMessage -> chatArchiveMessage.role },
             )
             assertEquals(archive.summary?.coveredMessageIndex, decoded.summary?.coveredMessageIndex)
+            val memoryRows = exportFile.readLines().drop(1).mapIndexedNotNull { index, line ->
+                val extra = JsonParser.parseString(line).asJsonObject.getAsJsonObject("extra")
+                if (extra?.has("memory") == true) index to extra["memory"].asString else null
+            }
+            val expectedSummary = requireNotNull(archive.summary)
+            assertEquals(
+                listOf(expectedSummary.coveredMessageIndex to expectedSummary.content),
+                memoryRows
+            )
         } finally {
             exportFile.delete()
         }

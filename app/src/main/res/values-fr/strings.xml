@@ -106,7 +106,6 @@
     <string name="auto">Auto</string>
     <string name="manual">Manuel</string>
     <string name="auto_summarize">Résumé automatique</string>
-    <string name="auto_summarize_desc">Mettre à jour la mémoire de discussion après le nombre configuré de messages non résumés</string>
     <string name="summary_update_every_messages">Mettre à jour tous les messages</string>
     <string name="summary_target_words">Mots cibles</string>
     <string name="summary_max_messages_per_request">Messages max par requête</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Suspendre le résumé automatique pour ce chat</string>
     <string name="restore_previous_summary">Restaurer le résumé précédent</string>
-    <string name="restore_previous_summary_desc">Ignorer le dernier instantané et restaurer la mémoire précédente.</string>
     <string name="unknown_character">Personnage inconnu</string>
     <string name="no_messages_yet">Aucun message pour l\'instant</string>
     <string name="debug_mode">Mode débogage</string>
@@ -330,11 +328,8 @@
     <string name="chat_settings">Paramètres de discussion</string>
     <string name="chat_settings_actions">Actions</string>
     <string name="regenerate_latest_reply">Régénérer la dernière réponse</string>
-    <string name="regenerate_latest_reply_desc">Supprimer la dernière réponse de l\'assistant et générer à nouveau</string>
     <string name="continue_latest_reply">Continuer la dernière réponse</string>
-    <string name="continue_latest_reply_desc">Générer un nouveau message qui poursuit la dernière réponse de l\'assistant</string>
     <string name="impersonate_user">Incarner l\'utilisateur</string>
-    <string name="impersonate_user_desc">Générer le prochain message du point de vue de l\'utilisateur</string>
     <string name="summarize_now">Résumer maintenant</string>
     <string name="summarize_now_desc">Mettre à jour la mémoire de cette discussion en utilisant les paramètres globaux de résumé</string>
     <string name="delete_chat_title">Supprimer la discussion</string>
@@ -1438,4 +1433,7 @@
     <string name="user_writing_no_body">Aucun texte de message n’a été généré. Votre brouillon a été conservé.</string>
     <string name="prompt_user_writing_title">Prompt de continuation dans le champ de saisie</string>
     <string name="prompt_user_writing_desc">Utilisé pour écrire à la place de l’utilisateur dans le champ de saisie. {{draft}} insère le texte actuel ; sans cette macro, le texte est ajouté à la fin.</string>
+    <string name="summary_mode">Mode de résumé des conversations</string>
+    <string name="summary_mode_raw">Raw (incrémental)</string>
+    <string name="summary_mode_classic">Classic (contexte actuel)</string>
 </resources>

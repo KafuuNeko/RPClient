@@ -24,6 +24,20 @@ internal const val INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE = 128
 /** 无模型配置时沿用的摘要上下文 Token 上限。 */
 internal const val DEFAULT_SUMMARY_CONTEXT_TOKENS = 8192
 
+/**
+ * 准备 Classic 的末尾摘要指令，历史与旧摘要继续由普通上下文的预算器管理。
+ * @param template 当前预设中的摘要模板。
+ * @param wordsLimit 摘要目标字数。
+ * @return 保留人物宏、移除历史内联宏的任务模板。
+ */
+internal fun classicSummaryInstruction(template: String, wordsLimit: Int): String {
+    val instruction = template
+        .replace(Regex("""\{\{\s*words\s*}}""", RegexOption.IGNORE_CASE), wordsLimit.toString())
+        .replace(Regex("""\{\{\s*(summary|history)\s*}}""", RegexOption.IGNORE_CASE), "")
+    require(instruction.isNotBlank()) { "Summary instruction cannot be blank" }
+    return instruction
+}
+
 /** 单聊总结请求与其实际覆盖消息使用同一次预算选择结果。 */
 data class SummaryPromptBuildResult(
     val request: LLMGenerationRequest,

@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
@@ -145,6 +146,8 @@ sealed class MainUiIntent {
     data class ToggleDebugModeEnabled(val enabled: Boolean) : MainUiIntent()
 
     data class ToggleAutoSummaryEnabled(val enabled: Boolean) : MainUiIntent()
+
+    data class SelectSummaryMode(val mode: SummaryMode) : MainUiIntent()
 
     data class SelectSummaryProvider(val providerId: Long) : MainUiIntent()
 

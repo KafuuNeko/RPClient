@@ -106,7 +106,6 @@
     <string name="auto">Авто</string>
     <string name="manual">Вручную</string>
     <string name="auto_summarize">Авто-суммаризация</string>
-    <string name="auto_summarize_desc">Обновлять память чата после заданного количества несуммированных сообщений</string>
     <string name="summary_update_every_messages">Обновлять каждые сообщений</string>
     <string name="summary_target_words">Целевое количество слов</string>
     <string name="summary_max_messages_per_request">Макс. сообщений на запрос</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Ассистент</string>
     <string name="pause_auto_summary">Приостановить авто-сводку для этого чата</string>
     <string name="restore_previous_summary">Восстановить предыдущую сводку</string>
-    <string name="restore_previous_summary_desc">Удалить последний снимок и восстановить предыдущую память.</string>
     <string name="unknown_character">Неизвестный персонаж</string>
     <string name="no_messages_yet">Сообщений пока нет</string>
     <string name="debug_mode">Режим отладки</string>
@@ -330,11 +328,8 @@
     <string name="chat_settings">Настройки чата</string>
     <string name="chat_settings_actions">Действия</string>
     <string name="regenerate_latest_reply">Перегенерировать последний ответ</string>
-    <string name="regenerate_latest_reply_desc">Удалить последний ответ ассистента и сгенерировать его заново</string>
     <string name="continue_latest_reply">Продолжить последний ответ</string>
-    <string name="continue_latest_reply_desc">Создать новое сообщение, продолжающее последний ответ ассистента</string>
     <string name="impersonate_user">Имитировать пользователя</string>
-    <string name="impersonate_user_desc">Сгенерировать следующее сообщение от лица пользователя</string>
     <string name="summarize_now">Суммировать сейчас</string>
     <string name="summarize_now_desc">Обновить память этого чата, используя глобальные настройки суммаризации</string>
     <string name="delete_chat_title">Удалить чат</string>
@@ -1442,4 +1437,7 @@
     <string name="user_writing_no_body">Текст сообщения не был создан. Ваш черновик сохранён.</string>
     <string name="prompt_user_writing_title">Промпт продолжения в поле ввода</string>
     <string name="prompt_user_writing_desc">Используется для написания текста от лица пользователя в поле ввода. {{draft}} вставляет текущий текст; без этого макроса текст добавляется в конец.</string>
+    <string name="summary_mode">Режим сводки переписки</string>
+    <string name="summary_mode_raw">Raw (пошаговый)</string>
+    <string name="summary_mode_classic">Classic (текущий контекст)</string>
 </resources>

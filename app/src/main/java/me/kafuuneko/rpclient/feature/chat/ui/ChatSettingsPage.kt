@@ -111,37 +111,21 @@ internal fun ChatSettingsPage(
                     MenuAction(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.regenerate_latest_reply),
-                        subtitle = stringResource(R.string.regenerate_latest_reply_desc),
                         onClick = { ChatUiIntent.RegenerateLast.emit() },
                     )
                     MenuAction(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.continue_latest_reply),
-                        subtitle = stringResource(R.string.continue_latest_reply_desc),
                         onClick = { ChatUiIntent.ContinueLast.emit() },
                     )
                     MenuAction(
                         icon = Icons.Rounded.Edit,
                         title = stringResource(R.string.impersonate_user),
-                        subtitle = stringResource(R.string.impersonate_user_desc),
                         onClick = { ChatUiIntent.ImpersonateUser.emit() },
-                    )
-                    MenuAction(
-                        icon = Icons.Rounded.AutoAwesome,
-                        title = stringResource(R.string.summarize_now),
-                        subtitle = stringResource(R.string.summarize_now_desc),
-                        onClick = { ChatUiIntent.SummarizeNow.emit() },
-                    )
-                    MenuAction(
-                        icon = Icons.Rounded.Refresh,
-                        title = stringResource(R.string.restore_previous_summary),
-                        subtitle = stringResource(R.string.restore_previous_summary_desc),
-                        onClick = { ChatUiIntent.RestorePreviousSummary.emit() },
                     )
                     MenuAction(
                         icon = Icons.Rounded.FileUpload,
                         title = stringResource(R.string.export_chat),
-                        subtitle = stringResource(R.string.export_chat_desc),
                         enabled = loadState == ChatLoadState.None,
                         onClick = { ChatUiIntent.ExportChatClick.emit() },
                     )
@@ -166,13 +150,6 @@ internal fun ChatSettingsPage(
                             },
                         )
                     }
-                    SessionSwitchRow(
-                        title = stringResource(R.string.pause_auto_summary),
-                        checked = session.autoSummaryPaused,
-                        onCheckedChange = { enabled ->
-                            ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
-                        },
-                    )
                     AutoSaveTextField(
                         label = stringResource(R.string.title),
                         value = session.title,
@@ -188,6 +165,24 @@ internal fun ChatSettingsPage(
                         minLines = 3,
                         maxLines = 8,
                         onSave = { text -> ChatUiIntent.SaveSummary(text).emit() },
+                    )
+                    // 摘要操作紧随正文，与群聊保持一致，便于查看内容后直接处理。
+                    MenuAction(
+                        icon = Icons.Rounded.AutoAwesome,
+                        title = stringResource(R.string.summarize_now),
+                        onClick = { ChatUiIntent.SummarizeNow.emit() },
+                    )
+                    MenuAction(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.restore_previous_summary),
+                        onClick = { ChatUiIntent.RestorePreviousSummary.emit() },
+                    )
+                    SessionSwitchRow(
+                        title = stringResource(R.string.pause_auto_summary),
+                        checked = session.autoSummaryPaused,
+                        onCheckedChange = { enabled ->
+                            ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
+                        },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.user_note),
@@ -513,7 +508,6 @@ private fun AutoSaveTextField(
 private fun MenuAction(
     icon: ImageVector,
     title: String,
-    subtitle: String? = null,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -522,6 +516,7 @@ private fun MenuAction(
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
             .clickable(enabled = enabled, onClick = { onClick() }),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
@@ -536,22 +531,12 @@ private fun MenuAction(
                 tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.38f,
-                    ),
-                )
-                if (!subtitle.isNullOrBlank()) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.58f else 0.38f),
-                    )
-                }
-            }
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
+            )
         }
     }
 }

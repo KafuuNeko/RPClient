@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -71,6 +72,43 @@ class ChatRepositorySummaryTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun rawAndClassicReadDifferentWindowsAndAdvanceOnlyAfterSaving() = runBlocking {
+        val ids = (1..6).map { index ->
+            database.getChatMessageDao().insertOrReplace(
+                ChatMessage(
+                    sessionId = sessionId, createTime = index.toLong(),
+                    source = ChatMessage.Source.User, content = "message-$index",
+                )
+            )
+        }
+        repository.saveSummary(sessionId, "existing memory", ids[1])
+        // 同一积压在 Raw 中保留最早前缀，在 Classic 中选择近期窗口。
+        val raw = repository.getSummaryGenerationContext(
+            sessionId = sessionId, allowRefreshLatest = false,
+            maxCandidateMessages = 2, mode = SummaryMode.Raw,
+        )
+        val classic = repository.getSummaryGenerationContext(
+            sessionId = sessionId, allowRefreshLatest = false,
+            maxCandidateMessages = 2, mode = SummaryMode.Classic,
+        )
+        assertEquals(listOf(ids[2], ids[3], ids[5]), raw.messages.map { it.id })
+        assertEquals(ids.takeLast(3), classic.messages.map { it.id })
+        assertEquals("existing memory", classic.existingSummary)
+        assertEquals(ids[1], repository.getLatestSummary(sessionId)?.coveredMessageId)
+        // 准备请求不能改变进度；只有生成成功的正文才提交到稳定的倒数第二条。
+        val snapshot = repository.getSummaryInputSnapshot(sessionId, classic.messages.map { it.id })
+        repository.saveSummary(
+            sessionId = sessionId, content = "recent context memory",
+            coveredMessageId = classic.messages.dropLast(1).last().id,
+            expectedSnapshot = snapshot,
+        )
+        assertEquals(ids[4], repository.getLatestSummary(sessionId)?.coveredMessageId)
+        assertEquals(1, repository.getUnsummarizedMessageCount(sessionId))
+        assertTrue(repository.restorePreviousSummary(sessionId))
+        assertEquals(ids[1], repository.getLatestSummary(sessionId)?.coveredMessageId)
     }
 
     @Test

@@ -106,7 +106,6 @@
     <string name="auto">Automático</string>
     <string name="manual">Manual</string>
     <string name="auto_summarize">Resumen automático</string>
-    <string name="auto_summarize_desc">Actualiza la memoria del chat tras el número configurado de mensajes no resumidos</string>
     <string name="summary_update_every_messages">Actualizar cada n mensajes</string>
     <string name="summary_target_words">Palabras objetivo</string>
     <string name="summary_max_messages_per_request">Máx. mensajes por solicitud</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">Asistente</string>
     <string name="pause_auto_summary">Pausar resumen automático en este chat</string>
     <string name="restore_previous_summary">Restaurar resumen anterior</string>
-    <string name="restore_previous_summary_desc">Descarta la instantánea actual y restaura la memoria anterior.</string>
     <string name="unknown_character">Personaje desconocido</string>
     <string name="no_messages_yet">No hay mensajes todavía</string>
     <string name="debug_mode">Modo depuración</string>
@@ -330,11 +328,8 @@
     <string name="chat_settings">Ajustes del chat</string>
     <string name="chat_settings_actions">Acciones</string>
     <string name="regenerate_latest_reply">Regenerar última respuesta</string>
-    <string name="regenerate_latest_reply_desc">Volver a generar la última respuesta del asistente</string>
     <string name="continue_latest_reply">Continuar última respuesta</string>
-    <string name="continue_latest_reply_desc">Generar un nuevo mensaje continuando la última respuesta</string>
     <string name="impersonate_user">Suplantar usuario</string>
-    <string name="impersonate_user_desc">Generar el siguiente mensaje desde la perspectiva del usuario</string>
     <string name="summarize_now">Resumir ahora</string>
     <string name="summarize_now_desc">Actualizar la memoria de este chat con los ajustes globales de resumen</string>
     <string name="delete_chat_title">Eliminar chat</string>
@@ -1439,4 +1434,7 @@
     <string name="user_writing_no_body">No se generó texto para el mensaje. Se ha conservado tu borrador.</string>
     <string name="prompt_user_writing_title">Prompt para continuar en el campo de entrada</string>
     <string name="prompt_user_writing_desc">Se usa al escribir como el usuario en el campo de entrada. {{draft}} inserta el texto actual; sin esta macro, el texto se añade al final.</string>
+    <string name="summary_mode">Modo de resumen de conversación</string>
+    <string name="summary_mode_raw">Raw (incremental)</string>
+    <string name="summary_mode_classic">Classic (contexto actual)</string>
 </resources>

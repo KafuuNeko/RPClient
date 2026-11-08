@@ -106,7 +106,6 @@
     <string name="auto">自動</string>
     <string name="manual">手動</string>
     <string name="auto_summarize">自動摘要</string>
-    <string name="auto_summarize_desc">在未摘要訊息達到設定數量後更新聊天記憶</string>
     <string name="summary_update_every_messages">每隔多少則訊息更新</string>
     <string name="summary_target_words">目標字數</string>
     <string name="summary_max_messages_per_request">每次請求最大訊息數</string>
@@ -130,7 +129,6 @@
     <string name="summary_role_assistant">助手</string>
     <string name="pause_auto_summary">暫停此聊天的自動摘要</string>
     <string name="restore_previous_summary">還原上一版摘要</string>
-    <string name="restore_previous_summary_desc">捨棄最新快照並還原前一份記憶。</string>
     <string name="unknown_character">未知角色</string>
     <string name="no_messages_yet">暫無訊息</string>
     <string name="debug_mode">偵錯模式</string>
@@ -330,11 +328,8 @@
     <string name="chat_settings">聊天設定</string>
     <string name="chat_settings_actions">操作</string>
     <string name="regenerate_latest_reply">重新生成最新回覆</string>
-    <string name="regenerate_latest_reply_desc">重新生成最新的助理回覆</string>
     <string name="continue_latest_reply">續寫最新回覆</string>
-    <string name="continue_latest_reply_desc">產生一則承接最新助理回覆的新訊息</string>
     <string name="impersonate_user">扮演使用者</string>
-    <string name="impersonate_user_desc">從使用者視角生成下一條訊息</string>
     <string name="summarize_now">立即摘要</string>
     <string name="summarize_now_desc">使用全域摘要設定更新此聊天記憶</string>
     <string name="delete_chat_title">刪除聊天</string>
@@ -1432,4 +1427,7 @@
     <string name="user_writing_no_body">未產生可用正文，已保留原有草稿。</string>
     <string name="prompt_user_writing_title">輸入框續寫提示詞</string>
     <string name="prompt_user_writing_desc">用於扮演使用者時續寫輸入框。{{draft}} 插入目前輸入；省略此巨集時，輸入文字會附在提示詞末尾。</string>
+    <string name="summary_mode">對話摘要模式</string>
+    <string name="summary_mode_raw">Raw（增量摘要）</string>
+    <string name="summary_mode_classic">Classic（目前上下文）</string>
 </resources>

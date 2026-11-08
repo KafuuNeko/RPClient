@@ -107,7 +107,6 @@
     <string name="auto">自動</string>
     <string name="manual">手動</string>
     <string name="auto_summarize">自動要約</string>
-    <string name="auto_summarize_desc">要約されていないメッセージが設定数に達した後にチャットメモリを更新します</string>
     <string name="summary_update_every_messages">メッセージ数ごとに更新</string>
     <string name="summary_target_words">目標単語数</string>
     <string name="summary_max_messages_per_request">リクエストあたりの最大メッセージ数</string>
@@ -131,7 +130,6 @@
     <string name="summary_role_assistant">アシスタント</string>
     <string name="pause_auto_summary">このチャットの自動要約を一時停止</string>
     <string name="restore_previous_summary">前の要約を復元</string>
-    <string name="restore_previous_summary_desc">最新のスナップショットを破棄し、前のメモリを復元します。</string>
     <string name="unknown_character">不明なキャラクター</string>
     <string name="no_messages_yet">メッセージはまだありません</string>
     <string name="debug_mode">デバッグモード</string>
@@ -331,11 +329,8 @@
     <string name="chat_settings">チャット設定</string>
     <string name="chat_settings_actions">アクション</string>
     <string name="regenerate_latest_reply">最新の返信を再生成</string>
-    <string name="regenerate_latest_reply_desc">アシスタントの最新の返信を削除し、再生成します</string>
     <string name="continue_latest_reply">最新の返信を続行</string>
-    <string name="continue_latest_reply_desc">最新のアシスタント返信に続く新しいメッセージを生成します</string>
     <string name="impersonate_user">ユーザーを模倣</string>
-    <string name="impersonate_user_desc">ユーザーの視点から次のメッセージを生成します</string>
     <string name="summarize_now">今すぐ要約</string>
     <string name="summarize_now_desc">グローバルな要約設定を使用して、このチャットのメモリを更新します</string>
     <string name="delete_chat_title">チャットを削除</string>
@@ -1433,4 +1428,7 @@
     <string name="user_writing_no_body">メッセージ本文が生成されませんでした。元の下書きを保持しました。</string>
     <string name="prompt_user_writing_title">入力欄の続き書きプロンプト</string>
     <string name="prompt_user_writing_desc">ユーザーの代わりに入力欄の続きを書く際に使用します。{{draft}} で現在の入力を挿入します。このマクロがない場合、入力はプロンプトの末尾に追加されます。</string>
+    <string name="summary_mode">会話の要約モード</string>
+    <string name="summary_mode_raw">Raw（増分要約）</string>
+    <string name="summary_mode_classic">Classic（現在のコンテキスト）</string>
 </resources>

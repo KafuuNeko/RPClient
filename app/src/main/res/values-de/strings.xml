@@ -107,7 +107,6 @@
     <string name="auto">Automatisch</string>
     <string name="manual">Manuell</string>
     <string name="auto_summarize">Automatisch zusammenfassen</string>
-    <string name="auto_summarize_desc">Chat-Speicher nach der konfigurierten Anzahl von nicht zusammengefassten Nachrichten aktualisieren</string>
     <string name="summary_update_every_messages">Aktualisierung alle x Nachrichten</string>
     <string name="summary_target_words">Zielwortanzahl</string>
     <string name="summary_max_messages_per_request">Maximale Nachrichten pro Anfrage</string>
@@ -131,7 +130,6 @@
     <string name="summary_role_assistant">Assistent</string>
     <string name="pause_auto_summary">Automatische Zusammenfassung für diesen Chat pausieren</string>
     <string name="restore_previous_summary">Vorherige Zusammenfassung wiederherstellen</string>
-    <string name="restore_previous_summary_desc">Den neuesten Snapshot verwerfen und den vorherigen Speicher wiederherstellen.</string>
     <string name="unknown_character">Unbekannter Charakter</string>
     <string name="no_messages_yet">Noch keine Nachrichten</string>
     <string name="debug_mode">Debug-Modus</string>
@@ -331,11 +329,8 @@
     <string name="chat_settings">Chat-Einstellungen</string>
     <string name="chat_settings_actions">Aktionen</string>
     <string name="regenerate_latest_reply">Letzte Antwort regenerieren</string>
-    <string name="regenerate_latest_reply_desc">Die letzte Antwort des Assistenten löschen und neu generieren</string>
     <string name="continue_latest_reply">Letzte Antwort fortsetzen</string>
-    <string name="continue_latest_reply_desc">Eine neue Nachricht erzeugen, die die letzte Assistentenantwort fortsetzt</string>
     <string name="impersonate_user">Benutzer imitieren</string>
-    <string name="impersonate_user_desc">Die nächste Nachricht aus der Perspektive des Benutzers generieren</string>
     <string name="summarize_now">Jetzt zusammenfassen</string>
     <string name="summarize_now_desc">Diesen Chat-Speicher mit den globalen Zusammenfassungseinstellungen aktualisieren</string>
     <string name="delete_chat_title">Chat löschen</string>
@@ -1437,4 +1432,7 @@
     <string name="user_writing_no_body">Es wurde kein Nachrichtentext erzeugt. Der Entwurf wurde beibehalten.</string>
     <string name="prompt_user_writing_title">Prompt zum Weiterschreiben im Eingabefeld</string>
     <string name="prompt_user_writing_desc">Wird beim Schreiben aus Nutzersicht im Eingabefeld verwendet. {{draft}} fügt den aktuellen Text ein; ohne dieses Makro wird der Text angehängt.</string>
+    <string name="summary_mode">Zusammenfassungsmodus für Chats</string>
+    <string name="summary_mode_raw">Raw (inkrementell)</string>
+    <string name="summary_mode_classic">Classic (aktueller Kontext)</string>
 </resources>

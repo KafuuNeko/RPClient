@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -808,17 +809,35 @@ class ChatRepository(
      * @param sessionId 会话 ID。
      * @param allowRefreshLatest 是否允许回退并刷新已覆盖到末尾的最新总结。
      * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
+     * @param mode Raw 读取连续增量前缀，Classic 读取近期窗口并保留末两条以确定覆盖位置。
      * @return 总结基础内容、候选窗口和可能需要覆盖的总结快照。
      */
     suspend fun getSummaryGenerationContext(
         sessionId: Long,
         allowRefreshLatest: Boolean,
         maxCandidateMessages: Int = 0,
+        mode: SummaryMode = SummaryMode.Raw,
     ): ChatSummaryGenerationContext {
         require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
             // 优先读取最新总结之后的增量窗口
             val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            // Classic 的近期窗口独立于旧摘要边界；预算裁剪由普通聊天 Builder 完成。
+            if (mode == SummaryMode.Classic) {
+                val recent = if (maxCandidateMessages == 0) {
+                    mChatMessageDao.getMessagesBySessionId(sessionId)
+                } else {
+                    mChatMessageDao.getLatestMessagePageBySessionId(
+                        sessionId = sessionId,
+                        limit = maxCandidateMessages.coerceAtMost(Int.MAX_VALUE - 1) + 1,
+                    ).asReversed()
+                }
+                return@withTransaction ChatSummaryGenerationContext(
+                    existingSummary = latestSummary?.content.orEmpty(),
+                    messages = recent,
+                    summaryToUpdate = null,
+                )
+            }
             val messageWindow = loadSummaryMessagesAfterId(
                 sessionId = sessionId,
                 coveredMessageId = latestSummary?.coveredMessageId ?: 0L,

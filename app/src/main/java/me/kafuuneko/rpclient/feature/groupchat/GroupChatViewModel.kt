@@ -91,6 +91,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
+import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
@@ -2052,23 +2054,28 @@ class GroupChatViewModel :
         templates: PromptTemplateSnapshot? = null
     ) {
         runCatching {
-            // 先解析模型预算，再按小窗口读取最早的未总结消息
+            // 同一请求固定摘要模式；Raw 读取最早增量，Classic 读取近期上下文。
+            val summaryMode = SummaryMode.fromPersistedValue(AppModel.summaryMode)
             val provider = withContext(Dispatchers.IO) {
                 mProviderSelectionResolver.requireSummaryProvider()
             }
             val maximumCandidates = summaryCandidateMessageLimit(
                 maxContextTokens = provider.contextTokens,
                 responseTokens = AppModel.summaryResponseTokens,
-                configuredMaxMessages = AppModel.summaryMaxMessagesPerRequest,
+                configuredMaxMessages = if (summaryMode == SummaryMode.Raw) {
+                    AppModel.summaryMaxMessagesPerRequest
+                } else AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
             )
-            val initialWindowSize = minOf(
-                a = INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
-                b = maximumCandidates,
-            )
+            val initialWindowSize =
+                if (summaryMode == SummaryMode.Classic) maximumCandidates else minOf(
+                    a = INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE,
+                    b = maximumCandidates,
+                )
             val initialData = withContext(Dispatchers.IO) {
                 mGroupChatRepository.getGroupChatSummaryData(
                     sessionId = sessionId,
                     maxCandidateMessages = initialWindowSize,
+                    mode = summaryMode,
                 )
             } ?: return
             // 格式化与 Token 统计在后台线程按需扩展，主线程只负责状态调度
@@ -2079,6 +2086,7 @@ class GroupChatViewModel :
                 initialData = initialData,
                 initialWindowSize = initialWindowSize,
                 maximumCandidates = maximumCandidates,
+                mode = summaryMode,
             ) ?: return
             currentCoroutineContext().ensureActive()
             val response = withContext(Dispatchers.IO) {
@@ -2141,6 +2149,14 @@ class GroupChatViewModel :
      *
      * 仅当当前窗口全部符合预算且数据库仍有候选消息时继续扩大；最终请求的消息顺序、
      * 最新消息排除规则和摘要覆盖边界与完整历史构建保持一致。
+     * @param sessionId 群聊会话 ID。
+     * @param provider 摘要专用模型。
+     * @param initialData 初次读取的会话和摘要窗口。
+     * @param initialWindowSize 初次读取的候选上限。
+     * @param maximumCandidates Raw 的最大候选上限。
+     * @param templates 本轮预设快照。
+     * @param mode 本轮固定的摘要历史策略。
+     * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
     private suspend fun buildGroupSummaryRequest(
         sessionId: Long,
@@ -2149,7 +2165,17 @@ class GroupChatViewModel :
         initialWindowSize: Int,
         maximumCandidates: Int,
         templates: PromptTemplateSnapshot,
+        mode: SummaryMode,
     ): PreparedGroupSummaryRequest? {
+        if (mode == SummaryMode.Classic) {
+            return buildClassicGroupSummaryRequest(
+                sessionId,
+                provider,
+                initialData,
+                initialWindowSize,
+                templates
+            )
+        }
         var windowSize = initialWindowSize
         var generationData = initialData
         while (true) {
@@ -2201,6 +2227,74 @@ class GroupChatViewModel :
                 )
             } ?: return null
         }
+    }
+
+    /**
+     * 用近期群聊上下文构建 Classic 摘要，成功写回时覆盖到倒数第二条消息。
+     *
+     * @param sessionId 群聊会话 ID。
+     * @param provider 摘要模型。
+     * @param generationData 已读取的会话、成员、摘要与近期消息。
+     * @param windowSize 近期消息查询上限。
+     * @param templates 本轮预设快照。
+     * @return 可以提交的摘要请求；缺少稳定消息或成员时返回 null。
+     */
+    private suspend fun buildClassicGroupSummaryRequest(
+        sessionId: Long,
+        provider: LLMProvider,
+        generationData: GroupChatSummaryGenerationData,
+        windowSize: Int,
+        templates: PromptTemplateSnapshot,
+    ): PreparedGroupSummaryRequest? {
+        val data = generationData.data
+        val boundary = data.messages.dropLast(1).lastOrNull()?.id ?: return null
+        val speaker = data.members.firstOrNull { member ->
+            member.character.id == data.messages.lastOrNull()?.speakerCharacterId
+        } ?: data.members.firstOrNull() ?: return null
+        // 校验原始快照；旧摘要或输入消息变更时拒绝提交失效结果。
+        val snapshot =
+            mGroupChatRepository.getSummaryInputSnapshot(sessionId, data.messages.map { it.id })
+        require(
+            mGroupChatRepository.getGroupChatSummaryData(
+                sessionId = sessionId,
+                maxCandidateMessages = windowSize,
+                mode = SummaryMode.Classic,
+            ) == generationData
+        ) { "Summary input changed, retry" }
+        val historyLimit = AppModel.maxPromptHistoryMessages.takeIf { it > 0 } ?: data.messages.size
+        val messages = data.messages.takeLast(historyLimit)
+        val lorebookContext = loadLorebookContext(data, speaker)
+        val images = mImageRuntime.prepareCandidates(snapshot.messages.takeLast(historyLimit))
+        val scripts = mRegexRepository.activeScripts(data.members.map { it.character })
+        val totalMessageCount = mGroupChatRepository.getMessageCount(sessionId)
+        // 普通构建器统一处理多角色背景和最终预算，不创建角色回复或推进世界书状态。
+        val built = withContext(Dispatchers.Default) {
+            mPromptBuilder.buildWithMetadata(
+                preferences = templates,
+                context = GroupChatPromptContext(
+                    session = data.session,
+                    members = data.members,
+                    speaker = speaker.character,
+                    messages = messages,
+                    provider = provider.copy(maxTokens = AppModel.summaryResponseTokens),
+                    totalMessageCount = totalMessageCount,
+                    summary = data.summary?.content.orEmpty(),
+                    candidateLorebookEntries = lorebookContext.entries,
+                    candidateLorebooks = lorebookContext.lorebooks,
+                    recursiveScanningLorebookIds = lorebookContext.recursiveLorebookIds,
+                    regexScripts = scripts,
+                    messageImages = images.references,
+                    unavailableImages = images.unavailable,
+                    summaryInstruction = classicSummaryInstruction(
+                        templates.groupSummarizePrompt,
+                        AppModel.summaryWordsLimit
+                    ),
+                ),
+            )
+        }
+        return PreparedGroupSummaryRequest(
+            request = built.request, coveredMessageId = boundary, inputSnapshot = snapshot,
+        )
     }
 
     /**

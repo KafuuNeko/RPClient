@@ -21,6 +21,8 @@ enum class PromptSourceKind {
 
     Summary,
 
+    SummaryTask,
+
     AuxiliaryPrompt,
 
     ExampleDialogue,

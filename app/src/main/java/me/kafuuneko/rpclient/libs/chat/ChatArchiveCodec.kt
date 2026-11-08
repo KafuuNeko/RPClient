@@ -24,7 +24,9 @@ import java.util.concurrent.CancellationException
  * RPClient 与 SillyTavern JSONL 单聊文件之间的编解码器。
  *
  * 第一行遵循 SillyTavern 的 chat header，后续每行保存一条消息；RPClient 无法由酒馆表达的
- * 会话设置和总结放在 `chat_metadata.rpclient` 命名空间，酒馆可忽略这些扩展字段。
+ * 会话设置放在 `chat_metadata.rpclient` 命名空间；总结同时使用酒馆的 `extra.memory`
+ * 表达覆盖位置，自有头部保留兼容旧归档与完整备份所需的信息。
+ * 末条覆盖的摘要遵循酒馆暂不启用的规则，不追加会干扰重新生成的空消息。
  */
 class ChatArchiveCodec(
     private val mGson: Gson
@@ -33,9 +35,9 @@ class ChatArchiveCodec(
     fun encode(archive: ChatArchive): String {
         val writtenHashes = mutableSetOf<String>()
         return StringWriter().also { writer ->
-            encodeHeader(archive, writer)
-            archive.messages.forEach { message ->
-                encodeMessage(archive, message, writer, writtenHashes)
+            encodeHeader(archive, writer, summaryInMessages = true)
+            archive.messages.forEachIndexed { index, message ->
+                encodeMessage(archive, message, writer, writtenHashes, messageIndex = index)
             }
         }.toString()
     }
@@ -46,8 +48,12 @@ class ChatArchiveCodec(
      * 调用方负责按顺序继续写入消息并管理 writer 生命周期；该边界允许 Repository 分页读取
      * Room，避免大型对话同时驻留为实体列表、完整 JSONL 字符串和 UTF-8 字节数组。
      */
-    internal fun encodeHeader(archive: ChatArchive, writer: Writer) {
-        writeJsonLine(buildHeader(archive), writer)
+    internal fun encodeHeader(
+        archive: ChatArchive,
+        writer: Writer,
+        summaryInMessages: Boolean = false,
+    ) {
+        writeJsonLine(buildHeader(archive, summaryInMessages), writer)
     }
 
     /** 将单条归档消息直接写入目标字符流，不关闭或刷新 writer。 */
@@ -56,9 +62,12 @@ class ChatArchiveCodec(
         message: ChatArchiveMessage,
         writer: Writer,
         writtenHashes: MutableSet<String> = mutableSetOf(),
+        messageIndex: Int? = null,
         addFields: JsonObject.() -> Unit = {},
     ) {
-        writeJsonLine(buildMessage(archive, message, writtenHashes).apply(addFields), writer)
+        val json = buildMessage(archive, message, writtenHashes)
+        attachSummary(json, archive, messageIndex)
+        writeJsonLine(json.apply(addFields), writer)
     }
 
     /** 分段写出含图消息；图片字节由仓库在文件读取保护范围内编码。 */
@@ -66,10 +75,12 @@ class ChatArchiveCodec(
         archive: ChatArchive,
         message: ChatArchiveMessage,
         writer: Writer,
+        messageIndex: Int? = null,
         addFields: JsonObject.() -> Unit = {},
         writeImages: suspend () -> Unit,
     ) {
         val json = buildMessage(archive, message.copy(images = emptyList())).apply(addFields)
+        attachSummary(json, archive, messageIndex)
         val extra = json.remove(KEY_EXTRA).asJsonObject
         // 保留旁白等原有 extra 字段，仅将图片数组交给文件仓库分段写入。
         writer.write(json.toString().dropLast(1))
@@ -79,6 +90,15 @@ class ChatArchiveCodec(
         writer.write("\"rpclient\":{\"schema_version\":1,\"images\":[")
         writeImages()
         writer.write("]}}}\n")
+    }
+
+    /** 仅在真实覆盖消息上写入酒馆摘要，旁白及图片扩展继续保留。 */
+    private fun attachSummary(json: JsonObject, archive: ChatArchive, messageIndex: Int?) {
+        val summary = archive.summary ?: return
+        if (messageIndex == null || summary.coveredMessageIndex != messageIndex
+            || summary.content.isBlank()
+        ) return
+        json.getAsJsonObject(KEY_EXTRA).addProperty(KEY_MEMORY, summary.content)
     }
 
     private fun writeJsonLine(json: JsonObject, writer: Writer) {
@@ -196,16 +216,41 @@ class ChatArchiveCodec(
             characterNameHint = characterNameHint.orEmpty(),
             characterFingerprint = characterObject?.stringOrNull(KEY_FINGERPRINT),
             messages = emptyList(),
-            summary = rpclient
-                ?.objectOrNull(KEY_SUMMARY)
-                ?.toSummary(createTime)
-                ?.takeIf { summary -> summary.hasValidBoundary(parsed.messageCount) },
+            summary = resolveSummary(rpclient, parsed, createTime),
         )
     }
 
-    private fun buildHeader(archive: ChatArchive): JsonObject {
+    /** 酒馆修改后的逐消息摘要优先；新导出的标记避免清除摘要后又复活旧头部副本。 */
+    private fun resolveSummary(
+        rpclient: JsonObject?,
+        parsed: ParsedArchiveLines,
+        createTime: Long,
+    ): ChatArchiveSummary? {
+        // 旧归档及完整备份仍可从自有头部恢复，标准字段有变化时采用酒馆的当前值。
+        val native = rpclient?.objectOrNull(KEY_SUMMARY)?.toSummary(createTime)
+            ?.takeIf { it.hasValidBoundary(parsed.messageCount) }
+        val memory = parsed.summary
+        if (memory != null) {
+            return native?.takeIf {
+                it.content == memory.content && it.coveredMessageIndex == memory.coveredMessageIndex
+            } ?: memory
+        }
+        if (rpclient?.booleanOrNull(KEY_SUMMARY_IN_MESSAGES) == true
+            && native?.content?.isNotBlank() == true
+        ) {
+            // 自有导出的末条摘要需双份正文和边界一致才恢复；标准字段被清除后不能复活旧头部。
+            return native.takeIf { parsed.matchesFinalMessageSummary(it) }
+        }
+        return native
+    }
+
+    private fun buildHeader(archive: ChatArchive, summaryInMessages: Boolean): JsonObject {
         val rpclient = JsonObject().apply {
             addProperty(KEY_SCHEMA_VERSION, SCHEMA_VERSION)
+            val hasMessageSummary = archive.summary?.let {
+                it.content.isNotBlank() && it.coveredMessageIndex >= 0
+            } == true
+            if (summaryInMessages && hasMessageSummary) addProperty(KEY_SUMMARY_IN_MESSAGES, true)
             addProperty(KEY_TITLE, archive.title)
             addProperty(KEY_CREATE_TIME, archive.createTime)
             addProperty(KEY_LATEST_TIME, archive.latestTime)
@@ -300,12 +345,38 @@ class ChatArchiveCodec(
         var objectCount = 0
         // 只保留推断会话默认值所需的统计量；正文、图片和来源 ID 在同一回调交付。
         while (input.peek() != JsonToken.END_DOCUMENT) {
-            require(maxMessageCount == null || objectCount < maxMessageCount) { "Chat archive has too many messages" }
-            val (json, images) = readMessage(input, resolver::resolve)
+            val (json, images) = try {
+                readMessage(input) { image ->
+                    require(maxMessageCount == null || objectCount < maxMessageCount) {
+                        "Chat archive has too many messages"
+                    }
+                    resolver.resolve(image)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                require(maxMessageCount == null || objectCount < maxMessageCount) {
+                    "Chat archive has too many messages"
+                }
+                throw error
+            }
+            // 兼容旧版导出的单个末尾系统项，不能放宽普通消息或系统行总量。
+            val isFinalSummaryTail = objectCount == maxMessageCount
+                && json.booleanOrNull(KEY_IS_SYSTEM) == true
+                && json.booleanOrNull(KEY_IS_USER) != true
+                && json.stringOrNull(KEY_MESSAGE) == ""
+                && json.objectOrNull(KEY_EXTRA)?.stringOrNull(KEY_TYPE) == SUMMARY_TAIL_TYPE
+                && input.peek() == JsonToken.END_DOCUMENT
+            require(maxMessageCount == null || objectCount < maxMessageCount || isFinalSummaryTail) {
+                "Chat archive has too many messages"
+            }
             val messageTime = fallbackTime + objectCount
             objectCount++
-            val decoded = decodeMessage(json, messageTime) ?: continue
-            val time = parsed.record(decoded)
+            val decoded = decodeMessage(json, messageTime)
+            val time = decoded?.let(parsed::record) ?: messageTime
+            // 被过滤的系统行仍可能携带摘要，边界映射到此前最后一条保留消息。
+            parsed.recordMemory(json, time)
+            if (decoded == null) continue
             val message = decoded.message.copy(
                 createTime = time, images = images ?: decoded.message.images.map(resolver::resolve)
             )
@@ -494,6 +565,34 @@ class ChatArchiveCodec(
         var lastTime: Long? = null
         var firstUserName: String? = null
         val characterNames = mutableMapOf<String, Int>()
+        var summary: ChatArchiveSummary? = null
+            private set
+        private var mPendingSummary: ChatArchiveSummary? = null
+
+        /** 延后一行接纳摘要，与酒馆始终忽略最后一条消息上的摘要保持一致。 */
+        fun recordMemory(json: JsonObject, time: Long) {
+            // 上一行已确定不是文件末条，现在才允许其摘要成为当前记忆。
+            mPendingSummary?.let { summary = it }
+            mPendingSummary = null
+            val extra = json.get(KEY_EXTRA)?.takeIf { it.isJsonObject }?.asJsonObject
+            val memory = extra?.get(KEY_MEMORY)?.takeIf {
+                it.isJsonPrimitive && it.asJsonPrimitive.isString
+            }?.asString?.takeIf { it.isNotBlank() } ?: return
+            if (messageCount == 0) return
+            mPendingSummary = ChatArchiveSummary(memory, time, messageCount - 1)
+        }
+
+        /**
+         * 校验末条消息上的摘要是否仍与自有头部一致，供无尾项归档原样回导。
+         * @param nativeSummary 已校验覆盖边界的自有摘要。
+         * @return 末条消息仍保留相同正文与覆盖位置时为 true。
+         */
+        fun matchesFinalMessageSummary(nativeSummary: ChatArchiveSummary): Boolean {
+            val pending = mPendingSummary ?: return false
+            return nativeSummary.coveredMessageIndex == messageCount - 1
+                && pending.coveredMessageIndex == nativeSummary.coveredMessageIndex
+                && pending.content == nativeSummary.content
+        }
 
         /** 归一化消息时间，并更新角色与用户名称候选。 */
         fun record(decoded: DecodedMessage): Long {
@@ -530,6 +629,7 @@ class ChatArchiveCodec(
         const val UNUSED_NAME = "unused"
         const val NARRATOR_NAME = "Narrator"
         const val NARRATOR_TYPE = "narrator"
+        const val SUMMARY_TAIL_TYPE = "rpclient_summary_tail"
 
         const val KEY_CHAT_METADATA = "chat_metadata"
         const val KEY_RPCLIENT = "rpclient"
@@ -549,6 +649,8 @@ class ChatArchiveCodec(
         const val KEY_CHARACTER_NAME = "character_name"
         const val KEY_FINGERPRINT = "fingerprint"
         const val KEY_SUMMARY = "summary"
+        const val KEY_SUMMARY_IN_MESSAGES = "summary_in_messages"
+        const val KEY_MEMORY = "memory"
         const val KEY_CONTENT = "content"
         const val KEY_COVERED_MESSAGE_INDEX = "covered_message_index"
         const val KEY_NAME = "name"

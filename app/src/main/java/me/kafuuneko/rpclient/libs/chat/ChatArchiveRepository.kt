@@ -85,7 +85,8 @@ class ChatArchiveRepository(
         var skipped = 0
         val writtenHashes = mutableSetOf<String>()
         val archive = loadArchiveMetadata(sessionId)
-        mCodec.encodeHeader(archive, writer)
+        mCodec.encodeHeader(archive, writer, summaryInMessages = true)
+        var messageIndex = 0
         var afterCreateTime = Long.MIN_VALUE
         var afterMessageId = Long.MIN_VALUE
         while (true) {
@@ -95,7 +96,7 @@ class ChatArchiveRepository(
                 afterMessageId = afterMessageId,
                 limit = EXPORT_PAGE_SIZE,
             )
-            if (messages.isEmpty()) return skipped
+            if (messages.isEmpty()) break
             val images = mAppDatabase.getMessageImageDao().getByMessages(
                 messageType = MessageType.Single,
                 messageIds = messages.map { it.id },
@@ -106,17 +107,22 @@ class ChatArchiveRepository(
                 if (attachments.isEmpty()) mCodec.encodeMessage(
                     archive,
                     message.toArchiveMessage(),
-                    writer
+                    writer,
+                    messageIndex = messageIndex,
                 )
-                else mCodec.encodeMessageWithImages(archive, message.toArchiveMessage(), writer) {
+                else mCodec.encodeMessageWithImages(
+                    archive, message.toArchiveMessage(), writer, messageIndex = messageIndex,
+                ) {
                     skipped += writeAttachments(attachments, snapshot, writer, owner, writtenHashes)
                 }
+                messageIndex++
             }
             val lastMessage = messages.last()
             afterCreateTime = lastMessage.createTime
             afterMessageId = lastMessage.id
-            if (messages.size < EXPORT_PAGE_SIZE) return skipped
+            if (messages.size < EXPORT_PAGE_SIZE) break
         }
+        return skipped
     }
 
     /** 缺失文件只计数，成功写出的附件保持原顺序和实际 MIME。 */

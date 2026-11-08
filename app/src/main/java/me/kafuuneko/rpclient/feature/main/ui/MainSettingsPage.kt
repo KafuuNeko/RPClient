@@ -102,6 +102,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AccentAmberColor
@@ -1160,7 +1161,6 @@ private fun ConversationSummarySettings(
         SettingSwitchRow(
             icon = Icons.Rounded.AutoAwesome,
             title = stringResource(R.string.auto_summarize),
-            subtitle = stringResource(R.string.auto_summarize_desc),
             checked = state.autoSummaryEnabled,
             onCheckedChange = { enabled -> MainUiIntent.ToggleAutoSummaryEnabled(enabled).emit() },
         )
@@ -1169,37 +1169,30 @@ private fun ConversationSummarySettings(
             value = state.triggerMessageCount.toString(),
             onValueChange = { text -> MainUiIntent.ChangeSummaryTriggerMessageCount(text).emit() },
         )
-        NumberSettingRow(
-            title = stringResource(R.string.summary_max_messages_per_request),
-            value = state.maxMessagesPerRequest.toString(),
-            helper = stringResource(R.string.summary_max_messages_helper),
-            onValueChange = { text ->
-                MainUiIntent.ChangeSummaryMaxMessagesPerRequest(text).emit()
-            },
+        SummarySettingsDropdown(
+            label = stringResource(R.string.summary_mode),
+            selected = state.mode,
+            options = SummaryMode.entries,
+            optionTitleRes = { it.titleRes() },
+            onSelect = { mode -> MainUiIntent.SelectSummaryMode(mode).emit() },
         )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = stringResource(R.string.summary_injection_position),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+        if (state.mode == SummaryMode.Raw) {
+            NumberSettingRow(
+                title = stringResource(R.string.summary_max_messages_per_request),
+                value = state.maxMessagesPerRequest.toString(),
+                helper = stringResource(R.string.summary_max_messages_helper),
+                onValueChange = { text ->
+                    MainUiIntent.ChangeSummaryMaxMessagesPerRequest(text).emit()
+                },
             )
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SummaryInjectionPosition.entries.forEach { position ->
-                    FilterChip(
-                        selected = position == state.injectionState.position,
-                        onClick = {
-                            MainUiIntent.SelectSummaryInjectionPosition(position).emit()
-                        },
-                        label = { Text(stringResource(position.titleRes())) },
-                        shape = RoundedCornerShape(10.dp),
-                    )
-                }
-            }
         }
+        SummarySettingsDropdown(
+            label = stringResource(R.string.summary_injection_position),
+            selected = state.injectionState.position,
+            options = SummaryInjectionPosition.entries,
+            optionTitleRes = { it.titleRes() },
+            onSelect = { position -> MainUiIntent.SelectSummaryInjectionPosition(position).emit() },
+        )
         val injectionState = state.injectionState
         if (injectionState is MainSummaryInjectionState.InChat) {
             Column(
@@ -1242,6 +1235,65 @@ private fun ConversationSummarySettings(
             }
         }
     }
+}
+
+/**
+ * 使用与摘要模型选择器一致的带边框下拉组件展示摘要设置。
+ * @param label 字段标题。
+ * @param selected 当前选中的设置值。
+ * @param options 下拉菜单中的可选值。
+ * @param optionTitleRes 选项对应的本地化标题资源。
+ * @param onSelect 将选择结果交给页面发送 Intent。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> SummarySettingsDropdown(
+    label: String,
+    selected: T,
+    options: List<T>,
+    optionTitleRes: (T) -> Int,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    // 展开状态只控制菜单展示；设置变更仍通过 Intent 交给 ViewModel 持久化。
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = stringResource(optionTitleRes(selected)),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
+            shape = RoundedCornerShape(12.dp),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(optionTitleRes(option))) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** 返回摘要模式的本地化标题资源。 */
+private fun SummaryMode.titleRes(): Int = when (this) {
+    SummaryMode.Raw -> R.string.summary_mode_raw
+    SummaryMode.Classic -> R.string.summary_mode_classic
 }
 
 private fun MainSummarySettingsTab.titleRes(): Int {
@@ -1364,7 +1416,7 @@ private fun AboutEntryCard(
 private fun SettingSwitchRow(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -1430,7 +1482,7 @@ private fun AppThemeMode.titleRes(): Int {
     }
 }
 
-@Preview(widthDp = 390, heightDp = 844, showBackground = true)
+@Preview(widthDp = 390, heightDp = 2000, showBackground = true)
 @Composable
 private fun MainSettingsLayoutPreview() {
     AppTheme(dynamicColor = false) {

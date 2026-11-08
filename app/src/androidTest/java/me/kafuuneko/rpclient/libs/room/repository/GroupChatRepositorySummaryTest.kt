@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import org.junit.After
@@ -55,6 +56,39 @@ class GroupChatRepositorySummaryTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun rawAndClassicKeepIndependentWindowRulesAndSummaryRollback() = runBlocking {
+        val ids = (1..6).map { index ->
+            repository.createMessage(
+                sessionId = sessionId, source = GroupChatMessage.Source.User,
+                content = "message-$index", speakerCharacterId = null,
+                speakerNameSnapshot = "Alice", createTime = index.toLong(),
+            )
+        }
+        repository.saveSummary(sessionId, "existing memory", ids[1])
+        // 模式只影响读取的窗口，尚未生成正文时原有覆盖位置必须保持不变。
+        val raw = repository.getGroupChatSummaryData(
+            sessionId = sessionId, maxCandidateMessages = 2, mode = SummaryMode.Raw,
+        )!!.data
+        val classic = repository.getGroupChatSummaryData(
+            sessionId = sessionId, maxCandidateMessages = 2, mode = SummaryMode.Classic,
+        )!!.data
+        assertEquals(listOf(ids[2], ids[3], ids[5]), raw.messages.map { it.id })
+        assertEquals(ids.takeLast(3), classic.messages.map { it.id })
+        assertEquals(ids[1], repository.getGroupChatData(sessionId)?.summary?.coveredMessageId)
+        val snapshot = repository.getSummaryInputSnapshot(sessionId, classic.messages.map { it.id })
+        // Classic 成功后推进近期边界，同时保留旧摘要快照用于回滚。
+        repository.saveSummary(
+            sessionId = sessionId, content = "recent context memory",
+            coveredMessageId = classic.messages.dropLast(1).last().id,
+            expectedSnapshot = snapshot,
+        )
+        assertEquals(ids[4], repository.getGroupChatData(sessionId)?.summary?.coveredMessageId)
+        assertEquals(1, repository.getUnsummarizedMessageCount(sessionId))
+        assertTrue(repository.restorePreviousSummary(sessionId))
+        assertEquals(ids[1], repository.getGroupChatData(sessionId)?.summary?.coveredMessageId)
     }
 
     @Test
