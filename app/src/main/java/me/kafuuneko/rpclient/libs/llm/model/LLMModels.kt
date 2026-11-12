@@ -239,7 +239,9 @@ data class LLMUsage(
     /** 输入 Token 中由服务端缓存命中的部分，仅作为明细展示，不重复计入输入总量。 */
     val cachedPromptTokens: Int? = null,
     /** 输出 Token 中服务端标记为推理过程的部分，仅作为明细展示。 */
-    val reasoningTokens: Int? = null
+    val reasoningTokens: Int? = null,
+    /** 输入 Token 中用于创建缓存的部分，独立于缓存命中量，不重复计入输入总量。 */
+    val cacheCreationPromptTokens: Int? = null
 )
 
 /**

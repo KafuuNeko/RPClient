@@ -58,3 +58,22 @@ class AppDatabaseAutoMigration3To4Spec : AutoMigrationSpec {
         )
     }
 }
+
+/**
+ * 主业务数据库 v5→v6 将缓存写入与读取分开记录。
+ *
+ * 旧 Anthropic 记录只保存了读写合计，无法还原真实命中量，因此将该细分值标记为未知。
+ * 原有输入、输出总量和其他协议的缓存读取量均可继续用于统计。
+ */
+class AppDatabaseAutoMigration5To6Spec : AutoMigrationSpec {
+    /** 清除旧 Anthropic 记录中无法还原的缓存读取归因。 */
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            sql = """
+            UPDATE llm_token_usage_records
+            SET cachedInputTokens = NULL
+            WHERE protocol = 'AnthropicMessages'
+            """.trimIndent(),
+        )
+    }
+}

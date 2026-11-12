@@ -18,7 +18,9 @@ data class TokenUsageSummaryItem(
     /** 命中缓存的输入 Token 数。 */
     val cachedInputTokens: Long = 0L,
     /** 服务端标记的推理 Token 数。 */
-    val reasoningTokens: Long = 0L
+    val reasoningTokens: Long = 0L,
+    /** 服务端上报的缓存写入 Token 数。 */
+    val cacheCreationInputTokens: Long = 0L
 ) {
     val totalTokens: Long
         get() = inputTokens + outputTokens
@@ -111,7 +113,9 @@ data class TokenUsageRecordItem(
     /** 输出 Token 中由服务端标记为推理过程的数量。 */
     val reasoningTokens: Long?,
     /** 本次操作持续的毫秒数。 */
-    val durationMs: Long
+    val durationMs: Long,
+    /** 输入 Token 中用于创建服务端缓存的数量；未上报时为空。 */
+    val cacheCreationInputTokens: Long? = null
 ) {
     val totalTokens: Long
         get() = inputTokens + outputTokens
@@ -150,5 +154,6 @@ internal fun LLMTokenUsageRecord.toUiModel(): TokenUsageRecordItem {
         cachedInputTokens = cachedInputTokens,
         reasoningTokens = reasoningTokens,
         durationMs = durationMs,
+        cacheCreationInputTokens = cacheCreationInputTokens,
     )
 }

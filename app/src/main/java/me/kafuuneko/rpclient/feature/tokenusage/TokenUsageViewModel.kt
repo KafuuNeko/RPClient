@@ -120,6 +120,7 @@ class TokenUsageViewModel : CoreViewModel<TokenUsageUiIntent, TokenUsageUiState>
                 outputTokens = dashboard.summary.outputTokens,
                 cachedInputTokens = dashboard.summary.cachedInputTokens,
                 reasoningTokens = dashboard.summary.reasoningTokens,
+                cacheCreationInputTokens = dashboard.summary.cacheCreationInputTokens,
             ),
             trendPoints = trendPoints,
             selectedPointKey = null,

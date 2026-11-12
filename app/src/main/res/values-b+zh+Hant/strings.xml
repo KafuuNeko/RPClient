@@ -169,7 +169,8 @@
     <string name="token_usage_host">Host：%1$s (%2$s)</string>
     <string name="token_usage_stream">串流</string>
     <string name="token_usage_once">單次</string>
-    <string name="token_usage_cached_input">快取輸入 %1$s</string>
+    <string name="token_usage_cached_input">快取讀取 %1$s</string>
+    <string name="token_usage_cache_creation">快取寫入 %1$s</string>
     <string name="token_usage_reasoning">推理 %1$s</string>
     <string name="token_usage_duration">%1$d 毫秒</string>
     <string name="clear_token_usage">清空統計</string>

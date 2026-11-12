@@ -11,13 +11,14 @@ import me.kafuuneko.rpclient.libs.room.model.LLMTokenUsageSummary
 /** 成功 LLM 请求 Token 用量的数据库访问接口。 */
 @Dao
 interface LLMTokenUsageDao : MutableDao<LLMTokenUsageRecord> {
-    /** 汇总指定起始时间之后的请求数与输入、输出、缓存及推理 Token。 */
+    /** 汇总指定起始时间之后的请求数与输入、输出、缓存读写及推理 Token。 */
     @Query(
         """
         SELECT COUNT(*) AS requestCount,
                COALESCE(SUM(inputTokens), 0) AS inputTokens,
                COALESCE(SUM(outputTokens), 0) AS outputTokens,
                COALESCE(SUM(cachedInputTokens), 0) AS cachedInputTokens,
+               COALESCE(SUM(cacheCreationInputTokens), 0) AS cacheCreationInputTokens,
                COALESCE(SUM(reasoningTokens), 0) AS reasoningTokens
         FROM llm_token_usage_records
         WHERE createTime >= :startTime

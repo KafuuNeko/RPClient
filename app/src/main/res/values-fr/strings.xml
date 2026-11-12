@@ -169,7 +169,8 @@
     <string name="token_usage_host">Hôte : %1$s (%2$s)</string>
     <string name="token_usage_stream">Streaming</string>
     <string name="token_usage_once">Unique</string>
-    <string name="token_usage_cached_input">Entrée en cache %1$s</string>
+    <string name="token_usage_cached_input">Lecture du cache %1$s</string>
+    <string name="token_usage_cache_creation">Écriture du cache %1$s</string>
     <string name="token_usage_reasoning">Raisonnement %1$s</string>
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">Effacer les statistiques</string>

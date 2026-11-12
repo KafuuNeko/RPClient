@@ -484,30 +484,37 @@ private fun SummaryMetrics(summary: TokenUsageSummaryItem) {
         )
     }
 
-    if (summary.cachedInputTokens > 0L || summary.reasoningTokens > 0L) {
+    if (summary.cachedInputTokens > 0L || summary.cacheCreationInputTokens > 0L) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (summary.cachedInputTokens > 0L) {
+            SummaryMetricCell(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Rounded.Savings,
+                title = stringResource(R.string.token_usage_cached_input, "").trim(),
+                value = summary.cachedInputTokens.formatted(),
+                accentColor = TokenUsageCachedColor,
+            )
+            if (summary.cacheCreationInputTokens > 0L) {
                 SummaryMetricCell(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.Savings,
-                    title = stringResource(R.string.token_usage_cached_input, "").trim(),
-                    value = summary.cachedInputTokens.formatted(),
+                    icon = Icons.Rounded.Storage,
+                    title = stringResource(R.string.token_usage_cache_creation, "").trim(),
+                    value = summary.cacheCreationInputTokens.formatted(),
                     accentColor = TokenUsageCachedColor,
                 )
             }
-            if (summary.reasoningTokens > 0L) {
-                SummaryMetricCell(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Rounded.AutoGraph,
-                    title = stringResource(R.string.token_usage_reasoning, "").trim(),
-                    value = summary.reasoningTokens.formatted(),
-                    accentColor = TokenUsageReasoningColor,
-                )
-            }
         }
+    }
+    if (summary.reasoningTokens > 0L) {
+        SummaryMetricCell(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Rounded.AutoGraph,
+            title = stringResource(R.string.token_usage_reasoning, "").trim(),
+            value = summary.reasoningTokens.formatted(),
+            accentColor = TokenUsageReasoningColor,
+        )
     }
 }
 
@@ -866,20 +873,6 @@ private fun RequestMetadata(item: TokenUsageRecordItem) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
-        if (item.cachedInputTokens != null && item.cachedInputTokens > 0L) {
-            Text(
-                text = "·",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            Text(
-                text = "💾 ${item.cachedInputTokens.formatted()}",
-                style = MaterialTheme.typography.bodySmall,
-                color = TokenUsageCachedColor,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-        }
     }
 }
 
@@ -921,7 +914,7 @@ private fun RequestTokenBreakdown(item: TokenUsageRecordItem, isExpanded: Boolea
     }
 }
 
-/** 展示服务端点及输入输出计数来源。 */
+/** 展示服务端点、计数来源与缓存读写明细。 */
 @Composable
 private fun RequestDetails(item: TokenUsageRecordItem) {
     // 输入与输出可能使用不同计数来源；分词器缺失时不显示名称行。
@@ -945,6 +938,27 @@ private fun RequestDetails(item: TokenUsageRecordItem) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
         )
+        // 保留服务端明确返回的零值，便于区分已写入缓存与实际命中。
+        if (item.cachedInputTokens != null) {
+            Text(
+                text = stringResource(
+                    R.string.token_usage_cached_input,
+                    item.cachedInputTokens.formatted()
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = TokenUsageCachedColor,
+            )
+        }
+        if (item.cacheCreationInputTokens != null) {
+            Text(
+                text = stringResource(
+                    R.string.token_usage_cache_creation,
+                    item.cacheCreationInputTokens.formatted()
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = TokenUsageCachedColor,
+            )
+        }
         if (!item.tokenizerName.isNullOrBlank()) {
             Text(
                 text = stringResource(R.string.token_usage_tokenizer, item.tokenizerName),
@@ -1045,6 +1059,7 @@ private fun TokenUsageLayoutPreview() {
                     outputTokens = 38_320,
                     cachedInputTokens = 45_000,
                     reasoningTokens = 6_200,
+                    cacheCreationInputTokens = 12_000,
                 ),
                 trendPoints = listOf(
                     TokenUsageTrendPoint(
@@ -1145,6 +1160,7 @@ private fun TokenUsageLayoutPreview() {
                         tokenizerName = null,
                         cachedInputTokens = 1_024,
                         reasoningTokens = null,
+                        cacheCreationInputTokens = 512,
                         durationMs = 2_340,
                     ),
                 ),

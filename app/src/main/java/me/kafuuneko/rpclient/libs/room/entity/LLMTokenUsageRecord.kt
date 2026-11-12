@@ -76,7 +76,7 @@ data class LLMTokenUsageRecord(
     /** 输出 Token 数值的来源。 */
     val outputTokenSource: LLMTokenUsageSource,
 
-    /** 服务端上报的缓存输入 Token 数；服务端未提供时为空。 */
+    /** 服务端上报的缓存读取 Token 数；服务端未提供时为空。 */
     val cachedInputTokens: Long? = null,
 
     /** 服务端上报的推理 Token 数；服务端未提供时为空。 */
@@ -86,5 +86,8 @@ data class LLMTokenUsageRecord(
     val tokenizerName: String? = null,
 
     /** 从发起请求到成功消费完整响应的耗时，单位为毫秒。 */
-    val durationMs: Long
+    val durationMs: Long,
+
+    /** 服务端上报的缓存写入 Token 数；服务端未提供或旧记录无法还原时为空。 */
+    val cacheCreationInputTokens: Long? = null
 )

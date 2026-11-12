@@ -169,7 +169,8 @@
     <string name="token_usage_host">服务地址：%1$s（%2$s）</string>
     <string name="token_usage_stream">流式</string>
     <string name="token_usage_once">单次</string>
-    <string name="token_usage_cached_input">缓存输入 %1$s</string>
+    <string name="token_usage_cached_input">缓存读取 %1$s</string>
+    <string name="token_usage_cache_creation">缓存写入 %1$s</string>
     <string name="token_usage_reasoning">推理 %1$s</string>
     <string name="token_usage_duration">%1$d 毫秒</string>
     <string name="clear_token_usage">清空统计</string>

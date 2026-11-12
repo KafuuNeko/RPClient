@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "0f9627ebd9f8c24ff17d3c9f6115d293",
+    "identityHash": "2c12dcfd8b287fc74abfeeeec71fec9c",
     "entities": [
       {
         "tableName": "prompt_presets",
@@ -2388,7 +2388,7 @@
       },
       {
         "tableName": "llm_token_usage_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createTime` INTEGER NOT NULL, `providerId` INTEGER, `providerName` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiHost` TEXT NOT NULL, `apiPort` INTEGER NOT NULL, `requestedModel` TEXT NOT NULL, `effectiveModel` TEXT NOT NULL, `isStreaming` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, `outputTokens` INTEGER NOT NULL, `inputTokenSource` TEXT NOT NULL, `outputTokenSource` TEXT NOT NULL, `cachedInputTokens` INTEGER, `reasoningTokens` INTEGER, `tokenizerName` TEXT, `durationMs` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createTime` INTEGER NOT NULL, `providerId` INTEGER, `providerName` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiHost` TEXT NOT NULL, `apiPort` INTEGER NOT NULL, `requestedModel` TEXT NOT NULL, `effectiveModel` TEXT NOT NULL, `isStreaming` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, `outputTokens` INTEGER NOT NULL, `inputTokenSource` TEXT NOT NULL, `outputTokenSource` TEXT NOT NULL, `cachedInputTokens` INTEGER, `reasoningTokens` INTEGER, `tokenizerName` TEXT, `durationMs` INTEGER NOT NULL, `cacheCreationInputTokens` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2499,6 +2499,11 @@
             "columnName": "durationMs",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "cacheCreationInputTokens",
+            "columnName": "cacheCreationInputTokens",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -2607,7 +2612,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0f9627ebd9f8c24ff17d3c9f6115d293')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2c12dcfd8b287fc74abfeeeec71fec9c')"
     ]
   }
 }

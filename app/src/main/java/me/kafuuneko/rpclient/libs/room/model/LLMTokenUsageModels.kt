@@ -13,7 +13,9 @@ data class LLMTokenUsageSummary(
     /** 命中缓存的输入 Token 数。 */
     val cachedInputTokens: Long = 0L,
     /** 服务端标记的推理 Token 数。 */
-    val reasoningTokens: Long = 0L
+    val reasoningTokens: Long = 0L,
+    /** 服务端上报的缓存写入 Token 数，已包含在输入总量中。 */
+    val cacheCreationInputTokens: Long = 0L
 )
 
 /** 按本地自然日分组的 Token 用量统计项。 */

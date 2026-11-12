@@ -169,7 +169,8 @@
     <string name="token_usage_host">Host: %1$s (%2$s)</string>
     <string name="token_usage_stream">Luồng</string>
     <string name="token_usage_once">Một lần</string>
-    <string name="token_usage_cached_input">Đầu vào bộ nhớ đệm %1$s</string>
+    <string name="token_usage_cached_input">Đọc bộ nhớ đệm %1$s</string>
+    <string name="token_usage_cache_creation">Ghi bộ nhớ đệm %1$s</string>
     <string name="token_usage_reasoning">Suy luận %1$s</string>
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">Xóa thống kê</string>

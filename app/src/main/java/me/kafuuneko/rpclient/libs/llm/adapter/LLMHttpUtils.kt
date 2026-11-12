@@ -20,6 +20,7 @@ import me.kafuuneko.rpclient.libs.llm.LLMHttpStatusException
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
@@ -223,12 +224,18 @@ internal fun JsonObject.intOrNull(name: String): Int? {
 internal fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
     if (this == null) return newer
     if (newer == null) return this
+    // Anthropic 在起始事件与后续增量中分别上报输入、输出，不能保留旧输出对应的总量。
+    val input = newer.promptTokens ?: promptTokens
+    val output = newer.completionTokens ?: completionTokens
+    val total = newer.totalTokens
+        ?: if (input != null && output != null) input + output else totalTokens
     return LLMUsage(
-        promptTokens = newer.promptTokens ?: promptTokens,
-        completionTokens = newer.completionTokens ?: completionTokens,
-        totalTokens = newer.totalTokens ?: totalTokens,
+        promptTokens = input,
+        completionTokens = output,
+        totalTokens = total,
         cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
         reasoningTokens = newer.reasoningTokens ?: reasoningTokens,
+        cacheCreationPromptTokens = newer.cacheCreationPromptTokens ?: cacheCreationPromptTokens,
     )
 }
 
@@ -464,7 +471,13 @@ internal fun List<LLMMessage>.toAlternatingConversationMessages(
  * 标准化模型配置的 baseUrl，避免拼接路径时出现重复斜杠。
  */
 internal fun LLMProviderConfig.normalizedBaseUrl(): String {
-    return baseUrl.trim().trimEnd('/')
+    val normalized = baseUrl.trim().trimEnd('/')
+    // Anthropic 适配器统一追加 /v1，兼容旧预设与用户已保存的版本化地址。
+    return if (protocol == LLMProviderProtocol.AnthropicMessages) {
+        normalized.removeSuffix("/v1")
+    } else {
+        normalized
+    }
 }
 
 /**

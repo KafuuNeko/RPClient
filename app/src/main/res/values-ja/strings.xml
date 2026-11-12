@@ -170,7 +170,8 @@
     <string name="token_usage_host">ホスト: %1$s (%2$s)</string>
     <string name="token_usage_stream">ストリーミング</string>
     <string name="token_usage_once">単発</string>
-    <string name="token_usage_cached_input">キャッシュ済み入力 %1$s</string>
+    <string name="token_usage_cached_input">キャッシュ読み取り %1$s</string>
+    <string name="token_usage_cache_creation">キャッシュ書き込み %1$s</string>
     <string name="token_usage_reasoning">推論 %1$s</string>
     <string name="token_usage_duration">%1$d ms</string>
     <string name="clear_token_usage">使用量をクリア</string>

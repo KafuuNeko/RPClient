@@ -266,14 +266,9 @@ private fun JsonObject.anthropicUsageFromContainer(): LLMUsage? {
     if (hasNoUsageCounts) {
         return null
     }
-    // Anthropic 将未缓存、缓存创建和缓存命中的输入拆分上报，统计时需要重新合并
-    val cached = if (cacheCreation != null || cacheRead != null) {
-        (cacheCreation ?: 0) + (cacheRead ?: 0)
-    } else {
-        null
-    }
-    val input = if (directInput != null || cached != null) {
-        (directInput ?: 0) + (cached ?: 0)
+    // 输入总量包含未缓存、缓存写入与缓存读取；明细保留读写各自的数值。
+    val input = if (directInput != null || cacheCreation != null || cacheRead != null) {
+        (directInput ?: 0) + (cacheCreation ?: 0) + (cacheRead ?: 0)
     } else {
         null
     }
@@ -281,7 +276,8 @@ private fun JsonObject.anthropicUsageFromContainer(): LLMUsage? {
         promptTokens = input,
         completionTokens = output,
         totalTokens = if (input != null && output != null) input + output else null,
-        cachedPromptTokens = cached,
+        cachedPromptTokens = cacheRead,
+        cacheCreationPromptTokens = cacheCreation,
     )
 }
 

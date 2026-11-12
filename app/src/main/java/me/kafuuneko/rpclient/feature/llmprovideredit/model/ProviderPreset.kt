@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATC
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
+import me.kafuuneko.rpclient.libs.room.repository.DEFAULT_CLAUDE_MODEL
 
 /**
  * 常用模型配置预设模板，用于快速填入标准接入参数。
@@ -50,8 +51,8 @@ enum class ProviderPreset(
         displayName = "Anthropic Claude",
         providerType = LLMProviderType.Claude,
         protocol = LLMProviderProtocol.AnthropicMessages,
-        baseUrl = "https://api.anthropic.com/v1",
-        defaultModel = "claude-3-7-sonnet-latest",
+        baseUrl = "https://api.anthropic.com",
+        defaultModel = DEFAULT_CLAUDE_MODEL,
         defaultRequestBodyPatchJson = DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON,
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.Cl100kBase,
         defaultUseServerReportedUsage = true

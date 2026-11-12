@@ -310,6 +310,67 @@ class AppDatabaseMigrationTest {
             }
     }
 
+    @Test
+    fun migrate5To6_discardsAmbiguousAnthropicCacheDetailsAndPreservesTotals() {
+        // 旧 Anthropic 缓存列混合读写；其他协议的读取统计仍然有效。
+        val databaseName = "app-cache-usage-migration-test"
+        migrationHelper.createDatabase(name = databaseName, version = 5).apply {
+            execSQL(
+                sql = """
+                INSERT INTO llm_token_usage_records (
+                    id, createTime, providerName, providerType, protocol, apiHost, apiPort,
+                    requestedModel, effectiveModel, isStreaming, inputTokens, outputTokens,
+                    inputTokenSource, outputTokenSource, cachedInputTokens, durationMs
+                ) VALUES (
+                    1, 1, 'Claude', 'Claude', 'AnthropicMessages', 'example.invalid', 443,
+                    'claude-model', 'claude-model', 1, 6000, 100,
+                    'ProviderReported', 'ProviderReported', 5000, 1000
+                ), (
+                    2, 2, 'OpenAI', 'ChatGPT', 'OpenAICompatible', 'example.invalid', 443,
+                    'other-model', 'other-model', 0, 8000, 200,
+                    'ProviderReported', 'ProviderReported', 4000, 2000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+        val migrated = migrationHelper.runMigrationsAndValidate(
+            name = databaseName,
+            version = 6,
+            validateDroppedTables = true,
+        )
+
+        // 缓存细分无法还原时保持未知，不丢失请求本身或输入输出总量。
+        migrated.query(
+            "SELECT inputTokens, outputTokens, cachedInputTokens, cacheCreationInputTokens FROM llm_token_usage_records ORDER BY id",
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(6000L, cursor.getLong(0))
+            assertEquals(100L, cursor.getLong(1))
+            assertEquals(true, cursor.isNull(2))
+            assertEquals(true, cursor.isNull(3))
+            assertEquals(true, cursor.moveToNext())
+            assertEquals(8000L, cursor.getLong(0))
+            assertEquals(200L, cursor.getLong(1))
+            assertEquals(4000L, cursor.getLong(2))
+            assertEquals(true, cursor.isNull(3))
+            assertEquals(false, cursor.moveToNext())
+        }
+        // 新版本可以独立保存缓存读写，创建缓存不再表现为缓存命中。
+        migrated.execSQL(
+            "UPDATE llm_token_usage_records SET cachedInputTokens = 0, cacheCreationInputTokens = 5000 WHERE id = 1",
+        )
+        migrated.query(
+            "SELECT SUM(inputTokens), SUM(cachedInputTokens), SUM(cacheCreationInputTokens) FROM llm_token_usage_records",
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(14000L, cursor.getLong(0))
+            assertEquals(4000L, cursor.getLong(1))
+            assertEquals(5000L, cursor.getLong(2))
+        }
+        migrated.close()
+    }
+
     private companion object {
         const val DatabaseName = "app-migration-test"
         const val RegexDatabaseName = "app-regex-migration-test"

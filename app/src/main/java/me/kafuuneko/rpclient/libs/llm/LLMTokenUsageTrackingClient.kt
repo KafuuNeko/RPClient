@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.llm
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import me.kafuuneko.rpclient.libs.llm.adapter.mergeWith
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
@@ -125,6 +126,8 @@ internal class LLMTokenUsageTrackingClient(
             inputTokenSource = reportedInput.toSource(tokenizer.strategy),
             outputTokenSource = reportedOutput.toSource(tokenizer.strategy),
             cachedInputTokens = acceptedUsage?.cachedPromptTokens?.coerceAtLeast(0)?.toLong(),
+            cacheCreationInputTokens = acceptedUsage?.cacheCreationPromptTokens?.coerceAtLeast(0)
+                ?.toLong(),
             reasoningTokens = acceptedUsage?.reasoningTokens?.coerceAtLeast(0)?.toLong(),
             tokenizerName = tokenizer.name.takeIf { hasEstimate },
             durationMs = ((System.nanoTime() - startNanos) / NANOS_PER_MILLISECOND)
@@ -156,18 +159,6 @@ internal class LLMTokenUsageTrackingClient(
             PromptTokenizerStrategy.Estimated,
             PromptTokenizerStrategy.Conservative -> LLMTokenUsageSource.ProxyEstimate
         }
-    }
-
-    private fun LLMUsage?.mergeWith(newer: LLMUsage?): LLMUsage? {
-        if (this == null) return newer
-        if (newer == null) return this
-        return LLMUsage(
-            promptTokens = newer.promptTokens ?: promptTokens,
-            completionTokens = newer.completionTokens ?: completionTokens,
-            totalTokens = newer.totalTokens ?: totalTokens,
-            cachedPromptTokens = newer.cachedPromptTokens ?: cachedPromptTokens,
-            reasoningTokens = newer.reasoningTokens ?: reasoningTokens,
-        )
     }
 
     private fun joinOutput(reasoning: String, content: String): String {
