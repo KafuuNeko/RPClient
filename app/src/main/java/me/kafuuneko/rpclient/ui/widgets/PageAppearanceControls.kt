@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import me.kafuuneko.rpclient.libs.appearance.surfaceOpacity
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
+import me.kafuuneko.rpclient.ui.theme.LocalDialogControlOpacity
 
 /**
  * 筛选项沿用所属区域的背景透明度和模糊度，标签与选择语义保持 Material 行为。
@@ -172,10 +174,13 @@ fun pageSliderColors(colors: SliderColors = SliderDefaults.colors()): SliderColo
     )
 }
 
-/** 输入边框跟随内容区，文字、浮动标签、光标以及错误提示保持原有颜色。 */
+/** 输入框底板和描边继承所属栏位；弹窗优先使用独立控件参数，文字与标签保持原色。 */
 @Composable
 fun pageOutlinedTextFieldColors(colors: TextFieldColors = OutlinedTextFieldDefaults.colors()): TextFieldColors {
-    val opacity = interactiveSurfaceOpacity()
+    // 会话及故事编辑页自行绘制底板，未启用通用容器装饰时仍需读取页面区域参数。
+    val opacity = (LocalDialogControlOpacity.current
+        ?: LocalPageBackground.current?.settings?.surfaceOpacity(LocalGeneralSurfaceKind.current)
+        ?: 1f).coerceAtLeast(0.1f)
     return colors.copy(
         focusedContainerColor = colors.focusedContainerColor.copy(alpha = colors.focusedContainerColor.alpha * opacity),
         unfocusedContainerColor = colors.unfocusedContainerColor.copy(alpha = colors.unfocusedContainerColor.alpha * opacity),

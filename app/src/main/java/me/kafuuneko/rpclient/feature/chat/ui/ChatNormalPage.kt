@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,11 +35,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -52,7 +48,6 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -81,11 +76,8 @@ import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -110,17 +102,16 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
-import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
-import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
+import me.kafuuneko.rpclient.ui.message.ConversationComposer
+import me.kafuuneko.rpclient.ui.message.ConversationQuickAction
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
-import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
@@ -131,7 +122,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 import me.kafuuneko.rpclient.utils.toPreview
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /**
  * 渲染单聊会话主页，保留消息滚动、输入与生成状态的原有组合位置。
@@ -863,8 +853,8 @@ private fun MessageEditContent(
                 focusedTextColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.onSurface,
                 cursorColor = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.primary,
-                focusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.06f * LocalPageBubbleOpacity.current) else Color.Transparent,
-                unfocusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.04f * LocalPageBubbleOpacity.current) else Color.Transparent,
+                focusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.06f) else Color.Transparent,
+                unfocusedContainerColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.04f) else Color.Transparent,
                 focusedBorderColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.72f) else MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = if (isUser) pageUserBubbleContentColor().copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline,
             ),
@@ -970,55 +960,6 @@ private fun ThinkBlock(
 }
 
 @Composable
-private fun QuickActionPill(
-    icon: ImageVector,
-    label: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    // 保留禁用态和点击反馈，避免生成期间误触不可用操作。
-    val hapticFeedback = LocalHapticFeedback.current
-    AppSurface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (enabled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * LocalPageBottomBarOpacity.current)
-        },
-        modifier = Modifier.clickable(
-            enabled = enabled,
-            onClick = {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onClick()
-            },
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f,
-                ),
-                modifier = Modifier.size(14.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f,
-                ),
-            )
-        }
-    }
-}
-
-@Composable
 private fun MessageActions(
     message: ChatMessageUiModel,
     isFirstMessage: Boolean,
@@ -1090,6 +1031,7 @@ private fun MessageActions(
     }
 }
 
+/** 单聊输入意图与代写面板接入公共输入区。 */
 @Composable
 private fun ChatInputBar(
     draft: String,
@@ -1099,162 +1041,48 @@ private fun ChatInputBar(
     imageState: MessageImageState,
     emit: ChatUiIntent.() -> Unit,
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val sendButtonColor by animateColorAsState(
-        targetValue = if (isGenerating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        label = "sendButtonColor",
-    )
-
-    PageSurface(
-        kind = PageSurfaceKind.BottomBar,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
-        tonalElevation = 2.dp * LocalPageBottomBarOpacity.current,
-        shadowElevation = 3.dp * LocalPageBottomBarOpacity.current,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                ),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-                    .height(0.5.dp),
+    // 代写期间保留输入区和选择能力，具体状态继续由单聊页面管理。
+    ConversationComposer(
+        draft = draft,
+        placeholder = stringResource(R.string.input_next_story),
+        imageState = imageState,
+        isGenerating = isGenerating,
+        inputEnabled = !isGenerating || writingState != null,
+        readOnly = writingState != null,
+        onDraftChange = { ChatUiIntent.ChangeInputDraft(it).emit() },
+        onSend = { ChatUiIntent.SendMessage.emit() },
+        onStop = { ChatUiIntent.StopGeneration.emit() },
+        onImageAction = { ChatUiIntent.ImageAction(it).emit() },
+        beforeActions = {
+            writingState?.let { ChatWritingPanel(state = it, emit = emit) }
+        },
+        actions = {
+            ConversationQuickAction(
+                icon = Icons.Rounded.AutoAwesome,
+                label = stringResource(R.string.continue_latest_reply),
+                enabled = hasAssistantMessage && !isGenerating,
+                onClick = { ChatUiIntent.ContinueLast.emit() },
             )
-
-            // 附件为空时仍保留选图失败提示。
-            DraftAttachmentTray(
-                state = imageState,
+            ConversationQuickAction(
+                icon = Icons.Rounded.Edit,
+                label = stringResource(R.string.impersonate_user),
                 enabled = !isGenerating && !imageState.loadState.isSubmitting,
-                emit = { action -> ChatUiIntent.ImageAction(action).emit() },
+                onClick = { ChatUiIntent.ImpersonateUser.emit() },
             )
-
-            // - 快捷操作胶囊条（随页面整体上移平推，常驻方便快速操作）
-            writingState?.let { writing ->
-                ChatWritingPanel(
-                    state = writing,
-                    emit = emit,
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                QuickActionPill(
-                    icon = Icons.Rounded.AutoAwesome,
-                    label = stringResource(R.string.continue_latest_reply),
-                    enabled = hasAssistantMessage && !isGenerating,
-                    onClick = { ChatUiIntent.ContinueLast.emit() },
-                )
-                QuickActionPill(
-                    icon = Icons.Rounded.Edit,
-                    label = stringResource(R.string.impersonate_user),
-                    enabled = !isGenerating && !imageState.loadState.isSubmitting,
-                    onClick = { ChatUiIntent.ImpersonateUser.emit() },
-                )
-                QuickActionPill(
-                    icon = Icons.Rounded.Refresh,
-                    label = stringResource(R.string.regenerate_latest_reply),
-                    enabled = hasAssistantMessage && !isGenerating,
-                    onClick = { ChatUiIntent.RegenerateLast.emit() },
-                )
-                QuickActionPill(
-                    icon = Icons.Rounded.AutoAwesome,
-                    label = stringResource(R.string.summarize_now),
-                    enabled = hasAssistantMessage && !isGenerating,
-                    onClick = { ChatUiIntent.SummarizeNow.emit() },
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                RpScrollableOutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = draft,
-                    onValueChange = { text -> ChatUiIntent.ChangeInputDraft(text).emit() },
-                    enabled = (!isGenerating || writingState != null) && !imageState.loadState.isSubmitting,
-                    readOnly = writingState != null,
-                    minLines = 1,
-                    maxLines = 5,
-                    shape = RoundedCornerShape(24.dp),
-                    leadingIcon = {
-                        IconButton(
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                ChatUiIntent.ImageAction(MessageImageAction.Choose(editing = false))
-                                    .emit()
-                            },
-                            enabled = !isGenerating && !imageState.loadState.isBusy && imageState.canAddDraft,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ImageIcon,
-                                contentDescription = stringResource(R.string.attach_images),
-                                tint = if (!isGenerating && imageState.canAddDraft) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                },
-                            )
-                        }
-                    },
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.input_next_story),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            ),
-                        )
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                        disabledBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f * LocalPageBottomBarOpacity.current),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                            alpha = 0.22f * LocalPageBottomBarOpacity.current,
-                        ),
-                    ),
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                AppSurface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = sendButtonColor,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 2.dp,
-                    onClick = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        if (isGenerating) ChatUiIntent.StopGeneration.emit()
-                        else ChatUiIntent.SendMessage.emit()
-                    },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isGenerating) Icons.Rounded.Stop else Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = if (isGenerating) stringResource(R.string.stop) else stringResource(
-                                id = R.string.send,
-                            ),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
+            ConversationQuickAction(
+                icon = Icons.Rounded.Refresh,
+                label = stringResource(R.string.regenerate_latest_reply),
+                enabled = hasAssistantMessage && !isGenerating,
+                onClick = { ChatUiIntent.RegenerateLast.emit() },
+            )
+            ConversationQuickAction(
+                icon = Icons.Rounded.AutoAwesome,
+                label = stringResource(R.string.summarize_now),
+                enabled = hasAssistantMessage && !isGenerating,
+                onClick = { ChatUiIntent.SummarizeNow.emit() },
+            )
+        },
+    )
 }
 
 private fun ChatGenerationState.isGenerating(): Boolean {

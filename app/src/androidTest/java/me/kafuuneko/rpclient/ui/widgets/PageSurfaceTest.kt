@@ -13,31 +13,256 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import kotlin.math.abs
+import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
+import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
+import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatLayout
+import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorDocument
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorReferenceState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorStructureState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorTopBarState
+import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiState
+import me.kafuuneko.rpclient.feature.storyeditor.ui.StoryEditorLayout
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import kotlin.math.abs
 
 /** 验证局部壁纸绘制的坐标、裁切和开关，防止背景变成气泡内重新居中的图片。 */
 class PageSurfaceTest {
     @get:Rule
     val mCompose = createComposeRule()
+
+    /** 在真实故事和群聊页面验证底部输入框读取底栏参数，避免被正文区透明度或装饰开关覆盖。 */
+    @Test
+    fun editorInputOutlinesFollowBottomBarOpacity() {
+        val mode = mutableIntStateOf(0)
+        val opacity = mutableFloatStateOf(1f)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        mCompose.setContent {
+            AppTheme(darkTheme = mode.intValue >= 2, dynamicColor = false) {
+                // 高对比描边避免浅色主题的低对比度与像素量化干扰区域透明度判定。
+                val colors = MaterialTheme.colorScheme
+                val outline = if (mode.intValue >= 2) Color.White else Color.Black
+                MaterialTheme(
+                    colorScheme = colors.copy(
+                        outline = outline,
+                        outlineVariant = outline,
+                        surfaceVariant = colors.surface
+                    )
+                ) {
+                    val isGroup = mode.intValue % 2 == 1
+                    val background = RenderedPageBackground(
+                        settings = PageBackground(
+                            page = if (isGroup) BackgroundPage.Group else BackgroundPage.Story,
+                            opacity = 0.65f,
+                            bubbleOpacity = 0.8f,
+                            bottomBarOpacity = opacity.floatValue,
+                        ),
+                    )
+                    // 正文和气泡参数固定，只改变底栏，以检测输入框是否取错区域。
+                    if (isGroup) {
+                        GroupChatLayout(
+                            uiState = groupPageState(),
+                            background = background,
+                        )
+                    } else {
+                        StoryEditorLayout(
+                            uiState = StoryEditorUiState.Normal(
+                                storyId = 1L,
+                                topBarState = StoryEditorTopBarState(title = "Story"),
+                                contentState = StoryEditorContentState(characterCount = 0),
+                                structureState = StoryEditorStructureState(
+                                    currentChapterId = 1L,
+                                    currentChapterTitle = "Chapter"
+                                ),
+                                referenceState = StoryEditorReferenceState(
+                                    hasMemory = false,
+                                    hasAuthorNote = false,
+                                    characterCount = 0,
+                                    lorebookEntryCount = 0
+                                ),
+                            ),
+                            document = StoryEditorDocument(
+                                storyId = 1L,
+                                chapterId = 1L,
+                                content = "",
+                                syncVersion = 1L
+                            ),
+                            background = background,
+                            emit = {},
+                        )
+                    }
+                }
+            }
+        }
+        // 浅深主题分别采样边框和相邻底板的色差，文字与图标不参与判定。
+        for (value in 0..3) {
+            mCompose.runOnIdle {
+                mode.intValue = value
+                opacity.floatValue = 1f
+            }
+            val label =
+                context.getString(if (value % 2 == 1) R.string.group_chat_message_hint else R.string.story_continuation_guidance)
+            val opaque = inputOutlineContrast(label)
+            mCompose.runOnIdle { opacity.floatValue = 0.25f }
+            val translucent = inputOutlineContrast(label)
+            assertTrue(
+                "Opaque input outline must be visible in mode $value: $opaque",
+                opaque > 0.1f
+            )
+            assertTrue(
+                "Input outline must follow bottom bar in mode $value: $translucent / $opaque",
+                translucent / opaque in 0.15f..0.35f
+            )
+        }
+    }
+
+    /** 在输入框中线采样底边，避开标签、占位文字和操作图标。 */
+    private fun inputOutlineContrast(label: String): Float {
+        val pixels =
+            mCompose.onNode(hasSetTextAction() and hasText(label)).captureToImage().toPixelMap()
+        val x = pixels.width / 2
+        val background = pixels[x, pixels.height * 4 / 5]
+        return (pixels.height * 9 / 10 until pixels.height).maxOf { y ->
+            val outline = pixels[x, y]
+            abs(outline.red - background.red) + abs(outline.green - background.green) +
+                abs(outline.blue - background.blue)
+        }
+    }
+
+    /** 两个真实页面共用输入几何，多行输入时发送按钮也必须保持垂直居中。 */
+    @Test
+    fun conversationComposersShareGeometryAndCenterSendButton() {
+        val group = mutableStateOf(false)
+        val draft = mutableStateOf("")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        mCompose.setContent {
+            AppTheme(dynamicColor = false) {
+                val background = RenderedPageBackground(
+                    settings = PageBackground(
+                        page = if (group.value) BackgroundPage.Group else BackgroundPage.Chat,
+                        bottomBarOpacity = 0.4f,
+                    ),
+                )
+                if (group.value) {
+                    GroupChatLayout(uiState = groupPageState(draft.value), background = background)
+                } else {
+                    ChatLayout(
+                        uiState = chatPageState(draft.value),
+                        background = background,
+                        emit = {})
+                }
+            }
+        }
+        // 用相同草稿分别渲染两类会话，直接比较输入框边界和发送图标中心。
+        for ((index, text) in listOf("", "First line\nSecond line\nThird line").withIndex()) {
+            var singleBounds: Rect? = null
+            for (isGroup in listOf(false, true)) {
+                mCompose.runOnIdle {
+                    group.value = isGroup
+                    draft.value = text
+                }
+                val field = mCompose.onNode(hasSetTextAction()).fetchSemanticsNode().boundsInRoot
+                val send = mCompose.onNodeWithContentDescription(context.getString(R.string.send))
+                    .fetchSemanticsNode().boundsInRoot
+                assertTrue(
+                    "Send button must be centered for group=$isGroup, multiline=$index",
+                    abs(field.center.y - send.center.y) <= 1f
+                )
+                if (isGroup) {
+                    val expected = requireNotNull(singleBounds)
+                    assertTrue(
+                        "Input bounds must match between conversations",
+                        abs(expected.left - field.left) <= 1f && abs(expected.top - field.top) <= 1f &&
+                            abs(expected.width - field.width) <= 1f && abs(expected.height - field.height) <= 1f
+                    )
+                } else {
+                    singleBounds = field
+                }
+                // 仅保存本用例的合成页面，便于核对实际圆角、字号和按钮对齐。
+                val bitmap = mCompose.onRoot().captureToImage().asAndroidBitmap()
+                context.cacheDir.resolve("composer-${if (isGroup) "group" else "chat"}-$index.png")
+                    .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }
+        }
+    }
+
+    /** 提供不依赖数据库和网络的群聊输入区状态。 */
+    private fun groupPageState(draft: String = ""): GroupChatUiState.Normal =
+        GroupChatUiState.Normal(
+            sessionId = 1L,
+            title = "Group",
+            members = emptyList(),
+            activeActivationStrategy = GroupChatActivationStrategy.Manual,
+            conversationState = GroupChatConversationState(
+                messages = emptyList(), hasCharacterMessage = false,
+                selectedSpeakerId = null, inputDraft = draft
+            ),
+            settingsState = GroupChatSettingsState(activationStrategy = GroupChatActivationStrategy.Manual),
+        )
+
+    /** 与群聊使用相同草稿，保留单聊本身的快捷操作和会话入口。 */
+    private fun chatPageState(draft: String): ChatUiState.Normal = ChatUiState.Normal(
+        session = ChatSessionItem(
+            id = 1L, title = "Chat", summarize = "", userNote = "", userName = "User",
+            userDescription = "", creatorNotes = "", autoSummaryPaused = false, messageCount = 0,
+            enabledLorebookEntryIds = emptySet()
+        ),
+        character = ChatCharacterItem(
+            id = 1L,
+            name = "Alice",
+            description = "",
+            personality = "",
+            scenario = "",
+            examplesOfDialogue = "",
+            postHistoryInstructions = "",
+            creatorNotes = "",
+            avatarText = "A",
+            accentColor = Color.Blue
+        ),
+        conversationState = ChatConversationState(
+            messages = emptyList(),
+            hasAssistantMessage = false,
+            inputDraft = draft
+        ),
+        lorebookState = ChatLorebookState(groups = emptyList()),
+        streamEnabled = true,
+    )
 
     /** 壁纸与局部背景相同时，圆角内外都不应出现阴影残边或主题底色渗出的细线。 */
     @Test

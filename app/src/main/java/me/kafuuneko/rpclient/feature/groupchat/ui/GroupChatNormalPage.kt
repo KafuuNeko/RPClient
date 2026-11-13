@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -36,7 +34,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -50,7 +47,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,7 +71,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -104,13 +99,13 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
-import me.kafuuneko.rpclient.ui.message.DraftAttachmentTray
+import me.kafuuneko.rpclient.ui.message.ConversationComposer
+import me.kafuuneko.rpclient.ui.message.ConversationQuickAction
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
 import me.kafuuneko.rpclient.ui.message.MessageImageGallery
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
-import me.kafuuneko.rpclient.ui.widgets.LocalPageBottomBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
 import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
@@ -121,7 +116,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
-import androidx.compose.material.icons.rounded.Image as ImageIcon
 
 /**
  * 渲染群聊会话主页，保留成员、消息列表与输入区的状态归属。
@@ -1230,54 +1224,7 @@ private fun GroupMessageActions(
     }
 }
 
-@Composable
-private fun QuickActionPill(
-    icon: ImageVector,
-    label: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    // 点击反馈与禁用状态保持一致，避免不可用操作产生交互。
-    val hapticFeedback = LocalHapticFeedback.current
-    AppSurface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (enabled) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f * LocalPageBottomBarOpacity.current)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * LocalPageBottomBarOpacity.current)
-        },
-        modifier = Modifier.clickable(
-            enabled = enabled,
-            onClick = {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onClick()
-            },
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f,
-                ),
-                modifier = Modifier.size(13.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                    alpha = 0.38f,
-                ),
-            )
-        }
-    }
-}
-
+/** 群聊输入意图与快捷操作接入公共输入区。 */
 @Composable
 private fun Composer(
     draft: String,
@@ -1291,118 +1238,29 @@ private fun Composer(
     onContinue: () -> Unit,
     onSummarize: () -> Unit,
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val sendButtonColor by animateColorAsState(
-        targetValue = if (generating) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-        label = "sendButtonColor",
-    )
-
-    PageSurface(
-        kind = PageSurfaceKind.BottomBar,
-        tonalElevation = 5.dp * LocalPageBottomBarOpacity.current,
-        shadowElevation = 8.dp * LocalPageBottomBarOpacity.current,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBottomBarOpacity.current),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                ),
-        ) {
-            // 待发送图片抽屉托盘
-            DraftAttachmentTray(
-                state = imageState,
-                enabled = !generating && !imageState.loadState.isSubmitting,
-                emit = onImageAction,
+    // 两类会话共享全部布局和配色，群聊仅提供自身支持的操作。
+    ConversationComposer(
+        draft = draft,
+        placeholder = stringResource(R.string.group_chat_message_hint),
+        imageState = imageState,
+        isGenerating = generating,
+        onDraftChange = onDraftChange,
+        onSend = onSend,
+        onStop = onStop,
+        onImageAction = onImageAction,
+        actions = {
+            ConversationQuickAction(
+                icon = Icons.Rounded.AutoAwesome,
+                label = stringResource(R.string.continue_latest_reply),
+                enabled = canContinue && !generating,
+                onClick = onContinue,
             )
-
-            // 快捷操作胶囊条
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                QuickActionPill(
-                    icon = Icons.Rounded.AutoAwesome,
-                    label = stringResource(R.string.continue_latest_reply),
-                    enabled = canContinue && !generating,
-                    onClick = onContinue,
-                )
-                QuickActionPill(
-                    icon = Icons.Rounded.AutoAwesome,
-                    label = stringResource(R.string.summarize_now),
-                    enabled = !generating && !imageState.loadState.isSubmitting,
-                    onClick = onSummarize,
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                RpScrollableOutlinedTextField(
-                    value = draft,
-                    onValueChange = onDraftChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp, max = 140.dp),
-                    enabled = !generating && !imageState.loadState.isSubmitting,
-                    placeholder = { Text(stringResource(R.string.group_chat_message_hint)) },
-                    shape = RoundedCornerShape(18.dp),
-                    maxLines = 5,
-                    leadingIcon = {
-                        IconButton(
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onImageAction(MessageImageAction.Choose(editing = false))
-                            },
-                            enabled = !generating && !imageState.loadState.isBusy && imageState.canAddDraft,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ImageIcon,
-                                contentDescription = stringResource(R.string.attach_images),
-                                tint = if (!generating && imageState.canAddDraft) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                },
-                            )
-                        }
-                    },
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                AppSurface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = sendButtonColor,
-                    tonalElevation = 2.dp,
-                    shadowElevation = 2.dp,
-                    onClick = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        if (generating) onStop()
-                        else onSend()
-                    },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (generating) {
-                                Icons.Rounded.Stop
-                            } else {
-                                Icons.AutoMirrored.Rounded.Send
-                            },
-                            contentDescription = stringResource(if (generating) R.string.stop else R.string.send),
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
+            ConversationQuickAction(
+                icon = Icons.Rounded.AutoAwesome,
+                label = stringResource(R.string.summarize_now),
+                enabled = !generating && !imageState.loadState.isSubmitting,
+                onClick = onSummarize,
+            )
+        },
+    )
 }

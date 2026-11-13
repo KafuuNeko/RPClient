@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,8 +76,10 @@ fun PageSurface(
         tonalElevation = tonalElevation,
         shadowElevation = 0.dp,
         border = border,
-        content = content,
-    )
+    ) {
+        // 普通会话页也需要区分输入框所属栏位，不能沿用正文区的透明度。
+        CompositionLocalProvider(LocalGeneralSurfaceKind provides kind, content = content)
+    }
 }
 
 /**
