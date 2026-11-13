@@ -2,8 +2,115 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "2c12dcfd8b287fc74abfeeeec71fec9c",
+    "identityHash": "0b5b18f88e6772c45786354f11ed722a",
     "entities": [
+      {
+        "tableName": "user_personas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `avatarFileUuid` TEXT, FOREIGN KEY(`avatarFileUuid`) REFERENCES `files`(`uuid`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarFileUuid",
+            "columnName": "avatarFileUuid",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_user_personas_avatarFileUuid",
+            "unique": false,
+            "columnNames": [
+              "avatarFileUuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_personas_avatarFileUuid` ON `${TABLE_NAME}` (`avatarFileUuid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "files",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "avatarFileUuid"
+            ],
+            "referencedColumns": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "user_persona_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `defaultPersonaId` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`defaultPersonaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultPersonaId",
+            "columnName": "defaultPersonaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_user_persona_settings_defaultPersonaId",
+            "unique": false,
+            "columnNames": [
+              "defaultPersonaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_persona_settings_defaultPersonaId` ON `${TABLE_NAME}` (`defaultPersonaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "user_personas",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "defaultPersonaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
       {
         "tableName": "prompt_presets",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL DEFAULT '', `revision` INTEGER NOT NULL DEFAULT 1, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
@@ -982,7 +1089,7 @@
       },
       {
         "tableName": "chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT, `userDescription` TEXT, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, FOREIGN KEY(`userPersonaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1029,14 +1136,12 @@
           {
             "fieldPath": "userName",
             "columnName": "userName",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userDescription",
             "columnName": "userDescription",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "creatorNotes",
@@ -1061,6 +1166,12 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "1"
+          },
+          {
+            "fieldPath": "userPersonaId",
+            "columnName": "userPersonaId",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -1078,9 +1189,29 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_sessions_characterId` ON `${TABLE_NAME}` (`characterId`)"
+          },
+          {
+            "name": "index_chat_sessions_userPersonaId",
+            "unique": false,
+            "columnNames": [
+              "userPersonaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_sessions_userPersonaId` ON `${TABLE_NAME}` (`userPersonaId`)"
           }
         ],
         "foreignKeys": [
+          {
+            "table": "user_personas",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "userPersonaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
           {
             "table": "character",
             "onDelete": "CASCADE",
@@ -1386,7 +1517,7 @@
       },
       {
         "tableName": "group_chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT NOT NULL, `userDescription` TEXT NOT NULL, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT, `userDescription` TEXT, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, FOREIGN KEY(`userPersonaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1415,14 +1546,12 @@
           {
             "fieldPath": "userName",
             "columnName": "userName",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userDescription",
             "columnName": "userDescription",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "scenario",
@@ -1514,6 +1643,12 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "1"
+          },
+          {
+            "fieldPath": "userPersonaId",
+            "columnName": "userPersonaId",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -1521,7 +1656,31 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_group_chat_sessions_userPersonaId",
+            "unique": false,
+            "columnNames": [
+              "userPersonaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_sessions_userPersonaId` ON `${TABLE_NAME}` (`userPersonaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "user_personas",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "userPersonaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "group_chat_members",
@@ -1970,7 +2129,7 @@
       },
       {
         "tableName": "stories",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `memory` TEXT NOT NULL, `summary` TEXT NOT NULL, `authorNote` TEXT NOT NULL, `includeUserPersona` INTEGER NOT NULL DEFAULT 0, `worldInfoGenerationStep` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `memory` TEXT NOT NULL, `summary` TEXT NOT NULL, `authorNote` TEXT NOT NULL, `userPersonaId` INTEGER NOT NULL DEFAULT -1, `worldInfoGenerationStep` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2003,11 +2162,11 @@
             "notNull": true
           },
           {
-            "fieldPath": "includeUserPersona",
-            "columnName": "includeUserPersona",
+            "fieldPath": "userPersonaId",
+            "columnName": "userPersonaId",
             "affinity": "INTEGER",
             "notNull": true,
-            "defaultValue": "0"
+            "defaultValue": "-1"
           },
           {
             "fieldPath": "worldInfoGenerationStep",
@@ -2039,7 +2198,18 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_stories_userPersonaId",
+            "unique": false,
+            "columnNames": [
+              "userPersonaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_stories_userPersonaId` ON `${TABLE_NAME}` (`userPersonaId`)"
+          }
+        ]
       },
       {
         "tableName": "story_volumes",
@@ -2612,7 +2782,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2c12dcfd8b287fc74abfeeeec71fec9c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0b5b18f88e6772c45786354f11ed722a')"
     ]
   }
 }

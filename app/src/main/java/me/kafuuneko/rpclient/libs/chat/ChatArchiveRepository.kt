@@ -3,13 +3,17 @@ package me.kafuuneko.rpclient.libs.chat
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import java.io.FilterInputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.Writer
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -19,11 +23,6 @@ import me.kafuuneko.rpclient.libs.room.entity.MessageImageEntity
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
-import java.io.FilterInputStream
-import java.io.IOException
-import java.io.InputStream
-import java.io.Writer
-import java.util.UUID
 
 /**
  * 单聊归档文件的应用层协调器。
@@ -216,6 +215,7 @@ class ChatArchiveRepository(
         archive: ChatArchive,
         characterId: Long,
         imageSources: Map<String, Uri> = emptyMap(),
+        userPersonaId: Long? = null,
     ): ChatArchiveImportResult = withContext(Dispatchers.IO) {
         val owner = UUID.randomUUID().toString()
         val preparation = ImportImagePreparation()
@@ -232,7 +232,7 @@ class ChatArchiveRepository(
                 }
             }
             mFiles.mutate(preparation.byHash.values.toList()) {
-                val sessionId = insertSession(archive, characterId)
+                val sessionId = insertSession(archive, characterId, userPersonaId)
                 insertMessages(archive, sessionId, attachments)
                 ChatArchiveImportResult(sessionId, skipped)
             }
@@ -302,7 +302,13 @@ class ChatArchiveRepository(
     }
 
     /** 创建会话时不复用来源安装的世界书及状态主键，避免同号误关联。 */
-    private suspend fun insertSession(archive: ChatArchive, characterId: Long): Long {
+    private suspend fun insertSession(
+        archive: ChatArchive,
+        characterId: Long,
+        userPersonaId: Long?
+    ): Long {
+        val personas = mAppDatabase.getUserPersonaDao()
+        val persona = userPersonaId?.let { personas.get(it) } ?: personas.active()
         requireNotNull(mCharacterDao.getCharacterById(characterId)) { "Selected character no longer exists" }
         // 只恢复可移植设置；外部数据库的世界书主键及运行状态必须重新建立。
         return mChatSessionDao.insertOrReplace(
@@ -316,8 +322,9 @@ class ChatArchiveRepository(
                 lorebookEntrySet = "[]",
                 title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
                 userNote = archive.userNote,
-                userName = archive.userName.normalizedUserName(),
-                userDescription = archive.userDescription,
+                userPersonaId = persona.id,
+                userName = archive.userName.takeUnless { !archive.hasUserName || it.isEmpty() || it == persona.name },
+                userDescription = archive.userDescription.takeUnless { it.isEmpty() || it == persona.description },
                 creatorNotes = archive.creatorNotes,
                 worldInfoStateJson = "{}",
                 autoSummaryPaused = archive.autoSummaryPaused,
@@ -373,6 +380,7 @@ class ChatArchiveRepository(
     }
 
     private suspend fun loadArchiveMetadata(sessionId: Long): ChatArchive {
+        // 导出名称和描述采用当前有效身份，数据库中的可空覆盖继续独立保存。
         val session = requireNotNull(mChatSessionDao.getSessionById(sessionId)) {
             "Chat session not found"
         }
@@ -386,12 +394,13 @@ class ChatArchiveRepository(
                 mChatMessageDao.getMessageIndexBySessionId(sessionId, messageId)
             }
             ?: -1
+        val persona = mAppDatabase.getUserPersonaDao().resolve(session)
         return ChatArchive(
             title = session.title,
             createTime = session.createTime,
             latestTime = session.latestTime,
-            userName = session.userName,
-            userDescription = session.userDescription,
+            userName = persona.name,
+            userDescription = persona.description,
             userNote = session.userNote,
             creatorNotes = session.creatorNotes,
             lorebookEntrySet = session.lorebookEntrySet,

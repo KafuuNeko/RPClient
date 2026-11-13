@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 
 /** 新建群聊页面的成员、策略、世界书和提交意图。 */
 sealed class GroupChatCreateUiIntent {
+    data class SelectPersona(val id: Long) : GroupChatCreateUiIntent()
+
     data object Init : GroupChatCreateUiIntent()
 
     data object Back : GroupChatCreateUiIntent()

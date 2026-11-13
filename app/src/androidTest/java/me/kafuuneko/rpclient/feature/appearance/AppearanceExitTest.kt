@@ -13,6 +13,8 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.R
@@ -29,6 +31,7 @@ import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.model.ImageCropSelection
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.After
@@ -40,8 +43,6 @@ import org.junit.Test
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
-import java.io.File
-import java.util.UUID
 
 /** 使用隔离 Room 和真实 MVI、弹窗交互验证返回确认，避免修改用户背景。 */
 class AppearanceExitTest {
@@ -67,7 +68,9 @@ class AppearanceExitTest {
             override fun getDir(name: String, mode: Int): File =
                 File(mDirectory, name).apply { mkdirs() }
         }
-        mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        mDatabase =
+            Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
+                .build()
         val files = FileRepository(context, mDatabase)
         mRepository = PageBackgroundRepository(mDatabase, files)
         runBlocking {

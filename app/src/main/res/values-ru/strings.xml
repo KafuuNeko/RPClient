@@ -1441,4 +1441,8 @@
     <string name="summary_mode">Режим сводки переписки</string>
     <string name="summary_mode_raw">Raw (пошаговый)</string>
     <string name="summary_mode_classic">Classic (текущий контекст)</string>
+    <string name="persona_name_with_id">%1$s (#%2$d)</string>
+    <string name="persona_label">Персона пользователя</string>
+    <string name="persona_create">Создать пользователя</string>
+    <string name="persona_none">Не включать персону</string>
 </resources>

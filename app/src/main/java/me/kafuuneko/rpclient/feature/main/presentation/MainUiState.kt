@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.MainImportCharacterItem
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 
 /** 应用首页状态树，组合最近内容、全局设置和批量操作对话框。 */
 sealed class MainUiState {
@@ -90,12 +91,16 @@ sealed class MainDialogState {
         val draftValue: String
     ) : MainDialogState()
 
+    data class CreatePersona(val name: String = "") : MainDialogState()
+
     data class EditUserDescription(
+        val personaId: Long,
         /** 当前编辑器中尚未提交的文本草稿。 */
         val draftText: String
     ) : MainDialogState()
 
     data class ImportChatCharacterSelection(
+        val persona: PersonaSelection = PersonaSelection(),
         /** 供界面展示或持久化的标题。 */
         val title: String,
         /** 导入数据中记录的原始角色名称。 */

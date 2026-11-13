@@ -46,6 +46,10 @@ data class GroupChatMessage(
     // 自动群聊同一生成轮次的批次 ID；普通或手动消息为空。
     val generationBatchId: String? = null
 ) {
+    /** 旧用户消息缺少发言者时才用绑定人设补全，保留已有历史署名。 */
+    fun speakerName(userName: String): String =
+        if (source == Source.User && speakerNameSnapshot.isEmpty()) userName else speakerNameSnapshot
+
     /** 群聊消息来源。 */
     enum class Source {
         Character,

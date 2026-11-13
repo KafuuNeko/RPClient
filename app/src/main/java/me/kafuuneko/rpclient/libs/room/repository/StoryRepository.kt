@@ -217,7 +217,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         title: String,
         lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
-        includeUserPersona: Boolean = false,
+        userPersonaId: Long = -1L,
         initialChapterTitle: String = DefaultNames.STORY_CHAPTER,
         createTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
@@ -230,10 +230,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
             lorebookSelections = lorebookSelections,
             characterSelections = characterSelections,
         )
+        // 禁用值没有物理外键，具体身份在创建故事前于同一事务内校验。
+        if (userPersonaId != -1L) mAppDatabase.getUserPersonaDao().get(userPersonaId)
         val storyId = mStoryDao.insertOrReplace(
             data = Story(
                 title = normalizedTitle,
-                includeUserPersona = includeUserPersona,
+                userPersonaId = userPersonaId,
                 createTime = createTime,
                 latestTime = createTime,
             ),
@@ -692,11 +694,12 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
         memory: String,
         summary: String,
         authorNote: String,
-        includeUserPersona: Boolean = false,
+        userPersonaId: Long = -1L,
         lorebookSelections: List<StoryLorebookEntrySelection>,
         characterSelections: List<StoryCharacterSelection>,
         latestTime: Long = System.currentTimeMillis(),
     ): Long = mAppDatabase.withTransaction {
+        if (userPersonaId != -1L) mAppDatabase.getUserPersonaDao().get(userPersonaId)
         val story = requireStory(storyId)
         val configuration = normalizeAndValidateConfiguration(
             lorebookSelections = lorebookSelections,
@@ -710,7 +713,7 @@ class StoryRepository(private val mAppDatabase: AppDatabase) {
                 memory = memory,
                 summary = summary,
                 authorNote = authorNote,
-                includeUserPersona = includeUserPersona,
+                userPersonaId = userPersonaId,
                 latestTime = latestTime,
             ) == 1,
         ) { "Story settings update failed" }

@@ -70,6 +70,8 @@ import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -92,6 +94,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryGeneratedEdit
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
 import me.kafuuneko.rpclient.libs.story.StoryEditTarget
@@ -105,7 +108,6 @@ import me.kafuuneko.rpclient.libs.story.prepareStoryContinuationText
 import me.kafuuneko.rpclient.libs.story.storyTextHash
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 
 /**
  * 分卷/章节故事编辑器（Story Editor）的 ViewModel（状态持有者与业务控制器）。
@@ -130,6 +132,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     StoryEditorUiState.None
 ), KoinComponent {
     // 仓库与依赖注入
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mStoryRepository by inject<StoryRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
@@ -934,10 +937,22 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         updateSettings { copy(authorNote = intent.value) }
     }
 
-    /** 修改当前 Story 是否注入全局用户人设的设置草稿。 */
-    @UiIntentObserver(StoryEditorUiIntent.SetIncludeUserPersona::class)
-    private fun onSetIncludeUserPersona(intent: StoryEditorUiIntent.SetIncludeUserPersona) {
-        updateSettings { copy(includeUserPersona = intent.enabled) }
+    /** 在设置草稿中切换身份并刷新角色描述预览。 */
+    @UiIntentObserver(StoryEditorUiIntent.SelectPersona::class)
+    private fun onSelectPersona(intent: StoryEditorUiIntent.SelectPersona) {
+        updateSettings {
+            val selection = persona.copy(selectedId = intent.id)
+            val name = selection.selectedName ?: DefaultNames.USER
+            copy(persona = selection, characters = characters.map {
+                it.copy(
+                    description = resolveCharacterUserMacros(
+                        template = it.descriptionTemplate,
+                        characterName = it.name,
+                        userName = name,
+                    )
+                )
+            })
+        }
     }
 
     /**
@@ -1233,7 +1248,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     memory = settings.memory,
                     summary = settings.summary,
                     authorNote = settings.authorNote,
-                    includeUserPersona = settings.includeUserPersona,
+                    userPersonaId = settings.persona.selectedId,
                     lorebookSelections = settings.lorebookGroups
                         .flatMap { storyLorebookGroupItem -> storyLorebookGroupItem.entries }
                         .filter { storyLorebookEntryItem -> storyLorebookEntryItem.selected }
@@ -1485,6 +1500,23 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             .setup()
     }
 
+    /** 切换单项故事归档的本地人设绑定。 */
+    @UiIntentObserver(StoryEditorUiIntent.SelectImportPersona::class)
+    private fun onSelectImportPersona(intent: StoryEditorUiIntent.SelectImportPersona) {
+        val state = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = state.dialogState as? StoryEditorDialogState.ImportPreview ?: return
+        val preview = dialog.preview
+        state.copy(
+            dialogState = dialog.copy(
+                preview = preview.copy(
+                    persona = preview.persona.copy(
+                        selectedId = intent.id
+                    )
+                )
+            )
+        ).setup()
+    }
+
     /**
      * 确认导入故事。
      *
@@ -1506,6 +1538,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             val storyId = withContext(Dispatchers.IO) {
                 mStoryArchiveRepository.saveImport(
                     draft = dialog.preview.draft,
+                    userPersonaId = dialog.preview.persona.selectedId,
                     title = dialog.preview.title,
                 )
             }
@@ -1665,7 +1698,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     currentSummary = currentSummary,
                     content = sourceContent,
                     provider = provider,
-                    userName = AppModel.resolvedUserName,
+                    userName = mPersonas.get(requireNotNull(mStoryRepository.getStory(storyId)).userPersonaId).name,
                     primaryCharacterName = primaryCharacterName,
                 )
             }
@@ -2363,6 +2396,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             .filter { it.id in candidateLorebookIds }
             .associateBy { it.id }
         // 构造并返回结构化 Prompt 上下文
+        val persona = mPersonas.get(story.userPersonaId)
         return StoryPromptContext(
             story = story,
             characterCandidates = characterCandidates,
@@ -2374,8 +2408,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             recursiveScanningLorebookIds = candidateLorebooks.values
                 .filter { it.recursiveScanning }
                 .mapTo(mutableSetOf()) { it.id },
-            userName = AppModel.resolvedUserName,
-            userDescription = AppModel.userDescription,
+            userName = persona.name,
+            userDescription = persona.description,
             continuationGuidance = continuationGuidance,
         )
     }
@@ -2396,11 +2430,20 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private suspend fun readImport(read: suspend () -> StoryImportDraft) {
         try {
+            // 单项归档使用名称提示匹配本机身份，绑定仍以导入确认页的选择为准。
             val draft = read()
+            val options = mPersonas.selection(if (draft.includeUserPersona) null else -1L)
+            val hint = options.options.singleOrNull { it.name == draft.personaNameHint }
+            val selection =
+                if (draft.includeUserPersona && hint != null) options.copy(selectedId = hint.id) else options
             val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
             uiState.copy(
                 dialogState = StoryEditorDialogState.ImportPreview(
-                    preview = StoryImportPreview(draft = draft, title = draft.title),
+                    preview = StoryImportPreview(
+                        draft = draft,
+                        title = draft.title,
+                        persona = selection
+                    ),
                 ),
             ).setup()
         } catch (_: Exception) {
@@ -2668,6 +2711,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      */
     private suspend fun buildSettingsState(): StoryEditorPageState.Settings {
         val story = requireNotNull(mStory)
+        val selection = mPersonas.selection(story.userPersonaId)
         // 读取角色关联关系与世界书
         val relations = mStoryRepository.getStoryCharacterCandidates(story.id)
             .associateBy { it.character.id }
@@ -2683,10 +2727,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             StoryCharacterOptionItem(
                 id = character.id,
                 name = character.name,
+                descriptionTemplate = character.description,
                 description = resolveCharacterUserMacros(
                     template = character.description,
                     characterName = character.name,
-                    userName = AppModel.resolvedUserName,
+                    userName = selection.selectedName ?: DefaultNames.USER,
                 ),
                 selected = relation != null,
                 activationMode = relation?.relation?.activationMode
@@ -2701,7 +2746,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             memory = story.memory,
             summary = story.summary,
             authorNote = story.authorNote,
-            includeUserPersona = story.includeUserPersona,
+            persona = selection,
             characters = normalizeCharacterOrder(characters),
             lorebookGroups = lorebooks.map { lorebook ->
                 StoryLorebookGroupItem(

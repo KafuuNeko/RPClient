@@ -4,15 +4,15 @@ import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.model.LorebookWithEntries
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 
 /** 创建 Story 时尚未持久化的角色与世界书选择。 */
 data class StoryCreateForm(
+    val persona: PersonaSelection = PersonaSelection(),
     /** 供界面展示或持久化的标题。 */
     val title: String = "",
-    /** 故事 Prompt 是否包含当前用户名称和用户设定。 */
-    val includeUserPersona: Boolean = false,
     /** 每个角色当前采用的激活模式映射。 */
     val characterActivationModes: Map<Long, StoryCreateCharacterActivationMode> = emptyMap(),
     /** 当前已选中的世界书条目 ID 集合。 */

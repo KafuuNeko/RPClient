@@ -4,6 +4,7 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharac
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 
 /** 新建群聊页面状态树。 */
 sealed class GroupChatCreateUiState {
@@ -11,6 +12,7 @@ sealed class GroupChatCreateUiState {
 
     /** 群聊标题、候选成员、世界书和发言策略的可交互状态。 */
     data class Normal(
+        val persona: PersonaSelection = PersonaSelection(),
         /** 当前页面数据库或资源操作的加载状态。 */
         val loadState: GroupChatCreateLoadState = GroupChatCreateLoadState.None,
         /** 供界面展示或持久化的标题。 */

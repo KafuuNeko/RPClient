@@ -87,7 +87,7 @@ sealed class StoryEditorUiIntent {
 
     data class ChangeAuthorNote(val value: String) : StoryEditorUiIntent()
 
-    data class SetIncludeUserPersona(val enabled: Boolean) : StoryEditorUiIntent()
+    data class SelectPersona(val id: Long) : StoryEditorUiIntent()
 
     data object SummarizeStory : StoryEditorUiIntent()
 
@@ -144,6 +144,7 @@ sealed class StoryEditorUiIntent {
 
     data class ChangeImportTitle(val value: String) : StoryEditorUiIntent()
 
+    data class SelectImportPersona(val id: Long) : StoryEditorUiIntent()
     data object ConfirmImport : StoryEditorUiIntent()
 
     data class ExportTextClick(val format: StoryTextExportFormat) : StoryEditorUiIntent()

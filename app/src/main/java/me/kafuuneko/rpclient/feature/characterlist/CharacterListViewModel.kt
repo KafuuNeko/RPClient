@@ -26,7 +26,6 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoa
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.character.CharacterArchiveExportLimitException
 import me.kafuuneko.rpclient.libs.character.CharacterCardArchiveLimits
 import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
@@ -37,6 +36,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -53,6 +53,7 @@ import org.koin.core.component.inject
 class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, CharacterListUiState>(
     CharacterListUiState.None
 ), KoinComponent {
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mFileRepository by inject<FileRepository>()
     private val mCharacterCardRepository by inject<CharacterCardRepository>()
@@ -667,7 +668,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         val characters = withContext(Dispatchers.IO) {
             mCharacterRepository.getAllCharacters()
         }
-        val userName = AppModel.resolvedUserName
+        val userName = mPersonas.active().name
         // 构建 UI 渲染列表项
         val allCharacterItems = characters.map { character ->
             character.toCharacterListItem(userName)

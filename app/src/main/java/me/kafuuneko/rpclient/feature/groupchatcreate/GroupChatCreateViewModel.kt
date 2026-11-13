@@ -20,7 +20,6 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.visibleFor
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -32,6 +31,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
@@ -54,18 +54,39 @@ class GroupChatCreateViewModel :
         GroupChatCreateUiState.None
     ), KoinComponent {
     private var mCharacterSearchJob: Job? = null
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mGreetingPlanner by inject<GroupChatGreetingPlanner>()
     private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
 
+    /** 切换创建草稿的人设，并重新计算含用户名宏的候选角色。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: GroupChatCreateUiIntent.SelectPersona) {
+        val state = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val selection = state.persona.copy(selectedId = intent.id)
+        val name = selection.selectedName ?: return
+        mCharacterSearchJob?.cancel()
+        // 保留已选群成员，按新身份重建描述和开场白预览。
+        val selected = state.characters.filter { it.selected }.mapTo(mutableSetOf()) { it.id }
+        val characters = mCharacterRepository.getAllCharacters()
+            .map { it.toGroupChatCreateCharacterItem(name).copy(selected = it.id in selected) }
+        state.copy(
+            persona = selection,
+            characters = characters,
+            visibleCharacters = characters.visibleFor(state.searchQuery),
+            greetingState = state.greetingState.reconcile(characters)
+        ).setup()
+    }
+
     /** 初始化页面，拉取候选角色列表与世界书条目列表。 */
     @UiIntentObserver(GroupChatCreateUiIntent.Init::class)
     private suspend fun onInit() {
         if (!isStateOf<GroupChatCreateUiState.None>()) return
         GroupChatCreateUiState.Normal(loadState = GroupChatCreateLoadState.Loading).setup()
-        val userName = AppModel.resolvedUserName
+        val selection = mPersonas.selection()
+        val userName = requireNotNull(selection.selectedName)
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
             val characters = mCharacterRepository.getAllCharacters().map { character ->
@@ -77,6 +98,7 @@ class GroupChatCreateViewModel :
         }
         // 渲染就绪状态
         GroupChatCreateUiState.Normal(
+            persona = selection,
             characters = data.first,
             showCharacterExamplesSwitch =
                 mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
@@ -320,7 +342,8 @@ class GroupChatCreateViewModel :
         }
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
-        val userName = AppModel.resolvedUserName
+        val selectedPersona = mPersonas.get(uiState.persona.selectedId)
+        val userName = selectedPersona.name
         // 提取候选成员与开场白列表
         val greetingCandidates =
             uiState.greetingState.characters.map { groupChatGreetingCharacterItem ->
@@ -340,8 +363,7 @@ class GroupChatCreateViewModel :
         val sessionId = withContext(Dispatchers.IO) {
             mGroupChatRepository.createSession(
                 title = uiState.title.trim().ifBlank { createTime.toDefaultChatTitle() },
-                userName = userName,
-                userDescription = AppModel.userDescription.trim(),
+                userPersonaId = selectedPersona.id,
                 characterIds = characterIds,
                 lorebookEntryIds = uiState.selectedLorebookEntryIds.sorted(),
                 activationStrategy = uiState.activationStrategy.toEntity(),

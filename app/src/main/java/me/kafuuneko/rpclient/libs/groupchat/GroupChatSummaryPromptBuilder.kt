@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -44,7 +45,9 @@ class GroupChatSummaryPromptBuilder(
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
         unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
         templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
+        userName: String = session.userName ?: DefaultNames.USER,
     ): GroupChatSummaryBuildResult {
+        // 摘要先按模型预算选择历史，再使用同一身份渲染请求与检查信息。
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
         val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
@@ -56,7 +59,7 @@ class GroupChatSummaryPromptBuilder(
         val selected = selectSummaryPrefix(limited, promptBudget) { prefix ->
             val requestMessages = renderRequestMessages(
                 templates = templates,
-                session = session,
+                userName = userName,
                 memberNames = memberNames,
                 existingSummary = safeExistingSummary,
                 messages = sanitized.subList(fromIndex = 0, toIndex = prefix.size),
@@ -73,7 +76,7 @@ class GroupChatSummaryPromptBuilder(
         if (limited.isNotEmpty() && selected.isEmpty()) {
             val requestMessages = renderRequestMessages(
                 templates = templates,
-                session = session,
+                userName = userName,
                 memberNames = memberNames,
                 existingSummary = safeExistingSummary,
                 messages = listOf(sanitized.first()),
@@ -88,7 +91,7 @@ class GroupChatSummaryPromptBuilder(
         }
         val requestMessages = renderRequestMessages(
             templates = templates,
-            session = session,
+            userName = userName,
             memberNames = memberNames,
             existingSummary = safeExistingSummary,
             messages = sanitized.take(selected.size),
@@ -114,19 +117,20 @@ class GroupChatSummaryPromptBuilder(
     /** 渲染群聊摘要使用的 system 指令和 user 原始素材。 */
     private fun renderRequestMessages(
         templates: PromptTemplateSnapshot,
-        session: GroupChatSession,
+        userName: String,
         memberNames: List<String>,
         existingSummary: String,
         messages: List<GroupChatMessage>,
         messageImages: Map<Long, List<LLMImageReference>>,
         unavailableImages: Map<Long, List<UnavailablePromptImage>>,
     ): List<LLMMessage> {
+        // 成员的既有署名保留，仅为缺少用户署名的旧消息补齐名称。
         val history = messages.joinToString("\n") { message ->
-            "${message.speakerNameSnapshot}: ${message.content}"
+            "${message.speakerName(userName)}: ${message.content}"
         }
         val instruction = templates
             .groupSummarizePrompt
-            .replace(oldValue = "{{user}}", newValue = session.userName, ignoreCase = true)
+            .replace(oldValue = "{{user}}", newValue = userName, ignoreCase = true)
             .replace(
                 oldValue = "{{group}}",
                 newValue = memberNames.joinToString(", "),
@@ -140,7 +144,7 @@ class GroupChatSummaryPromptBuilder(
                 ignoreCase = true
             )
         val historyBlocks = messages.flatMap { message ->
-            listOf(LLMContentBlock.Text("${message.speakerNameSnapshot}:")) +
+            listOf(LLMContentBlock.Text("${message.speakerName(userName)}:")) +
                 messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
                 LLMContentBlock.Text(message.content)
         }

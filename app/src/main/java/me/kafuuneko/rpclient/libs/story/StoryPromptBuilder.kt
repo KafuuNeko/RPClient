@@ -285,7 +285,7 @@ private class StoryPromptBuildSession(
             ),
             sourceKind = PromptSourceKind.StorySummary,
         )
-        if (context.story.includeUserPersona) {
+        if (context.story.userPersonaId > 0) {
             addRequired(
                 role = LLMMessageRole.System,
                 content = renderUserPersonaTemplate(

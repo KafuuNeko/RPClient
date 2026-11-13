@@ -17,9 +17,9 @@ internal fun groupRegexMacros(
     characterName: String,
 ): Map<String, String> {
     return RegexScriptRuntime.macros(
-        userName = data.session.userName,
+        userName = data.persona.name,
         characterName = characterName,
-        userDescription = data.session.userDescription,
+        userDescription = data.persona.description,
         scenario = data.session.scenario,
         groupNames = data.members.joinToString(", ") { it.character.name },
     )

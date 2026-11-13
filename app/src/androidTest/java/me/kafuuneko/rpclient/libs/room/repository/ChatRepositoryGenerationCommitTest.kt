@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -25,7 +26,7 @@ class ChatRepositoryGenerationCommitTest {
     @Before
     fun setUp() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         repository = ChatRepository(

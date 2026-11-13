@@ -1431,4 +1431,8 @@
     <string name="summary_mode">대화 요약 모드</string>
     <string name="summary_mode_raw">Raw (증분 요약)</string>
     <string name="summary_mode_classic">Classic (현재 컨텍스트)</string>
+    <string name="persona_name_with_id">%1$s (#%2$d)</string>
+    <string name="persona_label">사용자 페르소나</string>
+    <string name="persona_create">새 사용자 만들기</string>
+    <string name="persona_none">페르소나 포함 안 함</string>
 </resources>

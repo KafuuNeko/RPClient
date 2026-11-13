@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * 将外部字符串状态绑定为可控制选择区的 [TextFieldState]。
@@ -37,9 +36,17 @@ fun rememberBoundTextFieldState(
     val textFieldState = remember { TextFieldState(value) }
     val currentExternalValue = rememberUpdatedState(value)
     val currentOnValueChange = rememberUpdatedState(onValueChange)
+    val pendingEdits = remember { ArrayDeque<String>() }
 
-    // 外部载入、撤销或清空文本时，同步内容并尽量保留用户当前选择区。
+    // 父状态可能回显较早的输入，此时编辑器已接收后续按键，只确认回显即可。
     LaunchedEffect(value) {
+        val acknowledged = pendingEdits.indexOf(value)
+        if (acknowledged >= 0) {
+            repeat(acknowledged + 1) { pendingEdits.removeFirst() }
+            return@LaunchedEffect
+        }
+        // 外部载入或撤销会取代本地草稿，并尽量保留用户当前选择区。
+        pendingEdits.clear()
         if (textFieldState.text.toString() == value) return@LaunchedEffect
         val previousSelection = textFieldState.selection
         textFieldState.edit {
@@ -53,9 +60,9 @@ fun rememberBoundTextFieldState(
     // 状态式文本框独立承接输入法编辑，再将稳定文本变化回传给页面状态树。
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }
-            .distinctUntilChanged()
             .collect { text ->
-                if (text != currentExternalValue.value) {
+                if (text != currentExternalValue.value || pendingEdits.isNotEmpty()) {
+                    pendingEdits.addLast(text)
                     currentOnValueChange.value(text)
                 }
             }

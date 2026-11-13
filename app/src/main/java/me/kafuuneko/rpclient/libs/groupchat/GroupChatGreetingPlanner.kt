@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import kotlin.random.Random
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 
 /** 创建群聊时可供开场白规划器使用的角色及候选文本。 */
 data class GroupChatGreetingCandidate(
@@ -96,13 +97,7 @@ class GroupChatGreetingPlanner {
         return GroupChatOpeningMessage(
             characterId = candidate.characterId,
             characterName = candidate.characterName,
-            content = replace(
-                oldValue = "{{char}}",
-                newValue = candidate.characterName,
-                ignoreCase = true
-            )
-                .replace(oldValue = "{{user}}", newValue = userName, ignoreCase = true)
-                .trim(),
+            content = resolveCharacterUserMacros(this, candidate.characterName, userName).trim(),
         )
     }
 }

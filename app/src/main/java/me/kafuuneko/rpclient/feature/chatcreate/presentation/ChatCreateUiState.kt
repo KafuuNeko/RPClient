@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chatcreate.presentation
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 
 /** 新建单聊页面状态树。 */
 sealed class ChatCreateUiState {
@@ -10,6 +11,7 @@ sealed class ChatCreateUiState {
 
     /** 表单、候选角色、角色开场白和世界书选择的稳定页面状态。 */
     data class Normal(
+        val persona: PersonaSelection = PersonaSelection(),
         /** 当前页面数据库或资源操作的加载状态。 */
         val loadState: ChatCreateLoadState = ChatCreateLoadState.None,
         /** 当前页面正在编辑的表单数据。 */

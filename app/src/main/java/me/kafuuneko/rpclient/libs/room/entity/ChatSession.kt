@@ -5,7 +5,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
@@ -18,6 +17,12 @@ import me.kafuuneko.rpclient.utils.takeIfNotBlank
     tableName = "chat_sessions",
     foreignKeys = [
         ForeignKey(
+            entity = UserPersona::class,
+            parentColumns = ["id"],
+            childColumns = ["userPersonaId"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
@@ -25,7 +30,7 @@ import me.kafuuneko.rpclient.utils.takeIfNotBlank
         )
     ],
     indices = [
-        Index("characterId")
+        Index("characterId"), Index("userPersonaId")
     ]
 )
 data class ChatSession(
@@ -43,10 +48,10 @@ data class ChatSession(
     val title: String,
     // 用户笔记
     val userNote: String,
-    // 用户名
-    val userName: String = DefaultNames.USER,
-    // 用户描述
-    val userDescription: String = "",
+    // 会话内用户名覆盖；未设置时继承绑定人设。
+    val userName: String? = null,
+    // 会话内描述覆盖，独立于名称。
+    val userDescription: String? = null,
     // 当前对话的角色备注覆盖值，为空时使用关联角色的 creatorNotes
     val creatorNotes: String? = null,
     // 世界书 timed effects 运行时状态，保存 sticky/cooldown 的有效期；不是用户可编辑内容。
@@ -54,7 +59,8 @@ data class ChatSession(
     // 是否仅暂停当前会话的自动总结；手动总结不受影响。
     val autoSummaryPaused: Boolean = false,
     // 是否注入当前角色卡的示例对话；世界书示例位置条目不受此开关影响。
-    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true
+    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true,
+    val userPersonaId: Long = UserPersona.INITIAL_ID,
 ) {
     /** 将空白 creator notes 覆盖归一化为 null，使读取时继续继承角色卡默认值。 */
     fun withNormalizedCreatorNotes(): ChatSession {

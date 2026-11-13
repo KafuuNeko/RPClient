@@ -38,7 +38,9 @@ data class ChatArchive(
     /** 本次导入暂存的所有者，只在当前进程使用，不写入归档。 */
     val importOwner: String? = null,
     /** 会话级角色卡示例对话开关，旧归档缺省时保持开启。 */
-    val includeCharacterExamples: Boolean = true
+    val includeCharacterExamples: Boolean = true,
+    /** 导入来源是否提供了用户名，缺省时由所选人设继承。 */
+    val hasUserName: Boolean = true
 )
 
 /** 归档中的普通消息；列表顺序是唯一权威的对话顺序。 */

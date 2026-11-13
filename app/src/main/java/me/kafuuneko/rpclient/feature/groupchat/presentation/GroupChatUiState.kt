@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
@@ -96,6 +97,7 @@ data class GroupChatConversationState(
 
 /** 群聊设置草稿、候选成员与世界书选择子状态。 */
 data class GroupChatSettingsState(
+    val persona: PersonaSelection = PersonaSelection(),
     /** 当前场景采用的世界书激活策略。 */
     val activationStrategy: GroupChatActivationStrategy,
     /** 群聊 Prompt 注入成员角色卡的方式。 */
@@ -116,6 +118,9 @@ data class GroupChatSettingsState(
     val scenarioDraft: String = "",
     /** 群聊用户备注的未保存草稿。 */
     val userNoteDraft: String = "",
+    val userNameDraft: String = "",
+    val userDescriptionDraft: String = "",
+    val inheritedDescription: String = "",
     /** 群聊摘要的未保存草稿。 */
     val summaryDraft: String = "",
     /** 当前会话的自动摘要是否暂停。 */

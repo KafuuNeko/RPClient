@@ -19,6 +19,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.util.Base64
+import java.util.Random
+import java.util.UUID
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -70,6 +78,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -89,14 +98,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.net.InetAddress
-import java.net.ServerSocket
-import java.util.Base64
-import java.util.Random
-import java.util.UUID
-import kotlin.concurrent.thread
 
 /** 使用真实 Android 解码、Room、临时 HTTP 文件和 OkHttp 写出验证端到端协议；不访问外网。 */
 @RunWith(AndroidJUnit4::class)
@@ -248,7 +249,8 @@ class MultimodalImageIntegrationTest {
             override fun getCacheDir() = File(directory, "cache").apply { mkdirs() }
         }
         // 隔离所有数据库和磁盘目录，不读取或修改用户聊天。
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
+            .build()
         logDatabase = Room.inMemoryDatabaseBuilder(context, RequestLogDatabase::class.java).build()
         files = FileRepository(context, database)
         media = MessageImageRuntime(context, files) { ImageSendSettings() }

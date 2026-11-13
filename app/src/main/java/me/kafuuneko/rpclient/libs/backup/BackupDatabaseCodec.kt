@@ -5,13 +5,13 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteStatement
 import android.util.Base64
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.io.ByteArrayOutputStream
+import java.io.File
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.BLOB_KEY
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFormat.TABLE_ROWS_KEY
 import me.kafuuneko.rpclient.libs.json.JsonResourceLimitException
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
-import java.io.File
 
 /** 编解码业务结构与无损数据行，排除可重建的搜索数据并校验暂存库完整性。 */
 internal object BackupDatabaseCodec {
@@ -329,10 +329,16 @@ internal object BackupDatabaseCodec {
 
     /** 反复删除缺少父记录的行，直到外键检查通过；级联子记录由外键动作处理。 */
     private fun pruneForeignKeyViolations(db: SQLiteDatabase, report: (String) -> Unit) {
+        // 人设绑定错误交给整体恢复校验，不能通过删除会话来修剪这类引用。
         repeat(MAX_PRUNE_ROUNDS) {
             val violations = mutableListOf<Pair<String, Long>>()
             db.rawQuery("PRAGMA foreign_key_check", null).use { cursor ->
                 while (cursor.moveToNext()) {
+                    val table = cursor.getString(0)
+                    val parent = cursor.getString(2)
+                    require(table != "user_personas" && parent != "user_personas") {
+                        "Backup contains an invalid user persona reference in $table."
+                    }
                     if (!cursor.isNull(1)) violations.add(cursor.getString(0) to cursor.getLong(1))
                 }
             }

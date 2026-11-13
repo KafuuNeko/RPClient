@@ -45,12 +45,15 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreat
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
@@ -58,11 +61,10 @@ import me.kafuuneko.rpclient.ui.widgets.RpCreationSwitchCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建群聊页 Compose 入口，负责成员编排与世界书授权交互。 */
 @Composable
@@ -137,6 +139,11 @@ private fun GroupChatCreateNormalView(
                     )
                 }
                 item {
+                    UserPersonaPicker(
+                        state = state.persona,
+                        onSelect = { emitIntent(GroupChatCreateUiIntent.SelectPersona(it)) })
+                }
+                item {
                     StrategySection(
                         selected = state.activationStrategy,
                         onSelect = { groupChatActivationStrategy ->
@@ -162,6 +169,7 @@ private fun GroupChatCreateNormalView(
                 item {
                     GreetingSection(
                         state = state.greetingState,
+                        userName = state.persona.selectedName,
                         emitIntent = emitIntent,
                     )
                 }
@@ -276,6 +284,7 @@ private fun StrategySection(
 @Composable
 private fun GreetingSection(
     state: GroupChatCreateGreetingState,
+    userName: String?,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -295,6 +304,7 @@ private fun GreetingSection(
 
             GroupChatGreetingMode.Manual -> ManualGreetingEditor(
                 state = state,
+                userName = userName,
                 emitIntent = emitIntent,
             )
 
@@ -346,6 +356,7 @@ private fun GreetingModeOption(
 @Composable
 private fun ManualGreetingEditor(
     state: GroupChatCreateGreetingState,
+    userName: String?,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     GreetingCharacterSelector(state, emitIntent)
@@ -387,7 +398,11 @@ private fun ManualGreetingEditor(
                         },
                     )
                     Text(
-                        text = greeting,
+                        text = resolveCharacterUserMacros(
+                            template = greeting,
+                            characterName = selectedCharacter.name,
+                            userName = userName,
+                        ),
                         modifier = Modifier.padding(start = 8.dp, top = 10.dp),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 4,

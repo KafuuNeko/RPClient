@@ -1438,4 +1438,8 @@
     <string name="summary_mode">Modo de resumen de conversación</string>
     <string name="summary_mode_raw">Raw (incremental)</string>
     <string name="summary_mode_classic">Classic (contexto actual)</string>
+    <string name="persona_name_with_id">%1$s (#%2$d)</string>
+    <string name="persona_label">Perfil de usuario</string>
+    <string name="persona_create">Crear un usuario</string>
+    <string name="persona_none">No incluir ningún perfil</string>
 </resources>

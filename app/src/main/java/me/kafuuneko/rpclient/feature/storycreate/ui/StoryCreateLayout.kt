@@ -62,6 +62,8 @@ import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
@@ -69,11 +71,9 @@ import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
-import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.utils.toggle
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建 Story 页面 Compose 入口。 */
 @Composable
@@ -378,9 +378,9 @@ private fun UserPersonaOption(
     enabled: Boolean,
     emit: StoryCreateUiIntent.() -> Unit,
 ) {
-    StoryUserPersonaCard(
-        checked = form.includeUserPersona,
-        onCheckedChange = { StoryCreateUiIntent.SetIncludeUserPersona(it).emit() },
+    UserPersonaPicker(
+        state = form.persona, allowNone = true,
+        onSelect = { StoryCreateUiIntent.SelectPersona(it).emit() },
         enabled = enabled,
     )
 }

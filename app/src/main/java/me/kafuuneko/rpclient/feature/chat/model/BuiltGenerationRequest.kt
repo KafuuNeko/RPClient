@@ -22,5 +22,7 @@ internal data class BuiltGenerationRequest(
     val inspection: PromptInspection,
     /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
     val templates: PromptTemplateSnapshot,
-    val worldInfoStateJson: String
+    val worldInfoStateJson: String,
+    /** 回复和 Prompt 共享本轮的人设与正则脚本。 */
+    val regex: GenerationRegexContext,
 )

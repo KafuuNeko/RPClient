@@ -4,6 +4,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.libs.llm.model.OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -338,6 +339,7 @@ class AppDatabaseMigrationTest {
             name = databaseName,
             version = 6,
             validateDroppedTables = true,
+            migrations = arrayOf(PersonaSchemaMigration),
         )
 
         // 缓存细分无法还原时保持未知，不丢失请求本身或输入输出总量。

@@ -2,6 +2,8 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -10,7 +12,16 @@ import androidx.room.PrimaryKey
  * 成员、消息和摘要分别存放在关系表中；本实体只保存会话级 Prompt 覆盖、
  * 世界书状态以及自动发言行为。
  */
-@Entity(tableName = "group_chat_sessions")
+@Entity(
+    tableName = "group_chat_sessions",
+    indices = [Index("userPersonaId")],
+    foreignKeys = [ForeignKey(
+        entity = UserPersona::class,
+        parentColumns = ["id"],
+        childColumns = ["userPersonaId"],
+        onDelete = ForeignKey.RESTRICT
+    )]
+)
 data class GroupChatSession(
     // 群聊会话 ID。
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
@@ -20,10 +31,10 @@ data class GroupChatSession(
     val createTime: Long,
     // 会话最近活动时间，用于列表排序。
     val latestTime: Long,
-    // 当前群聊使用的用户名。
-    val userName: String,
-    // 当前群聊使用的用户描述。
-    val userDescription: String,
+    // 群聊内的用户名覆盖；未设置时继承绑定人设。
+    val userName: String? = null,
+    // 群聊内的描述覆盖，独立于名称。
+    val userDescription: String? = null,
     // 群聊级场景设定，会与成员角色卡共同进入 Prompt。
     val scenario: String = "",
     // 用户笔记。
@@ -53,7 +64,8 @@ data class GroupChatSession(
     // 是否仅暂停当前群聊的自动总结；手动总结不受影响。
     val autoSummaryPaused: Boolean = false,
     // 是否注入本轮参与 Prompt 的成员角色卡示例，成员范围仍遵循 Swap/Join 配置。
-    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true
+    @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true,
+    val userPersonaId: Long = UserPersona.INITIAL_ID,
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

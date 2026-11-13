@@ -10,6 +10,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.Base64
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -19,6 +22,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -28,9 +32,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.util.Base64
 
 @RunWith(AndroidJUnit4::class)
 class ChatArchiveRepositoryTest {
@@ -49,7 +50,7 @@ class ChatArchiveRepositoryTest {
             override fun getDir(name: String, mode: Int) = File(directory, name).apply { mkdirs() }
             override fun getCacheDir() = File(directory, "cache").apply { mkdirs() }
         }
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         files = FileRepository(context, database)

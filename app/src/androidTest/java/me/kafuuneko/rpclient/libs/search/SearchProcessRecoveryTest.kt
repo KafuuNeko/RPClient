@@ -6,6 +6,7 @@ import androidx.room.withTransaction
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -15,12 +16,12 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 /** 两次 instrumentation 之间由外部强杀进程，区别于普通 close/reopen 回归。 */
 @RunWith(AndroidJUnit4::class)
@@ -39,9 +40,10 @@ class SearchProcessRecoveryTest {
             context.deleteDatabase(name)
             marker.delete()
         }
-        val database = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addCallback(SearchDatabaseCallback)
-            .build()
+        val database =
+            Room.databaseBuilder(context, AppDatabase::class.java, name).withTestPersonas()
+                .addCallback(SearchDatabaseCallback)
+                .build()
         val index = ContentSearchRepository(database)
         try {
             if (stage == "prepare") {

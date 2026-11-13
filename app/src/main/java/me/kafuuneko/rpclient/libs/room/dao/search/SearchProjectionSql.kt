@@ -48,9 +48,9 @@ internal object SearchProjectionSql {
      */
     const val SOURCE_LABEL = """
         CASE source.kind
-            WHEN 1 THEN IFNULL((SELECT CASE WHEN m.source = 'User' THEN s.userName ELSE c.name END
+            WHEN 1 THEN IFNULL((SELECT CASE WHEN m.source = 'User' THEN COALESCE(NULLIF(s.userName, ''), p.name) ELSE c.name END
                 FROM chat_messages m JOIN chat_sessions s ON s.id = m.sessionId
-                JOIN character c ON c.id = s.characterId WHERE m.id = source.sourceId), '')
+                JOIN user_personas p ON p.id = s.userPersonaId JOIN character c ON c.id = s.characterId WHERE m.id = source.sourceId), '')
             WHEN 2 THEN IFNULL((SELECT speakerNameSnapshot FROM group_chat_messages WHERE id = source.sourceId), '')
             WHEN 3 THEN IFNULL((SELECT title FROM story_chapters WHERE id = source.sourceId), '')
             ELSE '' END

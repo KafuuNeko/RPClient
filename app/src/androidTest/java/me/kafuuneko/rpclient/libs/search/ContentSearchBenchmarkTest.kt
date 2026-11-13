@@ -9,6 +9,8 @@ import androidx.room.withTransaction
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -22,6 +24,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -29,8 +32,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import kotlin.time.Duration.Companion.milliseconds
 
 /** 显式启用的合成大库基准，默认回归不生成百 MB 数据。 */
 @RunWith(AndroidJUnit4::class)
@@ -44,9 +45,10 @@ class ContentSearchBenchmarkTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "content-search-benchmark.sqlite"
         context.deleteDatabase(name)
-        val database = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addCallback(SearchDatabaseCallback)
-            .build()
+        val database =
+            Room.databaseBuilder(context, AppDatabase::class.java, name).withTestPersonas()
+                .addCallback(SearchDatabaseCallback)
+                .build()
         val index = ContentSearchRepository(database)
         var monitor: Job? = null
         try {

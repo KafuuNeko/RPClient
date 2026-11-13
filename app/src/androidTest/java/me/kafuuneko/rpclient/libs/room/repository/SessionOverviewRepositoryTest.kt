@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -26,9 +27,10 @@ class SessionOverviewRepositoryTest {
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        mDatabase =
+            Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
+                .allowMainThreadQueries()
+                .build()
         mChatRepository = ChatRepository(
             mAppDatabase = mDatabase,
             mGson = Gson(),

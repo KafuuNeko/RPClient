@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.libs.room.dao.StoryCharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryLorebookEntryDao
 import me.kafuuneko.rpclient.libs.room.dao.StoryVolumeDao
+import me.kafuuneko.rpclient.libs.room.dao.UserPersonaDao
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.CharacterLLMProviderAssociation
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -56,14 +57,17 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryVolume
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
+import me.kafuuneko.rpclient.libs.room.entity.UserPersonaSettings
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration1To2Spec
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration2To3Spec
 import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spec
-import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration5To6Spec
 
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        UserPersona::class,
+        UserPersonaSettings::class,
         PromptPreset::class,
         PromptPresetEntry::class,
         SearchSource::class,
@@ -99,12 +103,14 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration5To6Spe
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
         AutoMigration(from = 3, to = 4, spec = AppDatabaseAutoMigration3To4Spec::class),
         AutoMigration(from = 4, to = 5),
-        AutoMigration(from = 5, to = 6, spec = AppDatabaseAutoMigration5To6Spec::class),
     ],
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** 用户人设及默认选择。 */
+    abstract fun getUserPersonaDao(): UserPersonaDao
+
     /** 提供提示词模板与当前选择的数据访问入口。 */
     abstract fun getPromptPresetDao(): PromptPresetDao
 

@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.feature.main.ui.MainLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 
 /** 应用主页面宿主，承载首页与全局设置。 */
 class MainActivity : CoreActivityWithEvent() {
@@ -24,6 +25,8 @@ class MainActivity : CoreActivityWithEvent() {
         /** 启动路由使用枚举名称传递，未指定时进入主页。 */
         const val EXTRA_ROUTE = "route"
     }
+
+    private var mAvatarPersonaId: Long = UserPersona.INITIAL_ID
 
     private val mViewModel by viewModels<MainViewModel>()
 
@@ -36,7 +39,7 @@ class MainActivity : CoreActivityWithEvent() {
     /** 裁剪页完成文件保存后，将方形头像 UUID 交回设置状态。 */
     private val mImageCropLauncher = registerForActivityResult(StartActivityForResult()) { result ->
         ImageCropActivity.getResultFileUuid(result.data)?.let { text ->
-            mViewModel.emit(MainUiIntent.UserAvatarCropped(text))
+            mViewModel.emit(MainUiIntent.UserAvatarCropped(mAvatarPersonaId, text))
         }
     }
 
@@ -69,11 +72,20 @@ class MainActivity : CoreActivityWithEvent() {
         )
     }
 
+    /** 恢复头像裁剪的目标身份，并将启动路由交给页面状态初始化。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        mAvatarPersonaId = savedInstanceState?.getLong("avatarPersonaId", UserPersona.INITIAL_ID)
+            ?: UserPersona.INITIAL_ID
         val routeName = intent.getStringExtra(EXTRA_ROUTE)
         val route = Route.entries.firstOrNull { it.name == routeName } ?: Route.Main
         mViewModel.emit(MainUiIntent.Init(route = route))
+    }
+
+    /** 系统回收宿主后仍将裁剪结果交回原先选中的身份。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putLong("avatarPersonaId", mAvatarPersonaId)
     }
 
     override fun onResume() {
@@ -81,10 +93,16 @@ class MainActivity : CoreActivityWithEvent() {
         mViewModel.emit(MainUiIntent.Resume)
     }
 
+    /** 将图片和归档选择请求交给系统选择器。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
-            MainViewEvent.OpenUserAvatarPicker -> mUserAvatarPickerLauncher.launch("image/*")
+            is MainViewEvent.OpenUserAvatarPicker -> {
+                // 在外部页面打开前保存目标，返回时不依赖可能已改变的默认人设。
+                mAvatarPersonaId = viewEvent.personaId
+                mUserAvatarPickerLauncher.launch("image/*")
+            }
+
             MainViewEvent.OpenChatImageDirectory -> mChatImageDirectoryLauncher.launch(input = null)
             MainViewEvent.OpenChatImporter -> mChatImportLauncher.launch(
                 input = arrayOf(

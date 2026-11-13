@@ -23,16 +23,16 @@ import me.kafuuneko.rpclient.feature.chat.model.ActiveStreamingGeneration
 import me.kafuuneko.rpclient.feature.chat.model.AutoSummaryData
 import me.kafuuneko.rpclient.feature.chat.model.BuiltGenerationRequest
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingPhase
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingPhase
+import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
-import me.kafuuneko.rpclient.feature.chat.model.StreamingRegexContext
+import me.kafuuneko.rpclient.feature.chat.model.GenerationRegexContext
 import me.kafuuneko.rpclient.feature.chat.model.filterForQuery
 import me.kafuuneko.rpclient.feature.chat.model.source
 import me.kafuuneko.rpclient.feature.chat.model.toChatMessageCursor
@@ -67,12 +67,10 @@ import me.kafuuneko.rpclient.libs.chat.UserWritingRuntime
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
-import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
@@ -82,17 +80,16 @@ import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
-import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
-import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.room.repository.ChatPromptHistoryContext
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
@@ -104,12 +101,14 @@ import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.ChatPromptHistoryContext
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatSummaryGenerationContext
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -198,6 +197,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
 
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
     private val mImageRuntime by inject<MessageImageRuntime>()
@@ -371,6 +371,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
         refreshed.copy(
+            // 选择图片的回调可能在读取人设和会话期间完成，发布前取最新附件草稿。
+            imageState = mImageCoordinator.state,
             conversationState = refreshed.conversationState.copy(
                 inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
                     ?: refreshed.conversationState.inputDraft,
@@ -682,15 +684,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val output = GenerationOutput.Create(ChatMessage.Source.Char)
         // 首次发送和失败恢复共享相同分发，恢复时不再提交用户正文或附件。
         if (AppModel.streamEnabled) {
-            generateStreaming(
-                sessionId,
-                built.provider,
-                built.request,
-                output,
-                built.worldInfoStateJson
-            )
+            generateStreaming(sessionId, built, output)
         } else {
-            generateOnce(sessionId, built.provider, built.request, output, built.worldInfoStateJson)
+            generateOnce(sessionId, built, output)
         }
         clearReplyRetry()
         return built.templates
@@ -1502,17 +1498,25 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
+    /** 切换人设，独立的名称及描述覆盖继续有效。 */
+    @UiIntentObserver(ChatUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: ChatUiIntent.SelectPersona) {
+        val id = mSessionId ?: return
+        mChatRepository.selectPersona(id, intent.id)
+        refreshUiState(sessionId = id)
+    }
+
     /**
      * 保存当前会话的用户名称。
      *
-     * 空白名称统一保存为默认值 `You`，避免生成 prompt 和消息署名出现空名称。
+     * 清除覆盖后按当前绑定的人设解析用户名。
      */
     @UiIntentObserver(ChatUiIntent.SaveUserName::class)
     private suspend fun onSaveUserName(intent: ChatUiIntent.SaveUserName) {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserName(sessionId, intent.value.normalizedUserName())
+            mChatRepository.updateSessionUserName(sessionId, intent.value.ifEmpty { null })
         }
         refreshUiState(sessionId = sessionId)
     }
@@ -1520,14 +1524,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /**
      * 保存当前会话的用户描述。
      *
-     * 用户描述仅影响当前会话，并在保存前移除首尾空白。
+     * 保留用户输入的描述原文，清空后继承绑定人设。
      */
     @UiIntentObserver(ChatUiIntent.SaveUserDescription::class)
     private suspend fun onSaveUserDescription(intent: ChatUiIntent.SaveUserDescription) {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserDescription(sessionId, intent.value.trim())
+            mChatRepository.updateSessionUserDescription(
+                sessionId,
+                intent.value.takeIf(String::isNotEmpty)
+            )
         }
         refreshUiState(sessionId = sessionId)
     }
@@ -1812,18 +1819,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Update(latestAssistantMessage.id),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Update(latestAssistantMessage.id),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
@@ -1898,18 +1901,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Create(ChatMessage.Source.Char),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Create(ChatMessage.Source.Char),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
@@ -1969,18 +1968,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (AppModel.streamEnabled) {
                     generateStreaming(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Create(ChatMessage.Source.User),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 } else {
                     generateOnce(
                         sessionId = sessionId,
-                        provider = built.provider,
-                        request = built.request,
+                        built = built,
                         output = GenerationOutput.Create(ChatMessage.Source.User),
-                        worldInfoStateJson = built.worldInfoStateJson,
                     )
                 }
                 // 检查自动总结
@@ -2011,29 +2006,30 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * - 将生成结果与本次世界书时序状态（worldInfoStateJson）原子提交入库。
      *
      * @param sessionId 会话 ID
-     * @param provider LLM 服务提供商配置
-     * @param request LLM 请求参数
+     * @param built Prompt、模型与本次生成共用的正则宏快照
      * @param output 生成输出目标描述（创建新消息或更新已有消息）
-     * @param worldInfoStateJson 世界书时序快照 JSON
      */
     private suspend fun generateOnce(
         sessionId: Long,
-        provider: LLMProvider,
-        request: LLMGenerationRequest,
+        built: BuiltGenerationRequest,
         output: GenerationOutput,
-        worldInfoStateJson: String,
     ) {
         // 异步调用模型生成完整响应
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithProvider(
-                provider = provider,
-                request = request,
+                provider = built.provider,
+                request = built.request,
                 routingSessionKey = "chat:$sessionId",
             )
         }
         // 执行持久化前的 Source 阶段正则替换
-        val processedContent = withContext(Dispatchers.IO) {
-            applyGeneratedRegex(sessionId, response.content, output)
+        val processedContent = withContext(Dispatchers.Default) {
+            mRegexProcessor.applyGenerated(
+                input = response.content,
+                source = output.source().toRegexMessageSource(),
+                scripts = built.regex.scripts,
+                macros = built.regex.macros,
+            )
         }
         // 空内容直接重置为空闲状态
         if (processedContent.isBlank()) {
@@ -2048,7 +2044,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 source = output.source(),
                 content = processedContent,
                 deleteEmptyPlaceholder = false,
-                worldInfoStateJson = worldInfoStateJson,
+                worldInfoStateJson = built.worldInfoStateJson,
             )
         }
         // 刷新 UI 回到空闲状态
@@ -2068,38 +2064,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *   - 若在首个 Delta 到达前就被取消，占位消息将被干净清理（deleteEmptyPlaceholder = true）。
      *
      * @param sessionId 会话 ID
-     * @param provider LLM 服务提供商配置
-     * @param request LLM 请求参数
+     * @param built Prompt、模型与本次生成共用的正则宏快照
      * @param output 生成输出目标描述
-     * @param worldInfoStateJson 世界书时序快照 JSON
      */
     private suspend fun generateStreaming(
         sessionId: Long,
-        provider: LLMProvider,
-        request: LLMGenerationRequest,
+        built: BuiltGenerationRequest,
         output: GenerationOutput,
-        worldInfoStateJson: String,
     ) {
-        // 异步加载本次生成绑定的正则脚本与宏快照
-        val regexContext = withContext(Dispatchers.IO) {
-            val session = mChatRepository.getSessionById(sessionId)
-            val character = session?.let { chatSession ->
-                mCharacterRepository.getCharacterById(chatSession.characterId)
-            }
-            if (session != null && character != null) {
-                StreamingRegexContext(
-                    scripts = mRegexRepository.activeScripts(listOf(character)),
-                    macros = RegexScriptRuntime.macros(
-                        userName = session.userName,
-                        characterName = character.name,
-                        userDescription = session.userDescription,
-                        scenario = character.scenario,
-                    ),
-                )
-            } else {
-                StreamingRegexContext()
-            }
-        }
         // 构建活跃流式生成状态跟踪对象
         val token = Any()
         var active = ActiveStreamingGeneration(
@@ -2109,9 +2081,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messageId = (output as? GenerationOutput.Update)?.messageId,
             createdPlaceholder = false,
             content = "",
-            regexScripts = regexContext.scripts,
-            regexMacros = regexContext.macros,
-            worldInfoStateJson = worldInfoStateJson,
+            regexScripts = built.regex.scripts,
+            regexMacros = built.regex.macros,
+            worldInfoStateJson = built.worldInfoStateJson,
         )
         mActiveStreamingGeneration = active
         try {
@@ -2133,8 +2105,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
             // 收集大模型流式增量事件
             mLLMRepository.streamGenerateWithProvider(
-                provider = provider,
-                request = request,
+                provider = built.provider,
+                request = built.request,
                 routingSessionKey = "chat:$sessionId",
             ).collect { event ->
                 currentCoroutineContext().ensureActive()
@@ -2286,6 +2258,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ?: return@withContext null
                 val provider = mProviderSelectionResolver.requireSummaryProvider()
                 AutoSummaryData(
+                    persona = mPersonas.resolve(session),
                     session = session,
                     character = character,
                     provider = provider,
@@ -2455,8 +2428,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
                     templates = templates,
-                    userName = data.session.userName,
-                    userDescription = data.session.userDescription,
+                    userName = data.persona.name,
+                    userDescription = data.persona.description,
                     character = data.character,
                     session = data.session,
                     existingSummary = context.existingSummary,
@@ -2575,6 +2548,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId)
             ?: error(mContext.getString(R.string.character_not_found))
+        val persona = mPersonas.resolve(session)
         val generationHistory = historyOverride ?: mChatRepository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = excludedMessageId,
@@ -2603,8 +2577,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mChatPromptBuilder.buildWithMetadata(
                 preferences = promptTemplates,
                 context = PromptBuildContext(
-                    userName = session.userName,
-                    userDescription = session.userDescription,
+                    userName = persona.name,
+                    userDescription = persona.description,
                     character = character,
                     session = session.copy(creatorNotes = creatorNotes),
                     summary = generationHistory.summary,
@@ -2637,6 +2611,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         }
         return BuiltGenerationRequest(
+            regex = GenerationRegexContext(
+                scripts = regexScripts,
+                macros = RegexScriptRuntime.macros(
+                    userName = persona.name,
+                    characterName = character.name,
+                    userDescription = persona.description,
+                    scenario = character.scenario,
+                ),
+            ),
             templates = promptTemplates,
             provider = provider,
             request = buildResult.request,
@@ -2727,7 +2710,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
         }
         mUnloadedNewerMessageCount = messagePage.newerMessageCount
-        val displayContext = ChatMessageDisplayContext(session, character)
+        val persona = mPersonas.resolve(session)
+        val displayContext = ChatMessageDisplayContext(persona, character)
         val displayMessages = messagePage.messages.toDisplayMessageItems(
             context = displayContext,
             messageImages = messagePage.messageImages,
@@ -2753,11 +2737,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             session = session.toChatSessionItem(
                 summary = summary,
                 creatorNotes = effectiveCreatorNotes,
+                selection = mPersonas.selection(session.userPersonaId),
+                inheritedDescription = mPersonas.get(session.userPersonaId).description,
                 messageCount = messagePage.totalMessageCount,
                 enabledIds = enabledIds,
             ),
             character = character.toChatCharacterItem(
-                userName = session.userName,
+                userName = persona.name,
                 avatarImage = avatarImage,
             ),
             conversationState = ChatConversationState(
@@ -2815,9 +2801,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ): List<ChatMessageUiModel> {
         val regexScripts = mRegexRepository.activeScripts(listOf(context.character))
         val regexMacros = RegexScriptRuntime.macros(
-            userName = context.session.userName,
+            userName = context.persona.name,
             characterName = context.character.name,
-            userDescription = context.session.userDescription,
+            userDescription = context.persona.description,
             scenario = context.character.scenario,
         )
         // 每一页只处理自身消息，深度偏移仍覆盖已经加载的较新窗口
@@ -2850,7 +2836,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         return displayMessages.toChatMessageItems(
             characterName = context.character.name,
-            userName = context.session.userName,
+            userName = context.persona.name,
             systemSpeaker = mContext.getString(R.string.system_speaker),
             streamingMessageId = mActiveStreamingGeneration?.messageId,
         ).map { it.copy(imageUuids = imageMap[it.id].orEmpty()) }
@@ -2901,6 +2887,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         } ?: return
         val currentConversation = getOrNull<ChatUiState.Normal>()?.conversationState
         nextState.copy(
+            imageState = mImageCoordinator.state,
             conversationState = nextState.conversationState.copy(
                 writingState = currentConversation?.writingState,
                 inputDraft = if (mActiveWritingToken != null) currentConversation?.inputDraft.orEmpty()
@@ -2971,12 +2958,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         isEdit: Boolean = false,
     ): String {
         val session = mChatRepository.getSessionById(sessionId) ?: return input
+        val persona = mPersonas.resolve(session)
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
         val scripts = mRegexRepository.activeScripts(listOf(character))
         val macros = RegexScriptRuntime.macros(
-            userName = session.userName,
+            userName = persona.name,
             characterName = character.name,
-            userDescription = session.userDescription,
+            userDescription = persona.description,
             scenario = character.scenario,
         )
         return mRegexProcessor.applyUserInput(input, scripts, macros, isEdit)
@@ -2995,39 +2983,21 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         input: String,
         isEdit: Boolean = false,
     ): String {
+        // 编辑和非流式处理从当前会话解析身份，保留两个字段各自的覆盖语义。
         val session = mChatRepository.getSessionById(sessionId) ?: return input
+        val persona = mPersonas.resolve(session)
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
         return mRegexProcessor.applyAiResponse(
             input = input,
             scripts = mRegexRepository.activeScripts(listOf(character)),
             macros = RegexScriptRuntime.macros(
-                userName = session.userName,
+                userName = persona.name,
                 characterName = character.name,
-                userDescription = session.userDescription,
+                userDescription = persona.description,
                 scenario = character.scenario,
             ),
             isEdit = isEdit,
         )
-    }
-
-    /**
-     * 根据生成的输出源类型分发应用用户正则或 AI 正则。
-     *
-     * @param sessionId 会话 ID
-     * @param input 原始生成内容
-     * @param output 生成目标描述
-     * @return 正则替换后文本
-     */
-    private suspend fun applyGeneratedRegex(
-        sessionId: Long,
-        input: String,
-        output: GenerationOutput?,
-    ): String {
-        return if (output is GenerationOutput.Create && output.source == ChatMessage.Source.User) {
-            applyUserRegex(sessionId, input)
-        } else {
-            applyAiRegex(sessionId, input)
-        }
     }
 
     /**

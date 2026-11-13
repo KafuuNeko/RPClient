@@ -62,17 +62,17 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
 import me.kafuuneko.rpclient.ui.widgets.PageButton
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
-import me.kafuuneko.rpclient.ui.widgets.StoryUserPersonaCard
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /**
  * 渲染故事设置页，分区和设置草稿继续由页面状态驱动。
@@ -257,9 +257,9 @@ private fun UserPersonaSetting(
     enabled: Boolean,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
-    StoryUserPersonaCard(
-        checked = state.includeUserPersona,
-        onCheckedChange = { StoryEditorUiIntent.SetIncludeUserPersona(it).emit() },
+    UserPersonaPicker(
+        state = state.persona, allowNone = true,
+        onSelect = { StoryEditorUiIntent.SelectPersona(it).emit() },
         enabled = enabled,
     )
 }

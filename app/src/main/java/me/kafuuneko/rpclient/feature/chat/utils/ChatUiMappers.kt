@@ -13,24 +13,30 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.utils.formatTimestamp
 
 /** 将会话实体和聚合信息转换为聊天页展示模型。 */
 fun ChatSession.toChatSessionItem(
+    selection: PersonaSelection,
+    inheritedDescription: String,
     summary: String,
     creatorNotes: String,
     messageCount: Int,
     enabledIds: Set<Long>,
 ): ChatSessionItem {
+    // 设置页保留原始覆盖草稿，有效身份用于展示且不能写回覆盖列。
     return ChatSessionItem(
         id = id,
         title = title,
         summarize = summary,
         userNote = userNote,
-        userName = userName,
-        userDescription = userDescription,
+        userName = userName.orEmpty(),
+        persona = selection,
+        inheritedDescription = inheritedDescription,
+        userDescription = userDescription.orEmpty(),
         creatorNotes = creatorNotes,
         autoSummaryPaused = autoSummaryPaused,
         messageCount = messageCount,

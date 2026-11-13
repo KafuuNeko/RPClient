@@ -80,6 +80,11 @@ class StoryArchiveRepository(
         )
     }
 
+    /**
+     * 读取单项故事归档，保留用户人设开关及名称提示供导入确认页选择。
+     * @param uri 用户选择的归档来源。
+     * @return 尚未绑定本机人设 ID 的导入草稿。
+     */
     suspend fun readArchiveImportFromUri(uri: Uri): StoryImportDraft = withContext(Dispatchers.IO) {
         val archive = openLimitedInput(uri).reader(Charsets.UTF_8).use(mCodec::decode)
         StoryImportDraft(
@@ -88,6 +93,7 @@ class StoryArchiveRepository(
             summary = archive.story.summary,
             authorNote = archive.story.authorNote,
             includeUserPersona = archive.story.includeUserPersona,
+            personaNameHint = archive.story.personaNameHint,
             ungroupedChapters = archive.story.ungroupedChapters,
             volumes = archive.story.volumes,
             characterHints = archive.characterHints,
@@ -97,7 +103,11 @@ class StoryArchiveRepository(
     }
 
     /** 仅在用户确认后创建整个故事聚合；任何关联校验或写入失败都会回滚。 */
-    suspend fun saveImport(draft: StoryImportDraft, title: String): Long =
+    suspend fun saveImport(
+        draft: StoryImportDraft,
+        title: String,
+        userPersonaId: Long? = null
+    ): Long =
         withContext(Dispatchers.IO) {
             val normalizedTitle = title.trim()
             require(normalizedTitle.isNotEmpty()) { "Story title cannot be blank" }
@@ -117,13 +127,17 @@ class StoryArchiveRepository(
                 )
                 // 写入故事主体记录
                 val now = System.currentTimeMillis()
+                val personas = mAppDatabase.getUserPersonaDao()
+                val selected =
+                    userPersonaId ?: if (draft.includeUserPersona) personas.active().id else -1L
+                if (selected != -1L) personas.get(selected)
                 val storyId = mStoryDao.insertOrReplace(
                     data = Story(
                         title = normalizedTitle,
                         memory = draft.memory,
                         summary = draft.summary,
                         authorNote = draft.authorNote,
-                        includeUserPersona = draft.includeUserPersona,
+                        userPersonaId = selected,
                         createTime = now,
                         latestTime = now,
                     ),
@@ -276,7 +290,9 @@ class StoryArchiveRepository(
                 memory = story.memory,
                 summary = story.summary,
                 authorNote = story.authorNote,
-                includeUserPersona = story.includeUserPersona,
+                includeUserPersona = story.userPersonaId > 0,
+                personaNameHint = if (story.userPersonaId > 0) mAppDatabase.getUserPersonaDao()
+                    .get(story.userPersonaId).name else null,
                 ungroupedChapters = chapters.filter { it.volumeId == null }.map { chapter ->
                     ArchivedChapter(
                         title = chapter.title,

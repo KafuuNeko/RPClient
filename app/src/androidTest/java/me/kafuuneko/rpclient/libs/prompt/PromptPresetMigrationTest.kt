@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.upgrade.LegacyPromptSnapshot
@@ -35,7 +36,7 @@ class PromptPresetMigrationTest {
                 execSQL("INSERT INTO files (uuid, hash, mimeType) VALUES ('preserved', 'hash', 'image/png')")
                 close()
             }
-            val db = helper.runMigrationsAndValidate(name, 6, true)
+            val db = helper.runMigrationsAndValidate(name, 6, true, PersonaSchemaMigration)
             // 默认项不入库，仅导入旧配置中实际保存的空串覆盖。
             PromptPresetMigration.migrate(
                 db,

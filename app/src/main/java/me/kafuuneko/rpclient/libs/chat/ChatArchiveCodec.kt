@@ -8,8 +8,6 @@ import com.google.gson.JsonPrimitive
 import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import java.io.Reader
 import java.io.StringWriter
 import java.io.Writer
@@ -19,6 +17,8 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.CancellationException
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
+import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 
 /**
  * RPClient 与 SillyTavern JSONL 单聊文件之间的编解码器。
@@ -189,11 +189,10 @@ class ChatArchiveCodec(
             .takeUnlessUnused()
             ?: header.stringOrNull(KEY_CHARACTER_NAME).takeUnlessUnused()
             ?: parsed.characterNames.maxByOrNull { it.value }?.key
-        val userName = rpclient?.stringOrNull(KEY_USER_NAME)
-            .takeUnlessUnused()
+        val userName = rpclient?.stringOrNull(KEY_USER_NAME)?.takeIf(String::isNotEmpty)
             ?: parsed.firstUserName.takeUnlessUnused()
             ?: header.stringOrNull(KEY_USER_NAME).takeUnlessUnused()
-            ?: fallbackUserName.normalizedUserName()
+
 
         return ChatArchive(
             title = rpclient?.stringOrNull(KEY_TITLE)
@@ -204,7 +203,8 @@ class ChatArchiveCodec(
                 latestTime,
                 parsed.lastTime ?: createTime
             ),
-            userName = userName,
+            hasUserName = userName != null,
+            userName = userName ?: fallbackUserName.normalizedUserName(),
             userDescription = rpclient?.stringOrNull(KEY_USER_DESCRIPTION).orEmpty(),
             userNote = rpclient?.stringOrNull(KEY_USER_NOTE).orEmpty(),
             creatorNotes = rpclient?.stringOrNull(KEY_CREATOR_NOTES),
@@ -245,6 +245,7 @@ class ChatArchiveCodec(
     }
 
     private fun buildHeader(archive: ChatArchive, summaryInMessages: Boolean): JsonObject {
+        // 本地附加信息保留字段是否显式存在，导入时据此判断覆盖或继承。
         val rpclient = JsonObject().apply {
             addProperty(KEY_SCHEMA_VERSION, SCHEMA_VERSION)
             val hasMessageSummary = archive.summary?.let {
@@ -254,7 +255,7 @@ class ChatArchiveCodec(
             addProperty(KEY_TITLE, archive.title)
             addProperty(KEY_CREATE_TIME, archive.createTime)
             addProperty(KEY_LATEST_TIME, archive.latestTime)
-            addProperty(KEY_USER_NAME, archive.userName)
+            if (archive.hasUserName) addProperty(KEY_USER_NAME, archive.userName)
             addProperty(KEY_USER_DESCRIPTION, archive.userDescription)
             addProperty(KEY_USER_NOTE, archive.userNote)
             archive.creatorNotes?.let { text -> addProperty(KEY_CREATOR_NOTES, text) }
@@ -303,7 +304,7 @@ class ChatArchiveCodec(
             addProperty(
                 KEY_NAME,
                 when {
-                    isUser -> archive.userName
+                    isUser -> if (archive.hasUserName) archive.userName else UNUSED_NAME
                     isNarrator -> NARRATOR_NAME
                     else -> archive.characterNameHint
                 },

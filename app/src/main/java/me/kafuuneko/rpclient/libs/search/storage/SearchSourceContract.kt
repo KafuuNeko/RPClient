@@ -44,7 +44,14 @@ internal object SearchSourceContract {
         ),
     )
     val metadataColumns = mapOf(
-        "chat_sessions" to listOf("title", "characterId", "latestTime", "userName"),
+        "chat_sessions" to listOf(
+            "title",
+            "characterId",
+            "latestTime",
+            "userName",
+            "userPersonaId"
+        ),
+        "user_personas" to listOf("name"),
         "group_chat_sessions" to listOf("title", "latestTime"),
         "stories" to listOf("title", "latestTime"),
         "character" to listOf("name"),

@@ -61,13 +61,19 @@ interface StoryDao : MutableDao<Story> {
         latestTime: Long,
     ): Int
 
+    /**
+     * 按故事修订号保存上下文与人设绑定。
+     * @param expectedRevision 调用方读取设置时的修订号。
+     * @param userPersonaId 绑定的人设 ID，-1 表示不注入。
+     * @return 更新行数，0 表示修订号已变化或故事已删除。
+     */
     @Query(
         """
         UPDATE stories
         SET memory = :memory,
             summary = :summary,
             authorNote = :authorNote,
-            includeUserPersona = :includeUserPersona,
+            userPersonaId = :userPersonaId,
             revision = revision + 1,
             latestTime = :latestTime
         WHERE id = :id
@@ -80,7 +86,7 @@ interface StoryDao : MutableDao<Story> {
         memory: String,
         summary: String,
         authorNote: String,
-        includeUserPersona: Boolean,
+        userPersonaId: Long,
         latestTime: Long,
     ): Int
 

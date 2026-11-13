@@ -18,6 +18,12 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
+    data object ShowCreatePersona : MainUiIntent()
+    data class ChangePersonaDraft(val value: String) : MainUiIntent()
+    data object ConfirmCreatePersona : MainUiIntent()
+    data class SelectImportPersona(val id: Long) : MainUiIntent()
+    data class SelectPersona(val id: Long) : MainUiIntent()
+
     data class SelectImpersonationOutput(val output: ImpersonationOutput) : MainUiIntent()
 
     data class Init(val route: Route = Route.Main) : MainUiIntent()
@@ -93,7 +99,7 @@ sealed class MainUiIntent {
 
     data object PickUserAvatarClick : MainUiIntent()
 
-    data class UserAvatarCropped(val fileUuid: String) : MainUiIntent()
+    data class UserAvatarCropped(val personaId: Long, val fileUuid: String) : MainUiIntent()
 
     data object ClearUserAvatar : MainUiIntent()
 
@@ -111,9 +117,9 @@ sealed class MainUiIntent {
 
     data object ConfirmImportChat : MainUiIntent()
 
-    data class ChangeUserName(val value: String) : MainUiIntent()
+    data class ChangeUserName(val personaId: Long, val value: String) : MainUiIntent()
 
-    data class ChangeUserDescription(val value: String) : MainUiIntent()
+    data class ChangeUserDescription(val personaId: Long, val value: String) : MainUiIntent()
 
     data object ShowUserDescriptionEditor : MainUiIntent()
 

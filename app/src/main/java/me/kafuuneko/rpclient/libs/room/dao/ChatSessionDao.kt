@@ -82,6 +82,10 @@ interface ChatSessionDao : MutableDao<ChatSession> {
     @Query("SELECT * FROM chat_sessions WHERE id = :id")
     suspend fun getSessionById(id: Long): ChatSession?
 
+    /** 修改当前会话绑定的人设。 */
+    @Query("UPDATE chat_sessions SET userPersonaId = :personaId WHERE id = :id")
+    suspend fun selectPersona(id: Long, personaId: Long)
+
     /**
      * 修改会话标题。
      *
@@ -125,7 +129,7 @@ interface ChatSessionDao : MutableDao<ChatSession> {
      * @param userName 新的用户名称。
      */
     @Query("UPDATE chat_sessions SET userName = :userName WHERE id = :id")
-    suspend fun updateSessionUserName(id: Long, userName: String)
+    suspend fun updateSessionUserName(id: Long, userName: String?)
 
     /**
      * 修改当前会话使用的用户描述。
@@ -134,7 +138,7 @@ interface ChatSessionDao : MutableDao<ChatSession> {
      * @param userDescription 新的用户描述。
      */
     @Query("UPDATE chat_sessions SET userDescription = :userDescription WHERE id = :id")
-    suspend fun updateSessionUserDescription(id: Long, userDescription: String)
+    suspend fun updateSessionUserDescription(id: Long, userDescription: String?)
 
     /**
      * 修改角色笔记。

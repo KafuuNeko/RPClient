@@ -30,6 +30,9 @@ class PromptPresetRestoreTest {
                 """
                 <map>
                   <string name="mainPrompt"></string>
+                  <string name="userName">Archive player</string>
+                  <string name="userDescription"> {{user}} &amp; memory </string>
+                  <string name="userAvatar">archive-file</string>
                   <string name="groupSummarizePrompt"> &#13;
                 {{words}} &amp; memory</string>
                   <int name="lastMigratedVersionCode" value="20260103" />
@@ -45,6 +48,15 @@ class PromptPresetRestoreTest {
                 5,
                 directory
             )
+            // 人设与提示词来自同一归档。缺失的头像索引回退到占位图。
+            PromptPresetRestore.preparePersonas(database.openHelper.writableDatabase, directory)
+            val identity = database.getUserPersonaDao().active()
+            assertEquals("Archive player", identity.name)
+            assertEquals(" {{user}} & memory ", identity.description)
+            assertEquals(null, identity.avatarFileUuid)
+            assertEquals(null, readValue(file, "userName"))
+            assertEquals(null, readValue(file, "userAvatar"))
+            assertEquals(null, readValue(file, "userDescription"))
             val snapshot =
                 PromptPresetRepository(database).getDetail(PromptTemplateSnapshot.LEGACY_ID).snapshot
             // 校验实际读取的是归档值，并且新选择只写到暂存文件。

@@ -59,6 +59,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.CharacterSearchField
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
 import me.kafuuneko.rpclient.ui.widgets.RpCreationBottomBar
 import me.kafuuneko.rpclient.ui.widgets.RpCreationSwitchCard
@@ -67,9 +68,9 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.utils.toggle
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 新建单角色会话页 Compose 入口。 */
 @Composable
@@ -135,6 +136,11 @@ private fun ChatCreateNormal(
                             showCharacterExamplesSwitch = state.showCharacterExamplesSwitch,
                             emit = emit,
                         )
+                    }
+                    item {
+                        UserPersonaPicker(
+                            state = state.persona,
+                            onSelect = { ChatCreateUiIntent.SelectPersona(it).emit() })
                     }
                     item {
                         RpSectionHeader(title = stringResource(R.string.bind_character))

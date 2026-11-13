@@ -5,10 +5,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
 import kotlinx.coroutines.runBlocking
-import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
+import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,7 +27,7 @@ class GroupChatRepositorySummaryTest {
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         repository = GroupChatRepository(

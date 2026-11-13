@@ -4,9 +4,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import java.io.Reader
 import java.io.Writer
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 
 /** `.rpstory.json` 的稳定 V2 编解码器，同时兼容缺少章节引导的历史归档。 */
 class StoryArchiveCodec(private val mGson: Gson) {
@@ -61,12 +61,14 @@ class StoryArchiveCodec(private val mGson: Gson) {
     }
 
     private fun decodeStory(story: JsonObject): ArchivedStory {
+        // 归档沿用布尔开关和名称提示，本机绑定 ID 留待导入确认时选择。
         return ArchivedStory(
             title = story.normalizedTitle("title", DefaultNames.IMPORTED_STORY),
             memory = story.optionalString("memory"),
             summary = story.optionalString("summary"),
             authorNote = story.optionalString("authorNote"),
             includeUserPersona = story.optionalBoolean("includeUserPersona"),
+            personaNameHint = story.optionalString("personaNameHint").ifEmpty { null },
             ungroupedChapters = story.requiredArrayObjects("ungroupedChapters")
                 .map { it.decodeChapter() },
             volumes = story.requiredArrayObjects("volumes").map { volume ->

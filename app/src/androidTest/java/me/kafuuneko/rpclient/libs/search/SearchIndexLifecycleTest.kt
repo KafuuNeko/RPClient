@@ -6,6 +6,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -21,6 +22,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,7 +32,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 /** 文件库验证真实开关、触发器升级、恢复与空间回收，不以 Mock 代替持久边界。 */
 @RunWith(AndroidJUnit4::class)
@@ -407,13 +408,14 @@ class SearchIndexLifecycleTest {
             mRepository.search(request).hits.map { hit -> hit.kind }.toSet()
         )
         assertEquals(7L, scalar("SELECT revision FROM stories WHERE id = 1"))
-        assertEquals(5L, scalar("PRAGMA user_version"))
+        assertEquals(6L, scalar("PRAGMA user_version"))
     }
 
     private fun open() {
-        mDatabase = Room.databaseBuilder(mContext, AppDatabase::class.java, mName)
-            .addCallback(SearchDatabaseCallback)
-            .build()
+        mDatabase =
+            Room.databaseBuilder(mContext, AppDatabase::class.java, mName).withTestPersonas()
+                .addCallback(SearchDatabaseCallback)
+                .build()
         mRepository = ContentSearchRepository(mDatabase)
     }
 

@@ -92,11 +92,11 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.RecentContentCard
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 
 @Composable
 private fun HeroEntryCard(
@@ -1036,7 +1036,6 @@ private fun MainHomePagePreview() {
                     identityState = MainUserIdentityState(
                         userName = "You",
                         userDescription = "",
-                        userDescriptionPreview = "",
                         avatarState = MainUserAvatarState.None,
                     ),
                     providerState = MainProviderSettingsState.Empty,

@@ -40,6 +40,7 @@ import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchRequest
@@ -672,7 +673,7 @@ class PortableBackupRecoveryTest {
             mContext,
             AppDatabase::class.java,
             mContext.getDatabasePath("primary.sqlite").path
-        )
+        ).withTestPersonas()
             .addCallback(SearchDatabaseCallback).build()
         mLogs = Room.databaseBuilder(
             mContext,

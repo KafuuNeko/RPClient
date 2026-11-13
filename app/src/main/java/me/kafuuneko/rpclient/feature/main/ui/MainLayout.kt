@@ -260,6 +260,18 @@ private fun DialogSwitch(
             onConfirm = { MainUiIntent.ConfirmDeleteSelected.emit() },
         )
 
+        is MainDialogState.CreatePersona -> AppInputDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.persona_create),
+            label = stringResource(R.string.user_display_name),
+            value = dialogState.name,
+            onValueChange = { MainUiIntent.ChangePersonaDraft(it).emit() },
+            confirmText = stringResource(R.string.confirm),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = dialogState.name.isNotBlank(),
+            onConfirm = { MainUiIntent.ConfirmCreatePersona.emit() },
+        )
+
         is MainDialogState.RenameItem -> AppInputDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.rename),

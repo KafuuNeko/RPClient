@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.libs.story.ArchivedChapter
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
@@ -38,7 +39,7 @@ class StoryRepositoryTest {
         mDatabase = Room.inMemoryDatabaseBuilder(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             klass = AppDatabase::class.java,
-        )
+        ).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         mRepository = StoryRepository(mDatabase)
@@ -55,7 +56,7 @@ class StoryRepositoryTest {
         val entryId = insertLorebookEntry()
         val storyId = mRepository.createStoryWithConfiguration(
             title = " Configured story ",
-            includeUserPersona = true,
+            userPersonaId = 1L,
             lorebookSelections = listOf(StoryLorebookEntrySelection(entryId)),
             characterSelections = listOf(
                 element = StoryCharacterSelection(
@@ -68,7 +69,7 @@ class StoryRepositoryTest {
 
         val story = requireNotNull(mRepository.getStory(storyId))
         assertEquals("Configured story", story.title)
-        assertTrue(story.includeUserPersona)
+        assertEquals(1L, story.userPersonaId)
         assertEquals("Chapter 1", mRepository.getStoryEditorData(storyId)?.currentChapter?.title)
         val character = mRepository.getStoryCharacterCandidates(storyId).single()
         assertEquals(StoryCharacter.ACTIVATION_PRIMARY, character.relation.activationMode)
@@ -321,7 +322,7 @@ class StoryRepositoryTest {
             title = "Confirmed title",
         )
 
-        assertTrue(requireNotNull(mRepository.getStory(storyId)).includeUserPersona)
+        assertEquals(1L, requireNotNull(mRepository.getStory(storyId)).userPersonaId)
         assertEquals(
             StoryCharacter.ACTIVATION_PRIMARY,
             mRepository.getStoryCharacterCandidates(storyId).single().relation.activationMode,

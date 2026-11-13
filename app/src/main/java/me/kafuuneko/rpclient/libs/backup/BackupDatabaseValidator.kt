@@ -6,6 +6,7 @@ import androidx.room.Room
 import java.io.File
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 
 /**
@@ -28,10 +29,11 @@ internal object BackupDatabaseValidator {
             SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
                 .use { it.version }
         val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path)
-            .build()
+            .addMigrations(PersonaSchemaMigration).build()
         try {
             val db = candidate.openHelper.writableDatabase
             PromptPresetRestore.prepare(context, db, sourceVersion, preferences)
+            PromptPresetRestore.preparePersonas(db, preferences)
             SearchDatabaseCallback.resetAfterRestore(db)
         } finally {
             candidate.close()

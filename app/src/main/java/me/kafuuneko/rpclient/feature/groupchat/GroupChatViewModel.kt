@@ -84,15 +84,15 @@ import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
-import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
-import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
@@ -113,6 +113,8 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
@@ -143,6 +145,7 @@ class GroupChatViewModel :
         GroupChatUiState.None
     ), KoinComponent {
     // 数据仓库与服务依赖注入
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mFileRepository by inject<FileRepository>()
 
@@ -174,7 +177,8 @@ class GroupChatViewModel :
             retry.sessionId,
             retry.speakers,
             retry.generationMode,
-            retry.triggerUserMessageId
+            retry.triggerUserMessageId,
+            initialPersona = retry.persona,
         )
     }
 
@@ -782,6 +786,7 @@ class GroupChatViewModel :
                 )
             } ?: return
             val initialData = GroupChatData(
+                persona = mPersonas.resolve(selectionData.session),
                 session = selectionData.session,
                 members = selectionData.members,
                 messages = emptyList(),
@@ -832,7 +837,7 @@ class GroupChatViewModel :
                             sessionId = sessionId,
                             content = input,
                             images = finalInputs.filterIsInstance<MessageImageInput.Prepared>(),
-                            speakerNameSnapshot = initialData.session.userName,
+                            speakerNameSnapshot = initialData.persona.name,
                         ).key.messageId
                     }
                 } else null
@@ -849,7 +854,8 @@ class GroupChatViewModel :
             launchGeneration(
                 sessionId = sessionId,
                 speakers = speakers,
-                triggerUserMessageId = triggerUserMessageId
+                triggerUserMessageId = triggerUserMessageId,
+                initialPersona = initialData.persona,
             )
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
@@ -930,6 +936,30 @@ class GroupChatViewModel :
     private fun onChangeScenario(intent: GroupChatUiIntent.ChangeScenario) {
         if (!isStateOf<GroupChatUiState.Normal>()) return
         updateSettingsState { copy(scenarioDraft = intent.value) }
+    }
+
+    /** 在设置草稿中选择人设，保存时随会话一起写入。 */
+    @UiIntentObserver(GroupChatUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: GroupChatUiIntent.SelectPersona) {
+        val inherited = mPersonas.get(intent.id)
+        updateSettingsState {
+            copy(
+                persona = persona.copy(selectedId = intent.id),
+                inheritedDescription = inherited.description
+            )
+        }
+    }
+
+    /** 暂存当前群聊的名称覆盖。 */
+    @UiIntentObserver(GroupChatUiIntent.ChangeUserName::class)
+    private fun onChangeUserName(intent: GroupChatUiIntent.ChangeUserName) {
+        updateSettingsState { copy(userNameDraft = intent.value) }
+    }
+
+    /** 暂存当前群聊的描述覆盖。 */
+    @UiIntentObserver(GroupChatUiIntent.ChangeUserDescription::class)
+    private fun onChangeUserDescription(intent: GroupChatUiIntent.ChangeUserDescription) {
+        updateSettingsState { copy(userDescriptionDraft = intent.value) }
     }
 
     /**
@@ -1128,6 +1158,9 @@ class GroupChatViewModel :
                 session = session.copy(
                     title = uiState.settingsState.titleDraft.trim().ifBlank { session.title },
                     scenario = uiState.settingsState.scenarioDraft.trim(),
+                    userPersonaId = uiState.settingsState.persona.selectedId,
+                    userName = uiState.settingsState.userNameDraft.ifEmpty { null },
+                    userDescription = uiState.settingsState.userDescriptionDraft.ifEmpty { null },
                     userNote = uiState.settingsState.userNoteDraft.trim(),
                     activationStrategy = uiState.settingsState.activationStrategy.toEntity(),
                     allowSelfResponses = uiState.settingsState.allowSelfResponses,
@@ -1671,11 +1704,16 @@ class GroupChatViewModel :
         speakers: List<GroupChatMemberData>,
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
         triggerUserMessageId: Long? = null,
+        initialPersona: UserPersona? = null,
     ) {
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 var completedTemplates: PromptTemplateSnapshot? = null
+                var batchPersona = initialPersona ?: mPersonas.resolve(
+                    mGroupChatRepository.getSessionById(sessionId)
+                        ?: error(mContext.getString(R.string.group_chat_not_found))
+                )
                 var pendingSpeakers = speakers
                 var nextGenerationMode = generationMode
                 var batchTriggerMessageId = triggerUserMessageId
@@ -1685,6 +1723,7 @@ class GroupChatViewModel :
                         batch = ReplyRetryContext(
                             sessionId = sessionId,
                             speakers = pendingSpeakers,
+                            persona = batchPersona,
                             generationMode = nextGenerationMode,
                             triggerUserMessageId = batchTriggerMessageId,
                         ),
@@ -1704,6 +1743,7 @@ class GroupChatViewModel :
                         GroupChatSession.ActivationStrategy.Manual
                     ) {
                         delay(AUTO_MODE_DELAY_MS.milliseconds)
+                        batchPersona = mPersonas.resolve(nextData.session)
                         mSpeakerSelector.select(
                             session = nextData.session,
                             members = nextData.members,
@@ -1754,6 +1794,7 @@ class GroupChatViewModel :
         batch.speakers.forEachIndexed { index, speaker ->
             currentCoroutineContext().ensureActive()
             generateSpeakerReply(
+                persona = batch.persona,
                 templates = templates,
                 sessionId = batch.sessionId,
                 speaker = speaker,
@@ -1811,6 +1852,7 @@ class GroupChatViewModel :
      * @param triggerUserMessageId 本批次触发消息，用于有限历史查询
      */
     private suspend fun generateSpeakerReply(
+        persona: UserPersona,
         sessionId: Long,
         speaker: GroupChatMemberData,
         batchId: String,
@@ -1823,6 +1865,7 @@ class GroupChatViewModel :
         // 加载群聊快照、模型提供商与世界书上下文
         val promptData = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatPromptData(
+                batchPersona = persona,
                 sessionId = sessionId,
                 maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 protectedUserMessageId = triggerUserMessageId,
@@ -1841,6 +1884,7 @@ class GroupChatViewModel :
             mPromptBuilder.buildWithMetadata(
                 preferences = templates,
                 context = GroupChatPromptContext(
+                    persona = data.persona,
                     session = data.session,
                     members = data.members,
                     speaker = speaker.character,
@@ -2196,6 +2240,7 @@ class GroupChatViewModel :
             // 群聊历史格式化和 BPE 统计不得阻塞 Compose 所在的主线程
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
+                    userName = data.persona.name,
                     templates = templates,
                     session = data.session,
                     memberNames = data.members.map { member -> member.character.name },
@@ -2272,6 +2317,7 @@ class GroupChatViewModel :
             mPromptBuilder.buildWithMetadata(
                 preferences = templates,
                 context = GroupChatPromptContext(
+                    persona = data.persona,
                     session = data.session,
                     members = data.members,
                     speaker = speaker.character,
@@ -2401,7 +2447,8 @@ class GroupChatViewModel :
             )
         } ?: return
         mPendingMemberOrder = null
-        next.setup()
+        // 读取人设和群成员期间，图片选择器可以提交新的附件草稿。
+        next.copy(imageState = mImageCoordinator.state).setup()
     }
 
     /**
@@ -2458,7 +2505,7 @@ class GroupChatViewModel :
                 description = resolveCharacterUserMacros(
                     template = member.character.description,
                     characterName = member.character.name,
-                    userName = data.session.userName,
+                    userName = data.persona.name,
                 ),
                 muted = member.relation.muted,
                 avatarImage = loadAvatarImage(member.character.avatar),
@@ -2544,6 +2591,10 @@ class GroupChatViewModel :
                 editingMessageDraft = editingMessageDraft,
             ),
             settingsState = GroupChatSettingsState(
+                persona = mPersonas.selection(data.session.userPersonaId),
+                userNameDraft = data.session.userName.orEmpty(),
+                userDescriptionDraft = data.session.userDescription.orEmpty(),
+                inheritedDescription = mPersonas.get(data.session.userPersonaId).description,
                 activationStrategy = data.session.activationStrategy
                     .toGroupChatActivationStrategy(),
                 characterCardMode = data.session.characterCardMode
@@ -2656,7 +2707,7 @@ class GroupChatViewModel :
             GroupChatMessageItem(
                 id = message.id,
                 source = message.source.toGroupChatMessageSource(),
-                speakerName = message.speakerNameSnapshot,
+                speakerName = message.speakerName(persona.name),
                 content = displayContent,
                 parts = displayContent.toMessageContentParts(message.id.toString()),
                 time = message.createTime.formatTimestamp("HH:mm"),

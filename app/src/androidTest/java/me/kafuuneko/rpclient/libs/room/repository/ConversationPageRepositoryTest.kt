@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,7 +32,7 @@ class ConversationPageRepositoryTest {
     fun setUp() = runBlocking {
         // 使用同一内存数据库验证页面聚合查询的事务语义
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         chatRepository = ChatRepository(

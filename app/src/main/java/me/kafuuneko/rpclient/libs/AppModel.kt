@@ -1,8 +1,6 @@
 package me.kafuuneko.rpclient.libs
 
 import com.chibatching.kotpref.KotprefModel
-import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
@@ -75,19 +73,6 @@ object AppModel : KotprefModel() {
 
     // 是否启用流式响应。
     var streamEnabled by booleanPref(default = true)
-
-    // Prompt 宏中的用户名称，对应 {{user}}。
-    var userName by stringPref(default = DefaultNames.USER)
-
-    /** 始终可安全用于展示、持久化和 Prompt 宏的全局用户名。 */
-    val resolvedUserName: String
-        get() = userName.normalizedUserName()
-
-    // 用户头像，存储的是 File UUID。
-    var userAvatar by stringPref(default = "")
-
-    // 用户人格描述，对应 {{persona}} 或 persona description。
-    var userDescription by stringPref(default = "")
 
     // 摘要目标字数限制，对应摘要提示词中的 {{words}}。
     var summaryWordsLimit by intPref(default = 500)

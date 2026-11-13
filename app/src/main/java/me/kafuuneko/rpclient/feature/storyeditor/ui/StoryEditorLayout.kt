@@ -50,11 +50,12 @@ import me.kafuuneko.rpclient.ui.dialog.StoryChapterDestinationOption
 import me.kafuuneko.rpclient.ui.dialog.StoryMoveChapterDialog
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 分卷/章节故事编辑器及 Story 设置的 Compose 入口。 */
 @Composable
@@ -367,6 +368,12 @@ private fun ImportPreviewDialog(
                 singleLine = true,
                 enabled = !preview.isSaving,
                 shape = RoundedCornerShape(14.dp),
+            )
+            UserPersonaPicker(
+                state = preview.persona,
+                onSelect = { StoryEditorUiIntent.SelectImportPersona(it).emit() },
+                allowNone = true,
+                enabled = !preview.isSaving
             )
             Text(
                 text = stringResource(

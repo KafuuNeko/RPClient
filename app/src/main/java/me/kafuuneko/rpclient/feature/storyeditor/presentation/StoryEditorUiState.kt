@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 
 /** 章节编辑器页面状态树；当前章节正文由独立文档状态桥接，不复制到此处。 */
 sealed class StoryEditorUiState {
@@ -195,6 +196,7 @@ sealed class StoryEditorPageState {
     data object LoadingSettings : StoryEditorPageState()
 
     data class Settings(
+        val persona: PersonaSelection = PersonaSelection(),
         /** 移动或编辑操作当前选中的结构区段。 */
         val selectedSection: StorySettingsSection = StorySettingsSection.Context,
         /** 长期参与故事 Prompt 构建的记忆内容。 */
@@ -203,8 +205,6 @@ sealed class StoryEditorPageState {
         val summary: String,
         /** 按指定位置注入故事 Prompt 的作者注释。 */
         val authorNote: String,
-        /** 故事 Prompt 是否包含当前用户名称和用户设定。 */
-        val includeUserPersona: Boolean,
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<StoryCharacterOptionItem>,
         /** 按世界书分组后的条目列表。 */

@@ -8,7 +8,6 @@ import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import me.kafuuneko.rpclient.libs.prompt.PromptPostProcessingNames
 import me.kafuuneko.rpclient.libs.prompt.PromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
-import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivationResult
 import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
@@ -33,6 +32,7 @@ import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
+import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionError
 import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
@@ -46,6 +46,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 
@@ -84,6 +85,10 @@ data class GroupChatPromptContext(
     val protectedUserMessageId: Long? = null,
     /** Classic 摘要复用普通上下文，末尾任务取代群聊发言引导。 */
     val summaryInstruction: String? = null,
+    val persona: UserPersona = UserPersona().withOverrides(
+        session.userName,
+        session.userDescription
+    ),
 )
 
 /** 群聊回复的生成模式。 */
@@ -217,9 +222,9 @@ private class GroupChatPromptBuildSession(
         val regexErrors = mutableListOf<RegexExecutionError>()
         // 构造供 Regex 运行环境使用的宏变量映射字典（包含 {{group}} 等）
         val regexMacros = RegexScriptRuntime.macros(
-            userName = context.session.userName,
+            userName = context.persona.name,
             characterName = context.speaker.name,
-            userDescription = context.session.userDescription,
+            userDescription = context.persona.description,
             scenario = context.session.scenario,
             groupNames = context.memberNames(),
         )
@@ -291,7 +296,7 @@ private class GroupChatPromptBuildSession(
             val protectsUserImages = hasImages && message.source == GroupChatMessage.Source.User
                 && message.id == context.protectedUserMessageId
             message.toPromptDraft(
-                userName = context.session.userName,
+                userName = context.persona.name,
                 retentionPriority = PromptRetentionPolicy.HISTORY,
                 canDrop = index != history.lastIndex && !protectsUserImages,
             ).copy(
@@ -343,7 +348,7 @@ private class GroupChatPromptBuildSession(
             postProcessingMode = readPostProcessingMode(context.provider),
             strictPromptPlaceholder = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
             postProcessingNames = PromptPostProcessingNames(
-                userName = context.session.userName,
+                userName = context.persona.name,
                 characterName = context.speaker.name,
                 groupNames = context.members.map { it.character.name },
             ),
@@ -382,13 +387,14 @@ private class GroupChatPromptBuildSession(
      * @return 激活的世界书分组结果
      */
     private fun activateWorldInfo(context: GroupChatPromptContext): WorldBookActivationResult {
+        // 扫描沿用本轮身份，历史消息的发言者快照仍优先保留。
         val cardMembers = context.cardMembers()
         return mWorldBookActivator.activateStructured(
             context = WorldBookScanContext(
-                messages = context.messages.map {
+                messages = context.messages.map { message ->
                     WorldBookScanMessage(
-                        it.speakerNameSnapshot,
-                        it.content
+                        speakerName = message.speakerName(context.persona.name),
+                        content = message.content,
                     )
                 },
                 currentUserMessage = null,
@@ -406,7 +412,7 @@ private class GroupChatPromptBuildSession(
                 characterDescription = cardMembers.joinToString("\n") { member ->
                     "${member.character.name}: ${member.character.description}"
                 },
-                userDescription = context.session.userDescription,
+                userDescription = context.persona.description,
                 characterPersonality = cardMembers.joinToString("\n") { member ->
                     "${member.character.name}: ${member.character.personality}"
                 },
@@ -477,8 +483,8 @@ private class GroupChatPromptBuildSession(
         before += requiredSystem(
             content = renderUserPersonaTemplate(
                 template = mPreferences.userPersonaFormat,
-                userName = context.session.userName,
-                userDescription = context.session.userDescription,
+                userName = context.persona.name,
+                userDescription = context.persona.description,
                 characterName = context.speaker.name,
             ),
             sourceKind = PromptSourceKind.UserPersona,
@@ -634,6 +640,7 @@ private class GroupChatPromptBuildSession(
         if (!context.session.includeCharacterExamples || behavior == ExampleDialogueBehavior.Disabled) {
             return emptyList()
         }
+        // 示例中的用户宏和称谓与本轮 Prompt 身份保持一致。
         val retentionPriority = PromptRetentionPolicy.examplePriority(behavior)
         return context.cardMembers().flatMap { member ->
             member.character.examplesOfDialogue
@@ -657,7 +664,7 @@ private class GroupChatPromptBuildSession(
                             }
                         val parsed = parseExampleMessages(
                             block = block,
-                            userName = context.session.userName,
+                            userName = context.persona.name,
                             characterName = member.character.name,
                         )
                         if (parsed.isEmpty()) {
@@ -674,7 +681,7 @@ private class GroupChatPromptBuildSession(
                         } else {
                             parsed.forEach { message ->
                                 val speaker = if (message.role == LLMMessageRole.User) {
-                                    context.session.userName
+                                    context.persona.name
                                 } else {
                                     member.character.name
                                 }
@@ -916,16 +923,13 @@ private class GroupChatPromptBuildSession(
         retentionPriority: Int,
         canDrop: Boolean,
     ): PromptMessageDraft {
+        // 仅在旧用户消息缺少署名时使用本轮名称，避免改写历史身份。
         val role = when (source) {
             GroupChatMessage.Source.User -> LLMMessageRole.User
             GroupChatMessage.Source.Character -> LLMMessageRole.Assistant
             GroupChatMessage.Source.System -> LLMMessageRole.System
         }
-        val speaker = if (source == GroupChatMessage.Source.User) {
-            userName
-        } else {
-            speakerNameSnapshot
-        }
+        val speaker = speakerName(userName)
         return PromptMessageDraft(
             role = role,
             content = "$speaker: $content",
@@ -945,12 +949,13 @@ private class GroupChatPromptBuildSession(
         groupNames: String,
         original: String = this,
     ): String {
+        // 同一次生成的模板宏均取自已冻结的有效人设。
         return replace(oldValue = "{{original}}", newValue = original, ignoreCase = true)
             .replace(oldValue = "{{char}}", newValue = context.speaker.name, ignoreCase = true)
-            .replace(oldValue = "{{user}}", newValue = context.session.userName, ignoreCase = true)
+            .replace(oldValue = "{{user}}", newValue = context.persona.name, ignoreCase = true)
             .replace(
                 oldValue = "{{persona}}",
-                newValue = context.session.userDescription,
+                newValue = context.persona.description,
                 ignoreCase = true
             )
             .replace(
@@ -966,7 +971,7 @@ private class GroupChatPromptBuildSession(
             )
             .replace(oldValue = "<CHAR>", newValue = context.speaker.name, ignoreCase = true)
             .replace(oldValue = "<BOT>", newValue = context.speaker.name, ignoreCase = true)
-            .replace(oldValue = "<USER>", newValue = context.session.userName, ignoreCase = true)
+            .replace(oldValue = "<USER>", newValue = context.persona.name, ignoreCase = true)
     }
 
     /** 格式化世界书条目内容。 */

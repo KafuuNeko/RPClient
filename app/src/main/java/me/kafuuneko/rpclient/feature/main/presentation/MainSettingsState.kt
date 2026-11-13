@@ -4,8 +4,8 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.model.toMainProviderItem
-import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
+import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.media.ImageSendSettings
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -13,6 +13,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
@@ -54,12 +55,11 @@ data class MainAppearanceSettingsState(
 
 /** 用户名称、描述和头像面板状态。 */
 data class MainUserIdentityState(
+    val persona: PersonaSelection = PersonaSelection(),
     /** 当前会话或 Prompt 使用的用户名称。 */
     val userName: String,
     /** 当前会话或 Prompt 使用的用户设定。 */
     val userDescription: String,
-    /** 设置页展示的用户设定摘要。 */
-    val userDescriptionPreview: String,
     /** 全局用户头像的加载与编辑状态。 */
     val avatarState: MainUserAvatarState
 )

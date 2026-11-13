@@ -59,16 +59,17 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 import me.kafuuneko.rpclient.utils.toggle
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /**
  * 渲染单聊设置页，字段草稿与自动保存时序沿用原实现。
@@ -192,7 +193,11 @@ internal fun ChatSettingsPage(
                         maxLines = 8,
                         onSave = { text -> ChatUiIntent.SaveUserNote(text).emit() },
                     )
+                    UserPersonaPicker(
+                        state = session.persona,
+                        onSelect = { ChatUiIntent.SelectPersona(it).emit() })
                     AutoSaveTextField(
+                        placeholder = session.persona.selectedName.orEmpty(),
                         label = stringResource(R.string.user_display_name),
                         value = session.userName,
                         minLines = 1,
@@ -203,7 +208,7 @@ internal fun ChatSettingsPage(
                     AutoSaveTextField(
                         label = stringResource(R.string.user_persona_description),
                         value = session.userDescription,
-                        placeholder = stringResource(R.string.empty),
+                        placeholder = session.inheritedDescription,
                         minLines = 3,
                         maxLines = 8,
                         onSave = { text -> ChatUiIntent.SaveUserDescription(text).emit() },

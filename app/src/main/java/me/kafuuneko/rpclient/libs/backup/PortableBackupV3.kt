@@ -151,6 +151,8 @@ internal class BackupV3Writer(
     private val mChatCodec = ChatArchiveCodec(gson)
     private val mStoryCodec = StoryArchiveCodec(gson)
 
+    private val mPersonas by lazy { rows("user_personas").associateBy { it.getLong("id") } }
+
     /** 已由专用文档接管的表；其余表走通用 JSONL。 */
     private val mOwned = mutableSetOf<String>()
 
@@ -407,7 +409,8 @@ internal class BackupV3Writer(
                     memory = story.optString("memory"),
                     summary = story.optString("summary"),
                     authorNote = story.optString("authorNote"),
-                    includeUserPersona = story.flag("includeUserPersona"),
+                    includeUserPersona = story.getLong("userPersonaId") > 0,
+                    personaNameHint = mPersonas[story.getLong("userPersonaId")]?.getString("name"),
                     ungroupedChapters = ungrouped.map {
                         ArchivedChapter(
                             title = it.optString("title"),
@@ -441,6 +444,7 @@ internal class BackupV3Writer(
                         "story",
                         JSONObject()
                             .put("id", id)
+                            .put("userPersonaId", story.getLong("userPersonaId"))
                             .put("worldInfoGenerationStep", story.opt("worldInfoGenerationStep"))
                             .put("revision", story.opt("revision"))
                             .put("createTime", story.opt("createTime"))
@@ -530,13 +534,16 @@ internal class BackupV3Writer(
         character: Character?,
         latest: JSONObject?
     ): ChatArchive {
+        val persona = mPersonas.getValue(session.getLong("userPersonaId"))
         // 头部只保留会话状态和最新摘要，普通消息由同一读事务内的游标继续写出。
         return ChatArchive(
             title = session.optString("title"),
             createTime = session.optLong("createTime"),
             latestTime = session.optLong("latestTime"),
-            userName = session.optString("userName"),
-            userDescription = session.optString("userDescription"),
+            userName = session.textOrNull("userName")?.takeIf(String::isNotEmpty)
+                ?: persona.getString("name"),
+            userDescription = session.textOrNull("userDescription")?.takeIf(String::isNotEmpty)
+                ?: persona.getString("description"),
             userNote = session.optString("userNote"),
             creatorNotes = session.textOrNull("creatorNotes"),
             lorebookEntrySet = session.optString("lorebookEntrySet"),
@@ -583,10 +590,14 @@ internal class BackupV3Writer(
     ) {
         val headerWriter = StringWriter()
         mChatCodec.encodeHeader(archive, headerWriter)
+        // 公共头部保存有效值，附加信息保存本地绑定和两个字段各自的继承状态。
         val side = JSONObject().put(
             "session",
             JSONObject().put("id", session.getLong("id"))
                 .put("characterId", session.opt("characterId"))
+                .put("userPersonaId", session.getLong("userPersonaId"))
+                .put("userNameOverride", overrideState(session, "userName"))
+                .put("userDescriptionOverride", overrideState(session, "userDescription"))
         )
         summaries.lastOrNull()?.let { side.put("summaryId", it.getLong("id")) }
         side.put("olderSummaries", JSONArray(summaries.dropLast(1)))
@@ -594,6 +605,13 @@ internal class BackupV3Writer(
             JSONObject(headerWriter.toString()).put(BackupV3.SIDECAR, side),
             writer
         )
+    }
+
+    /** 覆盖正文仍由可编辑的聊天文档持有，附加信息只标记其继承语义。 */
+    private fun overrideState(session: JSONObject, key: String) = when (session.textOrNull(key)) {
+        null -> "inherit"
+        "" -> "empty"
+        else -> "value"
     }
 
     /** 将消息 ID 与正文一同写入；同一会话的重复图片只写哈希。 */
@@ -707,7 +725,8 @@ internal class BackupV3Writer(
 internal class BackupV3Reader(
     private val mRoot: File,
     private val mGson: Gson,
-    private val mReport: BackupReport
+    private val mReport: BackupReport,
+    private val mHasPersonas: Boolean,
 ) {
     private val mRowGson = BackupV3.rowGson(mGson)
     private val mCardMapper = CharacterCardMapper(mGson)
@@ -717,6 +736,14 @@ internal class BackupV3Reader(
     private val mChatCodec = ChatArchiveCodec(mGson)
 
     private val mTables = linkedMapOf<String, MutableList<JSONObject>>()
+    private val mPersonas by lazy {
+        mTables["user_personas"].orEmpty().associateBy { it.getLong("id") }
+    }
+    private val mDefaultPersona by lazy {
+        val settings = mTables["user_persona_settings"].orEmpty().single()
+        require(settings.getInt("id") == 1)
+        mPersonas.getValue(settings.getLong("defaultPersonaId"))
+    }
     private val mCharacters = mutableListOf<JSONObject>()
     private val mOriginalCharacterRows = mutableMapOf<Long, MutableList<JSONObject>>()
     private val mOriginalLorebookRows = mutableMapOf<Long, MutableList<JSONObject>>()
@@ -746,6 +773,10 @@ internal class BackupV3Reader(
      */
     fun readPrimary(): Map<String, List<JSONObject>> {
         readRowFiles("tables", mTables)
+        if (mHasPersonas) {
+            // 新版完整备份必须自带默认指针，包括没有会话的空库。
+            require(mDefaultPersona.getLong("id") > 0)
+        }
         readCharacters()
         readWorldbooks()
         resolveCharacterLorebooks()
@@ -980,7 +1011,6 @@ internal class BackupV3Reader(
                     .put("memory", story.memory)
                     .put("summary", story.summary)
                     .put("authorNote", story.authorNote)
-                    .put("includeUserPersona", story.includeUserPersona)
                     .put("worldInfoGenerationStep", 0)
                     .put("revision", 0L)
                     .put("createTime", mNow)
@@ -993,6 +1023,18 @@ internal class BackupV3Reader(
                     "createTime",
                     "latestTime"
                 )
+                if (mHasPersonas) {
+                    val id = when {
+                        storySide?.has("userPersonaId") == true -> storySide.getLong("userPersonaId")
+                        !story.includeUserPersona -> -1L
+                        else -> mPersonas.values.singleOrNull { it.getString("name") == story.personaNameHint }
+                            ?.getLong("id") ?: mDefaultPersona.getLong("id")
+                    }
+                    require(id == -1L || id in mPersonas)
+                    storyRow.put("userPersonaId", id)
+                } else {
+                    storyRow.put("includeUserPersona", story.includeUserPersona)
+                }
                 applyId(storySide, storyRow)
                 add("stories", storyRow)
 
@@ -1258,7 +1300,33 @@ internal class BackupV3Reader(
             .put("includeCharacterExamples", archive.includeCharacterExamples)
         // 可空作者备注缺省时继续继承角色卡，不写入字符串形式的 null。
         archive.creatorNotes?.let { row.put("creatorNotes", it) }
-        header?.getAsJsonObject("session").longValue("id")?.takeIf { it > 0L }
+        val session = header?.getAsJsonObject("session")
+        if (mHasPersonas) {
+            val id = session.longValue("userPersonaId") ?: mDefaultPersona.getLong("id")
+            val persona = mPersonas.getValue(id)
+            row.put("userPersonaId", id)
+            fun restoreOverride(key: String, value: String?, inherited: String) {
+                val override = when (session?.get(key + "Override")?.asString) {
+                    "inherit" -> null
+                    "empty" -> ""
+                    "value" -> value
+                    null -> value?.takeUnless { it.isEmpty() || it == inherited }
+                    else -> error("Invalid $key override state")
+                }
+                row.put(key, override ?: JSONObject.NULL)
+            }
+            restoreOverride(
+                "userName",
+                archive.userName.takeIf { archive.hasUserName },
+                persona.getString("name")
+            )
+            restoreOverride(
+                "userDescription",
+                archive.userDescription,
+                persona.getString("description")
+            )
+        }
+        session.longValue("id")?.takeIf { it > 0L }
             ?.let { row.put("id", it) }
         return row
     }

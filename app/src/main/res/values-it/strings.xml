@@ -1416,4 +1416,8 @@ Non riusciti: %2$d</string>
     <string name="summary_mode">Modalità di riepilogo delle conversazioni</string>
     <string name="summary_mode_raw">Raw (incrementale)</string>
     <string name="summary_mode_classic">Classic (contesto attuale)</string>
+    <string name="persona_name_with_id">%1$s (#%2$d)</string>
+    <string name="persona_label">Profilo utente</string>
+    <string name="persona_create">Crea un nuovo utente</string>
+    <string name="persona_none">Non includere un profilo</string>
 </resources>

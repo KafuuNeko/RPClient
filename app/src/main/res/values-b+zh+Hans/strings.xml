@@ -1433,4 +1433,8 @@
     <string name="summary_mode">对话摘要模式</string>
     <string name="summary_mode_raw">Raw（增量摘要）</string>
     <string name="summary_mode_classic">Classic（当前上下文）</string>
+    <string name="persona_name_with_id">%1$s (#%2$d)</string>
+    <string name="persona_label">用户人设</string>
+    <string name="persona_create">创建新用户</string>
+    <string name="persona_none">不注入用户人设</string>
 </resources>

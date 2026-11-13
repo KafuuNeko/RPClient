@@ -262,14 +262,18 @@ class PortableBackupRepository(
         val logsSchemaFile = File(stage, "app-data/request-log-schema.json")
         require(primarySchemaFile.isFile) { "app-data/database-schema.json is missing." }
         require(logsSchemaFile.isFile) { "app-data/request-log-schema.json is missing." }
-        val reader = BackupV3Reader(stage, mGson, report)
+        val primarySchema = JSONObject(primarySchemaFile.readText(Charsets.UTF_8))
+        val hasPersonas = primarySchema.getJSONArray("objects").objects().any {
+            it.optString("type") == "table" && it.optString("name") == "user_personas"
+        }
+        val reader = BackupV3Reader(stage, mGson, report, hasPersonas)
         val primaryRows = reader.readPrimary()
         val requestRows = reader.readLogs()
         val stagedPrimary = File(stage, PRIMARY_DB)
         val stagedLogs = File(stage, LOGS_DB)
         report.info("Rebuilding databases")
         reconstructDatabase(
-            JSONObject(primarySchemaFile.readText(Charsets.UTF_8)), primaryRows, stagedPrimary
+            primarySchema, primaryRows, stagedPrimary
         ) { report.warn(it) }
         reconstructDatabase(
             JSONObject(logsSchemaFile.readText(Charsets.UTF_8)), requestRows, stagedLogs

@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateOptions
+import me.kafuuneko.rpclient.feature.storycreate.model.filterCharactersForQuery
 import me.kafuuneko.rpclient.feature.storycreate.model.filterForQuery
 import me.kafuuneko.rpclient.feature.storycreate.model.toStorageValue
 import me.kafuuneko.rpclient.feature.storycreate.model.toStoryCreateCharacterItem
@@ -20,7 +21,6 @@ import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateLoadSta
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiIntent
 import me.kafuuneko.rpclient.feature.storycreate.presentation.StoryCreateUiState
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -29,6 +29,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
@@ -48,6 +49,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     StoryCreateUiState.None
 ), KoinComponent {
     private var mCharacterSearchJob: Job? = null
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mStoryRepository by inject<StoryRepository>()
@@ -64,6 +66,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             // 装载候选数据并迁移至 Ready 状态
             current.copy(
                 loadState = StoryCreateLoadState.Ready,
+                form = current.form.copy(persona = mPersonas.selection(-1L)),
                 characters = data.characters,
                 visibleCharacters = data.characters,
                 lorebookGroups = data.lorebookGroups,
@@ -92,10 +95,20 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         updateReadyForm { copy(title = intent.value) }
     }
 
-    /** 设置新故事是否在生成 Prompt 中注入当前全局用户人设。 */
-    @UiIntentObserver(StoryCreateUiIntent.SetIncludeUserPersona::class)
-    private fun onSetIncludeUserPersona(intent: StoryCreateUiIntent.SetIncludeUserPersona) {
-        updateReadyForm { copy(includeUserPersona = intent.enabled) }
+    /** 设置新故事使用的人设，并刷新角色宏预览。 */
+    @UiIntentObserver(StoryCreateUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: StoryCreateUiIntent.SelectPersona) {
+        val state = readyState() ?: return
+        mCharacterSearchJob?.cancel()
+        val name = mPersonas.get(intent.id).name
+        val lorebookNames = state.lorebookGroups.associate { it.lorebookId to it.lorebookName }
+        val characters = mCharacterRepository.getAllCharacters()
+            .map { it.toStoryCreateCharacterItem(name, lorebookNames) }
+        state.copy(
+            form = state.form.copy(persona = state.form.persona.copy(selectedId = intent.id)),
+            characters = characters,
+            visibleCharacters = characters.filterCharactersForQuery(state.characterQuery)
+        ).setup()
     }
 
     /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
@@ -225,7 +238,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             val storyId = withContext(Dispatchers.IO) {
                 mStoryRepository.createStoryWithConfiguration(
                     title = title,
-                    includeUserPersona = uiState.form.includeUserPersona,
+                    userPersonaId = uiState.form.persona.selectedId,
                     lorebookSelections = uiState.form.selectedLorebookEntryIds
                         .sorted()
                         .map(::StoryLorebookEntrySelection),
@@ -261,8 +274,8 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     }
 
     /** 从数据库拉取所有世界书及其有效条目，以及全量候选角色。 */
-    private suspend fun loadOptions(): StoryCreateOptions {
-        val userName = AppModel.resolvedUserName
+    private suspend fun loadOptions(id: Long = -1L): StoryCreateOptions {
+        val userName = mPersonas.get(id).name
         val lorebooks = mLorebookRepository.getAllLorebooksWithEntries()
         val lorebookNames = lorebooks.associate { it.lorebook.id to it.lorebook.name }
         // 构建包含条目列表的世界书分组项

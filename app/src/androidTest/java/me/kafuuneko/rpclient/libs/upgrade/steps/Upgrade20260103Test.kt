@@ -15,6 +15,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.toDomain
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
 import me.kafuuneko.rpclient.libs.upgrade.AppVersionCodeProvider
@@ -41,7 +42,7 @@ class Upgrade20260103Test {
             .filterKeys { it in ManagedPreferenceKeys }
             .mapValues { it.value }
         clearManagedPreferences()
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
             .allowMainThreadQueries()
             .build()
         codec = RegexScriptCodec(Gson())

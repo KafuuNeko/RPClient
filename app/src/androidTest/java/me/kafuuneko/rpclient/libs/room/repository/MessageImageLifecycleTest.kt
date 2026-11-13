@@ -6,6 +6,12 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.InputStream
+import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,6 +40,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -44,12 +51,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.InputStream
-import java.util.UUID
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /** 使用独立私有目录和真实 Room 验证跨存储提交，避免测试修改应用已有原图。 */
 @RunWith(AndroidJUnit4::class)
@@ -75,7 +76,8 @@ class MessageImageLifecycleTest {
             override fun getDir(name: String, mode: Int): File =
                 File(directory, name).apply { mkdirs() }
         }
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
+            .build()
         files = FileRepository(context, database)
         images = MessageImageRepository(database, files)
         chat = ChatRepository(mAppDatabase = database, mGson = Gson(), mImages = images)
@@ -128,6 +130,52 @@ class MessageImageLifecycleTest {
     fun tearDown() {
         database.close()
         directory.deleteRecursively()
+    }
+
+    /** 同图由角色和人设分别保存时，各 UUID 的释放只影响自己的索引。 */
+    @Test
+    fun personaAvatarChangesPreserveIndependentOwnersOfSameImage() = runBlocking {
+        val personas = UserPersonaRepository(database, files)
+        val first = personas.active().id
+        val second = personas.create("Mira")
+        val bytes = "shared avatar".toByteArray()
+        val characterAvatar = files.saveFile(bytes, "image/png")
+        val firstAvatar = files.saveFile(bytes, "image/png")
+        val secondAvatar = files.saveFile(bytes, "image/png")
+        val hash = requireNotNull(files.getFileEntity(characterAvatar)).hash
+        assertEquals(3, setOf(characterAvatar, firstAvatar, secondAvatar).size)
+        assertEquals(hash, files.getFileEntity(firstAvatar)?.hash)
+        assertEquals(hash, files.getFileEntity(secondAvatar)?.hash)
+
+        // 各入口持有自己的 UUID，内容相同的三个索引指向同一物理文件。
+        val character = requireNotNull(characters.getCharacterById(characterId))
+        characters.saveCharacter(character.copy(avatar = characterAvatar))
+        personas.setAvatar(first, firstAvatar)
+        personas.setAvatar(second, secondAvatar)
+        assertEquals(3, database.getFileDao().countByHash(hash))
+
+        // 替换、清空第一个人设头像后，角色和第二个人设继续持有原图。
+        val replacement = files.saveFile("replacement avatar".toByteArray(), "image/png")
+        personas.setAvatar(first, replacement)
+        assertEquals(replacement, personas.get(first).avatarFileUuid)
+        assertNull(files.getFileEntity(firstAvatar))
+        assertEquals(2, database.getFileDao().countByHash(hash))
+        personas.setAvatar(first, null)
+        assertNull(personas.get(first).avatarFileUuid)
+        assertNull(files.getFile(replacement))
+        assertNotNull(files.getFile(characterAvatar))
+
+        // 删除角色先释放其 UUID；最后清空第二个人设才回收原图。
+        characters.deleteCharacter(characterId)
+        assertNull(files.getFileEntity(characterAvatar))
+        assertEquals(1, database.getFileDao().countByHash(hash))
+        files.withFileLease(secondAvatar) { file ->
+            assertEquals("shared avatar", file.readText())
+        }
+        personas.setAvatar(second, null)
+        assertNull(files.getFileEntity(secondAvatar))
+        assertEquals(0, database.getFileDao().countByHash(hash))
+        assertFalse(File(directory, "repository/$hash").exists())
     }
 
     /** 准备的是不解码的原始字节；实际图片格式检查属于 MEDIA 阶段。 */

@@ -20,7 +20,6 @@ import me.kafuuneko.rpclient.feature.chatcreate.model.toChatCreateLorebookGroups
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateLoadState
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.chatcreate.presentation.ChatCreateUiState
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -29,11 +28,13 @@ import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
+import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -55,6 +56,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     ChatCreateUiState.None
 ), KoinComponent {
     private var mCharacterSearchJob: Job? = null
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
@@ -62,6 +64,34 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private val mMacroResolver by inject<PromptMacroResolver>()
     private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
     private var mCharactersById: Map<Long, Character> = emptyMap()
+
+    /** 切换创建草稿的人设，并重新计算含用户名宏的候选角色。 */
+    @UiIntentObserver(ChatCreateUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: ChatCreateUiIntent.SelectPersona) {
+        val state = getOrNull<ChatCreateUiState.Normal>() ?: return
+        val selection = state.persona.copy(selectedId = intent.id)
+        val name = selection.selectedName ?: return
+        // 从原始角色内容重新展开用户名，保持候选项与开场白采用同一身份。
+        val characters = mCharactersById.values.map { character ->
+            character.toChatCreateCharacterItem(name)
+        }
+        val visible = characters.filter { character ->
+            matchesCharacterQuery(
+                name = character.name,
+                description = character.description,
+                tags = character.tags,
+                query = state.characterQuery,
+            )
+        }
+        mCharacterSearchJob?.cancel()
+        state.copy(
+            persona = selection,
+            characters = characters,
+            visibleCharacters = visible,
+            selectedCharacterFirstMessages = state.selectedCharacter()?.openingPreviews(name)
+                .orEmpty()
+        ).setup()
+    }
 
     /**
      * 初始化页面，读取全量角色与世界书条目。
@@ -86,13 +116,15 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         } else {
             mCharactersById[intent.characterId]
         }
-        val selectedCharacterFirstMessages = selectedCharacter?.getChatFirstMessageList().orEmpty()
         val selectedLorebookEntryIds = selectedCharacter
             ?.defaultLorebookEntryIds(data.second)
             .orEmpty()
         // 渲染初始就绪状态
-        val userName = AppModel.resolvedUserName
+        val selection = mPersonas.selection()
+        val userName = requireNotNull(selection.selectedName)
+        val selectedCharacterFirstMessages = selectedCharacter?.openingPreviews(userName).orEmpty()
         ChatCreateUiState.Normal(
+            persona = selection,
             loadState = ChatCreateLoadState.None,
             showCharacterExamplesSwitch =
                 mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
@@ -160,7 +192,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val previousLinkedLorebookEntryIds = uiState.selectedCharacter()
             ?.defaultLorebookEntryIds(uiState.lorebookGroups)
             .orEmpty()
-        val selectedCharacterFirstMessages = character.getChatFirstMessageList()
+        val selectedCharacterFirstMessages = character.openingPreviews(uiState.persona.selectedName)
         // 更新表单角色选择与世界书勾选集合
         uiState.copy(
             form = uiState.form.selectCharacter(
@@ -261,8 +293,9 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         // 校验开场白选择
         val firstMessageSelection = uiState.resolveFirstMessageSelection() ?: return
         uiState.copy(loadState = ChatCreateLoadState.Creating).setup()
-        val userName = AppModel.resolvedUserName
-        val userDescription = AppModel.userDescription.trim()
+        val selectedPersona = mPersonas.get(uiState.persona.selectedId)
+        val userName = selectedPersona.name
+        val userDescription = selectedPersona.description
         val createTime = System.currentTimeMillis()
         val sessionTitle = uiState.form.normalizedTitle(createTime)
 
@@ -303,8 +336,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 characterId = character.id,
                 title = sessionTitle,
                 userNote = uiState.form.userNote.trim(),
-                userName = userName,
-                userDescription = userDescription,
+                userPersonaId = selectedPersona.id,
                 lorebookEntryIds = uiState.form.selectedLorebookEntryIds.sorted(),
                 firstMessageContent = firstMessageContent,
                 createTime = createTime,
@@ -327,6 +359,11 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         uiState.copy(form = uiState.form.block()).setup()
     }
 
+    /** 展示时只替换角色和用户名，创建时仍用原文执行完整的宏解析。 */
+    private fun Character.openingPreviews(userName: String?) = getChatFirstMessageList().map {
+        resolveCharacterUserMacros(it, name, userName)
+    }
+
     /** 读取当前选中的角色实体。 */
     private fun ChatCreateUiState.Normal.selectedCharacter(): Character? {
         val characterId = form.selectedCharacterId ?: return null
@@ -341,7 +378,9 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             AppViewEvent.PopupToastMessageByResId(R.string.first_message_required).tryEmit()
             return null
         }
-        return FirstMessageSelection(selectedCharacterFirstMessages[selectedIndex])
+        return FirstMessageSelection(
+            selectedCharacter()?.getChatFirstMessageList()?.get(selectedIndex)
+        )
     }
 
 }

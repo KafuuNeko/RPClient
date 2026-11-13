@@ -65,15 +65,16 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /**
  * 渲染群聊设置页，继续通过原有意图编辑和保存设置草稿。
@@ -132,6 +133,24 @@ internal fun GroupChatSettingsPage(
                         minLines = 3,
                         maxLines = 8,
                     )
+                    UserPersonaPicker(
+                        state = state.persona,
+                        onSelect = { emitIntent(GroupChatUiIntent.SelectPersona(it)) })
+                    RpScrollableOutlinedTextField(
+                        value = state.userNameDraft,
+                        singleLine = true,
+                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserName(it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.user_display_name)) },
+                        placeholder = { Text(state.persona.selectedName.orEmpty()) })
+                    RpScrollableOutlinedTextField(
+                        value = state.userDescriptionDraft,
+                        minLines = 3,
+                        maxLines = 8,
+                        onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserDescription(it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.user_persona_description)) },
+                        placeholder = { Text(state.inheritedDescription) })
                     RpScrollableOutlinedTextField(
                         value = state.userNoteDraft,
                         onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeUserNote(text)) },

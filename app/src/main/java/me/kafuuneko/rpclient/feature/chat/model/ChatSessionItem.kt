@@ -1,7 +1,11 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
+
 /** 单聊页面使用的会话设置快照，不直接暴露 Room 实体。 */
 data class ChatSessionItem(
+    val persona: PersonaSelection = PersonaSelection(),
+    val inheritedDescription: String = "",
     /** 当前记录或列表项的唯一标识。 */
     val id: Long,
     /** 供界面展示或持久化的标题。 */

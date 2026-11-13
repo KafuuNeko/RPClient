@@ -51,6 +51,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
@@ -64,6 +65,7 @@ import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
 import me.kafuuneko.rpclient.libs.story.StoryArchiveRepository
@@ -76,6 +78,7 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
+import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260103
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260404
 import okhttp3.OkHttpClient
@@ -86,6 +89,7 @@ import org.koin.dsl.module
 
 /** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
 class RPClientApp : Application() {
+    /** 按原有启动顺序初始化偏好、业务数据和文件回收服务。 */
     override fun onCreate() {
         super.onCreate()
         Kotpref.init(this)
@@ -94,6 +98,7 @@ class RPClientApp : Application() {
             modules(appModules)
         }
         runBlocking(Dispatchers.IO) {
+            UserPersonaUpgrade.prepareLive(koinApplication.koin.get<AppDatabase>())
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
             koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
@@ -191,6 +196,7 @@ internal val appModules = module {
 
     single {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
+            .addMigrations(PersonaSchemaMigration)
             .addCallback(SearchDatabaseCallback)
             .build()
     }
@@ -203,6 +209,7 @@ internal val appModules = module {
     singleOf(::ContentSearchRepository)
     singleOf(::CharacterRepository)
     singleOf(::LorebookRepository)
+    singleOf(::UserPersonaRepository)
     singleOf(::ChatRepository)
     singleOf(::UserWritingRuntime)
     singleOf(::LLMRepository)

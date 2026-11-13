@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.upgrade.LegacyPromptSnapshot
 import me.kafuuneko.rpclient.libs.upgrade.PromptPresetMigration
+import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade
 import org.xmlpull.v1.XmlPullParser
 
 /**
@@ -52,6 +53,21 @@ internal object PromptPresetRestore {
         )
     }
 
+    /** 在还原区迁入人设，默认指针提交后从暂存 XML 移除旧身份键。 */
+    fun preparePersonas(db: SupportSQLiteDatabase, preferences: File?) {
+        val file = preferences?.let { File(it, AppModel.kotprefName + ".xml") }
+        val values = readPreferences(file)
+        UserPersonaUpgrade.migrate(db, values)
+        UserPersonaUpgrade.validate(db)
+        if (file != null && UserPersonaUpgrade.keys.any(values::containsKey)) {
+            writeSelection(
+                file,
+                values["activePromptPresetId"] as? Long ?: PromptTemplateSnapshot.BUILTIN_ID,
+                UserPersonaUpgrade.keys
+            )
+        }
+    }
+
     /** 校验固定旧键与新选择；未知偏好由原始 XML 原样转写，不参与预设解析。 */
     private fun readPreferences(file: File?): Map<String, Any> {
         if (file == null || !file.exists()) return emptyMap()
@@ -69,7 +85,7 @@ internal object PromptPresetRestore {
                 }
                 if (parser.eventType == XmlPullParser.START_TAG && parser.depth == 2) {
                     val key = parser.getAttributeValue(null, "name")
-                    if (key in LegacyPromptSnapshot.keys || key == "lastMigratedVersionCode" || key == "activePromptPresetId") {
+                    if (key in UserPersonaUpgrade.keys || key in LegacyPromptSnapshot.keys || key == "lastMigratedVersionCode" || key == "activePromptPresetId") {
                         check(key !in result) { "Duplicate prompt preference" }
                         result[key] = when (parser.name) {
                             "string" -> parser.nextText()
@@ -87,16 +103,16 @@ internal object PromptPresetRestore {
     }
 
     /** 只替换选择键，保留其他偏好的类型、文本和集合；失败只影响暂存文件。 */
-    private fun writeSelection(file: File, selected: Long) {
+    private fun writeSelection(file: File, selected: Long, remove: Set<String> = emptySet()) {
         file.parentFile?.mkdirs()
+        val replacedKeys = remove + "activePromptPresetId"
         val temporary = File(file.parentFile, file.name + ".prompt-tmp")
         try {
             temporary.outputStream().use { output ->
                 val writer = Xml.newSerializer().apply {
-                    setOutput(output, "UTF-8"); startDocument(
-                    "UTF-8",
-                    true
-                ); startTag(null, "map")
+                    setOutput(output, "UTF-8")
+                    startDocument("UTF-8", true)
+                    startTag(null, "map")
                 }
                 if (file.exists()) file.inputStream().use { input ->
                     val parser = Xml.newPullParser().apply { setInput(input, "UTF-8") }
@@ -108,7 +124,7 @@ internal object PromptPresetRestore {
                                 if (parser.depth == 2 && parser.getAttributeValue(
                                         null,
                                         "name"
-                                    ) == "activePromptPresetId"
+                                    ) in replacedKeys
                                 ) skipDepth = parser.depth
                                 if (skipDepth == 0) {
                                     writer.startTag(null, parser.name)

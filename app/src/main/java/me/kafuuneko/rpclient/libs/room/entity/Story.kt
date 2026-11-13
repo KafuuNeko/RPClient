@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -10,7 +11,7 @@ import androidx.room.PrimaryKey
  * 正文由 StoryChapter 分章保存；[revision] 是跨章节、结构、设置和世界书时序状态共享的
  * 单调版本号，用于阻止基于旧 Story 快照构建的生成结果覆盖新状态。
  */
-@Entity(tableName = "stories")
+@Entity(tableName = "stories", indices = [Index("userPersonaId")])
 data class Story(
     // 故事 ID。
     @PrimaryKey(autoGenerate = true)
@@ -23,9 +24,9 @@ data class Story(
     val summary: String = "",
     // 作者备注，用于向模型补充当前故事的写作要求。
     val authorNote: String = "",
-    // 是否在故事 Prompt 中包含用户 Persona。
-    @ColumnInfo(defaultValue = "0")
-    val includeUserPersona: Boolean = false,
+    // 绑定的人设 ID；-1 表示不向故事注入人设。
+    @ColumnInfo(defaultValue = "-1")
+    val userPersonaId: Long = UserPersona.NONE,
     // 世界书时序状态当前推进到的生成步数。
     val worldInfoGenerationStep: Int = 0,
     // 故事结构、设置和全局生成状态共享的乐观锁版本号。

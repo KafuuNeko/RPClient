@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -56,12 +57,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -81,8 +82,8 @@ import me.kafuuneko.rpclient.feature.main.model.MainProviderItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainAppearanceSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainDebugSettingsState
 import me.kafuuneko.rpclient.feature.main.presentation.MainGenerationParametersState
-import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeRecentState
+import me.kafuuneko.rpclient.feature.main.presentation.MainHomeResourceState
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeState
 import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainPromptBehaviorState
@@ -120,6 +121,8 @@ import me.kafuuneko.rpclient.ui.theme.ProviderPendingColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpMacroActionBar
@@ -132,12 +135,10 @@ import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsSwitchTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsValueTile
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.rememberBoundTextFieldState
 import me.kafuuneko.rpclient.utils.rememberPromptMacroOutputTransformation
-import androidx.compose.material.icons.rounded.Image as ImageIcon
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 设置输入区与全屏人设编辑弹窗共用的宏入口。 */
 internal val USER_PERSONA_MACROS = listOf("{{char}}", "{{user}}")
@@ -434,77 +435,72 @@ private fun UserIdentityPanel(
                     state = state,
                     emit = emit,
                 )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = state.userName.ifBlank { stringResource(R.string.user_display_name) },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = state.userDescriptionPreview.ifBlank {
-                            stringResource(R.string.user_persona_description)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                UserPersonaPicker(
+                    state = state.persona, modifier = Modifier.weight(1f),
+                    onSelect = { MainUiIntent.SelectPersona(it).emit() },
+                    onCreate = { MainUiIntent.ShowCreatePersona.emit() })
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = state.userName,
-                    onValueChange = { text -> MainUiIntent.ChangeUserName(text).emit() },
-                    label = { Text(stringResource(R.string.user_display_name)) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .generalContentBackground(
-                            shape = RoundedCornerShape(14.dp),
-                            hasLabel = true
-                        ),
-                )
-                UserPersonaDescriptionField(
-                    value = state.userDescription,
-                    onValueChange = { text -> MainUiIntent.ChangeUserDescription(text).emit() },
-                    onExpandFullscreen = {
-                        MainUiIntent.ShowUserDescriptionEditor.emit()
-                    },
-                )
-                if (state.avatarState is MainUserAvatarState.Configured) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(
-                            onClick = { MainUiIntent.ClearUserAvatar.emit() },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        ) {
+            key(state.persona.selectedId) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = state.userName,
+                        onValueChange = { text ->
+                            MainUiIntent.ChangeUserName(
+                                personaId = state.persona.selectedId,
+                                value = text,
+                            ).emit()
+                        },
+                        label = { Text(stringResource(R.string.user_display_name)) },
+                        leadingIcon = {
                             Icon(
-                                imageVector = Icons.Rounded.Close,
+                                imageVector = Icons.Rounded.Person,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(20.dp),
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.clear_user_avatar),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .generalContentBackground(
+                                shape = RoundedCornerShape(14.dp),
+                                hasLabel = true
+                            ),
+                    )
+                    UserPersonaDescriptionField(
+                        value = state.userDescription,
+                        onValueChange = { text ->
+                            MainUiIntent.ChangeUserDescription(
+                                personaId = state.persona.selectedId,
+                                value = text,
+                            ).emit()
+                        },
+                        onExpandFullscreen = {
+                            MainUiIntent.ShowUserDescriptionEditor.emit()
+                        },
+                    )
+                    if (state.avatarState is MainUserAvatarState.Configured) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(
+                                onClick = { MainUiIntent.ClearUserAvatar.emit() },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.clear_user_avatar),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
                         }
                     }
                 }
@@ -1439,7 +1435,6 @@ private fun MainSettingsLayoutPreview() {
                     identityState = MainUserIdentityState(
                         userName = "KafuuNeko",
                         userDescription = "A traveler exploring AI worlds.",
-                        userDescriptionPreview = "A traveler exploring AI worlds.",
                         avatarState = MainUserAvatarState.None,
                     ),
                     providerState = MainProviderSettingsState.Available(

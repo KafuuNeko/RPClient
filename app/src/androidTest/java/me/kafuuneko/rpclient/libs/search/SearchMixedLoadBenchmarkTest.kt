@@ -9,6 +9,9 @@ import androidx.room.withTransaction
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -24,15 +27,13 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration.Companion.milliseconds
 
 /** 显式启用的混合负载观测，默认回归不运行耗时基准。 */
 @RunWith(AndroidJUnit4::class)
@@ -66,9 +67,10 @@ class SearchMixedLoadBenchmarkTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "search-mixed-$mode.sqlite"
         context.deleteDatabase(name)
-        val database = Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addCallback(SearchDatabaseCallback)
-            .build()
+        val database =
+            Room.databaseBuilder(context, AppDatabase::class.java, name).withTestPersonas()
+                .addCallback(SearchDatabaseCallback)
+                .build()
         val index = ContentSearchRepository(database)
         try {
             val (chat, chapter) = corpus(database)

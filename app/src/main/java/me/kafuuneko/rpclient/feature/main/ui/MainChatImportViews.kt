@@ -39,12 +39,13 @@ import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
 import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
+import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 设置页中的对话文件导入入口。 */
 @Composable
@@ -114,6 +115,11 @@ private fun ImportCharacterSelectionContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ImportPreview(state)
+        UserPersonaPicker(
+            state = state.persona,
+            onSelect = { MainUiIntent.SelectImportPersona(it).emit() },
+            enabled = !state.loadState.isBusy
+        )
         // 仅外部引用需要用户选择目录；自有 Base64 归档不增加额外操作。
         if (state.externalImageCount > 0) {
             Text(

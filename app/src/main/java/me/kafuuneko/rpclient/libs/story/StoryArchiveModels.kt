@@ -46,6 +46,7 @@ data class ArchivedStory(
     /** 故事 Prompt 是否包含当前用户名称和用户设定。 */
     @field:SerializedName("includeUserPersona")
     val includeUserPersona: Boolean = false,
+    @field:SerializedName("personaNameHint") val personaNameHint: String? = null,
     /** 尚未归入任何卷的章节列表。 */
     @field:SerializedName("ungroupedChapters")
     val ungroupedChapters: List<ArchivedChapter> = emptyList(),
@@ -133,6 +134,7 @@ data class StoryImportDraft(
     val summary: String = "",
     /** 故事 Prompt 是否包含当前用户名称和用户设定。 */
     val includeUserPersona: Boolean = false,
+    val personaNameHint: String? = null,
     /** 尚未归入任何卷的章节列表。 */
     val ungroupedChapters: List<ArchivedChapter> = emptyList(),
     /** 当前故事包含的卷结构列表。 */

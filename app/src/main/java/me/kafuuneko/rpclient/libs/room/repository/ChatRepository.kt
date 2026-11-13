@@ -100,6 +100,10 @@ class ChatRepository(
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
 
+    /** 修改会话人设，保留独立覆盖。 */
+    suspend fun selectPersona(id: Long, personaId: Long) =
+        mChatSessionDao.selectPersona(id, personaId)
+
     /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
         sessionId: Long,
@@ -209,13 +213,14 @@ class ChatRepository(
         characterId: Long,
         title: String,
         userNote: String,
-        userName: String,
-        userDescription: String,
+        userName: String? = null,
+        userDescription: String? = null,
         lorebookEntryIds: List<Long>,
         firstMessageContent: String?,
         creatorNotes: String? = null,
         createTime: Long = System.currentTimeMillis(),
         includeCharacterExamples: Boolean = true,
+        userPersonaId: Long? = null,
     ): Long {
         // 会话配置与开场白必须原子写入，避免创建失败后留下不完整会话。
         return mAppDatabase.withTransaction {
@@ -229,6 +234,7 @@ class ChatRepository(
                     userNote = userNote,
                     userName = userName,
                     userDescription = userDescription,
+                    userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
                     creatorNotes = creatorNotes,
                     includeCharacterExamples = includeCharacterExamples,
                 ),
@@ -259,12 +265,13 @@ class ChatRepository(
         characterId: Long,
         title: String,
         userNote: String,
-        userName: String,
-        userDescription: String,
+        userName: String? = null,
+        userDescription: String? = null,
         lorebookEntryIds: List<Long>,
         creatorNotes: String? = null,
         createTime: Long = System.currentTimeMillis(),
         includeCharacterExamples: Boolean = true,
+        userPersonaId: Long? = null,
     ): Long {
         // 统一通过保存入口归一化角色备注覆盖，保留会话自身的示例配置。
         return saveSession(
@@ -277,6 +284,7 @@ class ChatRepository(
                 userNote = userNote,
                 userName = userName,
                 userDescription = userDescription,
+                userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
                 creatorNotes = creatorNotes,
                 includeCharacterExamples = includeCharacterExamples,
             ),
@@ -433,7 +441,7 @@ class ChatRepository(
      * @param id 会话 id。
      * @param userName 新的用户名称。
      */
-    suspend fun updateSessionUserName(id: Long, userName: String) {
+    suspend fun updateSessionUserName(id: Long, userName: String?) {
         mChatSessionDao.updateSessionUserName(id, userName)
     }
 
@@ -443,7 +451,7 @@ class ChatRepository(
      * @param id 会话 id。
      * @param userDescription 新的用户描述。
      */
-    suspend fun updateSessionUserDescription(id: Long, userDescription: String) {
+    suspend fun updateSessionUserDescription(id: Long, userDescription: String?) {
         mChatSessionDao.updateSessionUserDescription(id, userDescription)
     }
 

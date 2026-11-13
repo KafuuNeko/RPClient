@@ -2,14 +2,15 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
-import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOpeningMessage
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.model.GroupChatSessionOverview
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageImagePolicy
@@ -35,7 +36,8 @@ data class GroupChatData(
     /** 当前状态或请求包含的消息列表。 */
     val messages: List<GroupChatMessage>,
     /** 当前会话或故事使用的摘要内容。 */
-    val summary: GroupChatSummary?
+    val summary: GroupChatSummary?,
+    val persona: UserPersona,
 )
 
 /**
@@ -213,6 +215,7 @@ class GroupChatRepository(
         return mAppDatabase.withTransaction {
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
             GroupChatData(
+                persona = mAppDatabase.getUserPersonaDao().resolve(session),
                 session = session,
                 members = getMemberData(sessionId),
                 messages = mMessageDao.getMessages(sessionId),
@@ -254,6 +257,7 @@ class GroupChatRepository(
                 }
                 return@withTransaction GroupChatSummaryGenerationData(
                     data = GroupChatData(
+                        persona = mAppDatabase.getUserPersonaDao().resolve(session),
                         session = session, members = getMemberData(sessionId),
                         messages = recent, summary = summary,
                     ),
@@ -267,6 +271,7 @@ class GroupChatRepository(
             )
             GroupChatSummaryGenerationData(
                 data = GroupChatData(
+                    persona = mAppDatabase.getUserPersonaDao().resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = messageWindow.messages,
@@ -288,6 +293,7 @@ class GroupChatRepository(
         sessionId: Long,
         maxHistoryMessages: Int,
         protectedUserMessageId: Long? = null,
+        batchPersona: UserPersona? = null,
     ): GroupChatPromptData? {
         require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
         return mAppDatabase.withTransaction {
@@ -316,6 +322,7 @@ class GroupChatRepository(
             // 完整计数独立保留给世界书时序，不能被 Prompt 消息窗口替代
             GroupChatPromptData(
                 data = GroupChatData(
+                    persona = batchPersona ?: mAppDatabase.getUserPersonaDao().resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = retained,
@@ -471,6 +478,7 @@ class GroupChatRepository(
                 .toGroupChatMessagePage(pageSize)
             GroupChatPageData(
                 data = GroupChatData(
+                    persona = mAppDatabase.getUserPersonaDao().resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = page.messages,
@@ -525,8 +533,8 @@ class GroupChatRepository(
      */
     suspend fun createSession(
         title: String,
-        userName: String,
-        userDescription: String,
+        userName: String? = null,
+        userDescription: String? = null,
         characterIds: List<Long>,
         lorebookEntryIds: List<Long> = emptyList(),
         activationStrategy: GroupChatSession.ActivationStrategy,
@@ -534,6 +542,7 @@ class GroupChatRepository(
         openingMessages: List<GroupChatOpeningMessage> = emptyList(),
         createTime: Long = System.currentTimeMillis(),
         includeCharacterExamples: Boolean = true,
+        userPersonaId: Long? = null,
     ): Long {
         require(characterIds.distinct().size >= 2) {
             "A group chat requires at least two characters"
@@ -547,6 +556,7 @@ class GroupChatRepository(
                     latestTime = createTime,
                     userName = userName,
                     userDescription = userDescription,
+                    userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
                     lorebookEntrySet = mGson.toJson(lorebookEntryIds.distinct()),
                     activationStrategy = activationStrategy,
                     allowSelfResponses = allowSelfResponses,

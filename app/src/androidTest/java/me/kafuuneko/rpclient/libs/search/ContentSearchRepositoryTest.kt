@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -22,6 +23,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,7 +33,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
 
 /** 真正执行 Android SQLite、Room 触发器和并发补建，不用 Mock 替代存储行为。 */
 @RunWith(AndroidJUnit4::class)
@@ -48,9 +49,10 @@ class ContentSearchRepositoryTest {
         mScenario = ActivityScenario.launch(MainActivity::class.java)
         mScenario.onActivity { mainActivity -> mainActivity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        mDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .addCallback(SearchDatabaseCallback)
-            .build()
+        mDatabase =
+            Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).withTestPersonas()
+                .addCallback(SearchDatabaseCallback)
+                .build()
         mRepository = ContentSearchRepository(mDatabase)
         mCharacterId = mDatabase.getCharacterDao().insertOrReplace(
             data = Character(

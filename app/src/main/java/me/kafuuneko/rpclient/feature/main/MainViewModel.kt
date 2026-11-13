@@ -77,11 +77,11 @@ import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
+import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -92,7 +92,6 @@ import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -102,6 +101,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.theme.AppThemeManager
@@ -125,6 +125,7 @@ import org.koin.core.component.inject
 class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     MainUiState.None
 ), KoinComponent {
+    private val mPersonas by inject<UserPersonaRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mChatRepository by inject<ChatRepository>()
@@ -437,7 +438,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 // 在 IO 线程解析聊天存档并检索全量候选角色
                 val archive = mChatArchiveRepository.readImportFromUri(
                     uri = intent.uri,
-                    fallbackUserName = AppModel.resolvedUserName,
+                    fallbackUserName = mPersonas.active().name,
                 )
                 releasePendingChatImport()
                 mPendingChatImport = archive
@@ -454,6 +455,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         chatDataManagementState = MainChatDataManagementState.Idle,
                     ),
                     dialogState = MainDialogState.ImportChatCharacterSelection(
+                        persona = mPersonas.selection(),
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
                         messageCount = archive.messages.size,
@@ -594,7 +596,12 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             try {
                 // 在 IO 线程事务保存会话与全量导入消息
                 val result =
-                    mChatArchiveRepository.saveImport(archive, characterId, mChatImageSources)
+                    mChatArchiveRepository.saveImport(
+                        archive = archive,
+                        characterId = characterId,
+                        imageSources = mChatImageSources,
+                        userPersonaId = dialog.persona.selectedId,
+                    )
                 val sessionId = result.sessionId
                 releasePendingChatImport()
                 val homeState = buildHomeState()
@@ -1072,57 +1079,24 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** 触发系统图片选择器选择用户自定义头像。 */
     @UiIntentObserver(MainUiIntent.PickUserAvatarClick::class)
     private fun onPickUserAvatarClick() {
-        if (!isStateOf<MainUiState.Normal>()) return
-        MainViewEvent.OpenUserAvatarPicker.tryEmit()
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        MainViewEvent.OpenUserAvatarPicker(state.settingsState.identityState.persona.selectedId)
+            .tryEmit()
     }
 
     /** 接收裁剪页生成的方形头像文件并替换旧头像。 */
     @UiIntentObserver(MainUiIntent.UserAvatarCropped::class)
     private suspend fun onUserAvatarCropped(intent: MainUiIntent.UserAvatarCropped) {
-        if (!isStateOf<MainUiState.Normal>()) return
-        val oldAvatar = AppModel.userAvatar
-        AppModel.userAvatar = intent.fileUuid
-        // 清理旧头像物理文件
-        if (oldAvatar.isNotBlank() && oldAvatar != intent.fileUuid) {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    mFileRepository.deleteFile(oldAvatar)
-                }
-            }
-        }
-        // 解析新头像 Bitmap 并更新 UI 状态
-        val avatarImage = resolveUserAvatarImage()
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        current.copy(
-            settingsState = current.settingsState.copy(
-                identityState = current.settingsState.identityState.copy(
-                    avatarState = MainUserAvatarState.Configured(avatarImage),
-                ),
-            ),
-        ).setup()
+        mPersonas.setAvatar(intent.personaId, intent.fileUuid)
+        refreshIdentity()
     }
 
     /** 清空用户自定义头像并删除对应本地文件。 */
     @UiIntentObserver(MainUiIntent.ClearUserAvatar::class)
     private suspend fun onClearUserAvatar() {
-        if (!isStateOf<MainUiState.Normal>()) return
-        val oldAvatar = AppModel.userAvatar
-        AppModel.userAvatar = ""
-        // 在 IO 线程删除旧头像物理文件
-        if (oldAvatar.isNotBlank()) {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    mFileRepository.deleteFile(oldAvatar)
-                }
-            }
-        }
-        // 重置为无头像状态
-        val current = getOrNull<MainUiState.Normal>() ?: return
-        current.copy(
-            settingsState = current.settingsState.copy(
-                identityState = current.settingsState.identityState.copy(avatarState = MainUserAvatarState.None),
-            ),
-        ).setup()
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        mPersonas.setAvatar(state.settingsState.identityState.persona.selectedId, null)
+        refreshIdentity()
     }
 
     /** 打开全局 Prompt 提示词预设页。 */
@@ -1176,20 +1150,21 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 修改用户默认显示名称并持久化。 */
     @UiIntentObserver(MainUiIntent.ChangeUserName::class)
-    private fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
+    private suspend fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val value = intent.value.normalizedUserName()
-        AppModel.userName = value
+        // 按输入事件捕获的身份保存，避免切换人设后的延迟输入写入新身份。
+        mPersonas.rename(intent.personaId, value)
         val identityState = uiState.settingsState.identityState
+        if (identityState.persona.selectedId != intent.personaId) {
+            refreshIdentity()
+            return
+        }
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = identityState.copy(
-                    userName = value,
-                    userDescriptionPreview = resolveCharacterUserMacros(
-                        template = identityState.userDescription,
-                        characterName = null,
-                        userName = value,
-                    ),
+                    userName = intent.value,
+                    persona = mPersonas.selection(identityState.persona.selectedId),
                 ),
             ),
         ).setup()
@@ -1197,18 +1172,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 修改用户人设设定描述并持久化。 */
     @UiIntentObserver(MainUiIntent.ChangeUserDescription::class)
-    private fun onChangeUserDescription(intent: MainUiIntent.ChangeUserDescription) {
+    private suspend fun onChangeUserDescription(intent: MainUiIntent.ChangeUserDescription) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
-        AppModel.userDescription = intent.value.trim()
+        mPersonas.describe(intent.personaId, intent.value)
+        if (uiState.settingsState.identityState.persona.selectedId != intent.personaId) return
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = uiState.settingsState.identityState.copy(
                     userDescription = intent.value,
-                    userDescriptionPreview = resolveCharacterUserMacros(
-                        template = intent.value,
-                        characterName = null,
-                        userName = uiState.settingsState.identityState.userName.normalizedUserName(),
-                    ),
                 ),
             ),
         ).setup()
@@ -1221,6 +1192,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         if (!uiState.canOpenDialog()) return
         uiState.copy(
             dialogState = MainDialogState.EditUserDescription(
+                personaId = uiState.settingsState.identityState.persona.selectedId,
                 draftText = uiState.settingsState.identityState.userDescription,
             ),
         ).setup()
@@ -1238,19 +1210,14 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 保存全屏编辑器中的用户人设描述并关闭弹窗。 */
     @UiIntentObserver(MainUiIntent.ConfirmUserDescriptionEditor::class)
-    private fun onConfirmUserDescriptionEditor() {
+    private suspend fun onConfirmUserDescriptionEditor() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? MainDialogState.EditUserDescription ?: return
-        AppModel.userDescription = dialog.draftText.trim()
+        mPersonas.describe(dialog.personaId, dialog.draftText)
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = uiState.settingsState.identityState.copy(
                     userDescription = dialog.draftText,
-                    userDescriptionPreview = resolveCharacterUserMacros(
-                        template = dialog.draftText,
-                        characterName = null,
-                        userName = uiState.settingsState.identityState.userName.normalizedUserName(),
-                    ),
                 ),
             ),
             dialogState = MainDialogState.None,
@@ -1731,20 +1698,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 themeMode = mAppThemeManager.themeModeFlow.value,
                 storyMarkdownRenderingEnabled = AppModel.storyMarkdownRenderingEnabled,
             ),
-            identityState = MainUserIdentityState(
-                userName = AppModel.resolvedUserName,
-                userDescription = AppModel.userDescription,
-                userDescriptionPreview = resolveCharacterUserMacros(
-                    template = AppModel.userDescription,
-                    characterName = null,
-                    userName = AppModel.resolvedUserName,
-                ),
-                avatarState = if (AppModel.userAvatar.isBlank()) {
-                    MainUserAvatarState.None
-                } else {
-                    MainUserAvatarState.Configured(resolveUserAvatarImage())
-                },
-            ),
+            identityState = buildIdentityState(),
             providerState = buildProviderSettingsState(providers, selectedProvider),
             promptBehaviorState = MainPromptBehaviorState(
                 providerPostProcessingState = selectedProvider?.let { provider ->
@@ -1806,15 +1760,72 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return SummaryInjectionRole.fromPersistedValue(AppModel.summaryInjectionRole)
     }
 
-    /** 异步加载用户自定义头像 Bitmap 并转换为 Compose 的 ImageBitmap。 */
-    private suspend fun resolveUserAvatarImage() =
-        AppModel.userAvatar
-            .takeIf { it.isNotBlank() }
-            ?.let { text ->
-                withContext(Dispatchers.IO) {
-                    mFileRepository.loadAvatarBitmap(text)?.asImageBitmap()
-                }
-            }
+    /** 使用同一人设 ID 加载设置卡片资料与头像。 */
+    private suspend fun buildIdentityState(): MainUserIdentityState {
+        val selection = mPersonas.selection()
+        val persona = mPersonas.get(selection.selectedId)
+        val avatar = persona.avatarFileUuid?.let {
+            MainUserAvatarState.Configured(
+                mFileRepository.loadAvatarBitmap(it)?.asImageBitmap()
+            )
+        }
+        return MainUserIdentityState(
+            persona = selection, userName = persona.name, userDescription = persona.description,
+            avatarState = avatar ?: MainUserAvatarState.None
+        )
+    }
+
+    /** 更新身份卡片，保留其他设置页状态。 */
+    private suspend fun refreshIdentity() {
+        val identity = buildIdentityState()
+        val current = getOrNull<MainUiState.Normal>() ?: return
+        current.copy(settingsState = current.settingsState.copy(identityState = identity)).setup()
+    }
+
+    /** 保存独立导入草稿的身份选择。 */
+    @UiIntentObserver(MainUiIntent.SelectImportPersona::class)
+    private fun onSelectImportPersona(intent: MainUiIntent.SelectImportPersona) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.ImportChatCharacterSelection ?: return
+        state.copy(dialogState = dialog.copy(persona = dialog.persona.copy(selectedId = intent.id)))
+            .setup()
+    }
+
+    /** 将用户选中的人设设为默认。 */
+    @UiIntentObserver(MainUiIntent.SelectPersona::class)
+    private suspend fun onSelectPersona(intent: MainUiIntent.SelectPersona) {
+        mPersonas.select(intent.id)
+        refreshIdentity()
+    }
+
+    /** 打开新建人设的名称输入框。 */
+    @UiIntentObserver(MainUiIntent.ShowCreatePersona::class)
+    private fun onShowCreatePersona() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.canOpenDialog()) state.copy(dialogState = MainDialogState.CreatePersona()).setup()
+    }
+
+    /** 保存未提交的人设名称草稿。 */
+    @UiIntentObserver(MainUiIntent.ChangePersonaDraft::class)
+    private fun onChangePersonaDraft(intent: MainUiIntent.ChangePersonaDraft) {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        if (state.dialogState is MainDialogState.CreatePersona) state.copy(
+            dialogState = MainDialogState.CreatePersona(
+                intent.value
+            )
+        ).setup()
+    }
+
+    /** 确认后创建并启用新人设。 */
+    @UiIntentObserver(MainUiIntent.ConfirmCreatePersona::class)
+    private suspend fun onConfirmCreatePersona() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val name = (state.dialogState as? MainDialogState.CreatePersona)?.name ?: return
+        if (name.isBlank()) return
+        mPersonas.create(name)
+        state.copy(dialogState = MainDialogState.None).setup()
+        refreshIdentity()
+    }
 
     /** 辅助函数：安全解析整数设置项并应用更新。 */
     private fun updateSettingsInt(

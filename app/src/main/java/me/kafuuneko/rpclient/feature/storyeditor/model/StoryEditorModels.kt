@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor.model
 
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookRuntimeState
 import me.kafuuneko.rpclient.libs.story.StoryImportDraft
 
@@ -124,7 +125,8 @@ data class StoryCharacterOptionItem(
     /** 通过角色卡或业务关系绑定的世界书 ID。 */
     val linkedLorebookId: Long? = null,
     /** 已绑定世界书的显示名称。 */
-    val linkedLorebookName: String? = null
+    val linkedLorebookName: String? = null,
+    val descriptionTemplate: String = description,
 )
 
 /** Story 设置页可选择的角色激活方式，不暴露 Room 的持久化取值。 */
@@ -261,6 +263,7 @@ enum class StoryEditSource {
 
 /** 导入确认对话框所需的解析结果和标题草稿。 */
 data class StoryImportPreview(
+    val persona: PersonaSelection = PersonaSelection(),
     /** 当前页面中尚未持久化的编辑草稿。 */
     val draft: StoryImportDraft,
     /** 供界面展示或持久化的标题。 */

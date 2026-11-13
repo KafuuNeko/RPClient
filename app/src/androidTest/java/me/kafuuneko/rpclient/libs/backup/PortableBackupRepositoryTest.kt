@@ -14,20 +14,29 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.prompt.PromptType
-import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.prompt.PromptType
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
+import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.search.SearchTextCodec
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -409,13 +418,13 @@ class PortableBackupRepositoryTest {
         db.execSQL("UPDATE character SET firstMessages = 'Hello<START>Second<START>Third' WHERE id = 5")
         db.execSQL(
             "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
-                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
-                "VALUES(15, 5, 1, 2, '', 'Alice chat', '', 'User', '', '{}', 0, 0)"
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples, userPersonaId) " +
+                "VALUES(15, 5, 1, 2, '', 'Alice chat', '', 'User', '', '{}', 0, 0, 1)"
         )
         db.execSQL(
             "INSERT INTO chat_sessions(id, characterId, createTime, latestTime, lorebookEntrySet, title, " +
-                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples) " +
-                "VALUES(16, 6, 1, 2, '', 'Bob chat', '', 'User', '', '{}', 0, 1)"
+                "userNote, userName, userDescription, worldInfoStateJson, autoSummaryPaused, includeCharacterExamples, userPersonaId) " +
+                "VALUES(16, 6, 1, 2, '', 'Bob chat', '', 'User', '', '{}', 0, 1, 1)"
         )
         val archive = File(root, "snapshot.zip")
         val repository = PortableBackupRepository(
@@ -458,6 +467,130 @@ class PortableBackupRepositoryTest {
             assertFalse(cursor.moveToNext())
         }
         assertTrue(report.text().contains("chat skipped", ignoreCase = true))
+    }
+
+    /** 完整归档应保存独立默认项、三个入口的绑定及两个覆盖列的原始状态。 */
+    @Test
+    fun personaBindingsAndNullableOverridesSurviveRestore() = runBlocking {
+        val personas = UserPersonaRepository(primary, FileRepository(context, primary))
+        val initial = personas.active().id
+        val second = personas.create("Mira")
+        personas.describe(second, "Archivist")
+        val character = primary.getCharacterDao().insertOrReplace(
+            Character(
+                name = "Guide",
+                avatar = "",
+                characterTags = "[]",
+                description = "",
+                personality = "",
+                scenario = "",
+                firstMessages = "Welcome",
+                examplesOfDialogue = "",
+                postHistoryInstructions = ""
+            )
+        )
+        val session = ChatSession(
+            characterId = character, createTime = 1, latestTime = 1,
+            title = "original", lorebookEntrySet = "[]", userNote = "", userPersonaId = second,
+            userDescription = " {{user}} "
+        )
+        val chat = primary.getChatSessionDao().insertOrReplace(session)
+        val alias = primary.getChatSessionDao().insertOrReplace(
+            session.copy(title = "alias", userName = "  Alias  ", userDescription = "")
+        )
+        val group = primary.getGroupChatSessionDao().insertOrReplace(
+            GroupChatSession(
+                title = "Group",
+                createTime = 1,
+                latestTime = 1,
+                userPersonaId = initial,
+                userName = "Captain"
+            )
+        )
+        val writer = StoryRepository(primary)
+        val story = writer.createStoryWithConfiguration(
+            "Story",
+            emptyList(),
+            emptyList(),
+            userPersonaId = second
+        )
+        val disabled = writer.createStory("Other")
+        val backup = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        val uri = Uri.fromFile(File(root, "personas.zip"))
+        backup.exportArchive(uri)
+        personas.select(initial)
+        personas.describe(second, "changed")
+        backup.restoreArchive(uri)
+        openDatabases()
+        val dao = primary.getUserPersonaDao()
+        assertEquals(second, dao.active().id)
+        assertEquals("Archivist", dao.active().description)
+        val chats = primary.getChatSessionDao()
+        val inherited = requireNotNull(chats.getSessionById(chat))
+        assertEquals(null, inherited.userName)
+        assertEquals(" {{user}} ", inherited.userDescription)
+        assertEquals("Mira", dao.resolve(inherited).name)
+        val overridden = requireNotNull(chats.getSessionById(alias))
+        assertEquals("  Alias  ", overridden.userName)
+        assertEquals("", overridden.userDescription)
+        assertEquals("Archivist", dao.resolve(overridden).description)
+        val restoredGroup =
+            primary.getGroupChatSessionDao().getAllSessions().single { it.id == group }
+        assertEquals(initial, restoredGroup.userPersonaId)
+        assertEquals("Captain", restoredGroup.userName)
+        assertEquals(null, restoredGroup.userDescription)
+        assertEquals(second, primary.getStoryDao().getStory(story)?.userPersonaId)
+        assertEquals(-1L, primary.getStoryDao().getStory(disabled)?.userPersonaId)
+    }
+
+    /** 完整恢复保留同图的独立 UUID，恢复后清空人设头像仍可读取角色头像。 */
+    @Test
+    fun personaAvatarRestorePreservesIndependentFileReferences() = runBlocking {
+        val files = FileRepository(context, primary)
+        val personas = UserPersonaRepository(primary, files)
+        val personaId = personas.active().id
+        val bytes = "shared avatar".toByteArray()
+        val personaAvatar = files.saveFile(bytes, "image/png")
+        val characterAvatar = files.saveFile(bytes, "image/png")
+        assertNotEquals(personaAvatar, characterAvatar)
+        personas.setAvatar(personaId, personaAvatar)
+        val characterId = primary.getCharacterDao().insertOrReplace(
+            Character(
+                name = "Guide", avatar = characterAvatar, characterTags = "[]",
+                description = "", personality = "", scenario = "", firstMessages = "",
+                examplesOfDialogue = "", postHistoryInstructions = ""
+            )
+        )
+
+        // 两处引用在完整归档中保留各自的 UUID，共享的图片字节仅存一份。
+        val backup = PortableBackupRepository(
+            context, primary, logs, BackupArchiveRepository(context, primary)
+        )
+        val uri = Uri.fromFile(File(root, "persona-avatars.zip"))
+        backup.exportArchive(uri)
+        backup.restoreArchive(uri)
+        openDatabases()
+        val restored = FileRepository(context, primary)
+        assertEquals(personaAvatar, primary.getUserPersonaDao().get(personaId).avatarFileUuid)
+        assertEquals(
+            characterAvatar,
+            primary.getCharacterDao().getCharacterById(characterId)?.avatar
+        )
+        val hash = requireNotNull(restored.getFileEntity(personaAvatar)).hash
+        assertEquals(hash, restored.getFileEntity(characterAvatar)?.hash)
+        assertEquals(2, primary.getFileDao().countByHash(hash))
+
+        // 使用恢复后的仓库清空头像，角色索引及原图均应保留。
+        UserPersonaRepository(primary, restored).setAvatar(personaId, null)
+        assertNull(primary.getUserPersonaDao().get(personaId).avatarFileUuid)
+        assertNull(restored.getFileEntity(personaAvatar))
+        assertEquals(1, primary.getFileDao().countByHash(hash))
+        assertArrayEquals(bytes, requireNotNull(restored.getFile(characterAvatar)).readBytes())
     }
 
     /** 替换中途失败时，回滚快照必须包含关闭前仍位于 WAL 的已提交数据。 */
@@ -528,7 +661,7 @@ class PortableBackupRepositoryTest {
             base,
             AppDatabase::class.java,
             context.getDatabasePath("primary.sqlite").path
-        )
+        ).withTestPersonas()
             .addCallback(SearchDatabaseCallback)
             .build()
         logs = Room.databaseBuilder(

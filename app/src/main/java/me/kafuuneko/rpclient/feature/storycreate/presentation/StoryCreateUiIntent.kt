@@ -10,7 +10,7 @@ sealed class StoryCreateUiIntent {
 
     data class ChangeTitle(val value: String) : StoryCreateUiIntent()
 
-    data class SetIncludeUserPersona(val enabled: Boolean) : StoryCreateUiIntent()
+    data class SelectPersona(val id: Long) : StoryCreateUiIntent()
 
     data class ChangeCharacterQuery(val value: String) : StoryCreateUiIntent()
 

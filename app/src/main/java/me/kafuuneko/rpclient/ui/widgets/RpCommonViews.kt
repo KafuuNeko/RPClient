@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -41,18 +40,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 
 /** 页面主标题，带辅助说明，统一页面顶部视觉规范。 */
@@ -611,70 +607,3 @@ fun RpSettingsValueTile(
 fun RpSpacerSmall() {
     Spacer(modifier = Modifier.height(8.dp))
 }
-
-/** 故事创建/设置中用于注入用户人设的现代化卡片。 */
-@Composable
-fun StoryUserPersonaCard(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    // 是否纳入用户人设由开关和描边表达，底板不额外叠乘页面不透明度。
-    AppCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(
-                enabled = enabled,
-                onClick = {
-                    onCheckedChange(!checked)
-                },
-            ),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            width = if (checked) 1.5.dp else 1.dp,
-            color = if (checked) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-            } else {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-            },
-        ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            RpIconBubble(
-                icon = Icons.Rounded.Person,
-                containerColor = if (checked) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-                },
-                contentColor = if (checked) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-            Text(
-                text = stringResource(R.string.story_include_user_persona),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled,
-            )
-        }
-    }
-}
-
