@@ -1235,12 +1235,12 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="appearance_save_changes_title">Salvare le modifiche?</string>
     <string name="appearance_save_changes_message">Salvare le modifiche a questo sfondo prima di uscire?</string>
     <string name="appearance_general_background">Pagine generali</string>
-    <string name="appearance_general_background_hint">Si applica a tutte le pagine tranne Informazioni e temi colore. Chat, gruppi e storie ereditano questi parametri quando Segui le impostazioni generali è attivo. Ogni pagina mantiene la propria immagine o usa quella generale se non ne ha una.</string>
-    <string name="appearance_follow_general_hint">Se attivo, tutte le impostazioni tranne l’immagine seguono quelle generali. Disattiva per personalizzare questa pagina.</string>
+    <string name="appearance_general_background_hint">Si applica a tutte le pagine tranne Informazioni e temi colore. Chat, gruppi e storie ereditano queste impostazioni solo quando Segui le impostazioni generali è attivo, mantenendo la propria immagine o usando quella generale se non ne hanno una.</string>
+    <string name="appearance_follow_general_hint">Se attivo, usa le impostazioni generali e l’immagine generale se la pagina non ne ha una propria. Se disattivo, usa solo le impostazioni e l’immagine di questa pagina.</string>
     <string name="appearance_preview_content">Area contenuti</string>
     <string name="appearance_follow_general">Segui le impostazioni generali</string>
     <string name="appearance_use_character_background">Usa sfondi dei personaggi</string>
-    <string name="appearance_character_background_hint">Usa l’immagine del personaggio se disponibile; altrimenti quella della chat e poi quella generale.</string>
+    <string name="appearance_character_background_hint">Usa l’immagine del personaggio se disponibile, altrimenti quella della chat. L’immagine generale viene usata solo quando Segui le impostazioni generali è attivo.</string>
     <string name="character_choose_background">Scegli sfondo del personaggio</string>
     <string name="character_remove_background">Rimuovi sfondo del personaggio</string>
 

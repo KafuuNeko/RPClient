@@ -235,7 +235,7 @@ class AppearanceViewModel : CoreViewModelWithEvent<AppearanceUiIntent, Appearanc
         if (!editor.loadState.blocksEditing) requestPreview(preview = false)
     }
 
-    /** 移除独立图片仅改变草稿；页面可回退通用图片，保存后才释放旧文件。 */
+    /** 移除独立图片仅改变草稿；开启跟随时才回退通用图片，保存后释放旧文件。 */
     @UiIntentObserver(AppearanceUiIntent.ResetBackground::class)
     private fun onResetBackground() {
         val editor = getOrNull<AppearanceUiState.Normal>()?.editor ?: return

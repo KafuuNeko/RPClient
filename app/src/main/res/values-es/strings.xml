@@ -1258,12 +1258,12 @@
     <string name="appearance_save_changes_title">¿Guardar cambios?</string>
     <string name="appearance_save_changes_message">¿Guardar los cambios de este fondo antes de salir?</string>
     <string name="appearance_general_background">Páginas generales</string>
-    <string name="appearance_general_background_hint">Se aplica a todas las páginas excepto Acerca de y temas de color. Los chats, grupos e historias heredan estos parámetros al activar Seguir ajustes generales. Cada página conserva su imagen o usa la general si no tiene una.</string>
-    <string name="appearance_follow_general_hint">Al activarlo, todos los ajustes excepto la imagen siguen los generales. Desactívalo para personalizar esta página.</string>
+    <string name="appearance_general_background_hint">Se aplica a todas las páginas excepto Acerca de y temas de color. Los chats, grupos e historias solo heredan estos ajustes al activar Seguir ajustes generales, conservando su propia imagen o usando la general si no tienen una.</string>
+    <string name="appearance_follow_general_hint">Al activarlo, usa los ajustes generales y la imagen general si la página no tiene una propia. Al desactivarlo, usa únicamente los ajustes y la imagen de esta página.</string>
     <string name="appearance_preview_content">Área de contenido</string>
     <string name="appearance_follow_general">Seguir ajustes generales</string>
     <string name="appearance_use_character_background">Usar fondos de personajes</string>
-    <string name="appearance_character_background_hint">Usa la imagen del personaje si existe; de lo contrario, la del chat y luego la general.</string>
+    <string name="appearance_character_background_hint">Usa la imagen del personaje si existe; de lo contrario, la del chat. Solo usa la imagen general si Seguir ajustes generales está activado.</string>
     <string name="character_choose_background">Elegir fondo del personaje</string>
     <string name="character_remove_background">Quitar fondo del personaje</string>
 

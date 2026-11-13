@@ -81,6 +81,8 @@ fun AppearanceLayout(state: AppearanceUiState, emit: (AppearanceUiIntent) -> Uni
         return
     }
     state as AppearanceUiState.Normal
+    // 列表会在进入编辑页时卸载，滚动位置由共同父节点保留。
+    val choicesListState = rememberLazyListState()
     BackHandler(onBack = { emit(AppearanceUiIntent.Back) })
     Scaffold(
         topBar = {
@@ -98,7 +100,12 @@ fun AppearanceLayout(state: AppearanceUiState, emit: (AppearanceUiIntent) -> Uni
                 modifier = Modifier.padding(padding),
                 emit = emit,
             )
-            else AppearanceChoices(state = state, modifier = Modifier.padding(padding), emit = emit)
+            else AppearanceChoices(
+                state = state,
+                modifier = Modifier.padding(padding),
+                listState = choicesListState,
+                emit = emit,
+            )
         },
     )
     state.editor?.let { editor ->
@@ -116,10 +123,12 @@ fun AppearanceLayout(state: AppearanceUiState, emit: (AppearanceUiIntent) -> Uni
 private fun AppearanceChoices(
     state: AppearanceUiState.Normal,
     modifier: Modifier,
+    listState: LazyListState,
     emit: (AppearanceUiIntent) -> Unit
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

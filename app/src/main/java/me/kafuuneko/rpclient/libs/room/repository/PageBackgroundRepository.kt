@@ -57,7 +57,7 @@ class PageBackgroundRepository(database: AppDatabase, private val mFiles: FileRe
     private fun observeCharacterImage(characterId: Long): Flow<String?> =
         mCharacters.observeBackground(characterId).distinctUntilChanged()
 
-    /** 聊天优先采用开启选项后的角色图片，缺省按对话、通用顺序回退。 */
+    /** 聊天优先采用开启选项后的角色图片，缺省使用对话图片，仅开启跟随时回退通用图片。 */
     fun observeChat(characterId: Long): Flow<PageBackground> =
         combine(
             observeEffective(BackgroundPage.Chat),

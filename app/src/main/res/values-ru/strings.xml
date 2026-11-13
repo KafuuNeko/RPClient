@@ -1261,12 +1261,12 @@
     <string name="appearance_save_changes_title">Сохранить изменения?</string>
     <string name="appearance_save_changes_message">Сохранить изменения этого фона перед выходом?</string>
     <string name="appearance_general_background">Общие страницы</string>
-    <string name="appearance_general_background_hint">Применяется ко всем страницам, кроме разделов «О приложении» и цветовых тем. Чаты, группы и истории наследуют эти параметры, когда включено «Использовать общие настройки». Каждая страница сохраняет своё изображение или использует общее, если своё не задано.</string>
-    <string name="appearance_follow_general_hint">При включении все параметры, кроме изображения, берутся из общих настроек. Выключите для отдельной настройки страницы.</string>
+    <string name="appearance_general_background_hint">Применяется ко всем страницам, кроме разделов «О приложении» и цветовых тем. Чаты, группы и истории наследуют эти настройки только при включённой опции «Использовать общие настройки», сохраняя своё изображение или используя общее, если своё не задано.</string>
+    <string name="appearance_follow_general_hint">При включении используются общие настройки и общее изображение, если у страницы нет своего. При выключении используются только собственные настройки и изображение этой страницы.</string>
     <string name="appearance_preview_content">Область содержимого</string>
     <string name="appearance_follow_general">Использовать общие настройки</string>
     <string name="appearance_use_character_background">Использовать фоны персонажей</string>
-    <string name="appearance_character_background_hint">Используется изображение персонажа, если оно есть; иначе — изображение чата, затем общий фон.</string>
+    <string name="appearance_character_background_hint">Используется изображение персонажа, если оно есть; иначе — изображение чата. Общее изображение используется только при включённой опции «Использовать общие настройки».</string>
     <string name="character_choose_background">Выбрать фон персонажа</string>
     <string name="character_remove_background">Удалить фон персонажа</string>
 

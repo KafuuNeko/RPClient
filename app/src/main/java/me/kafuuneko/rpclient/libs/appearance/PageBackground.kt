@@ -80,14 +80,16 @@ fun PageBackground.surfaceBlur(kind: PageSurfaceKind): Int = when (kind) {
 private fun Float.finite(fallback: Float): Float = if (isFinite()) this else fallback
 
 /**
- * 图片与参数分别解析，继承结果仅用于显示，不能写回独立配置。
- * - 页面没有图片时始终回退通用图片；跟随开关不改变图片归属。
- * - 开启跟随后，图片处理及区域外观参数均来自通用配置。
+ * 按跟随开关解析页面外观，继承结果仅用于显示，不能写回独立配置。
+ * - 关闭跟随时完整使用自身配置，没有独立图片时显示主题底色。
+ * - 开启跟随时优先使用独立图片，缺省回退通用图片，其余外观参数来自通用配置。
+ *
+ * @param general 通用页面的原始配置。
+ * @return 当前页面实际显示的背景配置。
  */
 fun PageBackground.resolveWith(general: PageBackground): PageBackground {
-    if (page == BackgroundPage.General) return this
+    if (page == BackgroundPage.General || !followGeneral) return this
     val image = fileUuid ?: general.fileUuid
-    if (!followGeneral) return copy(fileUuid = image)
     return general.copy(
         page = page,
         fileUuid = image,

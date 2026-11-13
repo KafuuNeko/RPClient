@@ -6,10 +6,14 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
@@ -190,6 +194,33 @@ class AppearanceExitTest {
         compose.waitUntil(timeoutMillis = 5_000) { state().editor?.settings?.fileUuid == null }
         send(AppearanceUiIntent.Back)
         compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
+    }
+
+    /** 从背景编辑器返回或应用后，外观列表保留进入前的滚动位置。 */
+    @Test
+    fun backgroundEditorReturnPreservesAppearanceListScroll() {
+        send(AppearanceUiIntent.Back)
+        compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
+        // 滚动到列表底部的故事入口，确保回到顶部会被回归断言捕获。
+        val list = compose.onNode(hasScrollToIndexAction())
+        val storyTitle = mContext.getString(R.string.appearance_story_background)
+        list.performScrollToNode(hasText(storyTitle))
+        val scrollBefore = list.fetchSemanticsNode()
+            .config[SemanticsProperties.VerticalScrollAxisRange].value()
+        assertTrue(scrollBefore > 0f)
+
+        // 普通返回与保存应用走不同的关闭路径，都必须恢复原位置。
+        for (exitIntent in listOf(AppearanceUiIntent.Back, AppearanceUiIntent.ApplyBackground)) {
+            compose.onNodeWithText(storyTitle).performClick()
+            compose.waitUntil(timeoutMillis = 5_000) {
+                state().editor?.loadState == BackgroundEditorLoadState.None
+            }
+            send(exitIntent)
+            compose.waitUntil(timeoutMillis = 5_000) { state().editor == null }
+            val scrollAfter = list.fetchSemanticsNode()
+                .config[SemanticsProperties.VerticalScrollAxisRange].value()
+            assertEquals(scrollBefore, scrollAfter, 0.001f)
+        }
     }
 
     /** 保存异常恢复空闲状态并保留草稿，用户仍能重新选择保留或放弃。 */

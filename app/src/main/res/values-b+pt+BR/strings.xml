@@ -1260,12 +1260,12 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="appearance_save_changes_title">Salvar alterações?</string>
     <string name="appearance_save_changes_message">Salvar as alterações deste plano de fundo antes de sair?</string>
     <string name="appearance_general_background">Páginas gerais</string>
-    <string name="appearance_general_background_hint">Aplica-se a todas as páginas, exceto Sobre e temas de cores. Chats, grupos e histórias herdam estes parâmetros ao ativar Seguir configurações gerais. Cada página mantém sua imagem ou usa a geral se não houver uma definida.</string>
-    <string name="appearance_follow_general_hint">Quando ativado, todas as configurações, exceto a imagem, seguem as gerais. Desative para personalizar esta página.</string>
+    <string name="appearance_general_background_hint">Aplica-se a todas as páginas, exceto Sobre e temas de cores. Chats, grupos e histórias só herdam estas configurações quando Seguir configurações gerais está ativado, mantendo a própria imagem ou usando a geral se nenhuma estiver definida.</string>
+    <string name="appearance_follow_general_hint">Quando ativado, usa as configurações gerais e a imagem geral se não houver uma imagem própria. Quando desativado, usa apenas as configurações e a imagem desta página.</string>
     <string name="appearance_preview_content">Área de conteúdo</string>
     <string name="appearance_follow_general">Seguir configurações gerais</string>
     <string name="appearance_use_character_background">Usar fundos dos personagens</string>
-    <string name="appearance_character_background_hint">Use a imagem do personagem, se houver; caso contrário, use a do chat e depois a geral.</string>
+    <string name="appearance_character_background_hint">Use a imagem do personagem, se houver; caso contrário, a do chat. A imagem geral só é usada quando Seguir configurações gerais está ativado.</string>
     <string name="character_choose_background">Escolher fundo do personagem</string>
     <string name="character_remove_background">Remover fundo do personagem</string>
 

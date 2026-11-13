@@ -265,7 +265,7 @@ class PageBackgroundRepositoryTest {
         }
     }
 
-    /** 图片继承不复制索引；显式开关控制全部参数，关闭时全零参数也不会重新跟随。 */
+    /** 图片继承不复制索引；显式开关控制图片回退与全部参数，关闭时全零参数也保持独立。 */
     @Test
     fun generalInheritancePreservesIndependentImagesAndRawSettings() = runBlocking {
         val commonImage = files.prepareStream(
@@ -333,7 +333,53 @@ class PageBackgroundRepositoryTest {
         files.withFileLease(ownImage.file.uuid) { file -> assertEquals("own", file.readText()) }
     }
 
-    /** 角色图片独占索引，启用和禁用开关都按角色、对话、通用顺序回退。 */
+    /** 三类页面关闭跟随后清图均保持无图，重新开启后恢复继承且不占用通用图片索引。 */
+    @Test
+    fun clearingIndependentImagesDoesNotFallBackToGeneral() = runBlocking {
+        // 通用图片始终保留，确保清图后没有借用它或误删它。
+        val common = files.prepareStream(
+            ownerId = "general",
+            input = ByteArrayInputStream("common".toByteArray()),
+            mimeType = "image/png",
+        )
+        backgrounds.save(
+            value = PageBackground(page = BackgroundPage.General, blur = 60),
+            prepared = common,
+        )
+        for (page in listOf(BackgroundPage.Chat, BackgroundPage.Group, BackgroundPage.Story)) {
+            val own = files.prepareStream(
+                ownerId = page.key,
+                input = ByteArrayInputStream("own".toByteArray()),
+                mimeType = "image/png",
+            )
+            backgrounds.save(
+                value = PageBackground(page = page, blur = 17, followGeneral = false),
+                prepared = own,
+            )
+            assertEquals(own.file.uuid, backgrounds.observeEffective(page).first().fileUuid)
+
+            // 清图后仍使用独立参数，重新创建仓库也不能恢复通用图片。
+            val raw = backgrounds.observe(page).first()
+            backgrounds.save(value = raw.copy(fileUuid = null), prepared = null)
+            val cleared = PageBackgroundRepository(database, files).observeEffective(page).first()
+            assertNull(cleared.fileUuid)
+            assertEquals(17, cleared.blur)
+            assertNull(files.getFileEntity(own.file.uuid))
+
+            // 重新开启跟随只恢复显示继承，不向独立配置写入通用图片引用。
+            backgrounds.save(
+                value = raw.copy(fileUuid = null, followGeneral = true),
+                prepared = null,
+            )
+            val inherited = backgrounds.observeEffective(page).first()
+            assertEquals(common.file.uuid, inherited.fileUuid)
+            assertEquals(60, inherited.blur)
+            assertNull(backgrounds.observe(page).first().fileUuid)
+        }
+        files.withFileLease(common.file.uuid) { file -> assertEquals("common", file.readText()) }
+    }
+
+    /** 角色图片独占索引，角色背景开关与通用继承开关分别控制图片来源。 */
     @Test
     fun characterBackgroundPriorityAndDeletionPreserveSharedFiles() = runBlocking {
         val gson = Gson()
@@ -378,7 +424,7 @@ class PageBackgroundRepositoryTest {
             general.copy(fileUuid = portrait.file.uuid),
             backgrounds.observeCharacterContent(id).first(),
         )
-        // 禁用角色背景后使用对话图片；再清除对话图片，独立参数仍可配合通用图片。
+        // 禁用角色背景后使用对话图片；关闭跟随并清图后不再回退通用图片。
         val raw = backgrounds.observe(BackgroundPage.Chat).first()
         backgrounds.save(value = raw.copy(useCharacterBackground = false), prepared = null)
         assertEquals(chat.file.uuid, backgrounds.observeChat(id).first().fileUuid)
@@ -391,7 +437,7 @@ class PageBackgroundRepositoryTest {
             ),
             prepared = null,
         )
-        assertEquals(common.file.uuid, backgrounds.observeChat(id).first().fileUuid)
+        assertNull(backgrounds.observeChat(id).first().fileUuid)
         assertEquals(1f, backgrounds.observeChat(id).first().bubbleOpacity)
         backgrounds.save(value = raw.copy(fileUuid = null), prepared = null)
         assertEquals(portrait.file.uuid, backgrounds.observeChat(id).first().fileUuid)

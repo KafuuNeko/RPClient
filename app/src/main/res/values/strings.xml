@@ -1284,12 +1284,12 @@
     <string name="appearance_save_changes_title">Save changes?</string>
     <string name="appearance_save_changes_message">Save changes to this background before leaving?</string>
     <string name="appearance_general_background">General pages</string>
-    <string name="appearance_general_background_hint">Applies to all pages except About and color themes. Chat, group chat and story pages inherit these parameters when Follow general settings is enabled. Each page keeps its own image, or uses the general image if none is set.</string>
-    <string name="appearance_follow_general_hint">When enabled, all settings except the image follow General. Turn off to customize this page.</string>
+    <string name="appearance_general_background_hint">Applies to all pages except About and color themes. Chat, group chat and story pages inherit these settings only when Follow general settings is enabled, keeping their own image or using the general image if none is set.</string>
+    <string name="appearance_follow_general_hint">When enabled, use general settings and fall back to the general image if no page image is set. When disabled, use only this page’s own settings and image.</string>
     <string name="appearance_preview_content">Content area</string>
     <string name="appearance_follow_general">Follow general settings</string>
     <string name="appearance_use_character_background">Use character backgrounds</string>
-    <string name="appearance_character_background_hint">Use the character image when available; otherwise use the chat image, then the general image.</string>
+    <string name="appearance_character_background_hint">Use the character image when available; otherwise use the chat image. Fall back to the general image only when Follow general settings is enabled.</string>
     <string name="character_choose_background">Choose character background</string>
     <string name="character_remove_background">Remove character background</string>
 

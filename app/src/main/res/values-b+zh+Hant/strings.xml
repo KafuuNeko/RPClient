@@ -1251,12 +1251,12 @@
     <string name="appearance_save_changes_title">儲存變更？</string>
     <string name="appearance_save_changes_message">離開前是否儲存此背景的變更？</string>
     <string name="appearance_general_background">通用頁面</string>
-    <string name="appearance_general_background_hint">套用至關於頁及配色主題頁以外的頁面。對話、群聊與故事頁開啟「跟隨通用設定」後使用這些參數；優先使用各自的背景圖片，未設定時使用通用背景圖片。</string>
-    <string name="appearance_follow_general_hint">開啟後，除背景圖片外的所有參數跟隨通用設定；關閉後可獨立調整。</string>
+    <string name="appearance_general_background_hint">套用至關於頁及配色主題頁以外的頁面。對話、群聊與故事頁僅在開啟「跟隨通用設定」時繼承這些設定，優先使用各自的圖片，未設定時使用通用圖片。</string>
+    <string name="appearance_follow_general_hint">開啟後使用通用參數，無獨立圖片時使用通用圖片；關閉後完全使用目前頁面自己的參數與圖片。</string>
     <string name="appearance_preview_content">內容區域</string>
     <string name="appearance_follow_general">跟隨通用設定</string>
     <string name="appearance_use_character_background">使用角色卡背景</string>
-    <string name="appearance_character_background_hint">優先使用角色卡背景；未設定時使用對話背景，再回退至通用背景。</string>
+    <string name="appearance_character_background_hint">優先使用角色卡背景，其次使用對話背景；僅在開啟「跟隨通用設定」時回退至通用背景。</string>
     <string name="character_choose_background">選擇角色背景</string>
     <string name="character_remove_background">移除角色背景</string>
 
