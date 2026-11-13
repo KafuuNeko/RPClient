@@ -108,6 +108,10 @@ sealed class StoryEditorUiIntent {
 
     data class ToggleLorebookEntry(val entryId: Long) : StoryEditorUiIntent()
 
+    data object ShowDeleteStoryDialog : StoryEditorUiIntent()
+
+    data object ConfirmDeleteStory : StoryEditorUiIntent()
+
     data object SaveStorySettings : StoryEditorUiIntent()
 
     data class ChangeContinuationGuidance(val value: String) : StoryEditorUiIntent()

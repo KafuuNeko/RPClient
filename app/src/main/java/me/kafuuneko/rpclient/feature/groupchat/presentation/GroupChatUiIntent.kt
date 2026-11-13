@@ -139,6 +139,8 @@ sealed class GroupChatUiIntent {
 
     data class RegenerateMessage(val messageId: Long) : GroupChatUiIntent()
 
+    data object RegenerateLast : GroupChatUiIntent()
+
     data object ContinueLast : GroupChatUiIntent()
 
     data object DeleteSessionClick : GroupChatUiIntent()

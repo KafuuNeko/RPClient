@@ -92,6 +92,7 @@ data class GroupChatPageData(
     val data: GroupChatData,
     val canLoadOlderMessages: Boolean,
     val hasCharacterMessage: Boolean,
+    val latestReplySpeakerId: Long?,
     val messageImages: List<MessageWithImages> = emptyList(),
     val canLoadNewerMessages: Boolean = false,
     val newerMessageCount: Int = 0
@@ -287,6 +288,7 @@ class GroupChatRepository(
      *
      * @param sessionId 群聊会话 ID。
      * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
+     * @param replacingReply 设置页请求替换的末尾角色回复，生成时排除它及覆盖它的摘要。
      * @return 群聊生成快照；会话不存在时返回 null。
      */
     suspend fun getGroupChatPromptData(
@@ -294,14 +296,27 @@ class GroupChatRepository(
         maxHistoryMessages: Int,
         protectedUserMessageId: Long? = null,
         batchPersona: UserPersona? = null,
+        replacingReply: GroupChatMessage? = null,
     ): GroupChatPromptData? {
         require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
         return mAppDatabase.withTransaction {
             // 在事务快照中读取会话及配置允许的最近消息
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
-            val summary = mSummaryDao.getLatest(sessionId)
+            // 重生成只向模型提供原回复之前的历史和摘要，原消息在生成成功前仍保留。
+            if (replacingReply != null && mMessageDao.getLatestMessage(sessionId) != replacingReply) {
+                return@withTransaction null
+            }
+            val summary = if (replacingReply == null) mSummaryDao.getLatest(sessionId)
+            else mSummaryDao.getPrevious(sessionId, replacingReply.id)
             val messages = if (maxHistoryMessages == 0) {
-                mMessageDao.getMessages(sessionId)
+                mMessageDao.getMessages(sessionId).filterNot { it.id == replacingReply?.id }
+            } else if (replacingReply != null) {
+                mMessageDao.getMessagePageBefore(
+                    sessionId = sessionId,
+                    beforeCreateTime = replacingReply.createTime,
+                    beforeMessageId = replacingReply.id,
+                    limit = maxHistoryMessages,
+                ).asReversed()
             } else {
                 mMessageDao.getLatestMessagePage(sessionId, maxHistoryMessages).asReversed()
             }
@@ -328,7 +343,7 @@ class GroupChatRepository(
                     messages = retained,
                     summary = summary,
                 ),
-                totalMessageCount = mMessageDao.getMessageCount(sessionId),
+                totalMessageCount = mMessageDao.getMessageCount(sessionId) - if (replacingReply == null) 0 else 1,
                 messageImages = getMessagesWithImages(retained.map { message -> message.id }),
             )
         }
@@ -476,6 +491,12 @@ class GroupChatRepository(
                 limit = pageSize + 1,
             )
                 .toGroupChatMessagePage(pageSize)
+            val latestReplySpeakerId = if (page.canLoadNewerMessages) {
+                mMessageDao.getLatestReplySpeakerId(sessionId)
+            } else {
+                page.messages.lastOrNull()
+                    ?.takeIf { it.source == GroupChatMessage.Source.Character }?.speakerCharacterId
+            }
             GroupChatPageData(
                 data = GroupChatData(
                     persona = mAppDatabase.getUserPersonaDao().resolve(session),
@@ -486,6 +507,7 @@ class GroupChatRepository(
                 ),
                 canLoadOlderMessages = page.canLoadOlderMessages,
                 hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId),
+                latestReplySpeakerId = latestReplySpeakerId,
                 messageImages = page.messageImages,
                 canLoadNewerMessages = page.canLoadNewerMessages,
                 newerMessageCount = page.newerMessageCount,
@@ -661,6 +683,20 @@ class GroupChatRepository(
         }
     }
 
+    /**
+     * 在原回复仍位于末尾且未被编辑时提交重生成结果，同时使覆盖旧正文的摘要失效。
+     * @param original 用户发起操作时的原回复。
+     * @param content 已完成的替换正文。
+     * @return 是否成功替换。
+     */
+    suspend fun replaceLatestReply(original: GroupChatMessage, content: String): Boolean =
+        mAppDatabase.withTransaction {
+            if (original.source != GroupChatMessage.Source.Character || content.isBlank()) return@withTransaction false
+            if (mMessageDao.getLatestMessage(original.sessionId) != original) return@withTransaction false
+            updateMessageContent(original.id, content)
+            true
+        }
+
     /** 从指定消息起删除后续历史，用于重新生成。 */
     suspend fun deleteMessagesFrom(id: Long) {
         mImages.mutate {
@@ -767,6 +803,26 @@ class GroupChatRepository(
     suspend fun updateSession(session: GroupChatSession) = mAppDatabase.withTransaction {
         mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
         mSessionDao.update(session)
+    }
+
+    /**
+     * 在同一事务内提交设置表单及有变化的摘要，保留表单范围外的最新会话字段。
+     * @param sessionId 群聊 ID。
+     * @param summary 设置页摘要草稿。
+     * @param edit 将表单字段应用到当前会话。
+     */
+    suspend fun saveSettings(
+        sessionId: Long,
+        summary: String,
+        edit: (GroupChatSession) -> GroupChatSession,
+    ) = mAppDatabase.withTransaction {
+        val session =
+            checkNotNull(mSessionDao.getSessionById(sessionId)) { "Group chat does not exist" }
+        val edited = edit(session)
+        if (edited != session) updateSession(edited)
+        if (summary != mSummaryDao.getLatest(sessionId)?.content.orEmpty()) {
+            updateCurrentSummary(sessionId = sessionId, content = summary)
+        }
     }
 
     /** 解析会话显式启用的世界书条目 ID。 */

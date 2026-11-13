@@ -173,12 +173,24 @@ class GroupChatViewModel :
             refreshState(generationState = GroupChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
             return
         }
+        // 用户编辑目标或追加新消息后，旧的重生成请求不再适用。
+        val original = retry.replacingReply
+        if (original != null && mGroupChatRepository.getLatestMessage(retry.sessionId) != original) {
+            clearReplyRetry()
+            refreshState(
+                generationState = GroupChatGenerationState.Failed(
+                    mContext.getString(R.string.no_latest_assistant_reply_to_regenerate)
+                )
+            )
+            return
+        }
         launchGeneration(
             retry.sessionId,
             retry.speakers,
             retry.generationMode,
             retry.triggerUserMessageId,
             initialPersona = retry.persona,
+            replacingReply = retry.replacingReply,
         )
     }
 
@@ -289,6 +301,9 @@ class GroupChatViewModel :
 
     /** 当前流式生成在数据库中创建的占位消息 ID。 */
     private var mStreamingMessageId: Long? = null
+
+    /** 设置页重生成的目标快照，取消或失败时保留原正文。 */
+    private var mStreamingOriginalReply: GroupChatMessage? = null
 
     /** 当前流式生成已累计接收到的原始文本内容。 */
     private var mStreamingContent: String = ""
@@ -748,7 +763,7 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return false
         if (!uiState.hasAvailableProvider) {
             val guide = noProviderModelSettingsGuide(mContext)
-            refreshState(dialogState = guide.toGroupChatDialogState())
+            uiState.copy(dialogState = guide.toGroupChatDialogState()).setup()
             return false
         }
         return true
@@ -1149,54 +1164,57 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.SaveSettings::class)
     private suspend fun onSaveSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        uiState.copy(loadState = GroupChatLoadState.Saving).setup()
-        // 异步将设置页表单修改持久化至群聊会话记录
-        withContext(Dispatchers.IO) {
-            val session =
-                mGroupChatRepository.getSessionById(uiState.sessionId) ?: return@withContext
-            mGroupChatRepository.updateSession(
-                session = session.copy(
-                    title = uiState.settingsState.titleDraft.trim().ifBlank { session.title },
-                    scenario = uiState.settingsState.scenarioDraft.trim(),
-                    userPersonaId = uiState.settingsState.persona.selectedId,
-                    userName = uiState.settingsState.userNameDraft.ifEmpty { null },
-                    userDescription = uiState.settingsState.userDescriptionDraft.ifEmpty { null },
-                    userNote = uiState.settingsState.userNoteDraft.trim(),
-                    activationStrategy = uiState.settingsState.activationStrategy.toEntity(),
-                    allowSelfResponses = uiState.settingsState.allowSelfResponses,
-                    characterCardMode = uiState.settingsState.characterCardMode.toEntity(),
-                    includeMutedCards = uiState.settingsState.includeMutedCards,
-                    includeCharacterExamples = uiState.settingsState.includeCharacterExamples,
-                    autoModeEnabled = uiState.settingsState.autoModeEnabled,
-                    trimOtherSpeakers = uiState.settingsState.trimOtherSpeakers,
-                    autoSummaryPaused = uiState.settingsState.autoSummaryPaused,
-                    systemPromptOverride = uiState.settingsState.systemPromptDraft.trim(),
-                    groupNudgePromptOverride = uiState.settingsState.groupNudgePromptDraft.trim(),
-                    newGroupChatPromptOverride = uiState.settingsState.newGroupChatPromptDraft.trim(),
-                ),
-            )
-            // 若摘要草稿有变更，更新当前摘要正文
-            if (uiState.settingsState.summaryDraft != uiState.settingsState.summaryDraft.trim()) {
-                mGroupChatRepository.updateCurrentSummary(
-                    sessionId = uiState.sessionId,
-                    content = uiState.settingsState.summaryDraft.trim(),
-                )
-            } else {
-                val currentSummary = mGroupChatRepository
-                    .getGroupChatData(uiState.sessionId)
-                    ?.summary
-                    ?.content
-                    .orEmpty()
-                if (currentSummary != uiState.settingsState.summaryDraft) {
-                    mGroupChatRepository.updateCurrentSummary(
-                        sessionId = uiState.sessionId,
-                        content = uiState.settingsState.summaryDraft,
+        if (uiState.page != GroupChatPage.Settings) return
+        if (saveSettingsDraft(uiState)) refreshState(page = GroupChatPage.Conversation)
+    }
+
+    /**
+     * 保存设置后才允许离开表单或使用新配置生成回复，写入失败时保留草稿。
+     * @param state 发起操作时的群聊页面状态。
+     * @return 设置与摘要是否成功保存。
+     */
+    private suspend fun saveSettingsDraft(state: GroupChatUiState.Normal): Boolean {
+        val settings = state.settingsState
+        state.copy(loadState = GroupChatLoadState.Saving).setup()
+        return try {
+            // 在同一事务中应用表单，避免部分设置已经生效时启动生成。
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.saveSettings(
+                    sessionId = state.sessionId,
+                    summary = settings.summaryDraft.trim()
+                ) { session ->
+                    session.copy(
+                        title = settings.titleDraft.trim().ifBlank { session.title },
+                        scenario = settings.scenarioDraft.trim(),
+                        userPersonaId = settings.persona.selectedId,
+                        userName = settings.userNameDraft.ifEmpty { null },
+                        userDescription = settings.userDescriptionDraft.ifEmpty { null },
+                        userNote = settings.userNoteDraft.trim(),
+                        activationStrategy = settings.activationStrategy.toEntity(),
+                        allowSelfResponses = settings.allowSelfResponses,
+                        characterCardMode = settings.characterCardMode.toEntity(),
+                        includeMutedCards = settings.includeMutedCards,
+                        includeCharacterExamples = settings.includeCharacterExamples,
+                        autoModeEnabled = settings.autoModeEnabled,
+                        trimOtherSpeakers = settings.trimOtherSpeakers,
+                        autoSummaryPaused = settings.autoSummaryPaused,
+                        systemPromptOverride = settings.systemPromptDraft.trim(),
+                        groupNudgePromptOverride = settings.groupNudgePromptDraft.trim(),
+                        newGroupChatPromptOverride = settings.newGroupChatPromptDraft.trim(),
                     )
                 }
             }
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // 保留设置字段，用户可以重试同一操作。
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            false
+        } finally {
+            val current = getOrNull<GroupChatUiState.Normal>()
+            current?.copy(loadState = GroupChatLoadState.None)?.setup()
         }
-        // 保存完成后重载会话数据并返回群聊对话页
-        refreshState(page = GroupChatPage.Conversation)
     }
 
     /**
@@ -1616,6 +1634,32 @@ class GroupChatViewModel :
         )
     }
 
+    /** 从设置页重新生成末尾的角色回复，保留之后可能新增的用户消息。 */
+    @UiIntentObserver(GroupChatUiIntent.RegenerateLast::class)
+    private suspend fun onRegenerateLast() {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (state.page != GroupChatPage.Settings || mGenerationJob?.isCompleted == false) return
+        if (!ensureProviderConfigured()) return
+        val latest =
+            withContext(Dispatchers.IO) { mGroupChatRepository.getLatestMessage(state.sessionId) }
+        if (latest?.source != GroupChatMessage.Source.Character) {
+            AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_regenerate)
+                .tryEmit()
+            return
+        }
+        // 用原发言者和设置草稿生成，成功后才替换原回复。
+        val speaker = findReplySpeaker(state.sessionId, latest) ?: return
+        if (!saveSettingsDraft(state)) return
+        val current = getOrNull<GroupChatUiState.Normal>() ?: return
+        current.copy(page = GroupChatPage.Conversation).setup()
+        launchGeneration(
+            sessionId = state.sessionId,
+            speakers = listOf(speaker),
+            generationMode = GroupChatGenerationMode.Regenerate,
+            replacingReply = latest,
+        )
+    }
+
     /**
      * 由最后一条角色消息的原发言者续写下一条回复。
      *
@@ -1631,17 +1675,40 @@ class GroupChatViewModel :
         if (!ensureProviderConfigured()) return
         val last = withContext(Dispatchers.IO) {
             mGroupChatRepository.getLatestCharacterMessage(uiState.sessionId)
-        } ?: return
-        val members = withContext(Dispatchers.IO) {
-            mGroupChatRepository.getMembers(uiState.sessionId)
+        } ?: run {
+            AppViewEvent.PopupToastMessageByResId(R.string.no_latest_assistant_reply_to_continue)
+                .tryEmit()
+            return
         }
-        // 提取最后一条角色消息及对应角色发言者
-        val speaker = members.firstOrNull { it.character.id == last.speakerCharacterId } ?: return
+        val speaker = findReplySpeaker(uiState.sessionId, last) ?: return
+        // 设置页和输入栏共用同一次续写，从设置页发起时把生成进度显示在对话中。
+        if (uiState.page == GroupChatPage.Settings && !saveSettingsDraft(uiState)) return
+        val current = getOrNull<GroupChatUiState.Normal>() ?: return
+        current.copy(page = GroupChatPage.Conversation).setup()
         launchGeneration(
             sessionId = uiState.sessionId,
             speakers = listOf(speaker),
             generationMode = GroupChatGenerationMode.Continue,
         )
+    }
+
+    /**
+     * 解析历史回复的原发言者，已被移出群聊的角色不能继续发言。
+     * @param sessionId 群聊 ID。
+     * @param message 待操作的角色消息。
+     * @return 当前群聊的发言成员，角色缺失时返回空。
+     */
+    private suspend fun findReplySpeaker(
+        sessionId: Long,
+        message: GroupChatMessage
+    ): GroupChatMemberData? {
+        val speaker = withContext(Dispatchers.IO) {
+            mGroupChatRepository.getMembers(sessionId)
+                .firstOrNull { it.character.id == message.speakerCharacterId }
+        }
+        if (speaker == null) AppViewEvent.PopupToastMessageByResId(R.string.character_not_found)
+            .tryEmit()
+        return speaker
     }
 
     /**
@@ -1697,6 +1764,7 @@ class GroupChatViewModel :
      * @param sessionId 会话 ID
      * @param speakers 本轮被选中的发言成员列表
      * @param generationMode 生成模式（Normal, Regenerate, Continue 等）
+     * @param replacingReply 设置页重生成的目标，仅对这一条回复提交替换。
      * @param triggerUserMessageId 仅本批次保护的已提交用户消息，无新输入时为空
      */
     private fun launchGeneration(
@@ -1705,6 +1773,7 @@ class GroupChatViewModel :
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
         triggerUserMessageId: Long? = null,
         initialPersona: UserPersona? = null,
+        replacingReply: GroupChatMessage? = null,
     ) {
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
@@ -1726,6 +1795,7 @@ class GroupChatViewModel :
                             persona = batchPersona,
                             generationMode = nextGenerationMode,
                             triggerUserMessageId = batchTriggerMessageId,
+                            replacingReply = replacingReply,
                         ),
                     )
                     // 用户触发批次已完成，AutoMode 下一轮恢复普通历史窗口和生成模式。
@@ -1737,7 +1807,7 @@ class GroupChatViewModel :
                     } ?: break
                     // 自动模式下重新选出下一轮发言角色
                     pendingSpeakers = if (
-                        generationMode != GroupChatGenerationMode.Continue
+                        replacingReply == null && generationMode != GroupChatGenerationMode.Continue
                         && nextData.session.autoModeEnabled
                         && nextData.session.activationStrategy !=
                         GroupChatSession.ActivationStrategy.Manual
@@ -1803,6 +1873,7 @@ class GroupChatViewModel :
                 total = batch.speakers.size,
                 generationMode = mode,
                 triggerUserMessageId = batch.triggerUserMessageId,
+                replacingReply = batch.replacingReply,
             )
             mode = GroupChatGenerationMode.Normal
             mReplyRetryContext =
@@ -1849,6 +1920,7 @@ class GroupChatViewModel :
      * @param current 当前为本批次第几个发言者（1-indexed）
      * @param total 本批次总发言人数
      * @param generationMode 生成模式
+     * @param replacingReply 要原位替换的回复，普通发言或续写时为空。
      * @param triggerUserMessageId 本批次触发消息，用于有限历史查询
      */
     private suspend fun generateSpeakerReply(
@@ -1861,11 +1933,13 @@ class GroupChatViewModel :
         generationMode: GroupChatGenerationMode = GroupChatGenerationMode.Normal,
         triggerUserMessageId: Long? = null,
         templates: PromptTemplateSnapshot,
+        replacingReply: GroupChatMessage?,
     ) {
         // 加载群聊快照、模型提供商与世界书上下文
         val promptData = withContext(Dispatchers.IO) {
             mGroupChatRepository.getGroupChatPromptData(
                 batchPersona = persona,
+                replacingReply = replacingReply,
                 sessionId = sessionId,
                 maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 protectedUserMessageId = triggerUserMessageId,
@@ -1907,8 +1981,9 @@ class GroupChatViewModel :
         }
         recordPromptInspection(buildResult.inspection)
         val request = buildResult.request
-        // 在数据库中创建本条角色回复的占位记录
-        mStreamingMessageId = withContext(Dispatchers.IO) {
+        // 重生成复用原消息的展示位置，普通发言才创建占位记录。
+        mStreamingOriginalReply = replacingReply
+        mStreamingMessageId = replacingReply?.id ?: withContext(Dispatchers.IO) {
             mGroupChatRepository.createMessage(
                 sessionId = sessionId,
                 source = GroupChatMessage.Source.Character,
@@ -1962,7 +2037,7 @@ class GroupChatViewModel :
         mStreamingContent = regexedPart
         mStreamingRegexApplied = true
         // 持久化最终内容并更新世界书激活快照
-        val persisted = persistOrDeleteStreamingMessage()
+        val persisted = persistOrDeleteStreamingMessage(completed = true)
         if (persisted && regexedPart.isNotBlank()) {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.updateWorldInfoState(
@@ -2040,30 +2115,45 @@ class GroupChatViewModel :
     /**
      * 在生成结束、取消或出错时进行安全收尾与持久化。
      *
-     * 若生成内容非空，则将最终内容更新到数据库；若为空（如尚未收到首字就取消），则删除占位记录。
+     * 普通发言落库部分正文或移除空占位。设置页重生成只有完整结果才覆盖原回复。
+     *
+     * @param completed 是否已成功接收并清洗完整正文。
      *
      * @return 是否成功持久化了非空消息
      */
-    private suspend fun persistOrDeleteStreamingMessage(): Boolean {
+    private suspend fun persistOrDeleteStreamingMessage(completed: Boolean = false): Boolean {
         val messageId = mStreamingMessageId ?: return false
         // 确保已执行 Source 阶段正则
         applyStreamingAiRegex()
         val content = mStreamingContent
-        val persisted = content.isNotBlank()
-        // 异步写库：若内容非空则更新正文，否则删除空占位记录
-        withContext(Dispatchers.IO) {
-            if (!persisted) {
-                mGroupChatRepository.deleteMessage(messageId)
-            } else {
-                mGroupChatRepository.updateMessageContent(messageId, content)
+        val original = mStreamingOriginalReply
+        // 只有完整且仍匹配原目标的重生成结果才能覆盖历史，普通回复保留已有的部分输出。
+        val persisted = withContext(Dispatchers.IO) {
+            when {
+                original != null -> completed && mGroupChatRepository.replaceLatestReply(
+                    original,
+                    content
+                )
+
+                content.isBlank() -> {
+                    mGroupChatRepository.deleteMessage(messageId)
+                    false
+                }
+
+                else -> {
+                    mGroupChatRepository.updateMessageContent(messageId, content)
+                    true
+                }
             }
         }
         // 重置流式状态字段
+        mStreamingOriginalReply = null
         mStreamingMessageId = null
         mStreamingContent = ""
         mStreamingRegexScripts = emptyList()
         mStreamingRegexMacros = emptyMap()
         mStreamingRegexApplied = false
+        check(original == null || !completed || persisted) { "Could not replace the latest group reply" }
         return persisted
     }
 
@@ -2591,6 +2681,8 @@ class GroupChatViewModel :
                 editingMessageDraft = editingMessageDraft,
             ),
             settingsState = GroupChatSettingsState(
+                canContinueLatestReply = pageData.hasCharacterMessage,
+                canRegenerateLatestReply = pageData.latestReplySpeakerId in memberIds,
                 persona = mPersonas.chatSelection(data.session.userPersonaId),
                 userNameDraft = data.session.userName.orEmpty(),
                 userDescriptionDraft = data.session.userDescription.orEmpty(),

@@ -59,6 +59,63 @@ class GroupChatRepositorySummaryTest {
         database.close()
     }
 
+    /** 重生成使用替换前的历史，失败或旧请求迟到时不能覆盖用户已编辑的回复。 */
+    @Test
+    fun regenerateLatestKeepsOriginalUntilCommitAndRejectsStaleResults() = runBlocking {
+        val user = repository.createMessage(
+            sessionId,
+            GroupChatMessage.Source.User,
+            "question",
+            null,
+            "User"
+        )
+        val reply = repository.createMessage(
+            sessionId,
+            GroupChatMessage.Source.Character,
+            "original",
+            1L,
+            "Alice"
+        )
+        val original = requireNotNull(repository.getMessageById(reply))
+        repository.saveSummary(sessionId, "summary of original reply", reply)
+
+        // 准备模型请求时排除原回复及其摘要，原正文依然可读。
+        val prompt = requireNotNull(
+            repository.getGroupChatPromptData(
+                sessionId = sessionId, maxHistoryMessages = 1, replacingReply = original,
+            )
+        )
+        assertEquals(listOf(user), prompt.data.messages.map { it.id })
+        assertEquals(1, prompt.totalMessageCount)
+        assertEquals(null, prompt.data.summary)
+        // 清空过的摘要应继续保持空白，不能因旧快照覆盖了更多消息而重新生效。
+        repository.saveSummary(sessionId, "old memory", user)
+        repository.updateCurrentSummary(sessionId, "")
+        val cleared = requireNotNull(
+            repository.getGroupChatPromptData(
+                sessionId = sessionId, maxHistoryMessages = 1, replacingReply = original,
+            )
+        )
+        assertEquals("", cleared.data.summary?.content)
+        assertFalse(repository.replaceLatestReply(original, ""))
+        assertEquals("original", repository.getMessageById(reply)?.content)
+
+        // 只允许完整结果写回到同一条消息，迟到的旧结果不能覆盖新正文或后续消息。
+        assertTrue(repository.replaceLatestReply(original, "new reply"))
+        assertFalse(repository.replaceLatestReply(original, "late result"))
+        val updated = requireNotNull(repository.getMessageById(reply))
+        repository.createMessage(
+            sessionId,
+            GroupChatMessage.Source.User,
+            "next question",
+            null,
+            "User"
+        )
+        assertFalse(repository.replaceLatestReply(updated, "another late result"))
+        assertEquals("new reply", repository.getMessageById(reply)?.content)
+        assertEquals("", repository.getGroupChatData(sessionId)?.summary?.content)
+    }
+
     @Test
     fun rawAndClassicKeepIndependentWindowRulesAndSummaryRollback() = runBlocking {
         val ids = (1..6).map { index ->

@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatViewModel
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
+import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.libs.AppModel
@@ -306,6 +307,70 @@ class ImageConversationFlowTest {
                 screenshot("group-images.png")
             }
             repository.deleteSession(id)
+        }
+    }
+
+    /** 设置页续写追加原角色发言，重生成失败保留正文，重试成功后只替换一条回复。 */
+    @Test
+    fun groupSettingsContinuesAndRetriesLatestReplyWithoutLosingTheOriginal() = runBlocking {
+        withFixture { fixture ->
+            val group = GlobalContext.get().get<GroupChatRepository>()
+            val id = group.createSession(
+                title = "Settings fixture",
+                characterIds = fixture.characters,
+                activationStrategy = GroupChatSession.ActivationStrategy.Manual,
+                allowSelfResponses = false,
+            )
+            try {
+                val speaker = fixture.characters.first()
+                group.createMessage(
+                    id,
+                    GroupChatMessage.Source.Character,
+                    "Initial reply",
+                    speaker,
+                    "Alice"
+                )
+                val intent = Intent(fixture.context, GroupChatActivity::class.java)
+                    .putExtra(GroupChatActivity.EXTRA_SESSION_ID, id.toString())
+                ActivityScenario.launch<GroupChatActivity>(intent).use { scenario ->
+                    lateinit var vm: GroupChatViewModel
+                    scenario.onActivity {
+                        vm = ViewModelProvider(it)[GroupChatViewModel::class.java]
+                    }
+                    fun state() = vm.uiStateFlow.value as? GroupChatUiState.Normal
+                    await { state() != null }
+
+                    // 从设置中带着新场景续写，回到对话时保留原角色和输入草稿。
+                    vm.emit(GroupChatUiIntent.ChangeInputDraft("unsent"))
+                    vm.emit(GroupChatUiIntent.OpenSettings)
+                    vm.emit(GroupChatUiIntent.ChangeScenario("Test island"))
+                    vm.emit(GroupChatUiIntent.ContinueLast)
+                    await { group.getMessageCount(id) == 2 && state()?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    val latest = requireNotNull(group.getLatestCharacterMessage(id))
+                    assertEquals(speaker, latest.speakerCharacterId)
+                    assertEquals(GroupChatPage.Conversation, state()?.page)
+                    assertEquals("unsent", state()?.conversationState?.inputDraft)
+                    assertEquals("Test island", group.getSessionById(id)?.scenario)
+
+                    // 固定目标正文，失败后检查原消息仍在，重试成功更新同一个 ID。
+                    group.updateMessageContent(latest.id, "Original before retry")
+                    fixture.server.failNext = true
+                    vm.emit(GroupChatUiIntent.OpenSettings)
+                    vm.emit(GroupChatUiIntent.RegenerateLast)
+                    await { state()?.conversationState?.generationState is GroupChatGenerationState.Failed }
+                    assertEquals("Original before retry", group.getMessageById(latest.id)?.content)
+                    vm.emit(GroupChatUiIntent.RetryImageReply)
+                    await { state()?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    assertEquals(2, group.getMessageCount(id))
+                    assertEquals(
+                        "A blue square is visible.",
+                        group.getMessageById(latest.id)?.content
+                    )
+                    assertFalse("Original before retry" in fixture.server.requests.last())
+                }
+            } finally {
+                group.deleteSession(id)
+            }
         }
     }
 

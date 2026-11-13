@@ -1,20 +1,17 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
@@ -46,9 +43,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -71,7 +66,8 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
+import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
@@ -115,7 +111,29 @@ internal fun GroupChatSettingsPage(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
-                GroupSettingsSection(
+                SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.regenerate_latest_reply),
+                        enabled = state.canRegenerateLatestReply,
+                        onClick = { emitIntent(GroupChatUiIntent.RegenerateLast) },
+                    )
+                    SettingsActionRow(
+                        icon = Icons.Rounded.AutoAwesome,
+                        title = stringResource(R.string.continue_latest_reply),
+                        enabled = state.canContinueLatestReply,
+                        onClick = { emitIntent(GroupChatUiIntent.ContinueLast) },
+                    )
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Delete,
+                        title = stringResource(R.string.group_chat_delete_content_description),
+                        iconTint = MaterialTheme.colorScheme.error,
+                        onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) },
+                    )
+                }
+            }
+            item {
+                SettingsSection(
                     title = stringResource(R.string.group_chat_basic_settings),
                 ) {
                     RpScrollableOutlinedTextField(
@@ -191,7 +209,7 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                GroupSettingsSection(
+                SettingsSection(
                     title = stringResource(R.string.group_chat_turn_strategy),
                 ) {
                     Text(
@@ -282,7 +300,7 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                GroupSettingsSection(
+                SettingsSection(
                     title = stringResource(R.string.group_chat_prompt_overrides),
                 ) {
                     Text(
@@ -325,7 +343,7 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                GroupSettingsSection(title = stringResource(R.string.group_chat_members)) {
+                SettingsSection(title = stringResource(R.string.group_chat_members)) {
                     GroupMemberSettingsList(members, emitIntent)
                     state.availableCharacters
                         .filterNot { groupChatAvailableCharacterItem -> groupChatAvailableCharacterItem.alreadyMember }
@@ -344,7 +362,7 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                GroupSettingsSection(title = stringResource(R.string.world_book)) {
+                SettingsSection(title = stringResource(R.string.world_book)) {
                     GroupChatLorebookSelector(
                         groups = state.lorebookGroups,
                         visibleGroups = state.visibleLorebookGroups,
@@ -362,16 +380,6 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                GroupSettingsSection(title = stringResource(R.string.chat_settings_actions)) {
-                    SettingsActionRow(
-                        icon = Icons.Rounded.Delete,
-                        title = stringResource(R.string.group_chat_delete_content_description),
-                        iconTint = MaterialTheme.colorScheme.error,
-                        onClick = { emitIntent(GroupChatUiIntent.DeleteSessionClick) },
-                    )
-                }
-            }
-            item {
                 Button(
                     onClick = { emitIntent(GroupChatUiIntent.SaveSettings) },
                     modifier = Modifier.fillMaxWidth(),
@@ -379,69 +387,6 @@ internal fun GroupChatSettingsPage(
                     Text(stringResource(R.string.save))
                 }
             }
-        }
-    }
-}
-
-/** 使用与单聊设置页一致的卡片式分区容器。 */
-@Composable
-private fun GroupSettingsSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    // 各设置分区沿用统一表面，内容由调用方提供。
-    AppSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        ),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            RpSectionHeader(title = title)
-            content()
-        }
-    }
-}
-
-/** 展示带图标和标题的设置操作项。 */
-@Composable
-private fun SettingsActionRow(
-    icon: ImageVector,
-    title: String,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
-    onClick: () -> Unit,
-) {
-    // 操作项保持统一的最小点击高度和图标配色。
-    AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = 48.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-            )
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
         }
     }
 }

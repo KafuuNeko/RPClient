@@ -187,6 +187,19 @@ private fun EditorDialogSwitch(
             )
         }
 
+        is StoryEditorDialogState.DeleteStory -> AppDangerDialog(
+            onDismissRequest = {
+                if (!dialogState.isDeleting) StoryEditorUiIntent.DismissDialog.emit()
+            },
+            title = stringResource(R.string.story_delete_story),
+            message = stringResource(R.string.story_delete_story_message, dialogState.title),
+            confirmText = stringResource(R.string.delete),
+            dismissText = stringResource(R.string.cancel),
+            confirmEnabled = !dialogState.isDeleting,
+            isConfirmLoading = dialogState.isDeleting,
+            onConfirm = { StoryEditorUiIntent.ConfirmDeleteStory.emit() },
+        )
+
         is StoryEditorDialogState.DeleteVolume -> AppDangerDialog(
             onDismissRequest = {
                 if (!dialogState.isSaving) StoryEditorUiIntent.DismissDialog.emit()

@@ -19,12 +19,12 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     )
     suspend fun getLatest(sessionId: Long): GroupChatSummary?
 
-    /** 读取当前覆盖边界之前可继续继承的上一份摘要。 */
+    /** 按写入时间取未覆盖目标消息的最新快照，包括用户主动清空的摘要。 */
     @Query(
         """
         SELECT * FROM group_chat_summaries
         WHERE sessionId = :sessionId AND coveredMessageId < :coveredMessageId
-        ORDER BY coveredMessageId DESC, id DESC
+        ORDER BY id DESC
         LIMIT 1
         """
     )

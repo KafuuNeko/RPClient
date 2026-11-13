@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat.model
 
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGenerationMode
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData
@@ -10,5 +11,6 @@ internal data class ReplyRetryContext(
     val speakers: List<GroupChatMemberData>,
     val generationMode: GroupChatGenerationMode,
     val persona: UserPersona,
-    val triggerUserMessageId: Long?
+    val triggerUserMessageId: Long?,
+    val replacingReply: GroupChatMessage? = null
 )

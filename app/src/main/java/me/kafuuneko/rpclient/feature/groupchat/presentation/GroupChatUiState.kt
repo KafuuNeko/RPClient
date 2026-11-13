@@ -140,7 +140,10 @@ data class GroupChatSettingsState(
     /** 按搜索条件过滤后实际展示的世界书分组。 */
     val visibleLorebookGroups: List<GroupChatLorebookGroupItem> = lorebookGroups,
     /** 世界书列表当前使用的搜索关键词。 */
-    val lorebookQuery: String = ""
+    val lorebookQuery: String = "",
+    /** 设置页可操作的回复来自完整历史，不受当前搜索窗口影响。 */
+    val canContinueLatestReply: Boolean = false,
+    val canRegenerateLatestReply: Boolean = false
 )
 
 /** 群聊数据库操作和摘要操作的页面级加载状态。 */

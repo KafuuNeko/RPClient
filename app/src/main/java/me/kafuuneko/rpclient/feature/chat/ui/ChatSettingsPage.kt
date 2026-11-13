@@ -1,11 +1,9 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -44,8 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,15 +52,15 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
-import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
+import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
@@ -109,28 +104,28 @@ internal fun ChatSettingsPage(
         ) {
             item {
                 SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.regenerate_latest_reply),
                         onClick = { ChatUiIntent.RegenerateLast.emit() },
                     )
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.continue_latest_reply),
                         onClick = { ChatUiIntent.ContinueLast.emit() },
                     )
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.Edit,
                         title = stringResource(R.string.impersonate_user),
                         onClick = { ChatUiIntent.ImpersonateUser.emit() },
                     )
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.FileUpload,
                         title = stringResource(R.string.export_chat),
                         enabled = loadState == ChatLoadState.None,
                         onClick = { ChatUiIntent.ExportChatClick.emit() },
                     )
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.Delete,
                         title = stringResource(R.string.delete_chat_title),
                         iconTint = MaterialTheme.colorScheme.error,
@@ -168,12 +163,12 @@ internal fun ChatSettingsPage(
                         onSave = { text -> ChatUiIntent.SaveSummary(text).emit() },
                     )
                     // 摘要操作紧随正文，与群聊保持一致，便于查看内容后直接处理。
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(R.string.summarize_now),
                         onClick = { ChatUiIntent.SummarizeNow.emit() },
                     )
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.restore_previous_summary),
                         onClick = { ChatUiIntent.RestorePreviousSummary.emit() },
@@ -227,7 +222,7 @@ internal fun ChatSettingsPage(
             }
             item {
                 SettingsSection(title = stringResource(R.string.world_book)) {
-                    MenuAction(
+                    SettingsActionRow(
                         icon = Icons.AutoMirrored.Rounded.MenuBook,
                         title = stringResource(R.string.world_book_manager),
                         onClick = { ChatUiIntent.OpenWorldBookManager.emit() },
@@ -442,31 +437,6 @@ private fun SessionLoreSettings(
 }
 
 @Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    // 分区沿用统一表面和内容间距，避免拆分文件改变设置页外观。
-    AppSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        ),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            RpSectionHeader(title = title)
-            content()
-        }
-    }
-}
-
-@Composable
 private fun AutoSaveTextField(
     label: String,
     value: String,
@@ -511,41 +481,4 @@ private fun AutoSaveTextField(
         singleLine = singleLine,
         shape = RoundedCornerShape(12.dp),
     )
-}
-
-@Composable
-private fun MenuAction(
-    icon: ImageVector,
-    title: String,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    // 整行点击遵循同一可用状态，并同步呈现禁用颜色。
-    AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = 48.dp)
-            .clickable(enabled = enabled, onClick = { onClick() }),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (enabled) iconTint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
-            )
-        }
-    }
 }

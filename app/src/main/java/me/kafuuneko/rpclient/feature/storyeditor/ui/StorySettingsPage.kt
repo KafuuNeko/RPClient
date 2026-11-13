@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -69,6 +70,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSegmentedTabs
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
+import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
+import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
@@ -212,6 +215,15 @@ private fun ContextSettings(
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+            SettingsActionRow(
+                icon = Icons.Rounded.Delete,
+                title = stringResource(R.string.story_delete_story),
+                iconTint = MaterialTheme.colorScheme.error,
+                enabled = controlsEnabled,
+                onClick = { StoryEditorUiIntent.ShowDeleteStoryDialog.emit() },
+            )
+        }
         UserPersonaSetting(state = state, enabled = controlsEnabled, emit = emit)
         SettingIntro(
             icon = Icons.AutoMirrored.Rounded.MenuBook,

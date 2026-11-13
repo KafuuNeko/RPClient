@@ -157,6 +157,10 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getLatestMessage(sessionId: Long): GroupChatMessage?
 
+    /** 搜索窗口不含末尾消息时，只读取角色 ID 以判断能否重新生成。 */
+    @Query("SELECT CASE WHEN source = 'Character' THEN speakerCharacterId END FROM group_chat_messages WHERE sessionId = :sessionId ORDER BY createTime DESC, id DESC LIMIT 1")
+    suspend fun getLatestReplySpeakerId(sessionId: Long): Long?
+
     /** 读取会话最后一条用户消息，作为发言池的轮次边界。 */
     @Query(
         """

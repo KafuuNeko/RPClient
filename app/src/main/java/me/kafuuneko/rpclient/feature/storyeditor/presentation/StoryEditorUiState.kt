@@ -238,6 +238,9 @@ sealed class StoryEditorDialogState {
         val isSaving: Boolean = false
     ) : StoryEditorDialogState()
 
+    data class DeleteStory(val title: String, val isDeleting: Boolean = false) :
+        StoryEditorDialogState()
+
     data class DeleteVolume(
         val volumeId: Long,
         val title: String,

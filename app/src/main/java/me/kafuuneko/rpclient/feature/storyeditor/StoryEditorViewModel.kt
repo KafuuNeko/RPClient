@@ -461,6 +461,10 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     @UiIntentObserver(StoryEditorUiIntent.Back::class)
     private suspend fun onBack() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.dialogState is StoryEditorDialogState.DeleteStory) {
+            onDismissDialog()
+            return
+        }
         // 设置页返回拦截
         if (uiState.pageState != StoryEditorPageState.Editor) {
             cancelSummaryJob()
@@ -887,6 +891,42 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         }
     }
 
+    /** 在故事设置中确认整篇删除，标题始终取自正在编辑的故事。 */
+    @UiIntentObserver(StoryEditorUiIntent.ShowDeleteStoryDialog::class)
+    private fun onShowDeleteStoryDialog() {
+        val state = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val settings = state.pageState as? StoryEditorPageState.Settings ?: return
+        if (settings.isSaving || state.dialogState != StoryEditorDialogState.None) return
+        state.copy(dialogState = StoryEditorDialogState.DeleteStory(title = state.topBarState.title))
+            .setup()
+    }
+
+    /** 确认后串行等待已开始的正文写入，删除成功再关闭编辑器。 */
+    @UiIntentObserver(StoryEditorUiIntent.ConfirmDeleteStory::class)
+    private suspend fun onConfirmDeleteStory() {
+        val state = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val dialog = state.dialogState as? StoryEditorDialogState.DeleteStory ?: return
+        if (state.pageState !is StoryEditorPageState.Settings || dialog.isDeleting) return
+        state.copy(dialogState = dialog.copy(isDeleting = true)).setup()
+        try {
+            // 已经进入保存锁的任务可正常完成，删除后等待锁的任务只会看到 Finished 状态。
+            mSaveMutex.withLock {
+                withContext(Dispatchers.IO) { mStoryRepository.deleteStory(state.storyId) }
+                mDebounceJob?.cancel()
+                val current = getOrNull<StoryEditorUiState.Normal>() ?: return@withLock
+                StoryEditorUiState.finished(current.copy(dialogState = StoryEditorDialogState.None))
+                    .setup()
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // 保留设置草稿及待保存正文，恢复确认按钮以便重试。
+            val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+            current.copy(dialogState = dialog).setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.story_delete_failed).tryEmit()
+        }
+    }
+
     @UiIntentObserver(StoryEditorUiIntent.SelectSettingsSection::class)
     private fun onSelectSettingsSection(intent: StoryEditorUiIntent.SelectSettingsSection) {
         updateSettings { copy(selectedSection = intent.section) }
@@ -898,6 +938,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     @UiIntentObserver(StoryEditorUiIntent.CloseStorySettings::class)
     private suspend fun onCloseStorySettings() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.dialogState is StoryEditorDialogState.DeleteStory) return
         val settings = uiState.pageState as? StoryEditorPageState.Settings
         if (settings?.isSaving == true) return
         cancelSummaryJob()
@@ -1620,6 +1661,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     @UiIntentObserver(StoryEditorUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if ((uiState.dialogState as? StoryEditorDialogState.DeleteStory)?.isDeleting == true) return
         val import = uiState.dialogState as? StoryEditorDialogState.ImportPreview
         if (import?.preview?.isSaving == true) return
         if (uiState.dialogState == StoryEditorDialogState.SummarizingStory) return
