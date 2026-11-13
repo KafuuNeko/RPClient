@@ -19,7 +19,7 @@ class UserPersonaMigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(mInstrumentation, AppDatabase::class.java)
 
-    /** 正式版升级保留关系行，姓名和描述分别判断是否需要继承。 */
+    /** 正式版升级保留关系行，固定历史姓名并按字段恢复描述。 */
     @Test
     fun releasedDatabaseKeepsChildrenAndIndependentOverrides() {
         val name = "released-persona-migration"
@@ -80,7 +80,7 @@ class UserPersonaMigrationTest {
             "1",
             scalar(
                 db,
-                "SELECT userPersonaId FROM chat_sessions WHERE userName IS NULL AND userDescription=' {{user}} '"
+                "SELECT userPersonaId FROM chat_sessions WHERE userName='Mira' AND userDescription=' {{user}} '"
             )
         )
         assertEquals(

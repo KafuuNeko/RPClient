@@ -42,6 +42,16 @@ class UserPersonaFlowTest {
             rule.onNodeWithText(original.name).performClick()
             rule.waitUntil(10_000) { runBlocking { dao.active().id } == original.id }
             assertEquals(1, runBlocking { dao.list().count { it.name == fixtureName } })
+
+            // 删除确认框支持取消；再次确认只删除当前选中的测试身份。
+            rule.onNodeWithText(label(R.string.persona_label)).performClick()
+            rule.onNodeWithText(fixtureName).performClick()
+            rule.onNodeWithContentDescription(label(R.string.persona_delete)).performClick()
+            rule.onNodeWithText(label(R.string.cancel)).performClick()
+            assertEquals(fixtureName, runBlocking { dao.active().name })
+            rule.onNodeWithContentDescription(label(R.string.persona_delete)).performClick()
+            rule.onNodeWithText(label(R.string.delete)).performClick()
+            rule.waitUntil(10_000) { runBlocking { dao.list().none { it.name == fixtureName } } }
         } finally {
             // 清理本用例创建的身份，避免影响后续共享应用进程的界面测试。
             runBlocking { dao.select(original.id) }

@@ -198,6 +198,7 @@ internal fun ChatSettingsPage(
                         onSelect = { ChatUiIntent.SelectPersona(it).emit() })
                     AutoSaveTextField(
                         placeholder = session.persona.selectedName.orEmpty(),
+                        alwaysMinimizeLabel = true,
                         label = stringResource(R.string.user_display_name),
                         value = session.userName,
                         minLines = 1,
@@ -208,7 +209,8 @@ internal fun ChatSettingsPage(
                     AutoSaveTextField(
                         label = stringResource(R.string.user_persona_description),
                         value = session.userDescription,
-                        placeholder = session.inheritedDescription,
+                        placeholder = session.inheritedDescription.ifEmpty { stringResource(R.string.user_persona_description) },
+                        alwaysMinimizeLabel = true,
                         minLines = 3,
                         maxLines = 8,
                         onSave = { text -> ChatUiIntent.SaveUserDescription(text).emit() },
@@ -469,6 +471,7 @@ private fun AutoSaveTextField(
     label: String,
     value: String,
     placeholder: String? = null,
+    alwaysMinimizeLabel: Boolean = false,
     minLines: Int,
     maxLines: Int,
     singleLine: Boolean = false,
@@ -502,6 +505,7 @@ private fun AutoSaveTextField(
         onValueChange = { text = it },
         label = { Text(label) },
         placeholder = placeholderContent,
+        alwaysMinimizeLabel = alwaysMinimizeLabel,
         minLines = minLines,
         maxLines = maxLines,
         singleLine = singleLine,

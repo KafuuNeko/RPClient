@@ -91,6 +91,9 @@ sealed class MainDialogState {
         val draftValue: String
     ) : MainDialogState()
 
+    data class DeletePersona(val id: Long, val name: String, val isLast: Boolean) :
+        MainDialogState()
+
     data class CreatePersona(val name: String = "") : MainDialogState()
 
     data class EditUserDescription(

@@ -17,12 +17,6 @@ import me.kafuuneko.rpclient.utils.takeIfNotBlank
     tableName = "chat_sessions",
     foreignKeys = [
         ForeignKey(
-            entity = UserPersona::class,
-            parentColumns = ["id"],
-            childColumns = ["userPersonaId"],
-            onDelete = ForeignKey.RESTRICT
-        ),
-        ForeignKey(
             entity = Character::class,
             parentColumns = ["id"],
             childColumns = ["characterId"],
@@ -60,7 +54,8 @@ data class ChatSession(
     val autoSummaryPaused: Boolean = false,
     // 是否注入当前角色卡的示例对话；世界书示例位置条目不受此开关影响。
     @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true,
-    val userPersonaId: Long = UserPersona.INITIAL_ID,
+    // 正 ID 绑定具体人设，-1 随全局默认项变化。
+    val userPersonaId: Long = UserPersona.FOLLOW_DEFAULT,
 ) {
     /** 将空白 creator notes 覆盖归一化为 null，使读取时继续继承角色卡默认值。 */
     fun withNormalizedCreatorNotes(): ChatSession {

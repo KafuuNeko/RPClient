@@ -31,6 +31,7 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.entity.RegexScriptEntity
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
 import me.kafuuneko.rpclient.libs.room.entity.StoryLorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.story.ArchivedChapter
 import me.kafuuneko.rpclient.libs.story.ArchivedStory
 import me.kafuuneko.rpclient.libs.story.ArchivedVolume
@@ -152,6 +153,10 @@ internal class BackupV3Writer(
     private val mStoryCodec = StoryArchiveCodec(gson)
 
     private val mPersonas by lazy { rows("user_personas").associateBy { it.getLong("id") } }
+
+    private val mDefaultPersonaId by lazy {
+        rows("user_persona_settings").single().getLong("defaultPersonaId")
+    }
 
     /** 已由专用文档接管的表；其余表走通用 JSONL。 */
     private val mOwned = mutableSetOf<String>()
@@ -534,7 +539,9 @@ internal class BackupV3Writer(
         character: Character?,
         latest: JSONObject?
     ): ChatArchive {
-        val persona = mPersonas.getValue(session.getLong("userPersonaId"))
+        val binding = session.getLong("userPersonaId")
+        val persona =
+            mPersonas.getValue(if (binding == UserPersona.FOLLOW_DEFAULT) mDefaultPersonaId else binding)
         // 头部只保留会话状态和最新摘要，普通消息由同一读事务内的游标继续写出。
         return ChatArchive(
             title = session.optString("title"),
@@ -1303,14 +1310,17 @@ internal class BackupV3Reader(
         val session = header?.getAsJsonObject("session")
         if (mHasPersonas) {
             val id = session.longValue("userPersonaId") ?: mDefaultPersona.getLong("id")
-            val persona = mPersonas.getValue(id)
+            val persona =
+                if (id == UserPersona.FOLLOW_DEFAULT) mDefaultPersona else mPersonas.getValue(id)
             row.put("userPersonaId", id)
             fun restoreOverride(key: String, value: String?, inherited: String) {
                 val override = when (session?.get(key + "Override")?.asString) {
                     "inherit" -> null
                     "empty" -> ""
                     "value" -> value
-                    null -> value?.takeUnless { it.isEmpty() || it == inherited }
+                    null -> if (key == "userName") value?.takeIf(String::isNotEmpty) ?: inherited
+                    else value?.takeUnless { it.isEmpty() || it == inherited }
+
                     else -> error("Invalid $key override state")
                 }
                 row.put(key, override ?: JSONObject.NULL)

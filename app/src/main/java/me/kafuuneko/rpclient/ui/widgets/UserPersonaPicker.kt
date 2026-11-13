@@ -46,7 +46,15 @@ fun UserPersonaPicker(
     onCreate: (() -> Unit)? = null,
 ) {
     var expanded by remember(enabled) { mutableStateOf(false) }
-    val none = stringResource(R.string.persona_none)
+    val specialOption = when {
+        allowNone -> stringResource(R.string.persona_none)
+        state.followDefaultName != null -> stringResource(
+            R.string.persona_follow_default,
+            state.followDefaultName
+        )
+
+        else -> null
+    }
     // 同名身份仍可独立绑定，只为重名项显示其数据库编号。
     val repeatedNames = remember(state.options) {
         state.options.groupingBy { it.name }.eachCount().filterValues { it > 1 }.keys
@@ -58,12 +66,12 @@ fun UserPersonaPicker(
         modifier = modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
-            value = state.selectedName?.let { name ->
+            value = if (state.selectedId == UserPersona.NONE) specialOption.orEmpty() else state.selectedName?.let { name ->
                 if (name in repeatedNames) stringResource(
                     id = R.string.persona_name_with_id,
-                    formatArgs = arrayOf(name, state.selectedId),
+                    formatArgs = arrayOf<Any>(name, state.selectedId),
                 ) else name
-            } ?: if (allowNone) none else "",
+            }.orEmpty(),
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
@@ -85,9 +93,9 @@ fun UserPersonaPicker(
                 expanded = false
                 onSelect(id)
             }
-            if (allowNone) {
+            if (specialOption != null) {
                 PersonaMenuItem(
-                    name = none,
+                    name = specialOption,
                     isSelected = state.selectedId == UserPersona.NONE,
                     onClick = { choose(UserPersona.NONE) },
                 )

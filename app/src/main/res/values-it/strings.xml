@@ -1419,5 +1419,9 @@ Non riusciti: %2$d</string>
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">Profilo utente</string>
     <string name="persona_create">Crea un nuovo utente</string>
+    <string name="persona_follow_default">Usa la persona predefinita (%1$s)</string>
+    <string name="persona_delete">Elimina persona</string>
+    <string name="persona_delete_message">Eliminare %1$s? Le chat individuali e di gruppo che usano questa persona manterranno il nome del partecipante e useranno la persona predefinita. Le storie che la usano non includeranno più una persona.</string>
+    <string name="persona_delete_last_message">Eliminare %1$s e creare una nuova persona predefinita chiamata %2$s? Le chat manterranno il nome del partecipante. Le storie che usano questa persona non la includeranno più.</string>
     <string name="persona_none">Non includere un profilo</string>
 </resources>

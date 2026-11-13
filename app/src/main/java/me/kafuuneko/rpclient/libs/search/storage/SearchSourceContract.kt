@@ -52,6 +52,7 @@ internal object SearchSourceContract {
             "userPersonaId"
         ),
         "user_personas" to listOf("name"),
+        "user_persona_settings" to listOf("defaultPersonaId"),
         "group_chat_sessions" to listOf("title", "latestTime"),
         "stories" to listOf("title", "latestTime"),
         "character" to listOf("name"),

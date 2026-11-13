@@ -44,6 +44,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainPage
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
+import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.model.TokenPreset
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
@@ -258,6 +259,22 @@ private fun DialogSwitch(
             confirmEnabled = !dialogState.isDeleting,
             isConfirmLoading = dialogState.isDeleting,
             onConfirm = { MainUiIntent.ConfirmDeleteSelected.emit() },
+        )
+
+        is MainDialogState.DeletePersona -> AppDangerDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.persona_delete),
+            message = if (dialogState.isLast) {
+                stringResource(
+                    R.string.persona_delete_last_message,
+                    dialogState.name,
+                    DefaultNames.USER
+                )
+            } else {
+                stringResource(R.string.persona_delete_message, dialogState.name)
+            },
+            confirmText = stringResource(R.string.delete),
+            onConfirm = { MainUiIntent.ConfirmDeletePersona.emit() },
         )
 
         is MainDialogState.CreatePersona -> AppInputDialog(

@@ -876,7 +876,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         uiState.copy(pageState = StoryEditorPageState.LoadingSettings).setup()
         try {
             // 异步组装故事设置页面数据
-            val settings = withContext(Dispatchers.IO) { buildSettingsState() }
+            val settings = withContext(Dispatchers.IO) { buildSettingsState(uiState.storyId) }
             val current = getOrNull<StoryEditorUiState.Normal>() ?: return
             if (current.pageState != StoryEditorPageState.LoadingSettings) return
             current.copy(pageState = settings).setup()
@@ -1803,7 +1803,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             restoreEditorAfterPreparation()
             return
         }
-        val story = mStory ?: run {
+        val story = mStoryRepository.getStory(uiState.storyId) ?: run {
             restoreEditorAfterPreparation()
             return
         }
@@ -1866,7 +1866,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             provider = provider,
             target = target,
             chapterId = chapter.id,
-            baseStoryRevision = mStoryRevision,
+            baseStoryRevision = story.revision,
             baseChapterRevision = mRevision,
             sourceContent = mDraftContent,
             previousEditedRange = mDocumentFlow.value?.latestEditedRange,
@@ -2709,8 +2709,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      * - 全量角色列表及其在当前故事中的选中状态、激活模式与排序序号；
      * - 全量世界书及其条目列表，还原故事的选中状态。
      */
-    private suspend fun buildSettingsState(): StoryEditorPageState.Settings {
-        val story = requireNotNull(mStory)
+    private suspend fun buildSettingsState(storyId: Long): StoryEditorPageState.Settings {
+        val story = requireNotNull(mStoryRepository.getStory(storyId))
         val selection = mPersonas.selection(story.userPersonaId)
         // 读取角色关联关系与世界书
         val relations = mStoryRepository.getStoryCharacterCandidates(story.id)

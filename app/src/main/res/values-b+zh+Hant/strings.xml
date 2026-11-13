@@ -1434,5 +1434,9 @@
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">使用者人設</string>
     <string name="persona_create">建立新使用者</string>
+    <string name="persona_follow_default">跟隨預設人設（%1$s）</string>
+    <string name="persona_delete">刪除使用者人設</string>
+    <string name="persona_delete_message">刪除「%1$s」？使用此人設的對話和群聊將保留原發言名稱，並跟隨預設人設。使用此人設的故事將不再加入使用者人設。</string>
+    <string name="persona_delete_last_message">刪除「%1$s」並建立名為「%2$s」的新預設人設？現有對話和群聊將保留原發言名稱，使用此人設的故事將不再加入使用者人設。</string>
     <string name="persona_none">不加入使用者人設</string>
 </resources>

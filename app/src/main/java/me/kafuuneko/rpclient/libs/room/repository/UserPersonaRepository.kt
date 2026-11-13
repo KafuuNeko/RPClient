@@ -27,6 +27,15 @@ class UserPersonaRepository(
         PersonaSelection(mDao.list(), id ?: mDao.active().id)
     }
 
+    /** 单聊和群聊可显式选中「跟随默认人设」，预览仍使用真实姓名。 */
+    suspend fun chatSelection(id: Long? = null) = mDatabase.withTransaction {
+        val active = mDao.active()
+        PersonaSelection(mDao.list(), id ?: active.id, followDefaultName = active.name)
+    }
+
+    /** 读取聊天实际继承的姓名、描述和头像。 */
+    suspend fun chatPersona(id: Long) = mDao.chatPersona(id)
+
     /** 返回创建会话时的默认项。 */
     suspend fun active() = mDao.active()
 
@@ -72,6 +81,28 @@ class UserPersonaRepository(
     }
 
     /**
+     * 删除默认项时启用最早创建的剩余人设；删除最后一项时新建初始人设，随解绑一并提交。
+     * @return 是否删除了指定身份。
+     */
+    suspend fun delete(id: Long): Boolean = mFiles.mutate {
+        val persona = mDao.find(id) ?: return@mutate false
+        val wasDefault = mDao.active().id == id
+        if (wasDefault) {
+            val replacement =
+                mDao.list().firstOrNull { it.id != id }?.id ?: mDao.insert(UserPersona())
+            select(replacement)
+        }
+
+        // 会话保留原发言者姓名，故事切换为不注入；最后交还独立的头像 UUID。
+        mDao.detachChats(id, persona.name, wasDefault)
+        mDao.detachGroups(id, persona.name, wasDefault)
+        mDao.detachStories(id)
+        mDao.delete(id)
+        persona.avatarFileUuid?.let { removeFiles(listOf(it)) }
+        true
+    }
+
+    /**
      * 保存名称，保留已有描述与头像。
      * @param id 被编辑的人设 ID。
      * @param name 已按输入规则处理的名称。
@@ -91,7 +122,12 @@ class UserPersonaRepository(
      * @param uuid 文件仓库为本头像签发的独立 UUID，null 表示清空。
      */
     suspend fun setAvatar(id: Long, uuid: String?) = mFiles.mutate {
-        val old = mDao.get(id).avatarFileUuid
+        val persona = mDao.find(id)
+        if (persona == null) {
+            uuid?.let { removeFiles(listOf(it)) }
+            return@mutate
+        }
+        val old = persona.avatarFileUuid
         mDao.setAvatar(id, uuid)
         if (old != null && old != uuid) removeFiles(listOf(old))
     }

@@ -101,8 +101,10 @@ class ChatRepository(
     private val mCharacterDao = mAppDatabase.getCharacterDao()
 
     /** 修改会话人设，保留独立覆盖。 */
-    suspend fun selectPersona(id: Long, personaId: Long) =
+    suspend fun selectPersona(id: Long, personaId: Long) = mAppDatabase.withTransaction {
+        mAppDatabase.getUserPersonaDao().chatPersona(personaId)
         mChatSessionDao.selectPersona(id, personaId)
+    }
 
     /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
@@ -195,13 +197,21 @@ class ChatRepository(
      * @param session 要保存的会话。
      * @return 保存后的会话 id。
      */
-    suspend fun saveSession(session: ChatSession): Long {
-        val normalizedSession = session.withNormalizedCreatorNotes()
+    suspend fun saveSession(session: ChatSession): Long = mAppDatabase.withTransaction {
+        val normalized = session.withNormalizedCreatorNotes()
+        val persona = mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
         if (session.id == 0L) {
-            return mChatSessionDao.insertOrReplace(normalizedSession)
+            mChatSessionDao.insertOrReplace(
+                normalized.copy(
+                    userName = session.userName?.takeIf(
+                        String::isNotEmpty
+                    ) ?: persona.name
+                )
+            )
+        } else {
+            mChatSessionDao.update(normalized)
+            session.id
         }
-        mChatSessionDao.update(normalizedSession)
-        return session.id
     }
 
     /**
@@ -224,6 +234,8 @@ class ChatRepository(
     ): Long {
         // 会话配置与开场白必须原子写入，避免创建失败后留下不完整会话。
         return mAppDatabase.withTransaction {
+            val personas = mAppDatabase.getUserPersonaDao()
+            val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
             val sessionId = mChatSessionDao.insertOrReplace(
                 data = ChatSession(
                     characterId = characterId,
@@ -232,9 +244,9 @@ class ChatRepository(
                     lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
                     title = title,
                     userNote = userNote,
-                    userName = userName,
+                    userName = userName?.takeIf(String::isNotEmpty) ?: persona.name,
                     userDescription = userDescription,
-                    userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
+                    userPersonaId = userPersonaId ?: persona.id,
                     creatorNotes = creatorNotes,
                     includeCharacterExamples = includeCharacterExamples,
                 ),
@@ -273,21 +285,18 @@ class ChatRepository(
         includeCharacterExamples: Boolean = true,
         userPersonaId: Long? = null,
     ): Long {
-        // 统一通过保存入口归一化角色备注覆盖，保留会话自身的示例配置。
-        return saveSession(
-            session = ChatSession(
-                characterId = characterId,
-                createTime = createTime,
-                latestTime = createTime,
-                lorebookEntrySet = lorebookEntryIds.toLorebookEntrySetJson(),
-                title = title,
-                userNote = userNote,
-                userName = userName,
-                userDescription = userDescription,
-                userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
-                creatorNotes = creatorNotes,
-                includeCharacterExamples = includeCharacterExamples,
-            ),
+        return createSessionWithFirstMessage(
+            characterId = characterId,
+            title = title,
+            userNote = userNote,
+            userName = userName,
+            userDescription = userDescription,
+            lorebookEntryIds = lorebookEntryIds,
+            firstMessageContent = null,
+            creatorNotes = creatorNotes.takeIfNotBlank(),
+            createTime = createTime,
+            includeCharacterExamples = includeCharacterExamples,
+            userPersonaId = userPersonaId,
         )
     }
 
@@ -322,6 +331,7 @@ class ChatRepository(
             val branchSessionId = mChatSessionDao.insertOrReplace(
                 data = sourceSession.copy(
                     id = 0L,
+                    userName = mAppDatabase.getUserPersonaDao().resolve(sourceSession).name,
                     createTime = createTime,
                     latestTime = createTime,
                     title = title,
@@ -369,7 +379,8 @@ class ChatRepository(
      *
      * @param session 要更新的会话。
      */
-    suspend fun updateSession(session: ChatSession) {
+    suspend fun updateSession(session: ChatSession) = mAppDatabase.withTransaction {
+        mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
         mChatSessionDao.update(session.withNormalizedCreatorNotes())
     }
 

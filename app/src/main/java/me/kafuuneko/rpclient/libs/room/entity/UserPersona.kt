@@ -35,6 +35,7 @@ data class UserPersona(
     )
 
     companion object {
+        const val FOLLOW_DEFAULT = -1L
         const val NONE = -1L
         const val INITIAL_ID = 1L
     }

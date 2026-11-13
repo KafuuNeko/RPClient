@@ -78,6 +78,14 @@ interface GroupChatSessionDao : MutableDao<GroupChatSession> {
     @Query("UPDATE group_chat_sessions SET latestTime = :latestTime WHERE id = :id")
     suspend fun updateLatestTime(id: Long, latestTime: Long)
 
+    /** 只更新世界书配置，保留并发修改的人设绑定。 */
+    @Query("UPDATE group_chat_sessions SET lorebookEntrySet = :value WHERE id = :id")
+    suspend fun updateSessionLorebookEntryIds(id: Long, value: String)
+
+    /** 只更新世界书配置，保留并发修改的人设绑定。 */
+    @Query("UPDATE group_chat_sessions SET worldInfoStateJson = :value WHERE id = :id")
+    suspend fun updateWorldInfoState(id: Long, value: String)
+
     /** 删除会话；关联成员、消息和摘要由外键级联清理。 */
     @Query("DELETE FROM group_chat_sessions WHERE id = :id")
     suspend fun deleteById(id: Long)

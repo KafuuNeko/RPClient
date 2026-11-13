@@ -549,14 +549,16 @@ class GroupChatRepository(
         }
         return mAppDatabase.withTransaction {
             // 插入群聊会话记录
+            val personas = mAppDatabase.getUserPersonaDao()
+            val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
             val sessionId = mSessionDao.insertOrReplace(
                 data = GroupChatSession(
                     title = title,
                     createTime = createTime,
                     latestTime = createTime,
-                    userName = userName,
+                    userName = userName?.takeIf(String::isNotEmpty) ?: persona.name,
                     userDescription = userDescription,
-                    userPersonaId = userPersonaId ?: mAppDatabase.getUserPersonaDao().active().id,
+                    userPersonaId = userPersonaId ?: persona.id,
                     lorebookEntrySet = mGson.toJson(lorebookEntryIds.distinct()),
                     activationStrategy = activationStrategy,
                     allowSelfResponses = allowSelfResponses,
@@ -762,7 +764,8 @@ class GroupChatRepository(
         }
 
     /** 覆盖保存会话级设置。 */
-    suspend fun updateSession(session: GroupChatSession) {
+    suspend fun updateSession(session: GroupChatSession) = mAppDatabase.withTransaction {
+        mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
         mSessionDao.update(session)
     }
 
@@ -777,14 +780,12 @@ class GroupChatRepository(
 
     /** 保存会话显式启用的世界书条目 ID，并去除重复项。 */
     suspend fun updateSessionLorebookEntryIds(sessionId: Long, entryIds: List<Long>) {
-        val session = mSessionDao.getSessionById(sessionId) ?: return
-        mSessionDao.update(data = session.copy(lorebookEntrySet = mGson.toJson(entryIds.distinct())))
+        mSessionDao.updateSessionLorebookEntryIds(sessionId, mGson.toJson(entryIds.distinct()))
     }
 
     /** 持久化世界书粘性和冷却等时序状态。 */
     suspend fun updateWorldInfoState(sessionId: Long, stateJson: String) {
-        val session = mSessionDao.getSessionById(sessionId) ?: return
-        mSessionDao.update(session.copy(worldInfoStateJson = stateJson))
+        mSessionDao.updateWorldInfoState(sessionId, stateJson)
     }
 
     /** 获取尚未被最新摘要覆盖的消息。 */

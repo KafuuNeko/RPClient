@@ -308,7 +308,7 @@ class ChatArchiveRepository(
         userPersonaId: Long?
     ): Long {
         val personas = mAppDatabase.getUserPersonaDao()
-        val persona = userPersonaId?.let { personas.get(it) } ?: personas.active()
+        val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
         requireNotNull(mCharacterDao.getCharacterById(characterId)) { "Selected character no longer exists" }
         // 只恢复可移植设置；外部数据库的世界书主键及运行状态必须重新建立。
         return mChatSessionDao.insertOrReplace(
@@ -322,8 +322,9 @@ class ChatArchiveRepository(
                 lorebookEntrySet = "[]",
                 title = archive.title.ifBlank { DefaultNames.IMPORTED_CHAT },
                 userNote = archive.userNote,
-                userPersonaId = persona.id,
-                userName = archive.userName.takeUnless { !archive.hasUserName || it.isEmpty() || it == persona.name },
+                userPersonaId = userPersonaId ?: persona.id,
+                userName = archive.userName.takeIf { archive.hasUserName && it.isNotEmpty() }
+                    ?: persona.name,
                 userDescription = archive.userDescription.takeUnless { it.isEmpty() || it == persona.description },
                 creatorNotes = archive.creatorNotes,
                 worldInfoStateJson = "{}",

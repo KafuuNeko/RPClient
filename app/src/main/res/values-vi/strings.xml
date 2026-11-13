@@ -1441,5 +1441,9 @@ Thất bại: %2$d</string>
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">Nhân dạng người dùng</string>
     <string name="persona_create">Tạo người dùng mới</string>
+    <string name="persona_follow_default">Dùng nhân dạng mặc định (%1$s)</string>
+    <string name="persona_delete">Xóa nhân dạng</string>
+    <string name="persona_delete_message">Xóa %1$s? Các cuộc trò chuyện riêng và nhóm đang dùng nhân dạng này sẽ giữ tên người nói và chuyển sang nhân dạng mặc định. Các câu chuyện đang dùng nhân dạng này sẽ không còn kèm nhân dạng.</string>
+    <string name="persona_delete_last_message">Xóa %1$s và tạo nhân dạng mặc định mới có tên %2$s? Các cuộc trò chuyện hiện có sẽ giữ tên người nói. Các câu chuyện đang dùng nhân dạng này sẽ không còn kèm nhân dạng.</string>
     <string name="persona_none">Không thêm nhân dạng</string>
 </resources>

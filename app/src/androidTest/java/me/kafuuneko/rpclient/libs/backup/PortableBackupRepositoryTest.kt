@@ -496,7 +496,12 @@ class PortableBackupRepositoryTest {
         )
         val chat = primary.getChatSessionDao().insertOrReplace(session)
         val alias = primary.getChatSessionDao().insertOrReplace(
-            session.copy(title = "alias", userName = "  Alias  ", userDescription = "")
+            session.copy(
+                title = "alias",
+                userPersonaId = -1L,
+                userName = "  Alias  ",
+                userDescription = ""
+            )
         )
         val group = primary.getGroupChatSessionDao().insertOrReplace(
             GroupChatSession(
@@ -536,9 +541,13 @@ class PortableBackupRepositoryTest {
         assertEquals(" {{user}} ", inherited.userDescription)
         assertEquals("Mira", dao.resolve(inherited).name)
         val overridden = requireNotNull(chats.getSessionById(alias))
+        assertEquals(-1L, overridden.userPersonaId)
         assertEquals("  Alias  ", overridden.userName)
         assertEquals("", overridden.userDescription)
         assertEquals("Archivist", dao.resolve(overridden).description)
+        dao.select(initial)
+        assertEquals(dao.active().description, dao.resolve(overridden).description)
+        assertEquals("  Alias  ", dao.resolve(overridden).name)
         val restoredGroup =
             primary.getGroupChatSessionDao().getAllSessions().single { it.id == group }
         assertEquals(initial, restoredGroup.userPersonaId)

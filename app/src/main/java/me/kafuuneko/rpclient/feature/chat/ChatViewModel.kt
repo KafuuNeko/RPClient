@@ -2737,8 +2737,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             session = session.toChatSessionItem(
                 summary = summary,
                 creatorNotes = effectiveCreatorNotes,
-                selection = mPersonas.selection(session.userPersonaId),
-                inheritedDescription = mPersonas.get(session.userPersonaId).description,
+                selection = mPersonas.chatSelection(session.userPersonaId),
+                inheritedDescription = mPersonas.chatPersona(session.userPersonaId).description,
                 messageCount = messagePage.totalMessageCount,
                 enabledIds = enabledIds,
             ),

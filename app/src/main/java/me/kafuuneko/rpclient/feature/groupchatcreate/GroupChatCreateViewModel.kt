@@ -85,7 +85,7 @@ class GroupChatCreateViewModel :
     private suspend fun onInit() {
         if (!isStateOf<GroupChatCreateUiState.None>()) return
         GroupChatCreateUiState.Normal(loadState = GroupChatCreateLoadState.Loading).setup()
-        val selection = mPersonas.selection()
+        val selection = mPersonas.chatSelection()
         val userName = requireNotNull(selection.selectedName)
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
@@ -342,7 +342,7 @@ class GroupChatCreateViewModel :
         }
         uiState.copy(loadState = GroupChatCreateLoadState.Creating).setup()
         val createTime = System.currentTimeMillis()
-        val selectedPersona = mPersonas.get(uiState.persona.selectedId)
+        val selectedPersona = mPersonas.chatPersona(uiState.persona.selectedId)
         val userName = selectedPersona.name
         // 提取候选成员与开场白列表
         val greetingCandidates =
@@ -363,7 +363,8 @@ class GroupChatCreateViewModel :
         val sessionId = withContext(Dispatchers.IO) {
             mGroupChatRepository.createSession(
                 title = uiState.title.trim().ifBlank { createTime.toDefaultChatTitle() },
-                userPersonaId = selectedPersona.id,
+                userPersonaId = uiState.persona.selectedId,
+                userName = userName,
                 characterIds = characterIds,
                 lorebookEntryIds = uiState.selectedLorebookEntryIds.sorted(),
                 activationStrategy = uiState.activationStrategy.toEntity(),

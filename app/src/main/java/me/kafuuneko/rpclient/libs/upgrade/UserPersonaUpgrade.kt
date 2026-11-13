@@ -55,15 +55,16 @@ internal object UserPersonaUpgrade {
             "SELECT 1 WHERE (SELECT count(*) FROM user_persona_settings) != 1",
             "SELECT 1 FROM user_persona_settings WHERE id != 1 OR defaultPersonaId NOT IN (SELECT id FROM user_personas)",
             "SELECT 1 FROM user_personas WHERE id <= 0",
-            "SELECT 1 FROM stories WHERE userPersonaId != -1 AND userPersonaId NOT IN (SELECT id FROM user_personas)"
-        )
+        ) + listOf("chat_sessions", "group_chat_sessions", "stories").map { table ->
+            "SELECT 1 FROM $table WHERE userPersonaId != -1 AND userPersonaId NOT IN (SELECT id FROM user_personas)"
+        }
         invalid.forEach { query ->
             db.query(query)
                 .use { check(!it.moveToFirst()) { "Invalid backup user persona binding" } }
         }
     }
 
-    /** 保留与迁入人设不同的每个旧字段，包括空串和含宏的原文。 */
+    /** 固定旧会话的有效名称，只对描述恢复继承，保留原有发言身份。 */
     private fun importLegacy(db: SupportSQLiteDatabase, values: Map<String, *>) {
         fun text(key: String): String =
             if (key in values) requireNotNull(values[key] as? String) else ""
@@ -85,7 +86,7 @@ internal object UserPersonaUpgrade {
         )
         for (table in listOf("chat_sessions", "group_chat_sessions")) {
             db.execSQL(
-                "UPDATE $table SET userName=NULLIF(userName,?), userDescription=NULLIF(userDescription,?) WHERE userPersonaId=1",
+                "UPDATE $table SET userName=COALESCE(NULLIF(userName,''),?), userDescription=NULLIF(userDescription,?) WHERE userPersonaId=1",
                 arrayOf(name, description)
             )
         }

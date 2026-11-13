@@ -455,7 +455,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                         chatDataManagementState = MainChatDataManagementState.Idle,
                     ),
                     dialogState = MainDialogState.ImportChatCharacterSelection(
-                        persona = mPersonas.selection(),
+                        persona = mPersonas.chatSelection(),
                         title = archive.title,
                         sourceCharacterName = archive.characterNameHint,
                         messageCount = archive.messages.size,
@@ -1795,6 +1795,31 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: MainUiIntent.SelectPersona) {
         mPersonas.select(intent.id)
+        refreshIdentity()
+    }
+
+    /** 确认框绑定当前显示的人设，避免确认时按新的默认项删除。 */
+    @UiIntentObserver(MainUiIntent.ShowDeletePersona::class)
+    private fun onShowDeletePersona() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val identity = state.settingsState.identityState
+        if (!state.canOpenDialog()) return
+        state.copy(
+            dialogState = MainDialogState.DeletePersona(
+                id = identity.persona.selectedId,
+                name = identity.userName,
+                isLast = identity.persona.options.size == 1
+            )
+        ).setup()
+    }
+
+    /** 删除确认的人设，并回显其余人设中的默认项。 */
+    @UiIntentObserver(MainUiIntent.ConfirmDeletePersona::class)
+    private suspend fun onConfirmDeletePersona() {
+        val state = getOrNull<MainUiState.Normal>() ?: return
+        val dialog = state.dialogState as? MainDialogState.DeletePersona ?: return
+        mPersonas.delete(dialog.id)
+        state.copy(dialogState = MainDialogState.None).setup()
         refreshIdentity()
     }
 

@@ -142,6 +142,7 @@ internal fun GroupChatSettingsPage(
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserName(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.user_display_name)) },
+                        alwaysMinimizeLabel = true,
                         placeholder = { Text(state.persona.selectedName.orEmpty()) })
                     RpScrollableOutlinedTextField(
                         value = state.userDescriptionDraft,
@@ -150,7 +151,8 @@ internal fun GroupChatSettingsPage(
                         onValueChange = { emitIntent(GroupChatUiIntent.ChangeUserDescription(it)) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.user_persona_description)) },
-                        placeholder = { Text(state.inheritedDescription) })
+                        alwaysMinimizeLabel = true,
+                        placeholder = { Text(state.inheritedDescription.ifEmpty { stringResource(R.string.user_persona_description) }) })
                     RpScrollableOutlinedTextField(
                         value = state.userNoteDraft,
                         onValueChange = { text -> emitIntent(GroupChatUiIntent.ChangeUserNote(text)) },

@@ -132,6 +132,96 @@ class MessageImageLifecycleTest {
         directory.deleteRecursively()
     }
 
+    /** 验证切换、删除默认项和删除最后一项时，三类会话及文件引用的实际结果。 */
+    @Test
+    fun deletingPersonasPreservesChatNamesAndReplacesTheLastPersona() = runBlocking {
+        val personas = UserPersonaRepository(database, files)
+        val first = personas.active().id
+        personas.rename(first, "Alice")
+        personas.describe(first, "First")
+        val second = personas.create("Bea")
+        personas.describe(second, "Second")
+        val avatar = files.saveFile("avatar".toByteArray(), "image/png")
+        personas.setAvatar(second, avatar)
+
+        // 从真实仓库创建会话，开场白中的姓名和会话发言者一致。
+        val otherCharacter = characters.saveCharacter(
+            requireNotNull(characters.getCharacterById(characterId)).copy(
+                id = 0L,
+                name = "Other"
+            )
+        )
+        val single = chat.createSessionWithFirstMessage(
+            characterId = characterId,
+            title = "Chat",
+            userNote = "",
+            lorebookEntryIds = emptyList(),
+            firstMessageContent = "Hello Alice",
+            userPersonaId = first,
+        )
+        val multi = group.createSession(
+            title = "Group",
+            characterIds = listOf(characterId, otherCharacter),
+            activationStrategy = GroupChatSession.ActivationStrategy.Manual,
+            allowSelfResponses = false,
+            userPersonaId = -1L,
+        )
+        val stories = StoryRepository(database)
+        val storyId = stories.createStoryWithConfiguration(
+            "Story",
+            emptyList(),
+            emptyList(),
+            userPersonaId = second
+        )
+        val story = requireNotNull(stories.getStory(storyId))
+        assertEquals("Alice", chat.getSessionById(single)?.userName)
+        assertEquals("Bea", group.getSessionById(multi)?.userName)
+        group.createMessage(multi, GroupChatMessage.Source.User, "Hello", null, "Bea")
+
+        // 绑定另一个人设仅改变继承的描述；删除后原名称、显式描述和消息仍在。
+        chat.selectPersona(single, second)
+        val switched = requireNotNull(chat.getSessionById(single))
+        assertNull(switched.userDescription)
+        assertEquals("Alice", personas.resolve(switched).name)
+        assertEquals("Second", personas.resolve(switched).description)
+        group.updateSession(
+            requireNotNull(group.getSessionById(multi)).copy(
+                userPersonaId = second,
+                userName = null,
+                userDescription = "Custom"
+            )
+        )
+        assertTrue(personas.delete(second))
+        assertNull(files.getFileEntity(avatar))
+        assertEquals(first, personas.active().id)
+        val detached = requireNotNull(chat.getSessionById(single))
+        assertEquals(-1L, detached.userPersonaId)
+        assertEquals("Alice", detached.userName)
+        assertEquals("First", personas.resolve(detached).description)
+        val groupData = requireNotNull(group.getGroupChatData(multi))
+        assertEquals(-1L, groupData.session.userPersonaId)
+        assertEquals("Bea", groupData.persona.name)
+        assertEquals("Custom", groupData.persona.description)
+        assertEquals("Bea", groupData.messages.single().speakerNameSnapshot)
+        assertEquals(
+            story.copy(userPersonaId = -1L, revision = story.revision + 1),
+            stories.getStory(storyId)
+        )
+
+        // 删除最后一项得到新的真实身份，已解绑的会话跟随它，且历史发言名保持不变。
+        assertTrue(personas.delete(first))
+        val replacement = personas.active()
+        assertNotEquals(first, replacement.id)
+        assertEquals("You", replacement.name)
+        assertEquals("", replacement.description)
+        assertNull(replacement.avatarFileUuid)
+        assertEquals(listOf(replacement.id), personas.selection().options.map { it.id })
+        assertEquals("Alice", personas.resolve(detached).name)
+        assertEquals("", personas.resolve(detached).description)
+        assertFalse(personas.delete(first))
+        assertEquals(replacement, personas.active())
+    }
+
     /** 同图由角色和人设分别保存时，各 UUID 的释放只影响自己的索引。 */
     @Test
     fun personaAvatarChangesPreserveIndependentOwnersOfSameImage() = runBlocking {

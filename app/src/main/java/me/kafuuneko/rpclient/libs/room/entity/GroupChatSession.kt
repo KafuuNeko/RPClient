@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -15,12 +14,6 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "group_chat_sessions",
     indices = [Index("userPersonaId")],
-    foreignKeys = [ForeignKey(
-        entity = UserPersona::class,
-        parentColumns = ["id"],
-        childColumns = ["userPersonaId"],
-        onDelete = ForeignKey.RESTRICT
-    )]
 )
 data class GroupChatSession(
     // 群聊会话 ID。
@@ -65,7 +58,8 @@ data class GroupChatSession(
     val autoSummaryPaused: Boolean = false,
     // 是否注入本轮参与 Prompt 的成员角色卡示例，成员范围仍遵循 Swap/Join 配置。
     @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true,
-    val userPersonaId: Long = UserPersona.INITIAL_ID,
+    // 正 ID 绑定具体人设，-1 随全局默认项变化。
+    val userPersonaId: Long = UserPersona.FOLLOW_DEFAULT,
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

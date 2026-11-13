@@ -1435,5 +1435,9 @@
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">ユーザーペルソナ</string>
     <string name="persona_create">新しいユーザーを作成</string>
+    <string name="persona_follow_default">デフォルトのペルソナに従う（%1$s）</string>
+    <string name="persona_delete">ペルソナを削除</string>
+    <string name="persona_delete_message">「%1$s」を削除しますか？ このペルソナを使用中のチャットとグループチャットでは発言者名を維持し、デフォルトのペルソナを使用します。使用中のストーリーにはペルソナが含まれなくなります。</string>
+    <string name="persona_delete_last_message">「%1$s」を削除して「%2$s」という新しいデフォルトのペルソナを作成しますか？ チャットの発言者名は維持されます。このペルソナを使用中のストーリーにはペルソナが含まれなくなります。</string>
     <string name="persona_none">ペルソナを含めない</string>
 </resources>

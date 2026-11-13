@@ -1444,5 +1444,9 @@
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">Персона пользователя</string>
     <string name="persona_create">Создать пользователя</string>
+    <string name="persona_follow_default">Использовать персону по умолчанию (%1$s)</string>
+    <string name="persona_delete">Удалить персону</string>
+    <string name="persona_delete_message">Удалить персону «%1$s»? Личные и групповые чаты с этой персоной сохранят имя участника и будут использовать персону по умолчанию. Истории с этой персоной больше не будут включать персону.</string>
+    <string name="persona_delete_last_message">Удалить персону «%1$s» и создать новую персону по умолчанию с именем «%2$s»? Чаты сохранят имя участника. Истории с этой персоной больше не будут её использовать.</string>
     <string name="persona_none">Не включать персону</string>
 </resources>

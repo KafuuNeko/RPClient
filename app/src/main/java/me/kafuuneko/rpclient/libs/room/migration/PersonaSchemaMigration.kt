@@ -66,7 +66,7 @@ object PersonaSchemaMigration : Migration(5, 6) {
             .use { check(!it.moveToFirst()) { "Invalid migrated foreign key" } }
     }
 
-    /** 建立人设库和默认指针表，迁入占位人设支撑会话外键。 */
+    /** 建立人设库和默认指针表，以固定 ID 接收原有会话的绑定。 */
     private fun createPersonaTables(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
@@ -115,7 +115,6 @@ object PersonaSchemaMigration : Migration(5, 6) {
                 `autoSummaryPaused` INTEGER NOT NULL,
                 `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1,
                 `userPersonaId` INTEGER NOT NULL,
-                FOREIGN KEY(`userPersonaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT,
                 FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
             )
             """.trimIndent()
@@ -152,8 +151,7 @@ object PersonaSchemaMigration : Migration(5, 6) {
                 `trimOtherSpeakers` INTEGER NOT NULL,
                 `autoSummaryPaused` INTEGER NOT NULL,
                 `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1,
-                `userPersonaId` INTEGER NOT NULL,
-                FOREIGN KEY(`userPersonaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                `userPersonaId` INTEGER NOT NULL
             )
             """.trimIndent()
         )

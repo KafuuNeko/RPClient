@@ -1434,5 +1434,9 @@
     <string name="persona_name_with_id">%1$s (#%2$d)</string>
     <string name="persona_label">사용자 페르소나</string>
     <string name="persona_create">새 사용자 만들기</string>
+    <string name="persona_follow_default">기본 페르소나 따르기 (%1$s)</string>
+    <string name="persona_delete">페르소나 삭제</string>
+    <string name="persona_delete_message">%1$s 페르소나를 삭제할까요? 이 페르소나를 사용하는 개인 및 그룹 채팅은 발화자 이름을 유지하고 기본 페르소나를 따릅니다. 이 페르소나를 사용하는 스토리에는 페르소나가 포함되지 않습니다.</string>
+    <string name="persona_delete_last_message">%1$s 페르소나를 삭제하고 %2$s 이름으로 새 기본 페르소나를 만들까요? 기존 채팅은 발화자 이름을 유지합니다. 이 페르소나를 사용하는 스토리에는 더 이상 페르소나가 포함되지 않습니다.</string>
     <string name="persona_none">페르소나 포함 안 함</string>
 </resources>

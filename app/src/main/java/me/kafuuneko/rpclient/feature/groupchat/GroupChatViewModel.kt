@@ -941,7 +941,7 @@ class GroupChatViewModel :
     /** 在设置草稿中选择人设，保存时随会话一起写入。 */
     @UiIntentObserver(GroupChatUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: GroupChatUiIntent.SelectPersona) {
-        val inherited = mPersonas.get(intent.id)
+        val inherited = mPersonas.chatPersona(intent.id)
         updateSettingsState {
             copy(
                 persona = persona.copy(selectedId = intent.id),
@@ -2591,10 +2591,10 @@ class GroupChatViewModel :
                 editingMessageDraft = editingMessageDraft,
             ),
             settingsState = GroupChatSettingsState(
-                persona = mPersonas.selection(data.session.userPersonaId),
+                persona = mPersonas.chatSelection(data.session.userPersonaId),
                 userNameDraft = data.session.userName.orEmpty(),
                 userDescriptionDraft = data.session.userDescription.orEmpty(),
-                inheritedDescription = mPersonas.get(data.session.userPersonaId).description,
+                inheritedDescription = mPersonas.chatPersona(data.session.userPersonaId).description,
                 activationStrategy = data.session.activationStrategy
                     .toGroupChatActivationStrategy(),
                 characterCardMode = data.session.characterCardMode

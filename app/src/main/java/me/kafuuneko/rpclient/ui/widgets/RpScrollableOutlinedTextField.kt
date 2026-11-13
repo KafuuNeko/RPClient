@@ -11,6 +11,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldLabelPosition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ fun rememberBoundTextFieldState(
  * @param enabled 是否允许编辑
  * @param readOnly 是否只读
  * @param textStyle 文本样式
+ * @param alwaysMinimizeLabel 未聚焦时仍将标签置于边框，以显示继承值占位。
  * @param label 文本框标签
  * @param placeholder 空内容占位组件
  * @param leadingIcon 起始图标
@@ -103,6 +105,7 @@ fun RpScrollableOutlinedTextField(
     readOnly: Boolean = false,
     textStyle: TextStyle = LocalTextStyle.current,
     label: @Composable (() -> Unit)? = null,
+    alwaysMinimizeLabel: Boolean = false,
     placeholder: @Composable (() -> Unit)? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
@@ -128,6 +131,7 @@ fun RpScrollableOutlinedTextField(
         enabled = enabled,
         readOnly = readOnly,
         textStyle = textStyle,
+        labelPosition = TextFieldLabelPosition.Attached(alwaysMinimize = alwaysMinimizeLabel),
         label = label?.let { labelContent -> { labelContent() } },
         placeholder = placeholder,
         leadingIcon = leadingIcon,
@@ -164,6 +168,7 @@ fun RpScrollableOutlinedTextField(
  * @param enabled 是否允许编辑
  * @param readOnly 是否只读
  * @param textStyle 文本样式
+ * @param alwaysMinimizeLabel 未聚焦时仍将标签置于边框，以显示继承值占位。
  * @param label 文本框标签
  * @param placeholder 空内容占位组件
  * @param leadingIcon 起始图标
@@ -188,6 +193,7 @@ fun RpScrollableOutlinedTextField(
     readOnly: Boolean = false,
     textStyle: TextStyle = LocalTextStyle.current,
     label: @Composable (() -> Unit)? = null,
+    alwaysMinimizeLabel: Boolean = false,
     placeholder: @Composable (() -> Unit)? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
@@ -211,6 +217,7 @@ fun RpScrollableOutlinedTextField(
         readOnly = readOnly,
         textStyle = textStyle,
         label = label,
+        alwaysMinimizeLabel = alwaysMinimizeLabel,
         placeholder = placeholder,
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DataObject
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Image as ImageIcon
 import androidx.compose.material.icons.rounded.Info
@@ -50,14 +51,15 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -452,6 +454,15 @@ private fun UserIdentityPanel(
                             ).emit()
                         },
                         label = { Text(stringResource(R.string.user_display_name)) },
+                        trailingIcon = {
+                            IconButton(onClick = { MainUiIntent.ShowDeletePersona.emit() }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Delete,
+                                    contentDescription = stringResource(R.string.persona_delete),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Rounded.Person,

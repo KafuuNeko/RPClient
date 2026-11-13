@@ -18,6 +18,8 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {
+    data object ShowDeletePersona : MainUiIntent()
+    data object ConfirmDeletePersona : MainUiIntent()
     data object ShowCreatePersona : MainUiIntent()
     data class ChangePersonaDraft(val value: String) : MainUiIntent()
     data object ConfirmCreatePersona : MainUiIntent()
