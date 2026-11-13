@@ -10,7 +10,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,7 +64,7 @@ fun UserPersonaPicker(
         onExpandedChange = { expanded = it && enabled },
         modifier = modifier.fillMaxWidth(),
     ) {
-        OutlinedTextField(
+        PageOutlinedTextField(
             value = if (state.selectedId == UserPersona.NONE) specialOption.orEmpty() else state.selectedName?.let { name ->
                 if (name in repeatedNames) stringResource(
                     id = R.string.persona_name_with_id,
