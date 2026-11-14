@@ -1,6 +1,6 @@
 # Issue #21 搜索存储优化实施与实机验证
 
-> 日期：2026-10-18～19。当前搜索行为见[功能实施说明](./Issue-21-搜索功能实施与验证.md)，对照提交为 `c39aaff`。Room version 保持 **5**，修改未发布版本的结构。
+> 日期：2026-10-18～19。当前搜索行为见[功能实施说明](Issue-21-搜索功能实施与验证.md)，对照提交为 `c39aaff`。Room version 保持 **5**，修改未发布版本的结构。
 
 ## 实施内容
 
@@ -118,9 +118,9 @@
 
 ### 原始记录
 
-- [原实现 100 MiB](./research/issue21-search-device-baseline-100mib.json)
-- [最终方案 100 MiB](./research/issue21-search-device-final-100mib.json)
-- [最终方案 500 MiB](./research/issue21-search-device-final-500mib.json)
+- [原实现 100 MiB](research/issue21-search-device-baseline-100mib.json)
+- [最终方案 100 MiB](research/issue21-search-device-final-100mib.json)
+- [最终方案 500 MiB](research/issue21-search-device-final-500mib.json)
 
 ## 回归与限制
 

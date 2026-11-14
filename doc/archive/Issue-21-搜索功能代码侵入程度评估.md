@@ -47,9 +47,9 @@
 
 ### 数据库：代码改动少，但执行路径覆盖广
 
-[数据库声明](../app/src/main/java/me/kafuuneko/rpclient/libs/room/AppDatabase.kt)与两份 `5.json` 对比显示：新增 `search_sources`、`search_chunks`、`search_progress` 三张普通表和 `search_chunks_fts` 虚拟表；既有 Entity 定义未变，没有因本次搜索增加消息正文、角色或故事业务字段。
+[数据库声明](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/AppDatabase.kt)与两份 `5.json` 对比显示：新增 `search_sources`、`search_chunks`、`search_progress` 三张普通表和 `search_chunks_fts` 虚拟表；既有 Entity 定义未变，没有因本次搜索增加消息正文、角色或故事业务字段。
 
-[SearchDatabaseCallback](../app/src/main/java/me/kafuuneko/rpclient/libs/search/SearchDatabaseCallback.kt)安装的业务触发器包括：
+[SearchDatabaseCallback](../../app/src/main/java/me/kafuuneko/rpclient/libs/search/SearchDatabaseCallback.kt)安装的业务触发器包括：
 
 - 三张正文源表 `chat_messages`、`group_chat_messages`、`story_chapters`，每张分别处理插入、相关字段更新、删除，共九个触发器。
 - 会话、故事、角色及成员关联等六张元数据表，每张三个事件，共十八个触发器。
@@ -68,13 +68,13 @@
 
 这里描述的是结构上的故障传播路径，并非已经复现了触发器故障。也不能把仅有的 FTS 查询失败等同于所有业务事务都会失败。
 
-[索引工作器](../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/ContentSearchRepository.kt)已用短批事务、代次确认、变更合并和约 65 MiB 可用空间保护降低争用。后台协程解决了执行线程问题，但数据库写事务、I/O、CPU 和存储预算仍与聊天、故事保存共享。
+[索引工作器](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/ContentSearchRepository.kt)已用短批事务、代次确认、变更合并和约 65 MiB 可用空间保护降低争用。后台协程解决了执行线程问题，但数据库写事务、I/O、CPU 和存储预算仍与聊天、故事保存共享。
 
 ### 聊天与群聊：最主要的业务代码侵入点
 
-[ChatRepository](../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/ChatRepository.kt)和[GroupChatRepository](../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/GroupChatRepository.kt)的原有页面读取接口增加可选锚点与两侧窗口参数；原来的调用方式仍可使用默认参数进入最新窗口。新增能力围绕稳定消息 ID 和创建时间，不要求聊天仓库依赖搜索索引表或查询仓库。
+[ChatRepository](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/ChatRepository.kt)和[GroupChatRepository](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/GroupChatRepository.kt)的原有页面读取接口增加可选锚点与两侧窗口参数；原来的调用方式仍可使用默认参数进入最新窗口。新增能力围绕稳定消息 ID 和创建时间，不要求聊天仓库依赖搜索索引表或查询仓库。
 
-[单聊 ViewModel](../app/src/main/java/me/kafuuneko/rpclient/feature/chat/ChatViewModel.kt)、[群聊 ViewModel](../app/src/main/java/me/kafuuneko/rpclient/feature/groupchat/GroupChatViewModel.kt)与对应 Layout 增加了这些状态和约束：
+[单聊 ViewModel](../../app/src/main/java/me/kafuuneko/rpclient/feature/chat/ChatViewModel.kt)、[群聊 ViewModel](../../app/src/main/java/me/kafuuneko/rpclient/feature/groupchat/GroupChatViewModel.kt)与对应 Layout 增加了这些状态和约束：
 
 - 保存锚点与尚未加载的较新消息数，向两端分页时维持真实全历史 Display Regex depth。
 - 历史阅读时关闭底部跟随；主动生成或返回最新窗口时恢复跟随。
@@ -90,7 +90,7 @@
 
 ### 故事编辑器：局部状态扩展
 
-[故事初始化](../app/src/main/java/me/kafuuneko/rpclient/feature/storyeditor/StoryEditorViewModel.kt)复用原本就支持指定章节的 `StoryRepository.getStoryEditorData()`，本次没有修改 StoryRepository。
+[故事初始化](../../app/src/main/java/me/kafuuneko/rpclient/feature/storyeditor/StoryEditorViewModel.kt)复用原本就支持指定章节的 `StoryRepository.getStoryEditorData()`，本次没有修改 StoryRepository。
 
 新增 `StoryEditorDocument.searchRange` 及对应选择、首次滚动、高亮逻辑。普通入口没有查询时，范围映射很快返回空值；原有保存、撤销、续写与冲突处理实现未被搜索代码改写。
 
@@ -100,7 +100,7 @@
 
 首页只增加搜索入口和分类参数传递，查询、结果和慢任务在独立 `feature/contentsearch` 中维护。
 
-三种创建页共用 [CharacterSearchField](../app/src/main/java/me/kafuuneko/rpclient/ui/widgets/CharacterSearchField.kt) 和 [matchesCharacterQuery](../app/src/main/java/me/kafuuneko/rpclient/utils/CharacterSearch.kt)，按名称、描述和标签进行内存筛选。它们不依赖正文 FTS；索引是否就绪不会决定创建页角色筛选是否可用。后台结果回写使用最新列表保留选择状态。
+三种创建页共用 [CharacterSearchField](../../app/src/main/java/me/kafuuneko/rpclient/ui/widgets/CharacterSearchField.kt) 和 [matchesCharacterQuery](../../app/src/main/java/me/kafuuneko/rpclient/utils/CharacterSearch.kt)，按名称、描述和标签进行内存筛选。它们不依赖正文 FTS；索引是否就绪不会决定创建页角色筛选是否可用。后台结果回写使用最新列表保留选择状态。
 
 搜索页复用已有 `PageButton`、`PageFilterChip`、`PageOutlinedTextField` 和背景装饰。最近的按钮透明度与模糊修复只调整搜索页引用，`PageButtons.kt` 本身在本次差异中没有修改。因此不会通过修改全局按钮实现改变其他页面样式。
 
@@ -145,7 +145,7 @@
 | 100 MiB／500 MiB 合成库基准 | 当前语料的索引占用、独立搜索耗时及部分规模边界 | 启用搜索前后聊天保存性能没有变化 |
 | 当前 schema 对比与旧库迁移测试 | 既有 Entity 未变，已有迁移测试校验目标结构和部分旧数据 | 已完整覆盖旧消息／故事库升级后补建中断再重开的链路 |
 
-尤其需要注意：[基准测试](../app/src/androidTest/java/me/kafuuneko/rpclient/libs/search/ContentSearchBenchmarkTest.kt)在索引 Ready 后调用 `index.stop()`，再测量搜索。它测量的是完整查询链路，但没有同时施加后台建索引与前台编辑保存压力。此前“原实现”对照也已经含有搜索，不能作为“尚未接入搜索”的写入性能基线。
+尤其需要注意：[基准测试](../../app/src/androidTest/java/me/kafuuneko/rpclient/libs/search/ContentSearchBenchmarkTest.kt)在索引 Ready 后调用 `index.stop()`，再测量搜索。它测量的是完整查询链路，但没有同时施加后台建索引与前台编辑保存压力。此前“原实现”对照也已经含有搜索，不能作为“尚未接入搜索”的写入性能基线。
 
 建议优先验证的边界：
 
@@ -165,4 +165,4 @@
 | 中 | 审查 SQL 业务契约及元数据 UPDATE 字段 | 降低结构变更遗漏与不必要的游标失效 | 搜索层内部整理 |
 | 条件性 | 评估独立索引数据库 | 强化索引故障隔离 | 在明确隔离目标或实测争用超标后专项设计 |
 
-当前适合保持现有 Feature／Repository 分层，优先处理上述验证和生命周期契约。若后续需要继续降体积，见[存储优化实机记录](./Issue-21-搜索存储优化实施与实机验证.md)；其中约 100 MiB 原文对应 347.44 MiB 稳态主库的结果也说明，同库搜索的资源影响需要作为业务体验的一部分持续评估。
+当前适合保持现有 Feature／Repository 分层，优先处理上述验证和生命周期契约。若后续需要继续降体积，见[存储优化实机记录](Issue-21-搜索存储优化实施与实机验证.md)；其中约 100 MiB 原文对应 347.44 MiB 稳态主库的结果也说明，同库搜索的资源影响需要作为业务体验的一部分持续评估。

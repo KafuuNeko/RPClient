@@ -4,7 +4,7 @@
 
 ## 范围与评估结论
 
-本轮同时落实[代码侵入程度评估](./Issue-21-搜索功能代码侵入程度评估.md)中的触发器升级、搜索 SQL 契约和验证建议，以及用户确认的 [FTS 可选启用与双搜索方案](./Issue-21-FTS可选启用与双搜索实现交接.md)。
+本轮同时落实[代码侵入程度评估](Issue-21-搜索功能代码侵入程度评估.md)中的触发器升级、搜索 SQL 契约和验证建议，以及用户确认的 [FTS 可选启用与双搜索方案](Issue-21-FTS可选启用与双搜索实现交接.md)。
 
 - 默认使用普通原文扫描；只有用户确认并完整构建后才启用 FTS。
 - 优先补齐开关、取消、清理、进程恢复和真实文件库验证，再评估是否需要分库。
@@ -103,7 +103,7 @@ libs/
 
 业务表及相关字段集中在 `SearchSourceContract`。打开已启用数据库时对比 `sqlite_master` 中的实际 SQL，仅替换变化的同名触发器；重复打开且定义未变时不重复执行 DDL。更新触发器同时限制 `UPDATE OF` 字段并比较新旧值，避免 Room 全字段同值更新造成不必要的分页失效。
 
-后续 SQL 收敛、编译校验和规则复用见 [搜索 SQL 维护性优化](./Issue-21-搜索SQL维护性优化.md)。本节之前记录的生命周期与性能测试属于可选索引实现阶段，不作为后续 SQL 调整的性能结论。
+后续 SQL 收敛、编译校验和规则复用见 [搜索 SQL 维护性优化](Issue-21-搜索SQL维护性优化.md)。本节之前记录的生命周期与性能测试属于可选索引实现阶段，不作为后续 SQL 调整的性能结论。
 
 取消或关闭时先移除本模块的 `search_source_*`／`search_meta_*` 业务维护触发器，保留 Room 的 FTS 同步结构，再分批删除正文块、源状态和进度。对空内容执行 FTS4 `rebuild`，清理倒排内部数据。
 
@@ -148,7 +148,7 @@ Android 验证使用独立 applicationId `me.kafuuneko.rpclient.searchlifecyclev
 - 小屏按 320 × 600 dp、字体缩放 1.5 复测开启、Activity 重建、取消及关闭流程通过；检查了确认、构建与关闭后的截图，按钮可达。随后恢复模拟器原尺寸和字体。
 - 13 份语言资源的 11 条新增文案齐全，占位符与英文一致。`git diff --check` 通过，AppDatabase 与导出 schema 无改动。
 
-完成编译和界面回归后，单独采集的混合负载结果如下。原始样本见 [issue21-search-mixed-emulator.json](./research/issue21-search-mixed-emulator.json)。
+完成编译和界面回归后，单独采集的混合负载结果如下。原始样本见 [issue21-search-mixed-emulator.json](research/issue21-search-mixed-emulator.json)。
 
 | 模式 | 单条保存 P95 / ms | 导入 25 条 P95 / ms | 故事自动保存 P95 / ms | 主线程调度 P95 / ms | 主库＋WAL＋SHM 采样峰值 / MiB | WAL 采样峰值 / MiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

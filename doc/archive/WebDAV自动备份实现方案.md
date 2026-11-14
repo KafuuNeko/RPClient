@@ -81,16 +81,16 @@ RPClient 目前有三类需要协调的持久化数据：
 
 | 数据域 | 当前实现 | 本方案处理方式 |
 |---|---|---|
-| 业务主库 | [`AppDatabase.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/room/AppDatabase.kt)，`primary.sqlite`，当前包含 20 个 Entity | 生成一致的临时数据库快照并加入归档 |
-| 全局偏好 | [`AppModel.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/AppModel.kt)，当前约 48 个 Kotpref 字段 | 编码为带类型信息的 `preferences.json` |
-| 私有资源 | [`FileRepository.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/FileRepository.kt)，`getDir("repository")` | 按数据库中的文件映射收集并校验内容哈希 |
-| 调试请求日志 | [`RequestLogDatabase.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/room/RequestLogDatabase.kt)，`request_logs.sqlite` | 明确排除 |
+| 业务主库 | [`AppDatabase.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/AppDatabase.kt)，`primary.sqlite`，当前包含 20 个 Entity | 生成一致的临时数据库快照并加入归档 |
+| 全局偏好 | [`AppModel.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/AppModel.kt)，当前约 48 个 Kotpref 字段 | 编码为带类型信息的 `preferences.json` |
+| 私有资源 | [`FileRepository.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/FileRepository.kt)，`getDir("repository")` | 按数据库中的文件映射收集并校验内容哈希 |
+| 调试请求日志 | [`RequestLogDatabase.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/RequestLogDatabase.kt)，`request_logs.sqlite` | 明确排除 |
 
-主库中的 [`LLMProvider.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/room/entity/LLMProvider.kt) 保存 API Key 和自定义请求头，因此完整备份不能提供“不加密上传”选项。
+主库中的 [`LLMProvider.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/room/entity/LLMProvider.kt) 保存 API Key 和自定义请求头，因此完整备份不能提供“不加密上传”选项。
 
 ### 当前导入导出不是完整备份
 
-现有角色卡、世界书、聊天和故事归档是面向单个领域对象的传输格式。例如 [`ChatArchiveModels.kt`](../app/src/main/java/me/kafuuneko/rpclient/libs/chat/ChatArchiveModels.kt) 会主动舍弃本地 Room 主键，并要求导入时重新绑定角色。它们适合内容迁移，但不能恢复：
+现有角色卡、世界书、聊天和故事归档是面向单个领域对象的传输格式。例如 [`ChatArchiveModels.kt`](../../app/src/main/java/me/kafuuneko/rpclient/libs/chat/ChatArchiveModels.kt) 会主动舍弃本地 Room 主键，并要求导入时重新绑定角色。它们适合内容迁移，但不能恢复：
 
 - 所有单聊、群聊、故事和关联关系。
 - 模型配置、API Key、自定义请求头和选择状态。
@@ -99,7 +99,7 @@ RPClient 目前有三类需要协调的持久化数据：
 
 ### 当前 Android Auto Backup
 
-[`AndroidManifest.xml`](../app/src/main/AndroidManifest.xml)、[`backup_rules.xml`](../app/src/main/res/xml/backup_rules.xml) 和 [`data_extraction_rules.xml`](../app/src/main/res/xml/data_extraction_rules.xml) 已启用 Android Auto Backup，并只排除请求日志数据库。
+[`AndroidManifest.xml`](../../app/src/main/AndroidManifest.xml)、[`backup_rules.xml`](../../app/src/main/res/xml/backup_rules.xml) 和 [`data_extraction_rules.xml`](../../app/src/main/res/xml/data_extraction_rules.xml) 已启用 Android Auto Backup，并只排除请求日志数据库。
 
 Android 默认会备份 SharedPreferences、数据库和 `getDir()` 文件，但标准云备份每应用只有 25 MB，只保留最近一份，并受设备、账号、网络和空闲状态控制。该能力可以继续保留，但不能替代用户可管理的 WebDAV 历史快照。
 
@@ -176,7 +176,7 @@ app/src/main/java/me/kafuuneko/rpclient/
 
 ### 依赖调整
 
-在 [`libs.versions.toml`](../gradle/libs.versions.toml) 中增加当前稳定版 WorkManager：
+在 [`libs.versions.toml`](../../gradle/libs.versions.toml) 中增加当前稳定版 WorkManager：
 
 ```toml
 [versions]
@@ -539,7 +539,7 @@ Room 在 Android 上通常使用 WAL。单独复制 `primary.sqlite`，或者按
 - 跨 scheme、host 或 port 的重定向不得自动携带 `Authorization`。
 - 同 origin 重定向需要限制次数并重新验证目标路径。
 - 日志只允许记录脱敏 host、方法、稳定错误码和耗时。
-- 当前 [`network_security_config.xml`](../app/src/main/res/xml/network_security_config.xml) 信任系统及用户证书，因此自签服务建议由用户正确安装 CA；首版不提供“忽略证书错误”。
+- 当前 [`network_security_config.xml`](../../app/src/main/res/xml/network_security_config.xml) 信任系统及用户证书，因此自签服务建议由用户正确安装 CA；首版不提供“忽略证书错误”。
 
 ### HTTP 状态分类
 
@@ -690,7 +690,7 @@ RPClientApp.onCreate
 
 ### 启动顺序调整
 
-当前 [`RPClientApp.kt`](../app/src/main/java/me/kafuuneko/rpclient/RPClientApp.kt) 先初始化 Kotpref 和 Koin，再通过 `AppUpgradeManager` 打开主库。实现恢复后调整为：
+当前 [`RPClientApp.kt`](../../app/src/main/java/me/kafuuneko/rpclient/RPClientApp.kt) 先初始化 Kotpref 和 Koin，再通过 `AppUpgradeManager` 打开主库。实现恢复后调整为：
 
 ```text
 清理废弃 staging
