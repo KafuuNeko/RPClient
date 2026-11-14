@@ -64,38 +64,49 @@ private val LightColorScheme = lightColorScheme(
 /** 页面遮罩使用实际应用的明暗模式，包括用户强制指定的模式。 */
 val LocalAppDarkTheme = staticCompositionLocalOf { false }
 
-/** 应用 Material 3 配色与字体；动态配色仅在调用方显式启用且系统支持时生效。 */
+/**
+ * 应用所选配色，并为页面画布、正文和次级控件提供对应的表面色。
+ * @param darkTheme 实际生效的明暗模式。
+ * @param dynamicColor 显式使用系统动态配色，优先于预设。
+ * @param palette 用户选择的配色，系统不支持动态配色时回退到经典蓝。
+ * @param content 使用主题的页面内容。
+ */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Android 12 起系统才提供动态配色 API。
     dynamicColor: Boolean = false,
     palette: AppThemePalette = AppThemePalette.Classic,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        (dynamicColor || palette == AppThemePalette.Dynamic) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        presetColorScheme(palette, darkTheme) != null -> requireNotNull(
-            presetColorScheme(
-                palette,
-                darkTheme
-            )
-        )
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    // Android 12 起可从系统获取色阶，其余情况使用用户选择的预设。
+    val useSystemColors = dynamicColor || palette == AppThemePalette.Dynamic
+    val paletteColors = if (useSystemColors && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val context = LocalContext.current
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        presetColorScheme(palette = palette, dark = darkTheme)
     }
 
-    // 亮色画布与卡片采用柔和的分层表面，避免壁纸遮罩和纯白卡片叠加发白。
-    val pageColors = if (darkTheme) colorScheme else colorScheme.copy(
-        background = colorScheme.surfaceContainerLow,
-        surface = colorScheme.surfaceContainer,
-        surfaceBright = colorScheme.surfaceContainer,
-    )
+    val pageColors = when {
+        !darkTheme -> {
+            // 亮色使用相邻的两档容器色，避免卡片和壁纸遮罩叠加发白。
+            val colors = paletteColors ?: LightColorScheme
+            colors.copy(
+                background = colors.surfaceContainerLow,
+                surface = colors.surfaceContainer,
+                surfaceBright = colors.surfaceContainer,
+            )
+        }
+
+        // 经典蓝已手工区分画布、正文和按钮。
+        paletteColors == null -> DarkColorScheme
+
+        // 深色保留画布底色，正文和按钮依次使用容器色阶，避免气泡融入背景或快捷按钮过亮。
+        else -> paletteColors.copy(
+            surface = paletteColors.surfaceContainer,
+            surfaceVariant = paletteColors.surfaceContainerHigh,
+        )
+    }
     CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
         MaterialTheme(colorScheme = pageColors, typography = Typography) {
             Surface(
