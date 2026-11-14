@@ -1428,4 +1428,43 @@ Non riusciti: %2$d</string>
     <string name="persona_delete_message">Eliminare %1$s? Le chat individuali e di gruppo che usano questa persona manterranno il nome del partecipante e useranno la persona predefinita. Le storie che la usano non includeranno più una persona.</string>
     <string name="persona_delete_last_message">Eliminare %1$s e creare una nuova persona predefinita chiamata %2$s? Le chat manterranno il nome del partecipante. Le storie che usano questa persona non la includeranno più.</string>
     <string name="persona_none">Non includere un profilo</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Istruzioni di base</string>
+    <string name="prompt_category_generation">Assistenza alla generazione</string>
+    <string name="prompt_category_memory">Riassunti e memoria</string>
+    <string name="prompt_category_format">Formati e separatori</string>
+    <string name="prompt_scope_chat">Chat singola</string>
+    <string name="prompt_scope_group">Chat di gruppo</string>
+    <string name="prompt_scope_story">Storia</string>
+    <string name="prompt_section_character_continuation">Continuazione delle risposte dei personaggi</string>
+    <string name="prompt_section_user_writing">Scrittura come utente</string>
+    <string name="prompt_section_story_continuation">Continuazione della storia</string>
+    <string name="prompt_section_empty_input">Input vuoto</string>
+    <string name="prompt_section_summary_generation">Generare riassunti</string>
+    <string name="prompt_section_memory_injection">Inserire riassunti e memoria</string>
+    <string name="prompt_section_content_format">Formati del materiale di contesto</string>
+    <string name="prompt_section_history_boundary">Separatori della cronologia</string>
+    <string name="prompt_status_default">Predefinito</string>
+    <string name="prompt_status_default_empty">Predefinito · vuoto</string>
+    <string name="prompt_status_custom">Personalizzato</string>
+    <string name="prompt_status_custom_empty">Personalizzato · vuoto</string>
+    <string name="prompt_catalog_count">%1$d elementi</string>
+    <string name="prompt_catalog_group_nudge_title">Vincoli sul personaggio che parla nel gruppo</string>
+    <string name="prompt_catalog_continue_title">Istruzioni per continuare una risposta</string>
+    <string name="prompt_catalog_impersonation_title">Scrittura come utente nella chat singola</string>
+    <string name="prompt_catalog_user_writing_title">Continuazione della bozza nella chat singola</string>
+    <string name="prompt_catalog_group_impersonation_title">Scrittura come utente nella chat di gruppo</string>
+    <string name="prompt_catalog_group_user_writing_title">Continuazione della bozza nella chat di gruppo</string>
+    <string name="prompt_catalog_story_guidance_title">Modello delle indicazioni per continuare la storia</string>
+    <string name="prompt_catalog_empty_input_title">Testo sostitutivo per input vuoto</string>
+    <string name="prompt_catalog_summarize_title">Istruzioni di riassunto della chat singola</string>
+    <string name="prompt_catalog_group_summarize_title">Istruzioni di riassunto della chat di gruppo</string>
+    <string name="prompt_catalog_story_summarize_title">Istruzioni di aggiornamento del riassunto della storia</string>
+    <string name="prompt_catalog_summary_injection_title">Formato di inserimento del riassunto della chat</string>
+    <string name="prompt_catalog_story_memory_title">Formato di inserimento della memoria della storia</string>
+    <string name="prompt_catalog_story_summary_title">Formato di inserimento del riassunto della trama</string>
+    <string name="prompt_catalog_new_chat_title">Separatore della cronologia della chat singola</string>
+    <string name="prompt_catalog_new_group_title">Separatore della cronologia della chat di gruppo</string>
+    <string name="prompt_catalog_new_example_title">Separatore dei dialoghi di esempio</string>
 </resources>

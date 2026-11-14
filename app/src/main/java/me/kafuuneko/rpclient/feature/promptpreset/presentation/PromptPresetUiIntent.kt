@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.feature.promptpreset.presentation
 
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
 import me.kafuuneko.rpclient.libs.prompt.PromptType
 
 /** Prompt 预设页的用户意图。 */
@@ -13,6 +15,10 @@ sealed class PromptPresetUiIntent {
     data object ConfirmDiscard : PromptPresetUiIntent()
 
     data object Back : PromptPresetUiIntent()
+
+    data class SelectScope(val scope: PromptPresetScope) : PromptPresetUiIntent()
+
+    data class ToggleCategory(val category: PromptPresetCategory) : PromptPresetUiIntent()
 
     data class EditPromptClick(val type: PromptType) : PromptPresetUiIntent()
 

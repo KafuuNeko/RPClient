@@ -1443,4 +1443,43 @@
     <string name="persona_delete_message">%1$s 페르소나를 삭제할까요? 이 페르소나를 사용하는 개인 및 그룹 채팅은 발화자 이름을 유지하고 기본 페르소나를 따릅니다. 이 페르소나를 사용하는 스토리에는 페르소나가 포함되지 않습니다.</string>
     <string name="persona_delete_last_message">%1$s 페르소나를 삭제하고 %2$s 이름으로 새 기본 페르소나를 만들까요? 기존 채팅은 발화자 이름을 유지합니다. 이 페르소나를 사용하는 스토리에는 더 이상 페르소나가 포함되지 않습니다.</string>
     <string name="persona_none">페르소나 포함 안 함</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">기본 지침</string>
+    <string name="prompt_category_generation">생성 보조</string>
+    <string name="prompt_category_memory">요약과 기억</string>
+    <string name="prompt_category_format">형식과 구분</string>
+    <string name="prompt_scope_chat">개인 대화</string>
+    <string name="prompt_scope_group">그룹 대화</string>
+    <string name="prompt_scope_story">이야기</string>
+    <string name="prompt_section_character_continuation">캐릭터 답변 이어 쓰기</string>
+    <string name="prompt_section_user_writing">사용자 대필</string>
+    <string name="prompt_section_story_continuation">이야기 이어 쓰기</string>
+    <string name="prompt_section_empty_input">빈 입력 처리</string>
+    <string name="prompt_section_summary_generation">요약 생성</string>
+    <string name="prompt_section_memory_injection">요약과 기억 삽입</string>
+    <string name="prompt_section_content_format">배경 자료 형식</string>
+    <string name="prompt_section_history_boundary">대화 기록 구분자</string>
+    <string name="prompt_status_default">기본값</string>
+    <string name="prompt_status_default_empty">기본값 · 빈 내용</string>
+    <string name="prompt_status_custom">사용자 지정</string>
+    <string name="prompt_status_custom_empty">사용자 지정 · 빈 내용</string>
+    <string name="prompt_catalog_count">%1$d개</string>
+    <string name="prompt_catalog_group_nudge_title">그룹 발언 캐릭터 제약</string>
+    <string name="prompt_catalog_continue_title">캐릭터 답변 이어 쓰기 지침</string>
+    <string name="prompt_catalog_impersonation_title">개인 대화 사용자 대필 지침</string>
+    <string name="prompt_catalog_user_writing_title">개인 대화 초안 이어 쓰기 지침</string>
+    <string name="prompt_catalog_group_impersonation_title">그룹 대화 사용자 대필 지침</string>
+    <string name="prompt_catalog_group_user_writing_title">그룹 대화 초안 이어 쓰기 지침</string>
+    <string name="prompt_catalog_story_guidance_title">이야기 이어 쓰기 요구 사항 템플릿</string>
+    <string name="prompt_catalog_empty_input_title">빈 입력 대체 텍스트</string>
+    <string name="prompt_catalog_summarize_title">개인 대화 요약 생성 지침</string>
+    <string name="prompt_catalog_group_summarize_title">그룹 대화 요약 생성 지침</string>
+    <string name="prompt_catalog_story_summarize_title">이야기 요약 갱신 지침</string>
+    <string name="prompt_catalog_summary_injection_title">대화 요약 삽입 형식</string>
+    <string name="prompt_catalog_story_memory_title">이야기 장기 기억 삽입 형식</string>
+    <string name="prompt_catalog_story_summary_title">이야기 줄거리 요약 삽입 형식</string>
+    <string name="prompt_catalog_new_chat_title">개인 대화 기록 구분자</string>
+    <string name="prompt_catalog_new_group_title">그룹 대화 기록 구분자</string>
+    <string name="prompt_catalog_new_example_title">예시 대화 구분자</string>
 </resources>

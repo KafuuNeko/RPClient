@@ -1453,4 +1453,43 @@ Falhas: %2$d</string>
     <string name="persona_delete_message">Excluir %1$s? As conversas individuais e em grupo que usam esta persona manterão o nome do participante e passarão a usar a persona padrão. As histórias que a usam deixarão de incluir uma persona.</string>
     <string name="persona_delete_last_message">Excluir %1$s e criar uma nova persona padrão chamada %2$s? As conversas manterão o nome do participante. As histórias que usam essa persona deixarão de incluí-la.</string>
     <string name="persona_none">Não incluir persona</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Instruções básicas</string>
+    <string name="prompt_category_generation">Auxílio à geração</string>
+    <string name="prompt_category_memory">Resumos e memória</string>
+    <string name="prompt_category_format">Formatos e separadores</string>
+    <string name="prompt_scope_chat">Chat individual</string>
+    <string name="prompt_scope_group">Chat em grupo</string>
+    <string name="prompt_scope_story">História</string>
+    <string name="prompt_section_character_continuation">Continuação de respostas de personagens</string>
+    <string name="prompt_section_user_writing">Escrita como usuário</string>
+    <string name="prompt_section_story_continuation">Continuação da história</string>
+    <string name="prompt_section_empty_input">Entrada vazia</string>
+    <string name="prompt_section_summary_generation">Gerar resumos</string>
+    <string name="prompt_section_memory_injection">Inserir resumos e memória</string>
+    <string name="prompt_section_content_format">Formatos do material de contexto</string>
+    <string name="prompt_section_history_boundary">Separadores do histórico</string>
+    <string name="prompt_status_default">Padrão</string>
+    <string name="prompt_status_default_empty">Padrão · vazio</string>
+    <string name="prompt_status_custom">Personalizado</string>
+    <string name="prompt_status_custom_empty">Personalizado · vazio</string>
+    <string name="prompt_catalog_count">%1$d itens</string>
+    <string name="prompt_catalog_group_nudge_title">Restrições de quem fala no grupo</string>
+    <string name="prompt_catalog_continue_title">Instruções para continuar uma resposta</string>
+    <string name="prompt_catalog_impersonation_title">Escrita como usuário em chat individual</string>
+    <string name="prompt_catalog_user_writing_title">Continuação de rascunho em chat individual</string>
+    <string name="prompt_catalog_group_impersonation_title">Escrita como usuário em grupo</string>
+    <string name="prompt_catalog_group_user_writing_title">Continuação de rascunho em grupo</string>
+    <string name="prompt_catalog_story_guidance_title">Modelo de orientações para continuar a história</string>
+    <string name="prompt_catalog_empty_input_title">Texto de substituição de entrada vazia</string>
+    <string name="prompt_catalog_summarize_title">Instruções de resumo de chat individual</string>
+    <string name="prompt_catalog_group_summarize_title">Instruções de resumo de chat em grupo</string>
+    <string name="prompt_catalog_story_summarize_title">Instruções de atualização do resumo da história</string>
+    <string name="prompt_catalog_summary_injection_title">Formato de inserção do resumo do chat</string>
+    <string name="prompt_catalog_story_memory_title">Formato de inserção da memória da história</string>
+    <string name="prompt_catalog_story_summary_title">Formato de inserção do resumo da trama</string>
+    <string name="prompt_catalog_new_chat_title">Separador do histórico de chat individual</string>
+    <string name="prompt_catalog_new_group_title">Separador do histórico de chat em grupo</string>
+    <string name="prompt_catalog_new_example_title">Separador de diálogo de exemplo</string>
 </resources>

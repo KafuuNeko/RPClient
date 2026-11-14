@@ -1450,4 +1450,43 @@ Gagal: %2$d</string>
     <string name="persona_delete_message">Hapus %1$s? Obrolan pribadi dan grup yang memakai persona ini akan mempertahankan nama pembicara dan mengikuti persona default. Cerita yang memakainya tidak akan menyertakan persona lagi.</string>
     <string name="persona_delete_last_message">Hapus %1$s dan buat persona default baru bernama %2$s? Obrolan akan mempertahankan nama pembicara. Cerita yang memakai persona ini tidak akan menyertakannya lagi.</string>
     <string name="persona_none">Jangan sertakan persona</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Instruksi dasar</string>
+    <string name="prompt_category_generation">Bantuan pembuatan</string>
+    <string name="prompt_category_memory">Ringkasan &amp; memori</string>
+    <string name="prompt_category_format">Format &amp; pemisah</string>
+    <string name="prompt_scope_chat">Chat pribadi</string>
+    <string name="prompt_scope_group">Chat grup</string>
+    <string name="prompt_scope_story">Cerita</string>
+    <string name="prompt_section_character_continuation">Lanjutan balasan karakter</string>
+    <string name="prompt_section_user_writing">Penulisan sebagai pengguna</string>
+    <string name="prompt_section_story_continuation">Lanjutan cerita</string>
+    <string name="prompt_section_empty_input">Input kosong</string>
+    <string name="prompt_section_summary_generation">Buat ringkasan</string>
+    <string name="prompt_section_memory_injection">Sisipkan ringkasan dan memori</string>
+    <string name="prompt_section_content_format">Format materi latar</string>
+    <string name="prompt_section_history_boundary">Pemisah riwayat</string>
+    <string name="prompt_status_default">Bawaan</string>
+    <string name="prompt_status_default_empty">Bawaan · kosong</string>
+    <string name="prompt_status_custom">Kustom</string>
+    <string name="prompt_status_custom_empty">Kustom · kosong</string>
+    <string name="prompt_catalog_count">%1$d item</string>
+    <string name="prompt_catalog_group_nudge_title">Batasan karakter yang berbicara dalam grup</string>
+    <string name="prompt_catalog_continue_title">Instruksi lanjutan balasan karakter</string>
+    <string name="prompt_catalog_impersonation_title">Instruksi penulisan pengguna di chat pribadi</string>
+    <string name="prompt_catalog_user_writing_title">Instruksi lanjutan draf di chat pribadi</string>
+    <string name="prompt_catalog_group_impersonation_title">Instruksi penulisan pengguna di chat grup</string>
+    <string name="prompt_catalog_group_user_writing_title">Instruksi lanjutan draf di chat grup</string>
+    <string name="prompt_catalog_story_guidance_title">Templat arahan lanjutan cerita</string>
+    <string name="prompt_catalog_empty_input_title">Teks pengganti input kosong</string>
+    <string name="prompt_catalog_summarize_title">Instruksi ringkasan chat pribadi</string>
+    <string name="prompt_catalog_group_summarize_title">Instruksi ringkasan chat grup</string>
+    <string name="prompt_catalog_story_summarize_title">Instruksi pembaruan ringkasan cerita</string>
+    <string name="prompt_catalog_summary_injection_title">Format penyisipan ringkasan chat</string>
+    <string name="prompt_catalog_story_memory_title">Format penyisipan memori cerita</string>
+    <string name="prompt_catalog_story_summary_title">Format penyisipan ringkasan alur cerita</string>
+    <string name="prompt_catalog_new_chat_title">Pemisah riwayat chat pribadi</string>
+    <string name="prompt_catalog_new_group_title">Pemisah riwayat chat grup</string>
+    <string name="prompt_catalog_new_example_title">Pemisah dialog contoh</string>
 </resources>

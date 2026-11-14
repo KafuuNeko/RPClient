@@ -1453,4 +1453,43 @@
     <string name="persona_delete_message">Delete %1$s? Chats and group chats using this persona will keep their speaker name and follow the default persona. Stories using it will stop including a persona.</string>
     <string name="persona_delete_last_message">Delete %1$s and create a fresh default persona named %2$s? Existing chats keep their speaker name. Stories using this persona will stop including it.</string>
     <string name="persona_none">Do not include a persona</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Core instructions</string>
+    <string name="prompt_category_generation">Generation assistance</string>
+    <string name="prompt_category_memory">Summaries &amp; memory</string>
+    <string name="prompt_category_format">Formats &amp; separators</string>
+    <string name="prompt_scope_chat">Single chat</string>
+    <string name="prompt_scope_group">Group chat</string>
+    <string name="prompt_scope_story">Story</string>
+    <string name="prompt_section_character_continuation">Character reply continuation</string>
+    <string name="prompt_section_user_writing">User writing</string>
+    <string name="prompt_section_story_continuation">Story continuation</string>
+    <string name="prompt_section_empty_input">Empty input</string>
+    <string name="prompt_section_summary_generation">Generate summaries</string>
+    <string name="prompt_section_memory_injection">Include summaries &amp; memory</string>
+    <string name="prompt_section_content_format">Background formats</string>
+    <string name="prompt_section_history_boundary">History separators</string>
+    <string name="prompt_status_default">Default</string>
+    <string name="prompt_status_default_empty">Default · empty</string>
+    <string name="prompt_status_custom">Custom</string>
+    <string name="prompt_status_custom_empty">Custom · empty</string>
+    <string name="prompt_catalog_count">%1$d items</string>
+    <string name="prompt_catalog_group_nudge_title">Group speaker constraints</string>
+    <string name="prompt_catalog_continue_title">Character reply continuation</string>
+    <string name="prompt_catalog_impersonation_title">Single-chat user writing</string>
+    <string name="prompt_catalog_user_writing_title">Single-chat draft continuation</string>
+    <string name="prompt_catalog_group_impersonation_title">Group-chat user writing</string>
+    <string name="prompt_catalog_group_user_writing_title">Group-chat draft continuation</string>
+    <string name="prompt_catalog_story_guidance_title">Story continuation guidance template</string>
+    <string name="prompt_catalog_empty_input_title">Empty-input replacement text</string>
+    <string name="prompt_catalog_summarize_title">Single-chat summary instructions</string>
+    <string name="prompt_catalog_group_summarize_title">Group-chat summary instructions</string>
+    <string name="prompt_catalog_story_summarize_title">Story summary update instructions</string>
+    <string name="prompt_catalog_summary_injection_title">Chat summary format</string>
+    <string name="prompt_catalog_story_memory_title">Story memory format</string>
+    <string name="prompt_catalog_story_summary_title">Story summary format</string>
+    <string name="prompt_catalog_new_chat_title">Single-chat history separator</string>
+    <string name="prompt_catalog_new_group_title">Group-chat history separator</string>
+    <string name="prompt_catalog_new_example_title">Example dialogue separator</string>
 </resources>

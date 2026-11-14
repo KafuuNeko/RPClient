@@ -1450,4 +1450,43 @@ Thất bại: %2$d</string>
     <string name="persona_delete_message">Xóa %1$s? Các cuộc trò chuyện riêng và nhóm đang dùng nhân dạng này sẽ giữ tên người nói và chuyển sang nhân dạng mặc định. Các câu chuyện đang dùng nhân dạng này sẽ không còn kèm nhân dạng.</string>
     <string name="persona_delete_last_message">Xóa %1$s và tạo nhân dạng mặc định mới có tên %2$s? Các cuộc trò chuyện hiện có sẽ giữ tên người nói. Các câu chuyện đang dùng nhân dạng này sẽ không còn kèm nhân dạng.</string>
     <string name="persona_none">Không thêm nhân dạng</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Chỉ dẫn cơ bản</string>
+    <string name="prompt_category_generation">Hỗ trợ tạo nội dung</string>
+    <string name="prompt_category_memory">Tóm tắt và ký ức</string>
+    <string name="prompt_category_format">Định dạng và dấu phân cách</string>
+    <string name="prompt_scope_chat">Trò chuyện riêng</string>
+    <string name="prompt_scope_group">Trò chuyện nhóm</string>
+    <string name="prompt_scope_story">Truyện</string>
+    <string name="prompt_section_character_continuation">Viết tiếp phản hồi nhân vật</string>
+    <string name="prompt_section_user_writing">Viết thay người dùng</string>
+    <string name="prompt_section_story_continuation">Viết tiếp truyện</string>
+    <string name="prompt_section_empty_input">Đầu vào trống</string>
+    <string name="prompt_section_summary_generation">Tạo bản tóm tắt</string>
+    <string name="prompt_section_memory_injection">Chèn tóm tắt và ký ức</string>
+    <string name="prompt_section_content_format">Định dạng tư liệu nền</string>
+    <string name="prompt_section_history_boundary">Dấu phân cách lịch sử</string>
+    <string name="prompt_status_default">Mặc định</string>
+    <string name="prompt_status_default_empty">Mặc định · trống</string>
+    <string name="prompt_status_custom">Tùy chỉnh</string>
+    <string name="prompt_status_custom_empty">Tùy chỉnh · trống</string>
+    <string name="prompt_catalog_count">%1$d mục</string>
+    <string name="prompt_catalog_group_nudge_title">Ràng buộc nhân vật phát ngôn trong nhóm</string>
+    <string name="prompt_catalog_continue_title">Chỉ dẫn viết tiếp phản hồi nhân vật</string>
+    <string name="prompt_catalog_impersonation_title">Chỉ dẫn viết thay người dùng trong trò chuyện riêng</string>
+    <string name="prompt_catalog_user_writing_title">Chỉ dẫn nối bản nháp trong trò chuyện riêng</string>
+    <string name="prompt_catalog_group_impersonation_title">Chỉ dẫn viết thay người dùng trong nhóm</string>
+    <string name="prompt_catalog_group_user_writing_title">Chỉ dẫn nối bản nháp trong nhóm</string>
+    <string name="prompt_catalog_story_guidance_title">Mẫu yêu cầu viết tiếp truyện</string>
+    <string name="prompt_catalog_empty_input_title">Văn bản thay thế đầu vào trống</string>
+    <string name="prompt_catalog_summarize_title">Chỉ dẫn tạo tóm tắt trò chuyện riêng</string>
+    <string name="prompt_catalog_group_summarize_title">Chỉ dẫn tạo tóm tắt trò chuyện nhóm</string>
+    <string name="prompt_catalog_story_summarize_title">Chỉ dẫn cập nhật tóm tắt truyện</string>
+    <string name="prompt_catalog_summary_injection_title">Định dạng chèn tóm tắt trò chuyện</string>
+    <string name="prompt_catalog_story_memory_title">Định dạng chèn ký ức dài hạn của truyện</string>
+    <string name="prompt_catalog_story_summary_title">Định dạng chèn tóm tắt cốt truyện</string>
+    <string name="prompt_catalog_new_chat_title">Dấu phân cách lịch sử trò chuyện riêng</string>
+    <string name="prompt_catalog_new_group_title">Dấu phân cách lịch sử trò chuyện nhóm</string>
+    <string name="prompt_catalog_new_example_title">Dấu phân cách hội thoại mẫu</string>
 </resources>

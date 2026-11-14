@@ -1443,4 +1443,43 @@
     <string name="persona_delete_message">刪除「%1$s」？使用此人設的對話和群聊將保留原發言名稱，並跟隨預設人設。使用此人設的故事將不再加入使用者人設。</string>
     <string name="persona_delete_last_message">刪除「%1$s」並建立名為「%2$s」的新預設人設？現有對話和群聊將保留原發言名稱，使用此人設的故事將不再加入使用者人設。</string>
     <string name="persona_none">不加入使用者人設</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">基礎指令</string>
+    <string name="prompt_category_generation">生成輔助</string>
+    <string name="prompt_category_memory">摘要與記憶</string>
+    <string name="prompt_category_format">格式與分隔</string>
+    <string name="prompt_scope_chat">單聊</string>
+    <string name="prompt_scope_group">群聊</string>
+    <string name="prompt_scope_story">故事</string>
+    <string name="prompt_section_character_continuation">角色訊息續寫</string>
+    <string name="prompt_section_user_writing">使用者代寫</string>
+    <string name="prompt_section_story_continuation">故事續寫</string>
+    <string name="prompt_section_empty_input">空白輸入處理</string>
+    <string name="prompt_section_summary_generation">生成摘要</string>
+    <string name="prompt_section_memory_injection">注入摘要與記憶</string>
+    <string name="prompt_section_content_format">背景資料格式</string>
+    <string name="prompt_section_history_boundary">記錄分隔標記</string>
+    <string name="prompt_status_default">預設</string>
+    <string name="prompt_status_default_empty">預設 · 空白內容</string>
+    <string name="prompt_status_custom">自訂</string>
+    <string name="prompt_status_custom_empty">自訂 · 空白內容</string>
+    <string name="prompt_catalog_count">%1$d 項</string>
+    <string name="prompt_catalog_group_nudge_title">群聊發言角色約束</string>
+    <string name="prompt_catalog_continue_title">角色訊息續寫指令</string>
+    <string name="prompt_catalog_impersonation_title">單聊使用者代寫指令</string>
+    <string name="prompt_catalog_user_writing_title">單聊草稿續寫指令</string>
+    <string name="prompt_catalog_group_impersonation_title">群聊使用者代寫指令</string>
+    <string name="prompt_catalog_group_user_writing_title">群聊草稿續寫指令</string>
+    <string name="prompt_catalog_story_guidance_title">故事續寫要求範本</string>
+    <string name="prompt_catalog_empty_input_title">空白輸入替代文字</string>
+    <string name="prompt_catalog_summarize_title">單聊摘要生成指令</string>
+    <string name="prompt_catalog_group_summarize_title">群聊摘要生成指令</string>
+    <string name="prompt_catalog_story_summarize_title">故事摘要更新指令</string>
+    <string name="prompt_catalog_summary_injection_title">聊天摘要注入格式</string>
+    <string name="prompt_catalog_story_memory_title">故事長期記憶注入格式</string>
+    <string name="prompt_catalog_story_summary_title">故事劇情摘要注入格式</string>
+    <string name="prompt_catalog_new_chat_title">單聊記錄分隔標記</string>
+    <string name="prompt_catalog_new_group_title">群聊記錄分隔標記</string>
+    <string name="prompt_catalog_new_example_title">範例對話分隔標記</string>
 </resources>

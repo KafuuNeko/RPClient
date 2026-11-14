@@ -2,10 +2,10 @@ package me.kafuuneko.rpclient.feature.promptpreset.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,14 +16,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.rounded.DataObject
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,46 +35,59 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetSection
+import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetField
+import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetFields
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetBrowserState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetFieldState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetGroupState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetLoadState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetSectionState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiIntent
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiState
-import me.kafuuneko.rpclient.libs.prompt.PromptType
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppInputDialog
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.theme.AppTheme
-import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
-import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
-import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsDivider
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsGroup
+import me.kafuuneko.rpclient.ui.widgets.RpSettingsTile
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 
-/** Prompt 预设列表与编辑对话框的 Compose 入口。 */
+/**
+ * 按用途浏览预设，并通过场景筛选定位单聊、群聊和故事共用的字段。
+ * @param uiState 包含场景筛选、可见分组与编辑草稿的页面状态。
+ * @param emit 将用户操作交给 ViewModel 处理。
+ */
 @Composable
 fun PromptPresetLayout(
     uiState: PromptPresetUiState,
     emit: PromptPresetUiIntent.() -> Unit = {},
 ) {
-    BackHandler(
-        enabled = uiState is PromptPresetUiState.Normal,
-        onBack = { PromptPresetUiIntent.Back.emit() })
+    BackHandler(enabled = uiState is PromptPresetUiState.Normal) { PromptPresetUiIntent.Back.emit() }
+    // 编辑器与浏览条件分属不同状态节点，关闭编辑器后继续显示原位置。
     when (uiState) {
         PromptPresetUiState.None -> Unit
         is PromptPresetUiState.Finished -> PromptPresetLayout(uiState = uiState.previous, emit = {})
         is PromptPresetUiState.Normal -> {
-            NormalView(uiState, emit)
-            DialogSwitch(uiState.dialogState, uiState.busy, emit)
+            NormalView(uiState = uiState, emit = emit)
+            DialogSwitch(dialogState = uiState.dialogState, busy = uiState.busy, emit = emit)
         }
     }
 }
@@ -82,9 +97,9 @@ private fun NormalView(
     uiState: PromptPresetUiState.Normal,
     emit: PromptPresetUiIntent.() -> Unit,
 ) {
+    // 详情页继续使用预设名称与主动复制入口，启用流程仍由管理列表承载。
     AppPageScaffold(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             AppTopBar(
@@ -92,7 +107,7 @@ private fun NormalView(
                 actions = {
                     IconButton(
                         onClick = { PromptPresetUiIntent.CopyTemplate.emit() },
-                        enabled = !uiState.busy && uiState.loadState == PromptPresetLoadState.Ready
+                        enabled = !uiState.busy && uiState.loadState == PromptPresetLoadState.Ready,
                     ) {
                         Icon(
                             Icons.Rounded.ContentCopy,
@@ -103,296 +118,181 @@ private fun NormalView(
                 onBack = { PromptPresetUiIntent.Back.emit() },
             )
         },
-        content = { paddingValues ->
-            RpLazyColumn(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .background(pageCanvasColor()),
-                contentPadding = PaddingValues(
-                    start = 18.dp,
-                    top = 18.dp,
-                    end = 18.dp,
-                    bottom = 32.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                if (uiState.loadState != PromptPresetLoadState.Ready) item {
-                    when (uiState.loadState) {
-                        PromptPresetLoadState.Loading -> CircularProgressIndicator()
-                        PromptPresetLoadState.Failed -> {
-                            Text(stringResource(R.string.prompt_template_failed))
-                            TextButton(onClick = { PromptPresetUiIntent.Retry.emit() }) {
-                                Text(
-                                    stringResource(R.string.retry)
-                                )
-                            }
-                        }
-
-                        PromptPresetLoadState.Ready -> Unit
-                    }
-                }
-                if (uiState.loadState == PromptPresetLoadState.Ready) promptGroups.forEach { group ->
-                    item {
-                        RpSectionHeader(title = stringResource(group.titleRes))
-                    }
-                    group.types.forEach { type ->
-                        item {
-                            PromptCard(
-                                showEditHint = !uiState.isBuiltin,
-                                icon = type.icon(),
-                                title = stringResource(type.titleRes()),
-                                description = stringResource(type.descriptionRes()),
-                                promptPreview = uiState.promptValues[type].orEmpty(),
-                                onClick = { PromptPresetUiIntent.EditPromptClick(type).emit() },
-                            )
-                        }
-                    }
-                }
-            }
-        },
-    )
-}
-
-@Composable
-private fun PromptCard(
-    showEditHint: Boolean,
-    icon: ImageVector,
-    title: String,
-    description: String,
-    promptPreview: String,
-    onClick: () -> Unit,
-) {
-    AppCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = { onClick() }),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    ) { paddingValues ->
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .background(pageCanvasColor()),
         ) {
-            // 标题行
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppSurface(
-                    modifier = Modifier.size(38.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    modifier = Modifier.size(20.dp),
+            if (uiState.loadState == PromptPresetLoadState.Ready) {
+                PromptScopeFilters(
+                    scope = uiState.browserState.scope,
+                    enabled = !uiState.busy,
+                    emit = emit
                 )
-            }
-
-            // 内容预览框
-            val hasContent = promptPreview.isNotBlank()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        color = if (hasContent)
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    )
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-            ) {
-                Text(
-                    text = if (hasContent)
-                        promptPreview.take(120)
-                            .let { text -> if (promptPreview.length > 120) "$text..." else text }
-                    else
-                        stringResource(R.string.prompt_empty_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (hasContent)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                PromptBrowserGroups(
+                    browser = uiState.browserState,
+                    busy = uiState.busy,
+                    modifier = Modifier.weight(1f),
+                    emit = emit,
                 )
-            }
-
-            // 默认项不显示可编辑标签，点击时由 ViewModel 给出只读提示。
-            if (showEditHint) Row(
-                modifier = Modifier.align(Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = stringResource(R.string.prompt_edit_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+            } else {
+                PromptLoadStatus(loadState = uiState.loadState, emit = emit)
             }
         }
     }
 }
 
-private data class PromptGroup(
-    val titleRes: Int,
-    val types: List<PromptType>
-)
-
-private val promptGroups = listOf(
-    PromptGroup(
-        titleRes = R.string.prompt_manager_section,
-        types = listOf(
-            PromptType.Main,
-            PromptType.Auxiliary,
-            PromptType.PostHistory,
-        ),
-    ),
-    PromptGroup(
-        titleRes = R.string.prompt_utility_section,
-        types = listOf(
-            PromptType.Impersonation,
-            PromptType.UserWriting,
-            PromptType.NewChat,
-            PromptType.NewExampleChat,
-            PromptType.ContinueNudge,
-            PromptType.ReplaceEmptyMessage,
-            PromptType.GroupNudge,
-            PromptType.GroupImpersonation,
-            PromptType.GroupUserWriting,
-            PromptType.NewGroupChat,
-        ),
-    ),
-    PromptGroup(
-        titleRes = R.string.prompt_story_section,
-        types = listOf(
-            PromptType.StoryMain,
-            PromptType.StoryMemory,
-            PromptType.StorySummary,
-            PromptType.StorySummarize,
-            PromptType.StoryContinuationGuidance,
-            PromptType.StoryContinue,
-        ),
-    ),
-    PromptGroup(
-        titleRes = R.string.prompt_format_section,
-        types = listOf(
-            PromptType.WorldInfoFormat,
-            PromptType.ScenarioFormat,
-            PromptType.PersonalityFormat,
-            PromptType.UserPersonaFormat,
-        ),
-    ),
-    PromptGroup(
-        titleRes = R.string.prompt_summary_section,
-        types = listOf(
-            PromptType.Summarize,
-            PromptType.GroupSummarize,
-            PromptType.SummaryInjection,
-        ),
-    ),
-)
-
-private fun PromptType.icon(): ImageVector {
-    return when (this) {
-        PromptType.Summarize -> Icons.Rounded.Compress
-        PromptType.GroupSummarize -> Icons.Rounded.Compress
-        PromptType.StoryMemory -> Icons.Rounded.Compress
-        PromptType.StorySummary -> Icons.Rounded.Compress
-        PromptType.StorySummarize -> Icons.Rounded.Compress
-        PromptType.SummaryInjection -> Icons.Rounded.Compress
-        else -> Icons.Rounded.AutoAwesome
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PromptScopeFilters(
+    scope: PromptPresetScope,
+    enabled: Boolean,
+    emit: PromptPresetUiIntent.() -> Unit,
+) {
+    // 筛选始终可见且允许换行，兼顾长列表、窄屏和较长译文。
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 18.dp, top = 8.dp, end = 18.dp, bottom = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        PromptPresetScope.entries.forEach { option ->
+            FilterChip(
+                selected = scope == option,
+                onClick = { PromptPresetUiIntent.SelectScope(option).emit() },
+                enabled = enabled,
+                label = { Text(stringResource(option.titleRes)) },
+            )
+        }
     }
 }
 
-private fun PromptType.titleRes(): Int {
-    return when (this) {
-        PromptType.Main -> R.string.prompt_main_title
-        PromptType.Auxiliary -> R.string.prompt_auxiliary_title
-        PromptType.PostHistory -> R.string.prompt_post_history_title
-        PromptType.Summarize -> R.string.prompt_summarize_title
-        PromptType.SummaryInjection -> R.string.summary_injection_template
-        PromptType.Impersonation -> R.string.prompt_impersonation_title
-        PromptType.UserWriting -> R.string.prompt_user_writing_title
-        PromptType.NewChat -> R.string.prompt_new_chat_title
-        PromptType.NewExampleChat -> R.string.prompt_new_example_chat_title
-        PromptType.ContinueNudge -> R.string.prompt_continue_nudge_title
-        PromptType.ReplaceEmptyMessage -> R.string.prompt_replace_empty_message_title
-        PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_title
-        PromptType.ScenarioFormat -> R.string.prompt_scenario_format_title
-        PromptType.PersonalityFormat -> R.string.prompt_personality_format_title
-        PromptType.UserPersonaFormat -> R.string.prompt_user_persona_format_title
-        PromptType.GroupNudge -> R.string.prompt_group_nudge_title
-        PromptType.GroupImpersonation -> R.string.prompt_group_impersonation_title
-        PromptType.GroupUserWriting -> R.string.prompt_group_user_writing_title
-        PromptType.NewGroupChat -> R.string.prompt_new_group_chat_title
-        PromptType.GroupSummarize -> R.string.prompt_group_summarize_title
-        PromptType.StoryMain -> R.string.prompt_story_main_title
-        PromptType.StoryMemory -> R.string.prompt_story_memory_title
-        PromptType.StorySummary -> R.string.prompt_story_summary_title
-        PromptType.StorySummarize -> R.string.prompt_story_summarize_title
-        PromptType.StoryContinuationGuidance -> R.string.prompt_story_continuation_guidance_title
-        PromptType.StoryContinue -> R.string.prompt_story_continue_title
+@Composable
+private fun PromptBrowserGroups(
+    browser: PromptPresetBrowserState,
+    busy: Boolean,
+    modifier: Modifier,
+    emit: PromptPresetUiIntent.() -> Unit,
+) {
+    // 分类使用稳定键，编辑保存与展开切换不会重新创建整个列表滚动状态。
+    RpLazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = 18.dp, top = 4.dp, end = 18.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        items(items = browser.groups, key = { it.category }) { group ->
+            PromptCategoryCard(
+                group = group,
+                busy = busy,
+                emit = emit
+            )
+        }
     }
 }
 
-private fun PromptType.descriptionRes(): Int {
-    return when (this) {
-        PromptType.Main -> R.string.prompt_main_desc
-        PromptType.Auxiliary -> R.string.prompt_auxiliary_desc
-        PromptType.PostHistory -> R.string.prompt_post_history_desc
-        PromptType.Summarize -> R.string.prompt_summarize_desc
-        PromptType.SummaryInjection -> R.string.summary_injection_template_desc
-        PromptType.Impersonation -> R.string.prompt_impersonation_desc
-        PromptType.UserWriting -> R.string.prompt_user_writing_desc
-        PromptType.NewChat -> R.string.prompt_new_chat_desc
-        PromptType.NewExampleChat -> R.string.prompt_new_example_chat_desc
-        PromptType.ContinueNudge -> R.string.prompt_continue_nudge_desc
-        PromptType.ReplaceEmptyMessage -> R.string.prompt_replace_empty_message_desc
-        PromptType.WorldInfoFormat -> R.string.prompt_world_info_format_desc
-        PromptType.ScenarioFormat -> R.string.prompt_scenario_format_desc
-        PromptType.PersonalityFormat -> R.string.prompt_personality_format_desc
-        PromptType.UserPersonaFormat -> R.string.prompt_user_persona_format_desc
-        PromptType.GroupNudge -> R.string.prompt_group_nudge_desc
-        PromptType.GroupImpersonation -> R.string.prompt_group_impersonation_desc
-        PromptType.GroupUserWriting -> R.string.prompt_group_user_writing_desc
-        PromptType.NewGroupChat -> R.string.prompt_new_group_chat_desc
-        PromptType.GroupSummarize -> R.string.prompt_group_summarize_desc
-        PromptType.StoryMain -> R.string.prompt_story_main_desc
-        PromptType.StoryMemory -> R.string.prompt_story_memory_desc
-        PromptType.StorySummary -> R.string.prompt_story_summary_desc
-        PromptType.StorySummarize -> R.string.prompt_story_summarize_desc
-        PromptType.StoryContinuationGuidance -> R.string.prompt_story_continuation_guidance_desc
-        PromptType.StoryContinue -> R.string.prompt_story_continue_desc
+@Composable
+private fun PromptCategoryCard(
+    group: PromptPresetGroupState,
+    busy: Boolean,
+    emit: PromptPresetUiIntent.() -> Unit,
+) {
+    val countDescription = stringResource(R.string.prompt_catalog_count, group.itemCount)
+    // 一个用途分类只使用一个容器，字段行不重复显示正文和装饰图标。
+    RpSettingsGroup {
+        RpSettingsTile(
+            title = stringResource(group.category.titleRes),
+            icon = group.category.icon(),
+            enabled = !busy,
+            onClick = { PromptPresetUiIntent.ToggleCategory(group.category).emit() },
+            trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = group.itemCount.toString(),
+                        modifier = Modifier.semantics { contentDescription = countDescription },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = if (group.expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                        contentDescription = stringResource(if (group.expanded) R.string.collapse else R.string.expand),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+        )
+        if (group.expanded) {
+            RpSettingsDivider(startIndent = false)
+            group.sections.forEach { section ->
+                PromptSectionContent(section = section, busy = busy, emit = emit)
+            }
+        }
     }
+}
+
+@Composable
+private fun PromptSectionContent(
+    section: PromptPresetSectionState,
+    busy: Boolean,
+    emit: PromptPresetUiIntent.() -> Unit,
+) {
+    // 小节名区分生成与注入、角色消息续写与用户草稿续写。
+    section.section.titleRes?.let { titleRes ->
+        Text(
+            text = stringResource(titleRes),
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 2.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    section.items.forEachIndexed { index, item ->
+        if (index > 0) RpSettingsDivider(startIndent = false)
+        RpSettingsTile(
+            title = stringResource(item.field.titleRes),
+            subtitle = stringResource(item.statusRes),
+            enabled = !busy,
+            onClick = { PromptPresetUiIntent.EditPromptClick(item.field.type).emit() },
+            trailing = {
+                Icon(
+                    imageVector = Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun PromptLoadStatus(
+    loadState: PromptPresetLoadState,
+    emit: PromptPresetUiIntent.() -> Unit,
+) {
+    Column(modifier = Modifier.padding(24.dp)) {
+        when (loadState) {
+            PromptPresetLoadState.Loading -> CircularProgressIndicator()
+            PromptPresetLoadState.Failed -> {
+                Text(stringResource(R.string.prompt_template_failed))
+                TextButton(onClick = { PromptPresetUiIntent.Retry.emit() }) {
+                    Text(stringResource(R.string.retry))
+                }
+            }
+
+            PromptPresetLoadState.Ready -> Unit
+        }
+    }
+}
+
+private fun PromptPresetCategory.icon(): ImageVector = when (this) {
+    PromptPresetCategory.Basic -> Icons.Rounded.Tune
+    PromptPresetCategory.Generation -> Icons.Rounded.AutoAwesome
+    PromptPresetCategory.Memory -> Icons.Rounded.Compress
+    PromptPresetCategory.Format -> Icons.Rounded.DataObject
 }
 
 @Composable
@@ -401,6 +301,7 @@ private fun DialogSwitch(
     busy: Boolean,
     emit: PromptPresetUiIntent.() -> Unit,
 ) {
+    // 复制、编辑与放弃草稿互斥展示，关闭流程继续由 ViewModel 校验。
     when (dialogState) {
         is PromptPresetDialogState.None -> Unit
         is PromptPresetDialogState.CopyTemplate -> AppInputDialog(
@@ -443,11 +344,12 @@ private fun EditPromptDialog(
     onCopy: () -> Unit,
     onSave: () -> Unit,
 ) {
+    // 字段只提供标题与操作，实时字符和 Token 统计由共享编辑器统一展示。
+    val field = promptPresetField(dialogState.type)
     AppPromptEditorDialog(
         onDismissRequest = onDismiss,
-        title = stringResource(dialogState.type.titleRes()),
-        subtitle = stringResource(dialogState.type.descriptionRes()),
-        badgeIcon = dialogState.type.icon(),
+        title = stringResource(field.titleRes),
+        badgeIcon = field.section.category.icon(),
         badgeTone = DialogBadgeTone.Primary,
         value = dialogState.draftText,
         onValueChange = onChange,
@@ -460,17 +362,34 @@ private fun EditPromptDialog(
     )
 }
 
-@Preview(widthDp = 390, heightDp = 844, showBackground = true)
+@Preview(widthDp = 390, heightDp = 844, showBackground = true, locale = "zh")
 @Composable
 private fun PromptPresetLayoutPreview() {
+    // 预览只构造目录状态，不读取数据库或生成请求。
+    val groups = PromptPresetCategory.entries.map { category ->
+        PromptPresetGroupState(
+            category = category,
+            expanded = category == PromptPresetCategory.Basic,
+            sections = promptPresetFields.filter { it.section.category == category }
+                .groupBy { it.section }
+                .map { (section, fields) ->
+                    PromptPresetSectionState(
+                        section = section,
+                        items = fields.map {
+                            PromptPresetFieldState(
+                                field = it,
+                                statusRes = R.string.prompt_status_default
+                            )
+                        },
+                    )
+                },
+        )
+    }
     AppTheme(dynamicColor = false) {
         PromptPresetLayout(
             uiState = PromptPresetUiState.Normal(
-                promptValues = mapOf(
-                    PromptType.Main to "You are a creative roleplay assistant. Stay in character and respond naturally...",
-                    PromptType.Summarize to "",
-                    PromptType.SummaryInjection to "Story memory:\n{{summary}}",
-                ),
+                promptValues = emptyMap(),
+                browserState = PromptPresetBrowserState(groups = groups),
             ),
         )
     }

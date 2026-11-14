@@ -5,8 +5,16 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
+import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetSection
+import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetFields
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetBrowserState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetFieldState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetGroupState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetLoadState
+import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetSectionState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiIntent
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetUiState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetViewEvent
@@ -25,6 +33,7 @@ import org.koin.core.component.inject
  * 单套提示词模板的详情与编辑状态持有者。
  * - 默认预设只读，自定义正文逐项保存。
  * - revision 冲突和保存失败保留草稿，未保存退出需明确放弃。
+ * - 按用途与适用场景组织展示，筛选不改变模板的生效范围。
  */
 class PromptPresetViewModel :
     CoreViewModelWithEvent<PromptPresetUiIntent, PromptPresetUiState>(PromptPresetUiState.None),
@@ -48,6 +57,24 @@ class PromptPresetViewModel :
     /** 读取失败后重试同一模板，不自动退回另一套配置。 */
     @UiIntentObserver(PromptPresetUiIntent.Retry::class)
     private fun onRetry() = perform { refresh() }
+
+    /** 切换显示场景，共用字段仍会出现在相关场景下。 */
+    @UiIntentObserver(PromptPresetUiIntent.SelectScope::class)
+    private fun onSelectScope(intent: PromptPresetUiIntent.SelectScope) = updateBrowser {
+        it.copy(scope = intent.scope)
+    }
+
+    /** 展开或折叠用途分类。 */
+    @UiIntentObserver(PromptPresetUiIntent.ToggleCategory::class)
+    private fun onToggleCategory(intent: PromptPresetUiIntent.ToggleCategory) =
+        updateBrowser { browser ->
+            val expanded = browser.expandedCategories
+            browser.copy(
+                expandedCategories = if (intent.category in expanded) {
+                    expanded - intent.category
+                } else expanded + intent.category,
+            )
+        }
 
     /** 未保存编辑先询问放弃，普通返回保留最后一帧。 */
     @UiIntentObserver(PromptPresetUiIntent.Back::class)
@@ -154,8 +181,62 @@ class PromptPresetViewModel :
             revision = detail.preset.revision,
             isBuiltin = builtin,
             loadState = PromptPresetLoadState.Ready,
+            browserState = buildBrowser(state.browserState, detail.snapshot.values),
             dialogState = PromptPresetDialogState.None,
         ).setup()
+    }
+
+    /** 更新展示条件，不重新读取预设或干扰未保存草稿。 */
+    private fun updateBrowser(update: (PromptPresetBrowserState) -> PromptPresetBrowserState) {
+        val state = getOrNull<PromptPresetUiState.Normal>() ?: return
+        if (state.busy || state.loadState != PromptPresetLoadState.Ready) return
+        state.copy(browserState = buildBrowser(update(state.browserState), state.promptValues))
+            .setup()
+    }
+
+    /** 先按实际作用范围筛选，再组织用途分组，正文仍以原始值映射为准。 */
+    private fun buildBrowser(
+        browser: PromptPresetBrowserState,
+        values: Map<PromptType, String>,
+    ): PromptPresetBrowserState {
+        // 场景归属允许重叠；同一字段只有一个目录项，不创建额外覆盖值。
+        val visible = promptPresetFields.filter { field ->
+            browser.scope == PromptPresetScope.All || browser.scope in field.scopes
+        }.groupBy { it.section }
+        // 按固定用途顺序组织字段，筛选和保存后保留原有展开选择。
+        val groups = PromptPresetCategory.entries.mapNotNull { category ->
+            val sections = PromptPresetSection.entries.filter { it.category == category }
+                .mapNotNull sectionLoop@{ section ->
+                    val fields = visible[section] ?: return@sectionLoop null
+                    PromptPresetSectionState(
+                        section = section,
+                        items = fields.map { field ->
+                            PromptPresetFieldState(
+                                field = field,
+                                statusRes = contentStatus(
+                                    field.type,
+                                    values[field.type] ?: field.type.defaultValue
+                                ),
+                            )
+                        },
+                    )
+                }
+            if (sections.isEmpty()) return@mapNotNull null
+            PromptPresetGroupState(
+                category = category,
+                expanded = category in browser.expandedCategories,
+                sections = sections,
+            )
+        }
+        return browser.copy(groups = groups)
+    }
+
+    /** 空内容是有效配置，不能把默认空值或显式清空误报为未设置。 */
+    private fun contentStatus(type: PromptType, value: String): Int = when {
+        value == type.defaultValue && value.isBlank() -> R.string.prompt_status_default_empty
+        value == type.defaultValue -> R.string.prompt_status_default
+        value.isBlank() -> R.string.prompt_status_custom_empty
+        else -> R.string.prompt_status_custom
     }
 
     /** 用已保存原文建立草稿，空串保持为空，默认文本只供显式重置。 */

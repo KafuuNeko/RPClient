@@ -1449,4 +1449,43 @@
     <string name="persona_delete_message">Supprimer %1$s ? Les discussions individuelles et de groupe qui utilisent ce persona conserveront le nom du participant et suivront le persona par défaut. Les histoires qui l’utilisent n’incluront plus de persona.</string>
     <string name="persona_delete_last_message">Supprimer %1$s et créer un nouveau persona par défaut nommé %2$s ? Les discussions conserveront le nom du participant. Les histoires qui utilisent ce persona ne l’incluront plus.</string>
     <string name="persona_none">Ne pas inclure de persona</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Instructions de base</string>
+    <string name="prompt_category_generation">Aide à la génération</string>
+    <string name="prompt_category_memory">Résumés et mémoire</string>
+    <string name="prompt_category_format">Formats et séparateurs</string>
+    <string name="prompt_scope_chat">Discussion individuelle</string>
+    <string name="prompt_scope_group">Discussion de groupe</string>
+    <string name="prompt_scope_story">Histoire</string>
+    <string name="prompt_section_character_continuation">Suite d’une réponse de personnage</string>
+    <string name="prompt_section_user_writing">Écriture pour l’utilisateur</string>
+    <string name="prompt_section_story_continuation">Suite de l’histoire</string>
+    <string name="prompt_section_empty_input">Saisie vide</string>
+    <string name="prompt_section_summary_generation">Générer des résumés</string>
+    <string name="prompt_section_memory_injection">Insérer les résumés et la mémoire</string>
+    <string name="prompt_section_content_format">Formats des informations de contexte</string>
+    <string name="prompt_section_history_boundary">Séparateurs d’historique</string>
+    <string name="prompt_status_default">Par défaut</string>
+    <string name="prompt_status_default_empty">Par défaut · vide</string>
+    <string name="prompt_status_custom">Personnalisé</string>
+    <string name="prompt_status_custom_empty">Personnalisé · vide</string>
+    <string name="prompt_catalog_count">%1$d éléments</string>
+    <string name="prompt_catalog_group_nudge_title">Contraintes du personnage qui parle en groupe</string>
+    <string name="prompt_catalog_continue_title">Instructions de continuation d’une réponse</string>
+    <string name="prompt_catalog_impersonation_title">Écriture pour l’utilisateur en discussion individuelle</string>
+    <string name="prompt_catalog_user_writing_title">Suite du brouillon en discussion individuelle</string>
+    <string name="prompt_catalog_group_impersonation_title">Écriture pour l’utilisateur en groupe</string>
+    <string name="prompt_catalog_group_user_writing_title">Suite du brouillon en groupe</string>
+    <string name="prompt_catalog_story_guidance_title">Modèle des indications de continuation de l’histoire</string>
+    <string name="prompt_catalog_empty_input_title">Texte de remplacement d’une saisie vide</string>
+    <string name="prompt_catalog_summarize_title">Instructions de résumé de discussion individuelle</string>
+    <string name="prompt_catalog_group_summarize_title">Instructions de résumé de groupe</string>
+    <string name="prompt_catalog_story_summarize_title">Instructions de mise à jour du résumé de l’histoire</string>
+    <string name="prompt_catalog_summary_injection_title">Format d’insertion du résumé de discussion</string>
+    <string name="prompt_catalog_story_memory_title">Format d’insertion de la mémoire de l’histoire</string>
+    <string name="prompt_catalog_story_summary_title">Format d’insertion du résumé de l’intrigue</string>
+    <string name="prompt_catalog_new_chat_title">Séparateur d’historique de discussion individuelle</string>
+    <string name="prompt_catalog_new_group_title">Séparateur d’historique de groupe</string>
+    <string name="prompt_catalog_new_example_title">Séparateur de dialogue d’exemple</string>
 </resources>

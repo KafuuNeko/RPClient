@@ -1453,4 +1453,43 @@
     <string name="persona_delete_message">Удалить персону «%1$s»? Личные и групповые чаты с этой персоной сохранят имя участника и будут использовать персону по умолчанию. Истории с этой персоной больше не будут включать персону.</string>
     <string name="persona_delete_last_message">Удалить персону «%1$s» и создать новую персону по умолчанию с именем «%2$s»? Чаты сохранят имя участника. Истории с этой персоной больше не будут её использовать.</string>
     <string name="persona_none">Не включать персону</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Основные инструкции</string>
+    <string name="prompt_category_generation">Помощь в генерации</string>
+    <string name="prompt_category_memory">Сводки и память</string>
+    <string name="prompt_category_format">Форматы и разделители</string>
+    <string name="prompt_scope_chat">Личный чат</string>
+    <string name="prompt_scope_group">Групповой чат</string>
+    <string name="prompt_scope_story">История</string>
+    <string name="prompt_section_character_continuation">Продолжение ответа персонажа</string>
+    <string name="prompt_section_user_writing">Текст от лица пользователя</string>
+    <string name="prompt_section_story_continuation">Продолжение истории</string>
+    <string name="prompt_section_empty_input">Пустой ввод</string>
+    <string name="prompt_section_summary_generation">Создание сводок</string>
+    <string name="prompt_section_memory_injection">Вставка сводок и памяти</string>
+    <string name="prompt_section_content_format">Форматы фоновых данных</string>
+    <string name="prompt_section_history_boundary">Разделители истории чата</string>
+    <string name="prompt_status_default">По умолчанию</string>
+    <string name="prompt_status_default_empty">По умолчанию · пусто</string>
+    <string name="prompt_status_custom">Изменено</string>
+    <string name="prompt_status_custom_empty">Изменено · пусто</string>
+    <string name="prompt_catalog_count">Элементов: %1$d</string>
+    <string name="prompt_catalog_group_nudge_title">Ограничения говорящего в группе</string>
+    <string name="prompt_catalog_continue_title">Инструкции продолжения ответа персонажа</string>
+    <string name="prompt_catalog_impersonation_title">Текст от лица пользователя в личном чате</string>
+    <string name="prompt_catalog_user_writing_title">Продолжение черновика в личном чате</string>
+    <string name="prompt_catalog_group_impersonation_title">Текст от лица пользователя в групповом чате</string>
+    <string name="prompt_catalog_group_user_writing_title">Продолжение черновика в групповом чате</string>
+    <string name="prompt_catalog_story_guidance_title">Шаблон указаний для продолжения истории</string>
+    <string name="prompt_catalog_empty_input_title">Текст замены пустого ввода</string>
+    <string name="prompt_catalog_summarize_title">Инструкции сводки личного чата</string>
+    <string name="prompt_catalog_group_summarize_title">Инструкции сводки группового чата</string>
+    <string name="prompt_catalog_story_summarize_title">Инструкции обновления сводки истории</string>
+    <string name="prompt_catalog_summary_injection_title">Формат вставки сводки чата</string>
+    <string name="prompt_catalog_story_memory_title">Формат вставки долговременной памяти истории</string>
+    <string name="prompt_catalog_story_summary_title">Формат вставки сводки сюжета</string>
+    <string name="prompt_catalog_new_chat_title">Разделитель истории личного чата</string>
+    <string name="prompt_catalog_new_group_title">Разделитель истории группового чата</string>
+    <string name="prompt_catalog_new_example_title">Разделитель примеров диалогов</string>
 </resources>

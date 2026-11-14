@@ -57,7 +57,7 @@ import me.kafuuneko.rpclient.ui.widgets.AppSurface as Surface
 /**
  * 通用提示词 / 结构化文本编辑器对话框。
  *
- * 支持实时字数与 Token 估算、宏语法高亮、清空、请求复制、恢复默认预设及快速插入。
+ * 标题下方单行显示实时字数与 Token 估算，正文支持宏高亮、清空、复制、恢复默认及快速插入。
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -69,7 +69,6 @@ fun AppPromptEditorDialog(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
     onCopyRequest: ((String) -> Unit)? = null,
-    subtitle: String? = null,
     badgeIcon: ImageVector = Icons.Rounded.AutoAwesome,
     badgeTone: DialogBadgeTone = DialogBadgeTone.Primary,
     defaultValue: String? = null,
@@ -96,7 +95,8 @@ fun AppPromptEditorDialog(
         modifier = modifier,
         onDismissRequest = onDismissRequest,
         title = title,
-        subtitle = subtitle,
+        subtitle = stringResource(R.string.prompt_editor_char_count, charCount, estimatedTokens),
+        subtitleMaxLines = 1,
         badgeIcon = badgeIcon,
         badgeTone = badgeTone,
         compactHeader = true,
@@ -111,10 +111,10 @@ fun AppPromptEditorDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            PromptEditorToolbar(
+            // 统计已归入标题，工具栏只保留正文操作，给长译文留出空间。
+            PromptEditorActions(
+                modifier = Modifier.align(Alignment.End),
                 value = value,
-                charCount = charCount,
-                estimatedTokens = estimatedTokens,
                 defaultValue = defaultValue,
                 onClear = { textFieldState.setTextAndPlaceCursorAtEnd("") },
                 onCopyRequest = onCopyRequest,
@@ -139,56 +139,19 @@ fun AppPromptEditorDialog(
 }
 
 @Composable
-private fun PromptEditorToolbar(
-    value: String,
-    charCount: Int,
-    estimatedTokens: Int,
-    defaultValue: String?,
-    onClear: () -> Unit,
-    onCopyRequest: ((String) -> Unit)?,
-    onRestoreDefault: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
-        ) {
-            Text(
-                text = stringResource(
-                    R.string.prompt_editor_char_count,
-                    charCount,
-                    estimatedTokens
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-        PromptEditorActions(
-            value = value,
-            defaultValue = defaultValue,
-            onClear = onClear,
-            onCopyRequest = onCopyRequest,
-            onRestoreDefault = onRestoreDefault,
-        )
-    }
-}
-
-@Composable
 private fun PromptEditorActions(
     value: String,
     defaultValue: String?,
     onClear: () -> Unit,
     onCopyRequest: ((String) -> Unit)?,
     onRestoreDefault: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    // 没有可用操作时不生成空工具栏，避免空内容仍占用正文上方的高度。
+    if (value.isEmpty() && (defaultValue.isNullOrBlank() || value == defaultValue)) return
     val haptic = LocalHapticFeedback.current
     Row(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -381,7 +344,6 @@ private fun AppPromptEditorDialogPreview() {
             AppPromptEditorDialog(
                 onDismissRequest = {},
                 title = "主提示词",
-                subtitle = "普通对话生成时的全局核心系统指令",
                 value = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.",
                 defaultValue = "Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.\nWrite one reply only.",
                 availableMacros = listOf("{{char}}", "{{user}}"),

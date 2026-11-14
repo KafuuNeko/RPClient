@@ -1448,4 +1448,43 @@
     <string name="persona_delete_message">%1$s löschen? Einzel- und Gruppenchats mit dieser Persona behalten den bisherigen Sprechernamen und verwenden künftig die Standardpersona. Geschichten mit dieser Persona verwenden dann keine Persona mehr.</string>
     <string name="persona_delete_last_message">%1$s löschen und eine neue Standardpersona namens %2$s erstellen? Chats behalten den bisherigen Sprechernamen. Geschichten mit dieser Persona verwenden sie danach nicht mehr.</string>
     <string name="persona_none">Keine Persona einfügen</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">Grundlegende Anweisungen</string>
+    <string name="prompt_category_generation">Generierungshilfen</string>
+    <string name="prompt_category_memory">Zusammenfassungen &amp; Gedächtnis</string>
+    <string name="prompt_category_format">Formate &amp; Trennzeichen</string>
+    <string name="prompt_scope_chat">Einzelchat</string>
+    <string name="prompt_scope_group">Gruppenchat</string>
+    <string name="prompt_scope_story">Geschichte</string>
+    <string name="prompt_section_character_continuation">Figurenantwort fortsetzen</string>
+    <string name="prompt_section_user_writing">Als Benutzer schreiben</string>
+    <string name="prompt_section_story_continuation">Geschichte fortsetzen</string>
+    <string name="prompt_section_empty_input">Leere Eingabe</string>
+    <string name="prompt_section_summary_generation">Zusammenfassungen erstellen</string>
+    <string name="prompt_section_memory_injection">Zusammenfassungen und Erinnerungen einfügen</string>
+    <string name="prompt_section_content_format">Formate für Hintergrundmaterial</string>
+    <string name="prompt_section_history_boundary">Trennzeichen im Verlauf</string>
+    <string name="prompt_status_default">Standard</string>
+    <string name="prompt_status_default_empty">Standard · leer</string>
+    <string name="prompt_status_custom">Angepasst</string>
+    <string name="prompt_status_custom_empty">Angepasst · leer</string>
+    <string name="prompt_catalog_count">%1$d Einträge</string>
+    <string name="prompt_catalog_group_nudge_title">Sprechende Figur im Gruppenchat</string>
+    <string name="prompt_catalog_continue_title">Anweisung zur Fortsetzung einer Figurenantwort</string>
+    <string name="prompt_catalog_impersonation_title">Benutzertext im Einzelchat</string>
+    <string name="prompt_catalog_user_writing_title">Entwurf im Einzelchat fortsetzen</string>
+    <string name="prompt_catalog_group_impersonation_title">Benutzertext im Gruppenchat</string>
+    <string name="prompt_catalog_group_user_writing_title">Entwurf im Gruppenchat fortsetzen</string>
+    <string name="prompt_catalog_story_guidance_title">Vorlage für Vorgaben zur Geschichtenfortsetzung</string>
+    <string name="prompt_catalog_empty_input_title">Ersatztext für leere Eingaben</string>
+    <string name="prompt_catalog_summarize_title">Anweisungen zur Einzelchat-Zusammenfassung</string>
+    <string name="prompt_catalog_group_summarize_title">Anweisungen zur Gruppenchat-Zusammenfassung</string>
+    <string name="prompt_catalog_story_summarize_title">Anweisungen zur Aktualisierung der Geschichtenzusammenfassung</string>
+    <string name="prompt_catalog_summary_injection_title">Format für Chat-Zusammenfassungen</string>
+    <string name="prompt_catalog_story_memory_title">Format für das Langzeitgedächtnis einer Geschichte</string>
+    <string name="prompt_catalog_story_summary_title">Format für die Handlungszusammenfassung</string>
+    <string name="prompt_catalog_new_chat_title">Trennzeichen für den Einzelchatverlauf</string>
+    <string name="prompt_catalog_new_group_title">Trennzeichen für den Gruppenchatverlauf</string>
+    <string name="prompt_catalog_new_example_title">Trennzeichen für Beispieldialoge</string>
 </resources>

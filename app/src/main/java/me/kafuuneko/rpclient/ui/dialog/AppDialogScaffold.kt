@@ -64,6 +64,7 @@ enum class DialogBadgeTone {
  * 现代化 Dialog 容器脚手架。
  *
  * 统一处理 28.dp 圆角、柔和微边框、分层 Elevation、Hero 状态徽标与自适应多语言操作按钮排版。
+ * @param subtitleMaxLines 辅助文本的最大行数，统计信息可限制为单行。
  */
 @Composable
 fun AppDialogScaffold(
@@ -84,6 +85,7 @@ fun AppDialogScaffold(
     onDismiss: (() -> Unit)? = onDismissRequest,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = true),
     scrollableContent: Boolean = false,
+    subtitleMaxLines: Int = Int.MAX_VALUE,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     // 正文统一受剩余高度约束，避免键盘展开后先测量的内容挤掉底部操作区。
@@ -106,6 +108,7 @@ fun AppDialogScaffold(
                 AppDialogHeader(
                     title = title,
                     subtitle = subtitle,
+                    subtitleMaxLines = subtitleMaxLines,
                     badgeIcon = badgeIcon,
                     badgeTone = badgeTone,
                     compact = compactHeader,
@@ -135,14 +138,17 @@ fun AppDialogScaffold(
 private fun AppDialogHeader(
     title: String,
     subtitle: String?,
+    subtitleMaxLines: Int,
     badgeIcon: ImageVector?,
     badgeTone: DialogBadgeTone,
     compact: Boolean,
 ) {
+    // 两种标题布局共用行数约束，紧凑统计不会因布局切换重新换行。
     if (compact) {
         CompactDialogHeader(
             title = title,
             subtitle = subtitle,
+            subtitleMaxLines = subtitleMaxLines,
             badgeIcon = badgeIcon,
             badgeTone = badgeTone
         )
@@ -150,6 +156,7 @@ private fun AppDialogHeader(
         HeroDialogHeader(
             title = title,
             subtitle = subtitle,
+            subtitleMaxLines = subtitleMaxLines,
             badgeIcon = badgeIcon,
             badgeTone = badgeTone
         )
@@ -160,9 +167,11 @@ private fun AppDialogHeader(
 private fun CompactDialogHeader(
     title: String,
     subtitle: String?,
+    subtitleMaxLines: Int,
     badgeIcon: ImageVector?,
     badgeTone: DialogBadgeTone,
 ) {
+    // 徽标与文字并列，辅助信息按调用方提供的行数占用标题空间。
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -194,6 +203,8 @@ private fun CompactDialogHeader(
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
+                    maxLines = subtitleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -206,9 +217,11 @@ private fun CompactDialogHeader(
 private fun HeroDialogHeader(
     title: String,
     subtitle: String?,
+    subtitleMaxLines: Int,
     badgeIcon: ImageVector?,
     badgeTone: DialogBadgeTone,
 ) {
+    // 强调型标题使用居中排版，默认仍允许较长说明完整换行。
     if (badgeIcon != null) {
         val (containerColor, contentColor) = resolveBadgeColors(badgeTone)
         Box(
@@ -242,6 +255,8 @@ private fun HeroDialogHeader(
         if (!subtitle.isNullOrBlank()) {
             Text(
                 text = subtitle,
+                maxLines = subtitleMaxLines,
+                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

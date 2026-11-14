@@ -1444,4 +1444,43 @@
     <string name="persona_delete_message">「%1$s」を削除しますか？ このペルソナを使用中のチャットとグループチャットでは発言者名を維持し、デフォルトのペルソナを使用します。使用中のストーリーにはペルソナが含まれなくなります。</string>
     <string name="persona_delete_last_message">「%1$s」を削除して「%2$s」という新しいデフォルトのペルソナを作成しますか？ チャットの発言者名は維持されます。このペルソナを使用中のストーリーにはペルソナが含まれなくなります。</string>
     <string name="persona_none">ペルソナを含めない</string>
+
+    <!-- Prompt browser -->
+    <string name="prompt_category_basic">基本指示</string>
+    <string name="prompt_category_generation">生成補助</string>
+    <string name="prompt_category_memory">要約と記憶</string>
+    <string name="prompt_category_format">書式と区切り</string>
+    <string name="prompt_scope_chat">個別チャット</string>
+    <string name="prompt_scope_group">グループ</string>
+    <string name="prompt_scope_story">物語</string>
+    <string name="prompt_section_character_continuation">キャラクターの返信の続き</string>
+    <string name="prompt_section_user_writing">ユーザー代筆</string>
+    <string name="prompt_section_story_continuation">物語の続き</string>
+    <string name="prompt_section_empty_input">空の入力</string>
+    <string name="prompt_section_summary_generation">要約の生成</string>
+    <string name="prompt_section_memory_injection">要約と記憶の挿入</string>
+    <string name="prompt_section_content_format">背景資料の書式</string>
+    <string name="prompt_section_history_boundary">履歴の区切り</string>
+    <string name="prompt_status_default">デフォルト</string>
+    <string name="prompt_status_default_empty">デフォルト · 空</string>
+    <string name="prompt_status_custom">カスタム</string>
+    <string name="prompt_status_custom_empty">カスタム · 空</string>
+    <string name="prompt_catalog_count">%1$d 件</string>
+    <string name="prompt_catalog_group_nudge_title">グループ発言者の制約</string>
+    <string name="prompt_catalog_continue_title">キャラクターの返信を続ける指示</string>
+    <string name="prompt_catalog_impersonation_title">個別チャットのユーザー代筆指示</string>
+    <string name="prompt_catalog_user_writing_title">個別チャットの下書き継続指示</string>
+    <string name="prompt_catalog_group_impersonation_title">グループのユーザー代筆指示</string>
+    <string name="prompt_catalog_group_user_writing_title">グループの下書き継続指示</string>
+    <string name="prompt_catalog_story_guidance_title">物語の続きの要望テンプレート</string>
+    <string name="prompt_catalog_empty_input_title">空の入力の置き換えテキスト</string>
+    <string name="prompt_catalog_summarize_title">個別チャットの要約生成指示</string>
+    <string name="prompt_catalog_group_summarize_title">グループの要約生成指示</string>
+    <string name="prompt_catalog_story_summarize_title">物語の要約更新指示</string>
+    <string name="prompt_catalog_summary_injection_title">チャット要約の挿入書式</string>
+    <string name="prompt_catalog_story_memory_title">物語の長期記憶の挿入書式</string>
+    <string name="prompt_catalog_story_summary_title">物語のあらすじの挿入書式</string>
+    <string name="prompt_catalog_new_chat_title">個別チャット履歴の区切り</string>
+    <string name="prompt_catalog_new_group_title">グループ履歴の区切り</string>
+    <string name="prompt_catalog_new_example_title">会話例の区切り</string>
 </resources>

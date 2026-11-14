@@ -15,6 +15,7 @@ sealed class PromptPresetUiState {
         val isBuiltin: Boolean = false,
         val busy: Boolean = false,
         val loadState: PromptPresetLoadState = PromptPresetLoadState.Ready,
+        val browserState: PromptPresetBrowserState = PromptPresetBrowserState(),
         /** 当前页面互斥展示的对话框状态。 */
         val dialogState: PromptPresetDialogState = PromptPresetDialogState.None
     ) : PromptPresetUiState()
