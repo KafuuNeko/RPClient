@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -97,15 +96,17 @@ private fun ImageSendLimits(state: MainImageSendState, emit: MainUiIntent.() -> 
 /** 数字键盘仅提供输入便利，合法性由 ViewModel 校验。 */
 @Composable
 private fun ImageLimitField(value: String, @StringRes label: Int, onChange: (String) -> Unit) {
+    val shape = MaterialTheme.shapes.medium
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
         label = { Text(stringResource(label)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         singleLine = true,
+        shape = shape,
         modifier = Modifier
             .fillMaxWidth()
-            .generalContentBackground(shape = OutlinedTextFieldDefaults.shape, hasLabel = true),
+            .generalContentBackground(shape = shape, hasLabel = true),
     )
 }
 

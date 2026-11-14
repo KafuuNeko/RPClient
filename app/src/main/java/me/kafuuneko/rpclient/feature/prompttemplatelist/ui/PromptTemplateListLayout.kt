@@ -293,6 +293,7 @@ private fun MetadataDialog(
     state: PromptTemplateListUiState.Normal,
     emit: PromptTemplateListUiIntent.() -> Unit
 ) {
+    // 名称与描述沿用同一弹窗输入样式，保存状态和校验继续由页面状态控制。
     AppInputDialog(
         onDismissRequest = { PromptTemplateListUiIntent.DismissDialog.emit() },
         title = stringResource(if (dialog.targetId == null) R.string.prompt_template_create else R.string.prompt_template_edit_details),
@@ -313,6 +314,7 @@ private fun MetadataDialog(
                 enabled = !state.busy,
                 minLines = 2,
                 maxLines = 4,
+                shape = RoundedCornerShape(16.dp),
             )
 
         },

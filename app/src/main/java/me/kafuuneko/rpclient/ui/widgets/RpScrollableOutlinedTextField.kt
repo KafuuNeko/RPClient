@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
@@ -94,7 +95,7 @@ fun rememberBoundTextFieldState(
  * @param singleLine 是否限制为单行；单行输入不启用纵向指示器
  * @param minLines 最少显示行数
  * @param maxLines 最多显示行数，超出后改为内部滚动
- * @param shape 文本框形状
+ * @param shape 文本框形状，默认与页面内的 12dp 圆角控件保持一致。
  * @param colors 文本框颜色配置
  */
 @Composable
@@ -117,7 +118,7 @@ fun RpScrollableOutlinedTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
     maxLines: Int = Int.MAX_VALUE,
-    shape: Shape = OutlinedTextFieldDefaults.shape,
+    shape: Shape = MaterialTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     val scrollState = rememberScrollState()
@@ -181,7 +182,7 @@ fun RpScrollableOutlinedTextField(
  * @param singleLine 是否限制为单行；单行输入不启用纵向指示器
  * @param minLines 最少显示行数
  * @param maxLines 最多显示行数，超出后改为内部滚动
- * @param shape 文本框形状
+ * @param shape 文本框形状，默认与页面内的 12dp 圆角控件保持一致。
  * @param colors 文本框颜色配置
  */
 @Composable
@@ -205,7 +206,7 @@ fun RpScrollableOutlinedTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
     maxLines: Int = Int.MAX_VALUE,
-    shape: Shape = OutlinedTextFieldDefaults.shape,
+    shape: Shape = MaterialTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     // 状态式 API 让多行输入暴露真实滚动位置，单行输入则保持原有横向滚动行为。

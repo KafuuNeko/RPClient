@@ -4,6 +4,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
@@ -14,7 +15,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 
 /**
- * 描边输入框统一继承所属区域的边框透明度，保留 Material 的编辑、焦点与错误状态。
+ * 描边输入框统一继承主题中等圆角与所属区域的边框透明度，保留 Material 的编辑、焦点与错误状态。
+ * @param shape 文本框形状，默认与页面内的 12dp 圆角控件保持一致。
  * @param colors 原始配色，边框透明度只在此入口应用一次。
  */
 @Composable
@@ -40,7 +42,7 @@ fun PageOutlinedTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     minLines: Int = 1,
     interactionSource: MutableInteractionSource? = null,
-    shape: Shape = OutlinedTextFieldDefaults.shape,
+    shape: Shape = MaterialTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
 ) {
     // 只修改颜色中的边框通道，避免整体 alpha 连带淡化输入内容和浮动标签。
