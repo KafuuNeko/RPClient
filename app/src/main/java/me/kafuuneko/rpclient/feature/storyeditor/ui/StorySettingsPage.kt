@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
@@ -27,7 +25,6 @@ import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.CardDefaults
@@ -45,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,12 +53,12 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorPageState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorUiIntent
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StorySettingsSection
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.DraggableItem
-import me.kafuuneko.rpclient.ui.widgets.PageButton
 import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
@@ -74,7 +70,7 @@ import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
 import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.dragContainer
-import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
+import me.kafuuneko.rpclient.ui.widgets.generalOpacity
 import me.kafuuneko.rpclient.ui.widgets.rememberLazyListDragDropState
 
 /**
@@ -204,76 +200,66 @@ private fun ContextSettings(
     state: StoryEditorPageState.Settings,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
-    // 保存期间沿用原有字段禁用规则，滚动状态仍由当前设置分区持有。
     val controlsEnabled = !state.isSaving
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .draggableScrollIndicator(scrollState)
-            .verticalScroll(scrollState)
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+    // 操作与上下文分别成组，列表留白和分区间距与单聊、群聊设置保持一致。
+    RpLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
-            SettingsActionRow(
-                icon = Icons.Rounded.Delete,
-                title = stringResource(R.string.story_delete_story),
-                iconTint = MaterialTheme.colorScheme.error,
-                enabled = controlsEnabled,
-                onClick = { StoryEditorUiIntent.ShowDeleteStoryDialog.emit() },
-            )
+        item {
+            SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+                SettingsActionRow(
+                    icon = Icons.Rounded.Delete,
+                    title = stringResource(R.string.story_delete_story),
+                    iconTint = MaterialTheme.colorScheme.error,
+                    enabled = controlsEnabled,
+                    onClick = { StoryEditorUiIntent.ShowDeleteStoryDialog.emit() },
+                )
+            }
         }
-        UserPersonaSetting(state = state, enabled = controlsEnabled, emit = emit)
-        SettingIntro(
-            icon = Icons.AutoMirrored.Rounded.MenuBook,
-            title = stringResource(R.string.story_memory),
+        item {
+            StoryContextSection(state = state, emit = emit)
+        }
+    }
+}
+
+@Composable
+private fun StoryContextSection(
+    state: StoryEditorPageState.Settings,
+    emit: StoryEditorUiIntent.() -> Unit,
+) {
+    val controlsEnabled = !state.isSaving
+    // 字段通过标签识别，长文本达到上限后继续在输入框内滚动。
+    SettingsSection(title = stringResource(R.string.story_context_settings)) {
+        UserPersonaPicker(
+            state = state.persona,
+            allowNone = true,
+            onSelect = { StoryEditorUiIntent.SelectPersona(it).emit() },
+            enabled = controlsEnabled,
         )
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.memory,
             onValueChange = { text -> StoryEditorUiIntent.ChangeMemory(text).emit() },
             label = { Text(stringResource(R.string.story_memory)) },
-            minLines = 6,
-            maxLines = 12,
+            minLines = 4,
+            maxLines = 10,
             enabled = controlsEnabled,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
         )
-        SettingIntro(
-            icon = Icons.Rounded.AutoAwesome,
-            title = stringResource(R.string.story_summary),
-        )
-        StorySummarySettings(state, emit)
-        SettingIntro(
-            icon = Icons.Rounded.Edit,
-            title = stringResource(R.string.story_author_note),
-            subtitle = stringResource(R.string.story_author_note_desc),
-        )
+        StorySummarySettings(state = state, emit = emit)
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = state.authorNote,
             onValueChange = { text -> StoryEditorUiIntent.ChangeAuthorNote(text).emit() },
             label = { Text(stringResource(R.string.story_author_note)) },
-            minLines = 4,
-            maxLines = 10,
+            minLines = 3,
+            maxLines = 8,
             enabled = controlsEnabled,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
         )
-        Spacer(Modifier.height(8.dp))
     }
-}
-
-@Composable
-private fun UserPersonaSetting(
-    state: StoryEditorPageState.Settings,
-    enabled: Boolean,
-    emit: StoryEditorUiIntent.() -> Unit,
-) {
-    UserPersonaPicker(
-        state = state.persona, allowNone = true,
-        onSelect = { StoryEditorUiIntent.SelectPersona(it).emit() },
-        enabled = enabled,
-    )
 }
 
 @Composable
@@ -287,21 +273,17 @@ private fun StorySummarySettings(
         value = state.summary,
         onValueChange = { StoryEditorUiIntent.ChangeSummary(it).emit() },
         label = { Text(stringResource(R.string.story_summary)) },
-        minLines = 6,
-        maxLines = 12,
+        minLines = 4,
+        maxLines = 10,
         enabled = !state.isSaving,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
     )
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        PageButton(
-            onClick = { StoryEditorUiIntent.SummarizeStory.emit() },
-            enabled = !state.isSaving,
-        ) {
-            Icon(imageVector = Icons.Rounded.AutoAwesome, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.story_summarize_now))
-        }
-    }
+    SettingsActionRow(
+        icon = Icons.Rounded.AutoAwesome,
+        title = stringResource(R.string.story_summarize_now),
+        enabled = !state.isSaving,
+        onClick = { StoryEditorUiIntent.SummarizeStory.emit() },
+    )
 }
 
 @Composable
@@ -612,7 +594,13 @@ private fun LorebookGroupCard(
                 )
             }
             if (expanded) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                // 分隔线属于内容装饰，随故事内容区透明度淡出，避免卡片透明后仍留下实线。
+                val dividerColor = MaterialTheme.colorScheme.outlineVariant
+                HorizontalDivider(
+                    color = dividerColor.copy(
+                        alpha = dividerColor.alpha * generalOpacity(PageSurfaceKind.Content),
+                    ),
+                )
                 if (group.entries.isEmpty()) {
                     Text(
                         text = stringResource(R.string.story_lorebook_empty),
@@ -687,29 +675,6 @@ private fun LorebookEntryRow(
                     onCheckedChange = {
                         StoryEditorUiIntent.ToggleLorebookEntry(entry.id).emit()
                     },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingIntro(
-    icon: ImageVector,
-    title: String,
-    subtitle: String? = null,
-) {
-    // 标题图标保持一致，只有提供说明时才占用第二行。
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        RpIconBubble(icon)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
