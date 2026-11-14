@@ -318,6 +318,7 @@ private fun StoryMarkdownRenderingPanel(
 /** 从数据设置进入完整备份与恢复页面。 */
 @Composable
 private fun BackupRestoreEntryCard(onClick: () -> Unit) {
+    // 跳转箭头由入口提供，与相邻的数据管理入口保持一致。
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.Storage,
@@ -325,6 +326,14 @@ private fun BackupRestoreEntryCard(onClick: () -> Unit) {
             iconContainerColor = AccentSkyColor.copy(alpha = 0.14f),
             title = stringResource(R.string.backup_restore_title),
             onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp),
+                )
+            },
         )
     }
 }
