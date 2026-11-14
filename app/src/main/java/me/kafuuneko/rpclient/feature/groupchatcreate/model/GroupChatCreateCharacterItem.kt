@@ -18,6 +18,8 @@ data class GroupChatCreateCharacterItem(
     val characterLorebookId: Long = 0L,
     /** 当前角色或群聊可选择的开场白列表。 */
     val greetings: List<String> = emptyList(),
+    /** 由 ViewModel 映射的开场白预览，与原文索引对应。 */
+    val greetingPreviews: List<String> = greetings,
     /** 与其它创建页保持一致的标签检索字段。 */
     val tags: List<String> = emptyList()
 )
@@ -37,8 +39,14 @@ internal fun List<GroupChatCreateCharacterItem>.visibleFor(
     }
 }
 
-/** 将持久化角色转换为当前页面的候选展示项。 */
+/**
+ * 将持久化角色转换为当前页面的候选展示项。
+ * @param userName 本次草稿使用的有效用户名。
+ * @return 同时保留开场白原文和宏展开预览的角色项。
+ */
 internal fun Character.toGroupChatCreateCharacterItem(userName: String): GroupChatCreateCharacterItem {
+    // 从角色卡原文生成预览，切换人设时不在上一次展开结果上替换。
+    val greetings = getChatFirstMessageList()
     return GroupChatCreateCharacterItem(
         id = id,
         name = name,
@@ -49,7 +57,14 @@ internal fun Character.toGroupChatCreateCharacterItem(userName: String): GroupCh
         ),
         selected = false,
         characterLorebookId = characterLorebookId,
-        greetings = getChatFirstMessageList(),
+        greetings = greetings,
+        greetingPreviews = greetings.map { greeting ->
+            resolveCharacterUserMacros(
+                template = greeting,
+                characterName = name,
+                userName = userName
+            )
+        },
         tags = getCharacterTagList(),
     )
 }

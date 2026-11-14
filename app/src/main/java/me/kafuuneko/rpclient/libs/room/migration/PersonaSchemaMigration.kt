@@ -11,7 +11,10 @@ object PersonaSchemaMigration : Migration(5, 6) {
         "story_volumes", "story_chapters", "story_characters", "story_lorebook_entries",
     )
 
-    /** 保留 v5 迁移的提示词与用量统计，再重建会话和故事的绑定。 */
+    /**
+     * 保留 v5 迁移的提示词与用量统计，再重建会话和故事的绑定。
+     * @param db 正在执行结构迁移的数据库。
+     */
     override fun migrate(db: SupportSQLiteDatabase) {
         // 创建 v6 提示词预设表，再迁入缓存统计和人设绑定。
         db.execSQL(
@@ -42,8 +45,12 @@ object PersonaSchemaMigration : Migration(5, 6) {
         rebuild(db)
     }
 
-    /** 在迁移事务内暂存子行，防止重建父表触发级联删除。 */
+    /**
+     * 在迁移事务内暂存子行，防止重建父表触发级联删除。
+     * @param db 正在执行结构迁移的数据库。
+     */
     private fun rebuild(db: SupportSQLiteDatabase) {
+        // 重建父表前卸载搜索触发器，并按外键依赖顺序暂存子行。
         SearchDatabaseCallback.uninstall(db)
         val enforceKeys =
             db.query("PRAGMA foreign_keys").use { it.moveToFirst() && it.getInt(0) != 0 }
@@ -66,8 +73,12 @@ object PersonaSchemaMigration : Migration(5, 6) {
             .use { check(!it.moveToFirst()) { "Invalid migrated foreign key" } }
     }
 
-    /** 建立人设库和默认指针表，以固定 ID 接收原有会话的绑定。 */
+    /**
+     * 建立人设库和默认指针表，以固定 ID 接收原有会话的绑定。
+     * @param db 正在执行结构迁移的数据库。
+     */
     private fun createPersonaTables(db: SupportSQLiteDatabase) {
+        // 人设头像沿用文件索引，限制删除仍被引用的文件。
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `user_personas` (
@@ -91,11 +102,16 @@ object PersonaSchemaMigration : Migration(5, 6) {
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_persona_settings_defaultPersonaId` ON `user_persona_settings` (`defaultPersonaId`)")
+        // 只建占位身份；默认指针留给跨存储升级作为成功提交标记。
         db.execSQL("INSERT INTO user_personas(id,name,description) VALUES(1,'You','')")
     }
 
-    /** 保留角色外键，使单聊名称和描述可分别继承。 */
+    /**
+     * 保留角色外键，使单聊名称和描述可分别继承。
+     * @param db 正在执行结构迁移的数据库。
+     */
     private fun rebuildChats(db: SupportSQLiteDatabase) {
+        // 保留会话主键和角色外键，将名称与描述改为可继承字段。
         rebuildParent(
             db = db,
             table = "chat_sessions",
@@ -123,8 +139,12 @@ object PersonaSchemaMigration : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_chat_sessions_userPersonaId` ON `chat_sessions` (`userPersonaId`)")
     }
 
-    /** 复制群聊策略和设置，按绑定 ID 建立继承关系。 */
+    /**
+     * 复制群聊策略和设置，按绑定 ID 建立继承关系。
+     * @param db 正在执行结构迁移的数据库。
+     */
     private fun rebuildGroups(db: SupportSQLiteDatabase) {
+        // 保留群聊策略原值，只替换人设绑定与覆盖列的结构。
         rebuildParent(
             db = db,
             table = "group_chat_sessions",
@@ -158,8 +178,12 @@ object PersonaSchemaMigration : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_group_chat_sessions_userPersonaId` ON `group_chat_sessions` (`userPersonaId`)")
     }
 
-    /** 用故事的绑定 ID 取代旧布尔开关。 */
+    /**
+     * 用故事的绑定 ID 取代旧布尔开关。
+     * @param db 正在执行结构迁移的数据库。
+     */
     private fun rebuildStories(db: SupportSQLiteDatabase) {
+        // 故事禁用值保留为 -1，由复制投影转换旧布尔开关。
         rebuildParent(
             db = db,
             table = "stories",
@@ -181,8 +205,14 @@ object PersonaSchemaMigration : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_stories_userPersonaId` ON `stories` (`userPersonaId`)")
     }
 
-    /** 用显式列投影保留旧主键、宏原文和已删除记录的序列高水位。 */
+    /**
+     * 用显式列投影保留旧主键、宏原文和已删除记录的序列高水位。
+     * @param db 正在执行结构迁移的数据库。
+     * @param table 待重建的已知业务表名。
+     * @param createSql 最终结构对应的临时新表建表语句。
+     */
     private fun rebuildParent(db: SupportSQLiteDatabase, table: String, createSql: String) {
+        // 保存自增高水位，避免重建后复用已删除记录的 ID。
         val sequence =
             db.query("SELECT seq FROM sqlite_sequence WHERE name = ?", arrayOf(table)).use {
                 if (it.moveToFirst()) it.getLong(0) else null
@@ -193,6 +223,7 @@ object PersonaSchemaMigration : Migration(5, 6) {
         val legacyColumns = (target - "userPersonaId").toMutableSet()
         if (table == "stories") legacyColumns.add("includeUserPersona")
         check(old.toSet() == legacyColumns) { "Unexpected columns in $table" }
+        // 严格校验旧列集合，再为新增人设绑定生成兼容投影。
         val select = target.map { column ->
             when {
                 column != "userPersonaId" -> "`$column`"

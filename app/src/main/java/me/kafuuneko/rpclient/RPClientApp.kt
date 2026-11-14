@@ -78,7 +78,6 @@ import me.kafuuneko.rpclient.libs.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
-import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260103
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260404
 import okhttp3.OkHttpClient
@@ -98,7 +97,6 @@ class RPClientApp : Application() {
             modules(appModules)
         }
         runBlocking(Dispatchers.IO) {
-            UserPersonaUpgrade.prepareLive(koinApplication.koin.get<AppDatabase>())
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
             koinApplication.koin.get<FileRepository>().cleanupAbandonedFiles()
@@ -185,12 +183,15 @@ internal val appModules = module {
     singleOf(::AndroidAppVersionCodeProvider)
     singleOf(::AppModelUpgradeVersionStore)
     singleOf(::Upgrade20260103)
-    singleOf(::Upgrade20260404)
+    single { Upgrade20260404(get(), get(), AppModel.preferences) }
     single {
         AppUpgradeManager(
             versionCodeProvider = get<AndroidAppVersionCodeProvider>(),
             versionStore = get<AppModelUpgradeVersionStore>(),
-            upgrades = listOf(get<Upgrade20260103>(), get<Upgrade20260404>()),
+            upgrades = listOf(
+                get<Upgrade20260103>(),
+                get<Upgrade20260404>()
+            ),
         )
     }
 

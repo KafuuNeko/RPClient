@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import android.content.ContentProvider
 import android.content.ContentResolver
 import android.content.ContentValues
@@ -256,6 +257,7 @@ class MultimodalImageIntegrationTest {
         media = MessageImageRuntime(context, files) { ImageSendSettings() }
         chat = ChatRepository(
             mAppDatabase = database,
+            mPersonas = UserPersonaRepository(database, files),
             mGson = Gson(),
             mImages = MessageImageRepository(database, files),
         )

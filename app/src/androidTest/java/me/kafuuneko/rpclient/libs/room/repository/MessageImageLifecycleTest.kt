@@ -80,8 +80,14 @@ class MessageImageLifecycleTest {
             .build()
         files = FileRepository(context, database)
         images = MessageImageRepository(database, files)
-        chat = ChatRepository(mAppDatabase = database, mGson = Gson(), mImages = images)
-        group = GroupChatRepository(mAppDatabase = database, mGson = Gson(), mImages = images)
+        chat = ChatRepository(
+            mAppDatabase = database,
+            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
+        )
+        group = GroupChatRepository(
+            mAppDatabase = database,
+            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
+        )
         characters = CharacterRepository(
             mAppDatabase = database,
             mGson = Gson(),
@@ -282,6 +288,7 @@ class MessageImageLifecycleTest {
     @Test
     fun archiveImageDetectionUsesStoredTypeAndCurrentAttachments() = runBlocking {
         val archive = ChatArchiveRepository(
+            mPersonas = UserPersonaRepository(database, files),
             mContext = context,
             mAppDatabase = database,
             mCodec = ChatArchiveCodec(Gson()),

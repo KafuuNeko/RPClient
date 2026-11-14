@@ -20,7 +20,9 @@ data class GroupChatGreetingCharacterItem(
     /** 供界面展示和业务识别的名称。 */
     val name: String,
     /** 当前角色或群聊可选择的开场白列表。 */
-    val greetings: List<String>
+    val greetings: List<String>,
+    /** 供 Compose 直接渲染的预览，与原文保持相同顺序。 */
+    val greetingPreviews: List<String> = greetings
 )
 
 /** 创建页开场白区域的完整可交互状态。 */
@@ -56,6 +58,7 @@ data class GroupChatCreateGreetingState(
  * 成员变化后收敛开场白候选和选择，避免删除成员后留下悬空角色或候选索引。
  *
  * @param characters 当前全量角色项列表
+ * @return 保留有效选择并同步预览的开场白状态。
  */
 internal fun GroupChatCreateGreetingState.reconcile(
     characters: List<GroupChatCreateCharacterItem>,
@@ -66,6 +69,7 @@ internal fun GroupChatCreateGreetingState.reconcile(
             id = groupChatCreateCharacterItem.id,
             name = groupChatCreateCharacterItem.name,
             greetings = groupChatCreateCharacterItem.greetings,
+            greetingPreviews = groupChatCreateCharacterItem.greetingPreviews,
         )
     }
     val current = candidates.firstOrNull { it.id == selectedCharacterId }
@@ -88,8 +92,12 @@ internal fun GroupChatCreateGreetingState.reconcile(
     )
 }
 
-/** 将开场白状态映射为领域层开场白选择实体。 */
+/**
+ * 将开场白状态映射为领域层开场白选择实体。
+ * @return 保留原始索引或自定义原文的开场白选择。
+ */
 internal fun GroupChatCreateGreetingState.toSelection(): GroupChatGreetingSelection {
+    // 手动模式传递原文索引，宏由领域规划器按最终身份展开。
     return when (mode) {
         GroupChatGreetingMode.RandomPerCharacter ->
             GroupChatGreetingSelection.RandomPerCharacter

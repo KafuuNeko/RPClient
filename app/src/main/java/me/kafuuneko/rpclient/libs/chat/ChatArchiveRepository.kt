@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
@@ -36,7 +37,8 @@ class ChatArchiveRepository(
     private val mCodec: ChatArchiveCodec,
     private val mFiles: FileRepository,
     private val mImages: MessageImageRuntime,
-    private val mImageStore: ChatArchiveImageStore
+    private val mImageStore: ChatArchiveImageStore,
+    private val mPersonas: UserPersonaRepository
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
@@ -307,8 +309,7 @@ class ChatArchiveRepository(
         characterId: Long,
         userPersonaId: Long?
     ): Long {
-        val personas = mAppDatabase.getUserPersonaDao()
-        val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
+        val persona = userPersonaId?.let { mPersonas.chatPersona(it) } ?: mPersonas.active()
         requireNotNull(mCharacterDao.getCharacterById(characterId)) { "Selected character no longer exists" }
         // 只恢复可移植设置；外部数据库的世界书主键及运行状态必须重新建立。
         return mChatSessionDao.insertOrReplace(
@@ -395,7 +396,7 @@ class ChatArchiveRepository(
                 mChatMessageDao.getMessageIndexBySessionId(sessionId, messageId)
             }
             ?: -1
-        val persona = mAppDatabase.getUserPersonaDao().resolve(session)
+        val persona = mPersonas.resolve(session)
         return ChatArchive(
             title = session.title,
             createTime = session.createTime,

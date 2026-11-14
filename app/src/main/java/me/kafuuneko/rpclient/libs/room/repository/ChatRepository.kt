@@ -94,15 +94,20 @@ data class ChatPageData(
 class ChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
-    private val mImages: MessageImageRepository
+    private val mImages: MessageImageRepository,
+    private val mPersonas: UserPersonaRepository
 ) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
     private val mCharacterDao = mAppDatabase.getCharacterDao()
 
-    /** 修改会话人设，保留独立覆盖。 */
+    /**
+     * 修改会话人设，保留独立覆盖。
+     * @param id 目标单聊 ID。
+     * @param personaId 目标人设或跟随默认的绑定值。
+     */
     suspend fun selectPersona(id: Long, personaId: Long) = mAppDatabase.withTransaction {
-        mAppDatabase.getUserPersonaDao().chatPersona(personaId)
+        mPersonas.chatPersona(personaId)
         mChatSessionDao.selectPersona(id, personaId)
     }
 
@@ -199,7 +204,7 @@ class ChatRepository(
      */
     suspend fun saveSession(session: ChatSession): Long = mAppDatabase.withTransaction {
         val normalized = session.withNormalizedCreatorNotes()
-        val persona = mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
+        val persona = mPersonas.chatPersona(session.userPersonaId)
         if (session.id == 0L) {
             mChatSessionDao.insertOrReplace(
                 normalized.copy(
@@ -234,8 +239,7 @@ class ChatRepository(
     ): Long {
         // 会话配置与开场白必须原子写入，避免创建失败后留下不完整会话。
         return mAppDatabase.withTransaction {
-            val personas = mAppDatabase.getUserPersonaDao()
-            val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
+            val persona = userPersonaId?.let { mPersonas.chatPersona(it) } ?: mPersonas.active()
             val sessionId = mChatSessionDao.insertOrReplace(
                 data = ChatSession(
                     characterId = characterId,
@@ -331,7 +335,7 @@ class ChatRepository(
             val branchSessionId = mChatSessionDao.insertOrReplace(
                 data = sourceSession.copy(
                     id = 0L,
-                    userName = mAppDatabase.getUserPersonaDao().resolve(sourceSession).name,
+                    userName = mPersonas.resolve(sourceSession).name,
                     createTime = createTime,
                     latestTime = createTime,
                     title = title,
@@ -380,7 +384,7 @@ class ChatRepository(
      * @param session 要更新的会话。
      */
     suspend fun updateSession(session: ChatSession) = mAppDatabase.withTransaction {
-        mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
+        mPersonas.chatPersona(session.userPersonaId)
         mChatSessionDao.update(session.withNormalizedCreatorNotes())
     }
 

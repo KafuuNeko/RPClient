@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chat.model
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /**
@@ -14,14 +15,17 @@ import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
  * @property worldInfoStateJson 世界书时序激活状态快照 JSON
  */
 internal data class BuiltGenerationRequest(
+    /** 本次回复和自动摘要共同使用的有效身份。 */
+    val persona: UserPersona,
     /** 当前请求关联的模型供应商类型。 */
     val provider: LLMProvider,
     /** 经过业务层组装、准备提交给模型服务的请求。 */
     val request: LLMGenerationRequest,
     /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
     val inspection: PromptInspection,
-    /** 序列化后的世界书时序状态，需要随会话或故事持久化。 */
+    /** 本次生成冻结的提示词模板。 */
     val templates: PromptTemplateSnapshot,
+    /** 随本次生成提交的世界书时序状态。 */
     val worldInfoStateJson: String,
     /** 回复和 Prompt 共享本轮的人设与正则脚本。 */
     val regex: GenerationRegexContext,

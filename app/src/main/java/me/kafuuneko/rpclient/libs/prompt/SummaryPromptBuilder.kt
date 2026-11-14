@@ -32,8 +32,8 @@ internal const val DEFAULT_SUMMARY_CONTEXT_TOKENS = 8192
  */
 internal fun classicSummaryInstruction(template: String, wordsLimit: Int): String {
     val instruction = template
-        .replace(Regex("""\{\{\s*words\s*}}""", RegexOption.IGNORE_CASE), wordsLimit.toString())
-        .replace(Regex("""\{\{\s*(summary|history)\s*}}""", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("""\{\{\s*words\s*\}\}""", RegexOption.IGNORE_CASE), wordsLimit.toString())
+        .replace(Regex("""\{\{\s*(summary|history)\s*\}\}""", RegexOption.IGNORE_CASE), "")
     require(instruction.isNotBlank()) { "Summary instruction cannot be blank" }
     return instruction
 }

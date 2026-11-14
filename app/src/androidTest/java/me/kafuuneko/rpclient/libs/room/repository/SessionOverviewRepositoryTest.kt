@@ -33,6 +33,7 @@ class SessionOverviewRepositoryTest {
                 .build()
         mChatRepository = ChatRepository(
             mAppDatabase = mDatabase,
+            mPersonas = UserPersonaRepository(mDatabase, FileRepository(context, mDatabase)),
             mGson = Gson(),
             mImages = MessageImageRepository(
                 mDatabase = mDatabase,
@@ -44,6 +45,7 @@ class SessionOverviewRepositoryTest {
         )
         mGroupChatRepository = GroupChatRepository(
             mAppDatabase = mDatabase,
+            mPersonas = UserPersonaRepository(mDatabase, FileRepository(context, mDatabase)),
             mGson = Gson(),
             mImages = MessageImageRepository(
                 mDatabase = mDatabase,

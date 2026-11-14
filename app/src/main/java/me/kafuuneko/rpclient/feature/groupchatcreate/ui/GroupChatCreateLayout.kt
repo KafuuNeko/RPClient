@@ -45,7 +45,6 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreat
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
@@ -169,7 +168,6 @@ private fun GroupChatCreateNormalView(
                 item {
                     GreetingSection(
                         state = state.greetingState,
-                        userName = state.persona.selectedName,
                         emitIntent = emitIntent,
                     )
                 }
@@ -284,7 +282,6 @@ private fun StrategySection(
 @Composable
 private fun GreetingSection(
     state: GroupChatCreateGreetingState,
-    userName: String?,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -304,7 +301,6 @@ private fun GreetingSection(
 
             GroupChatGreetingMode.Manual -> ManualGreetingEditor(
                 state = state,
-                userName = userName,
                 emitIntent = emitIntent,
             )
 
@@ -356,7 +352,6 @@ private fun GreetingModeOption(
 @Composable
 private fun ManualGreetingEditor(
     state: GroupChatCreateGreetingState,
-    userName: String?,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     GreetingCharacterSelector(state, emitIntent)
@@ -374,7 +369,7 @@ private fun ManualGreetingEditor(
             text = stringResource(R.string.group_chat_greeting_choose_message),
             style = MaterialTheme.typography.labelLarge,
         )
-        selectedCharacter.greetings.forEachIndexed { index, greeting ->
+        selectedCharacter.greetingPreviews.forEachIndexed { index, greeting ->
             // 手动开场白与模式选项共用底色，切换选中项不会改变底板的实际不透明度。
             AppSurface(
                 modifier = Modifier
@@ -398,11 +393,7 @@ private fun ManualGreetingEditor(
                         },
                     )
                     Text(
-                        text = resolveCharacterUserMacros(
-                            template = greeting,
-                            characterName = selectedCharacter.name,
-                            userName = userName,
-                        ),
+                        text = greeting,
                         modifier = Modifier.padding(start = 8.dp, top = 10.dp),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 4,

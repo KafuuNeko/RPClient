@@ -27,16 +27,28 @@ class UserPersonaRepository(
         PersonaSelection(mDao.list(), id ?: mDao.active().id)
     }
 
-    /** 单聊和群聊可显式选中「跟随默认人设」，预览仍使用真实姓名。 */
+    /**
+     * 单聊和群聊可显式选中「跟随默认人设」，预览仍使用真实姓名。
+     * @param id 会话绑定 ID，省略时预选当前默认人设。
+     * @return 候选项、选中 ID 和默认人设的显示名称。
+     */
     suspend fun chatSelection(id: Long? = null) = mDatabase.withTransaction {
         val active = mDao.active()
         PersonaSelection(mDao.list(), id ?: active.id, followDefaultName = active.name)
     }
 
-    /** 读取聊天实际继承的姓名、描述和头像。 */
-    suspend fun chatPersona(id: Long) = mDao.chatPersona(id)
+    /**
+     * 读取聊天实际继承的姓名、描述和头像。
+     * @param id 会话绑定 ID，跟随默认项时读取当前默认指针。
+     * @return 未应用会话覆盖的完整人设。
+     */
+    suspend fun chatPersona(id: Long): UserPersona =
+        if (id == UserPersona.FOLLOW_DEFAULT) active() else mDao.get(id)
 
-    /** 返回创建会话时的默认项。 */
+    /**
+     * 返回创建会话时的默认项。
+     * @return 当前默认指针指向的完整人设。
+     */
     suspend fun active() = mDao.active()
 
     /**
@@ -51,14 +63,25 @@ class UserPersonaRepository(
      * @param session 带有绑定 ID 和两个独立覆盖字段的会话。
      * @return 名称与描述逐字段合并后的身份快照。
      */
-    suspend fun resolve(session: ChatSession) = mDao.resolve(session)
+    suspend fun resolve(session: ChatSession) =
+        chatPersona(session.userPersonaId).withOverrides(session.userName, session.userDescription)
 
     /**
      * 解析当前群聊的有效身份。
      * @param session 带有绑定 ID 和两个独立覆盖字段的群聊。
      * @return 名称与描述逐字段合并后的身份快照。
      */
-    suspend fun resolve(session: GroupChatSession) = mDao.resolve(session)
+    suspend fun resolve(session: GroupChatSession) =
+        chatPersona(session.userPersonaId).withOverrides(session.userName, session.userDescription)
+
+    /**
+     * 在同一读取事务中冻结单聊绑定、默认指针及字段覆盖，供一次发送复用。
+     * @param sessionId 目标单聊 ID。
+     * @return 当前有效身份；会话已删除时返回 null。
+     */
+    suspend fun resolveChat(sessionId: Long): UserPersona? = mDatabase.withTransaction {
+        mDatabase.getChatSessionDao().getSessionById(sessionId)?.let { resolve(it) }
+    }
 
     /**
      * 在同一事务内创建并启用新人设。
@@ -82,9 +105,11 @@ class UserPersonaRepository(
 
     /**
      * 删除默认项时启用最早创建的剩余人设；删除最后一项时新建初始人设，随解绑一并提交。
+     * @param id 待删除的人设 ID。
      * @return 是否删除了指定身份。
      */
     suspend fun delete(id: Long): Boolean = mFiles.mutate {
+        // 先确定替代默认项，保证解绑和删除期间默认指针始终有效。
         val persona = mDao.find(id) ?: return@mutate false
         val wasDefault = mDao.active().id == id
         if (wasDefault) {

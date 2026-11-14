@@ -108,6 +108,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
@@ -161,8 +162,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     generationState = ChatGenerationState.Requesting
                 )
-                val templates = generateCommittedReply(sessionId)
-                maybeAutoSummarize(sessionId, templates)
+                val built = generateCommittedReply(sessionId)
+                maybeAutoSummarize(sessionId, built.templates, built.persona)
             } catch (error: Exception) {
                 val failure = error.toGenerationFailurePresentation(
                     context = mContext, fallbackMessageResId = R.string.generation_failed,
@@ -619,6 +620,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mGenerationJob = viewModelScope.launch {
             var committed = false
             runCatching {
+                // 在任何输入转换之前固定身份，读取失败也走发送流程的错误处理。
+                val persona = mPersonas.resolveChat(sessionId) ?: return@runCatching
                 // 已知不支持时保留草稿，防止先清空输入后才发现模型能力不足。
                 if (images.isNotEmpty()) {
                     val character = mCharacterRepository.getCharacterById(uiState.character.id)
@@ -631,7 +634,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
                 // 执行用户输入端 Source 正则
                 val input = withContext(Dispatchers.IO) {
-                    applyUserRegex(sessionId, rawInput)
+                    applyUserRegex(sessionId, rawInput, personaOverride = persona)
                 }
                 // 将用户消息写入数据库
                 mImageCoordinator.submit { finalInputs ->
@@ -651,9 +654,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     inputDraft = "",
                     generationState = ChatGenerationState.Requesting,
                 )
-                generateCommittedReply(sessionId, templates)
-                // 回复和它触发的摘要复用同一模板，期间切换只影响后续操作。
-                maybeAutoSummarize(sessionId, templates)
+                generateCommittedReply(sessionId, templates, persona)
+                // 回复和它触发的摘要复用同一模板及身份，期间切换只影响后续操作。
+                maybeAutoSummarize(sessionId, templates, persona)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 失败状态
                 val failure = throwable.toGenerationFailurePresentation(
@@ -673,13 +676,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
     }
 
-    /** 为已提交的用户消息生成回复；成功后先释放恢复目标，再运行独立的摘要流程。 */
+    /**
+     * 为已提交的用户消息生成回复，成功后释放恢复目标。
+     * @param sessionId 当前会话 ID。
+     * @param templates 本次发送的模板快照；重试时可重新读取。
+     * @param persona 本次发送的有效身份；重试时可重新读取。
+     * @return 携带模板和身份快照的请求，供后续摘要继续复用。
+     */
     private suspend fun generateCommittedReply(
         sessionId: Long,
-        templates: PromptTemplateSnapshot? = null
-    ): PromptTemplateSnapshot {
+        templates: PromptTemplateSnapshot? = null,
+        persona: UserPersona? = null,
+    ): BuiltGenerationRequest {
         val built =
-            withContext(Dispatchers.IO) { buildGenerationRequest(sessionId, templates = templates) }
+            withContext(Dispatchers.IO) {
+                buildGenerationRequest(sessionId, templates = templates, personaOverride = persona)
+            }
         recordPromptInspection(built.inspection)
         val output = GenerationOutput.Create(ChatMessage.Source.Char)
         // 首次发送和失败恢复共享相同分发，恢复时不再提交用户正文或附件。
@@ -689,7 +701,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             generateOnce(sessionId, built, output)
         }
         clearReplyRetry()
-        return built.templates
+        return built
     }
 
     /**
@@ -1498,9 +1510,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
-    /** 切换人设，独立的名称及描述覆盖继续有效。 */
+    /**
+     * 切换人设，独立的名称及描述覆盖继续有效。
+     * @param intent 用户选择的目标人设。
+     */
     @UiIntentObserver(ChatUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: ChatUiIntent.SelectPersona) {
+        if (!isStateOf<ChatUiState.Normal>()) return
         val id = mSessionId ?: return
         mChatRepository.selectPersona(id, intent.id)
         refreshUiState(sessionId = id)
@@ -1830,7 +1846,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId, built.templates)
+                maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
                 // 异常处理：解析错误信息并更新 UI 状态
                 val failure = throwable.toGenerationFailurePresentation(
@@ -1912,7 +1928,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId, built.templates)
+                maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
                 val errorResId =
                     if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
@@ -1979,7 +1995,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
                 // 检查自动总结
-                maybeAutoSummarize(sessionId, built.templates)
+                maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
                 val failure = throwable.toGenerationFailurePresentation(
                     context = mContext, fallbackMessageResId = R.string.impersonation_failed,
@@ -2173,12 +2189,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      *
      * @param sessionId 会话 ID
      * @param showToast 是否在总结完成或出错时弹出 Toast（手动触发为 true，自动触发为 false）
+     * @param templates 自动摘要复用的模板；手动摘要在任务内读取。
+     * @param persona 自动摘要复用的回复身份；手动摘要在任务内读取。
      * @return 启动的任务 Job
      */
     private suspend fun launchSummaryJob(
         sessionId: Long,
         showToast: Boolean,
-        templates: PromptTemplateSnapshot? = null
+        templates: PromptTemplateSnapshot? = null,
+        persona: UserPersona? = null,
     ): Job {
         return mSummaryJobMutex.withLock {
             // 取消并等待上一个可能正在执行的总结任务
@@ -2186,7 +2205,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 启动新的总结协程任务
             viewModelScope.launch {
                 try {
-                    summarizeSession(sessionId, showToast, templates)
+                    summarizeSession(sessionId, showToast, templates, persona)
                 } finally {
                     // 收尾处理：若弹窗仍处于“总结中”状态，则安全关闭弹窗
                     withContext(NonCancellable) {
@@ -2214,8 +2233,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * - 上次总结之后的新增消息数达到全局设定阈值（[AppModel.summaryTriggerMessageCount]）。
      *
      * @param sessionId 会话 ID
+     * @param templates 本轮回复使用的模板快照。
+     * @param persona 本轮回复使用的有效身份。
      */
-    private suspend fun maybeAutoSummarize(sessionId: Long, templates: PromptTemplateSnapshot) {
+    private suspend fun maybeAutoSummarize(
+        sessionId: Long,
+        templates: PromptTemplateSnapshot,
+        persona: UserPersona,
+    ) {
+        // 只重新检查摘要触发条件，人设沿用已完成回复的快照。
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mChatRepository.getSessionById(sessionId)
@@ -2225,7 +2251,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         if (shouldSummarize) {
             val job =
-                launchSummaryJob(sessionId = sessionId, showToast = false, templates = templates)
+                launchSummaryJob(
+                    sessionId = sessionId,
+                    showToast = false,
+                    templates = templates,
+                    persona = persona
+                )
             job.join()
         }
     }
@@ -2242,11 +2273,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param sessionId 会话 ID
      * @param showToast 是否显示 Toast 提示
      * @param templates 调用方固定的预设快照，为空时读取当前预设。
+     * @param persona 自动摘要复用的回复身份；为空时捕获当次身份。
      */
     private suspend fun summarizeSession(
         sessionId: Long,
         showToast: Boolean,
-        templates: PromptTemplateSnapshot?
+        templates: PromptTemplateSnapshot?,
+        persona: UserPersona? = null,
     ) {
         runCatching {
             val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
@@ -2258,7 +2291,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     ?: return@withContext null
                 val provider = mProviderSelectionResolver.requireSummaryProvider()
                 AutoSummaryData(
-                    persona = mPersonas.resolve(session),
+                    persona = persona ?: mPersonas.resolve(session),
                     session = session,
                     character = character,
                     provider = provider,
@@ -2506,6 +2539,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             templates = templates,
             historyOverride = history,
             providerOverride = data.provider.copy(maxTokens = AppModel.summaryResponseTokens),
+            personaOverride = data.persona,
             summaryInstruction = classicSummaryInstruction(
                 templates.summarizePrompt,
                 AppModel.summaryWordsLimit
@@ -2530,6 +2564,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param historyOverride Classic 摘要已经校验的近期图文快照。
      * @param providerOverride 摘要专用模型与回复预留；普通生成时自动解析角色模型。
      * @param summaryInstruction Classic 摘要的末尾任务模板。
+     * @param templates 本次操作使用的模板快照。
+     * @param userWritingDraft 扮演用户时参考的草稿。
+     * @param personaOverride 发送或摘要开始时捕获的有效身份，省略时在构建前读取。
      * @return 构建完成的生成请求数据包装对象
      */
     private suspend fun buildGenerationRequest(
@@ -2541,6 +2578,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         historyOverride: ChatPromptHistoryContext? = null,
         providerOverride: LLMProvider? = null,
         summaryInstruction: String? = null,
+        personaOverride: UserPersona? = null,
     ): BuiltGenerationRequest {
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
@@ -2548,7 +2586,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId)
             ?: error(mContext.getString(R.string.character_not_found))
-        val persona = mPersonas.resolve(session)
+        val persona = personaOverride ?: mPersonas.resolve(session)
         val generationHistory = historyOverride ?: mChatRepository.getPromptHistoryContext(
             sessionId = sessionId,
             excludedMessageId = excludedMessageId,
@@ -2611,6 +2649,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         }
         return BuiltGenerationRequest(
+            persona = persona,
             regex = GenerationRegexContext(
                 scripts = regexScripts,
                 macros = RegexScriptRuntime.macros(
@@ -2951,14 +2990,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param input 原始用户文本
      * @param isEdit 是否为编辑已有消息
      * @return 经过正则替换后的文本
+     * @param personaOverride 发送开始时固定的身份；编辑消息时读取当前身份。
      */
     private suspend fun applyUserRegex(
         sessionId: Long,
         input: String,
         isEdit: Boolean = false,
+        personaOverride: UserPersona? = null,
     ): String {
         val session = mChatRepository.getSessionById(sessionId) ?: return input
-        val persona = mPersonas.resolve(session)
+        val persona = personaOverride ?: mPersonas.resolve(session)
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return input
         val scripts = mRegexRepository.activeScripts(listOf(character))
         val macros = RegexScriptRuntime.macros(

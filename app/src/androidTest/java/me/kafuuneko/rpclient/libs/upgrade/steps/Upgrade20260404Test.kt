@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade
 import me.kafuuneko.rpclient.libs.upgrade.LegacyPromptSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,7 +23,7 @@ class Upgrade20260404Test {
     fun failedMigrationPreservesPreferencesAndCleanupDoesNotReplayDeletedTemplate() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val preferences = AppModel.preferences
-        val managedKeys = LegacyPromptSnapshot.keys + setOf(
+        val managedKeys = LegacyPromptSnapshot.keys + UserPersonaUpgrade.keys + setOf(
             "promptMigrationUnrelatedTest",
             "activePromptPresetId"
         )

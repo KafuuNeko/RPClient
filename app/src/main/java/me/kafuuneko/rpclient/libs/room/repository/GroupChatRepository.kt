@@ -123,7 +123,8 @@ data class GroupChatMessagePage(
 class GroupChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
-    private val mImages: MessageImageRepository
+    private val mImages: MessageImageRepository,
+    private val mPersonas: UserPersonaRepository
 ) {
     /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
@@ -216,7 +217,7 @@ class GroupChatRepository(
         return mAppDatabase.withTransaction {
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
             GroupChatData(
-                persona = mAppDatabase.getUserPersonaDao().resolve(session),
+                persona = mPersonas.resolve(session),
                 session = session,
                 members = getMemberData(sessionId),
                 messages = mMessageDao.getMessages(sessionId),
@@ -258,7 +259,7 @@ class GroupChatRepository(
                 }
                 return@withTransaction GroupChatSummaryGenerationData(
                     data = GroupChatData(
-                        persona = mAppDatabase.getUserPersonaDao().resolve(session),
+                        persona = mPersonas.resolve(session),
                         session = session, members = getMemberData(sessionId),
                         messages = recent, summary = summary,
                     ),
@@ -272,7 +273,7 @@ class GroupChatRepository(
             )
             GroupChatSummaryGenerationData(
                 data = GroupChatData(
-                    persona = mAppDatabase.getUserPersonaDao().resolve(session),
+                    persona = mPersonas.resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = messageWindow.messages,
@@ -337,7 +338,7 @@ class GroupChatRepository(
             // 完整计数独立保留给世界书时序，不能被 Prompt 消息窗口替代
             GroupChatPromptData(
                 data = GroupChatData(
-                    persona = batchPersona ?: mAppDatabase.getUserPersonaDao().resolve(session),
+                    persona = batchPersona ?: mPersonas.resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = retained,
@@ -499,7 +500,7 @@ class GroupChatRepository(
             }
             GroupChatPageData(
                 data = GroupChatData(
-                    persona = mAppDatabase.getUserPersonaDao().resolve(session),
+                    persona = mPersonas.resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = page.messages,
@@ -571,8 +572,7 @@ class GroupChatRepository(
         }
         return mAppDatabase.withTransaction {
             // 插入群聊会话记录
-            val personas = mAppDatabase.getUserPersonaDao()
-            val persona = userPersonaId?.let { personas.chatPersona(it) } ?: personas.active()
+            val persona = userPersonaId?.let { mPersonas.chatPersona(it) } ?: mPersonas.active()
             val sessionId = mSessionDao.insertOrReplace(
                 data = GroupChatSession(
                     title = title,
@@ -801,7 +801,7 @@ class GroupChatRepository(
 
     /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) = mAppDatabase.withTransaction {
-        mAppDatabase.getUserPersonaDao().chatPersona(session.userPersonaId)
+        mPersonas.chatPersona(session.userPersonaId)
         mSessionDao.update(session)
     }
 

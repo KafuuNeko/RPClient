@@ -1791,9 +1791,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             .setup()
     }
 
-    /** 将用户选中的人设设为默认。 */
+    /**
+     * 将用户选中的人设设为默认。
+     * @param intent 用户选择的目标人设。
+     */
     @UiIntentObserver(MainUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: MainUiIntent.SelectPersona) {
+        if (!isStateOf<MainUiState.Normal>()) return
         mPersonas.select(intent.id)
         refreshIdentity()
     }

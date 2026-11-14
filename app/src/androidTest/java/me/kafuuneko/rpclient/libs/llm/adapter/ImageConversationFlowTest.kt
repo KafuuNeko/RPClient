@@ -1,5 +1,13 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import me.kafuuneko.rpclient.libs.regex.RegexPlacement
+import me.kafuuneko.rpclient.libs.regex.RegexScript
+import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
+import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
+import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
+import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
+import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Context
@@ -72,6 +80,118 @@ import kotlin.concurrent.thread
 /** 在真实页面、MVI 和持久化链路上回归发送与失败重试，模型服务仅使用设备本机合成响应。 */
 @RunWith(AndroidJUnit4::class)
 class ImageConversationFlowTest {
+
+    /** 输入落库时切换身份，Raw 摘要仍应复用发送开始时的身份。 */
+    @Test
+    fun chatSendFreezesPersonaThroughRawSummary() = runBlocking {
+        verifyPersonaSnapshot(SummaryMode.Raw)
+    }
+
+    /** Classic 摘要重建 Prompt 时也不得重新查询本轮有效身份。 */
+    @Test
+    fun chatSendFreezesPersonaThroughClassicSummary() = runBlocking {
+        verifyPersonaSnapshot(SummaryMode.Classic)
+    }
+
+    /**
+     * 在用户消息提交与请求构建之间制造确定的身份切换，验证实际发出的内容。
+     * @param mode 本轮自动摘要采用的模式。
+     */
+    private suspend fun verifyPersonaSnapshot(mode: SummaryMode) = withFixture { fixture ->
+        val koin = GlobalContext.get()
+        val personas = koin.get<UserPersonaRepository>()
+        val chats = koin.get<ChatRepository>()
+        val dao = fixture.db.getUserPersonaDao()
+        val first = dao.insert(UserPersona(name = "Alpha", description = "alpha-persona-marker"))
+        val second = dao.insert(UserPersona(name = "Beta", description = "beta-persona-marker"))
+        val id = fixture.db.getChatSessionDao().insertOrReplace(
+            ChatSession(
+                characterId = fixture.characters.first(), createTime = 1, latestTime = 1,
+                lorebookEntrySet = "[]", title = "Persona snapshot", userNote = "",
+                userPersonaId = first, userName = null, userDescription = null,
+            )
+        )
+        val oldMode = AppModel.summaryMode
+        val oldTrigger = AppModel.summaryTriggerMessageCount
+        val sql = fixture.db.openHelper.writableDatabase
+        try {
+            // 限定到本次会话，在 Source 正则完成后、Prompt 读取前确定地切换绑定。
+            sql.execSQL(
+                """CREATE TRIGGER test_persona_switch AFTER INSERT ON chat_messages
+                WHEN NEW.sessionId = $id AND NEW.source = 'User'
+                BEGIN UPDATE chat_sessions SET userPersonaId = $second WHERE id = $id; END"""
+            )
+            val regex = koin.get<RegexScriptRepository>()
+            regex.updateScripts(
+                RegexScriptTarget(
+                    RegexScriptScope.Character,
+                    fixture.characters.first()
+                )
+            ) {
+                listOf(
+                    RegexScript(
+                        id = "persona-snapshot", scriptName = "Persona snapshot",
+                        findRegex = "identity|A blue square is visible\\.",
+                        replaceString = "{{user}}:{{persona}}",
+                        placement = listOf(
+                            RegexPlacement.UserInput.value,
+                            RegexPlacement.AiResponse.value
+                        ),
+                    )
+                )
+            }
+            regex.setCharacterAuthorized(fixture.characters.first(), true)
+            AppModel.autoSummaryEnabled = true
+            AppModel.summaryMode = mode.persistedValue
+            AppModel.summaryTriggerMessageCount = 1
+            ActivityScenario.launch<ChatActivity>(
+                Intent(fixture.context, ChatActivity::class.java)
+                    .putExtra(ChatActivity.EXTRA_SESSION_ID, id.toString())
+            ).use { scenario ->
+                lateinit var vm: ChatViewModel
+                scenario.onActivity { vm = ViewModelProvider(it)[ChatViewModel::class.java] }
+                await("chat initialization") { vm.uiStateFlow.value is ChatUiState.Normal }
+                vm.emit(ChatUiIntent.ChangeInputDraft("identity"))
+                vm.emit(ChatUiIntent.SendMessage)
+                await("$mode summary commit") { chats.getLatestSummary(id) != null }
+                // 请求、输出正则和摘要必须同用 Alpha，即使持久化绑定已经成为 Beta。
+                val messages = chats.getAllChatMessagesBySessionId(id)
+                assertEquals(second, chats.getSessionById(id)!!.userPersonaId)
+                assertEquals(
+                    "Alpha:alpha-persona-marker",
+                    messages.first { it.source == ChatMessage.Source.User }.content
+                )
+                assertEquals(
+                    "Alpha:alpha-persona-marker",
+                    messages.first { it.source == ChatMessage.Source.Char }.content
+                )
+                assertTrue(fixture.server.requests.size >= 2)
+                assertTrue(fixture.server.requests.all { "alpha-persona-marker" in it && "beta-persona-marker" !in it })
+                await("$mode summary dialog dismissal") { (vm.uiStateFlow.value as? ChatUiState.Normal)?.dialogState == ChatDialogState.None }
+                AppModel.autoSummaryEnabled = false
+                vm.emit(ChatUiIntent.ChangeInputDraft("identity"))
+                vm.emit(ChatUiIntent.SendMessage)
+                await("reply using newly selected persona") {
+                    chats.getAllChatMessagesBySessionId(id)
+                        .count { it.source == ChatMessage.Source.Char } == 2
+                }
+                assertEquals(
+                    "Beta:beta-persona-marker",
+                    chats.getAllChatMessagesBySessionId(id)
+                        .last { it.source == ChatMessage.Source.User }.content
+                )
+            }
+        } finally {
+            // 释放测试触发器并恢复摘要偏好，不改变用户的默认身份选择。
+            sql.execSQL("DROP TRIGGER IF EXISTS test_persona_switch")
+            AppModel.summaryMode = oldMode
+            AppModel.summaryTriggerMessageCount = oldTrigger
+            chats.deleteSession(id)
+            personas.delete(first)
+            personas.delete(second)
+        }
+    }
+
     @Test
     fun chatPureImageRetryHistoryAndSummaryUseOnePersistedUserMessage() = runBlocking {
         withFixture { fixture ->

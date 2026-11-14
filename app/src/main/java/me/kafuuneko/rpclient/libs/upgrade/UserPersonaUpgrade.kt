@@ -1,9 +1,7 @@
 package me.kafuuneko.rpclient.libs.upgrade
 
 import androidx.sqlite.db.SupportSQLiteDatabase
-import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.defaults.normalizedUserName
-import me.kafuuneko.rpclient.libs.room.AppDatabase
 
 /**
  * 在线启动与备份恢复共用的人设迁入逻辑。
@@ -12,21 +10,6 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
  */
 internal object UserPersonaUpgrade {
     val keys = setOf("userName", "userDescription", "userAvatar")
-
-    /**
-     * 完成数据库提交后才清除旧键，崩溃后各阶段可独立续跑。
-     * @param database 已完成结构升级的在线数据库。
-     */
-    fun prepareLive(database: AppDatabase) {
-        val prefs = AppModel.preferences
-        val db = database.openHelper.writableDatabase
-        if (!initialized(db)) migrate(db, prefs.all)
-        if (keys.any(prefs::contains)) {
-            val editor = prefs.edit()
-            keys.forEach(editor::remove)
-            check(editor.commit()) { "Failed to clean legacy persona preferences" }
-        }
-    }
 
     /**
      * 在线启动和归档恢复分别传入各自的偏好。
@@ -48,7 +31,7 @@ internal object UserPersonaUpgrade {
 
     /**
      * 校验恢复后的人设引用，故事的禁用值采用业务约束。
-     * @param db 尚未替换在线数据的暂存数据库。
+     * @param db 已完成人设迁入的在线或备份暂存数据库。
      */
     fun validate(db: SupportSQLiteDatabase) {
         val invalid = listOf(
@@ -64,11 +47,16 @@ internal object UserPersonaUpgrade {
         }
     }
 
-    /** 固定旧会话的有效名称，只对描述恢复继承，保留原有发言身份。 */
+    /**
+     * 固定旧会话的有效名称，只对描述恢复继承，保留原有发言身份。
+     * @param db 尚未写入默认指针的数据库。
+     * @param values 对应来源的旧偏好快照。
+     */
     private fun importLegacy(db: SupportSQLiteDatabase, values: Map<String, *>) {
         fun text(key: String): String =
             if (key in values) requireNotNull(values[key] as? String) else ""
 
+        // 保留旧描述原文，只对姓名应用旧版默认值规则。
         val name = text("userName").normalizedUserName()
         val description = text("userDescription")
         val avatar = text("userAvatar")

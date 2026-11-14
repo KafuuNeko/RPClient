@@ -3,15 +3,16 @@ package me.kafuuneko.rpclient.libs.room.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
-import me.kafuuneko.rpclient.libs.room.entity.ChatSession
-import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.model.PersonaOption
 
 /** 用户身份库的查询、创建和按字段保存入口。 */
 @Dao
 interface UserPersonaDao {
-    /** 按创建顺序列出选择项。 */
+    /**
+     * 按创建顺序列出选择项。
+     * @return 按 ID 排序的身份名称投影。
+     */
     @Query("SELECT id, name FROM user_personas ORDER BY id")
     suspend fun list(): List<PersonaOption>
 
@@ -23,27 +24,27 @@ interface UserPersonaDao {
     suspend fun get(id: Long): UserPersona =
         checkNotNull(find(id)) { "User persona does not exist" }
 
-    /** 查询可能在头像裁剪期间被删除的身份。 */
+    /**
+     * 查询可能在头像裁剪期间被删除的身份。
+     * @param id 目标人设 ID。
+     * @return 当前记录，不存在时返回 null。
+     */
     @Query("SELECT * FROM user_personas WHERE id = :id")
     suspend fun find(id: Long): UserPersona?
 
-    /** 聊天的 -1 在每次读取时解析为当前默认人设。 */
-    suspend fun chatPersona(id: Long): UserPersona =
-        if (id == UserPersona.FOLLOW_DEFAULT) active() else get(id)
-
-    /** 分别应用当前会话的名称、描述覆盖。 */
-    suspend fun resolve(session: ChatSession) =
-        chatPersona(session.userPersonaId).withOverrides(session.userName, session.userDescription)
-
-    /** 群聊也沿用逐字段的继承规则。 */
-    suspend fun resolve(session: GroupChatSession) =
-        chatPersona(session.userPersonaId).withOverrides(session.userName, session.userDescription)
-
-    /** 读取默认指针与其人设。 */
+    /**
+     * 读取默认指针与其人设。
+     * @return 默认指针指向的人设记录。
+     */
     @Query("SELECT p.* FROM user_personas p JOIN user_persona_settings s ON s.defaultPersonaId = p.id WHERE s.id = 1")
     suspend fun active(): UserPersona
 
-    /** 删除绑定前固定历史使用的名称；描述继续按原覆盖规则解析。 */
+    /**
+     * 删除绑定前固定历史使用的名称；描述继续按原覆盖规则解析。
+     * @param id 待解除的身份 ID。
+     * @param name 删除前的有效名称。
+     * @param wasDefault 是否同时处理跟随默认且未覆盖名称的会话。
+     */
     @Query(
         """
         UPDATE chat_sessions
@@ -53,7 +54,12 @@ interface UserPersonaDao {
     )
     suspend fun detachChats(id: Long, name: String, wasDefault: Boolean)
 
-    /** 群聊保留会话名称和消息内已有的发言者快照。 */
+    /**
+     * 群聊保留会话名称和消息内已有的发言者快照。
+     * @param id 待解除的身份 ID。
+     * @param name 删除前的有效名称。
+     * @param wasDefault 是否同时处理跟随默认且未覆盖名称的群聊。
+     */
     @Query(
         """
         UPDATE group_chat_sessions
@@ -63,15 +69,25 @@ interface UserPersonaDao {
     )
     suspend fun detachGroups(id: Long, name: String, wasDefault: Boolean)
 
-    /** 停用受影响故事的人设，并让使用旧配置生成的结果失效。 */
+    /**
+     * 停用受影响故事的人设，并让使用旧配置生成的结果失效。
+     * @param id 待解除的身份 ID。
+     */
     @Query("UPDATE stories SET userPersonaId = -1, revision = revision + 1 WHERE userPersonaId = :id")
     suspend fun detachStories(id: Long)
 
-    /** 解除绑定并转移默认指针后删除身份。 */
+    /**
+     * 解除绑定并转移默认指针后删除身份。
+     * @param id 待删除的身份 ID。
+     */
     @Query("DELETE FROM user_personas WHERE id = :id")
     suspend fun delete(id: Long)
 
-    /** 保存新的独立人设。 */
+    /**
+     * 保存新的独立人设。
+     * @param persona 待插入的人设字段。
+     * @return 数据库分配的人设 ID。
+     */
     @Insert
     suspend fun insert(persona: UserPersona): Long
 
