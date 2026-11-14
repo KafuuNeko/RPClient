@@ -175,6 +175,7 @@ internal fun StoryEditorNormalPage(
 }
 
 /** 按窗口约束组织故事编辑器的常规、横屏沉浸或紧凑布局。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StoryEditorScaffold(
     state: StoryEditorUiState.Normal,
@@ -185,6 +186,8 @@ private fun StoryEditorScaffold(
     onContinue: (() -> Unit)?,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
+    val showProviderBanner = !state.hasAvailableProvider
+        && (layoutMode == StoryEditorLayoutMode.Regular || !WindowInsets.isImeVisible)
     AppPageScaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -211,36 +214,44 @@ private fun StoryEditorScaffold(
             }
         },
         content = { paddingValues ->
-            when (layoutMode) {
-                StoryEditorLayoutMode.Regular -> StoryEditorRegularContent(
-                    state = state,
-                    document = document,
-                    editorState = editorState,
-                    documentMatchesChapter = documentMatchesChapter,
-                    paddingValues = paddingValues,
-                    emit = emit,
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .consumeWindowInsets(paddingValues),
+            ) {
+                // 模型提示与对话页一致，置于内容留白之外；紧凑窗口输入时仍收起提示。
+                if (showProviderBanner) {
+                    NoProviderBanner(onClick = { StoryEditorUiIntent.OpenProviderSettings.emit() })
+                }
+                when (layoutMode) {
+                    StoryEditorLayoutMode.Regular -> StoryEditorRegularContent(
+                        state = state,
+                        document = document,
+                        editorState = editorState,
+                        documentMatchesChapter = documentMatchesChapter,
+                        emit = emit,
+                    )
 
-                StoryEditorLayoutMode.CompactWide -> StoryEditorLandscapeContent(
-                    state = state,
-                    document = document,
-                    editorState = editorState,
-                    documentMatchesChapter = documentMatchesChapter,
-                    paddingValues = paddingValues,
-                    onContinue = onContinue,
-                    emit = emit,
-                )
+                    StoryEditorLayoutMode.CompactWide -> StoryEditorLandscapeContent(
+                        state = state,
+                        document = document,
+                        editorState = editorState,
+                        documentMatchesChapter = documentMatchesChapter,
+                        onContinue = onContinue,
+                        emit = emit,
+                    )
 
-                StoryEditorLayoutMode.CompactNarrow -> StoryEditorCompactContent(
-                    state = state,
-                    document = document,
-                    editorState = editorState,
-                    documentMatchesChapter = documentMatchesChapter,
-                    paddingValues = paddingValues,
-                    onContinue = onContinue,
-                    showStatistics = false,
-                    emit = emit,
-                )
+                    StoryEditorLayoutMode.CompactNarrow -> StoryEditorCompactContent(
+                        state = state,
+                        document = document,
+                        editorState = editorState,
+                        documentMatchesChapter = documentMatchesChapter,
+                        onContinue = onContinue,
+                        showStatistics = false,
+                        emit = emit,
+                    )
+                }
             }
         },
     )
@@ -298,18 +309,16 @@ private fun StoryEditorRegularContent(
     document: StoryEditorDocument?,
     editorState: TextFieldState,
     documentMatchesChapter: Boolean,
-    paddingValues: PaddingValues,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 常规高度保留完整问题提示，避免改变竖屏下的信息层级。
+        // 保存和生成问题保留在正文区域，便于关联当前文档。
         StoryEditorProblemBanners(state, emit)
         StoryEditorMainPane(
             modifier = Modifier
@@ -341,7 +350,6 @@ private fun StoryEditorLandscapeContent(
     document: StoryEditorDocument?,
     editorState: TextFieldState,
     documentMatchesChapter: Boolean,
-    paddingValues: PaddingValues,
     onContinue: (() -> Unit)?,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
@@ -351,8 +359,6 @@ private fun StoryEditorLandscapeContent(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .consumeWindowInsets(paddingValues)
             .imePadding()
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -943,7 +949,6 @@ private fun StoryEditorCompactContent(
     document: StoryEditorDocument?,
     editorState: TextFieldState,
     documentMatchesChapter: Boolean,
-    paddingValues: PaddingValues,
     onContinue: (() -> Unit)?,
     showStatistics: Boolean,
     emit: StoryEditorUiIntent.() -> Unit,
@@ -952,8 +957,6 @@ private fun StoryEditorCompactContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .consumeWindowInsets(paddingValues)
             .imePadding()
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1040,7 +1043,7 @@ private fun StoryEditorMainPane(
     }
 }
 
-/** 汇总保存、生成和模型配置问题提示。 */
+/** 汇总与当前文档相关的保存和生成问题提示。 */
 @Composable
 private fun StoryEditorProblemBanners(
     state: StoryEditorUiState.Normal,
@@ -1048,9 +1051,6 @@ private fun StoryEditorProblemBanners(
 ) {
     SaveProblemBanner(state.topBarState.saveState, emit)
     GenerationProblemBanner(state.generationState, emit)
-    if (!state.hasAvailableProvider) {
-        NoProviderBanner(onClick = { StoryEditorUiIntent.OpenProviderSettings.emit() })
-    }
 }
 
 /** 根据当前窗口大小等级选择故事编辑器的结构。 */
