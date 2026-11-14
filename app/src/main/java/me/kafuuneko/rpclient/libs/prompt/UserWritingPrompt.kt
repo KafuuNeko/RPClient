@@ -8,8 +8,8 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 private val draftMacro = Regex("""\{\{\s*draft\s*\}\}""", RegexOption.IGNORE_CASE)
 
 /**
- * 将未发送草稿作为必需材料追加到单聊或群聊请求末尾。
- * @param template 当前预设的输入框续写指令。
+ * 将用户代写指令和未发送草稿作为必需材料追加到请求末尾。
+ * @param template 单聊或群聊当前预设的输入框续写指令。
  * @param originalDraft 保留空白和字面宏的输入快照。
  * @param resolve 仅展开所属会话的模板宏，草稿本身不参与替换。
  * @return 可由检查器追踪的任务区段；模板与输入均为空时省略。

@@ -806,6 +806,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">Empuje de grupo</string>
     <string name="prompt_group_nudge_desc">Instrucción final que restringe cada generación al hablante seleccionado.</string>
+    <string name="prompt_group_impersonation_title">Prompt para imitar al usuario en el grupo</string>
+    <string name="prompt_group_impersonation_desc">Se usa para imitar al usuario en chats de grupo. {{group}} enumera todos los miembros y {{groupNotMuted}} los no silenciados.</string>
+    <string name="prompt_group_user_writing_title">Prompt de continuación en el campo de entrada del grupo</string>
+    <string name="prompt_group_user_writing_desc">Se usa para imitar al usuario en el campo de entrada del grupo. {{draft}} inserta el texto actual. Sin esta macro, el texto se añade al final.</string>
     <string name="prompt_new_group_chat_title">Nuevo chat grupal</string>
     <string name="prompt_new_group_chat_desc">Marcador insertado antes de una nueva conversación grupal.</string>
     <string name="prompt_group_summarize_title">Resumen de grupo</string>

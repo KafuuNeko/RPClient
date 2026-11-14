@@ -702,6 +702,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">グループ制約プロンプト</string>
     <string name="prompt_group_nudge_desc">各生成を指定した話者だけに制限する最終指示です。</string>
+    <string name="prompt_group_impersonation_title">グループチャットのユーザー代筆プロンプト</string>
+    <string name="prompt_group_impersonation_desc">グループチャットでのユーザー代筆に使用します。{{group}} は全メンバー、{{groupNotMuted}} はミュートされていないメンバーを示します。</string>
+    <string name="prompt_group_user_writing_title">グループチャット入力欄の続筆プロンプト</string>
+    <string name="prompt_group_user_writing_desc">グループチャットの入力欄でユーザーの代筆を行う際に使用します。{{draft}} は現在の文字を挿入し、このマクロがない場合は原文を末尾に追加します。</string>
     <string name="prompt_new_group_chat_title">新規グループチャット</string>
     <string name="prompt_new_group_chat_desc">新しいグループ履歴の前に挿入する境界プロンプトです。</string>
     <string name="prompt_group_summarize_title">グループ要約</string>

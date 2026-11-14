@@ -286,6 +286,8 @@ private val promptGroups = listOf(
             PromptType.ContinueNudge,
             PromptType.ReplaceEmptyMessage,
             PromptType.GroupNudge,
+            PromptType.GroupImpersonation,
+            PromptType.GroupUserWriting,
             PromptType.NewGroupChat,
         ),
     ),
@@ -349,6 +351,8 @@ private fun PromptType.titleRes(): Int {
         PromptType.PersonalityFormat -> R.string.prompt_personality_format_title
         PromptType.UserPersonaFormat -> R.string.prompt_user_persona_format_title
         PromptType.GroupNudge -> R.string.prompt_group_nudge_title
+        PromptType.GroupImpersonation -> R.string.prompt_group_impersonation_title
+        PromptType.GroupUserWriting -> R.string.prompt_group_user_writing_title
         PromptType.NewGroupChat -> R.string.prompt_new_group_chat_title
         PromptType.GroupSummarize -> R.string.prompt_group_summarize_title
         PromptType.StoryMain -> R.string.prompt_story_main_title
@@ -378,6 +382,8 @@ private fun PromptType.descriptionRes(): Int {
         PromptType.PersonalityFormat -> R.string.prompt_personality_format_desc
         PromptType.UserPersonaFormat -> R.string.prompt_user_persona_format_desc
         PromptType.GroupNudge -> R.string.prompt_group_nudge_desc
+        PromptType.GroupImpersonation -> R.string.prompt_group_impersonation_desc
+        PromptType.GroupUserWriting -> R.string.prompt_group_user_writing_desc
         PromptType.NewGroupChat -> R.string.prompt_new_group_chat_desc
         PromptType.GroupSummarize -> R.string.prompt_group_summarize_desc
         PromptType.StoryMain -> R.string.prompt_story_main_desc

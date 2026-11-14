@@ -15,10 +15,10 @@ interface PromptPreferences {
     /** 辅助提示词。 */
     val auxiliaryPrompt: String
 
-    /** 扮演用户提示词。 */
+    /** 单聊扮演用户提示词。 */
     val impersonationPrompt: String
 
-    /** 扮演用户时的输入框续写模板，使用 {{draft}} 放置未发送文字。 */
+    /** 单聊扮演用户时的输入框续写模板，使用 {{draft}} 放置未发送文字。 */
     val userWritingPrompt: String
 
     /** 新聊天边界标记。 */
@@ -32,6 +32,12 @@ interface PromptPreferences {
 
     /** 群聊发言约束。 */
     val groupNudgePrompt: String
+
+    /** 群聊扮演用户的身份与群成员约束。 */
+    val groupImpersonationPrompt: String
+
+    /** 群聊输入框续写模板，使用 {{draft}} 放置未发送文字。 */
+    val groupUserWritingPrompt: String
 
     /** 群聊边界标记。 */
     val newGroupChatPrompt: String

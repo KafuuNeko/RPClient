@@ -334,13 +334,7 @@ private class GroupChatPromptBuildSession(
             addAll(fixedMessages.afterHistory)
             continueTarget?.let(::add)
             buildGenerationControlDraft(context)?.let(::add)
-            context.userWritingDraft?.let { original ->
-                require(context.generationMode == GroupChatGenerationMode.Impersonate) { "User writing requires impersonation mode" }
-                val template = mPreferences.userWritingPrompt
-                buildUserWritingPrompt(template, original) { part ->
-                    part.resolve(context, context.memberNames(), template)
-                }?.let(::add)
-            }
+            buildUserWritingDraft(context)?.let(::add)
         }
         // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = mRequestFinalizer.finalize(
@@ -893,9 +887,10 @@ private class GroupChatPromptBuildSession(
         }
     }
 
-    /** 格式化群聊成员姓名逗号分隔字符串。 */
-    private fun GroupChatPromptContext.memberNames(): String {
-        return members.joinToString(", ") { it.character.name }
+    /** 按群成员顺序列出姓名，未静音名单只依据静音状态，不受角色卡合并模式影响。 */
+    private fun GroupChatPromptContext.memberNames(includeMuted: Boolean = true): String {
+        return members.filter { includeMuted || !it.relation.muted }
+            .joinToString(", ") { it.character.name }
     }
 
     /** 读取并解析群聊主提示词。 */
@@ -974,7 +969,15 @@ private class GroupChatPromptBuildSession(
                 newValue = context.session.scenario,
                 ignoreCase = true
             )
-            .replace(oldValue = "{{group}}", newValue = groupNames, ignoreCase = true)
+            .replace(
+                Regex(
+                    """\{\{\s*(group|groupNotMuted)\s*\}\}""",
+                    RegexOption.IGNORE_CASE
+                )
+            ) { match ->
+                if (match.groupValues[1].equals("group", ignoreCase = true)) groupNames
+                else context.memberNames(includeMuted = false)
+            }
             .replace(
                 oldValue = "{{charIfNotGroup}}",
                 newValue = context.speaker.name,
@@ -1067,20 +1070,25 @@ private class GroupChatPromptBuildSession(
                 sourceKind = PromptSourceKind.SummaryTask,
             )
         }
-        val content = when (context.generationMode) {
-            GroupChatGenerationMode.Normal,
-            GroupChatGenerationMode.Regenerate -> return null
-
-            GroupChatGenerationMode.Continue -> mPreferences.continueNudgePrompt
-            GroupChatGenerationMode.Impersonate -> mPreferences.impersonationPrompt
-        }.resolve(context, context.memberNames())
-        val sourceKind = when (context.generationMode) {
-            GroupChatGenerationMode.Continue -> PromptSourceKind.ContinueNudge
-            GroupChatGenerationMode.Impersonate -> PromptSourceKind.ImpersonationNudge
+        // 历史输出以群聊身份约束收尾，输入框输出在其后追加独立的续写任务。
+        val (template, sourceKind) = when (context.generationMode) {
+            GroupChatGenerationMode.Continue -> mPreferences.continueNudgePrompt to PromptSourceKind.ContinueNudge
+            GroupChatGenerationMode.Impersonate -> mPreferences.groupImpersonationPrompt to PromptSourceKind.ImpersonationNudge
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
         }
+        val content = template.resolve(context, context.memberNames())
         return content.takeIf { it.isNotBlank() }?.let { requiredUser(it, sourceKind) }
+    }
+
+    /** 群聊输入框输出单独追加续写模板，原文中的宏和空白保持不变。 */
+    private fun buildUserWritingDraft(context: GroupChatPromptContext): PromptMessageDraft? {
+        val originalDraft = context.userWritingDraft ?: return null
+        require(context.generationMode == GroupChatGenerationMode.Impersonate) { "User writing requires impersonation mode" }
+        val template = mPreferences.groupUserWritingPrompt
+        return buildUserWritingPrompt(template, originalDraft) { part ->
+            part.resolve(context, context.memberNames(), template)
+        }
     }
 
     /** 确保普通群聊在 Group Nudge 关闭时仍由明确的 user 轮次触发当前角色回复。 */

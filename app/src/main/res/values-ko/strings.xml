@@ -701,6 +701,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">그룹 제약 프롬프트</string>
     <string name="prompt_group_nudge_desc">각 생성을 지정된 화자의 발언으로 제한하는 최종 지시입니다.</string>
+    <string name="prompt_group_impersonation_title">그룹 채팅 사용자 대필 프롬프트</string>
+    <string name="prompt_group_impersonation_desc">그룹 채팅에서 사용자 대필에 사용됩니다. {{group}}은 모든 멤버를, {{groupNotMuted}}는 음소거되지 않은 멤버를 나열합니다.</string>
+    <string name="prompt_group_user_writing_title">그룹 채팅 입력창 이어쓰기 프롬프트</string>
+    <string name="prompt_group_user_writing_desc">그룹 채팅 입력창에서 사용자 대필 시 사용됩니다. {{draft}}는 현재 텍스트를 삽입하며, 이 매크로가 없으면 원문이 끝에 추가됩니다.</string>
     <string name="prompt_new_group_chat_title">새 그룹 채팅</string>
     <string name="prompt_new_group_chat_desc">새 그룹 기록 앞에 삽입되는 경계 프롬프트입니다.</string>
     <string name="prompt_group_summarize_title">그룹 요약</string>

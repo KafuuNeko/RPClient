@@ -791,6 +791,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">群聊约束提示词</string>
     <string name="prompt_group_nudge_desc">限制每次生成仅由指定角色发言的最终指令。</string>
+    <string name="prompt_group_impersonation_title">群聊扮演用户提示词</string>
+    <string name="prompt_group_impersonation_desc">用于群聊中的用户身份代写。{{group}} 为全部成员，{{groupNotMuted}} 为未静音成员。</string>
+    <string name="prompt_group_user_writing_title">群聊输入框续写提示词</string>
+    <string name="prompt_group_user_writing_desc">用于群聊扮演用户的输入框输出。{{draft}} 插入当前文字，未使用此宏时会在末尾附加原文。</string>
     <string name="prompt_new_group_chat_title">新群聊提示词</string>
     <string name="prompt_new_group_chat_desc">插入在新群聊历史前的边界提示。</string>
     <string name="prompt_group_summarize_title">群聊摘要提示词</string>

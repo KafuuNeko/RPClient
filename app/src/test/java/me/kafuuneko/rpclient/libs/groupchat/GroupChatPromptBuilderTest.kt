@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.TestPromptPreferences
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
@@ -448,7 +449,16 @@ class GroupChatPromptBuilderTest {
             postHistoryInstructions = "Group PHI",
             systemPrompt = "Write Lyra's next reply.",
         )
-        val request = GroupChatPromptBuilder(mPreferences = TestPromptPreferences()).build(
+        // 旧预设没有群聊代写键时使用新的群聊默认词，不继承已有单聊覆盖项。
+        val legacyPreset = PromptTemplateSnapshot.resolve(
+            presetId = 7L,
+            revision = 1L,
+            overrides = mapOf(
+                "impersonation" to "SINGLE_IMPERSONATION",
+                "user_writing" to "SINGLE_WRITING",
+            ),
+        )
+        val request = GroupChatPromptBuilder(mPreferences = legacyPreset).build(
             context = GroupChatPromptContext(
                 session = GroupChatSession(
                     id = 1,
@@ -470,18 +480,41 @@ class GroupChatPromptBuilderTest {
         assertFalse(request.messages.any { it.content == "Write Lyra's next reply." })
         assertFalse(request.messages.any { it.content == "Group PHI" })
         assertFalse(request.messages.any { it.content == "Always write as Lyra." })
+        assertFalse(request.messages.any { "SINGLE_" in it.content })
         assertTrue(request.messages.last().content.contains("point of view of Alex"))
+        assertTrue(request.messages.last().content.contains("Group members: Lyra"))
         assertEquals(LLMMessageRole.User, request.messages.last().role)
+        val draftRequest = GroupChatPromptBuilder(mPreferences = legacyPreset).build(
+            context = GroupChatPromptContext(
+                session = GroupChatSession(
+                    title = "Crew",
+                    createTime = 1,
+                    latestTime = 1,
+                    userName = "Alex"
+                ),
+                members = listOf(member(lyra, 0)), speaker = lyra, messages = emptyList(),
+                provider = provider(), generationMode = GroupChatGenerationMode.Impersonate,
+                userWritingDraft = "unfinished",
+            ),
+        )
+        assertTrue(draftRequest.messages.last().content.contains("[Group user writing task]"))
+        assertFalse(draftRequest.messages.any { "SINGLE_" in it.content })
     }
 
     /** 群聊续写展开群成员宏，同时保留输入原文与独立推理通道。 */
     @Test
     fun userDraftIsLiteralAndOnlyDraftModeSeparatesReasoning() {
         val character = character(1, "Lyra")
-        val original = "  {{user}} <CHAR> {{draft}}  "
+        val muted = member(character(2, "Mira"), 1).let {
+            it.copy(relation = it.relation.copy(muted = true))
+        }
+        val original = "  {{user}} <CHAR> {{draft}} {{groupNotMuted}}  "
         val builder = GroupChatPromptBuilder(
             TestPromptPreferences(
-                userWritingPrompt = "{{group}} / {{user}} [{{ DRAFT }}]",
+                impersonationPrompt = "SINGLE_IMPERSONATION",
+                userWritingPrompt = "SINGLE_WRITING",
+                groupImpersonationPrompt = "GROUP_BASE {{group}} / {{ GROUPNOTMUTED }} / {{user}}",
+                groupUserWritingPrompt = "GROUP_DRAFT {{group}} / {{ GROUPNOTMUTED }} / {{user}} [{{ DRAFT }}]",
             )
         )
         val input = GroupChatPromptContext(
@@ -492,17 +525,91 @@ class GroupChatPromptBuilderTest {
                 latestTime = 1,
                 userName = "Alex"
             ),
-            members = listOf(member(character, 0)), speaker = character, messages = emptyList(),
-            provider = provider(), generationMode = GroupChatGenerationMode.Impersonate,
+            members = listOf(member(character, 0), muted),
+            speaker = character,
+            messages = emptyList(),
+            provider = provider(),
+            generationMode = GroupChatGenerationMode.Impersonate,
         )
-        // 同一会话的历史输出沿用扮演指令；输入框才附加不可裁剪的续写任务。
+        // 历史输出只读取群聊身份约束，输入框额外追加群聊续写任务，名单不受上下文角色影响。
         val history = builder.build(input)
         val draft = builder.buildWithMetadata(input.copy(userWritingDraft = original))
         assertTrue(history.includeReasoningInContent)
         assertFalse(draft.request.includeReasoningInContent)
         assertTrue(draft.request.captureReasoning)
-        assertEquals("Lyra / Alex [$original]", draft.request.messages.last().content)
+        assertEquals("GROUP_BASE Lyra, Mira / Lyra / Alex", history.messages.last().content)
+        assertFalse(history.messages.any { "GROUP_DRAFT" in it.content })
+        assertEquals(
+            "GROUP_DRAFT Lyra, Mira / Lyra / Alex [$original]",
+            draft.request.messages.last().content
+        )
+        assertTrue(draft.request.messages.any { it.content == history.messages.last().content })
+        assertEquals(
+            history.messages.last(),
+            builder.build(input.copy(speaker = muted.character)).messages.last()
+        )
+        val allMuted = input.copy(members = input.members.map { member ->
+            member.copy(relation = member.relation.copy(muted = true))
+        })
+        assertEquals(
+            "GROUP_BASE Lyra, Mira /  / Alex",
+            builder.build(allMuted).messages.last().content
+        )
+        assertFalse(draft.request.messages.any { "SINGLE_" in it.content })
+        assertFalse(history.messages.any { "SINGLE_" in it.content })
         assertTrue(draft.inspection.items.last().sources.any { it.kind == PromptSourceKind.ImpersonationNudge })
+    }
+
+    /** 群聊自定义模板省略草稿宏时保留原文，显式清空和预算超限均不能静默回退。 */
+    @Test
+    fun groupWritingHonorsEmptyPresetAndProtectsUnsentMaterial() {
+        val lyra = character(1, "Lyra")
+        val input = GroupChatPromptContext(
+            session = GroupChatSession(
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex"
+            ),
+            members = listOf(member(lyra, 0)), speaker = lyra, messages = emptyList(),
+            provider = provider(), generationMode = GroupChatGenerationMode.Impersonate,
+        )
+        val original = "  {{group}} {{user}}  "
+        val builder = GroupChatPromptBuilder(mPreferences = TestPromptPreferences())
+        // 模板中的名字展开，但用户未发送文字中的字面宏不参与替换。
+        val custom = PromptTemplateSnapshot.resolve(
+            presetId = 8L,
+            revision = 1L,
+            overrides = mapOf(
+                "group_impersonation" to "GROUP_BASE {{group}}",
+                "group_user_writing" to "CUSTOM {{groupNotMuted}}",
+            ),
+        )
+        val customRequest = builder.build(input.copy(userWritingDraft = original), custom)
+        assertEquals("CUSTOM Lyra\n\n$original", customRequest.messages.last().content)
+        val empty = PromptTemplateSnapshot.resolve(
+            presetId = 8L,
+            revision = 2L,
+            overrides = mapOf("group_impersonation" to "", "group_user_writing" to ""),
+        )
+        val emptyRequest = builder.build(input.copy(userWritingDraft = original), empty)
+        assertEquals(original, emptyRequest.messages.last().content)
+        val clearedHistory = builder.buildWithMetadata(input, empty)
+        assertFalse(clearedHistory.inspection.items.any { item ->
+            item.sources.any { it.kind == PromptSourceKind.ImpersonationNudge }
+        })
+        assertFalse(emptyRequest.messages.any { "[Group user impersonation task]" in it.content })
+        assertFalse(emptyRequest.messages.any { "[Group user writing task]" in it.content })
+        // 必需草稿不能被预算裁剪成一次忽略原文的重新代写。
+        assertThrows(PromptBudgetExceededException::class.java) {
+            builder.build(
+                context = input.copy(
+                    provider = provider(contextTokens = 2000, maxTokens = 100),
+                    userWritingDraft = "未".repeat(4000),
+                ),
+                preferences = custom,
+            )
+        }
     }
 
     @Test

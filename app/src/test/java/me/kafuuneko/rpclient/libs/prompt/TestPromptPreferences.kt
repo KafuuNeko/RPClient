@@ -13,6 +13,8 @@ internal class TestPromptPreferences(
     override val newExampleChatPrompt: String = PromptType.NewExampleChat.defaultValue,
     override val continueNudgePrompt: String = PromptType.ContinueNudge.defaultValue,
     override val groupNudgePrompt: String = PromptType.GroupNudge.defaultValue,
+    override val groupImpersonationPrompt: String = PromptType.GroupImpersonation.defaultValue,
+    override val groupUserWritingPrompt: String = PromptType.GroupUserWriting.defaultValue,
     override val newGroupChatPrompt: String = PromptType.NewGroupChat.defaultValue,
     override val worldInfoFormat: String = PromptType.WorldInfoFormat.defaultValue,
     override val scenarioFormat: String = PromptType.ScenarioFormat.defaultValue,

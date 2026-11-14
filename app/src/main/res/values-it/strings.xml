@@ -783,6 +783,10 @@ Non riusciti: %2$d</string>
     </plurals>
     <string name="prompt_group_nudge_title">Suggerimento di gruppo</string>
     <string name="prompt_group_nudge_desc">Istruzione finale che limita ogni generazione all\'interlocutore selezionato.</string>
+    <string name="prompt_group_impersonation_title">Prompt per impersonare l’utente nel gruppo</string>
+    <string name="prompt_group_impersonation_desc">Usato per impersonare l’utente nelle chat di gruppo. {{group}} elenca tutti i membri e {{groupNotMuted}} quelli non silenziati.</string>
+    <string name="prompt_group_user_writing_title">Prompt di continuazione nella casella di input del gruppo</string>
+    <string name="prompt_group_user_writing_desc">Usato per impersonare l’utente nella casella di input del gruppo. {{draft}} inserisce il testo attuale. Senza questa macro, il testo viene aggiunto alla fine.</string>
     <string name="prompt_new_group_chat_title">Nuova chat di gruppo</string>
     <string name="prompt_new_group_chat_desc">Marcatore di confine inserito prima di una nuova conversazione di gruppo.</string>
     <string name="prompt_group_summarize_title">Riassunto di gruppo</string>

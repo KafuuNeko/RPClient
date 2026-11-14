@@ -806,6 +806,10 @@ Gagal: %2$d</string>
     </plurals>
     <string name="prompt_group_nudge_title">Dorongan grup</string>
     <string name="prompt_group_nudge_desc">Instruksi akhir yang membatasi setiap pembuatan hanya untuk pembicara terpilih.</string>
+    <string name="prompt_group_impersonation_title">Prompt peniruan pengguna di grup</string>
+    <string name="prompt_group_impersonation_desc">Digunakan untuk meniru pengguna dalam obrolan grup. {{group}} mencantumkan semua anggota dan {{groupNotMuted}} anggota yang tidak dibisukan.</string>
+    <string name="prompt_group_user_writing_title">Prompt lanjutan kotak input grup</string>
+    <string name="prompt_group_user_writing_desc">Digunakan untuk meniru pengguna di kotak input grup. {{draft}} menyisipkan teks saat ini. Tanpa makro ini, teks ditambahkan di akhir.</string>
     <string name="prompt_new_group_chat_title">Obrolan grup baru</string>
     <string name="prompt_new_group_chat_desc">Penanda batas yang disisipkan sebelum percakapan grup baru.</string>
     <string name="prompt_group_summarize_title">Ringkasan grup</string>

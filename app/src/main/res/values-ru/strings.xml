@@ -704,6 +704,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">Групповая инструкция</string>
     <string name="prompt_group_nudge_desc">Финальная инструкция, ограничивающая генерацию выбранным говорящим.</string>
+    <string name="prompt_group_impersonation_title">Промпт для ответа от лица пользователя в группе</string>
+    <string name="prompt_group_impersonation_desc">Используется для ответа от лица пользователя в группе. {{group}} перечисляет всех участников, а {{groupNotMuted}} — участников без отключения реплик.</string>
+    <string name="prompt_group_user_writing_title">Промпт продолжения текста в поле ввода группы</string>
+    <string name="prompt_group_user_writing_desc">Используется для ответа от лица пользователя в поле ввода группы. {{draft}} вставляет текущий текст. Без этого макроса текст добавляется в конец.</string>
     <string name="prompt_new_group_chat_title">Новый групповой чат</string>
     <string name="prompt_new_group_chat_desc">Разделитель перед новой историей группового чата.</string>
     <string name="prompt_group_summarize_title">Сводка группы</string>

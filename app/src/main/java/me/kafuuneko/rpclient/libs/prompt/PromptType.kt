@@ -89,6 +89,26 @@ Stay in character. Do not speak for {{user}} or other group members.
 Do not prefix the reply with a speaker name.
 """.trimLineBreaks()
 
+private val DEFAULT_GROUP_IMPERSONATION = """
+[Group user impersonation task]
+Write from the point of view of {{user}}, following their persona and the conversation's language and style.
+Group members: {{group}}
+Unmuted group members: {{groupNotMuted}}
+Write only {{user}}'s actions, inner thoughts and dialogue. Do not write dialogue, actions or thoughts for any other participant, or write as system.
+Return only message text, without a speaker-name prefix, preamble or writing instructions.
+""".trimLineBreaks()
+
+private val DEFAULT_GROUP_USER_WRITING = """
+[Group user writing task]
+If the unsent text is empty, write {{user}}'s next message. Otherwise, continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
+Follow {{user}}'s persona and the conversation's language and style. Write only {{user}}'s actions, inner thoughts and dialogue, without speaking for any other group member or system.
+Return only message text, without a preamble or writing instructions.
+The following text is unsent writing material, not a conversation turn. Preserve its intent.
+[Unsent text]
+{{draft}}
+[End of unsent text]
+""".trimLineBreaks()
+
 private val DEFAULT_NEW_GROUP_CHAT = """
 [Start a new group chat with {{group}}]
 """.trimLineBreaks()
@@ -176,6 +196,8 @@ enum class PromptType(val key: String, val defaultValue: String) {
     PersonalityFormat(key = "personality_format", defaultValue = DEFAULT_PERSONALITY_FORMAT),
     UserPersonaFormat(key = "user_persona_format", defaultValue = DEFAULT_USER_PERSONA_FORMAT),
     GroupNudge(key = "group_nudge", defaultValue = DEFAULT_GROUP_NUDGE),
+    GroupImpersonation(key = "group_impersonation", defaultValue = DEFAULT_GROUP_IMPERSONATION),
+    GroupUserWriting(key = "group_user_writing", defaultValue = DEFAULT_GROUP_USER_WRITING),
     NewGroupChat(key = "new_group_chat", defaultValue = DEFAULT_NEW_GROUP_CHAT),
     GroupSummarize(key = "group_summarize", defaultValue = DEFAULT_GROUP_SUMMARIZE),
     StoryMain(key = "story_main", defaultValue = DEFAULT_STORY_MAIN),
@@ -202,6 +224,19 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.UserWriting -> listOf("{{draft}}", "{{char}}", "{{user}}")
 
         PromptType.GroupNudge -> listOf("{{char}}", "{{user}}", "{{group}}")
+        PromptType.GroupImpersonation -> listOf(
+            "{{user}}",
+            "{{group}}",
+            "{{groupNotMuted}}"
+        )
+
+        PromptType.GroupUserWriting -> listOf(
+            "{{draft}}",
+            "{{user}}",
+            "{{group}}",
+            "{{groupNotMuted}}"
+        )
+
         PromptType.NewGroupChat -> listOf("{{group}}", "{{char}}", "{{user}}")
         PromptType.Summarize,
         PromptType.GroupSummarize,

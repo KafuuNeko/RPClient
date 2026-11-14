@@ -30,6 +30,8 @@ data class PromptTemplateSnapshot(
     override val personalityFormat: String get() = values.getValue(PromptType.PersonalityFormat)
     override val userPersonaFormat: String get() = values.getValue(PromptType.UserPersonaFormat)
     override val groupNudgePrompt: String get() = values.getValue(PromptType.GroupNudge)
+    override val groupImpersonationPrompt: String get() = values.getValue(PromptType.GroupImpersonation)
+    override val groupUserWritingPrompt: String get() = values.getValue(PromptType.GroupUserWriting)
     override val newGroupChatPrompt: String get() = values.getValue(PromptType.NewGroupChat)
     val groupSummarizePrompt: String get() = values.getValue(PromptType.GroupSummarize)
     val storyMainPrompt: String get() = values.getValue(PromptType.StoryMain)

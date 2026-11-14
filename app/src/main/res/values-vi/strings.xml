@@ -806,6 +806,10 @@ Thất bại: %2$d</string>
     </plurals>
     <string name="prompt_group_nudge_title">Prompt nhắc nhở nhóm</string>
     <string name="prompt_group_nudge_desc">Hướng dẫn cuối cùng giới hạn mỗi lượt tạo chỉ dành cho người phát ngôn đã chọn.</string>
+    <string name="prompt_group_impersonation_title">Lời nhắc viết thay người dùng trong nhóm</string>
+    <string name="prompt_group_impersonation_desc">Dùng để viết thay người dùng trong cuộc trò chuyện nhóm. {{group}} liệt kê mọi thành viên và {{groupNotMuted}} liệt kê thành viên không bị tắt tiếng.</string>
+    <string name="prompt_group_user_writing_title">Lời nhắc viết tiếp trong ô nhập của nhóm</string>
+    <string name="prompt_group_user_writing_desc">Dùng khi viết thay người dùng trong ô nhập của nhóm. {{draft}} chèn văn bản hiện tại. Nếu không có macro này, văn bản sẽ được thêm vào cuối.</string>
     <string name="prompt_new_group_chat_title">Prompt trò chuyện nhóm mới</string>
     <string name="prompt_new_group_chat_desc">Dấu ranh giới được chèn trước cuộc trò chuyện nhóm mới.</string>
     <string name="prompt_group_summarize_title">Prompt tóm tắt nhóm</string>

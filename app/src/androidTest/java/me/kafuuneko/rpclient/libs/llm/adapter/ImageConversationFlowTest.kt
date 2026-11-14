@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
+import me.kafuuneko.rpclient.libs.prompt.PromptType
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Context
@@ -61,6 +62,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -435,6 +437,7 @@ class ImageConversationFlowTest {
     fun groupImpersonationKeepsDraftAndCommitsOnlyUserTurns() = runBlocking {
         withFixture { fixture ->
             val group = GlobalContext.get().get<GroupChatRepository>()
+            val presets = GlobalContext.get().get<PromptPresetRepository>()
             val id = group.createSession(
                 title = "Writing fixture",
                 userName = "Alex",
@@ -443,7 +446,21 @@ class ImageConversationFlowTest {
                 allowSelfResponses = true,
             )
             val oldOutput = AppModel.impersonationOutput
+            val oldPreset = AppModel.activePromptPresetId
+            val presetId = presets.create(name = "Group writing fixture", description = "")
             try {
+                // 实际保存并激活独立模板，确保两条生成路径都读取当前预设的新键。
+                val prompts = listOf(
+                    PromptType.GroupImpersonation to "GROUP_ONLY {{user}} | all={{group}} | active={{groupNotMuted}}",
+                    PromptType.GroupUserWriting to "GROUP_DRAFT_ONLY {{user}} | all={{group}} | active={{groupNotMuted}}\n[{{draft}}]",
+                    PromptType.Impersonation to "SINGLE_IMPERSONATION",
+                    PromptType.UserWriting to "SINGLE_WRITING",
+                )
+                prompts.forEachIndexed { index, (type, content) ->
+                    presets.savePrompt(presetId, index + 1L, type, content)
+                }
+                presets.activate(presetId)
+                group.updateMemberMuted(id, fixture.characters.last(), true)
                 group.updateSession(requireNotNull(group.getSessionById(id)).copy(autoModeEnabled = true))
                 val original = "I see {{user}}: "
                 val intent = Intent(fixture.context, GroupChatActivity::class.java)
@@ -515,9 +532,18 @@ class ImageConversationFlowTest {
                     }
                     assertEquals(2, group.getMessageCount(id))
                     assertEquals(5, fixture.server.requests.size)
+                    assertTrue(fixture.server.requests.all { "GROUP_ONLY Alex | all=Fixture 0, Fixture 1 | active=Fixture 0" in it })
+                    assertTrue("GROUP_DRAFT_ONLY Alex | all=Fixture 0, Fixture 1 | active=Fixture 0" in fixture.server.requests[0])
+                    assertTrue("GROUP_DRAFT_ONLY" in fixture.server.requests[4])
+                    assertFalse(
+                        fixture.server.requests.subList(1, 4).any { "GROUP_DRAFT_ONLY" in it })
+                    assertFalse(fixture.server.requests.any { "SINGLE_" in it })
+                    assertFalse(original in fixture.server.requests[1])
                 }
             } finally {
                 AppModel.impersonationOutput = oldOutput
+                presets.activate(oldPreset)
+                presets.delete(presetId)
                 group.deleteSession(id)
             }
         }
@@ -558,7 +584,12 @@ class ImageConversationFlowTest {
                     vm.emit(GroupChatUiIntent.OpenSettings)
                     vm.emit(GroupChatUiIntent.ChangeScenario("Test island"))
                     vm.emit(GroupChatUiIntent.ContinueLast)
-                    await { group.getMessageCount(id) == 2 && state()?.conversationState?.generationState == GroupChatGenerationState.Idle }
+                    // 占位记录可能先于生成状态出现，必须等完整正文落库后再触发重生成。
+                    await("completed group continuation") {
+                        group.getMessageCount(id) == 2 &&
+                            group.getLatestCharacterMessage(id)?.content == "A blue square is visible." &&
+                            state()?.conversationState?.generationState == GroupChatGenerationState.Idle
+                    }
                     val latest = requireNotNull(group.getLatestCharacterMessage(id))
                     assertEquals(speaker, latest.speakerCharacterId)
                     assertEquals(GroupChatPage.Conversation, state()?.page)

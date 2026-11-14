@@ -703,6 +703,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">Gruppenanweisung</string>
     <string name="prompt_group_nudge_desc">Abschließende Anweisung, die jede Generierung auf den gewählten Sprecher begrenzt.</string>
+    <string name="prompt_group_impersonation_title">Prompt zur Benutzerimitation im Gruppenchat</string>
+    <string name="prompt_group_impersonation_desc">Zum Imitieren des Benutzers im Gruppenchat. {{group}} listet alle Mitglieder auf, {{groupNotMuted}} nur die nicht stummgeschalteten.</string>
+    <string name="prompt_group_user_writing_title">Prompt zur Fortsetzung im Gruppeneingabefeld</string>
+    <string name="prompt_group_user_writing_desc">Für die Benutzerimitation im Gruppeneingabefeld. {{draft}} fügt den aktuellen Text ein. Ohne dieses Makro wird der Text am Ende angehängt.</string>
     <string name="prompt_new_group_chat_title">Neuer Gruppenchat</string>
     <string name="prompt_new_group_chat_desc">Trennhinweis vor einem neuen Gruppenverlauf.</string>
     <string name="prompt_group_summarize_title">Gruppenzusammenfassung</string>

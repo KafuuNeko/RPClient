@@ -92,6 +92,8 @@ class ChatPromptBuilderTest {
             mapOf(
                 "impersonation" to "CUSTOM_USER_TASK {{user}}",
                 "user_writing" to "CUSTOM_CONTINUATION {{user}}/{{char}}\n{{ DRAFT }}\nEND",
+                "group_impersonation" to "GROUP_ONLY_TASK",
+                "group_user_writing" to "GROUP_ONLY_CONTINUATION",
             )
         )
         val original = "  我指着纸上的 {{history}}、{{char}}、{{draft}} 与 <USER>，轻声说：  "
@@ -106,6 +108,8 @@ class ChatPromptBuilderTest {
         )
         val text = result.request.messages.joinToString("\n") { it.content }
         assertTrue(text.contains("CUSTOM_USER_TASK User"))
+        assertFalse(text.contains("GROUP_ONLY_TASK"))
+        assertFalse(text.contains("GROUP_ONLY_CONTINUATION"))
         assertTrue(text.contains("PERSONA_MARKER"))
         assertTrue(text.contains(original))
         assertEquals(

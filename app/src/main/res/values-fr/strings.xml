@@ -703,6 +703,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">Instruction de groupe</string>
     <string name="prompt_group_nudge_desc">Instruction finale limitant chaque génération au locuteur choisi.</string>
+    <string name="prompt_group_impersonation_title">Prompt pour incarner l’utilisateur dans le groupe</string>
+    <string name="prompt_group_impersonation_desc">Utilisé pour incarner l’utilisateur dans les groupes. {{group}} liste tous les membres et {{groupNotMuted}} ceux qui ne sont pas en sourdine.</string>
+    <string name="prompt_group_user_writing_title">Prompt de continuation dans le champ de saisie du groupe</string>
+    <string name="prompt_group_user_writing_desc">Utilisé pour incarner l’utilisateur dans le champ de saisie du groupe. {{draft}} insère le texte actuel. Sans cette macro, le texte est ajouté à la fin.</string>
     <string name="prompt_new_group_chat_title">Nouvelle discussion de groupe</string>
     <string name="prompt_new_group_chat_desc">Marqueur inséré avant un nouvel historique de groupe.</string>
     <string name="prompt_group_summarize_title">Résumé de groupe</string>

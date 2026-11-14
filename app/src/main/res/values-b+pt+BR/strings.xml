@@ -807,6 +807,10 @@ Falhas: %2$d</string>
     </plurals>
     <string name="prompt_group_nudge_title">Estímulo de grupo</string>
     <string name="prompt_group_nudge_desc">Instrução final que restringe cada geração ao personagem selecionado.</string>
+    <string name="prompt_group_impersonation_title">Prompt de representação do usuário no grupo</string>
+    <string name="prompt_group_impersonation_desc">Usado para representar o usuário em grupos. {{group}} lista todos os membros e {{groupNotMuted}} lista os não silenciados.</string>
+    <string name="prompt_group_user_writing_title">Prompt de continuação na caixa de entrada do grupo</string>
+    <string name="prompt_group_user_writing_desc">Usado ao representar o usuário na caixa de entrada do grupo. {{draft}} insere o texto atual. Sem essa macro, o texto é acrescentado ao final.</string>
     <string name="prompt_new_group_chat_title">Novo chat em grupo</string>
     <string name="prompt_new_group_chat_desc">Marcador de limite inserido antes de uma nova conversa em grupo.</string>
     <string name="prompt_group_summarize_title">Resumo de grupo</string>

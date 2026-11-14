@@ -832,6 +832,10 @@
     </plurals>
     <string name="prompt_group_nudge_title">Group nudge</string>
     <string name="prompt_group_nudge_desc">Final instruction that restricts each generation to the selected speaker.</string>
+    <string name="prompt_group_impersonation_title">Group user impersonation prompt</string>
+    <string name="prompt_group_impersonation_desc">Used when impersonating the user in group chats. {{group}} lists all members and {{groupNotMuted}} lists unmuted members.</string>
+    <string name="prompt_group_user_writing_title">Group input-box continuation prompt</string>
+    <string name="prompt_group_user_writing_desc">Used when impersonating the user in the group input box. {{draft}} inserts the current text; without this macro, the text is appended.</string>
     <string name="prompt_new_group_chat_title">New group chat</string>
     <string name="prompt_new_group_chat_desc">Boundary marker inserted before a new group conversation.</string>
     <string name="prompt_group_summarize_title">Group summary</string>
