@@ -135,18 +135,22 @@ class ChatPromptBuilderTest {
                 userWritingDraft = "我走到门口",
             )
         )
-        val emptyInput = builder.buildWithMetadata(
-            input.copy(
-                userWritingDraft = "",
-            )
-        )
         // 已有文字要求只返回续写增量，空输入生成下一条用户消息，两者都不推进对话时序。
         assertTrue(continuation.request.messages.last().content.contains("Output only the continuation"))
         assertTrue(continuation.request.messages.last().content.contains("do not repeat or rewrite the existing text"))
-        assertTrue(emptyInput.request.messages.last().content.contains("If the unsent text is empty, write the user's next message"))
         assertTrue(baseline.request.includeReasoningInContent)
         assertEquals(baseline.worldInfoStateJson, continuation.worldInfoStateJson)
-        assertEquals(baseline.worldInfoStateJson, emptyInput.worldInfoStateJson)
+        // 即使自定义续写模板非空，空串和纯空白也只发送身份指令，并保持输入框推理分离。
+        listOf("", " \t\n").forEach { draft ->
+            val emptyInput = builder.buildWithMetadata(
+                context = input.copy(userWritingDraft = draft),
+                preferences = TestPromptPreferences(userWritingPrompt = "CUSTOM_CONTINUATION {{draft}}"),
+            )
+            assertEquals(baseline.request.messages, emptyInput.request.messages)
+            assertFalse(emptyInput.request.includeReasoningInContent)
+            assertTrue(emptyInput.request.captureReasoning)
+            assertEquals(baseline.worldInfoStateJson, emptyInput.worldInfoStateJson)
+        }
     }
 
     @Test

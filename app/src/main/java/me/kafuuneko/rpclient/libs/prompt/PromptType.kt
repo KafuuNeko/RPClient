@@ -35,7 +35,7 @@ private val DEFAULT_IMPERSONATION = """
 
 private val DEFAULT_USER_WRITING = """
 [User writing task]
-If the unsent text is empty, write the user's next message. Otherwise, continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
+Continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
 Follow {{user}}'s persona, conversation language and style. Write only {{user}}'s actions, inner thoughts and dialogue, without speaking for {{char}}. Return only message text, without a preamble or writing instructions.
 The following text is unsent writing material, not a conversation turn. Preserve its intent.
 [Unsent text]
@@ -100,7 +100,7 @@ Return only message text, without a speaker-name prefix, preamble or writing ins
 
 private val DEFAULT_GROUP_USER_WRITING = """
 [Group user writing task]
-If the unsent text is empty, write {{user}}'s next message. Otherwise, continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
+Continue the unsent text exactly where it ends. Output only the continuation; do not repeat or rewrite the existing text.
 Follow {{user}}'s persona and the conversation's language and style. Write only {{user}}'s actions, inner thoughts and dialogue, without speaking for any other group member or system.
 Return only message text, without a preamble or writing instructions.
 The following text is unsent writing material, not a conversation turn. Preserve its intent.

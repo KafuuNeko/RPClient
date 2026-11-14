@@ -558,6 +558,13 @@ class GroupChatPromptBuilderTest {
         assertFalse(draft.request.messages.any { "SINGLE_" in it.content })
         assertFalse(history.messages.any { "SINGLE_" in it.content })
         assertTrue(draft.inspection.items.last().sources.any { it.kind == PromptSourceKind.ImpersonationNudge })
+        // 空输入沿用群聊身份指令，不追加自定义续写词，也不能切回聊天记录的推理模式。
+        listOf("", " \t\n").forEach { emptyDraft ->
+            val emptyInput = builder.build(input.copy(userWritingDraft = emptyDraft))
+            assertEquals(history.messages, emptyInput.messages)
+            assertFalse(emptyInput.includeReasoningInContent)
+            assertTrue(emptyInput.captureReasoning)
+        }
     }
 
     /** 群聊自定义模板省略草稿宏时保留原文，显式清空和预算超限均不能静默回退。 */

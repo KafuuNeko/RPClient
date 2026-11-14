@@ -516,7 +516,7 @@ class ImageConversationFlowTest {
                     }
                     assertEquals("A blue square is visible.", group.getLatestMessage(id)?.content)
                     assertEquals(original + "more", conversation()?.inputDraft)
-                    // 请求失败不能留下空消息；空输入的非流式代写只回填输入框。
+                    // 空输入只使用身份提示词，仍按原输出设置回填输入框。
                     fixture.server.failNext = true
                     vm.emit(GroupChatUiIntent.ImpersonateUser)
                     await("failed user turn") { conversation()?.generationState is GroupChatGenerationState.Failed }
@@ -534,7 +534,7 @@ class ImageConversationFlowTest {
                     assertEquals(5, fixture.server.requests.size)
                     assertTrue(fixture.server.requests.all { "GROUP_ONLY Alex | all=Fixture 0, Fixture 1 | active=Fixture 0" in it })
                     assertTrue("GROUP_DRAFT_ONLY Alex | all=Fixture 0, Fixture 1 | active=Fixture 0" in fixture.server.requests[0])
-                    assertTrue("GROUP_DRAFT_ONLY" in fixture.server.requests[4])
+                    assertFalse("GROUP_DRAFT_ONLY" in fixture.server.requests[4])
                     assertFalse(
                         fixture.server.requests.subList(1, 4).any { "GROUP_DRAFT_ONLY" in it })
                     assertFalse(fixture.server.requests.any { "SINGLE_" in it })
