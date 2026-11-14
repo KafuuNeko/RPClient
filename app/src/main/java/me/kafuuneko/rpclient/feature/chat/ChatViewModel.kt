@@ -27,8 +27,6 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingPhase
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
@@ -110,6 +108,7 @@ import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
+import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -776,13 +775,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onToggleWritingReasoning() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val writing = uiState.conversationState.writingState ?: return
-        val expanded = !writing.reasoningExpanded
         uiState.copy(
             conversationState = uiState.conversationState.copy(
-                writingState = writing.copy(
-                    reasoningExpanded = expanded,
-                    reasoningDetail = if (expanded) mWritingReasoning else "",
-                ),
+                writingState = writing.toggleReasoning(mWritingReasoning),
             )
         ).setup()
     }
@@ -807,7 +802,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             dialogState = ChatDialogState.None,
             conversationState = uiState.conversationState.copy(
                 generationState = ChatGenerationState.Requesting,
-                writingState = ChatWritingState(ChatWritingPhase.Requesting),
+                writingState = ChatWritingState(),
             ),
         ).setup()
         // 与普通回复共用任务入口，停止后已返回的正文继续留在输入框中。
@@ -839,7 +834,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             mWritingRuntime.generate(
                 provider = built.provider,
                 request = built.request,
-                sessionId = sessionId,
+                routingSessionKey = "chat:$sessionId",
                 streaming = streaming,
             ).collect { progress ->
                 currentCoroutineContext().ensureActive()
@@ -880,20 +875,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val draft = if (hasBody) originalDraft + progress.body
         else uiState.conversationState.inputDraft
         // 原有文字不变，只追加模型正文；思考和显示阶段正则不进入待发送内容。
-        val phase = when {
-            hasBody -> ChatWritingPhase.Writing
-            progress.reasoning.isNotBlank() -> ChatWritingPhase.Thinking
-            else -> ChatWritingPhase.Requesting
-        }
         uiState.copy(
             conversationState = uiState.conversationState.copy(
                 inputDraft = draft,
                 generationState = ChatGenerationState.Streaming(messageId = null, content = ""),
-                writingState = previous.copy(
-                    phase = phase,
-                    hasReasoning = progress.reasoning.isNotBlank(),
-                    reasoningDetail = if (previous.reasoningExpanded) progress.reasoning else "",
-                ),
+                writingState = previous.withProgress(progress),
             )
         ).setup()
     }

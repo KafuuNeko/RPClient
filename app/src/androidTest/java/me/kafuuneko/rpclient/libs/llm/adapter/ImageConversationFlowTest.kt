@@ -430,6 +430,99 @@ class ImageConversationFlowTest {
         }
     }
 
+    /** 在自动群聊中切换共用偏好，验证草稿及历史输出的取消、落库与发言归属。 */
+    @Test
+    fun groupImpersonationKeepsDraftAndCommitsOnlyUserTurns() = runBlocking {
+        withFixture { fixture ->
+            val group = GlobalContext.get().get<GroupChatRepository>()
+            val id = group.createSession(
+                title = "Writing fixture",
+                userName = "Alex",
+                characterIds = fixture.characters,
+                activationStrategy = GroupChatSession.ActivationStrategy.List,
+                allowSelfResponses = true,
+            )
+            val oldOutput = AppModel.impersonationOutput
+            try {
+                group.updateSession(requireNotNull(group.getSessionById(id)).copy(autoModeEnabled = true))
+                val original = "I see {{user}}: "
+                val intent = Intent(fixture.context, GroupChatActivity::class.java)
+                    .putExtra(GroupChatActivity.EXTRA_SESSION_ID, id.toString())
+                ActivityScenario.launch<GroupChatActivity>(intent).use { scenario ->
+                    lateinit var vm: GroupChatViewModel
+                    scenario.onActivity {
+                        vm = ViewModelProvider(it)[GroupChatViewModel::class.java]
+                    }
+                    fun conversation() =
+                        (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState
+                    await { conversation() != null }
+                    vm.emit(GroupChatUiIntent.ChangeInputDraft(original))
+                    val before = group.getSessionById(id)?.worldInfoStateJson
+                    // 持续连接只返回一部分文字；停止后续写保留在输入框，群聊没有新增轮次。
+                    AppModel.streamEnabled = true
+                    AppModel.impersonationOutput = "draft"
+                    fixture.server.stallAfterDelta = "<think>private</think>more"
+                    vm.emit(GroupChatUiIntent.ImpersonateUser)
+                    await("streamed draft") { conversation()?.inputDraft == original + "more" }
+                    vm.emit(GroupChatUiIntent.ToggleWritingReasoning)
+                    await("separate reasoning") {
+                        (conversation()?.generationState as? GroupChatGenerationState.Impersonating)?.writing?.reasoningDetail == "private"
+                    }
+                    vm.emit(GroupChatUiIntent.StopGeneration)
+                    await { conversation()?.generationState == GroupChatGenerationState.Idle }
+                    assertEquals(original + "more", conversation()?.inputDraft)
+                    assertEquals(0, group.getMessageCount(id))
+                    assertEquals(before, group.getSessionById(id)?.worldInfoStateJson)
+                    assertTrue(original in fixture.server.requests.single())
+
+                    // 历史模式中断时只保存已收到的用户正文，群成员不能冒名接话。
+                    AppModel.impersonationOutput = "message"
+                    fixture.server.stallAfterDelta = "Alex: partial\nFixture 0: intrusion"
+                    vm.emit(GroupChatUiIntent.ImpersonateUser)
+                    await("streamed user preview") {
+                        (conversation()?.generationState as? GroupChatGenerationState.Impersonating)?.preview != null
+                    }
+                    assertEquals(0, group.getMessageCount(id))
+                    vm.emit(GroupChatUiIntent.StopGeneration)
+                    await { conversation()?.generationState == GroupChatGenerationState.Idle }
+                    val partial = requireNotNull(group.getLatestMessage(id))
+                    assertEquals(GroupChatMessage.Source.User, partial.source)
+                    assertEquals("Alex", partial.speakerNameSnapshot)
+                    assertEquals(null, partial.speakerCharacterId)
+                    assertEquals("partial", partial.content)
+                    // 关闭流式后，从设置页再代写一次；每次点击只允许一次模型请求。
+                    AppModel.streamEnabled = false
+                    vm.emit(GroupChatUiIntent.OpenSettings)
+                    vm.emit(GroupChatUiIntent.ImpersonateUser)
+                    await("complete user turn") {
+                        group.getMessageCount(id) == 2 && conversation()?.generationState == GroupChatGenerationState.Idle
+                    }
+                    assertEquals("A blue square is visible.", group.getLatestMessage(id)?.content)
+                    assertEquals(original + "more", conversation()?.inputDraft)
+                    // 请求失败不能留下空消息；空输入的非流式代写只回填输入框。
+                    fixture.server.failNext = true
+                    vm.emit(GroupChatUiIntent.ImpersonateUser)
+                    await("failed user turn") { conversation()?.generationState is GroupChatGenerationState.Failed }
+                    assertEquals(2, group.getMessageCount(id))
+                    assertEquals(original + "more", conversation()?.inputDraft)
+                    AppModel.impersonationOutput = "draft"
+                    vm.emit(GroupChatUiIntent.DismissDialog)
+                    vm.emit(GroupChatUiIntent.ChangeInputDraft(""))
+                    vm.emit(GroupChatUiIntent.ImpersonateUser)
+                    await("fresh draft") {
+                        conversation()?.inputDraft == "A blue square is visible." &&
+                            conversation()?.generationState == GroupChatGenerationState.Idle
+                    }
+                    assertEquals(2, group.getMessageCount(id))
+                    assertEquals(5, fixture.server.requests.size)
+                }
+            } finally {
+                AppModel.impersonationOutput = oldOutput
+                group.deleteSession(id)
+            }
+        }
+    }
+
     /** 设置页续写追加原角色发言，重生成失败保留正文，重试成功后只替换一条回复。 */
     @Test
     fun groupSettingsContinuesAndRetriesLatestReplyWithoutLosingTheOriginal() = runBlocking {
@@ -939,6 +1032,9 @@ class ImageConversationFlowTest {
         var failAtRequest = -1
 
         @Volatile
+        var stallAfterDelta: String? = null
+
+        @Volatile
         var stallNext = false
 
         @Volatile
@@ -970,10 +1066,17 @@ class ImageConversationFlowTest {
                         val body = ByteArray(length)
                         input.readFully(body)
                         requests += body.toString(Charsets.UTF_8)
-                        if (stallNext || requests.size == stallAtRequest) {
+                        val delta = stallAfterDelta
+                        if (stallNext || requests.size == stallAtRequest || delta != null) {
+                            stallAfterDelta = null
                             stallNext = false
                             client.getOutputStream().apply {
                                 write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n".toByteArray())
+                                if (delta != null) {
+                                    val event =
+                                        """{"choices":[{"delta":{"content":${JSONObject.quote(delta)}}}]}"""
+                                    write("data: $event\n\n".toByteArray())
+                                }
                                 flush()
                             }
                             client.soTimeout = 10_000

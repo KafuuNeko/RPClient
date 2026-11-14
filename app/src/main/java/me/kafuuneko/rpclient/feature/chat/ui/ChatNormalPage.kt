@@ -92,7 +92,6 @@ import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
@@ -103,8 +102,10 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.media.MessageImageState
+import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
+import me.kafuuneko.rpclient.ui.message.ChatWritingPanel
 import me.kafuuneko.rpclient.ui.message.ConversationComposer
 import me.kafuuneko.rpclient.ui.message.ConversationQuickAction
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
@@ -1054,7 +1055,12 @@ private fun ChatInputBar(
         onStop = { ChatUiIntent.StopGeneration.emit() },
         onImageAction = { ChatUiIntent.ImageAction(it).emit() },
         beforeActions = {
-            writingState?.let { ChatWritingPanel(state = it, emit = emit) }
+            writingState?.let {
+                ChatWritingPanel(
+                    state = it,
+                    onToggleReasoning = { ChatUiIntent.ToggleWritingReasoning.emit() },
+                )
+            }
         },
         actions = {
             ConversationQuickAction(

@@ -474,6 +474,37 @@ class GroupChatPromptBuilderTest {
         assertEquals(LLMMessageRole.User, request.messages.last().role)
     }
 
+    /** 群聊续写展开群成员宏，同时保留输入原文与独立推理通道。 */
+    @Test
+    fun userDraftIsLiteralAndOnlyDraftModeSeparatesReasoning() {
+        val character = character(1, "Lyra")
+        val original = "  {{user}} <CHAR> {{draft}}  "
+        val builder = GroupChatPromptBuilder(
+            TestPromptPreferences(
+                userWritingPrompt = "{{group}} / {{user}} [{{ DRAFT }}]",
+            )
+        )
+        val input = GroupChatPromptContext(
+            session = GroupChatSession(
+                id = 1,
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex"
+            ),
+            members = listOf(member(character, 0)), speaker = character, messages = emptyList(),
+            provider = provider(), generationMode = GroupChatGenerationMode.Impersonate,
+        )
+        // 同一会话的历史输出沿用扮演指令；输入框才附加不可裁剪的续写任务。
+        val history = builder.build(input)
+        val draft = builder.buildWithMetadata(input.copy(userWritingDraft = original))
+        assertTrue(history.includeReasoningInContent)
+        assertFalse(draft.request.includeReasoningInContent)
+        assertTrue(draft.request.captureReasoning)
+        assertEquals("Lyra / Alex [$original]", draft.request.messages.last().content)
+        assertTrue(draft.inspection.items.last().sources.any { it.kind == PromptSourceKind.ImpersonationNudge })
+    }
+
     @Test
     fun groupContinueAlwaysEndsWithUserNudge() {
         val lyra = character(id = 1, name = "Lyra")

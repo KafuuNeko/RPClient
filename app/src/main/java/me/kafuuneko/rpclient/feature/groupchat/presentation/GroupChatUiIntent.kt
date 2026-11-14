@@ -60,6 +60,10 @@ sealed class GroupChatUiIntent {
 
     data object SendMessage : GroupChatUiIntent()
 
+    data object ImpersonateUser : GroupChatUiIntent()
+
+    data object ToggleWritingReasoning : GroupChatUiIntent()
+
     data object StopGeneration : GroupChatUiIntent()
 
     data object SummarizeNow : GroupChatUiIntent()

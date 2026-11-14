@@ -20,14 +20,14 @@ class UserWritingRuntime(private val mRepository: LLMRepository) {
      * 生成草稿的累计快照；上层负责保存正文、处理取消与错误。
      * @param provider 本轮固定的模型配置。
      * @param request 已完成预算和协议处理的代写请求。
-     * @param sessionId 业务会话标识。
+     * @param routingSessionKey 包含会话类型的模型路由键。
      * @param streaming 是否使用流式请求。
      * @return 独立的正文与推理输出流。
      */
     fun generate(
         provider: LLMProvider,
         request: LLMGenerationRequest,
-        sessionId: Long,
+        routingSessionKey: String,
         streaming: Boolean,
     ): Flow<UserWritingProgress> = flow {
         val parser = UserWritingOutputParser()
@@ -42,7 +42,7 @@ class UserWritingRuntime(private val mRepository: LLMRepository) {
             mRepository.streamGenerateWithProvider(
                 provider = provider,
                 request = request,
-                routingSessionKey = "chat:$sessionId",
+                routingSessionKey = routingSessionKey,
             ).collect { event ->
                 when (event) {
                     is LLMStreamEvent.Delta -> parser.append(event.content)
@@ -58,7 +58,7 @@ class UserWritingRuntime(private val mRepository: LLMRepository) {
             val response = mRepository.generateWithProvider(
                 provider = provider,
                 request = request,
-                routingSessionKey = "chat:$sessionId",
+                routingSessionKey = routingSessionKey,
                 allowReasoningOnly = true,
             )
             parser.append(response.content)

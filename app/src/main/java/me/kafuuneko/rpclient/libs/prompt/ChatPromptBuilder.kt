@@ -811,25 +811,9 @@ private class ChatPromptBuildSession(
         val originalDraft = context.userWritingDraft ?: return null
         require(context.generationMode == PromptGenerationMode.Impersonate) { "User writing requires impersonation mode" }
         val template = mPreferences.userWritingPrompt
-        val draftMacro = Regex("""\{\{\s*draft\s*\}\}""", RegexOption.IGNORE_CASE)
-        // 只解析模板区段；草稿中的字面宏和旧式标签都保持原样。
-        val content = if (draftMacro.containsMatchIn(template)) {
-            draftMacro.split(template).joinToString(originalDraft) { part ->
-                resolve(part, context, history, template, outlets)
-            }
-        } else {
-            listOf(resolve(template, context, history, template, outlets), originalDraft)
-                .filter { it.isNotBlank() }.joinToString("\n\n")
+        return buildUserWritingPrompt(template, originalDraft) { part ->
+            resolve(part, context, history, template, outlets)
         }
-        if (content.isBlank()) return null
-        // 独立来源沿用扮演用户分类，必需材料过长时明确报预算不足，不悄悄丢失用户要求。
-        return PromptMessageDraft(
-            role = LLMMessageRole.User,
-            content = content,
-            source = PromptSource(PromptSourceKind.ImpersonationNudge),
-            retentionPriority = PRIORITY_ESSENTIAL,
-            canDrop = false,
-        )
     }
 
     /**

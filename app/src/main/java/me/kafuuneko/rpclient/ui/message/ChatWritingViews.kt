@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature.chat.ui
+package me.kafuuneko.rpclient.ui.message
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,16 +25,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingPhase
-import me.kafuuneko.rpclient.feature.chat.model.ChatWritingState
-import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
+import me.kafuuneko.rpclient.model.ChatWritingPhase
+import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
 /** 生成期间只显示单行状态与思考入口，详情按需展开。 */
 @Composable
 internal fun ChatWritingPanel(
     state: ChatWritingState,
-    emit: ChatUiIntent.() -> Unit,
+    onToggleReasoning: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -52,7 +51,7 @@ internal fun ChatWritingPanel(
                 style = MaterialTheme.typography.labelMedium,
             )
             if (state.hasReasoning) {
-                TextButton(onClick = { ChatUiIntent.ToggleWritingReasoning.emit() }) {
+                TextButton(onClick = onToggleReasoning) {
                     Text(stringResource(R.string.thought_process))
                     Icon(
                         imageVector = if (state.reasoningExpanded) Icons.Rounded.KeyboardArrowUp
@@ -98,7 +97,7 @@ private fun ChatWritingPanelPreview() {
                 phase = ChatWritingPhase.Thinking,
                 hasReasoning = true,
             ),
-            emit = {},
+            onToggleReasoning = {},
         )
     }
 }

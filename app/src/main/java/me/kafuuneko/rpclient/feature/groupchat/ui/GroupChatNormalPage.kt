@@ -96,9 +96,11 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageState
+import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
+import me.kafuuneko.rpclient.ui.message.ChatWritingPanel
 import me.kafuuneko.rpclient.ui.message.ConversationComposer
 import me.kafuuneko.rpclient.ui.message.ConversationQuickAction
 import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
@@ -129,7 +131,9 @@ internal fun GroupChatNormalPage(
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     // 生成状态继续决定输入区与续写操作的可用性。
-    val generating = state.conversationState.generationState is GroupChatGenerationState.Generating
+    val generation = state.conversationState.generationState
+    val impersonating = generation as? GroupChatGenerationState.Impersonating
+    val generating = generation is GroupChatGenerationState.Generating || impersonating != null
     val canContinue = state.conversationState.hasCharacterMessage
     AppPageScaffold(
         containerColor = Color.Transparent,
@@ -165,6 +169,9 @@ internal fun GroupChatNormalPage(
                 Composer(
                     draft = state.conversationState.inputDraft,
                     generating = generating,
+                    writingState = impersonating?.writing,
+                    onToggleReasoning = { emitIntent(GroupChatUiIntent.ToggleWritingReasoning) },
+                    onImpersonate = { emitIntent(GroupChatUiIntent.ImpersonateUser) },
                     imageState = state.imageState,
                     onDraftChange = { text ->
                         emitIntent(GroupChatUiIntent.ChangeInputDraft(text))
@@ -200,7 +207,8 @@ internal fun GroupChatNormalPage(
                 )
                 MessageList(
                     imageState = state.imageState,
-                    messages = state.conversationState.messages,
+                    messages = impersonating?.preview?.let { state.conversationState.messages + it }
+                        ?: state.conversationState.messages,
                     canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
                     historyLoadState = state.conversationState.historyLoadState,
                     searchAnchorMessageId = state.conversationState.searchAnchorMessageId,
@@ -254,6 +262,7 @@ private fun CustomGroupChatTopBar(
                 generationState.total,
             )
 
+        is GroupChatGenerationState.Impersonating -> stringResource(R.string.impersonate_user)
         is GroupChatGenerationState.Failed -> generationState.message
     }
 
@@ -308,7 +317,7 @@ private fun CustomGroupChatTopBar(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(weight = 1f, fill = false),
                     )
-                    if (generationState is GroupChatGenerationState.Generating) {
+                    if (generating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(12.dp),
                             strokeWidth = 1.5.dp,
@@ -1229,6 +1238,9 @@ private fun GroupMessageActions(
 private fun Composer(
     draft: String,
     generating: Boolean,
+    writingState: ChatWritingState?,
+    onToggleReasoning: () -> Unit,
+    onImpersonate: () -> Unit,
     imageState: MessageImageState,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
@@ -1244,6 +1256,11 @@ private fun Composer(
         placeholder = stringResource(R.string.group_chat_message_hint),
         imageState = imageState,
         isGenerating = generating,
+        inputEnabled = !generating || writingState != null,
+        readOnly = writingState != null,
+        beforeActions = {
+            writingState?.let { ChatWritingPanel(it, onToggleReasoning) }
+        },
         onDraftChange = onDraftChange,
         onSend = onSend,
         onStop = onStop,
@@ -1254,6 +1271,12 @@ private fun Composer(
                 label = stringResource(R.string.continue_latest_reply),
                 enabled = canContinue && !generating,
                 onClick = onContinue,
+            )
+            ConversationQuickAction(
+                icon = Icons.Rounded.Edit,
+                label = stringResource(R.string.impersonate_user),
+                enabled = !generating && !imageState.loadState.isBusy,
+                onClick = onImpersonate,
             )
             ConversationQuickAction(
                 icon = Icons.Rounded.AutoAwesome,

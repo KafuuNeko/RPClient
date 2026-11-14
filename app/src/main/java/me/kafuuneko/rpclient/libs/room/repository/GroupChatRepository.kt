@@ -625,7 +625,11 @@ class GroupChatRepository(
         }
     }
 
-    /** 写入群聊消息并同步刷新会话最近活动时间。 */
+    /**
+     * 写入群聊消息，同步刷新会话最近活动时间。
+     * @param worldInfoStateJson 生成消息对应的世界书快照，与非空正文同时提交。
+     * @return 新消息 ID。
+     */
     suspend fun createMessage(
         sessionId: Long,
         source: GroupChatMessage.Source,
@@ -634,6 +638,7 @@ class GroupChatRepository(
         speakerNameSnapshot: String,
         generationBatchId: String? = null,
         createTime: Long = System.currentTimeMillis(),
+        worldInfoStateJson: String? = null,
     ): Long {
         require(source != GroupChatMessage.Source.User || content.isNotBlank()) {
             "A text-only user message cannot be empty, use the image entry for image-only messages"
@@ -650,7 +655,12 @@ class GroupChatRepository(
                     generationBatchId = generationBatchId,
                 ),
             )
+            // 已展示的部分代写正文也代表一个用户轮次，写入失败时应一并回滚快照。
             mSessionDao.updateLatestTime(sessionId, createTime)
+            if (worldInfoStateJson != null) mSessionDao.updateWorldInfoState(
+                sessionId,
+                worldInfoStateJson
+            )
             messageId
         }
     }

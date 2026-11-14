@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.prompt.filterEntries
 import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
 import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
 import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
+import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -89,6 +90,8 @@ data class GroupChatPromptContext(
         session.userName,
         session.userDescription
     ),
+    /** 输入框续写的起点；空串表示从头代写，null 表示输出到历史或其他生成任务。 */
+    val userWritingDraft: String? = null,
 )
 
 /** 群聊回复的生成模式。 */
@@ -331,6 +334,13 @@ private class GroupChatPromptBuildSession(
             addAll(fixedMessages.afterHistory)
             continueTarget?.let(::add)
             buildGenerationControlDraft(context)?.let(::add)
+            context.userWritingDraft?.let { original ->
+                require(context.generationMode == GroupChatGenerationMode.Impersonate) { "User writing requires impersonation mode" }
+                val template = mPreferences.userWritingPrompt
+                buildUserWritingPrompt(template, original) { part ->
+                    part.resolve(context, context.memberNames(), template)
+                }?.let(::add)
+            }
         }
         // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = mRequestFinalizer.finalize(
@@ -342,7 +352,8 @@ private class GroupChatPromptBuildSession(
                 maxTokens = context.provider.maxTokens,
                 topP = context.provider.topP,
             ),
-            includeReasoningInContent = true,
+            includeReasoningInContent = context.userWritingDraft == null,
+            captureReasoning = true,
             maxContextTokens = context.provider.contextTokens,
             maxResponseTokens = context.provider.maxTokens,
             postProcessingMode = readPostProcessingMode(context.provider),

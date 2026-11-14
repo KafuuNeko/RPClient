@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Refresh
@@ -123,6 +124,11 @@ internal fun GroupChatSettingsPage(
                         title = stringResource(R.string.continue_latest_reply),
                         enabled = state.canContinueLatestReply,
                         onClick = { emitIntent(GroupChatUiIntent.ContinueLast) },
+                    )
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Edit,
+                        title = stringResource(R.string.impersonate_user),
+                        onClick = { emitIntent(GroupChatUiIntent.ImpersonateUser) },
                     )
                     SettingsActionRow(
                         icon = Icons.Rounded.Delete,
