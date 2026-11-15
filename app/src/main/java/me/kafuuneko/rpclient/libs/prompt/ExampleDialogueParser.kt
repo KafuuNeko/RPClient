@@ -19,8 +19,6 @@ internal fun parseExampleMessages(
     userName: String,
     characterName: String,
 ): List<ParsedExampleMessage> {
-    val userLabels = setOf(userName, "{{user}}", "<USER>")
-    val characterLabels = setOf(characterName, "{{char}}", "<CHAR>", "<BOT>")
     val parsed = mutableListOf<ParsedExampleMessage>()
 
     block.lineSequence()
@@ -31,16 +29,11 @@ internal fun parseExampleMessages(
             val label = if (separator >= 0) line.substring(startIndex = 0, endIndex = separator)
                 .trim() else ""
             val role = when {
-                userLabels.any { text ->
-                    text.equals(
-                        other = label,
-                        ignoreCase = true
-                    )
-                } -> LLMMessageRole.User
-
-                characterLabels.any { text -> text.equals(other = label, ignoreCase = true) } ->
-                    LLMMessageRole.Assistant
-
+                // 先识别标记本身，即使用户与角色同名也能保留示例的发言身份。
+                exampleUserLabel.matches(label) -> LLMMessageRole.User
+                exampleCharacterLabel.matches(label) -> LLMMessageRole.Assistant
+                label.equals(userName, ignoreCase = true) -> LLMMessageRole.User
+                label.equals(characterName, ignoreCase = true) -> LLMMessageRole.Assistant
                 else -> null
             }
             if (role != null) {
@@ -53,3 +46,7 @@ internal fun parseExampleMessages(
         }
     return parsed.filter { it.content.isNotBlank() }
 }
+
+private val exampleUserLabel = Regex("""\{\{\s*user\s*\}\}|<USER>""", RegexOption.IGNORE_CASE)
+private val exampleCharacterLabel =
+    Regex("""\{\{\s*char\s*\}\}|<(?:CHAR|BOT)>""", RegexOption.IGNORE_CASE)

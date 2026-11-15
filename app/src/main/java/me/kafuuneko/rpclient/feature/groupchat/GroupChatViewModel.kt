@@ -45,7 +45,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatViewEvent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.toGroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.withSettingsDraft
-import me.kafuuneko.rpclient.feature.groupchat.utils.groupRegexMacros
+import me.kafuuneko.rpclient.feature.groupchat.utils.macroContext
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
@@ -66,6 +66,7 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptContext
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.groupchat.cardMembers
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
@@ -817,7 +818,7 @@ class GroupChatViewModel :
                 summary = null,
             )
             // 执行用户输入端 Source 正则
-            val input = applyUserRegex(initialData, rawInput)
+            val input = applySourceRegex(initialData, rawInput)
             val isUserInput = rawInput.isNotBlank() || images.isNotEmpty()
             // 确定激活文本（若有用户输入使用用户输入，否则使用上一条消息）
             val activationText = if (isUserInput) {
@@ -1011,7 +1012,7 @@ class GroupChatViewModel :
     /** 用户消息先在内存中预览；成功、停止或断流时只提交已收到的非空正文。 */
     private suspend fun generateUserMessage(sessionId: Long, prepared: PreparedGroupRequest) {
         val data = prepared.data
-        val macros = groupRegexMacros(data, data.members.firstOrNull()?.character?.name.orEmpty())
+        val macros = prepared.macros
         val streaming = AppModel.streamEnabled
         var raw = ""
         val saved: Boolean
@@ -1701,22 +1702,11 @@ class GroupChatViewModel :
             mImageCoordinator.submit(editing = true) { finalInputs ->
                 // 新增附件在提交前处理，保留项直接沿用原来的仓库文件。
                 val content = withContext(Dispatchers.IO) {
-                    when (message.source) {
-                        GroupChatMessage.Source.User -> applyUserRegex(
-                            data = data,
-                            input = uiState.conversationState.editingMessageDraft.trim(),
-                            isEdit = true,
-                        )
-
-                        GroupChatMessage.Source.Character -> applyAiRegex(
-                            data = data,
-                            input = uiState.conversationState.editingMessageDraft.trim(),
-                            characterName = message.speakerNameSnapshot,
-                            isEdit = true,
-                        )
-
-                        GroupChatMessage.Source.System -> uiState.conversationState.editingMessageDraft.trim()
-                    }
+                    applySourceRegex(
+                        data,
+                        uiState.conversationState.editingMessageDraft.trim(),
+                        message
+                    )
                         .let { edited ->
                             mMessageEditPolicy.applyEditedContent(
                                 message.content,
@@ -2160,7 +2150,7 @@ class GroupChatViewModel :
         }
         mStreamingContent = ""
         mStreamingRegexScripts = prepared.scripts
-        mStreamingRegexMacros = groupRegexMacros(data, speaker.character.name)
+        mStreamingRegexMacros = prepared.macros
         mStreamingRegexApplied = false
         // 更新 UI 为当前角色的生成中状态
         refreshState(
@@ -2267,7 +2257,13 @@ class GroupChatViewModel :
                 ),
             )
         }
-        PreparedGroupRequest(data, provider, scripts, buildResult)
+        PreparedGroupRequest(
+            data,
+            provider,
+            scripts,
+            buildResult,
+            macros = data.macroContext(speaker.character).forCharacter()
+        )
     }
 
     /**
@@ -2680,15 +2676,7 @@ class GroupChatViewModel :
             .getSessionLorebookEntryIds(data.session)
             .toSet()
         // 根据角色卡模式确定参与世界书匹配的成员集合
-        val cardMembers = if (
-            data.session.characterCardMode == GroupChatSession.CharacterCardMode.Join
-        ) {
-            data.members.filter { member ->
-                data.session.includeMutedCards || !member.relation.muted
-            }
-        } else {
-            listOf(speaker)
-        }
+        val cardMembers = data.session.cardMembers(data.members, speaker.character)
         val characterLorebookIds = cardMembers
             .map { it.character.characterLorebookId }
             .filter { it > 0L }
@@ -3006,14 +2994,10 @@ class GroupChatViewModel :
         val imageMap = messageImages.associate { snapshot ->
             snapshot.key.messageId to snapshot.images.map { messageImageWithFile -> messageImageWithFile.image.imageUuid }
         }
-        // 遍历消息并执行针对该消息发言角色的 Display 阶段正则
+        // 角色改名或离群后仍使用发言时署名，与请求中的历史保持一致。
+        val macroContext = macroContext()
         return messages.mapIndexed { index, message ->
-            val characterName = if (message.source == GroupChatMessage.Source.Character) {
-                message.speakerNameSnapshot
-            } else {
-                members.firstOrNull()?.character?.name.orEmpty()
-            }
-            val macros = groupRegexMacros(this, characterName)
+            val macros = macroContext.forMessage(message)
             val depth = newerMessageCount + messages.lastIndex - index
             val displayContent = when (message.source) {
                 GroupChatMessage.Source.User -> mRegexProcessor.applyDisplay(
@@ -3064,46 +3048,29 @@ class GroupChatViewModel :
     }
 
     /**
-     * 对群聊用户输入文本执行 Source 阶段正则替换。
-     *
-     * @param data 群聊数据快照
-     * @param input 用户原始输入
-     * @param isEdit 是否为编辑已有消息
-     * @return 正则替换后文本
+     * 应用 Source 正则。编辑时，脚本使用原消息的署名。
+     * @param data 发送时捕获的群聊快照。
+     * @param input 待处理的正文。
+     * @param message 编辑目标；发送新用户消息时为空。
+     * @return 可写入历史的正文。
      */
-    private suspend fun applyUserRegex(
+    private suspend fun applySourceRegex(
         data: GroupChatData,
         input: String,
-        isEdit: Boolean = false,
+        message: GroupChatMessage? = null,
     ): String {
-        val scripts = mRegexRepository.activeScripts(data.members.map { it.character })
-        val macros = groupRegexMacros(
-            data = data,
-            characterName = data.members.firstOrNull()?.character?.name.orEmpty(),
-        )
-        return mRegexProcessor.applyUserInput(input, scripts, macros, isEdit)
-    }
-
-    /**
-     * 对群聊 AI 角色生成文本执行 Source 阶段正则替换。
-     *
-     * @param data 群聊数据快照
-     * @param input AI 原始生成文本
-     * @param characterName 发言角色名称
-     * @param isEdit 是否为编辑已有消息
-     * @return 正则替换后文本
-     */
-    private suspend fun applyAiRegex(
-        data: GroupChatData,
-        input: String,
-        characterName: String,
-        isEdit: Boolean = false,
-    ): String {
-        return mRegexProcessor.applyAiResponse(
+        val source = when (message?.source) {
+            GroupChatMessage.Source.System -> return input
+            GroupChatMessage.Source.Character -> RegexMessageSource.Character
+            GroupChatMessage.Source.User, null -> RegexMessageSource.User
+        }
+        val context = data.macroContext()
+        return mRegexProcessor.applyGenerated(
             input = input,
+            source = source,
             scripts = mRegexRepository.activeScripts(data.members.map { it.character }),
-            macros = groupRegexMacros(data, characterName),
-            isEdit = isEdit,
+            macros = message?.let(context::forMessage) ?: context.forCharacter(),
+            isEdit = message != null,
         )
     }
 
@@ -3112,12 +3079,11 @@ class GroupChatViewModel :
      */
     private fun applyStreamingAiRegex() {
         if (mStreamingRegexApplied || mStreamingContent.isBlank()) return
-        val processed = mRegexProcessor.applyAiResponse(
+        mStreamingContent = mRegexProcessor.applyAiResponse(
             input = mStreamingContent,
             scripts = mStreamingRegexScripts,
             macros = mStreamingRegexMacros,
         )
-        mStreamingContent = processed
         mStreamingRegexApplied = true
     }
 

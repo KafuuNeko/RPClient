@@ -115,17 +115,18 @@ private fun Lorebook.resolveTokenBudget(): Int? {
 /**
  * 最终 Prompt 预算还可能移除世界书消息；时序状态只能包含实际保留的条目。
  *
- * Outlet 内容会通过其他 Prompt 的宏展开注入，无法从最终消息来源反推，因此沿用其激活结果。
+ * 群聊把插槽条目标注为引用模板的来源；未单独跟踪插槽来源的旧构建器沿用激活结果。
  */
 internal fun WorldBookActivationResult.retainStateEntries(
     inspection: PromptInspection,
+    includeUntrackedOutlets: Boolean = true,
 ): WorldBookActivationResult {
     val retainedIds = inspection.items
         .flatMap { it.sources }
         .filter { it.kind == PromptSourceKind.WorldInfo }
         .mapNotNull { it.referenceId }
         .toMutableSet()
-    outletEntries.values.flatten().forEach { retainedIds += it.id }
+    if (includeUntrackedOutlets) outletEntries.values.flatten().forEach { retainedIds += it.id }
     return copy(activatedEntries = activatedEntries.filter { it.id in retainedIds })
 }
 

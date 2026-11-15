@@ -73,7 +73,7 @@ class RegexScriptEngineTest {
             script("raw", "/{{char}}/g", "x").copy(substituteRegex = RegexFindMacroMode.Raw.value)
         val escaped = script(
             "escaped",
-            "/{{char}}/g",
+            "/{{ CHAR }}/g",
             "y"
         ).copy(substituteRegex = RegexFindMacroMode.Escaped.value)
         val disabled = script("disabled", "/\\{\\{char\\}\\}/g", "z")
@@ -93,7 +93,7 @@ class RegexScriptEngineTest {
         val script = script(
             id = "replacement-macros",
             find = "/input/g",
-            replacement = "{{UsEr}}/{{missing}}",
+            replacement = "{{ UsEr }}/{{ missing }}",
         )
 
         val result = engine.execute(
@@ -102,7 +102,7 @@ class RegexScriptEngineTest {
             context = context(macros = mapOf("user" to "Alice")),
         )
 
-        assertEquals("Alice/{{missing}}", result.text)
+        assertEquals("Alice/{{ missing }}", result.text)
     }
 
     @Test

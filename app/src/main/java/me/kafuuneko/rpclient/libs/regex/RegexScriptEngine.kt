@@ -211,7 +211,7 @@ class RegexScriptEngine {
         transform: (String) -> String = { it },
     ): String {
         return MACRO.replace(text) { match ->
-            val key = match.groupValues[1].lowercase()
+            val key = match.groupValues[1].trim().lowercase()
             macros.entries.firstOrNull { entry -> entry.key.lowercase() == key }
                 ?.value
                 ?.let(transform)

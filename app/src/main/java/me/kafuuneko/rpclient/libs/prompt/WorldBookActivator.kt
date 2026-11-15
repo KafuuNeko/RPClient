@@ -74,8 +74,14 @@ class WorldBookActivator {
         )
     }
 
-    /** 使用与具体聊天实体解耦的扫描上下文执行世界书激活流水线。 */
-    fun activateStructured(context: WorldBookScanContext): WorldBookActivationResult {
+    /**
+     * 使用与具体聊天实体解耦的扫描上下文执行世界书激活流水线。
+     * @param recursiveContent 为后续递归扫描展开已命中条目的正文，默认使用原文。
+     */
+    fun activateStructured(
+        context: WorldBookScanContext,
+        recursiveContent: (LorebookEntry) -> String = { it.content },
+    ): WorldBookActivationResult {
         val messageCount = context.totalMessageCount
         // 加载并校验时序状态，若聊天发生回滚则自动重置时钟
         val state = (context.worldInfoState
@@ -148,7 +154,8 @@ class WorldBookActivator {
             newlyActivated.forEach { activation ->
                 activated[activation.id] = activation
             }
-            recursionBuffer = newlyActivated.joinToString("\n") { it.content }
+            // 递归匹配使用本轮展开的正文，时序签名继续取原始条目，换人发言不会重置冷却。
+            recursionBuffer = newlyActivated.joinToString("\n", transform = recursiveContent)
             step += 1
         }
 

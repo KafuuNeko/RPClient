@@ -13,11 +13,10 @@ import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
 import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
 import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
-import me.kafuuneko.rpclient.libs.prompt.filterEntries
+import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
 import me.kafuuneko.rpclient.libs.prompt.filterForExampleBehavior
 import me.kafuuneko.rpclient.libs.prompt.fitWorldInfoToBudget
 import me.kafuuneko.rpclient.libs.prompt.mapEntryContent
-import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -30,7 +29,6 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.prompt.parseExampleMessages
-import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
 import me.kafuuneko.rpclient.libs.prompt.retainStateEntries
 import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
@@ -167,6 +165,12 @@ class GroupChatPromptBuilder(
         )
         // 单次构建不回写任何消息或世界书状态。
         return GroupChatPromptBuildSession(
+            mMacros = GroupChatMacros(
+                context.session,
+                context.members,
+                context.persona,
+                context.speaker
+            ),
             mPreferences = preferences,
             mWorldBookActivator = mWorldBookActivator,
             mRegexRuntime = mRegexRuntime,
@@ -179,6 +183,7 @@ class GroupChatPromptBuilder(
 
 /** 一次构建的只读依赖与提示词快照，不跨请求复用。 */
 private class GroupChatPromptBuildSession(
+    private val mMacros: GroupChatMacros,
     private val mPreferences: PromptPreferences,
     private val mWorldBookActivator: WorldBookActivator = WorldBookActivator(),
     private val mRegexRuntime: RegexScriptRuntime = RegexScriptRuntime(mEngine = RegexScriptEngine()),
@@ -187,6 +192,8 @@ private class GroupChatPromptBuildSession(
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
     private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
+    private val mSpeakerMacros = mMacros.forCharacter()
+
     /**
      * 构建可直接发送给模型的群聊生成请求。
      *
@@ -223,27 +230,20 @@ private class GroupChatPromptBuildSession(
         )
         val regexHits = mutableListOf<RegexExecutionHit>()
         val regexErrors = mutableListOf<RegexExecutionError>()
-        // 构造供 Regex 运行环境使用的宏变量映射字典（包含 {{group}} 等）
-        val regexMacros = RegexScriptRuntime.macros(
-            userName = context.persona.name,
-            characterName = context.speaker.name,
-            userDescription = context.persona.description,
-            scenario = context.session.scenario,
-            groupNames = context.memberNames(),
-        )
         // 扫描群聊多成员与历史消息激活世界书条目
         val rawWorldInfo = activateWorldInfo(context)
         // 执行世界书 Prompt 阶段 Regex 替换
         val activatedWorldInfo = rawWorldInfo
             .mapEntryContent { entry ->
+                val macros = mMacros.forLorebook(entry.lorebookId)
                 val result = mRegexProcessor.applyWorldInfo(
                     input = entry.content,
                     scripts = context.regexScripts,
-                    macros = regexMacros,
+                    macros = macros,
                 )
                 regexHits += result.hits
                 regexErrors += result.errors
-                entry.copy(content = result.text)
+                entry.copy(content = renderGroupMacros(result.text, macros))
             }
             .filterForExampleBehavior(exampleBehavior)
         // 按预算比例裁剪世界书条目
@@ -263,33 +263,21 @@ private class GroupChatPromptBuildSession(
             context.messages,
             (context.messageImages.keys + context.unavailableImages.keys)
         ).mapIndexed { index, message ->
-            val depth = context.messages.lastIndex - index
-            val result = when (message.source) {
-                GroupChatMessage.Source.User -> mRegexProcessor.applyPrompt(
-                    input = message.content,
-                    source = RegexMessageSource.User,
-                    scripts = context.regexScripts,
-                    macros = regexMacros,
-                    depth = depth,
-                )
-
-                GroupChatMessage.Source.Character -> mRegexProcessor.applyPrompt(
-                    input = message.content,
-                    source = RegexMessageSource.Character,
-                    scripts = context.regexScripts,
-                    macros = regexMacros,
-                    depth = depth,
-                )
-
-                GroupChatMessage.Source.System -> null
+            val source = when (message.source) {
+                GroupChatMessage.Source.User -> RegexMessageSource.User
+                GroupChatMessage.Source.Character -> RegexMessageSource.Character
+                GroupChatMessage.Source.System -> return@mapIndexed message
             }
-            if (result == null) {
-                message
-            } else {
-                regexHits += result.hits
-                regexErrors += result.errors
-                message.copy(content = result.text)
-            }
+            val result = mRegexProcessor.applyPrompt(
+                input = message.content,
+                source = source,
+                scripts = context.regexScripts,
+                macros = mMacros.forMessage(message),
+                depth = context.messages.lastIndex - index,
+            )
+            regexHits += result.hits
+            regexErrors += result.errors
+            message.copy(content = result.text)
         }
         // 将历史消息转换为带发言者前缀的 Prompt 草稿
         val historyMessages = history.mapIndexed { index, message ->
@@ -321,24 +309,29 @@ private class GroupChatPromptBuildSession(
         }
         // 注入群聊任务提示（Group Nudge）
         if (context.summaryInstruction == null && context.generationMode.usesCharacterReplyTask()) {
-            context.groupNudgePrompt()
-                .resolve(context, context.memberNames())
+            renderGroupMacros(context.groupNudgePrompt(), mSpeakerMacros)
                 .takeIf { it.isNotBlank() }
                 ?.let { historyMessages += requiredUser(it, PromptSourceKind.GroupNudge) }
         }
 
         // 串联所有分区消息草稿
+        val outlets = GroupChatOutlets(worldInfo.outletEntries)
         val rawDrafts = buildList {
             addAll(fixedMessages.beforeHistory)
             addAll(historyMessages)
             addAll(fixedMessages.afterHistory)
             continueTarget?.let(::add)
             buildGenerationControlDraft(context)?.let(::add)
-            buildUserWritingDraft(context)?.let(::add)
         }
+        val drafts = rawDrafts.mapNotNull(outlets::expandPrompt) + listOfNotNull(
+            buildUserWritingDraft(
+                context,
+                outlets
+            )
+        )
         // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = mRequestFinalizer.finalize(
-            drafts = ensureTerminalCharacterReplyTurn(rawDrafts, context),
+            drafts = ensureTerminalCharacterReplyTurn(drafts, context),
             provider = context.provider,
             model = context.provider.model,
             options = LLMGenerationOptions(
@@ -371,12 +364,9 @@ private class GroupChatPromptBuildSession(
             regexExecutions = regexHits,
             regexErrors = regexErrors,
         )
-        val selectedWorldInfoIds = worldInfo.activatedEntries.map { it.id }.toSet()
         // 推进世界书下一时序状态
         val stateResult = mWorldBookActivator.resolveNextState(
-            result = rawWorldInfo
-                .filterEntries(selectedWorldInfoIds)
-                .retainStateEntries(inspection),
+            result = rawWorldInfo.retainStateEntries(inspection, includeUntrackedOutlets = false),
         )
         return GroupChatPromptBuildResult(
             request = finalized.request,
@@ -392,8 +382,19 @@ private class GroupChatPromptBuildSession(
      * @return 激活的世界书分组结果
      */
     private fun activateWorldInfo(context: GroupChatPromptContext): WorldBookActivationResult {
-        // 扫描沿用本轮身份，历史消息的发言者快照仍优先保留。
-        val cardMembers = context.cardMembers()
+        val cardMembers = mMacros.cardMembers
+
+        // 保留扫描源中的成员署名，即使卡片字段为空也可按原有规则匹配名字。
+        fun scanField(field: (Character) -> String): String =
+            cardMembers.joinToString("\n") { member ->
+                val character = member.character
+                "${character.name}: ${
+                    renderGroupMacros(
+                        field(character),
+                        mMacros.forCharacter(character)
+                    )
+                }"
+            }
         return mWorldBookActivator.activateStructured(
             context = WorldBookScanContext(
                 messages = context.messages.map { message ->
@@ -414,24 +415,20 @@ private class GroupChatPromptBuildSession(
                     GroupChatGenerationMode.Regenerate -> WorldBookGenerationType.Regenerate
                     GroupChatGenerationMode.Impersonate -> WorldBookGenerationType.Impersonate
                 },
-                characterDescription = cardMembers.joinToString("\n") { member ->
-                    "${member.character.name}: ${member.character.description}"
-                },
-                userDescription = context.persona.description,
-                characterPersonality = cardMembers.joinToString("\n") { member ->
-                    "${member.character.name}: ${member.character.personality}"
-                },
-                characterDepthPrompt = cardMembers.joinToString("\n") { member ->
-                    "${member.character.name}: ${member.character.depthPromptPrompt}"
-                },
-                scenario = context.session.scenario
-                    .takeIf { it.isNotBlank() }
-                    ?.resolve(context, context.memberNames())
-                    ?: context.combineCharacterField(cardMembers) { it.scenario },
-                creatorNotes = cardMembers.joinToString("\n") { member ->
-                    "${member.character.name}: ${member.character.creatorNotes}"
-                },
+                characterDescription = scanField { it.description },
+                userDescription = mSpeakerMacros.getValue("persona"),
+                characterPersonality = scanField { it.personality },
+                characterDepthPrompt = scanField { it.depthPromptPrompt },
+                scenario = if (context.session.scenario.isNotBlank()) mSpeakerMacros.getValue("scenario")
+                else context.combineCharacterField(cardMembers) { it.scenario },
+                creatorNotes = scanField { it.creatorNotes },
             ),
+            recursiveContent = { entry ->
+                renderGroupMacros(
+                    entry.content,
+                    mMacros.forLorebook(entry.lorebookId)
+                )
+            },
         )
     }
 
@@ -450,7 +447,6 @@ private class GroupChatPromptBuildSession(
     ): PromptSections {
         val before = mutableListOf<PromptMessageDraft>()
         val after = mutableListOf<PromptMessageDraft>()
-        val memberNames = context.memberNames()
         val summaryPosition = readSummaryInjectionPosition().let { position ->
             if (context.summaryInstruction != null && position == SummaryInjectionPosition.None) {
                 SummaryInjectionPosition.BeforeMain
@@ -475,7 +471,7 @@ private class GroupChatPromptBuildSession(
         // 注入 beforeCharacter 世界书条目
         worldInfo.beforeCharacter.forEach { entry ->
             before += prioritizedWorldInfo(
-                content = formatWorldInfo(entry.content),
+                content = formatWorldInfo(entry),
                 source = PromptSource(
                     kind = PromptSourceKind.WorldInfo,
                     detail = entry.name,
@@ -486,11 +482,11 @@ private class GroupChatPromptBuildSession(
         }
         // 注入用户形象设定（User persona）
         before += requiredSystem(
-            content = renderUserPersonaTemplate(
-                template = mPreferences.userPersonaFormat,
-                userName = context.persona.name,
-                userDescription = context.persona.description,
-                characterName = context.speaker.name,
+            content = formatGroupField(
+                mPreferences.userPersonaFormat,
+                "persona",
+                mSpeakerMacros.getValue("persona"),
+                mSpeakerMacros
             ),
             sourceKind = PromptSourceKind.UserPersona,
         )
@@ -499,7 +495,7 @@ private class GroupChatPromptBuildSession(
         // 注入辅助提示词
         mPreferences.auxiliaryPrompt.takeIf { it.isNotBlank() }?.let { text ->
             before += optionalSystem(
-                content = text.resolve(context, memberNames),
+                content = renderGroupMacros(text, mSpeakerMacros),
                 source = PromptSource(PromptSourceKind.AuxiliaryPrompt),
                 retentionPriority = PRIORITY_AUXILIARY,
             )
@@ -507,7 +503,7 @@ private class GroupChatPromptBuildSession(
         // 注入 afterCharacter 世界书条目
         worldInfo.afterCharacter.forEach { entry ->
             before += prioritizedWorldInfo(
-                content = formatWorldInfo(entry.content),
+                content = formatWorldInfo(entry),
                 source = PromptSource(
                     kind = PromptSourceKind.WorldInfo,
                     detail = entry.name,
@@ -523,7 +519,7 @@ private class GroupChatPromptBuildSession(
         examplePriority?.let { priority ->
             worldInfo.exampleBefore.forEach { entry ->
                 before += optionalSystem(
-                    content = formatWorldInfo(entry.content),
+                    content = formatWorldInfo(entry),
                     source = PromptSource(
                         kind = PromptSourceKind.WorldInfo,
                         detail = entry.name,
@@ -537,7 +533,7 @@ private class GroupChatPromptBuildSession(
         examplePriority?.let { priority ->
             worldInfo.exampleAfter.forEach { entry ->
                 before += optionalSystem(
-                    content = formatWorldInfo(entry.content),
+                    content = formatWorldInfo(entry),
                     source = PromptSource(
                         kind = PromptSourceKind.WorldInfo,
                         detail = entry.name,
@@ -552,7 +548,7 @@ private class GroupChatPromptBuildSession(
             text.isNotBlank() && context.messages.isNotEmpty()
         }?.let { text ->
             before += optionalSystem(
-                content = text.resolve(context, memberNames),
+                content = renderGroupMacros(text, mSpeakerMacros),
                 source = PromptSource(PromptSourceKind.NewChatMarker),
                 retentionPriority = PRIORITY_NEW_CHAT,
             )
@@ -582,13 +578,26 @@ private class GroupChatPromptBuildSession(
      * @return 包含描述、性格与场景的系统消息草稿列表
      */
     private fun buildCharacterCards(context: GroupChatPromptContext): List<PromptMessageDraft> {
-        val members = context.cardMembers()
+        val members = mMacros.cardMembers
         val description = context.combineCharacterField(members) { it.description }
-        val personality = context.combineCharacterField(members) { it.personality }
-        val scenario = context.session.scenario
-            .takeIf { it.isNotBlank() }
-            ?.resolve(context, context.memberNames())
-            ?: context.combineCharacterField(members) { it.scenario }
+        val personality = context.combineCharacterField(
+            cardMembers = members, template = mPreferences.personalityFormat, slot = "personality",
+        ) { it.personality }
+        // 群场景覆盖只注入一次，卡内场景则各自使用所属角色的模板。
+        val scenario = if (context.session.scenario.isNotBlank()) {
+            formatGroupField(
+                mPreferences.scenarioFormat,
+                "scenario",
+                mSpeakerMacros.getValue("scenario"),
+                mSpeakerMacros
+            )
+        } else {
+            context.combineCharacterField(
+                members,
+                template = mPreferences.scenarioFormat,
+                slot = "scenario"
+            ) { it.scenario }
+        }
 
         return buildList {
             description.takeIf { text -> text.isNotBlank() }?.let { text ->
@@ -597,13 +606,13 @@ private class GroupChatPromptBuildSession(
             personality.takeIf { text -> text.isNotBlank() }?.let { text ->
                 add(
                     element = requiredSystem(
-                        content = formatPersonality(text),
+                        content = text,
                         sourceKind = PromptSourceKind.CharacterPersonality,
                     ),
                 )
             }
             scenario.takeIf { text -> text.isNotBlank() }?.let { text ->
-                add(requiredSystem(formatScenario(text), PromptSourceKind.Scenario))
+                add(requiredSystem(text, PromptSourceKind.Scenario))
             }
         }
     }
@@ -612,22 +621,25 @@ private class GroupChatPromptBuildSession(
      * 合并角色字段，并在 Join 模式中标明每段内容所属角色。
      *
      * @param cardMembers 本轮可见成员列表
+     * @param template 单个成员字段使用的外层格式。
+     * @param slot 正文在格式中的插槽名。
      * @param readField 读取指定角色卡字段的 lambda
      * @return 格式化后的合并文本
      */
     private fun GroupChatPromptContext.combineCharacterField(
         cardMembers: List<GroupChatMemberData>,
+        template: String = "",
+        slot: String = "",
         readField: (Character) -> String,
     ): String {
         return cardMembers.mapNotNull { member ->
-            val value = readField(member.character).trim()
-            if (value.isBlank()) {
-                null
-            } else if (session.characterCardMode == GroupChatSession.CharacterCardMode.Swap) {
-                value.resolve(this, memberNames())
-            } else {
-                "${member.character.name}:\n${value.resolve(this, memberNames())}"
-            }
+            val raw = readField(member.character).trim()
+            if (raw.isBlank()) return@mapNotNull null
+            val macros = mMacros.forCharacter(member.character)
+            val text = formatGroupField(template, slot, renderGroupMacros(raw, macros), macros)
+            if (session.characterCardMode == GroupChatSession.CharacterCardMode.Join) {
+                "${member.character.name}:\n$text"
+            } else text
         }.joinToString("\n")
     }
 
@@ -647,7 +659,8 @@ private class GroupChatPromptBuildSession(
         }
         // 示例中的用户宏和称谓与本轮 Prompt 身份保持一致。
         val retentionPriority = PromptRetentionPolicy.examplePriority(behavior)
-        return context.cardMembers().flatMap { member ->
+        return mMacros.cardMembers.flatMap { member ->
+            val macros = mMacros.forCharacter(member.character)
             member.character.examplesOfDialogue
                 .split("<START>")
                 .map { text -> text.trim() }
@@ -658,7 +671,7 @@ private class GroupChatPromptBuildSession(
                             ?.let { text ->
                                 add(
                                     element = optionalSystem(
-                                        content = text,
+                                        content = renderGroupMacros(text, macros),
                                         source = PromptSource(
                                             kind = PromptSourceKind.ExampleDialogue,
                                             detail = member.character.name,
@@ -675,7 +688,12 @@ private class GroupChatPromptBuildSession(
                         if (parsed.isEmpty()) {
                             add(
                                 element = optionalSystem(
-                                    content = "${member.character.name} example:\n$block",
+                                    content = "${member.character.name} example:\n${
+                                        renderGroupMacros(
+                                            block,
+                                            macros
+                                        )
+                                    }",
                                     source = PromptSource(
                                         kind = PromptSourceKind.ExampleDialogue,
                                         detail = member.character.name,
@@ -693,7 +711,12 @@ private class GroupChatPromptBuildSession(
                                 add(
                                     element = PromptMessageDraft(
                                         role = message.role,
-                                        content = "$speaker: ${message.content}",
+                                        content = "$speaker: ${
+                                            renderGroupMacros(
+                                                message.content,
+                                                macros
+                                            )
+                                        }",
                                         source = PromptSource(
                                             kind = PromptSourceKind.ExampleDialogue,
                                             detail = member.character.name,
@@ -750,7 +773,7 @@ private class GroupChatPromptBuildSession(
         context.session.userNote.takeIf { it.isNotBlank() }?.let { text ->
             pieces += InChatPiece(
                 message = optionalSystem(
-                    content = text.resolve(context, context.memberNames()),
+                    content = renderGroupMacros(text, mSpeakerMacros),
                     source = PromptSource(PromptSourceKind.UserNote),
                     retentionPriority = PRIORITY_USER_NOTE,
                 ),
@@ -777,13 +800,16 @@ private class GroupChatPromptBuildSession(
         }
         // 群聊 Character Note 同样面向角色输出，特殊模式只保留人物与世界背景。
         if (context.generationMode.usesCharacterReplyTask()) {
-            context.cardMembers().forEach { member ->
+            mMacros.cardMembers.forEach { member ->
                 member.character.depthPromptPrompt.takeIf { text -> text.isNotBlank() }
                     ?.let { text ->
                         pieces += InChatPiece(
                             message = PromptMessageDraft(
                                 role = member.character.depthPromptRole.toMessageRole(),
-                                content = text.resolve(context, context.memberNames()),
+                                content = renderGroupMacros(
+                                    text,
+                                    mMacros.forCharacter(member.character)
+                                ),
                                 source = PromptSource(
                                     kind = PromptSourceKind.CharacterNote,
                                     detail = member.character.name,
@@ -873,26 +899,6 @@ private class GroupChatPromptBuildSession(
         }
     }
 
-    /** 根据角色卡模式和静音设置确定本轮注入的成员卡。 */
-    private fun GroupChatPromptContext.cardMembers(): List<GroupChatMemberData> {
-        if (session.characterCardMode == GroupChatSession.CharacterCardMode.Swap) {
-            return members.filter { it.character.id == speaker.id }
-        }
-        return if (session.includeMutedCards) {
-            members
-        } else {
-            members.filter { member ->
-                !member.relation.muted || member.character.id == speaker.id
-            }
-        }
-    }
-
-    /** 按群成员顺序列出姓名，未静音名单只依据静音状态，不受角色卡合并模式影响。 */
-    private fun GroupChatPromptContext.memberNames(includeMuted: Boolean = true): String {
-        return members.filter { includeMuted || !it.relation.muted }
-            .joinToString(", ") { it.character.name }
-    }
-
     /** 读取并解析群聊主提示词。 */
     private fun GroupChatPromptContext.mainPrompt(): String {
         val original = mPreferences.mainPrompt
@@ -900,7 +906,7 @@ private class GroupChatPromptBuildSession(
             .ifBlank {
                 speaker.systemPrompt.trim().ifBlank { original }
             }
-            .resolve(this, memberNames(), original)
+            .let { renderPromptOverride(it, original) }
     }
 
     /** 读取并解析群聊历史后指令。 */
@@ -908,7 +914,7 @@ private class GroupChatPromptBuildSession(
         val original = mPreferences.postHistoryInstructions
         return speaker.postHistoryInstructions.trim()
             .ifBlank { original }
-            .resolve(this, memberNames(), original)
+            .let { renderPromptOverride(it, original) }
     }
 
     /** 读取群聊任务引导词（Group Nudge）。 */
@@ -949,70 +955,18 @@ private class GroupChatPromptBuildSession(
         )
     }
 
-    /** 替换群聊提示词支持的角色、用户、场景与成员宏。 */
-    private fun String.resolve(
-        context: GroupChatPromptContext,
-        groupNames: String,
-        original: String = this,
-    ): String {
-        // 同一次生成的模板宏均取自已冻结的有效人设。
-        return replace(oldValue = "{{original}}", newValue = original, ignoreCase = true)
-            .replace(oldValue = "{{char}}", newValue = context.speaker.name, ignoreCase = true)
-            .replace(oldValue = "{{user}}", newValue = context.persona.name, ignoreCase = true)
-            .replace(
-                oldValue = "{{persona}}",
-                newValue = context.persona.description,
-                ignoreCase = true
-            )
-            .replace(
-                oldValue = "{{scenario}}",
-                newValue = context.session.scenario,
-                ignoreCase = true
-            )
-            .replace(
-                Regex(
-                    """\{\{\s*(group|groupNotMuted)\s*\}\}""",
-                    RegexOption.IGNORE_CASE
-                )
-            ) { match ->
-                if (match.groupValues[1].equals("group", ignoreCase = true)) groupNames
-                else context.memberNames(includeMuted = false)
-            }
-            .replace(
-                oldValue = "{{charIfNotGroup}}",
-                newValue = context.speaker.name,
-                ignoreCase = true
-            )
-            .replace(oldValue = "<CHAR>", newValue = context.speaker.name, ignoreCase = true)
-            .replace(oldValue = "<BOT>", newValue = context.speaker.name, ignoreCase = true)
-            .replace(oldValue = "<USER>", newValue = context.persona.name, ignoreCase = true)
+    /** 覆盖模板可引用一次已解析的原始预设，嵌套内容不会重复解释。 */
+    private fun renderPromptOverride(template: String, original: String): String {
+        val resolvedOriginal = renderGroupMacros(original, mSpeakerMacros)
+        return renderGroupMacros(template, mSpeakerMacros + ("original" to resolvedOriginal))
     }
 
-    /** 格式化世界书条目内容。 */
-    private fun formatWorldInfo(content: String): String {
-        return mPreferences.worldInfoFormat.replace("{0}", content)
-    }
-
-    /** 格式化性格描述文本。 */
-    private fun formatPersonality(content: String): String {
-        return mPreferences.personalityFormat.let { template ->
-            if (template.contains("{{personality}}")) {
-                template.replace("{{personality}}", content)
-            } else {
-                content
-            }
-        }
-    }
-
-    /** 格式化场景描述文本。 */
-    private fun formatScenario(content: String): String {
-        return mPreferences.scenarioFormat.let { template ->
-            if (template.contains("{{scenario}}")) {
-                template.replace("{{scenario}}", content)
-            } else {
-                content
-            }
-        }
+    /** 先解析世界书格式模板，再插入已经按条目归属处理过的正文。 */
+    private fun formatWorldInfo(entry: LorebookEntry): String {
+        val template = mPreferences.worldInfoFormat
+        if ("{0}" !in template) return entry.content
+        val macros = mMacros.forLorebook(entry.lorebookId)
+        return template.split("{0}").joinToString(entry.content) { renderGroupMacros(it, macros) }
     }
 
     /** 读取 Prompt 后处理模式。 */
@@ -1038,16 +992,13 @@ private class GroupChatPromptBuildSession(
     /** 构建群聊摘要消息草稿。 */
     private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         if (context.summary.isBlank()) return null
-        val template = mPreferences.summaryInjectionTemplate
-        val content = if (template.contains(other = "{{summary}}", ignoreCase = true)) {
-            template.replace(
-                oldValue = "{{summary}}",
-                newValue = context.summary,
-                ignoreCase = true
-            )
-        } else {
-            listOf(template, context.summary).filter { it.isNotBlank() }.joinToString("\n")
-        }
+        val content = formatGroupField(
+            mPreferences.summaryInjectionTemplate,
+            "summary",
+            context.summary,
+            mSpeakerMacros,
+            appendIfMissing = true,
+        )
         return PromptMessageDraft(
             role = readSummaryInjectionRole().toMessageRole(),
             content = content,
@@ -1066,7 +1017,7 @@ private class GroupChatPromptBuildSession(
         // 保留角色卡和世界背景，末尾只保留摘要这一生成目标。
         context.summaryInstruction?.let { instruction ->
             return requiredUser(
-                content = instruction.resolve(context, context.memberNames()),
+                content = renderGroupMacros(instruction, mSpeakerMacros),
                 sourceKind = PromptSourceKind.SummaryTask,
             )
         }
@@ -1077,18 +1028,23 @@ private class GroupChatPromptBuildSession(
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
         }
-        val content = template.resolve(context, context.memberNames())
+        val content = renderGroupMacros(template, mSpeakerMacros)
         return content.takeIf { it.isNotBlank() }?.let { requiredUser(it, sourceKind) }
     }
 
     /** 群聊输入框输出单独追加续写模板，原文中的宏和空白保持不变。 */
-    private fun buildUserWritingDraft(context: GroupChatPromptContext): PromptMessageDraft? {
+    private fun buildUserWritingDraft(
+        context: GroupChatPromptContext,
+        outlets: GroupChatOutlets
+    ): PromptMessageDraft? {
         val originalDraft = context.userWritingDraft ?: return null
         require(context.generationMode == GroupChatGenerationMode.Impersonate) { "User writing requires impersonation mode" }
         val template = mPreferences.groupUserWritingPrompt
-        return buildUserWritingPrompt(template, originalDraft) { part ->
-            part.resolve(context, context.memberNames(), template)
-        }
+        val sources = mutableSetOf<PromptSource>()
+        val draft = buildUserWritingPrompt(template, originalDraft) { part ->
+            outlets.expand(renderPromptOverride(part, template), sources)
+        } ?: return null
+        return draft.copy(sources = draft.sources + sources)
     }
 
     /** 确保普通群聊在 Group Nudge 关闭时仍由明确的 user 轮次触发当前角色回复。 */
@@ -1100,7 +1056,7 @@ private class GroupChatPromptBuildSession(
         if (!context.generationMode.usesCharacterReplyTask()) return drafts
         if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
         return drafts + requiredUser(
-            content = DEFAULT_CHARACTER_REPLY_NUDGE.resolve(context, context.memberNames()),
+            content = renderGroupMacros(DEFAULT_CHARACTER_REPLY_NUDGE, mSpeakerMacros),
             sourceKind = PromptSourceKind.GroupNudge,
         )
     }

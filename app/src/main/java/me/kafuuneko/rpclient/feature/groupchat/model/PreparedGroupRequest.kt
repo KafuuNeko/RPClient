@@ -11,4 +11,5 @@ internal data class PreparedGroupRequest(
     val provider: LLMProvider,
     val scripts: List<ScopedRegexScript>,
     val result: GroupChatPromptBuildResult,
+    val macros: Map<String, String>,
 )

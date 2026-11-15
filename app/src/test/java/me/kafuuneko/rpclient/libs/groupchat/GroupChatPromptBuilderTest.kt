@@ -980,6 +980,151 @@ class GroupChatPromptBuilderTest {
         }
     }
 
+    /** 角色卡格式、正文和深度注释都属于卡片作者，换人发言只改变本轮任务。 */
+    @Test
+    fun rendersEachCardBeforeJoiningAndKeepsExamplesWithTheirAuthor() {
+        val alice = character(1, "Alice").copy(
+            description = "{{ CHAR }} greets {{ USER }}",
+            personality = "{{char}} keeps notes",
+            scenario = "<BOT> guards",
+            depthPromptPrompt = "Remember {{char}}",
+            examplesOfDialogue = "<START>\n{{ CHAR }}: Meet {{char}} and {{user}}\n<START>\nAbout <CHAR>",
+        )
+        val bob = character(2, "Bob").copy(personality = "{{char}} sings")
+        val builder =
+            GroupChatPromptBuilder(TestPromptPreferences(newExampleChatPrompt = "Example for {{char}}"))
+        val context = GroupChatPromptContext(
+            session = GroupChatSession(
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex",
+                characterCardMode = GroupChatSession.CharacterCardMode.Join,
+            ),
+            members = listOf(member(alice, 0), member(bob, 1)),
+            speaker = bob,
+            messages = emptyList(),
+            provider = provider(),
+        )
+        // 合并模式同时包含两张卡，检查器与最终请求中都应能看到各自的作者。
+        for (speaker in listOf(alice, bob)) {
+            val result = builder.buildWithMetadata(context.copy(speaker = speaker))
+            assertEquals(
+                result.request.messages.map { it.content },
+                result.inspection.items.map { it.content })
+            val content = result.request.messages.joinToString("\n") { it.content }
+            for (fragment in listOf(
+                "Alice greets Alex",
+                "Char Personality (Alice):",
+                "Alice keeps notes",
+                "Char Personality (Bob):",
+                "Bob sings",
+                "Char Scenario (Alice):",
+                "Alice guards",
+                "Remember Alice",
+                "Example for Alice",
+                "Alice: Meet Alice and Alex",
+                "About Alice"
+            )) {
+                assertTrue(fragment, fragment in content)
+            }
+        }
+        // 切换模式只注入当前角色；缺少群场景覆盖时预设仍能引用角色卡场景。
+        val swap = context.copy(
+            session = context.session.copy(characterCardMode = GroupChatSession.CharacterCardMode.Swap),
+            speaker = alice,
+        )
+        val text = builder.build(
+            swap,
+            TestPromptPreferences(mainPrompt = "{{scenario}} / {{charIfNotGroup}}END")
+        )
+            .messages.joinToString("\n") { it.content }
+        assertTrue("Alice guards / END" in text)
+        assertFalse("Bob sings" in text)
+        // 用户和角色同名时，示例的角色标签仍应生成 assistant 消息。
+        val sameName = swap.copy(persona = swap.persona.copy(name = alice.name))
+        assertTrue(builder.build(sameName).messages.any {
+            it.role == LLMMessageRole.Assistant && it.content == "Alice: Meet Alice and Alice"
+        })
+    }
+
+    /** 世界书匹配和注入复用卡片归属；只有最终进入请求的插槽才推进时序。 */
+    @Test
+    fun scansResolvedCardsAndTracksOnlyRetainedOutletSources() {
+        val alice = character(1, "Alice").copy(
+            personality = "{{char}} trusts {{user}}",
+            characterLorebookId = 1
+        )
+        val bob = character(2, "Bob")
+        val outlet = worldEntry(91, 100, "{{char}} knows {{user}}", LorebookEntry.POSITION_OUTLET)
+            .copy(
+                constant = false,
+                keywords = "[\"Alice trusts Alex\"]",
+                matchCharacterPersonality = true,
+                outletName = "archive",
+                sticky = 3,
+            )
+        val builder =
+            GroupChatPromptBuilder(TestPromptPreferences(mainPrompt = "Memory: {{outlet::archive}}"))
+        val base = GroupChatPromptContext(
+            session = GroupChatSession(
+                title = "Crew",
+                createTime = 1,
+                latestTime = 1,
+                userName = "Alex",
+                characterCardMode = GroupChatSession.CharacterCardMode.Join,
+            ),
+            members = listOf(member(alice, 0), member(bob, 1)),
+            speaker = bob,
+            messages = emptyList(),
+            provider = provider(),
+            candidateLorebookEntries = listOf(outlet),
+        )
+        // 条目和引用模板属于不同角色；裁剪后仍能从最终来源确认实际使用的条目。
+        val result = builder.buildWithMetadata(base)
+        assertTrue(result.request.messages.any { it.content == "Memory: Alice knows Alex" })
+        assertTrue(result.inspection.items.any { item -> item.sources.any { it.referenceId == outlet.id } })
+        assertTrue("\"91\"" in result.worldInfoStateJson)
+        val unused =
+            builder.buildWithMetadata(base, TestPromptPreferences(mainPrompt = "No outlet"))
+        assertFalse("\"91\"" in unused.worldInfoStateJson)
+    }
+
+    /** 递归匹配使用实际注入的角色名，切换发言者后仍沿用原始条目的时序签名。 */
+    @Test
+    fun recursiveWorldInfoUsesResolvedTextAndPreservesCooldownAcrossTurns() {
+        val alice = character(1, "Alice")
+        val bob = character(2, "Bob")
+        val trigger = worldEntry(11, 100, "{{char}} wakes", LorebookEntry.POSITION_BEFORE)
+        val event = worldEntry(12, 100, "Echo for {{char}}", LorebookEntry.POSITION_AT_DEPTH).copy(
+            constant = false,
+            keywords = "[\"Bob wakes\"]",
+            delayUntilRecursion = true,
+            cooldown = 3,
+        )
+        val builder = GroupChatPromptBuilder(TestPromptPreferences())
+        val base = GroupChatPromptContext(
+            session = GroupChatSession(title = "Crew", createTime = 1, latestTime = 1),
+            members = listOf(member(alice, 0), member(bob, 1)),
+            speaker = bob,
+            messages = emptyList(),
+            provider = provider(),
+            candidateLorebookEntries = listOf(trigger, event),
+            recursiveScanningLorebookIds = setOf(1L),
+        )
+        // 共享世界书跟随本轮发言者。换人后仍能匹配同一关键词，用冷却验证状态签名。
+        val first = builder.buildWithMetadata(base)
+        assertTrue(first.request.messages.any { it.content == "Echo for Bob" })
+        val next = base.copy(
+            speaker = alice,
+            totalMessageCount = 1,
+            session = base.session.copy(worldInfoStateJson = first.worldInfoStateJson),
+            candidateLorebookEntries = listOf(trigger.copy(content = "Bob wakes"), event),
+        )
+        assertFalse(builder.build(next).messages.any { it.content == "Echo for Alice" })
+        assertTrue(builder.build(next.copy(totalMessageCount = 3)).messages.any { it.content == "Echo for Alice" })
+    }
+
     private fun character(id: Long, name: String): Character {
         return Character(
             id = id,

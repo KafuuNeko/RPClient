@@ -128,21 +128,16 @@ class GroupChatSummaryPromptBuilder(
         val history = messages.joinToString("\n") { message ->
             "${message.speakerName(userName)}: ${message.content}"
         }
-        val instruction = templates
-            .groupSummarizePrompt
-            .replace(oldValue = "{{user}}", newValue = userName, ignoreCase = true)
-            .replace(
-                oldValue = "{{group}}",
-                newValue = memberNames.joinToString(", "),
-                ignoreCase = true
-            )
-            .replace(oldValue = "{{summary}}", newValue = "", ignoreCase = true)
-            .replace(oldValue = "{{history}}", newValue = "", ignoreCase = true)
-            .replace(
-                oldValue = "{{words}}",
-                newValue = AppModel.summaryWordsLimit.toString(),
-                ignoreCase = true
-            )
+        val instruction = renderGroupMacros(
+            templates.groupSummarizePrompt,
+            mapOf(
+                "user" to userName,
+                "group" to memberNames.joinToString(", "),
+                "summary" to "",
+                "history" to "",
+                "words" to AppModel.summaryWordsLimit.toString(),
+            ),
+        )
         val historyBlocks = messages.flatMap { message ->
             listOf(LLMContentBlock.Text("${message.speakerName(userName)}:")) +
                 messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
