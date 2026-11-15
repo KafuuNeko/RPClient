@@ -27,22 +27,22 @@ internal object ImageInputCapabilities {
         val type = ImageModelAliases.typeFor(model)
         return when (protocol) {
             LLMProviderProtocol.AnthropicMessages -> emptyList()
-            LLMProviderProtocol.Gemini -> if (type == ImageTokenEstimatorType.Gemini25) geminiLegacy else gemini
+            LLMProviderProtocol.Gemini -> if (type == ImageTokenEstimatorType.Gemini25) mGeminiLegacy else mGemini
             LLMProviderProtocol.OpenAICompatible, LLMProviderProtocol.OpenAIResponses -> {
                 // 第三方兼容接口不等于原生媒体参数；没有公开映射时保持模型默认处理。
-                if (type in nativeOnlyQualityTypes) emptyList()
-                else if (providerType == LLMProviderType.Grok) openAiBasic
-                else openAiImageProfiles[type]?.supportedQualities ?: openAi
+                if (type in mNativeOnlyQualityTypes) emptyList()
+                else if (providerType == LLMProviderType.Grok) mOpenAiBasic
+                else openAiImageProfiles[type]?.supportedQualities ?: mOpenAi
             }
         }
     }
 
-    private val openAiBasic = listOf(ImageQuality.Auto, ImageQuality.Low, ImageQuality.High)
-    private val openAi = openAiBasic + ImageQuality.Original
-    private val geminiLegacy =
+    private val mOpenAiBasic = listOf(ImageQuality.Auto, ImageQuality.Low, ImageQuality.High)
+    private val mOpenAi = mOpenAiBasic + ImageQuality.Original
+    private val mGeminiLegacy =
         listOf(ImageQuality.Auto, ImageQuality.Low, ImageQuality.Medium, ImageQuality.High)
-    private val gemini = geminiLegacy + ImageQuality.UltraHigh
-    private val nativeOnlyQualityTypes = setOf(
+    private val mGemini = mGeminiLegacy + ImageQuality.UltraHigh
+    private val mNativeOnlyQualityTypes = setOf(
         ImageTokenEstimatorType.ClaudeStandard, ImageTokenEstimatorType.ClaudeHighResolution,
         ImageTokenEstimatorType.Gemini3, ImageTokenEstimatorType.Gemini25,
     )

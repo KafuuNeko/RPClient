@@ -13,7 +13,11 @@ sealed interface MacroValue {
 /** 已规范化的宏引用；参数保留大小写，供命名插槽等业务使用。 */
 data class MacroReference(val name: String, val argument: String? = null) {
     companion object {
-        /** 从标签内部读取名称和可选参数。 */
+        /**
+         * 从标签内部读取名称和可选参数。
+         * @param text 不含外层标签定界符的名称与可选参数。
+         * @return 名称转为小写、参数保留大小写的引用。
+         */
         fun parse(text: String): MacroReference {
             val separator = text.indexOf("::")
             val name = if (separator < 0) text else text.substring(0, separator)
@@ -40,7 +44,11 @@ class MacroScope(
 ) {
     private val mValues = values.mapKeys { MacroReference.parse(it.key) }
 
-    /** 创建局部绑定，适用于原始预设引用和格式槽。 */
+    /**
+     * 创建局部绑定，适用于原始预设引用和格式槽。
+     * @param values 本层新增或覆盖的宏定义。
+     * @return 以当前作用域为父级的新作用域。
+     */
     fun withValues(values: Map<String, MacroValue>): MacroScope = MacroScope(values, this)
 
     /** 读取本层绑定；父级遍历及查找缓存由单次展开会话管理。 */

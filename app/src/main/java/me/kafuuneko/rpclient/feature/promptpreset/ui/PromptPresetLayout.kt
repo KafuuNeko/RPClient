@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
-import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetSection
 import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetField
 import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetFields
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetBrowserState

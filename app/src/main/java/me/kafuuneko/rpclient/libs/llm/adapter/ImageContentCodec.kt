@@ -104,8 +104,13 @@ internal class ImageContentCodec(private val mProvider: LLMProviderConfig) {
     }
 }
 
-/** 旧版 Gemini 将通用画质设置写入全局参数；现代型号在各图片内容块中编码。 */
+/**
+ * 旧版 Gemini 将通用画质设置写入全局参数；现代型号在各图片内容块中编码。
+ * @param provider 本次实际请求的模型配置。
+ * @return 应用画质设置后的当前请求对象。
+ */
 internal fun JsonObject.applyLegacyGeminiImageOptions(provider: LLMProviderConfig): JsonObject {
+    // 仅旧版 Gemini 使用全局画质，自动档位保留模型已有配置。
     if (provider.protocol != LLMProviderProtocol.Gemini ||
         ImageModelAliases.typeFor(provider.model) != ImageTokenEstimatorType.Gemini25
     ) return this
@@ -119,6 +124,7 @@ internal fun JsonObject.applyLegacyGeminiImageOptions(provider: LLMProviderConfi
     ) {
         throw ImageRequestException(ImageRequestFailure.UnsupportedDetail)
     }
+    // 写入统一字段前移除兼容别名，避免同义参数并存。
     val config = get("generationConfig")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
     config.remove("media_resolution")
     config.addProperty("mediaResolution", quality.geminiResolutionValue())

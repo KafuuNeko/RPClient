@@ -387,12 +387,11 @@ private class GroupChatPromptBuildSession(
         fun scanField(field: (Character) -> String): String =
             cardMembers.joinToString("\n") { member ->
                 val character = member.character
-                "${character.name}: ${
-                    renderGroupMacros(
-                        field(character),
-                        mMacros.forCharacter(character)
-                    )
-                }"
+                val fieldText = renderGroupMacros(
+                    template = field(character),
+                    values = mMacros.forCharacter(character)
+                )
+                "${character.name}: $fieldText"
             }
         return mWorldBookActivator.activateStructured(
             context = WorldBookScanContext(

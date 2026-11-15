@@ -34,7 +34,11 @@ class MacroExpander(aliases: Map<String, String> = emptyMap()) {
         return ExpansionSession(maxOutputChars).expand(template, scope)
     }
 
-    /** 读取模板直接包含的引用，供格式包装器判断是否存在正文槽。 */
+    /**
+     * 读取模板直接包含的引用，供格式包装器判断是否存在正文槽。
+     * @param template 待扫描的模板正文。
+     * @return 按出现顺序提供的直接引用，不递归访问宏定义。
+     */
     fun references(template: String): Sequence<MacroReference> =
         mPattern.findAll(template).map(::reference)
 

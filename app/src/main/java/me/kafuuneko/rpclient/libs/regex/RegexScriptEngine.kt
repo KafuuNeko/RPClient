@@ -220,7 +220,7 @@ class RegexScriptEngine {
             val value = macros.localValue(reference) ?: return@MacroScope null
             val resolved = when (value) {
                 is MacroValue.Literal -> value.text
-                is MacroValue.Template -> macroExpander.expand(
+                is MacroValue.Template -> mMacroExpander.expand(
                     value.text,
                     value.scope ?: macros
                 ).text
@@ -228,7 +228,7 @@ class RegexScriptEngine {
             // Find Regex 的转义只作用于完整宏值，避免嵌套值被多次转义。
             MacroValue.Literal(transform(resolved))
         }
-        return macroExpander.expand(text, scope).text
+        return mMacroExpander.expand(text, scope).text
     }
 
     /** 脚本中的人设和场景来自模板字段，姓名与群组名单是字面值。 */
@@ -310,6 +310,6 @@ class RegexScriptEngine {
         val SUPPORTED_FLAGS = setOf('g', 'i', 'm', 's', 'u', 'y')
         val MATCH_MACRO = Regex("""\{\{match\}\}""", RegexOption.IGNORE_CASE)
         val GROUP_REFERENCE = Regex("""\$(\d+)|\$<([^>]+)>""")
-        val macroExpander = MacroExpander()
+        val mMacroExpander = MacroExpander()
     }
 }

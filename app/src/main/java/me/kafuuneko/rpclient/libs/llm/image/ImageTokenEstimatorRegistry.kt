@@ -51,13 +51,21 @@ class ImageTokenEstimatorRegistry(
     internal fun automaticType(model: String): ImageTokenEstimatorType =
         ImageModelAliases.typeFor(model)
 
+    /**
+     * 根据估算类别和已解析的画质选择算法。
+     * @param type 自动识别或用户指定的估算类别。
+     * @param options 当前协议解析后的画质快照。
+     * @return 对应算法；没有适用规则时使用通用估算。
+     */
     private fun estimator(
         type: ImageTokenEstimatorType,
         options: ResolvedImageInputOptions
     ): ImageTokenEstimator {
+        // 已登记的 OpenAI 规则自行处理画质，无法选择档位时沿用通用估算。
         val profile = openAiImageProfiles[type]
         if (profile != null) return profile.estimator(options.settings.quality)
             ?: GenericImageTokenEstimator
+        // 其他模型采用各自算法，Gemini 使用显式设置与继承参数合成的有效画质。
         return when (type) {
             ImageTokenEstimatorType.ClaudeStandard -> ClaudeImageTokenEstimator(
                 mMaxEdge = 1568,
