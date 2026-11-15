@@ -1181,7 +1181,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">要約の出力上限に達しました</string>
     <string name="summary_token_limit_message">要約が出力トークンの上限に達したため、今回の結果は保存されていません。モデルの思考もこの上限に含まれます。設定 → “%1$s” → “%2$s”で“%3$s”を増やしてから、もう一度お試しください。</string>
     <string name="summary_go_to_settings">設定を開く</string>
@@ -1483,4 +1483,20 @@
     <string name="prompt_catalog_new_chat_title">個別チャット履歴の区切り</string>
     <string name="prompt_catalog_new_group_title">グループ履歴の区切り</string>
     <string name="prompt_catalog_new_example_title">会話例の区切り</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">画像品質</string>
+    <string name="image_quality_low">低</string>
+    <string name="image_quality_medium">中</string>
+    <string name="image_quality_high">高</string>
+    <string name="image_quality_original">元画像の詳細</string>
+    <string name="image_quality_ultra">超高</string>
+    <string name="image_quality_description">画像処理とトークン使用量は、モデルと画像サイズによって異なります。自動ではモデルの現在の設定を使用します。</string>
+    <string name="image_error_detail">このモデルは選択した画像品質に対応していません。画像品質の設定を変更してください。</string>
+    <string name="image_error_provider_format">このモデルはこの画像形式に対応していません。自動またはカスタム圧縮を使用し、画像を添付し直してください。</string>
 </resources>

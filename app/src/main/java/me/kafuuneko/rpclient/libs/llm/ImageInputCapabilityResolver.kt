@@ -11,6 +11,10 @@ import java.util.concurrent.ConcurrentHashMap
 enum class ImageRequestFailure {
     Unsupported,
 
+    UnsupportedDetail,
+
+    UnsupportedFormat,
+
     Missing,
 
     InvalidImage,

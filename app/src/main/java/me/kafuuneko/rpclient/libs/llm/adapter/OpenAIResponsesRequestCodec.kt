@@ -27,6 +27,7 @@ internal object OpenAIResponsesRequestCodec {
         imageUrl: (LLMImageReference) -> String,
     ): String {
         val options = request.options.resolveFor(provider)
+        val imageContent = ImageContentCodec(provider.copy(model = model))
         require(options.stop.isEmpty()) { "Responses does not support stop sequences." }
         // 使用手动上下文模式，禁止服务端自行裁剪而使检查器与真实输入不同。
         val payload = JsonObject().apply {
@@ -38,7 +39,8 @@ internal object OpenAIResponsesRequestCodec {
                         input.add(
                             message(
                                 messageValue,
-                                imageUrl
+                                imageUrl,
+                                imageContent,
                             )
                         )
                     }
@@ -60,6 +62,7 @@ internal object OpenAIResponsesRequestCodec {
                 patchJson = provider.requestBodyPatchJson,
                 protectedPaths = protectedRequestBodyPaths(provider.protocol),
                 routingSessionId = request.routingSessionId,
+                protocol = provider.protocol,
             ),
         ).asJsonObject
         // 已知推理模型仅在显式关闭推理时发送采样参数；未知模型遵从用户设置。
@@ -82,29 +85,30 @@ internal object OpenAIResponsesRequestCodec {
     }
 
     /** EasyInputMessage 允许历史 assistant 使用 input_text，避免伪造输出 Item 的标识。 */
-    private fun message(message: LLMMessage, imageUrl: (LLMImageReference) -> String): JsonObject {
+    private fun message(
+        message: LLMMessage,
+        imageUrl: (LLMImageReference) -> String,
+        imageContent: ImageContentCodec,
+    ): JsonObject {
         require(message.role != LLMMessageRole.System || message.images.isEmpty()) {
             "System instructions cannot contain user images."
         }
         // 保留内容块中的空白和图文交错，不能对正文使用 trim 或合并角色。
         val content = JsonArray()
         message.contentBlocks.forEach { block ->
-            content.add(
-                JsonObject().apply {
-                    when (block) {
-                        is LLMContentBlock.Text -> {
-                            addProperty("type", "input_text")
-                            addProperty("text", block.text)
-                        }
+            when (block) {
+                is LLMContentBlock.Text -> content.add(JsonObject().apply {
+                    addProperty("type", "input_text")
+                    addProperty("text", block.text)
+                })
 
-                        is LLMContentBlock.Image -> {
-                            addProperty("type", "input_image")
-                            addProperty("image_url", imageUrl(block.reference))
-                            addProperty("detail", "auto")
-                        }
-                    }
-                },
-            )
+                is LLMContentBlock.Image -> content.add(
+                    imageContent.encode(
+                        block.reference,
+                        imageUrl(block.reference)
+                    )
+                )
+            }
         }
         return JsonObject().apply {
             addProperty("type", "message")

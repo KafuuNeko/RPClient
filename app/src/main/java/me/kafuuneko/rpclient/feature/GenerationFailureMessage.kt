@@ -91,6 +91,8 @@ private fun GenerationFailure.toGenerationFailureMessage(
     is GenerationFailure.Image -> context.getString(
         when (kind) {
             ImageRequestFailure.Unsupported -> R.string.image_error_unsupported
+            ImageRequestFailure.UnsupportedDetail -> R.string.image_error_detail
+            ImageRequestFailure.UnsupportedFormat -> R.string.image_error_provider_format
             ImageRequestFailure.Missing -> R.string.image_error_missing
             ImageRequestFailure.InvalidImage -> R.string.image_error_invalid
             ImageRequestFailure.OriginalUnsupported -> R.string.image_error_original_format

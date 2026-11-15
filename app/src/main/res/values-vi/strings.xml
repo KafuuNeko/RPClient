@@ -1186,7 +1186,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">Đã đạt giới hạn đầu ra của bản tóm tắt</string>
     <string name="summary_token_limit_message">Bản tóm tắt đã đạt giới hạn token đầu ra và chưa được lưu. Suy luận cũng sử dụng hạn mức này. Vào Cài đặt → “%1$s” → “%2$s”, tăng “%3$s” rồi thử lại.</string>
     <string name="summary_go_to_settings">Mở cài đặt</string>
@@ -1489,4 +1489,20 @@ Thất bại: %2$d</string>
     <string name="prompt_catalog_new_chat_title">Dấu phân cách lịch sử trò chuyện riêng</string>
     <string name="prompt_catalog_new_group_title">Dấu phân cách lịch sử trò chuyện nhóm</string>
     <string name="prompt_catalog_new_example_title">Dấu phân cách hội thoại mẫu</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">Chất lượng ảnh</string>
+    <string name="image_quality_low">Thấp</string>
+    <string name="image_quality_medium">Trung bình</string>
+    <string name="image_quality_high">Cao</string>
+    <string name="image_quality_original">Chi tiết gốc</string>
+    <string name="image_quality_ultra">Rất cao</string>
+    <string name="image_quality_description">Cách xử lý và lượng token phụ thuộc vào mô hình và kích thước ảnh. Tự động giữ nguyên cài đặt hiện tại của mô hình.</string>
+    <string name="image_error_detail">Mô hình này không hỗ trợ chất lượng ảnh đã chọn. Hãy thay đổi cài đặt chất lượng ảnh.</string>
+    <string name="image_error_provider_format">Mô hình này không hỗ trợ định dạng ảnh này. Hãy dùng nén Tự động hoặc Tùy chỉnh rồi đính kèm lại ảnh.</string>
 </resources>

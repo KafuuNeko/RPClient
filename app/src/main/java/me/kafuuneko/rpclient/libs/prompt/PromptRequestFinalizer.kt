@@ -292,7 +292,7 @@ class PromptRequestFinalizer(
             inspection = PromptInspection(
                 model = environment.model.orEmpty(),
                 tokenizerName = environment.tokenizer.name,
-                tokenizerStrategy = environment.tokenizer.strategy,
+                tokenizerStrategy = environment.tokenizer.strategyForMessages(messages),
                 tokenizerReservePercent = environment.tokenizer.reservePercent,
                 postProcessingMode = environment.postProcessingMode,
                 contextLimit = environment.maxContextTokens,

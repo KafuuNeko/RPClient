@@ -25,18 +25,23 @@ internal fun mergeRequestBodyJson(
     patchJson: String,
     protectedPaths: Set<String>,
     systemVariables: Map<String, JsonElement> = emptyMap(),
+    protocol: LLMProviderProtocol? = null,
 ): String {
     val base = JsonParser.parseString(baseJson)
     val userPatch = parseAndValidatePatch(
         patchJson = patchJson.ifBlank { "{}" },
         protectedPaths = protectedPaths,
+        protocol = protocol,
     ).resolveSystemVariables(systemVariables)
+    // 图片画质选项由客户端编码进内容块，不能作为未知根字段泄漏给模型服务。
+    userPatch.asJsonObject.remove(CLIENT_IMAGE_OPTIONS_KEY)
     return mergePatch(base, userPatch).toString()
 }
 
 private fun parseAndValidatePatch(
     patchJson: String,
     protectedPaths: Set<String>,
+    protocol: LLMProviderProtocol? = null,
 ): JsonObject {
     val patch = runCatching { JsonParser.parseString(patchJson) }
         .getOrElse { throw LLMRequestBodyPatchException("Request body patch is not valid JSON.") }
@@ -44,12 +49,32 @@ private fun parseAndValidatePatch(
         throw LLMRequestBodyPatchException("Request body patch must be a JSON object.")
     }
     val patchObject = patch.asJsonObject
+    // 显式协议决定别名处理，先规范化再检查受保护的路径。
+    if (protocol == LLMProviderProtocol.Gemini) patchObject.normalizeGeminiAliases()
+    patchObject.imageInputOptions()
     patchObject.validateSystemVariableReferences()
     val protectedPath = protectedPaths.firstOrNull { patchObject.containsPath(it) }
     if (protectedPath != null) {
         throw LLMRequestBodyPatchException(message = "Request body patch cannot modify protected field: $protectedPath")
     }
     return patchObject
+}
+
+/** 统一官方 REST 支持的字段别名，避免同义字段绕过保护或令估算与发送读取不同值。 */
+private fun JsonObject.normalizeGeminiAliases() {
+    moveAlias("generation_config", "generationConfig")
+    moveAlias("system_instruction", "systemInstruction")
+    val config = get("generationConfig")?.takeIf { it.isJsonObject }?.asJsonObject ?: return
+    config.moveAlias("media_resolution", "mediaResolution")
+    config.moveAlias("max_output_tokens", "maxOutputTokens")
+    config.moveAlias("top_p", "topP")
+    config.moveAlias("stop_sequences", "stopSequences")
+}
+
+private fun JsonObject.moveAlias(alias: String, canonical: String) {
+    if (!has(alias)) return
+    if (has(canonical)) throw LLMRequestBodyPatchException("Request body contains conflicting field aliases.")
+    add(canonical, remove(alias))
 }
 
 private fun JsonElement.validateSystemVariableReferences() {
@@ -103,6 +128,15 @@ internal fun validateRequestBodyPatch(
     protectedPaths: Set<String>,
 ): Result<Unit> = runCatching {
     parseAndValidatePatch(patchJson.ifBlank { "{}" }, protectedPaths)
+    Unit
+}
+
+/** 按明确协议校验扩展；协议别名处理不依赖保护字段集合的内容推断。 */
+internal fun validateRequestBodyPatch(
+    patchJson: String,
+    protocol: LLMProviderProtocol
+): Result<Unit> = runCatching {
+    parseAndValidatePatch(patchJson.ifBlank { "{}" }, protectedRequestBodyPaths(protocol), protocol)
     Unit
 }
 

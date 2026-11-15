@@ -123,7 +123,7 @@ internal class LLMTokenUsageTrackingClient(
             isStreaming = isStreaming,
             inputTokens = input,
             outputTokens = output,
-            inputTokenSource = reportedInput.toSource(tokenizer.strategy),
+            inputTokenSource = reportedInput.toSource(tokenizer.strategyForMessages(request.messages)),
             outputTokenSource = reportedOutput.toSource(tokenizer.strategy),
             cachedInputTokens = acceptedUsage?.cachedPromptTokens?.coerceAtLeast(0)?.toLong(),
             cacheCreationInputTokens = acceptedUsage?.cacheCreationPromptTokens?.coerceAtLeast(0)

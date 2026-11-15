@@ -142,7 +142,7 @@ class OpenAICompatibleLLMClient(
         if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
             mProvider.copy(model = model)
         )
-        val codec = MultimodalWireCodec(mProvider)
+        val codec = MultimodalWireCodec(mProvider.copy(model = model))
         val options = request.options.resolveFor(mProvider)
         // 组装通用请求体字段
         val payload = JSONObject()

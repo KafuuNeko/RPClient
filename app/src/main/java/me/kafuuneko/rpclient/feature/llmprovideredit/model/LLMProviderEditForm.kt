@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
-import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_CONTEXT_TOKENS
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_LLM_MAX_TOKENS
@@ -96,7 +95,7 @@ data class LLMProviderEditForm(
         if (sendTopP && parsedTopP !in capabilities.topPRange) return null
         if (validateRequestBodyPatch(
                 patchJson = requestBodyPatchJson,
-                protectedPaths = protectedRequestBodyPaths(protocol),
+                protocol = protocol,
             ).isFailure
         ) return null
         if (providerType == LLMProviderType.OpenRouter

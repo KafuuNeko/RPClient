@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.ProviderPreset
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -16,6 +17,8 @@ sealed class LLMProviderEditUiIntent {
         LLMProviderEditUiIntent()
 
     data class ChangeImageInput(val value: ImageInputSetting) : LLMProviderEditUiIntent()
+
+    data class SelectImageQuality(val value: ImageQuality) : LLMProviderEditUiIntent()
 
     data object Back : LLMProviderEditUiIntent()
 

@@ -1180,7 +1180,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">摘要輸出額度不足</string>
     <string name="summary_token_limit_message">摘要已達到輸出 Token 上限，未儲存本次結果。模型思考也會占用此額度。請前往設定頁的“%1$s”→“%2$s”，提高“%3$s”後重試。</string>
     <string name="summary_go_to_settings">前往設定</string>
@@ -1482,4 +1482,20 @@
     <string name="prompt_catalog_new_chat_title">單聊記錄分隔標記</string>
     <string name="prompt_catalog_new_group_title">群聊記錄分隔標記</string>
     <string name="prompt_catalog_new_example_title">範例對話分隔標記</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">圖片畫質</string>
+    <string name="image_quality_low">低</string>
+    <string name="image_quality_medium">中</string>
+    <string name="image_quality_high">高</string>
+    <string name="image_quality_original">原圖細節</string>
+    <string name="image_quality_ultra">超高</string>
+    <string name="image_quality_description">圖片處理和 Token 用量取決於模型與圖片尺寸。自動檔位沿用模型目前設定。</string>
+    <string name="image_error_detail">此模型不支援所選圖片畫質，請調整圖片畫質設定。</string>
+    <string name="image_error_provider_format">此模型不支援此圖片格式，請使用自動或自訂壓縮重新加入圖片。</string>
 </resources>

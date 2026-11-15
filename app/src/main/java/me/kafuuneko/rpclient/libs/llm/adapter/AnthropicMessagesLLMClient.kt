@@ -139,7 +139,7 @@ class AnthropicMessagesLLMClient(
         if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
             mProvider.copy(model = model)
         )
-        val codec = MultimodalWireCodec(mProvider)
+        val codec = MultimodalWireCodec(mProvider.copy(model = model))
         val options = request.options.resolveFor(mProvider)
         val payload = JSONObject()
             .put("model", model)

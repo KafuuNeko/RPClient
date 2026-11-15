@@ -1190,7 +1190,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">Достигнут лимит вывода сводки</string>
     <string name="summary_token_limit_message">Сводка достигла лимита выходных токенов и не была сохранена. Рассуждения модели тоже расходуют этот лимит. Откройте Настройки → “%1$s” → “%2$s”, увеличьте “%3$s” и повторите попытку.</string>
     <string name="summary_go_to_settings">Открыть настройки</string>
@@ -1492,4 +1492,20 @@
     <string name="prompt_catalog_new_chat_title">Разделитель истории личного чата</string>
     <string name="prompt_catalog_new_group_title">Разделитель истории группового чата</string>
     <string name="prompt_catalog_new_example_title">Разделитель примеров диалогов</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">Качество изображения</string>
+    <string name="image_quality_low">Низкое</string>
+    <string name="image_quality_medium">Среднее</string>
+    <string name="image_quality_high">Высокое</string>
+    <string name="image_quality_original">Исходная детализация</string>
+    <string name="image_quality_ultra">Очень высокое</string>
+    <string name="image_quality_description">Обработка и расход токенов зависят от модели и размера изображения. Авто сохраняет текущие настройки модели.</string>
+    <string name="image_error_detail">Эта модель не поддерживает выбранное качество изображения. Измените настройки качества изображения.</string>
+    <string name="image_error_provider_format">Эта модель не поддерживает этот формат изображения. Выберите автоматическое или пользовательское сжатие и прикрепите изображение снова.</string>
 </resources>

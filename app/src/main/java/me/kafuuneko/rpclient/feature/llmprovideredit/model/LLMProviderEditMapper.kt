@@ -1,6 +1,10 @@
 package me.kafuuneko.rpclient.feature.llmprovideredit.model
 
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditRequestExtensionsState
+import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditImageQualityState
+import me.kafuuneko.rpclient.libs.llm.adapter.readImageInputOptions
+import me.kafuuneko.rpclient.libs.llm.image.ImageInputCapabilities
+import me.kafuuneko.rpclient.libs.llm.model.ImageInputOptions
 import me.kafuuneko.rpclient.libs.llm.adapter.readOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -36,7 +40,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     isEnabled = isEnabled,
 )
 
-/** 提取 OpenRouter 专属路由配置状态。 */
+/** 提取高级面板中的路由和图片处理配置，避免 View 解析协议字段。 */
 internal fun LLMProviderEditForm.toRequestExtensionsState():
     LLMProviderEditRequestExtensionsState {
     val routing = requestBodyPatchJson.readOpenRouterRoutingPreferences()
@@ -45,5 +49,15 @@ internal fun LLMProviderEditForm.toRequestExtensionsState():
         usesPreferredProvider = routing.usesPreferredProvider,
         preferredProvider = routing.preferredProvider,
         allowFallbacks = routing.allowFallbacks,
+        imageQuality = toImageQualityState(),
+    )
+}
+
+private fun LLMProviderEditForm.toImageQualityState(): LLMProviderEditImageQualityState {
+    val options =
+        runCatching { requestBodyPatchJson.readImageInputOptions() }.getOrDefault(ImageInputOptions())
+    return LLMProviderEditImageQualityState(
+        selected = options.quality,
+        options = ImageInputCapabilities.qualities(protocol, model, providerType),
     )
 }

@@ -2,8 +2,10 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
+import com.google.gson.JsonParser
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID
 import org.json.JSONObject
 
@@ -16,14 +18,22 @@ internal fun JSONObject.withRequestBodyExtensions(
     provider: LLMProviderConfig,
     request: LLMGenerationRequest,
 ): JSONObject {
-    return JSONObject(
-        mergeRequestBodyExtensionsJson(
-            baseJson = toString(),
-            patchJson = provider.requestBodyPatchJson,
-            protectedPaths = protectedRequestBodyPaths(provider.protocol),
-            routingSessionId = request.routingSessionId,
-        ),
+    val merged = mergeRequestBodyExtensionsJson(
+        baseJson = toString(),
+        patchJson = provider.requestBodyPatchJson,
+        protectedPaths = protectedRequestBodyPaths(provider.protocol),
+        routingSessionId = request.routingSessionId,
+        protocol = provider.protocol,
     )
+    val payload = JsonParser.parseString(merged).asJsonObject
+    if (request.messages.any { it.images.isNotEmpty() }) {
+        payload.applyLegacyGeminiImageOptions(
+            provider.copy(
+                model = request.model ?: provider.model
+            )
+        )
+    }
+    return JSONObject(payload.toString())
 }
 
 /** 仅依赖 Gson 的请求扩展核心，保持可在本地 JVM 测试中验证。 */
@@ -32,12 +42,14 @@ internal fun mergeRequestBodyExtensionsJson(
     patchJson: String,
     protectedPaths: Set<String>,
     routingSessionId: String?,
+    protocol: LLMProviderProtocol? = null,
 ): String {
     return mergeRequestBodyJson(
         baseJson = baseJson,
         patchJson = patchJson,
         protectedPaths = protectedPaths,
         systemVariables = systemVariables(routingSessionId),
+        protocol = protocol,
     )
 }
 

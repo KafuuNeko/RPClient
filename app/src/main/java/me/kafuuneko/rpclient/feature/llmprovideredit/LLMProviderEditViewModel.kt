@@ -30,8 +30,8 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
-import me.kafuuneko.rpclient.libs.llm.adapter.protectedRequestBodyPaths
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
+import me.kafuuneko.rpclient.libs.llm.adapter.withImageQuality
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterFallbacks
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProvider
 import me.kafuuneko.rpclient.libs.llm.adapter.withOpenRouterPreferredProviderEnabled
@@ -150,6 +150,18 @@ class LLMProviderEditViewModel :
     @UiIntentObserver(LLMProviderEditUiIntent.SelectImageTokenEstimator::class)
     private fun onSelectImageTokenEstimator(intent: LLMProviderEditUiIntent.SelectImageTokenEstimator) =
         updateForm { copy(imageTokenEstimatorType = intent.value) }
+
+    /** 修改通用图片画质，估算与发送共同读取同一份模型配置。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.SelectImageQuality::class)
+    private fun onSelectImageQuality(intent: LLMProviderEditUiIntent.SelectImageQuality) {
+        val form = getOrNull<LLMProviderEditUiState.Normal>()?.form ?: return
+        val updated = runCatching { form.requestBodyPatchJson.withImageQuality(intent.value) }
+            .getOrElse {
+                AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
+                return
+            }
+        updateForm { copy(requestBodyPatchJson = updated) }
+    }
 
     /** 切换能力时保留原类别，只更新可选状态。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeImageInput::class)
@@ -386,7 +398,7 @@ class LLMProviderEditViewModel :
         // 校验补丁是否覆盖受保护的协议保留字段
         if (validateRequestBodyPatch(
                 patchJson = value,
-                protectedPaths = protectedRequestBodyPaths(form.protocol),
+                protocol = form.protocol,
             ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()
@@ -699,7 +711,7 @@ class LLMProviderEditViewModel :
         // 校验请求体补丁 JSON 格式与协议保护字段
         if (validateRequestBodyPatch(
                 patchJson = requestBodyPatchJson,
-                protectedPaths = protectedRequestBodyPaths(protocol),
+                protocol = protocol,
             ).isFailure
         ) {
             AppViewEvent.PopupToastMessageByResId(R.string.request_body_patch_invalid).tryEmit()

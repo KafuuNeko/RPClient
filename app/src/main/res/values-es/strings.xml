@@ -1187,7 +1187,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">Límite de salida del resumen alcanzado</string>
     <string name="summary_token_limit_message">El resumen alcanzó el límite de tokens de salida y no se guardó. El razonamiento también consume este límite. Ve a Ajustes → “%1$s” → “%2$s”, aumenta “%3$s” e inténtalo de nuevo.</string>
     <string name="summary_go_to_settings">Ir a ajustes</string>
@@ -1489,4 +1489,20 @@
     <string name="prompt_catalog_new_chat_title">Separador de historial de chat individual</string>
     <string name="prompt_catalog_new_group_title">Separador de historial de chat grupal</string>
     <string name="prompt_catalog_new_example_title">Separador de diálogo de ejemplo</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">Calidad de imagen</string>
+    <string name="image_quality_low">Baja</string>
+    <string name="image_quality_medium">Media</string>
+    <string name="image_quality_high">Alta</string>
+    <string name="image_quality_original">Detalle original</string>
+    <string name="image_quality_ultra">Ultraalta</string>
+    <string name="image_quality_description">El procesamiento y el uso de tokens dependen del modelo y del tamaño de la imagen. Automático conserva la configuración actual del modelo.</string>
+    <string name="image_error_detail">Este modelo no admite la calidad de imagen seleccionada. Cambia los ajustes de calidad de imagen.</string>
+    <string name="image_error_provider_format">Este modelo no admite este formato de imagen. Usa la compresión Automática o Personalizada y vuelve a adjuntar la imagen.</string>
 </resources>

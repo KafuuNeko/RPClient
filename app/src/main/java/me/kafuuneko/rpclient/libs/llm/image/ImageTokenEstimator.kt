@@ -12,10 +12,23 @@ fun interface ImageTokenEstimator {
     fun estimate(image: LLMImageReference): Long
 }
 
-/** 未知模型或缺少元数据时的通用近似，不是安全上界。 */
+/** 缺少尺寸时的通用近似；未知模型还需结合面积估算，均不承诺安全上界。 */
 internal const val GENERIC_IMAGE_TOKENS = 4096L
 
-/** OpenAI Tile 规则，参数来源为 2026-09-14 的 images-vision 文档。 */
+/**
+ * 未公开视觉规则的模型使用面积代理，避免原图与缩略图始终得到相同预算。
+ * - 取公开 32px Patch 规则的最大乘数作为保守代理，不宣称适用于任意未来模型。
+ * - 保留既有最低预留；缺少尺寸时不根据文件体积猜测像素。
+ */
+internal object GenericImageTokenEstimator : ImageTokenEstimator {
+    override fun estimate(image: LLMImageReference): Long {
+        if (image.width <= 0 || image.height <= 0) return GENERIC_IMAGE_TOKENS
+        val patches = patchCount(image.width.toDouble(), image.height.toDouble(), patch = 32)
+        return maxOf(GENERIC_IMAGE_TOKENS, ceil(patches * 2.46).toLong())
+    }
+}
+
+/** OpenAI Tile 规则，参数核对自 2026-11-15 官方 images-vision 文档。 */
 internal class TileImageTokenEstimator(private val mBase: Long, private val mTile: Long) :
     ImageTokenEstimator {
     override fun estimate(image: LLMImageReference): Long {
@@ -39,16 +52,26 @@ internal class TileImageTokenEstimator(private val mBase: Long, private val mTil
  */
 internal class OpenAiPatchImageTokenEstimator(
     private val mMaxEdge: Int,
-    private val mPatchBudget: Long,
+    private val mPatchBudget: Long?,
     private val mMultiplier: Double
 ) : ImageTokenEstimator {
     override fun estimate(image: LLMImageReference): Long {
         if (image.width <= 0 || image.height <= 0) return GENERIC_IMAGE_TOKENS
+        return ceil(processedPatchCount(image) * mMultiplier).toLong()
+    }
+
+    /** 返回服务端缩放后的 Patch 数，供计数与发送前单图限制校验共用。 */
+    fun processedPatchCount(image: LLMImageReference): Long {
         // 先限制像素边长，不放大小图；保持全精度至最后的像素取整。
         val fit = minOf(a = 1.0, b = mMaxEdge.toDouble() / maxOf(image.width, image.height))
         var width = round(image.width * fit).coerceAtLeast(1.0)
         var height = round(image.height * fit).coerceAtLeast(1.0)
-        if (patchCount(width = width, height = height, patch = 32) > mPatchBudget) {
+        if (mPatchBudget != null && patchCount(
+                width = width,
+                height = height,
+                patch = 32
+            ) > mPatchBudget
+        ) {
             val shrink = sqrt(32.0 * 32 * mPatchBudget / (width * height))
             val widthPatches = width * shrink / 32
             val heightPatches = height * shrink / 32
@@ -59,7 +82,7 @@ internal class OpenAiPatchImageTokenEstimator(
             width = floor(width * adjusted).coerceAtLeast(1.0)
             height = floor(height * adjusted).coerceAtLeast(1.0)
         }
-        return ceil(patchCount(width = width, height = height, patch = 32) * mMultiplier).toLong()
+        return patchCount(width = width, height = height, patch = 32)
     }
 }
 

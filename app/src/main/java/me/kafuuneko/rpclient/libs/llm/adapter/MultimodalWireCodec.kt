@@ -53,6 +53,7 @@ internal data class PreparedWireBody(
  */
 internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
     private val mImages = mutableMapOf<String, LLMImageReference>()
+    private val mImageContent by lazy { ImageContentCodec(mProvider) }
 
     /** 根据协议生成内容数组，保持图文次序，纯文本 OpenAI / Anthropic 保持字符串。 */
     fun content(message: LLMMessage): Any {
@@ -82,28 +83,7 @@ internal class MultimodalWireCodec(private val mProvider: LLMProviderConfig) {
     /** 图片结构只接受已准备资源，不允许高级 JSON 绕过图片生命周期。 */
     private fun image(reference: LLMImageReference): JSONObject {
         val marker = registerImage(reference)
-        return when (mProvider.protocol) {
-            LLMProviderProtocol.OpenAIResponses -> JSONObject().put("type", "input_image")
-                .put("image_url", marker)
-                .put("detail", "auto")
-
-            LLMProviderProtocol.OpenAICompatible -> JSONObject().put("type", "image_url")
-                .put("image_url", JSONObject().put("url", marker))
-
-            LLMProviderProtocol.Gemini -> JSONObject().put(
-                "inlineData",
-                JSONObject()
-                    .put("mimeType", reference.mimeType).put("data", marker),
-            )
-
-            LLMProviderProtocol.AnthropicMessages -> JSONObject().put("type", "image")
-                .put(
-                    "source",
-                    JSONObject().put("type", "base64")
-                        .put("media_type", reference.mimeType)
-                        .put("data", marker),
-                )
-        }
+        return JSONObject(mImageContent.encode(reference, marker).toString())
     }
 
     /** 登记本次请求持有的图片资源，允许独立协议编码器构造自己的 JSON 结构。 */

@@ -4,6 +4,7 @@ import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingType
 import me.kafuuneko.rpclient.libs.llm.image.GENERIC_IMAGE_TOKENS
+import me.kafuuneko.rpclient.libs.llm.image.GenericImageTokenEstimator
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenCounter
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
@@ -32,6 +33,21 @@ interface PromptTokenizer {
     /** 当前统计属于模型感知、代理估算还是可证明上界。 */
     val strategy: PromptTokenizerStrategy
 
+    /** 图片独立标记可信度，避免文本编码器把未知视觉规则误标为模型感知。 */
+    val imageStrategy: PromptTokenizerStrategy
+        get() = PromptTokenizerStrategy.Estimated
+
+    /** 按实际消息内容合并文本与图片的可信度，纯文本不会被图片代理降级。 */
+    fun strategyForMessages(messages: List<LLMMessage>): PromptTokenizerStrategy {
+        if (strategy == PromptTokenizerStrategy.Estimated) return strategy
+        val hasEstimatedImages = messages.any { message ->
+            message.images.any { image ->
+                imageStrategy == PromptTokenizerStrategy.Estimated || image.width <= 0 || image.height <= 0
+            }
+        }
+        return if (hasEstimatedImages) PromptTokenizerStrategy.Estimated else strategy
+    }
+
     /** 代理估算应用的真实预算预留率；精确实现固定为 0。 */
     val reservePercent: Int
         get() = 0
@@ -56,7 +72,7 @@ interface PromptTokenizer {
 
     /** 图片计数统一入口；没有 Provider 的兼容调用使用 Generic。 */
     fun countImages(images: List<LLMImageReference>): Long =
-        images.size.toLong() * GENERIC_IMAGE_TOKENS
+        genericImageCounter.count(images)
 
     /** 缺失尺寸的候选仍参与原有总预算，Unsupported 覆盖后返回零。 */
     fun countUnavailableImages(count: Int): Long = count.toLong() * GENERIC_IMAGE_TOKENS
@@ -358,6 +374,9 @@ private fun PromptTokenizer.withImageCounter(counter: ImageTokenCounter): Prompt
     return object : PromptTokenizer {
         override val name = textTokenizer.name
         override val strategy = textTokenizer.strategy
+        override val imageStrategy =
+            if (counter.usesApproximation) PromptTokenizerStrategy.Estimated
+            else PromptTokenizerStrategy.ModelAware
         override val reservePercent = textTokenizer.reservePercent
         override val supportsIncrementalMessageCounting =
             textTokenizer.supportsIncrementalMessageCounting
@@ -370,6 +389,9 @@ private fun PromptTokenizer.withImageCounter(counter: ImageTokenCounter): Prompt
         override fun countUnavailableImages(count: Int) = counter.countUnavailable(count)
     }
 }
+
+private val genericImageCounter =
+    ImageTokenCounter(GenericImageTokenEstimator, usesApproximation = true)
 
 /** 兼容既有 Int 接口，溢出时饱和而非回绕成负数。 */
 internal fun Long.toTokenInt(): Int =

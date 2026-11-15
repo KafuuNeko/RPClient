@@ -922,6 +922,10 @@ private fun CollapsibleAdvancedPanel(
                     )
 
                     if (showImageTokenEstimator) {
+                        ImageQualityControl(
+                            state = requestExtensionsState.imageQuality,
+                            emit = emit
+                        )
                         ImageTokenEstimatorSelector(
                             selected = form.imageTokenEstimatorType,
                             onSelect = { imageTokenEstimatorType ->
@@ -975,6 +979,13 @@ private fun ImageTokenEstimatorSelector(
         ImageTokenEstimatorType.ClaudeStandard to stringResource(R.string.image_estimator_claude_standard),
         ImageTokenEstimatorType.ClaudeHighResolution to stringResource(R.string.image_estimator_claude_high),
         ImageTokenEstimatorType.Gemini3 to stringResource(R.string.image_estimator_gemini),
+        ImageTokenEstimatorType.OpenAiTile51 to stringResource(R.string.image_estimator_tile_51),
+        ImageTokenEstimatorType.OpenAiTileReasoning to stringResource(R.string.image_estimator_tile_reasoning),
+        ImageTokenEstimatorType.OpenAiPatch52 to stringResource(R.string.image_estimator_patch_52),
+        ImageTokenEstimatorType.OpenAiPatch55 to stringResource(R.string.image_estimator_patch_55),
+        ImageTokenEstimatorType.OpenAiPatch56 to stringResource(R.string.image_estimator_patch_56),
+        ImageTokenEstimatorType.OpenAiPatch6 to stringResource(R.string.image_estimator_patch_6),
+        ImageTokenEstimatorType.Gemini25 to stringResource(R.string.image_estimator_gemini_25),
     )
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -1535,8 +1546,9 @@ private fun ProviderSystemPromptFieldPreview() {
     }
 }
 
+/** 渲染可横向滚动的枚举选项，仅发布选择事件。 */
 @Composable
-private fun <T> EnumChipRow(
+internal fun <T> EnumChipRow(
     values: List<T>,
     selected: T,
     label: @Composable (T) -> String,

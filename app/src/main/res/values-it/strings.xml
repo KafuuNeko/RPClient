@@ -1164,7 +1164,7 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">Limite di output del riepilogo raggiunto</string>
     <string name="summary_token_limit_message">Il riepilogo ha raggiunto il limite di token di output e non è stato salvato. Anche il ragionamento consuma questo limite. Vai a Impostazioni → “%1$s” → “%2$s”, aumenta “%3$s” e riprova.</string>
     <string name="summary_go_to_settings">Apri impostazioni</string>
@@ -1467,4 +1467,20 @@ Non riusciti: %2$d</string>
     <string name="prompt_catalog_new_chat_title">Separatore della cronologia della chat singola</string>
     <string name="prompt_catalog_new_group_title">Separatore della cronologia della chat di gruppo</string>
     <string name="prompt_catalog_new_example_title">Separatore dei dialoghi di esempio</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">Qualità immagine</string>
+    <string name="image_quality_low">Bassa</string>
+    <string name="image_quality_medium">Media</string>
+    <string name="image_quality_high">Alta</string>
+    <string name="image_quality_original">Dettagli originali</string>
+    <string name="image_quality_ultra">Molto alta</string>
+    <string name="image_quality_description">Elaborazione e utilizzo dei token dipendono dal modello e dalle dimensioni dell’immagine. Automatico mantiene le impostazioni attuali del modello.</string>
+    <string name="image_error_detail">Questo modello non supporta la qualità immagine selezionata. Modifica le impostazioni di qualità dell’immagine.</string>
+    <string name="image_error_provider_format">Questo modello non supporta questo formato immagine. Usa la compressione Automatica o Personalizzata e allega nuovamente l’immagine.</string>
 </resources>

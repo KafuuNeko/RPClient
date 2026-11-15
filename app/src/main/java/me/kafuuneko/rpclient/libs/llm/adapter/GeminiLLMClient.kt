@@ -138,7 +138,7 @@ class GeminiLLMClient(
         if (request.messages.any { it.images.isNotEmpty() }) mImageCapabilities.requireImages(
             provider = mProvider.copy(model = model),
         )
-        val codec = MultimodalWireCodec(mProvider)
+        val codec = MultimodalWireCodec(mProvider.copy(model = model))
         val options = request.options.resolveFor(mProvider)
         val generationConfig = JSONObject()
             .put("maxOutputTokens", options.maxTokens)

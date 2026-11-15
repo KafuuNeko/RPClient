@@ -1189,7 +1189,7 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3</string>
+    <string name="image_estimator_gemini">Gemini 3 / 4</string>
     <string name="summary_token_limit_title">Limite de saída do resumo atingido</string>
     <string name="summary_token_limit_message">O resumo atingiu o limite de tokens de saída e não foi salvo. O raciocínio também consome esse limite. Vá a Configurações → “%1$s” → “%2$s”, aumente “%3$s” e tente novamente.</string>
     <string name="summary_go_to_settings">Ir para configurações</string>
@@ -1492,4 +1492,20 @@ Falhas: %2$d</string>
     <string name="prompt_catalog_new_chat_title">Separador do histórico de chat individual</string>
     <string name="prompt_catalog_new_group_title">Separador do histórico de chat em grupo</string>
     <string name="prompt_catalog_new_example_title">Separador de diálogo de exemplo</string>
+    <string name="image_estimator_tile_51">GPT-5 / GPT-5.1 (Tile)</string>
+    <string name="image_estimator_tile_reasoning">OpenAI o1 / o3 (Tile)</string>
+    <string name="image_estimator_patch_52">GPT-5.2 (Patch)</string>
+    <string name="image_estimator_patch_55">GPT-5.5 (Patch)</string>
+    <string name="image_estimator_patch_56">GPT-5.6 (Patch)</string>
+    <string name="image_estimator_patch_6">GPT-6 Astra (Patch)</string>
+    <string name="image_estimator_gemini_25">Gemini 2.5</string>
+    <string name="image_quality">Qualidade da imagem</string>
+    <string name="image_quality_low">Baixa</string>
+    <string name="image_quality_medium">Média</string>
+    <string name="image_quality_high">Alta</string>
+    <string name="image_quality_original">Detalhes originais</string>
+    <string name="image_quality_ultra">Ultra-alta</string>
+    <string name="image_quality_description">O processamento e o uso de tokens dependem do modelo e do tamanho da imagem. Automático mantém as configurações atuais do modelo.</string>
+    <string name="image_error_detail">Este modelo não oferece suporte à qualidade de imagem selecionada. Altere as configurações de qualidade da imagem.</string>
+    <string name="image_error_provider_format">Este modelo não oferece suporte a este formato de imagem. Use a compressão Automática ou Personalizada e anexe a imagem novamente.</string>
 </resources>

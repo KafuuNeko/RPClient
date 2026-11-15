@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.llmprovideredit.presentation
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogFailure
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
+import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
 
 /** 模型配置创建/编辑页面状态树。 */
 sealed class LLMProviderEditUiState {
@@ -51,7 +52,15 @@ data class LLMProviderEditRequestExtensionsState(
     /** OpenRouter 路由时优先选择的上游供应商。 */
     val preferredProvider: String = "",
     /** 首选上游不可用时是否允许 OpenRouter 回退。 */
-    val allowFallbacks: Boolean = true
+    val allowFallbacks: Boolean = true,
+    /** 图片质量控件与协议可选范围，由 ViewModel 生成。 */
+    val imageQuality: LLMProviderEditImageQualityState = LLMProviderEditImageQualityState(),
+)
+
+/** 图片质量控件的独立渲染状态；Compose 不解析 JSON 或猜测模型能力。 */
+data class LLMProviderEditImageQualityState(
+    val selected: ImageQuality = ImageQuality.Auto,
+    val options: List<ImageQuality> = emptyList(),
 )
 
 /** 模型配置页面当前是新增还是编辑。 */

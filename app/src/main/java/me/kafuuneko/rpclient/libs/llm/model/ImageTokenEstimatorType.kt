@@ -18,5 +18,19 @@ enum class ImageTokenEstimatorType {
 
     ClaudeHighResolution,
 
-    Gemini3
+    Gemini3,
+
+    OpenAiTile51,
+
+    OpenAiTileReasoning,
+
+    OpenAiPatch52,
+
+    OpenAiPatch55,
+
+    OpenAiPatch56,
+
+    OpenAiPatch6,
+
+    Gemini25
 }

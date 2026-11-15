@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.image
 
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
+import me.kafuuneko.rpclient.libs.llm.adapter.withImageQuality
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
@@ -10,6 +11,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
 import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
@@ -131,7 +133,7 @@ class ImageTokenEstimatorTest {
             ImageTokenEstimatorType.OpenAiPatch41Mini,
             mImages.automaticType("gpt-4.1-mini-2025-04-14")
         )
-        for (unknown in listOf("gateway/gpt-4o", "gpt-4o-custom", "gpt-future", "gemini-2.5-pro")) {
+        for (unknown in listOf("gateway/gpt-4o", "gpt-4o-custom", "gpt-future", "gemini-99-pro")) {
             assertEquals(ImageTokenEstimatorType.Generic, mImages.automaticType(unknown))
         }
         val config = mProvider.copy(
@@ -150,7 +152,10 @@ class ImageTokenEstimatorTest {
 
     @Test
     fun geminiReadsExistingResolutionWithoutChangingRequestParameters() {
-        val provider = mProvider.copy(imageTokenEstimatorType = ImageTokenEstimatorType.Gemini3)
+        val provider = mProvider.copy(
+            protocol = LLMProviderProtocol.Gemini,
+            imageTokenEstimatorType = ImageTokenEstimatorType.Gemini3
+        )
         val expected = mapOf(
             "MEDIA_RESOLUTION_LOW" to 280L,
             "MEDIA_RESOLUTION_MEDIUM" to 560L,
@@ -254,5 +259,131 @@ class ImageTokenEstimatorTest {
             assertTrue(count(type = type, width = Int.MAX_VALUE, height = 1) > 0)
             assertTrue(count(type, Int.MAX_VALUE, Int.MAX_VALUE) > 0)
         }
+    }
+
+    @Test
+    fun latestModelsSnapshotsAndRouterNamesSelectOnlyVerifiedRules() {
+        val known = mapOf(
+            "gpt-5.1" to ImageTokenEstimatorType.OpenAiTile51,
+            "gpt-5.2" to ImageTokenEstimatorType.OpenAiPatch52,
+            "gpt-5.5" to ImageTokenEstimatorType.OpenAiPatch55,
+            "openai/gpt-5.6-sol:nitro" to ImageTokenEstimatorType.OpenAiPatch56,
+            "gpt-6-astra-2026-09-03" to ImageTokenEstimatorType.OpenAiPatch6,
+            "claude-haiku-4-5-20251001" to ImageTokenEstimatorType.ClaudeStandard,
+            "anthropic/claude-opus-4.6" to ImageTokenEstimatorType.ClaudeStandard,
+            "anthropic/claude-opus-5.5:floor" to ImageTokenEstimatorType.ClaudeHighResolution,
+            "claude-fable-5-2" to ImageTokenEstimatorType.ClaudeHighResolution,
+            "claude-sonnet-5-5" to ImageTokenEstimatorType.ClaudeHighResolution,
+            "claude-haiku-5-5" to ImageTokenEstimatorType.ClaudeHighResolution,
+            "google/gemini-4-carbon" to ImageTokenEstimatorType.Gemini3,
+            "gemini-4-argon" to ImageTokenEstimatorType.Gemini3,
+            "gemini-4-hydrogen" to ImageTokenEstimatorType.Gemini3,
+            "gemini-3.8-flash" to ImageTokenEstimatorType.Gemini3,
+            "gemini-2.5-pro" to ImageTokenEstimatorType.Gemini25,
+        )
+        // 保护网关命名与快照兼容，同时禁止规则从相似名字扩散到未知模型。
+        known.forEach { (name, type) -> assertEquals(name, type, mImages.automaticType(name)) }
+        for (name in listOf(
+            "gpt-6.1-sol",
+            "gpt-6-luna",
+            "grok-4.7",
+            "gateway/gpt-6-astra",
+            "gpt-6-astra-custom",
+            "openai/gpt-6-astra:custom"
+        )) {
+            assertEquals(name, ImageTokenEstimatorType.Generic, mImages.automaticType(name))
+        }
+    }
+
+    @Test
+    fun openAiAutoLowHighAndOriginalUseModelSpecificSizing() {
+        fun tokens(
+            model: String,
+            width: Int,
+            height: Int,
+            detail: ImageQuality = ImageQuality.Auto
+        ): Long {
+            val counter = mImages.resolve(
+                mProvider.copy(
+                    model = model,
+                    requestBodyPatchJson = "{}".withImageQuality(detail)
+                ).toConfig()
+            )
+            return counter.count(listOf(image(width, height)))
+        }
+        // 新系列 auto 保留原始细节，不能沿用 GPT-5.4 的 high 缩放预算。
+        assertEquals(11060L, tokens("gpt-6-astra", 3072, 3072))
+        assertEquals(11060L, tokens("gpt-5.5", 3072, 3072))
+        assertEquals(19661L, tokens("gpt-5.6-sol", 4096, 4096))
+        assertEquals(12000L, tokens("gpt-5.5", 6000, 6000))
+        assertEquals(3000L, tokens("gpt-5.4", 3072, 3072))
+        assertEquals(4916L, tokens("gpt-5.2", 2048, 2048))
+        assertEquals(85L, tokens("gpt-4o", 1024, 1024, ImageQuality.Low))
+        assertEquals(2833L, tokens("gpt-4o-mini", 1024, 1024, ImageQuality.Low))
+        assertEquals(308L, tokens("gpt-6-astra", 1024, 1024, ImageQuality.Low))
+        // GPT-5.4 的 low 预算反而高于 high；Astra high 的边长规则也不同于 5.6。
+        assertEquals(4916L, tokens("gpt-5.4", 2048, 2048, ImageQuality.Low))
+        assertEquals(3000L, tokens("gpt-5.4", 2048, 2048, ImageQuality.High))
+        assertEquals(2458L, tokens("gpt-6-astra", 4096, 512, ImageQuality.High))
+        assertEquals(615L, tokens("gpt-5.6-sol", 4096, 512, ImageQuality.High))
+    }
+
+    @Test
+    fun modelQualityAndNullPatchDeletionFollowTheActualRequestOptions() {
+        val configured = mProvider.copy(
+            model = "gemini-4-carbon",
+            protocol = LLMProviderProtocol.Gemini,
+            requestBodyPatchJson = """{"generationConfig":{"mediaResolution":"MEDIA_RESOLUTION_LOW"},"_rpclient":{"imageQuality":"ultra_high"}}""",
+        )
+        val counter = mImages.resolve(configured.toConfig())
+        val ordinary = image(1024, 1024)
+        assertEquals(2240L, counter.count(listOf(ordinary)))
+        val medium = configured.copy(
+            requestBodyPatchJson = configured.requestBodyPatchJson.withImageQuality(ImageQuality.Medium)
+        )
+        assertEquals(560L, mImages.resolve(medium.toConfig()).count(listOf(ordinary)))
+        assertEquals(2240L, counter.count(listOf(ordinary)))
+        // Merge Patch 的 null 删除字段应回到模型默认值，而不是变成未知值。
+        for (patch in listOf(
+            """{"generationConfig":null}""",
+            """{"generationConfig":{"mediaResolution":null}}"""
+        )) {
+            assertEquals(
+                1120L,
+                mImages.resolve(configured.copy(requestBodyPatchJson = patch).toConfig())
+                    .count(listOf(ordinary))
+            )
+        }
+        val legacy = mProvider.copy(
+            model = "gemini-2.5-flash",
+            protocol = LLMProviderProtocol.Gemini,
+            requestBodyPatchJson = "{}".withImageQuality(ImageQuality.Low)
+        )
+        assertEquals(64L, mImages.resolve(legacy.toConfig()).count(listOf(ordinary)))
+        assertTrue(mImages.resolve(legacy.toConfig()).usesApproximation)
+    }
+
+    @Test
+    fun genericLargeImagesScaleWithAreaAndDowngradeOnlyImageContainingUsage() {
+        val provider = mProvider.copy(model = "gpt-5.9")
+        val tokenizer = mTokenizers.resolve(provider)
+        val textOnly = LLMMessage(LLMMessageRole.User, "text")
+        val illustrated =
+            messageWithBlocks(LLMMessageRole.User, listOf(LLMContentBlock.Image(image(3072, 3072))))
+        assertEquals(
+            PromptTokenizerStrategy.ModelAware,
+            tokenizer.strategyForMessages(listOf(textOnly))
+        )
+        assertEquals(
+            PromptTokenizerStrategy.Estimated,
+            tokenizer.strategyForMessages(listOf(illustrated))
+        )
+        assertTrue(tokenizer.countImages(illustrated.images) >= 11060L)
+        assertTrue(
+            tokenizer.countImages(listOf(image(6000, 6000))) > tokenizer.countImages(
+                illustrated.images
+            )
+        )
+        assertEquals(4096L, tokenizer.countImages(listOf(image(0, 0))))
     }
 }
