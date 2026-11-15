@@ -1,5 +1,10 @@
 package me.kafuuneko.rpclient.libs.regex
 
+import me.kafuuneko.rpclient.libs.macro.MacroExpander
+import me.kafuuneko.rpclient.libs.macro.MacroReference
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+
 /**
  * 纯 Regex 执行引擎。
  *
@@ -14,6 +19,7 @@ class RegexScriptEngine {
         context: RegexExecutionContext,
     ): RegexExecutionResult {
         if (input.isEmpty()) return RegexExecutionResult(input)
+        val macros = macroScope(context.macros)
         var output = input
         val hits = mutableListOf<RegexExecutionHit>()
         val errors = mutableListOf<RegexExecutionError>()
@@ -29,7 +35,7 @@ class RegexScriptEngine {
             val before = output
             // 执行单条脚本的正则替换操作
             val result = runCatching {
-                applyScript(before, script, context.macros)
+                applyScript(before, script, macros)
             }
             result.onSuccess { application ->
                 output = application.text
@@ -61,7 +67,7 @@ class RegexScriptEngine {
     fun validate(script: RegexScript, macros: Map<String, String> = emptyMap()): String? {
         if (script.findRegex.isBlank()) return "Find Regex cannot be empty"
         return runCatching {
-            compile(script, macros)
+            compile(script, macroScope(macros))
         }.exceptionOrNull()?.message
     }
 
@@ -84,7 +90,7 @@ class RegexScriptEngine {
     private fun applyScript(
         input: String,
         script: RegexScript,
-        macros: Map<String, String>,
+        macros: MacroScope,
     ): ScriptApplication {
         val compiled = compile(script, macros)
         val firstMatch =
@@ -136,7 +142,7 @@ class RegexScriptEngine {
     /** 按 Find Regex 宏模式展开表达式并生成 Kotlin Regex。 */
     private fun compile(
         script: RegexScript,
-        macros: Map<String, String>,
+        macros: MacroScope,
     ): CompiledRegex {
         val find = when (RegexFindMacroMode.fromValue(script.substituteRegex)) {
             RegexFindMacroMode.Disabled -> script.findRegex
@@ -179,7 +185,7 @@ class RegexScriptEngine {
     private fun buildReplacement(
         script: RegexScript,
         match: MatchResult,
-        macros: Map<String, String>,
+        macros: MacroScope,
     ): String {
         val normalized = MATCH_MACRO.replace(script.replaceString) { "\$0" }
         val withGroups = GROUP_REFERENCE.replace(normalized) { reference ->
@@ -207,17 +213,33 @@ class RegexScriptEngine {
     /** 以不区分大小写的键查找并替换 SillyTavern 风格宏。 */
     private fun resolveMacros(
         text: String,
-        macros: Map<String, String>,
+        macros: MacroScope,
         transform: (String) -> String = { it },
     ): String {
-        return MACRO.replace(text) { match ->
-            val key = match.groupValues[1].trim().lowercase()
-            macros.entries.firstOrNull { entry -> entry.key.lowercase() == key }
-                ?.value
-                ?.let(transform)
-                ?: match.value
+        val scope = MacroScope { reference ->
+            val value = macros.localValue(reference) ?: return@MacroScope null
+            val resolved = when (value) {
+                is MacroValue.Literal -> value.text
+                is MacroValue.Template -> macroExpander.expand(
+                    value.text,
+                    value.scope ?: macros
+                ).text
+            }
+            // Find Regex 的转义只作用于完整宏值，避免嵌套值被多次转义。
+            MacroValue.Literal(transform(resolved))
         }
+        return macroExpander.expand(text, scope).text
     }
+
+    /** 脚本中的人设和场景来自模板字段，姓名与群组名单是字面值。 */
+    private fun macroScope(values: Map<String, String>): MacroScope = MacroScope(
+        values.mapValues { (name, value) ->
+            when (MacroReference.parse(name).name) {
+                "persona", "scenario" -> MacroValue.Template(value)
+                else -> MacroValue.Literal(value)
+            }
+        }
+    )
 
     /** 将宏值转义为可安全嵌入 Find Regex 的字面量。 */
     private fun escapeRegexMacro(value: String): String {
@@ -288,6 +310,6 @@ class RegexScriptEngine {
         val SUPPORTED_FLAGS = setOf('g', 'i', 'm', 's', 'u', 'y')
         val MATCH_MACRO = Regex("""\{\{match\}\}""", RegexOption.IGNORE_CASE)
         val GROUP_REFERENCE = Regex("""\$(\d+)|\$<([^>]+)>""")
-        val MACRO = Regex("""\{\{([^{}]+)\}\}""", RegexOption.IGNORE_CASE)
+        val macroExpander = MacroExpander()
     }
 }

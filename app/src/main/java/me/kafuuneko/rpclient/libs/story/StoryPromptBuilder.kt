@@ -24,6 +24,9 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.promptMacroExpander
 import me.kafuuneko.rpclient.libs.prompt.renderUserPersonaTemplate
 import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.resolveWorldInfoBudget
@@ -503,23 +506,22 @@ private class StoryPromptBuildSession(
 
     /** 使用全局模板格式化世界书条目内容。 */
     private fun formatWorldInfo(entry: LorebookEntry): String {
-        return mTemplates.worldInfoFormat.replace("{0}", entry.content)
+        return promptMacroExpander.expand(
+            mTemplates.worldInfoFormat, MacroScope(mapOf("0" to MacroValue.Literal(entry.content))),
+        ).text
     }
 
     /** 替换内容中形如 `{{outlet::key}}` 的自定义世界书插槽占位符。 */
     private fun resolveOutlets(content: String, outlets: Map<String, String>): String {
-        return OUTLET_PATTERN.replace(content) { match ->
-            outlets[match.groupValues[1].trim()].orEmpty()
+        val scope = MacroScope { reference ->
+            if (reference.name == "outlet" && reference.argument != null) {
+                MacroValue.Literal(outlets[reference.argument].orEmpty())
+            } else null
         }
+        return promptMacroExpander.expand(content, scope).text
     }
 
     private companion object {
-        /** 匹配 `{{outlet::name}}` 格式自定义世界书插槽的正则表达式。 */
-        val OUTLET_PATTERN = Regex(
-            pattern = """\{\{\s*outlet::([^}]+)\s*\}\}""",
-            option = RegexOption.IGNORE_CASE,
-        )
-
         /** 紧贴光标位置正文片段的最大保留优先级。 */
         const val PRIORITY_DOCUMENT_MAX = 2_000
 
@@ -681,17 +683,25 @@ internal fun insertStoryDepthPromptDrafts(
 internal fun renderContinuationGuidancePrompt(template: String, guidance: String): String {
     val normalized = guidance.trim()
     if (normalized.isEmpty()) return ""
-    return template.replace("{{guidance}}", normalized)
+    return promptMacroExpander.expand(
+        template, MacroScope(mapOf("guidance" to MacroValue.Literal(normalized))),
+    ).text
 }
 
 /** 渲染故事设定记忆（Memory）模板。 */
 internal fun renderStoryMemoryTemplate(template: String, memory: String): String {
     if (memory.isBlank()) return ""
-    return template.replace(oldValue = "{{memory}}", newValue = memory, ignoreCase = true)
+    return promptMacroExpander.expand(
+        template,
+        MacroScope(mapOf("memory" to MacroValue.Literal(memory)))
+    ).text
 }
 
 /** 渲染故事摘要（Summary）模板。 */
 internal fun renderStorySummaryTemplate(template: String, summary: String): String {
     if (summary.isBlank()) return ""
-    return template.replace(oldValue = "{{summary}}", newValue = summary, ignoreCase = true)
+    return promptMacroExpander.expand(
+        template,
+        MacroScope(mapOf("summary" to MacroValue.Literal(summary)))
+    ).text
 }

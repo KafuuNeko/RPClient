@@ -25,6 +25,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
@@ -327,7 +328,14 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 maxContextTokens = 0,
                 maxResponseTokens = 0,
             )
-            mMacroResolver.resolve(rawFirstMessage, context)
+            try {
+                mMacroResolver.resolve(rawFirstMessage, context)
+            } catch (_: MacroExpansionException) {
+                // 模板错误发生在入库前，保留表单供用户修正后重试。
+                uiState.copy(loadState = ChatCreateLoadState.None).setup()
+                AppViewEvent.PopupToastMessageByResId(R.string.generation_failed).tryEmit()
+                return
+            }
         }
 
         // 在 IO 线程原子入库单聊会话与首条角色消息

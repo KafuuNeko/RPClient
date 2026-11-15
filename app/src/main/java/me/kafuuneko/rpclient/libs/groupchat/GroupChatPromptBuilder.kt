@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
+import me.kafuuneko.rpclient.libs.macro.MacroExpansion
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.promptMacroExpander
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
@@ -193,6 +196,7 @@ private class GroupChatPromptBuildSession(
     private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
     private val mSpeakerMacros = mMacros.forCharacter()
+    private lateinit var mOutlets: GroupChatOutlets
 
     /**
      * 构建可直接发送给模型的群聊生成请求。
@@ -254,6 +258,7 @@ private class GroupChatPromptBuildSession(
             tokenizer = tokenizer,
         )
         val worldInfo = worldSelection.result
+        mOutlets = GroupChatOutlets(worldInfo.outletEntries)
         // 构建固定系统消息区段（主提示词、多角色卡合并、用户画像等）
         val fixedMessages = buildFixedMessages(context, worldInfo, exampleBehavior)
         // 构建待按深度插入的 In-Chat 注入项
@@ -309,13 +314,12 @@ private class GroupChatPromptBuildSession(
         }
         // 注入群聊任务提示（Group Nudge）
         if (context.summaryInstruction == null && context.generationMode.usesCharacterReplyTask()) {
-            renderGroupMacros(context.groupNudgePrompt(), mSpeakerMacros)
-                .takeIf { it.isNotBlank() }
+            render(context.groupNudgePrompt(), mSpeakerMacros)
+                .takeIf { it.text.isNotBlank() }
                 ?.let { historyMessages += requiredUser(it, PromptSourceKind.GroupNudge) }
         }
 
         // 串联所有分区消息草稿
-        val outlets = GroupChatOutlets(worldInfo.outletEntries)
         val rawDrafts = buildList {
             addAll(fixedMessages.beforeHistory)
             addAll(historyMessages)
@@ -323,12 +327,7 @@ private class GroupChatPromptBuildSession(
             continueTarget?.let(::add)
             buildGenerationControlDraft(context)?.let(::add)
         }
-        val drafts = rawDrafts.mapNotNull(outlets::expandPrompt) + listOfNotNull(
-            buildUserWritingDraft(
-                context,
-                outlets
-            )
-        )
+        val drafts = rawDrafts + listOfNotNull(buildUserWritingDraft(context))
         // 调用 Finalizer 执行协议后处理与 Token 预算裁剪
         val finalized = mRequestFinalizer.finalize(
             drafts = ensureTerminalCharacterReplyTurn(drafts, context),
@@ -416,11 +415,20 @@ private class GroupChatPromptBuildSession(
                     GroupChatGenerationMode.Impersonate -> WorldBookGenerationType.Impersonate
                 },
                 characterDescription = scanField { it.description },
-                userDescription = mSpeakerMacros.getValue("persona"),
+                userDescription = renderGroupMacros("{{persona}}", mSpeakerMacros),
                 characterPersonality = scanField { it.personality },
                 characterDepthPrompt = scanField { it.depthPromptPrompt },
-                scenario = if (context.session.scenario.isNotBlank()) mSpeakerMacros.getValue("scenario")
-                else context.combineCharacterField(cardMembers) { it.scenario },
+                scenario = if (context.session.scenario.isNotBlank()) renderGroupMacros(
+                    "{{scenario}}",
+                    mSpeakerMacros
+                )
+                else cardMembers.joinToString("\n") { member ->
+                    val text = renderGroupMacros(
+                        member.character.scenario,
+                        mMacros.forCharacter(member.character)
+                    )
+                    if (context.session.characterCardMode == GroupChatSession.CharacterCardMode.Join) "${member.character.name}:\n$text" else text
+                },
                 creatorNotes = scanField { it.creatorNotes },
             ),
             recursiveContent = { entry ->
@@ -482,10 +490,10 @@ private class GroupChatPromptBuildSession(
         }
         // 注入用户形象设定（User persona）
         before += requiredSystem(
-            content = formatGroupField(
+            content = formatField(
                 mPreferences.userPersonaFormat,
                 "persona",
-                mSpeakerMacros.getValue("persona"),
+                MacroValue.Template(mSpeakerMacros.getValue("persona")),
                 mSpeakerMacros
             ),
             sourceKind = PromptSourceKind.UserPersona,
@@ -495,7 +503,7 @@ private class GroupChatPromptBuildSession(
         // 注入辅助提示词
         mPreferences.auxiliaryPrompt.takeIf { it.isNotBlank() }?.let { text ->
             before += optionalSystem(
-                content = renderGroupMacros(text, mSpeakerMacros),
+                content = render(text, mSpeakerMacros),
                 source = PromptSource(PromptSourceKind.AuxiliaryPrompt),
                 retentionPriority = PRIORITY_AUXILIARY,
             )
@@ -548,7 +556,7 @@ private class GroupChatPromptBuildSession(
             text.isNotBlank() && context.messages.isNotEmpty()
         }?.let { text ->
             before += optionalSystem(
-                content = renderGroupMacros(text, mSpeakerMacros),
+                content = render(text, mSpeakerMacros),
                 source = PromptSource(PromptSourceKind.NewChatMarker),
                 retentionPriority = PRIORITY_NEW_CHAT,
             )
@@ -556,7 +564,7 @@ private class GroupChatPromptBuildSession(
 
         // 注入历史后指令（Post-history instructions）
         if (context.generationMode.usesCharacterReplyTask()) {
-            context.postHistoryInstructions().takeIf { it.isNotBlank() }?.let { text ->
+            context.postHistoryInstructions().takeIf { it.text.isNotBlank() }?.let { text ->
                 after += requiredSystem(
                     content = text,
                     sourceKind = PromptSourceKind.PostHistoryInstructions,
@@ -585,10 +593,10 @@ private class GroupChatPromptBuildSession(
         ) { it.personality }
         // 群场景覆盖只注入一次，卡内场景则各自使用所属角色的模板。
         val scenario = if (context.session.scenario.isNotBlank()) {
-            formatGroupField(
+            formatField(
                 mPreferences.scenarioFormat,
                 "scenario",
-                mSpeakerMacros.getValue("scenario"),
+                MacroValue.Template(mSpeakerMacros.getValue("scenario")),
                 mSpeakerMacros
             )
         } else {
@@ -600,10 +608,10 @@ private class GroupChatPromptBuildSession(
         }
 
         return buildList {
-            description.takeIf { text -> text.isNotBlank() }?.let { text ->
+            description.takeIf { text -> text.text.isNotBlank() }?.let { text ->
                 add(requiredSystem(text, PromptSourceKind.CharacterDescription))
             }
-            personality.takeIf { text -> text.isNotBlank() }?.let { text ->
+            personality.takeIf { text -> text.text.isNotBlank() }?.let { text ->
                 add(
                     element = requiredSystem(
                         content = text,
@@ -611,7 +619,7 @@ private class GroupChatPromptBuildSession(
                     ),
                 )
             }
-            scenario.takeIf { text -> text.isNotBlank() }?.let { text ->
+            scenario.takeIf { text -> text.text.isNotBlank() }?.let { text ->
                 add(requiredSystem(text, PromptSourceKind.Scenario))
             }
         }
@@ -631,16 +639,20 @@ private class GroupChatPromptBuildSession(
         template: String = "",
         slot: String = "",
         readField: (Character) -> String,
-    ): String {
-        return cardMembers.mapNotNull { member ->
+    ): MacroExpansion {
+        val rendered = cardMembers.mapNotNull { member ->
             val raw = readField(member.character).trim()
             if (raw.isBlank()) return@mapNotNull null
             val macros = mMacros.forCharacter(member.character)
-            val text = formatGroupField(template, slot, renderGroupMacros(raw, macros), macros)
+            val text = formatField(template, slot, MacroValue.Template(raw), macros)
             if (session.characterCardMode == GroupChatSession.CharacterCardMode.Join) {
-                "${member.character.name}:\n$text"
+                text.copy(text = "${member.character.name}:\n${text.text}")
             } else text
-        }.joinToString("\n")
+        }
+        return MacroExpansion(
+            rendered.joinToString("\n") { it.text },
+            rendered.flatMap { it.bindings }.toSet()
+        )
     }
 
     /**
@@ -671,7 +683,7 @@ private class GroupChatPromptBuildSession(
                             ?.let { text ->
                                 add(
                                     element = optionalSystem(
-                                        content = renderGroupMacros(text, macros),
+                                        content = render(text, macros),
                                         source = PromptSource(
                                             kind = PromptSourceKind.ExampleDialogue,
                                             detail = member.character.name,
@@ -688,12 +700,9 @@ private class GroupChatPromptBuildSession(
                         if (parsed.isEmpty()) {
                             add(
                                 element = optionalSystem(
-                                    content = "${member.character.name} example:\n${
-                                        renderGroupMacros(
-                                            block,
-                                            macros
-                                        )
-                                    }",
+                                    content = render(block, macros).let {
+                                        it.copy(text = "${member.character.name} example:\n${it.text}")
+                                    },
                                     source = PromptSource(
                                         kind = PromptSourceKind.ExampleDialogue,
                                         detail = member.character.name,
@@ -709,17 +718,14 @@ private class GroupChatPromptBuildSession(
                                     member.character.name
                                 }
                                 add(
-                                    element = PromptMessageDraft(
+                                    element = templateDraft(
+                                        content = render(message.content, macros).let {
+                                            it.copy(text = "$speaker: ${it.text}")
+                                        },
                                         role = message.role,
-                                        content = "$speaker: ${
-                                            renderGroupMacros(
-                                                message.content,
-                                                macros
-                                            )
-                                        }",
                                         source = PromptSource(
-                                            kind = PromptSourceKind.ExampleDialogue,
-                                            detail = member.character.name,
+                                            PromptSourceKind.ExampleDialogue,
+                                            member.character.name
                                         ),
                                         retentionPriority = retentionPriority,
                                         canDrop = true,
@@ -757,7 +763,7 @@ private class GroupChatPromptBuildSession(
         worldInfo.anTop.forEachIndexed { index, entry ->
             pieces += InChatPiece(
                 message = prioritizedWorldInfo(
-                    content = entry.content,
+                    content = MacroExpansion(entry.content, emptySet()),
                     source = PromptSource(
                         kind = PromptSourceKind.WorldInfo,
                         detail = entry.name,
@@ -773,7 +779,7 @@ private class GroupChatPromptBuildSession(
         context.session.userNote.takeIf { it.isNotBlank() }?.let { text ->
             pieces += InChatPiece(
                 message = optionalSystem(
-                    content = renderGroupMacros(text, mSpeakerMacros),
+                    content = render(text, mSpeakerMacros),
                     source = PromptSource(PromptSourceKind.UserNote),
                     retentionPriority = PRIORITY_USER_NOTE,
                 ),
@@ -785,7 +791,7 @@ private class GroupChatPromptBuildSession(
         worldInfo.anBottom.forEachIndexed { index, entry ->
             pieces += InChatPiece(
                 message = prioritizedWorldInfo(
-                    content = entry.content,
+                    content = MacroExpansion(entry.content, emptySet()),
                     source = PromptSource(
                         kind = PromptSourceKind.WorldInfo,
                         detail = entry.name,
@@ -804,15 +810,12 @@ private class GroupChatPromptBuildSession(
                 member.character.depthPromptPrompt.takeIf { text -> text.isNotBlank() }
                     ?.let { text ->
                         pieces += InChatPiece(
-                            message = PromptMessageDraft(
+                            message = templateDraft(
+                                content = render(text, mMacros.forCharacter(member.character)),
                                 role = member.character.depthPromptRole.toMessageRole(),
-                                content = renderGroupMacros(
-                                    text,
-                                    mMacros.forCharacter(member.character)
-                                ),
                                 source = PromptSource(
-                                    kind = PromptSourceKind.CharacterNote,
-                                    detail = member.character.name,
+                                    PromptSourceKind.CharacterNote,
+                                    member.character.name
                                 ),
                                 retentionPriority = PRIORITY_CHARACTER_NOTE,
                                 canDrop = true,
@@ -900,7 +903,7 @@ private class GroupChatPromptBuildSession(
     }
 
     /** 读取并解析群聊主提示词。 */
-    private fun GroupChatPromptContext.mainPrompt(): String {
+    private fun GroupChatPromptContext.mainPrompt(): MacroExpansion {
         val original = mPreferences.mainPrompt
         return session.systemPromptOverride.trim()
             .ifBlank {
@@ -910,7 +913,7 @@ private class GroupChatPromptBuildSession(
     }
 
     /** 读取并解析群聊历史后指令。 */
-    private fun GroupChatPromptContext.postHistoryInstructions(): String {
+    private fun GroupChatPromptContext.postHistoryInstructions(): MacroExpansion {
         val original = mPreferences.postHistoryInstructions
         return speaker.postHistoryInstructions.trim()
             .ifBlank { original }
@@ -955,18 +958,53 @@ private class GroupChatPromptBuildSession(
         )
     }
 
-    /** 覆盖模板可引用一次已解析的原始预设，嵌套内容不会重复解释。 */
-    private fun renderPromptOverride(template: String, original: String): String {
-        val resolvedOriginal = renderGroupMacros(original, mSpeakerMacros)
-        return renderGroupMacros(template, mSpeakerMacros + ("original" to resolvedOriginal))
+    /** 展开当前模板并保留被实际引用的世界书插槽。 */
+    private fun render(
+        template: String,
+        values: Map<String, String> = mSpeakerMacros,
+        original: String = template,
+    ): MacroExpansion {
+        val scope = groupMacroScope(values, mOutlets::value)
+            .withValues(mapOf("original" to MacroValue.Template(original)))
+        return promptMacroExpander.expand(template, scope)
     }
 
-    /** 先解析世界书格式模板，再插入已经按条目归属处理过的正文。 */
-    private fun formatWorldInfo(entry: LorebookEntry): String {
-        val template = mPreferences.worldInfoFormat
-        if ("{0}" !in template) return entry.content
-        val macros = mMacros.forLorebook(entry.lorebookId)
-        return template.split("{0}").joinToString(entry.content) { renderGroupMacros(it, macros) }
+    /** 原始预设作为模板绑定参与同一次依赖求值。 */
+    private fun renderPromptOverride(template: String, original: String): MacroExpansion =
+        render(template, original = original)
+
+    /** 格式槽和正文分别绑定，已展开正文不会再次作为模板扫描。 */
+    private fun formatField(
+        template: String,
+        slot: String,
+        content: MacroValue,
+        values: Map<String, String>,
+        appendIfMissing: Boolean = false,
+    ): MacroExpansion {
+        val raw = when (content) {
+            is MacroValue.Literal -> content.text
+            is MacroValue.Template -> content.text
+        }
+        if (raw.isBlank()) return MacroExpansion(raw, emptySet())
+        val scope = groupMacroScope(values, mOutlets::value)
+        val hasSlot = promptMacroExpander.references(template).any { it.name == slot }
+        // 未配置包装或正文槽时沿用原有回退规则，字面正文直接返回。
+        if (template.isBlank() || (!hasSlot && !appendIfMissing)) {
+            return if (content is MacroValue.Template) promptMacroExpander.expand(raw, scope)
+            else MacroExpansion(raw, emptySet())
+        }
+        // 模板正文沿用字段所属作用域，格式槽只覆盖外层包装。
+        val value = if (content is MacroValue.Template) content.copy(scope = scope) else content
+        val wrapper = if (hasSlot) template else "$template\n{{$slot}}"
+        return promptMacroExpander.expand(wrapper, scope.withValues(mapOf(slot to value)))
+    }
+
+    /** 世界书正文已在预算前求值，格式包装仅解析外层模板。 */
+    private fun formatWorldInfo(entry: LorebookEntry): MacroExpansion {
+        return formatField(
+            mPreferences.worldInfoFormat, "0", MacroValue.Literal(entry.content),
+            mMacros.forLorebook(entry.lorebookId),
+        )
     }
 
     /** 读取 Prompt 后处理模式。 */
@@ -992,16 +1030,16 @@ private class GroupChatPromptBuildSession(
     /** 构建群聊摘要消息草稿。 */
     private fun summaryDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         if (context.summary.isBlank()) return null
-        val content = formatGroupField(
+        val content = formatField(
             mPreferences.summaryInjectionTemplate,
             "summary",
-            context.summary,
+            MacroValue.Literal(context.summary),
             mSpeakerMacros,
             appendIfMissing = true,
         )
-        return PromptMessageDraft(
-            role = readSummaryInjectionRole().toMessageRole(),
+        return templateDraft(
             content = content,
+            role = readSummaryInjectionRole().toMessageRole(),
             source = PromptSource(PromptSourceKind.Summary),
             retentionPriority = PRIORITY_ESSENTIAL,
             canDrop = false,
@@ -1017,7 +1055,7 @@ private class GroupChatPromptBuildSession(
         // 保留角色卡和世界背景，末尾只保留摘要这一生成目标。
         context.summaryInstruction?.let { instruction ->
             return requiredUser(
-                content = renderGroupMacros(instruction, mSpeakerMacros),
+                content = render(instruction, mSpeakerMacros),
                 sourceKind = PromptSourceKind.SummaryTask,
             )
         }
@@ -1028,21 +1066,20 @@ private class GroupChatPromptBuildSession(
             GroupChatGenerationMode.Normal,
             GroupChatGenerationMode.Regenerate -> return null
         }
-        val content = renderGroupMacros(template, mSpeakerMacros)
-        return content.takeIf { it.isNotBlank() }?.let { requiredUser(it, sourceKind) }
+        val content = render(template, mSpeakerMacros)
+        return content.takeIf { it.text.isNotBlank() }?.let { requiredUser(it, sourceKind) }
     }
 
     /** 群聊输入框输出单独追加续写模板，原文中的宏和空白保持不变。 */
-    private fun buildUserWritingDraft(
-        context: GroupChatPromptContext,
-        outlets: GroupChatOutlets
-    ): PromptMessageDraft? {
+    private fun buildUserWritingDraft(context: GroupChatPromptContext): PromptMessageDraft? {
         val originalDraft = context.userWritingDraft ?: return null
         require(context.generationMode == GroupChatGenerationMode.Impersonate) { "User writing requires impersonation mode" }
         val template = mPreferences.groupUserWritingPrompt
         val sources = mutableSetOf<PromptSource>()
         val draft = buildUserWritingPrompt(template, originalDraft) { part ->
-            outlets.expand(renderPromptOverride(part, template), sources)
+            val result = renderPromptOverride(part, template)
+            sources += mOutlets.sources(result.bindings)
+            result.text
         } ?: return null
         return draft.copy(sources = draft.sources + sources)
     }
@@ -1056,70 +1093,77 @@ private class GroupChatPromptBuildSession(
         if (!context.generationMode.usesCharacterReplyTask()) return drafts
         if (drafts.lastOrNull()?.role == LLMMessageRole.User) return drafts
         return drafts + requiredUser(
-            content = renderGroupMacros(DEFAULT_CHARACTER_REPLY_NUDGE, mSpeakerMacros),
+            content = render(DEFAULT_CHARACTER_REPLY_NUDGE, mSpeakerMacros),
             sourceKind = PromptSourceKind.GroupNudge,
         )
     }
 
-    /** 创建不可裁剪的 System 角色消息草稿。 */
+    /** 创建不可裁剪的系统片段，宏来源随正文进入最终裁剪。 */
     private fun requiredSystem(
-        content: String,
+        content: MacroExpansion,
         sourceKind: PromptSourceKind,
         detail: String = "",
-    ): PromptMessageDraft {
-        return PromptMessageDraft(
-            role = LLMMessageRole.System,
-            content = content,
-            source = PromptSource(sourceKind, detail),
-            retentionPriority = PRIORITY_ESSENTIAL,
-            canDrop = false,
-        )
-    }
+    ): PromptMessageDraft = templateDraft(
+        content = content,
+        role = LLMMessageRole.System,
+        source = PromptSource(sourceKind, detail),
+        retentionPriority = PRIORITY_ESSENTIAL,
+        canDrop = false,
+    )
 
-    /** 创建不可裁剪的 User 角色消息草稿。 */
+    /** 创建不可裁剪的用户任务片段。 */
     private fun requiredUser(
-        content: String,
+        content: MacroExpansion,
         sourceKind: PromptSourceKind,
-        detail: String = "",
-    ): PromptMessageDraft {
-        return PromptMessageDraft(
-            role = LLMMessageRole.User,
-            content = content,
-            source = PromptSource(sourceKind, detail),
-            retentionPriority = PRIORITY_ESSENTIAL,
-            canDrop = false,
-        )
-    }
+    ): PromptMessageDraft = templateDraft(
+        content = content,
+        role = LLMMessageRole.User,
+        source = PromptSource(sourceKind),
+        retentionPriority = PRIORITY_ESSENTIAL,
+        canDrop = false,
+    )
 
-    /** 预算内世界书优先于聊天历史保留，极端超限时仍允许最终安全裁剪。 */
+    /** 世界书优先于普通历史保留，条目自身的来源与格式中的插槽来源共同追踪。 */
     private fun prioritizedWorldInfo(
-        content: String,
+        content: MacroExpansion,
         source: PromptSource,
         canDrop: Boolean,
-    ): PromptMessageDraft {
-        return PromptMessageDraft(
-            role = LLMMessageRole.System,
-            content = content,
-            source = source,
-            retentionPriority = PRIORITY_ESSENTIAL,
-            canDrop = canDrop,
-        )
-    }
+    ): PromptMessageDraft = templateDraft(
+        content = content,
+        role = LLMMessageRole.System,
+        source = source,
+        retentionPriority = PRIORITY_ESSENTIAL,
+        canDrop = canDrop,
+    )
 
-    /** 创建可选系统消息草稿。 */
+    /** 创建可选的系统片段。 */
     private fun optionalSystem(
-        content: String,
+        content: MacroExpansion,
         source: PromptSource,
         retentionPriority: Int,
-    ): PromptMessageDraft {
-        return PromptMessageDraft(
-            role = LLMMessageRole.System,
-            content = content,
-            source = source,
-            retentionPriority = retentionPriority,
-            canDrop = true,
-        )
-    }
+    ): PromptMessageDraft = templateDraft(
+        content = content,
+        role = LLMMessageRole.System,
+        source = source,
+        retentionPriority = retentionPriority,
+        canDrop = true,
+    )
+
+    /** 将统一展开结果和业务来源组成最终草稿。 */
+    private fun templateDraft(
+        content: MacroExpansion,
+        role: LLMMessageRole,
+        source: PromptSource,
+        retentionPriority: Int,
+        canDrop: Boolean,
+    ): PromptMessageDraft = PromptMessageDraft(
+        role = role,
+        content = content.text,
+        source = source,
+        retentionPriority = retentionPriority,
+        canDrop = canDrop,
+        sources = listOf(source) + mOutlets.sources(content.bindings),
+    )
 
     /** 包含历史前与历史后固定系统消息的分区容器。 */
     private data class PromptSections(

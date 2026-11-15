@@ -1,5 +1,9 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
+import me.kafuuneko.rpclient.libs.macro.MacroReference
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.promptMacroExpander
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -28,7 +32,7 @@ internal class GroupChatMacros(
     private val mLorebookOwners = members.filter { it.character.characterLorebookId > 0 }
         .groupBy { it.character.characterLorebookId }
 
-    // 常见历史仅有少数几位发言者，复用已展开的人设和场景，避免逐条重新解析长角色卡。
+    // 保留快照中的模板原文，由统一展开器按实际引用求值。
     private val mMemberValues = members.associate { member ->
         val character = member.character
         character.id to buildValues(character, character.name, mPersona.name)
@@ -39,17 +43,18 @@ internal class GroupChatMacros(
     /**
      * 返回角色卡、模板和 Regex 共用的宏。
      * @param character 片段所属角色，默认为本轮发言者。
-     * @return 已展开姓名、人设与有效场景的字典。
+     * @return 当前角色的原始模板与字面姓名绑定。
      */
     fun forCharacter(character: Character? = mSpeaker): Map<String, String> =
         mMemberValues[character?.id] ?: mDefaultValues
 
-    /** 人设和场景内部只展开姓名与群成员，避免互相递归。 */
+    /** 绑定人物字段原文，依赖关系由统一展开器处理。 */
     private fun buildValues(
         character: Character?,
         characterName: String?,
         userName: String
     ): Map<String, String> {
+        // 姓名是终值，人设和有效场景保留为可组合模板。
         val names = buildMap {
             put("user", userName)
             if (characterName != null) put("char", characterName)
@@ -59,8 +64,8 @@ internal class GroupChatMacros(
         }
         val scenario = mSession.scenario.ifBlank { character?.scenario.orEmpty() }
         return names + mapOf(
-            "persona" to renderGroupMacros(mPersona.description, names),
-            "scenario" to renderGroupMacros(scenario, names),
+            "persona" to mPersona.description,
+            "scenario" to scenario,
         )
     }
 
@@ -80,6 +85,7 @@ internal class GroupChatMacros(
      * @return 提供给脚本的宏字典。
      */
     fun forMessage(message: GroupChatMessage): Map<String, String> = when (message.source) {
+        // 历史角色优先沿用发言快照，Regex 使用同一身份快照。
         GroupChatMessage.Source.Character -> {
             val author = mCharacters[message.speakerCharacterId]
             val name = message.speakerNameSnapshot.ifBlank { author?.name }
@@ -109,38 +115,18 @@ internal fun GroupChatSession.cardMembers(
     GroupChatSession.CharacterCardMode.Join -> members.filter { includeMutedCards || !it.relation.muted || it.character.id == speaker?.id }
 }
 
-private val groupMacro = Regex(
-    """\{\{\s*([a-z][a-z0-9_]*)\s*\}\}|<(user|char|bot|group|charifnotgroup)>""",
-    RegexOption.IGNORE_CASE,
+/** 群聊只提供当前入口已有的宏集合，人物字段按模板值求值。 */
+internal fun groupMacroScope(
+    values: Map<String, String>,
+    resolve: (MacroReference) -> MacroValue? = { null },
+): MacroScope = MacroScope(
+    values.mapValues { (name, value) ->
+        if (name == "persona" || name == "scenario") MacroValue.Template(value)
+        else MacroValue.Literal(value)
+    },
+    mResolve = resolve,
 )
 
-/** 单次扫描模板，旧式标签共用同一字典；插入的值不会作为模板再次执行。 */
+/** 展开模板引用，字面姓名和其他终值不会重新扫描。 */
 internal fun renderGroupMacros(template: String, values: Map<String, String>): String =
-    substituteGroupMacros(template) { key -> values[key] }
-
-/** 格式槽只在模板中匹配，插入的正文可以安全包含同名槽或未知宏。 */
-internal fun formatGroupField(
-    template: String,
-    slot: String,
-    content: String,
-    values: Map<String, String>,
-    appendIfMissing: Boolean = false,
-): String {
-    if (content.isBlank() || template.isBlank()) return content
-    var found = false
-    val formatted = substituteGroupMacros(template) { key ->
-        if (key == slot) {
-            found = true
-            content
-        } else values[key]
-    }
-    if (found) return formatted
-    return if (appendIfMissing && formatted.isNotBlank()) "$formatted\n$content" else content
-}
-
-private fun substituteGroupMacros(template: String, value: (String) -> String?): String =
-    groupMacro.replace(template) { match ->
-        val legacy = match.groupValues[2]
-        val key = match.groupValues[1].ifEmpty { legacy }.lowercase()
-        value(if (legacy.equals("bot", ignoreCase = true)) "char" else key) ?: match.value
-    }
+    promptMacroExpander.expand(template, groupMacroScope(values)).text

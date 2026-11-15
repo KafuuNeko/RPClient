@@ -1,5 +1,8 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+
 /**
  * 使用统一模板包装用户人设，并按当前会话作用域展开名称宏。
  *
@@ -13,26 +16,13 @@ fun renderUserPersonaTemplate(
     userDescription: String,
     characterName: String?,
 ): String {
-    // 校验人设描述非空
     if (userDescription.isBlank()) return ""
-    // 先行替换人设描述中的 {{char}} / {{user}} 宏
-    val resolvedDescription = resolveCharacterUserMacros(
-        template = userDescription,
-        characterName = characterName,
-        userName = userName,
-    )
-    if (template.isBlank()) return resolvedDescription
-    // 替换模板中的 {{char}} / {{user}} 宏
-    val resolvedTemplate = resolveCharacterUserMacros(
-        template = template,
-        characterName = characterName,
-        userName = userName,
-    )
-    // 查找并替换 {{persona}} 插槽宏
-    val personaMacro = Regex("""\{\{\s*persona\s*\}\}""", RegexOption.IGNORE_CASE)
-    return if (personaMacro.containsMatchIn(resolvedTemplate)) {
-        resolvedTemplate.replace(personaMacro) { resolvedDescription }
-    } else {
-        resolvedDescription
+    val values = buildMap {
+        put("user", MacroValue.Literal(userName))
+        characterName?.let { put("char", MacroValue.Literal(it)) }
+        put("persona", MacroValue.Template(userDescription))
     }
+    val hasSlot = promptMacroExpander.references(template).any { it.name == "persona" }
+    val wrapper = if (hasSlot) template else "{{persona}}"
+    return promptMacroExpander.expand(wrapper, MacroScope(values)).text
 }

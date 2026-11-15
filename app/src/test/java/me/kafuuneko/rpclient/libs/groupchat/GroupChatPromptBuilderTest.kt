@@ -984,7 +984,7 @@ class GroupChatPromptBuilderTest {
     @Test
     fun rendersEachCardBeforeJoiningAndKeepsExamplesWithTheirAuthor() {
         val alice = character(1, "Alice").copy(
-            description = "{{ CHAR }} greets {{ USER }}",
+            description = "{{ CHAR }} greets {{ USER }}; {{persona}}",
             personality = "{{char}} keeps notes",
             scenario = "<BOT> guards",
             depthPromptPrompt = "Remember {{char}}",
@@ -999,6 +999,7 @@ class GroupChatPromptBuilderTest {
                 createTime = 1,
                 latestTime = 1,
                 userName = "Alex",
+                userDescription = "{{scenario}}",
                 characterCardMode = GroupChatSession.CharacterCardMode.Join,
             ),
             members = listOf(member(alice, 0), member(bob, 1)),
@@ -1014,7 +1015,7 @@ class GroupChatPromptBuilderTest {
                 result.inspection.items.map { it.content })
             val content = result.request.messages.joinToString("\n") { it.content }
             for (fragment in listOf(
-                "Alice greets Alex",
+                "Alice greets Alex; Alice guards",
                 "Char Personality (Alice):",
                 "Alice keeps notes",
                 "Char Personality (Bob):",

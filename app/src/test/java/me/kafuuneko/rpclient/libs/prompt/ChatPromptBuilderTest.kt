@@ -190,11 +190,14 @@ class ChatPromptBuilderTest {
         val old = PromptTemplateSnapshot.resolve(
             1L,
             1,
-            mapOf("main" to "old {{char}}", "auxiliary" to "")
+            mapOf("main" to "old {{persona}}", "auxiliary" to "")
         )
-        val next = PromptTemplateSnapshot.resolve(2L, 2, mapOf("main" to "new {{char}}"))
+        val next = PromptTemplateSnapshot.resolve(2L, 2, mapOf("main" to "new {{persona}}"))
         val input =
-            context(character = context().character.copy(systemPrompt = "override {{original}}"))
+            context(
+                character = context().character.copy(systemPrompt = "override {{original}}"),
+                userDescription = "{{char}}",
+            )
         val first = builder.build(input, old)
         val second = builder.build(input, next)
         val repeated = builder.build(input, old)
@@ -213,6 +216,7 @@ class ChatPromptBuilderTest {
     fun userPersonaUsesCurrentPreferencesAndChatMacros() {
         val preferences = object : PromptPreferences by TestPromptPreferences() {
             override var userPersonaFormat = "Profile of {{user}}: {{persona}}"
+            override val auxiliaryPrompt = "Aux {{persona}} / {{scenario}}"
         }
         val configuredBuilder = ChatPromptBuilder(
             mPreferences = preferences,
@@ -220,10 +224,16 @@ class ChatPromptBuilderTest {
             mHistoryBuilder = historyBuilder,
             mWorldBookActivator = WorldBookActivator(),
         )
-        val context = context(userDescription = "{{user}} trusts {{char}}.")
+        val context = context(
+            userDescription = "{{user}} trusts {{char}}.",
+            character = context().character.copy(scenario = "{{char}} meets {{user}}"),
+        )
 
         // 使用自定义模板确认构建器没有静默回退到默认配置。
         assertTrue(configuredBuilder.build(context).messages.any { it.content == "Profile of User: User trusts Char." })
+        assertTrue(configuredBuilder.build(context).messages.any {
+            it.content == "Aux User trusts Char. / Char meets User"
+        })
         // 构建器是应用级单例，设置修改后下一轮必须读取新值。
         preferences.userPersonaFormat = "Updated {{user}}: {{persona}}"
         assertTrue(configuredBuilder.build(context).messages.any { it.content == "Updated User: User trusts Char." })

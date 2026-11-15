@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.prompt
 
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
@@ -31,9 +33,14 @@ internal const val DEFAULT_SUMMARY_CONTEXT_TOKENS = 8192
  * @return 保留人物宏、移除历史内联宏的任务模板。
  */
 internal fun classicSummaryInstruction(template: String, wordsLimit: Int): String {
-    val instruction = template
-        .replace(Regex("""\{\{\s*words\s*\}\}""", RegexOption.IGNORE_CASE), wordsLimit.toString())
-        .replace(Regex("""\{\{\s*(summary|history)\s*\}\}""", RegexOption.IGNORE_CASE), "")
+    val scope = MacroScope(
+        mapOf(
+            "words" to MacroValue.Literal(wordsLimit.toString()),
+            "summary" to MacroValue.Literal(""),
+            "history" to MacroValue.Literal(""),
+        )
+    )
+    val instruction = promptMacroExpander.expand(template, scope).text
     require(instruction.isNotBlank()) { "Summary instruction cannot be blank" }
     return instruction
 }
@@ -183,27 +190,12 @@ class SummaryPromptBuilder(
             maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS,
             maxResponseTokens = AppModel.summaryResponseTokens,
         )
-        val instruction = mMacroResolver
-            .resolve(
-                template = templates.summarizePrompt,
-                context = context,
-                history = "",
-            )
-            .replace(
-                oldValue = "{{words}}",
-                newValue = AppModel.summaryWordsLimit.toString(),
-                ignoreCase = true,
-            )
-            .replace(
-                oldValue = "{{summary}}",
-                newValue = "",
-                ignoreCase = true,
-            )
-            .replace(
-                oldValue = "{{history}}",
-                newValue = "",
-                ignoreCase = true,
-            )
+        val instruction = mMacroResolver.resolve(
+            template = templates.summarizePrompt,
+            context = context,
+            history = "",
+            bindings = mapOf("words" to MacroValue.Literal(AppModel.summaryWordsLimit.toString())),
+        )
         val historyBlocks = messages.flatMap { message ->
             val speakerName =
                 if (message.source == ChatMessage.Source.User) userName else character.name
