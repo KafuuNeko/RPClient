@@ -1025,7 +1025,6 @@
     <string name="request_body_patch_json">JSON-патч тела запроса</string>
     <string name="edit_request_body_patch">Изменить расширенный JSON</string>
     <string name="request_body_patch_editor_title">Изменить патч тела запроса</string>
-    <string name="request_body_patch_editor_note">Введите JSON-объект с семантикой JSON Merge Patch. null удаляет поле, объекты рекурсивно объединяются, а массивы заменяются целиком. Используйте &quot;$rpclient.routing_session_id&quot; как значение поля, чтобы вставить стабильный анонимный ID маршрутизации текущего диалога.</string>
     <string name="request_body_patch_invalid">Патч тела запроса должен быть допустимым JSON-объектом, использовать поддерживаемые системные переменные и не переопределять защищённые поля.</string>
     <string name="openrouter_preferred_provider">Предпочитать указанного вышестоящего поставщика OpenRouter</string>
     <string name="openrouter_provider_slug">Идентификатор вышестоящего поставщика (например, deepinfra)</string>

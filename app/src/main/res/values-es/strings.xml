@@ -615,7 +615,6 @@
     <string name="request_body_patch_json">JSON de patch del cuerpo de solicitud</string>
     <string name="edit_request_body_patch">Editar</string>
     <string name="request_body_patch_editor_title">Editar patch del cuerpo de solicitud</string>
-    <string name="request_body_patch_editor_note">Ingrese un objeto JSON con semántica de JSON Merge Patch. null elimina un campo; los objetos se combinan recursivamente; los arrays reemplazan el existente.</string>
     <string name="request_body_patch_invalid">El patch del cuerpo de solicitud debe ser un objeto JSON válido y no anular campos protegidos.</string>
     <string name="openrouter_preferred_provider">Preferir un proveedor específico en OpenRouter</string>
     <string name="openrouter_provider_slug">Identificador del proveedor (por ejemplo, deepinfra)</string>

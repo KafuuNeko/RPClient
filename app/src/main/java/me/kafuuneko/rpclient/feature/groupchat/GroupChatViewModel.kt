@@ -37,7 +37,6 @@ import me.kafuuneko.rpclient.feature.groupchat.model.toGroupChatMessageCursor
 import me.kafuuneko.rpclient.feature.groupchat.model.toSpeakerHistory
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
-import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatLoadState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
@@ -372,6 +371,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState == GroupChatDialogState.Summarizing) return
         // 返回页面时重新确认文件可读性，避免外部编辑或文件删除后仍展示旧头像。
         mAvatarCache.evictAll()
         refreshState(
@@ -1109,12 +1109,26 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (mGenerationJob?.isCompleted == false) return
         if (!ensureProviderConfigured()) return
-        uiState.copy(loadState = GroupChatLoadState.Summarizing).setup()
-        summarizeSession(sessionId = uiState.sessionId, showToast = true)
-        refreshState(
-            page = uiState.page,
-            generationState = GroupChatGenerationState.Idle,
-        )
+        uiState.copy(dialogState = GroupChatDialogState.Summarizing).setup()
+        // 手动摘要与回复共用生成任务，释放意图队列以便用户随时取消。
+        mGenerationJob = viewModelScope.launch {
+            try {
+                summarizeSession(sessionId = uiState.sessionId, showToast = true)
+            } finally {
+                // 请求失败时可能已切换到额度提示或模型配置引导。
+                val current = getOrNull<GroupChatUiState.Normal>()
+                if (current?.dialogState == GroupChatDialogState.Summarizing) {
+                    current.copy(dialogState = GroupChatDialogState.None).setup()
+                }
+            }
+        }
+    }
+
+    /** 取消当前手动摘要，保留会话已有内容和设置草稿。 */
+    @UiIntentObserver(GroupChatUiIntent.CancelSummary::class)
+    private suspend fun onCancelSummary() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState == GroupChatDialogState.Summarizing) mGenerationJob?.cancelAndJoin()
     }
 
     /**
@@ -1377,7 +1391,7 @@ class GroupChatViewModel :
      */
     private suspend fun saveSettingsDraft(state: GroupChatUiState.Normal): Boolean {
         val settings = state.settingsState
-        state.copy(loadState = GroupChatLoadState.Saving).setup()
+        state.copy(dialogState = GroupChatDialogState.Saving).setup()
         return try {
             // 在同一事务中应用表单，避免部分设置已经生效时启动生成。
             withContext(Dispatchers.IO) {
@@ -1415,7 +1429,7 @@ class GroupChatViewModel :
             false
         } finally {
             val current = getOrNull<GroupChatUiState.Normal>()
-            current?.copy(loadState = GroupChatLoadState.None)?.setup()
+            current?.copy(dialogState = GroupChatDialogState.None)?.setup()
         }
     }
 
@@ -1920,10 +1934,7 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.dialogState !is GroupChatDialogState.DeleteSessionConfirm) return
         if (mGenerationJob?.isCompleted == false) return
-        uiState.copy(
-            loadState = GroupChatLoadState.Deleting,
-            dialogState = GroupChatDialogState.None,
-        ).setup()
+        uiState.copy(dialogState = GroupChatDialogState.Deleting).setup()
         withContext(Dispatchers.IO) {
             mGroupChatRepository.deleteSession(uiState.sessionId)
         }
@@ -2472,6 +2483,10 @@ class GroupChatViewModel :
                 )
             }
             if (showToast) {
+                // 立即摘要只更新已保存的摘要，保留设置页其他尚未提交的修改。
+                getOrNull<GroupChatUiState.Normal>()?.withSettingsDraft {
+                    copy(summaryDraft = summaryContent)
+                }?.setup()
                 AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
             }
         }.onFailure { throwable ->

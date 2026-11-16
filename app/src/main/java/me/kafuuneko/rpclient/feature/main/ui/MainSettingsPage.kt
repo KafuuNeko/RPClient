@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -52,28 +54,37 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -454,9 +465,9 @@ private fun UserIdentityPanel(
 
             key(state.persona.selectedId) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
+                    AutoSaveSettingField(
                         value = state.userName,
-                        onValueChange = { text ->
+                        onCommit = { text ->
                             MainUiIntent.ChangeUserName(
                                 personaId = state.persona.selectedId,
                                 value = text,
@@ -480,7 +491,6 @@ private fun UserIdentityPanel(
                                 modifier = Modifier.size(20.dp),
                             )
                         },
-                        singleLine = true,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1267,6 +1277,7 @@ private fun NumberSettingRow(
     helper: String? = null,
     onValueChange: (String) -> Unit,
 ) {
+    // 数值约束在提交时统一应用，逐位输入时保留原始草稿。
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -1292,10 +1303,10 @@ private fun NumberSettingRow(
                 )
             }
         }
-        OutlinedTextField(
+        AutoSaveSettingField(
             value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
+            onCommit = onValueChange,
+            keyboardType = KeyboardType.Number,
             modifier = Modifier
                 .width(100.dp)
                 .generalContentBackground(RoundedCornerShape(12.dp)),
@@ -1306,6 +1317,44 @@ private fun NumberSettingRow(
             ),
         )
     }
+}
+
+/** 保留正在编辑的原文，失焦、点击完成或离开设置项时提交一次。 */
+@Composable
+private fun AutoSaveSettingField(
+    value: String,
+    onCommit: (String) -> Unit,
+    modifier: Modifier,
+    shape: Shape,
+    textStyle: TextStyle = LocalTextStyle.current,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    label: @Composable (() -> Unit)? = null,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+) {
+    var draft by remember { mutableStateOf<String?>(null) }
+    val focusManager = LocalFocusManager.current
+    val commit by rememberUpdatedState {
+        val edited = draft
+        draft = null
+        if (edited != null && edited != value) onCommit(edited)
+    }
+    // 切换人设或设置分组可能直接移除输入框，此时也要保存最后的输入。
+    DisposableEffect(Unit) { onDispose { commit() } }
+
+    OutlinedTextField(
+        value = draft ?: value,
+        onValueChange = { draft = it },
+        modifier = modifier.onFocusChanged { if (!it.isFocused) commit() },
+        shape = shape,
+        textStyle = textStyle,
+        label = label,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+    )
 }
 
 @Composable

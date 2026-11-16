@@ -68,6 +68,8 @@ sealed class GroupChatUiIntent {
 
     data object SummarizeNow : GroupChatUiIntent()
 
+    data object CancelSummary : GroupChatUiIntent()
+
     data object RestorePreviousSummary : GroupChatUiIntent()
 
     data class ChangeTitle(val value: String) : GroupChatUiIntent()

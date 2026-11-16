@@ -1124,7 +1124,6 @@
     <string name="request_body_patch_json">请求体 Patch JSON</string>
     <string name="edit_request_body_patch">编辑</string>
     <string name="request_body_patch_editor_title">编辑请求体 Patch</string>
-    <string name="request_body_patch_editor_note">请输入 JSON 对象，使用 JSON Merge Patch 语义：null 删除字段，对象递归合并，数组整体替换。可将 &quot;$rpclient.routing_session_id&quot; 作为字段值，插入当前对话稳定且匿名的路由 ID。</string>
     <string name="request_body_patch_invalid">请求体 Patch 必须是有效的 JSON 对象，只能使用受支持的系统变量，且不能覆盖受保护字段。</string>
     <string name="openrouter_preferred_provider">首选指定的 OpenRouter 上游供应商</string>
     <string name="openrouter_provider_slug">上游供应商标识（例如 deepinfra）</string>

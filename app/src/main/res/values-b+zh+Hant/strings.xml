@@ -1044,7 +1044,6 @@
     <string name="request_body_patch_json">請求主體 Patch JSON</string>
     <string name="edit_request_body_patch">編輯進階 JSON</string>
     <string name="request_body_patch_editor_title">編輯請求主體 Patch</string>
-    <string name="request_body_patch_editor_note">請輸入 JSON 物件並使用 JSON Merge Patch 語意：null 會刪除欄位、物件遞迴合併、陣列整體取代。可將 &quot;$rpclient.routing_session_id&quot; 作為欄位值，插入目前對話穩定且匿名的路由 ID。</string>
     <string name="request_body_patch_invalid">請求主體 Patch 必須是有效的 JSON 物件，只能使用支援的系統變數，且不得覆寫受保護欄位。</string>
     <string name="openrouter_preferred_provider">優先使用指定的 OpenRouter 上游供應商</string>
     <string name="openrouter_provider_slug">上游供應商識別碼（例如 deepinfra）</string>

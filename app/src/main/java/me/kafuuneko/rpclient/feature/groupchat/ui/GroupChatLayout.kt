@@ -1,32 +1,16 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
-import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatLoadState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
@@ -39,11 +23,11 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
-import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 
 /** 群聊页 Compose 入口，根据状态渲染对话、成员与世界书设置。 */
@@ -60,7 +44,11 @@ fun GroupChatLayout(
         },
     )
     when (uiState) {
-        GroupChatUiState.None -> Unit
+        GroupChatUiState.None -> LoadingDialog(
+            title = stringResource(R.string.group_chat),
+            description = stringResource(R.string.loading),
+        )
+
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
             // 页面切换只卸载视图，保留会话和设置各自的列表位置。
@@ -83,7 +71,6 @@ fun GroupChatLayout(
                 }
             }
             DialogSwitch(uiState, emitIntent)
-            LoadStateOverlay(uiState.loadState)
         }
     }
 }
@@ -99,6 +86,22 @@ private fun DialogSwitch(
             groups = state.settingsState.lorebookGroups,
             dialogState = dialogState,
             emitIntent = emitIntent,
+        )
+
+        GroupChatDialogState.Saving -> LoadingDialog(
+            title = stringResource(R.string.saving),
+            description = stringResource(R.string.group_chat_settings),
+        )
+
+        GroupChatDialogState.Deleting -> LoadingDialog(
+            title = stringResource(R.string.deleting),
+            description = state.title,
+        )
+
+        GroupChatDialogState.Summarizing -> LoadingDialog(
+            title = stringResource(R.string.updating_summary),
+            description = stringResource(R.string.summarize_now_desc),
+            onCancel = { emitIntent(GroupChatUiIntent.CancelSummary) },
         )
 
         GroupChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
@@ -201,39 +204,6 @@ private fun GroupChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLo
             )
         },
     )
-}
-
-@Composable
-private fun LoadStateOverlay(loadState: GroupChatLoadState) {
-    if (loadState == GroupChatLoadState.None) return
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        AppSurface(
-            shape = RoundedCornerShape(18.dp),
-            shadowElevation = 10.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(12.dp))
-                val loadingText = when (loadState) {
-                    GroupChatLoadState.Deleting -> stringResource(R.string.deleting)
-                    GroupChatLoadState.Saving -> stringResource(R.string.saving)
-                    GroupChatLoadState.Summarizing ->
-                        stringResource(R.string.updating_summary)
-
-                    else -> stringResource(R.string.loading)
-                }
-                Text(text = loadingText)
-            }
-        }
-    }
 }
 
 /**

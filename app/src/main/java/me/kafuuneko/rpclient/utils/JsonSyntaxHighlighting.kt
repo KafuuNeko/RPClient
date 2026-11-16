@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.utils
 
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -59,6 +60,18 @@ fun rememberJsonSyntaxVisualTransformation(
 ): VisualTransformation {
     return remember(colors) {
         JsonSyntaxVisualTransformation(colors)
+    }
+}
+
+/** 为状态式代码编辑器添加 JSON 高亮，保留原文和选择区偏移。 */
+@Composable
+fun rememberJsonSyntaxOutputTransformation(
+    colors: JsonSyntaxColors = rememberDefaultJsonSyntaxColors(),
+): OutputTransformation = remember(colors) {
+    OutputTransformation {
+        tokenizeJsonSyntax(asCharSequence().toString()).forEach { token ->
+            addStyle(spanStyle = token.style(colors), start = token.start, end = token.end)
+        }
     }
 }
 

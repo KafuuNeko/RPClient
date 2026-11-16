@@ -616,7 +616,6 @@ Falhas: %2$d</string>
     <string name="request_body_patch_json">JSON do patch do corpo da requisição</string>
     <string name="edit_request_body_patch">Editar</string>
     <string name="request_body_patch_editor_title">Editar patch do corpo da requisição</string>
-    <string name="request_body_patch_editor_note">Insira um objeto JSON usando a semântica de JSON Merge Patch. null remove um campo; objetos são mesclados recursivamente; arrays substituem o array existente. Use "$rpclient.routing_session_id" como valor de campo para inserir o ID estável de roteamento anônimo da conversa atual.</string>
     <string name="request_body_patch_invalid">O patch do corpo da requisição deve ser um objeto JSON válido, usar variáveis de sistema suportadas e não sobrescrever campos protegidos.</string>
     <string name="openrouter_preferred_provider">Preferir um provedor upstream específico no OpenRouter</string>
     <string name="openrouter_provider_slug">Slug do provedor upstream (por exemplo, deepinfra)</string>

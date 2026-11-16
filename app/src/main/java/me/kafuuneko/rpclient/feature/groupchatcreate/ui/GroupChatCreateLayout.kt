@@ -3,12 +3,10 @@ package me.kafuuneko.rpclient.feature.groupchatcreate.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -21,7 +19,6 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.FormatQuote
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -45,6 +42,7 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreat
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
 import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
+import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
@@ -77,7 +75,7 @@ fun GroupChatCreateLayout(
 
         is GroupChatCreateUiState.Normal -> {
             GroupChatCreateNormalView(uiState, emitIntent)
-            LoadStateOverlay(uiState.loadState)
+            DialogSwitch(uiState.loadState)
         }
     }
 }
@@ -570,33 +568,16 @@ private fun CreateBottomBar(
 }
 
 @Composable
-private fun LoadStateOverlay(loadState: GroupChatCreateLoadState) {
-    if (loadState == GroupChatCreateLoadState.None) return
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        AppSurface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 10.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.size(14.dp))
-                Text(
-                    text = if (loadState == GroupChatCreateLoadState.Creating) {
-                        stringResource(R.string.group_chat_creating)
-                    } else {
-                        stringResource(R.string.group_chat_loading_characters)
-                    },
-                )
-            }
-        }
+private fun DialogSwitch(loadState: GroupChatCreateLoadState) {
+    val descriptionRes = when (loadState) {
+        GroupChatCreateLoadState.None -> return
+        GroupChatCreateLoadState.Loading -> R.string.group_chat_loading_characters
+        GroupChatCreateLoadState.Creating -> R.string.group_chat_creating
     }
+    LoadingDialog(
+        title = stringResource(R.string.group_chat_create_title),
+        description = stringResource(descriptionRes),
+    )
 }
 
 private fun GroupChatActivationStrategy.titleRes(): Int {

@@ -1019,7 +1019,6 @@
     <string name="request_body_patch_json">リクエスト本文 Patch JSON</string>
     <string name="edit_request_body_patch">高度な JSON を編集</string>
     <string name="request_body_patch_editor_title">リクエスト本文 Patch を編集</string>
-    <string name="request_body_patch_editor_note">JSON Merge Patch のセマンティクスを使用する JSON オブジェクトを入力してください。null はフィールドを削除し、オブジェクトは再帰的にマージされ、配列は全体が置換されます。フィールド値に &quot;$rpclient.routing_session_id&quot; を指定すると、現在の会話の安定した匿名ルーティング ID を挿入できます。</string>
     <string name="request_body_patch_invalid">リクエスト本文 Patch は有効な JSON オブジェクトで、サポートされているシステム変数のみを使用し、保護されたフィールドを上書きしない必要があります。</string>
     <string name="openrouter_preferred_provider">特定の OpenRouter アップストリームプロバイダーを優先</string>
     <string name="openrouter_provider_slug">アップストリームプロバイダー識別子（例：deepinfra）</string>

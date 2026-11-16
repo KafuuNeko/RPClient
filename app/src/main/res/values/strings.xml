@@ -639,7 +639,6 @@
     <string name="request_body_patch_json">Request body patch JSON</string>
     <string name="edit_request_body_patch">Edit</string>
     <string name="request_body_patch_editor_title">Edit request body patch</string>
-    <string name="request_body_patch_editor_note">Enter a JSON object using JSON Merge Patch semantics. null removes a field; objects merge recursively; arrays replace the existing array. Use &quot;$rpclient.routing_session_id&quot; as a field value to insert the stable anonymous routing ID for the current conversation.</string>
     <string name="request_body_patch_invalid">The request body patch must be a valid JSON object, use supported system variables, and not override protected fields.</string>
     <string name="openrouter_preferred_provider">Prefer a specific OpenRouter upstream provider</string>
     <string name="openrouter_provider_slug">Upstream provider slug (for example, deepinfra)</string>

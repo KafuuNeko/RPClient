@@ -23,12 +23,10 @@ sealed class GroupChatUiState {
      *
      * 设置字段以 Draft 形式保留，只有 SaveSettings 意图才写回数据库；
      * [GroupChatConversationState.generationState] 独立描述模型生成，
-     * 不与普通保存/删除加载状态混用。
+     * [dialogState] 统一表达设置保存、会话删除与手动摘要的进度。
      */
     data class Normal(
         val imageState: MessageImageState = MessageImageState(),
-        /** 当前页面数据库或资源操作的加载状态。 */
-        val loadState: GroupChatLoadState = GroupChatLoadState.None,
         /** 当前操作关联的会话 ID。 */
         val sessionId: Long,
         /** 供界面展示或持久化的标题。 */
@@ -146,21 +144,14 @@ data class GroupChatSettingsState(
     val canRegenerateLatestReply: Boolean = false
 )
 
-/** 群聊数据库操作和摘要操作的页面级加载状态。 */
-sealed class GroupChatLoadState {
-    data object None : GroupChatLoadState()
-
-    data object Loading : GroupChatLoadState()
-
-    data object Deleting : GroupChatLoadState()
-
-    data object Saving : GroupChatLoadState()
-
-    data object Summarizing : GroupChatLoadState()
-}
-
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
+    data object Saving : GroupChatDialogState()
+
+    data object Deleting : GroupChatDialogState()
+
+    data object Summarizing : GroupChatDialogState()
+
     /** 摘要被输出额度截断，等待用户前往全局设置调整。 */
     data object SummaryTokenLimit : GroupChatDialogState()
 

@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -81,6 +82,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -1323,29 +1325,39 @@ private fun DialogSwitch(
         }
 
         is LLMProviderEditDialogState.CustomHeadersEditor -> {
-            var value by remember(dialogState.initialValue) { mutableStateOf(dialogState.initialValue) }
+            val editor = remember(dialogState.initialValue) {
+                TextFieldState(
+                    initialText = dialogState.initialValue,
+                    initialSelection = TextRange.Zero
+                )
+            }
             AppCodeEditorDialog(
                 onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
                 title = stringResource(R.string.custom_headers_editor_title),
                 subtitle = stringResource(R.string.credential_editor_privacy_note),
-                value = value,
-                onValueChange = { value = it },
-                confirmEnabled = value.isNotBlank(),
+                state = editor,
+                confirmEnabled = editor.text.isNotBlank(),
                 onConfirm = {
-                    LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(value).emit()
+                    LLMProviderEditUiIntent.ConfirmCustomHeadersReplacement(editor.text.toString())
+                        .emit()
                 },
             )
         }
 
         is LLMProviderEditDialogState.RequestBodyPatchEditor -> {
-            var value by remember(dialogState.initialValue) { mutableStateOf(dialogState.initialValue) }
+            val editor = remember(dialogState.initialValue) {
+                TextFieldState(
+                    initialText = dialogState.initialValue,
+                    initialSelection = TextRange.Zero
+                )
+            }
             AppCodeEditorDialog(
                 onDismissRequest = { LLMProviderEditUiIntent.DismissDialog.emit() },
                 title = stringResource(R.string.request_body_patch_editor_title),
-                editorNote = stringResource(R.string.request_body_patch_editor_note),
-                value = value,
-                onValueChange = { value = it },
-                onConfirm = { LLMProviderEditUiIntent.ConfirmRequestBodyPatch(value).emit() },
+                state = editor,
+                onConfirm = {
+                    LLMProviderEditUiIntent.ConfirmRequestBodyPatch(editor.text.toString()).emit()
+                },
             )
         }
 

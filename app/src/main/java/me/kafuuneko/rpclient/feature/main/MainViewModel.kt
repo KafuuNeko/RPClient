@@ -1163,7 +1163,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = identityState.copy(
-                    userName = intent.value,
+                    userName = value,
                     persona = mPersonas.selection(identityState.persona.selectedId),
                 ),
             ),

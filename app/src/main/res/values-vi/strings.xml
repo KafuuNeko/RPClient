@@ -616,7 +616,6 @@ Thất bại: %2$d</string>
     <string name="request_body_patch_json">JSON Patch thân yêu cầu</string>
     <string name="edit_request_body_patch">Chỉnh sửa</string>
     <string name="request_body_patch_editor_title">Chỉnh sửa JSON Patch thân yêu cầu</string>
-    <string name="request_body_patch_editor_note">Nhập đối tượng JSON sử dụng ngữ nghĩa JSON Merge Patch: null để xóa trường; đối tượng được hợp nhất đệ quy; mảng thay thế toàn bộ mảng hiện có. Sử dụng "$rpclient.routing_session_id" làm giá trị trường để chèn ID định tuyến ẩn danh và ổn định cho cuộc trò chuyện hiện tại.</string>
     <string name="request_body_patch_invalid">JSON Patch thân yêu cầu phải là một đối tượng JSON hợp lệ, chỉ sử dụng các biến hệ thống được hỗ trợ và không được ghi đè các trường được bảo vệ.</string>
     <string name="openrouter_preferred_provider">Ưu tiên nhà cung cấp thượng nguồn OpenRouter cụ thể</string>
     <string name="openrouter_provider_slug">Định danh nhà cung cấp thượng nguồn (ví dụ: deepinfra)</string>

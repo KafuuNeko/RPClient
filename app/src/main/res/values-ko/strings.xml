@@ -1018,7 +1018,6 @@
     <string name="request_body_patch_json">요청 본문 Patch JSON</string>
     <string name="edit_request_body_patch">고급 JSON 편집</string>
     <string name="request_body_patch_editor_title">요청 본문 Patch 편집</string>
-    <string name="request_body_patch_editor_note">JSON Merge Patch 의미 체계를 사용하는 JSON 객체를 입력하세요. null은 필드를 삭제하고, 객체는 재귀적으로 병합되며, 배열은 전체가 교체됩니다. 필드 값으로 &quot;$rpclient.routing_session_id&quot;를 사용하면 현재 대화의 안정적인 익명 라우팅 ID를 삽입할 수 있습니다.</string>
     <string name="request_body_patch_invalid">요청 본문 Patch는 유효한 JSON 객체여야 하고 지원되는 시스템 변수만 사용해야 하며 보호된 필드를 덮어쓸 수 없습니다.</string>
     <string name="openrouter_preferred_provider">특정 OpenRouter 업스트림 공급자 우선 사용</string>
     <string name="openrouter_provider_slug">업스트림 공급자 식별자(예: deepinfra)</string>

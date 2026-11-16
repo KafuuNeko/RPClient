@@ -616,7 +616,6 @@ Gagal: %2$d</string>
     <string name="request_body_patch_json">JSON patch badan permintaan</string>
     <string name="edit_request_body_patch">Edit</string>
     <string name="request_body_patch_editor_title">Edit patch badan permintaan</string>
-    <string name="request_body_patch_editor_note">Masukkan objek JSON menggunakan semantik JSON Merge Patch. null menghapus bidang; objek bergabung secara rekursif; array menggantikan array yang ada. Gunakan "$rpclient.routing_session_id" sebagai nilai bidang untuk menyisipkan ID perutean anonim yang stabil untuk percakapan saat ini.</string>
     <string name="request_body_patch_invalid">Patch badan permintaan harus berupa objek JSON yang valid, menggunakan variabel sistem yang didukung, dan tidak menimpa bidang yang dilindungi.</string>
     <string name="openrouter_preferred_provider">Pilih penyedia hulu OpenRouter tertentu</string>
     <string name="openrouter_provider_slug">Slug penyedia hulu (misalnya, deepinfra)</string>
