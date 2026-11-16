@@ -28,9 +28,17 @@ import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
+import me.kafuuneko.rpclient.ui.theme.AppTheme
+import me.kafuuneko.rpclient.ui.widgets.AppLoadingPage
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
 
-/** 群聊页 Compose 入口，根据状态渲染对话、成员与世界书设置。 */
+/**
+ * 群聊页 Compose 入口，根据状态渲染加载、对话和设置页面。
+ *
+ * @param uiState 当前页面状态。
+ * @param background 当前群聊的页面背景。
+ * @param emitIntent 页面交互意图的接收入口。
+ */
 @Composable
 fun GroupChatLayout(
     uiState: GroupChatUiState,
@@ -38,15 +46,25 @@ fun GroupChatLayout(
     emitIntent: (GroupChatUiIntent) -> Unit = {},
 ) {
     BackHandler(
-        enabled = uiState is GroupChatUiState.Normal,
+        enabled = uiState is GroupChatUiState.Loading || uiState is GroupChatUiState.Normal,
         onBack = {
             emitIntent(GroupChatUiIntent.Back)
         },
     )
     when (uiState) {
         GroupChatUiState.None -> Unit
+        GroupChatUiState.Loading -> AppLoadingPage(
+            title = stringResource(R.string.group_chat),
+            background = background,
+            onBack = { emitIntent(GroupChatUiIntent.Back) },
+        )
 
-        is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
+        is GroupChatUiState.Finished -> GroupChatLayout(
+            uiState = uiState.previous,
+            background = background,
+            emitIntent = {},
+        )
+
         is GroupChatUiState.Normal -> {
             // 页面切换只卸载视图，保留会话和设置各自的列表位置。
             val pageStateHolder = rememberSaveableStateHolder()
@@ -67,29 +85,21 @@ fun GroupChatLayout(
                     }
                 }
             }
+            DialogSwitch(state = uiState, emitIntent = emitIntent)
         }
     }
-    DialogSwitch(state = uiState, emitIntent = emitIntent)
 }
 
 @Composable
 private fun DialogSwitch(
-    state: GroupChatUiState,
+    state: GroupChatUiState.Normal,
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
-    // 首次加载和会话操作共用分发入口，弹窗由页面的互斥状态决定。
-    if (state == GroupChatUiState.None) {
-        LoadingDialog(
-            title = stringResource(R.string.group_chat),
-            description = stringResource(R.string.loading),
-        )
-        return
-    }
-    val normalState = state as? GroupChatUiState.Normal ?: return
-    when (val dialogState = normalState.dialogState) {
+    // 会话就绪后的弹窗由互斥的业务对话框状态统一分发。
+    when (val dialogState = state.dialogState) {
         GroupChatDialogState.None -> Unit
         is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
-            groups = normalState.settingsState.lorebookGroups,
+            groups = state.settingsState.lorebookGroups,
             dialogState = dialogState,
             emitIntent = emitIntent,
         )
@@ -101,7 +111,7 @@ private fun DialogSwitch(
 
         GroupChatDialogState.Deleting -> LoadingDialog(
             title = stringResource(R.string.deleting),
-            description = normalState.title,
+            description = state.title,
         )
 
         GroupChatDialogState.Summarizing -> LoadingDialog(
@@ -223,6 +233,14 @@ internal fun GroupChatActivationStrategy.titleRes(): Int {
         GroupChatActivationStrategy.Natural -> R.string.group_chat_strategy_natural
         GroupChatActivationStrategy.List -> R.string.group_chat_strategy_list
         GroupChatActivationStrategy.Pooled -> R.string.group_chat_strategy_pooled
+    }
+}
+
+@Preview(widthDp = 390, heightDp = 844, showBackground = true)
+@Composable
+private fun GroupChatLoadingPreview() {
+    AppTheme(darkTheme = false, dynamicColor = false) {
+        GroupChatLayout(uiState = GroupChatUiState.Loading)
     }
 }
 

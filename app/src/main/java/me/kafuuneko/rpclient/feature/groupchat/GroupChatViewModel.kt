@@ -307,6 +307,9 @@ class GroupChatViewModel :
     /** 当前正在运行的模型生成任务协程 Job，用于停止生成并防止并发请求。 */
     private var mGenerationJob: Job? = null
 
+    /** 首次页面读取任务，加载期间返回时取消。 */
+    private var mInitialLoadJob: Job? = null
+
     /** 当前流式生成在数据库中创建的占位消息 ID。 */
     private var mStreamingMessageId: Long? = null
 
@@ -338,12 +341,12 @@ class GroupChatViewModel :
     private var mMessageDisplayContext: GroupChatData? = null
 
     /**
-     * 初始化群聊会话。
+     * 校验会话参数并进入独立加载态，首次读取完成后发布正常页面。
      *
      * @param intent 包含 sessionId 的初始化意图
      */
     @UiIntentObserver(GroupChatUiIntent.Init::class)
-    private suspend fun onInit(intent: GroupChatUiIntent.Init) {
+    private fun onInit(intent: GroupChatUiIntent.Init) {
         if (!isStateOf<GroupChatUiState.None>()) return
         // 解析会话 ID
         val sessionId = intent.sessionId?.toLongOrNull()
@@ -353,16 +356,19 @@ class GroupChatViewModel :
         }
         mSessionId = sessionId
         mSearchAnchorId = intent.searchMessageId
-        // 异步从数据库加载群聊聚合状态
-        val state = withContext(Dispatchers.IO) {
-            loadState(sessionId = sessionId, inputDraft = "")
+        // 首次读取独立运行，让加载页面可以响应返回并取消任务。
+        GroupChatUiState.Loading.setup()
+        mInitialLoadJob = viewModelScope.launch {
+            val state = withContext(Dispatchers.IO) {
+                loadState(sessionId = sessionId, inputDraft = "")
+            }
+            if (state == null) {
+                finishWithToast(R.string.group_chat_not_found)
+                return@launch
+            }
+            // 完整聚合状态准备好后再开放会话交互。
+            state.setup()
         }
-        if (state == null) {
-            finishWithToast(R.string.group_chat_not_found)
-            return
-        }
-        // 应用并展示正常群聊 UI 状态
-        state.setup()
     }
 
     /**
@@ -516,15 +522,18 @@ class GroupChatViewModel :
     /**
      * 处理返回事件。
      *
-     * 设置页切回对话页；若正在生成则取消任务、落库已生成内容并退出页面。
+     * 加载期间返回会取消首次读取，设置页返回会切回对话页，退出会话前保存已生成内容。
      */
     @UiIntentObserver(GroupChatUiIntent.Back::class)
     private suspend fun onBack() {
-        val uiState = getOrNull<GroupChatUiState.Normal>()
-        if (uiState?.page == GroupChatPage.Settings) {
+        val uiState = uiStateFlow.value
+        if (uiState !is GroupChatUiState.Normal && uiState !is GroupChatUiState.Loading) return
+        if (uiState is GroupChatUiState.Normal && uiState.page == GroupChatPage.Settings) {
             refreshState(page = GroupChatPage.Conversation)
             return
         }
+        // 等待首次读取或生成任务退出，再发布保留当前画面的结束态。
+        mInitialLoadJob?.cancelAndJoin()
         mGenerationJob?.cancelAndJoin()
         clearReplyRetry()
         persistOrDeleteStreamingMessage()

@@ -285,6 +285,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 当前大模型生成任务协程 Job，用于防止并发重复请求及响应用户的停止生成操作。 */
     private var mGenerationJob: Job? = null
 
+    /** 首次页面读取任务，加载期间返回时取消。 */
+    private var mInitialLoadJob: Job? = null
+
     /** 后台自动总结任务协程 Job，与主正文生成分开调度、取消与收尾。 */
     private var mSummaryJob: Job? = null
 
@@ -307,18 +310,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private var mMessageDisplayContext: ChatMessageDisplayContext? = null
 
     /**
-     * 初始化会话数据。
+     * 校验会话参数并进入独立加载态，首次读取完成后发布正常页面。
      *
      * 处理流程：
      * - 校验传入的会话 ID 有效性，无效时弹出 Toast 并结束页面。
      * - 从数据库加载会话基础信息、角色人设、历史消息及世界书列表。
-     * - 成功后将 UI 状态由 [ChatUiState.None] 转换为 [ChatUiState.Normal]。
+     * - 首次读取独立运行，加载期间返回可以取消读取并结束页面。
      *
      * @param intent 包含 sessionId 的初始化意图
      */
     @UiIntentObserver(ChatUiIntent.Init::class)
-    private suspend fun onInit(intent: ChatUiIntent.Init) {
+    private fun onInit(intent: ChatUiIntent.Init) {
         if (!isStateOf<ChatUiState.None>()) return
+        // 参数有效后才进入加载态，避免无效会话短暂展示进度。
         val sessionId = intent.sessionId?.toLongOrNull()
         if (sessionId == null) {
             finishWithToast(R.string.invalid_session_id)
@@ -326,14 +330,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         mSessionId = sessionId
         mSearchAnchorId = intent.searchMessageId
-        val loaded = withContext(Dispatchers.IO) {
-            loadNormalState(sessionId = sessionId, inputDraft = "")
+        // 释放串行 Intent 处理流程，让加载页面可以响应返回。
+        ChatUiState.Loading.setup()
+        mInitialLoadJob = viewModelScope.launch {
+            val loaded = withContext(Dispatchers.IO) {
+                loadNormalState(sessionId = sessionId, inputDraft = "")
+            }
+            if (loaded == null) {
+                finishWithToast(R.string.session_not_found)
+                return@launch
+            }
+            // 完整会话状态准备好后再开放交互。
+            loaded.setup()
         }
-        if (loaded == null) {
-            finishWithToast(R.string.session_not_found)
-            return
-        }
-        loaded.setup()
     }
 
     /**
@@ -523,21 +532,25 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 处理返回键事件。
      *
      * 拦截与响应逻辑：
+     * - 加载期间取消首次读取，保留加载画面并结束页面。
      * - 若当前正在导出聊天记录，拦截退出并提示正在导出。
      * - 若当前处于设置页（[ChatPage.Settings]），则切回对话页（[ChatPage.Conversation]）。
      * - 若正在生成，安全取消生成协程并等待其 NonCancellable 收尾完成后退出页面。
      */
     @UiIntentObserver(ChatUiIntent.Back::class)
     private suspend fun onBack() {
+        val uiState = uiStateFlow.value
+        if (uiState !is ChatUiState.Normal && uiState !is ChatUiState.Loading) return
         if (mChatExportJob?.isActive == true) {
             AppViewEvent.PopupToastMessageByResId(R.string.chat_export_in_progress).tryEmit()
             return
         }
-        val uiState = getOrNull<ChatUiState.Normal>()
-        if (uiState?.page == ChatPage.Settings) {
+        if (uiState is ChatUiState.Normal && uiState.page == ChatPage.Settings) {
             uiState.copy(page = ChatPage.Conversation).setup()
             return
         }
+        // 等待读取和生成任务退出，防止结束态被迟到的结果覆盖。
+        mInitialLoadJob?.cancelAndJoin()
         cancelActiveGeneration()
         ChatUiState.finished(uiStateFlow.value).setup()
     }

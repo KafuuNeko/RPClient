@@ -15,8 +15,11 @@ import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
 sealed class GroupChatUiState {
-    /** 页面尚未完成会话参数解析与首次数据加载。 */
+    /** 页面尚未接收初始化参数。 */
     data object None : GroupChatUiState()
+
+    /** 会话参数已就绪，正在读取首次展示所需的数据。 */
+    data object Loading : GroupChatUiState()
 
     /**
      * 群聊页面稳定状态。

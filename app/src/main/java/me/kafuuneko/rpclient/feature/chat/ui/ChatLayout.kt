@@ -1,13 +1,9 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.DialogProperties
@@ -36,25 +32,34 @@ import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
+import me.kafuuneko.rpclient.ui.widgets.AppLoadingPage
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop
-import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
-/** 单角色聊天页 Compose 入口，根据页面状态切换会话区与设置区。 */
+/**
+ * 单角色聊天页 Compose 入口，根据状态渲染加载、会话和设置页面。
+ *
+ * @param uiState 当前页面状态。
+ * @param background 当前会话的页面背景。
+ * @param emit 页面交互意图的接收入口。
+ */
 @Composable
 fun ChatLayout(
     uiState: ChatUiState,
     background: RenderedPageBackground? = null,
     emit: ChatUiIntent.() -> Unit,
 ) {
-    BackHandler(enabled = uiState is ChatUiState.Normal, onBack = { ChatUiIntent.Back.emit() })
+    BackHandler(
+        enabled = uiState is ChatUiState.Loading || uiState is ChatUiState.Normal,
+        onBack = { ChatUiIntent.Back.emit() },
+    )
+    // 首次加载使用独立页面，业务弹窗仅在会话就绪后分发。
     when (uiState) {
-        ChatUiState.None -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(pageCanvasColor()),
-            )
-        }
+        ChatUiState.None -> Unit
+        ChatUiState.Loading -> AppLoadingPage(
+            title = stringResource(R.string.session),
+            background = background,
+            onBack = { ChatUiIntent.Back.emit() },
+        )
 
         is ChatUiState.Finished -> ChatLayout(
             uiState = uiState.previous,
@@ -218,6 +223,14 @@ private fun ChatLorebookGroupItem.toSessionLorebookDialogGroup(): SessionLoreboo
             )
         },
     )
+}
+
+@Preview(widthDp = 390, heightDp = 844, showBackground = true)
+@Composable
+private fun ChatLoadingPreview() {
+    AppTheme(darkTheme = false, dynamicColor = false) {
+        ChatLayout(uiState = ChatUiState.Loading, emit = {})
+    }
 }
 
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)

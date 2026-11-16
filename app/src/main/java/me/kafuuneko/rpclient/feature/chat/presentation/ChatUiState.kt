@@ -13,8 +13,11 @@ import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
 sealed class ChatUiState {
-    /** 尚未解析会话参数或加载数据库。 */
+    /** 页面尚未接收初始化参数。 */
     data object None : ChatUiState()
+
+    /** 会话参数已就绪，正在读取首次展示所需的数据。 */
+    data object Loading : ChatUiState()
 
     /** 单聊页面稳定可渲染状态；所有 Compose 临时交互数据也集中保存在此。 */
     data class Normal(
@@ -97,11 +100,9 @@ enum class ChatPage {
     Settings
 }
 
-/** 会话级数据库操作的加载状态，不包含模型生成状态。 */
+/** 会话就绪后的数据库操作状态，不包含首次加载和模型生成。 */
 sealed class ChatLoadState {
     data object None : ChatLoadState()
-
-    data object Loading : ChatLoadState()
 
     data object Saving : ChatLoadState()
 
