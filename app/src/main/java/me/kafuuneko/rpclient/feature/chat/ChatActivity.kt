@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
@@ -21,6 +22,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
+import me.kafuuneko.rpclient.libs.core.deferFirstDrawUntil
 import me.kafuuneko.rpclient.libs.media.CreateImageDocumentContract
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
@@ -29,6 +31,7 @@ import me.kafuuneko.rpclient.libs.search.SearchNavigation
 class ChatActivity : CoreActivityWithEvent() {
     private val mViewModel by viewModels<ChatViewModel>()
     private val mBackgroundFlow by lazy { mViewModel.backgroundFlow.flowWithLifecycle(lifecycle) }
+    private var mIsFirstFrameReady = false
     private val mImagePicker = registerForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 4),
     ) { uris ->
@@ -50,11 +53,16 @@ class ChatActivity : CoreActivityWithEvent() {
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
+    /** 加载页和会话页共用已解析的所属背景，首帧在 Compose 应用资源后放行。 */
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
         val background by mBackgroundFlow.collectAsState(initial = null)
 
+        // 等待当前页面已经采用背景，避免资源流先就绪但界面仍绘制空底板。
+        val canDraw = background != null
+            && (uiState is ChatUiState.Loading || uiState is ChatUiState.Normal)
+        SideEffect { mIsFirstFrameReady = canDraw }
         LaunchedEffect(uiState) {
             if (uiState is ChatUiState.Finished) finish()
         }
@@ -66,8 +74,13 @@ class ChatActivity : CoreActivityWithEvent() {
         )
     }
 
+    /**
+     * 建立首帧就绪约束后初始化会话。
+     * @param savedInstanceState 系统保存的 Activity 状态。
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        deferFirstDrawUntil { mIsFirstFrameReady }
         mViewModel.emit(
             uiIntent = ChatUiIntent.Init(
                 sessionId = intent.getStringExtra(EXTRA_SESSION_ID),
@@ -76,6 +89,12 @@ class ChatActivity : CoreActivityWithEvent() {
             ),
         )
     }
+
+    /**
+     * 页面自行绘制对话背景，避免额外读取通用背景。
+     * @return 不启用宿主的通用背景层。
+     */
+    override fun usesGeneralBackground(): Boolean = false
 
     override fun onResume() {
         super.onResume()

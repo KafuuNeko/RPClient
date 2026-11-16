@@ -12,7 +12,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -270,10 +271,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private val mContext by inject<Context>()
     private val mBackgrounds by inject<PageBackgroundProvider>()
 
-    /** 仅在会话角色变化时切换背景，生成消息不会触发重复解码。 */
+    /** 加载页与会话页共享角色背景标识，不等待消息和世界书读取完成。 */
+    private val mBackgroundCharacterId = MutableStateFlow<Long?>(null)
+
+    /** 确认角色后订阅最终所属背景，不等待消息和世界书，也不先展示其他来源的图片。 */
     val backgroundFlow by lazy {
-        val characterIds = uiStateFlow.mapNotNull { (it as? ChatUiState.Normal)?.character?.id }
-        mBackgrounds.observeChat(characterIds)
+        mBackgrounds.observeChat(mBackgroundCharacterId.filterNotNull())
     }
 
     /** 当前页面绑定的会话 ID，初始化成功后在页面生命周期内保持不变。 */
@@ -2729,6 +2732,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ): ChatUiState.Normal? {
         // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
+        // 先确认背景所属角色，让加载页沿用会话背景而不等待完整消息窗口。
+        mBackgroundCharacterId.value = session.characterId
         val character = mCharacterRepository.getCharacterById(session.characterId) ?: return null
         // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
         val olderWindowSize = mSearchAnchorId?.let { anchor ->

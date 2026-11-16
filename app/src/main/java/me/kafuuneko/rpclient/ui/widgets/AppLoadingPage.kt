@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
@@ -36,7 +37,19 @@ fun AppLoadingPage(
         AppPageScaffold(
             containerColor = Color.Transparent,
             topBar = {
-                AppTopBar(title = title, onBack = onBack)
+                // 顶栏采用所属页面的栏位参数，内层只提供标题与返回交互。
+                val opacity = LocalPageTopBarOpacity.current
+                PageSurface(
+                    kind = PageSurfaceKind.TopBar,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = opacity),
+                    tonalElevation = 1.dp * opacity,
+                ) {
+                    AppTopBar(
+                        title = title,
+                        onBack = onBack,
+                        containerColor = Color.Transparent,
+                    )
+                }
             },
         ) { padding ->
             Column(
