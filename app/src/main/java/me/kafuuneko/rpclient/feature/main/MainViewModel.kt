@@ -170,6 +170,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** 导入文件读取与最终事务共用单任务守卫，阻止重复选择或重复提交。 */
     private var mChatImportJob: Job? = null
 
+    /** 名称立即回显，持久化任务按提交顺序串行完成。 */
+    private var mUserNameSaveJob: Job? = null
+
     /** 初始化主页与设置页全量状态。 */
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit(intent: MainUiIntent.Init) {
@@ -195,6 +198,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     @UiIntentObserver(MainUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
+        // 恢复时读取已完成写入的名称，保持持久化快照与页面回显一致。
+        mUserNameSaveJob?.join()
         val allProviders = mLLMRepository.getAllProviders()
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
@@ -211,7 +216,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
 
     /** 处理返回键操作：若在多选状态则退出多选；若在设置页则返回首页；若在首页则退出应用。 */
     @UiIntentObserver(MainUiIntent.Back::class)
-    private fun onBack() {
+    private suspend fun onBack() {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         // 设置中的索引任务必须通过取消与清理收尾，不能只隐藏进度窗口。
         if (uiState.selectedPage == MainPage.Settings) {
@@ -233,6 +238,8 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             uiState.copy(selectedPage = MainPage.Home).setup()
             return
         }
+        // 退出前完成已接受的名称修改，避免随 ViewModel 销毁取消写入。
+        mUserNameSaveJob?.join()
         MainUiState.finished(uiStateFlow.value).setup()
     }
 
@@ -1148,26 +1155,38 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         AppViewEvent.StartActivity(AboutActivity::class.java).tryEmit()
     }
 
-    /** 修改用户默认显示名称并持久化。 */
+    /**
+     * 立即回显归一化后的名称，并按提交顺序异步保存到对应人设。
+     * @param intent 被编辑的人设及提交的名称。
+     */
     @UiIntentObserver(MainUiIntent.ChangeUserName::class)
-    private suspend fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
+    private fun onChangeUserName(intent: MainUiIntent.ChangeUserName) {
         val uiState = getOrNull<MainUiState.Normal>() ?: return
         val value = intent.value.normalizedUserName()
-        // 按输入事件捕获的身份保存，避免切换人设后的延迟输入写入新身份。
-        mPersonas.rename(intent.personaId, value)
         val identityState = uiState.settingsState.identityState
-        if (identityState.persona.selectedId != intent.personaId) {
-            refreshIdentity()
-            return
+        // 先接受输入并同步选择器名称，后续编辑直接读取最新的页面状态。
+        val options = identityState.persona.options.map { option ->
+            if (option.id == intent.personaId) option.copy(name = value) else option
+        }
+        val userName = if (identityState.persona.selectedId == intent.personaId) {
+            value
+        } else {
+            identityState.userName
         }
         uiState.copy(
             settingsState = uiState.settingsState.copy(
                 identityState = identityState.copy(
-                    userName = value,
-                    persona = mPersonas.selection(identityState.persona.selectedId),
+                    userName = userName,
+                    persona = identityState.persona.copy(options = options),
                 ),
             ),
         ).setup()
+        // 固定事件所属人设并等待前一次写入，连续修改时按提交顺序落库。
+        val previousSave = mUserNameSaveJob
+        mUserNameSaveJob = viewModelScope.launch {
+            previousSave?.join()
+            mPersonas.rename(intent.personaId, value)
+        }
     }
 
     /** 修改用户人设设定描述并持久化。 */
@@ -1775,8 +1794,9 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         )
     }
 
-    /** 更新身份卡片，保留其他设置页状态。 */
+    /** 等待名称保存后更新身份卡片，保留其他设置页状态。 */
     private suspend fun refreshIdentity() {
+        mUserNameSaveJob?.join()
         val identity = buildIdentityState()
         val current = getOrNull<MainUiState.Normal>() ?: return
         current.copy(settingsState = current.settingsState.copy(identityState = identity)).setup()

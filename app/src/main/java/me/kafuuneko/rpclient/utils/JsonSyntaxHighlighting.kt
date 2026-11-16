@@ -63,7 +63,11 @@ fun rememberJsonSyntaxVisualTransformation(
     }
 }
 
-/** 为状态式代码编辑器添加 JSON 高亮，保留原文和选择区偏移。 */
+/**
+ * 为状态式代码编辑器添加 JSON 高亮，保留原文和选择区偏移。
+ * @param colors 各类 JSON 语法元素的高亮颜色，默认跟随当前主题。
+ * @return 为原文附加样式的输出转换器。
+ */
 @Composable
 fun rememberJsonSyntaxOutputTransformation(
     colors: JsonSyntaxColors = rememberDefaultJsonSyntaxColors(),

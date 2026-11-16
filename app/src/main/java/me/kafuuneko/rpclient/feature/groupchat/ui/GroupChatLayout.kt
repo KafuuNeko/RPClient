@@ -44,10 +44,7 @@ fun GroupChatLayout(
         },
     )
     when (uiState) {
-        GroupChatUiState.None -> LoadingDialog(
-            title = stringResource(R.string.group_chat),
-            description = stringResource(R.string.loading),
-        )
+        GroupChatUiState.None -> Unit
 
         is GroupChatUiState.Finished -> GroupChatLayout(uiState.previous, background) {}
         is GroupChatUiState.Normal -> {
@@ -70,20 +67,29 @@ fun GroupChatLayout(
                     }
                 }
             }
-            DialogSwitch(uiState, emitIntent)
         }
     }
+    DialogSwitch(state = uiState, emitIntent = emitIntent)
 }
 
 @Composable
 private fun DialogSwitch(
-    state: GroupChatUiState.Normal,
+    state: GroupChatUiState,
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
-    when (val dialogState = state.dialogState) {
+    // 首次加载和会话操作共用分发入口，弹窗由页面的互斥状态决定。
+    if (state == GroupChatUiState.None) {
+        LoadingDialog(
+            title = stringResource(R.string.group_chat),
+            description = stringResource(R.string.loading),
+        )
+        return
+    }
+    val normalState = state as? GroupChatUiState.Normal ?: return
+    when (val dialogState = normalState.dialogState) {
         GroupChatDialogState.None -> Unit
         is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
-            groups = state.settingsState.lorebookGroups,
+            groups = normalState.settingsState.lorebookGroups,
             dialogState = dialogState,
             emitIntent = emitIntent,
         )
@@ -95,7 +101,7 @@ private fun DialogSwitch(
 
         GroupChatDialogState.Deleting -> LoadingDialog(
             title = stringResource(R.string.deleting),
-            description = state.title,
+            description = normalState.title,
         )
 
         GroupChatDialogState.Summarizing -> LoadingDialog(
