@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.characterlist.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.libs.character.CharacterCardExportFormat
 
 /** 角色列表页可接收的用户意图与文件选择结果。 */
 sealed class CharacterListUiIntent {
@@ -30,8 +31,11 @@ sealed class CharacterListUiIntent {
 
     data object ExportSelectedCharactersClick : CharacterListUiIntent()
 
-    data class ExportSelectedCharacters(val characterIds: List<Long>, val uri: Uri) :
-        CharacterListUiIntent()
+    data class ExportSelectedCharacters(
+        val characterIds: List<Long>,
+        val format: CharacterCardExportFormat,
+        val uri: Uri
+    ) : CharacterListUiIntent()
 
     data class VisibleCharactersChanged(
         val characterIds: Set<Long>,
@@ -50,7 +54,13 @@ sealed class CharacterListUiIntent {
 
     data object DismissDialog : CharacterListUiIntent()
 
-    data class ExportCharacterJsonClick(val characterId: Long) : CharacterListUiIntent()
+    data class ExportCharacterClick(val characterId: Long) : CharacterListUiIntent()
 
-    data class ExportCharacterJson(val characterId: Long, val uri: Uri) : CharacterListUiIntent()
+    data class ChooseExportFormat(val format: CharacterCardExportFormat) : CharacterListUiIntent()
+
+    data class ExportCharacter(
+        val characterId: Long,
+        val format: CharacterCardExportFormat,
+        val uri: Uri
+    ) : CharacterListUiIntent()
 }

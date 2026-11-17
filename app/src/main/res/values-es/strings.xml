@@ -213,6 +213,12 @@
     <string name="batch_import_character_result_message">Importadas: %1$d\nFallidas: %2$d</string>
     <string name="batch_import_character_reading_progress">Leyendo %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Importando %1$d/%2$d</string>
+    <string name="character_export_format_title">Elegir formato de exportación</string>
+    <string name="character_export_png">Imagen PNG (.png)</string>
+    <string name="character_export_png_description">Incluye el avatar y los datos del personaje.</string>
+    <string name="character_export_json">Archivo JSON (.json)</string>
+    <string name="character_export_json_description">Contiene los datos del personaje sin imagen.</string>
+    <string name="character_export_png_fallback">Las tarjetas sin avatar se exportarán como JSON.</string>
     <string name="export_character_success">Personaje exportado</string>
     <string name="export_character_failed">Error al exportar el personaje</string>
     <string name="import_world_book">Importar libro del mundo</string>

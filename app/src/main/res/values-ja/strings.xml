@@ -214,6 +214,12 @@
     <string name="batch_import_character_result_message">成功：%1$d\n失敗：%2$d</string>
     <string name="batch_import_character_reading_progress">解析中 %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">インポート中 %1$d/%2$d</string>
+    <string name="character_export_format_title">エクスポート形式を選択</string>
+    <string name="character_export_png">PNG 画像 (.png)</string>
+    <string name="character_export_png_description">アバターとキャラクターデータを含みます。</string>
+    <string name="character_export_json">JSON ファイル (.json)</string>
+    <string name="character_export_json_description">画像を含まず、キャラクターデータのみ保存します。</string>
+    <string name="character_export_png_fallback">アバター未設定のカードは JSON でエクスポートされます。</string>
     <string name="export_character_success">キャラクターをエクスポートしました</string>
     <string name="export_character_failed">キャラクターのエクスポートに失敗しました</string>
     <string name="import_world_book">ワールドブックをインポート</string>

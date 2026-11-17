@@ -213,6 +213,12 @@
     <string name="batch_import_character_result_message">Импортировано: %1$d\nОшибок: %2$d</string>
     <string name="batch_import_character_reading_progress">Чтение: %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Импорт: %1$d/%2$d</string>
+    <string name="character_export_format_title">Выберите формат экспорта</string>
+    <string name="character_export_png">Изображение PNG (.png)</string>
+    <string name="character_export_png_description">Содержит аватар и данные персонажа.</string>
+    <string name="character_export_json">Файл JSON (.json)</string>
+    <string name="character_export_json_description">Содержит данные персонажа без изображения.</string>
+    <string name="character_export_png_fallback">Карточки без аватара будут экспортированы в JSON.</string>
     <string name="export_character_success">Персонаж экспортирован</string>
     <string name="export_character_failed">Не удалось экспортировать персонажа</string>
     <string name="import_world_book">Импортировать книгу мира</string>

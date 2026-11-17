@@ -214,6 +214,12 @@
     <string name="batch_import_character_result_message">Importiert: %1$d\nFehlgeschlagen: %2$d</string>
     <string name="batch_import_character_reading_progress">Dateien werden gelesen: %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Import läuft: %1$d/%2$d</string>
+    <string name="character_export_format_title">Exportformat auswählen</string>
+    <string name="character_export_png">PNG-Bild (.png)</string>
+    <string name="character_export_png_description">Enthält den Avatar und die Charakterdaten.</string>
+    <string name="character_export_json">JSON-Datei (.json)</string>
+    <string name="character_export_json_description">Enthält Charakterdaten ohne Bild.</string>
+    <string name="character_export_png_fallback">Karten ohne Avatar werden als JSON exportiert.</string>
     <string name="export_character_success">Charakter exportiert</string>
     <string name="export_character_failed">Export des Charakters fehlgeschlagen</string>
     <string name="import_world_book">Weltbuch importieren</string>

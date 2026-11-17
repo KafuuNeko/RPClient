@@ -13,7 +13,7 @@ import kotlinx.coroutines.ensureActive
 internal data class CharacterCardArchiveLimits(
     val archiveBytes: Long = 64L * 1024 * 1024,
     val entryBytes: Int = 8 * 1024 * 1024,
-    val totalJsonBytes: Long = 32L * 1024 * 1024,
+    val totalEntryBytes: Long = 32L * 1024 * 1024,
     val entries: Int = MAX_ENTRIES
 ) {
     companion object {
@@ -44,7 +44,7 @@ internal class CharacterCardArchiveReader(
     suspend fun read(input: InputStream, cacheDirectory: File): CharacterCardArchiveReadResult {
         val archive = File.createTempFile("rpclient-character-import-", ".zip", cacheDirectory)
         try {
-            // 缓存复制也需要上限，非 JSON 附件不能无限占用应用磁盘。
+            // 缓存复制也需要上限，非角色卡附件不能无限占用应用磁盘。
             copyArchive(input, archive)
             return ZipFile(archive).use { readEntries(it) }
         } finally {
@@ -71,7 +71,7 @@ internal class CharacterCardArchiveReader(
         }
     }
 
-    /** 枚举安全 JSON 条目；累计预算异常必须越过单卡容错边界。 */
+    /** 枚举安全 JSON／PNG 条目；累计预算异常必须越过单卡容错边界。 */
     private suspend fun readEntries(zip: ZipFile): CharacterCardArchiveReadResult {
         if (zip.size() > mLimits.entries) {
             throw ArchiveLimitException("Character archive contains too many entries")
@@ -79,15 +79,15 @@ internal class CharacterCardArchiveReader(
         val drafts = mutableListOf<CharacterCardImportDraft>()
         var failureCount = 0
         var candidateCount = 0
-        var totalJsonBytes = 0L
+        var totalEntryBytes = 0L
         val entries = zip.entries()
         // 元数据只提前拒绝明显过大的单卡；所有实际解压字节仍纳入整包预算。
         while (entries.hasMoreElements()) {
             currentCoroutineContext().ensureActive()
             val entry = entries.nextElement()
-            if (entry.isDirectory || !entry.name.endsWith(".json", ignoreCase = true) ||
-                !isSafePath(entry.name)
-            ) continue
+            val isPng = entry.name.endsWith(".png", ignoreCase = true)
+            val isJson = entry.name.endsWith(".json", ignoreCase = true)
+            if (entry.isDirectory || (!isPng && !isJson) || !isSafePath(entry.name)) continue
             candidateCount++
             if (entry.size > mLimits.entryBytes) {
                 failureCount++
@@ -96,13 +96,17 @@ internal class CharacterCardArchiveReader(
             try {
                 val bytes = zip.getInputStream(entry).use { input ->
                     readEntry(input) { count ->
-                        totalJsonBytes += count
-                        if (totalJsonBytes > mLimits.totalJsonBytes) {
-                            throw ArchiveLimitException("Character archive exceeds the total JSON size limit")
+                        totalEntryBytes += count
+                        if (totalEntryBytes > mLimits.totalEntryBytes) {
+                            throw ArchiveLimitException("Character archive exceeds the total entry size limit")
                         }
                     }
                 }
-                val document = JsonParser.parseString(bytes.toString(Charsets.UTF_8)).asJsonObject
+                // PNG 元数据按单卡导入规则读取，原图保留到用户确认后再持久化。
+                val json = if (isPng) {
+                    CharacterCardPngCodec.readCharacterJson(bytes)
+                } else bytes.toString(Charsets.UTF_8)
+                val document = JsonParser.parseString(json).asJsonObject
                 // 误选完整备份时不导入其中的散卡；以根清单的格式标记识别，普通同名文件不影响其他卡。
                 if (entry.name == "manifest.json" && document.get("format")?.asString in BACKUP_FORMATS) {
                     return CharacterCardArchiveReadResult(
@@ -114,7 +118,8 @@ internal class CharacterCardArchiveReader(
                 drafts += CharacterCardImportDraft(
                     card = mMapper.parseArchiveCharacter(document),
                     avatarSourceUri = null,
-                    avatarMimeType = "application/json"
+                    avatarMimeType = if (isPng) "image/png" else "application/json",
+                    avatarBytes = bytes.takeIf { isPng }
                 )
             } catch (error: Exception) {
                 if (error is CancellationException || error is ArchiveLimitException) throw error
@@ -154,5 +159,5 @@ internal class CharacterCardArchiveReader(
     }
 
     private class ArchiveLimitException(message: String) : Exception(message)
-    private class EntryLimitException : Exception("Character JSON exceeds the entry size limit")
+    private class EntryLimitException : Exception("Character card exceeds the entry size limit")
 }

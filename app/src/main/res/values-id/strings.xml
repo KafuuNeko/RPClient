@@ -214,6 +214,12 @@
 Gagal: %2$d</string>
     <string name="batch_import_character_reading_progress">Membaca %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Mengimpor %1$d/%2$d</string>
+    <string name="character_export_format_title">Pilih format ekspor</string>
+    <string name="character_export_png">Gambar PNG (.png)</string>
+    <string name="character_export_png_description">Menyertakan avatar dan data karakter.</string>
+    <string name="character_export_json">File JSON (.json)</string>
+    <string name="character_export_json_description">Berisi data karakter tanpa gambar.</string>
+    <string name="character_export_png_fallback">Kartu tanpa avatar akan diekspor sebagai JSON.</string>
     <string name="export_character_success">Karakter berhasil diekspor</string>
     <string name="export_character_failed">Gagal mengekspor karakter</string>
     <string name="import_world_book">Impor buku dunia</string>

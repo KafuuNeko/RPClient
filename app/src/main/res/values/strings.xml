@@ -230,6 +230,12 @@
     <string name="export_character_archive_success">Character ZIP exported successfully.</string>
     <string name="export_character_archive_limit">The character ZIP exceeds the import limits. Select fewer cards or reduce the size of a large card.</string>
     <string name="export_character_archive_failed">Could not export the character ZIP. The saved file may be incomplete.</string>
+    <string name="character_export_format_title">Choose export format</string>
+    <string name="character_export_png">PNG image (.png)</string>
+    <string name="character_export_png_description">Includes the avatar and character data.</string>
+    <string name="character_export_json">JSON file (.json)</string>
+    <string name="character_export_json_description">Contains character data without an image.</string>
+    <string name="character_export_png_fallback">Cards without avatars will be exported as JSON.</string>
     <string name="export_character_success">Character exported</string>
     <string name="export_character_failed">Failed to export character</string>
     <string name="import_world_book">Import world book</string>

@@ -23,9 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
@@ -62,6 +64,9 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListDia
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListLoadState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiIntent
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
+import me.kafuuneko.rpclient.libs.character.CharacterCardExportFormat
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppWarningDialog
@@ -69,11 +74,9 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
+import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.BatchSelectionActions
 import me.kafuuneko.rpclient.ui.widgets.BatchSelectionIndicator
-import me.kafuuneko.rpclient.ui.widgets.AppTopBar
-import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
@@ -81,6 +84,8 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
 
 /** 角色列表页 Compose 入口，包含搜索、选择及导入导出操作。 */
 @Composable
@@ -227,7 +232,7 @@ private fun CharacterListNormal(
                         }
                     },
                     onExport = {
-                        CharacterListUiIntent.ExportCharacterJsonClick(character.id).emit()
+                        CharacterListUiIntent.ExportCharacterClick(character.id).emit()
                     },
                 )
             }
@@ -244,6 +249,11 @@ private fun DialogSwitch(
     // 低预算确认在单卡与批量场景复用同一策略入口
     when (dialogState) {
         CharacterListDialogState.None -> Unit
+        is CharacterListDialogState.ExportFormatSelection -> CharacterExportFormatDialog(
+            state = dialogState,
+            emit = emit
+        )
+
         is CharacterListDialogState.DeleteSelectedConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_selected_items_title),
@@ -305,6 +315,58 @@ private fun DialogSwitch(
                 ),
             )
         }
+    }
+}
+
+/** 复用统一动作列表弹窗，选项点击后由 ViewModel 决定文件创建流程。 */
+@Composable
+private fun CharacterExportFormatDialog(
+    state: CharacterListDialogState.ExportFormatSelection,
+    emit: CharacterListUiIntent.() -> Unit
+) {
+    // 混合头像批次明确展示 JSON 回退规则，避免用户误以为所有条目都会包含图片。
+    AppActionListDialog(
+        onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
+        title = stringResource(R.string.character_export_format_title),
+        subtitle = if (state.hasCharactersWithoutAvatar) {
+            stringResource(R.string.character_export_png_fallback)
+        } else null,
+        badgeIcon = Icons.Rounded.FileUpload,
+        dismissText = stringResource(android.R.string.cancel),
+        actions = listOf(
+            AppActionItem(
+                icon = Icons.Rounded.Image,
+                title = stringResource(R.string.character_export_png),
+                subtitle = stringResource(R.string.character_export_png_description),
+                onClick = {
+                    CharacterListUiIntent.ChooseExportFormat(CharacterCardExportFormat.Png).emit()
+                }
+            ),
+            AppActionItem(
+                icon = Icons.Rounded.Description,
+                title = stringResource(R.string.character_export_json),
+                subtitle = stringResource(R.string.character_export_json_description),
+                onClick = {
+                    CharacterListUiIntent.ChooseExportFormat(CharacterCardExportFormat.Json).emit()
+                }
+            )
+        )
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CharacterExportFormatDialogPreview() {
+    // 混合批次预览同时检查回退说明与两种格式选项。
+    AppTheme(dynamicColor = false) {
+        CharacterExportFormatDialog(
+            state = CharacterListDialogState.ExportFormatSelection(
+                characterIds = listOf(1, 2),
+                isArchive = true,
+                hasCharactersWithoutAvatar = true
+            ),
+            emit = {}
+        )
     }
 }
 

@@ -3,11 +3,14 @@ package me.kafuuneko.rpclient.libs.character
 import com.google.gson.Gson
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -20,20 +23,62 @@ class CharacterCardArchiveReaderTest {
 
     private val mapper = CharacterCardMapper(Gson())
 
-    /** 损坏 JSON 不阻止后续卡片；非 JSON 和不安全路径不会成为角色。 */
+    /** 损坏卡片不阻止后续条目；普通附件和不安全路径不会成为角色。 */
     @Test
     fun malformedAndUnsafeEntriesDoNotBlockValidCards() = runBlocking {
         val archive = zip(
             "../unsafe.json" to card("Unsafe"),
-            "image.png" to "ignored",
+            "image.png" to "not a PNG",
+            "notes.txt" to "ignored",
             "broken.json" to "not json",
             "nested/valid.JSON" to card("Valid")
         )
         val result = read(archive)
 
         assertEquals(listOf("Valid"), result.drafts.map { it.card.character.name })
-        assertEquals(1, result.failureCount)
-        assertEquals(2, result.totalCount)
+        assertEquals(2, result.failureCount)
+        assertEquals(3, result.totalCount)
+        assertCacheEmpty()
+    }
+
+    /** 混合归档同时保留 PNG 的头像与角色元数据，JSON 条目不生成头像。 */
+    @Test
+    fun mixedPngAndJsonArchivePreservesAvatarBytes() = runBlocking {
+        // 使用真实元数据 PNG 组成混合归档，验证暂存文件删除后头像仍可保存。
+        val png = CharacterCardPngCodec.writeCharacterJson(avatarPng(), card("猫🙂"))
+        val result = read(
+            zipBytes(
+                "nested/avatar.PNG" to png,
+                "without-avatar.json" to card("No avatar").toByteArray()
+            )
+        )
+
+        assertEquals(listOf("猫🙂", "No avatar"), result.drafts.map { it.card.character.name })
+        assertArrayEquals(png, result.drafts.first().avatarBytes)
+        assertEquals("image/png", result.drafts.first().avatarMimeType)
+        assertNull(result.drafts.last().avatarBytes)
+        assertEquals(0, result.failureCount)
+        assertCacheEmpty()
+    }
+
+    /** PNG 图片字节与 JSON 一起计入预算，不能靠图片扩展名绕过解压大小限制。 */
+    @Test
+    fun pngBytesCountTowardEntryAndTotalLimits() = runBlocking {
+        val png = CharacterCardPngCodec.writeCharacterJson(avatarPng(), card("Image"))
+        val json = card("Text").toByteArray()
+        val archive = zipBytes("image.png" to png, "text.json" to json)
+        val exact = CharacterCardArchiveLimits(
+            entryBytes = png.size,
+            totalEntryBytes = png.size.toLong() + json.size
+        )
+        // 边界以内的混合包可恢复；单卡超限跳过，累计超限拒绝整包。
+        assertEquals(2, read(archive, exact).drafts.size)
+        val skipped = read(archive, exact.copy(entryBytes = png.size - 1))
+        assertEquals(listOf("Text"), skipped.drafts.map { it.card.character.name })
+        assertEquals(1, skipped.failureCount)
+        assertTrue(runCatching {
+            read(archive, exact.copy(totalEntryBytes = exact.totalEntryBytes - 1))
+        }.isFailure)
         assertCacheEmpty()
     }
 
@@ -103,7 +148,7 @@ class CharacterCardArchiveReaderTest {
         val size = json.toByteArray(Charsets.UTF_8).size
         val result = read(
             zip("card.json" to json),
-            CharacterCardArchiveLimits(entryBytes = size, totalJsonBytes = size.toLong())
+            CharacterCardArchiveLimits(entryBytes = size, totalEntryBytes = size.toLong())
         )
 
         assertEquals("Boundary", result.drafts.single().card.character.name)
@@ -120,9 +165,9 @@ class CharacterCardArchiveReaderTest {
         val limit = valid.toByteArray().size.toLong() * 2 + broken.length - 1
 
         val failure = runCatching {
-            read(archive, CharacterCardArchiveLimits(totalJsonBytes = limit))
+            read(archive, CharacterCardArchiveLimits(totalEntryBytes = limit))
         }.exceptionOrNull()
-        assertTrue(failure?.message.orEmpty().contains("total JSON size limit"))
+        assertTrue(failure?.message.orEmpty().contains("total entry size limit"))
         assertCacheEmpty()
     }
 
@@ -167,17 +212,26 @@ class CharacterCardArchiveReaderTest {
     }
 
     /** 构造包含实际压缩数据与中央目录的 ZIP。 */
-    private fun zip(vararg entries: Pair<String, String>): ByteArray {
+    private fun zip(vararg entries: Pair<String, String>): ByteArray = zipBytes(
+        *entries.map { (name, text) -> name to text.toByteArray(Charsets.UTF_8) }.toTypedArray()
+    )
+
+    /** 将二进制 PNG 与文本作为独立 ZIP 条目写入真实压缩流。 */
+    private fun zipBytes(vararg entries: Pair<String, ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
-            entries.forEach { (name, text) ->
+            entries.forEach { (name, bytes) ->
                 zip.putNextEntry(ZipEntry(name))
-                zip.write(text.toByteArray(Charsets.UTF_8))
+                zip.write(bytes)
                 zip.closeEntry()
             }
         }
         return output.toByteArray()
     }
+
+    private fun avatarPng(): ByteArray = Base64.getDecoder().decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
+    )
 
     /** 构造不含 Android 依赖的有效 V2 角色卡。 */
     private fun card(name: String, description: String = ""): String {

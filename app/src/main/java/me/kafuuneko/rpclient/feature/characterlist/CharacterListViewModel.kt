@@ -28,6 +28,7 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiS
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.libs.character.CharacterArchiveExportLimitException
 import me.kafuuneko.rpclient.libs.character.CharacterCardArchiveLimits
+import me.kafuuneko.rpclient.libs.character.CharacterCardExportFormat
 import me.kafuuneko.rpclient.libs.character.CharacterCardImportDraft
 import me.kafuuneko.rpclient.libs.character.CharacterCardRepository
 import me.kafuuneko.rpclient.libs.character.LorebookImportPolicy
@@ -47,7 +48,7 @@ import org.koin.core.component.inject
  * - 维护全量角色列表与搜索语料库快照（包含名称、描述、作者附言、性格、场景设定、历史后指令与标签）；
  * - 结合列表视口动态调度头像下采样与异步缩略图加载，维护独立的 LRU 头像位图内存缓存；
  * - 调度角色卡导入流程，拦截并确认内嵌世界书的低 Token 预算策略；
- * - 调度角色卡 JSON 格式的本地导出；
+ * - 调度角色卡 PNG／JSON 格式的单卡与批量导出；
  * - 驱动新建与编辑角色的导航跳转。
  */
 class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, CharacterListUiState>(
@@ -297,7 +298,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 冻结所选角色 ID，请求宿主打开 ZIP 文件创建器。 */
+    /** 冻结所选角色 ID，并根据头像配置决定是否询问导出格式。 */
     @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharactersClick::class)
     private fun onExportSelectedCharactersClick() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
@@ -309,13 +310,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_limit).tryEmit()
             return
         }
-        val timestamp = OffsetDateTime.now().format(
-            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-'UTC'XX", Locale.ROOT)
-        )
-        CharacterListViewEvent.OpenCharacterArchiveExporter(
-            characterIds = ids,
-            fileName = "RPClient-Characters-$timestamp.zip"
-        ).tryEmit()
+        requestExport(ids, isArchive = true)
     }
 
     /** 串行导出所选角色；传输令牌只允许当前任务清理加载状态。 */
@@ -333,7 +328,11 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         mTransferJob = viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    mCharacterCardRepository.exportJsonArchiveToUri(ids, intent.uri)
+                    mCharacterCardRepository.exportArchiveToUri(
+                        characterIds = ids,
+                        format = intent.format,
+                        uri = intent.uri
+                    )
                 }
                 AppViewEvent.PopupToastMessageByResId(R.string.export_character_archive_success)
                     .tryEmit()
@@ -490,13 +489,14 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
     }
 
-    /** 关闭结果或删除确认弹窗，保留当前选择。 */
+    /** 关闭结果、删除确认或导出格式弹窗，保留当前选择。 */
     @UiIntentObserver(CharacterListUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.dialogState !is CharacterListDialogState.BatchImportResult &&
             uiState.dialogState !is CharacterListDialogState.DeleteSelectedConfirm &&
-            uiState.dialogState !is CharacterListDialogState.DeleteSelectedWithChatsConfirm
+            uiState.dialogState !is CharacterListDialogState.DeleteSelectedWithChatsConfirm &&
+            uiState.dialogState !is CharacterListDialogState.ExportFormatSelection
         ) return
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
@@ -609,26 +609,77 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
     }
 
-    /** 准备导出指定角色的 JSON 格式文件，并触发文件创建器。 */
-    @UiIntentObserver(CharacterListUiIntent.ExportCharacterJsonClick::class)
-    private fun onExportCharacterJsonClick(intent: CharacterListUiIntent.ExportCharacterJsonClick) {
+    /** 根据单张角色卡的头像配置选择直接导出或询问格式。 */
+    @UiIntentObserver(CharacterListUiIntent.ExportCharacterClick::class)
+    private fun onExportCharacterClick(intent: CharacterListUiIntent.ExportCharacterClick) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (uiState.characters.none { it.id == intent.characterId }) return
+        requestExport(listOf(intent.characterId), isArchive = false)
+    }
+
+    /** 以头像引用判断是否提供 PNG，不依赖列表缩略图是否加载成功。 */
+    private fun requestExport(characterIds: List<Long>, isArchive: Boolean) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         if (uiState.dialogState != CharacterListDialogState.None) return
-        val character = uiState.characters.firstOrNull { it.id == intent.characterId } ?: return
-        CharacterListViewEvent.OpenCharacterCardJsonExporter(
-            characterId = intent.characterId,
-            fileName = "${character.name.ifBlank { "character" }}.json",
+        // 全部未设置头像时直接进入 JSON 保存流程，批量入口仍保留 ZIP 容器。
+        if (characterIds.all { mAvatarUuids[it].isNullOrBlank() }) {
+            openExporter(characterIds, CharacterCardExportFormat.Json, isArchive)
+            return
+        }
+        uiState.copy(
+            dialogState = CharacterListDialogState.ExportFormatSelection(
+                characterIds = characterIds,
+                isArchive = isArchive,
+                hasCharactersWithoutAvatar = characterIds.any { mAvatarUuids[it].isNullOrBlank() }
+            )
+        ).setup()
+    }
+
+    /** 使用对话框冻结的目标打开文件创建器，避免搜索或刷新影响导出集合。 */
+    @UiIntentObserver(CharacterListUiIntent.ChooseExportFormat::class)
+    private fun onChooseExportFormat(intent: CharacterListUiIntent.ChooseExportFormat) {
+        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        val dialog =
+            uiState.dialogState as? CharacterListDialogState.ExportFormatSelection ?: return
+        if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
+        uiState.copy(dialogState = CharacterListDialogState.None).setup()
+        openExporter(dialog.characterIds, intent.format, dialog.isArchive)
+    }
+
+    /** 将文件格式与目标 ID 一并交给宿主，文件选择结果不再读取当前列表选择。 */
+    private fun openExporter(
+        characterIds: List<Long>,
+        format: CharacterCardExportFormat,
+        isArchive: Boolean
+    ) {
+        // 单卡创建对应 MIME 的文档，批量始终创建可包含混合格式的 ZIP。
+        if (isArchive) {
+            val timestamp = OffsetDateTime.now().format(
+                DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-'UTC'XX", Locale.ROOT)
+            )
+            CharacterListViewEvent.OpenCharacterArchiveExporter(
+                characterIds = characterIds,
+                format = format,
+                fileName = "RPClient-Characters-$timestamp.zip"
+            ).tryEmit()
+            return
+        }
+        val character = mAllCharacterItems.firstOrNull { it.id == characterIds.single() } ?: return
+        CharacterListViewEvent.OpenCharacterCardExporter(
+            characterId = character.id,
+            format = format,
+            fileName = "${character.name.ifBlank { "character" }}.${format.extension}",
         ).tryEmit()
     }
 
     /**
-     * 将指定角色导出为 JSON 格式至目标 URI。
+     * 将指定角色按已选择的格式写入目标 URI。
      *
-     * @param intent 包含角色 ID 与写入 URI 的意图
+     * @param intent 包含角色 ID、导出格式与写入 URI 的意图
      */
-    @UiIntentObserver(CharacterListUiIntent.ExportCharacterJson::class)
-    private fun onExportCharacterJson(intent: CharacterListUiIntent.ExportCharacterJson) {
+    @UiIntentObserver(CharacterListUiIntent.ExportCharacter::class)
+    private fun onExportCharacter(intent: CharacterListUiIntent.ExportCharacter) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         val token = Any()
@@ -637,9 +688,13 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         uiState.copy(loadState = CharacterListLoadState.Loading).setup()
         mTransferJob = viewModelScope.launch {
             try {
-                // 在 IO 线程序列化角色卡为 JSON 并写入目标 URI
+                // 图片编码和文档写入在 IO 线程执行，完成后再发布成功提示
                 withContext(Dispatchers.IO) {
-                    mCharacterCardRepository.exportJsonToUri(intent.characterId, intent.uri)
+                    mCharacterCardRepository.exportToUri(
+                        characterId = intent.characterId,
+                        format = intent.format,
+                        uri = intent.uri
+                    )
                 }
                 AppViewEvent.PopupToastMessageByResId(R.string.export_character_success).tryEmit()
             } catch (cancellation: CancellationException) {

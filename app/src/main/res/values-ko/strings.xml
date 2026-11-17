@@ -213,6 +213,12 @@
     <string name="batch_import_character_result_message">성공: %1$d\n실패: %2$d</string>
     <string name="batch_import_character_reading_progress">분석 중 %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">가져오는 중 %1$d/%2$d</string>
+    <string name="character_export_format_title">내보내기 형식 선택</string>
+    <string name="character_export_png">PNG 이미지 (.png)</string>
+    <string name="character_export_png_description">아바타와 캐릭터 데이터를 포함합니다.</string>
+    <string name="character_export_json">JSON 파일 (.json)</string>
+    <string name="character_export_json_description">이미지 없이 캐릭터 데이터만 포함합니다.</string>
+    <string name="character_export_png_fallback">아바타가 없는 카드는 JSON으로 내보냅니다.</string>
     <string name="export_character_success">캐릭터를 내보냈습니다</string>
     <string name="export_character_failed">캐릭터 내보내기 실패</string>
     <string name="import_world_book">월드북 가져오기</string>

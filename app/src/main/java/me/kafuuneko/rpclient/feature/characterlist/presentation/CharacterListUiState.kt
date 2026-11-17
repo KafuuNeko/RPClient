@@ -35,6 +35,14 @@ sealed class CharacterListUiState {
 sealed class CharacterListDialogState {
     data object None : CharacterListDialogState()
 
+    data class ExportFormatSelection(
+        /** 点击导出时冻结的目标，避免后续列表刷新改变本次选择。 */
+        val characterIds: List<Long>,
+        /** 批量入口即使只选中一张卡片，也继续导出 ZIP。 */
+        val isArchive: Boolean,
+        val hasCharactersWithoutAvatar: Boolean
+    ) : CharacterListDialogState()
+
     data class LowEmbeddedLorebookBudgetConfirm(
         /** 导入文件中声明且需要用户确认的较低 Token 预算。 */
         val importedTokenBudget: Int,

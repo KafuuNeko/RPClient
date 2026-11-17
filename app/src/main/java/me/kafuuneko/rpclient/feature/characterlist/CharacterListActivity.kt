@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.characterlist
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -11,6 +12,7 @@ import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiI
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListUiState
 import me.kafuuneko.rpclient.feature.characterlist.presentation.CharacterListViewEvent
 import me.kafuuneko.rpclient.feature.characterlist.ui.CharacterListLayout
+import me.kafuuneko.rpclient.libs.character.CharacterCardExportFormat
 import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 
@@ -21,6 +23,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
     /** 记录系统导出选择器对应的角色；结果交付或取消后立即清空，避免串到下一次导出。 */
     private var mPendingExportCharacterId: Long? = null
     private var mPendingArchiveCharacterIds: List<Long>? = null
+    private var mPendingArchiveFormat: CharacterCardExportFormat = CharacterCardExportFormat.Json
 
     /** 把一次性选择的一组角色卡 URI 交给 ViewModel 执行解析和独立事务导入。 */
     private val mImportCharacterCardLauncher = registerForActivityResult(
@@ -32,21 +35,34 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     /** 将 JSON 导出目的 URI 与发起选择时的角色 ID 配对。 */
     private val mExportCharacterJsonLauncher = registerForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json"),
+        contract = ActivityResultContracts.CreateDocument(CharacterCardExportFormat.Json.mimeType),
     ) { uri ->
-        val characterId = mPendingExportCharacterId ?: return@registerForActivityResult
+        deliverCharacterExportResult(uri, CharacterCardExportFormat.Json)
+    }
+
+    private val mExportCharacterPngLauncher = registerForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(CharacterCardExportFormat.Png.mimeType),
+    ) { uri ->
+        deliverCharacterExportResult(uri, CharacterCardExportFormat.Png)
+    }
+
+    /** 结果格式由对应 launcher 固定，取消后同样清空目标，避免串到下一次导出。 */
+    private fun deliverCharacterExportResult(uri: Uri?, format: CharacterCardExportFormat) {
+        val characterId = mPendingExportCharacterId ?: return
         mPendingExportCharacterId = null
-        uri ?: return@registerForActivityResult
-        mViewModel.emit(CharacterListUiIntent.ExportCharacterJson(characterId, uri))
+        uri ?: return
+        mViewModel.emit(CharacterListUiIntent.ExportCharacter(characterId, format, uri))
     }
 
     private val mExportCharacterArchiveLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         val characterIds = mPendingArchiveCharacterIds ?: return@registerForActivityResult
+        val format = mPendingArchiveFormat
         mPendingArchiveCharacterIds = null
+        mPendingArchiveFormat = CharacterCardExportFormat.Json
         uri ?: return@registerForActivityResult
-        mViewModel.emit(CharacterListUiIntent.ExportSelectedCharacters(characterIds, uri))
+        mViewModel.emit(CharacterListUiIntent.ExportSelectedCharacters(characterIds, format, uri))
     }
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
@@ -71,6 +87,9 @@ class CharacterListActivity : CoreActivityWithEvent() {
         mPendingExportCharacterId =
             savedInstanceState?.takeIf { it.containsKey(KEY_EXPORT_ID) }?.getLong(KEY_EXPORT_ID)
         mPendingArchiveCharacterIds = savedInstanceState?.getLongArray(KEY_ARCHIVE_IDS)?.toList()
+        mPendingArchiveFormat = CharacterCardExportFormat.entries.firstOrNull {
+            it.name == savedInstanceState?.getString(KEY_ARCHIVE_FORMAT)
+        } ?: CharacterCardExportFormat.Json
         mViewModel.emit(CharacterListUiIntent.Init)
     }
 
@@ -79,6 +98,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
         super.onSaveInstanceState(outState)
         mPendingExportCharacterId?.let { outState.putLong(KEY_EXPORT_ID, it) }
         mPendingArchiveCharacterIds?.let {
+            outState.putString(KEY_ARCHIVE_FORMAT, mPendingArchiveFormat.name)
             outState.putLongArray(
                 KEY_ARCHIVE_IDS,
                 it.toLongArray()
@@ -91,7 +111,9 @@ class CharacterListActivity : CoreActivityWithEvent() {
         mViewModel.emit(CharacterListUiIntent.Resume)
     }
 
+    /** 仅桥接系统选择器，卡片编码与头像回退均交给 ViewModel 和 Repository。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        // 不在宿主重新判断头像，沿用用户已经选择的格式与冻结目标。
         when (viewEvent) {
             CharacterListViewEvent.OpenCharacterCardImporter -> {
                 mImportCharacterCardLauncher.launch(
@@ -106,13 +128,17 @@ class CharacterListActivity : CoreActivityWithEvent() {
                 )
             }
 
-            is CharacterListViewEvent.OpenCharacterCardJsonExporter -> {
+            is CharacterListViewEvent.OpenCharacterCardExporter -> {
                 mPendingExportCharacterId = viewEvent.characterId
-                mExportCharacterJsonLauncher.launch(viewEvent.fileName)
+                when (viewEvent.format) {
+                    CharacterCardExportFormat.Png -> mExportCharacterPngLauncher.launch(viewEvent.fileName)
+                    CharacterCardExportFormat.Json -> mExportCharacterJsonLauncher.launch(viewEvent.fileName)
+                }
             }
 
             is CharacterListViewEvent.OpenCharacterArchiveExporter -> {
                 mPendingArchiveCharacterIds = viewEvent.characterIds
+                mPendingArchiveFormat = viewEvent.format
                 mExportCharacterArchiveLauncher.launch(viewEvent.fileName)
             }
 
@@ -122,6 +148,7 @@ class CharacterListActivity : CoreActivityWithEvent() {
 
     private companion object {
         const val KEY_EXPORT_ID = "pendingExportCharacterId"
+        const val KEY_ARCHIVE_FORMAT = "pendingArchiveFormat"
         const val KEY_ARCHIVE_IDS = "pendingArchiveCharacterIds"
     }
 }

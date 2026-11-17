@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -47,6 +48,7 @@ object CharacterCardPngCodec {
      * 同时写入 chara 与 ccv3，方便旧工具和新工具都能识别。
      */
     fun writeCharacterJson(bytes: ByteArray, json: String): ByteArray {
+        // 删除旧元数据后再嵌入最新快照，防止旧版与新版读取方看到不同角色内容。
         val chunks = readChunks(bytes)
             .filterNot { chunk ->
                 chunk.name == "tEXt" && chunk.decodeTextChunk()?.keyword?.lowercase() in setOf(
@@ -58,11 +60,10 @@ object CharacterCardPngCodec {
         val insertIndex = chunks.indexOfLast { it.name == "IEND" }.takeIf { it >= 0 } ?: chunks.size
         chunks.add(insertIndex, textChunk("chara", encodeBase64Text(json)))
         val ccv3Json = runCatching {
-            val v3 = org
-                .json
-                .JSONObject(json)
-                .put("spec", "chara_card_v3")
-                .put("spec_version", "3.0")
+            val v3 = JsonParser.parseString(json).asJsonObject.apply {
+                addProperty("spec", "chara_card_v3")
+                addProperty("spec_version", "3.0")
+            }
             v3.toString()
         }.getOrNull()
         if (ccv3Json != null) {

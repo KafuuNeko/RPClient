@@ -214,6 +214,12 @@
 Thất bại: %2$d</string>
     <string name="batch_import_character_reading_progress">Đang phân tích %1$d/%2$d</string>
     <string name="batch_import_character_saving_progress">Đang nhập %1$d/%2$d</string>
+    <string name="character_export_format_title">Chọn định dạng xuất</string>
+    <string name="character_export_png">Ảnh PNG (.png)</string>
+    <string name="character_export_png_description">Bao gồm ảnh đại diện và dữ liệu nhân vật.</string>
+    <string name="character_export_json">Tệp JSON (.json)</string>
+    <string name="character_export_json_description">Chứa dữ liệu nhân vật, không bao gồm ảnh.</string>
+    <string name="character_export_png_fallback">Thẻ không có ảnh đại diện sẽ được xuất dưới dạng JSON.</string>
     <string name="export_character_success">Đã xuất nhân vật</string>
     <string name="export_character_failed">Xuất nhân vật thất bại</string>
     <string name="import_world_book">Nhập sách thế giới</string>
