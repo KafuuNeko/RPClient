@@ -18,6 +18,16 @@ interface LorebookEntryDao : MutableDao<LorebookEntry> {
     @Query("SELECT * FROM lorebook_entries WHERE lorebookId = :lorebookId ORDER BY `order` ASC, id ASC")
     suspend fun getEntriesByLorebookId(lorebookId: Long): List<LorebookEntry>
 
+    /**
+     * 在导出事务内按与全量查询一致的顺序分页读取。
+     * @param lorebookId 世界书 ID。
+     * @param offset 已写出的条目数。
+     * @param limit 本次最多读取的条目数。
+     * @return 当前页的条目。
+     */
+    @Query("SELECT * FROM lorebook_entries WHERE lorebookId = :lorebookId ORDER BY `order` ASC, id ASC LIMIT :limit OFFSET :offset")
+    suspend fun getExportPage(lorebookId: Long, offset: Int, limit: Int): List<LorebookEntry>
+
     /** 一次查询所有世界书条目，供世界书列表和选择器批量组装数据。 */
     @Query(
         "SELECT * FROM lorebook_entries " +

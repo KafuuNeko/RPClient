@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">Kotak Bulat</string>
     <string name="image_crop_shape_circle">Lingkaran</string>
     <string name="about">Tentang</string>
-    <string name="about_desc">Versi aplikasi, email, dan repositori</string>
     <string name="unknown_version">Versi tidak diketahui</string>
     <string name="developer_contact">Kontak Pengembang</string>
     <string name="tech_stack_label">Tumpukan Teknologi</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 Kaya</string>
     <string name="parameter_preset_topp_full">1.0 Penuh</string>
     <string name="streaming_response">Respons Streaming</string>
-    <string name="streaming_response_desc">Tampilkan output model secara real-time, mendukung penghentian pembuatan</string>
     <string name="new_session_desc">Pilih karakter, catatan, dan entri buku dunia</string>
     <string name="no_recent_chats">Tidak ada obrolan terbaru</string>
     <string name="no_recent_chats_desc">Buat sesi untuk memulai percakapan baru.</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">Pesan maksimum per permintaan</string>
     <string name="summary_max_messages_helper">0 menyerahkan keputusan pada anggaran konteks</string>
     <string name="summary_response_tokens">Token respons ringkasan</string>
-    <string name="summary_injection_template">Templat penyuntikan ringkasan</string>
-    <string name="summary_injection_template_desc">Gunakan {{summary}} sebagai placeholder memori.</string>
     <string name="summary_injection_position">Posisi penyuntikan ringkasan</string>
     <string name="summary_position_before_character">Sebelum definisi karakter</string>
     <string name="summary_position_after_character">Setelah definisi karakter</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">Karakter tidak dikenal</string>
     <string name="no_messages_yet">Belum ada pesan</string>
     <string name="debug_mode">Mode Debug</string>
-    <string name="debug_mode_desc">Catat JSON permintaan dan respons LLM mentah di database lokal</string>
     <string name="request_logs">Log Permintaan</string>
     <string name="request_logs_subtitle">JSON permintaan dan respons LLM mentah, terbaru di atas</string>
-    <string name="request_logs_entry_subtitle">Lihat dan salin catatan permintaan LLM mentah</string>
     <string name="no_request_logs">Tidak ada log permintaan</string>
     <string name="no_request_logs_desc">Aktifkan mode debug dan kirim permintaan LLM untuk membuat catatan.</string>
     <string name="clear_logs">Hapus Log</string>
     <string name="clear_logs_confirm">Apakah Anda yakin ingin menghapus semua log permintaan? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="token_usage">Penggunaan Token</string>
     <string name="token_usage_subtitle">Estimasi penggunaan untuk permintaan LLM yang berhasil, dikelompokkan berdasarkan model dan host API</string>
-    <string name="token_usage_entry_subtitle">Lihat estimasi token input dan output berdasarkan model dan host API</string>
     <string name="token_usage_notice_title">Penggunaan adalah perkiraan</string>
     <string name="token_usage_notice_desc">Nilai yang dilaporkan penyedia lebih diutamakan. Nilai yang hilang diestimasi secara lokal dan mungkin berbeda dari tagihan.</string>
     <string name="token_usage_today">Hari ini</string>
@@ -676,40 +669,14 @@ Gagal: %2$d</string>
     <string name="prompt_preset_title">Preset Prompt Sistem</string>
     <string name="prompt_preset_subtitle">Kelola prompt sistem, utilitas, dan templat format bergaya SillyTavern</string>
     <string name="prompt_preset_section">Templat Prompt</string>
-    <string name="prompt_preset_entry_subtitle">Kelola preset prompt sistem dan prompt utilitas</string>
     <string name="prompt_behavior_section">Perilaku Permintaan</string>
-    <string name="prompt_manager_section">Pengelola Prompt</string>
-    <string name="prompt_utility_section">Prompt Utilitas</string>
-    <string name="prompt_format_section">Templat Format</string>
-    <string name="prompt_summary_section">Ringkasan</string>
     <string name="prompt_main_title">Prompt Utama</string>
-    <string name="prompt_main_desc">Prompt sistem utama yang disuntikkan di awal setiap sesi</string>
     <string name="prompt_auxiliary_title">Prompt Tambahan</string>
-    <string name="prompt_auxiliary_desc">Prompt sistem tambahan yang ditempatkan bersama definisi karakter sebelum riwayat obrolan</string>
     <string name="prompt_post_history_title">Petunjuk Pasca-Riwayat</string>
-    <string name="prompt_post_history_desc">Petunjuk sistem akhir yang ditambahkan setelah riwayat obrolan</string>
-    <string name="prompt_summarize_title">Prompt Ringkasan</string>
-    <string name="prompt_summarize_desc">Prompt yang digunakan untuk memadatkan konteks panjang menjadi ringkasan singkat</string>
-    <string name="prompt_impersonation_title">Prompt Peniruan</string>
-    <string name="prompt_impersonation_desc">Digunakan saat menghasilkan balasan dari sudut pandang persona pengguna</string>
-    <string name="prompt_new_chat_title">Prompt Obrolan Baru</string>
-    <string name="prompt_new_chat_desc">Penanda yang dikirim sebelum riwayat obrolan baru</string>
-    <string name="prompt_new_example_chat_title">Prompt Obrolan Contoh Baru</string>
-    <string name="prompt_new_example_chat_desc">Penanda yang dikirim sebelum blok dialog contoh</string>
-    <string name="prompt_continue_nudge_title">Dorongan Lanjutkan</string>
-    <string name="prompt_continue_nudge_desc">Instruksi yang digunakan saat melanjutkan pesan asisten sebelumnya</string>
-    <string name="prompt_replace_empty_message_title">Ganti Pesan Kosong</string>
-    <string name="prompt_replace_empty_message_desc">Teks yang dikirim saat kotak input kosong</string>
     <string name="prompt_world_info_format_title">Format Info Dunia</string>
-    <string name="prompt_world_info_format_desc">Templat untuk entri info dunia yang diaktifkan; gunakan {0} sebagai penanda</string>
     <string name="prompt_scenario_format_title">Format Skenario</string>
-    <string name="prompt_scenario_format_desc">Templat untuk skenario karakter; gunakan {{scenario}} sebagai penanda</string>
     <string name="prompt_personality_format_title">Format Kepribadian</string>
-    <string name="prompt_personality_format_desc">Templat untuk kepribadian karakter; gunakan {{personality}} sebagai penanda</string>
     <string name="prompt_user_persona_format_title">Format Persona Pengguna</string>
-    <string name="prompt_user_persona_format_desc">Templat pembungkus untuk persona pengguna; gunakan {{persona}} dan {{user}} sebagai penanda</string>
-    <string name="prompt_empty_hint">Ketuk untuk mengatur prompt…</string>
-    <string name="prompt_edit_hint">Ketuk untuk mengedit</string>
     <string name="prompt_editor_label">Konten Prompt</string>
     <string name="prompt_editor_placeholder">Masukkan prompt sistem Anda di sini…</string>
     <string name="prompt_editor_restore_default">Pulihkan Default</string>
@@ -728,7 +695,6 @@ Gagal: %2$d</string>
     <string name="prompt_post_processing_single_user">Pesan pengguna tunggal</string>
     <string name="prompt_post_processing_single_user_desc">Ubah setiap pesan menjadi user, tambahkan nama pembicara, lalu gabungkan semuanya.</string>
     <string name="prompt_example_behavior_title">Perilaku contoh dialog</string>
-    <string name="prompt_example_behavior_desc">Pilih apakah riwayat obrolan nyata atau contoh kartu karakter yang menerima sisa anggaran konteks terlebih dahulu.</string>
     <string name="world_info_budget_section">Anggaran Info Dunia</string>
     <string name="world_info_budget_description">Persentase konteks dihitung terlebih dahulu, kemudian dibatasi oleh batas Token jika lebih besar dari 0.</string>
     <string name="world_info_context_percent">Persentase konteks</string>
@@ -736,15 +702,12 @@ Gagal: %2$d</string>
     <string name="world_info_budget_cap">Batas anggaran</string>
     <string name="world_info_budget_cap_helper">Token Info Dunia maksimum setelah menerapkan persentase konteks; 0 menonaktifkan batas</string>
     <string name="world_info_overflow_alert">Peringatan saat anggaran habis</string>
-    <string name="world_info_overflow_alert_desc">Tampilkan pemberitahuan saat entri yang diaktifkan tidak muat dalam anggaran Info Dunia.</string>
     <string name="context_trimming_alert">Pemberitahuan pemangkasan konteks</string>
-    <string name="context_trimming_alert_desc">Tampilkan pemberitahuan saat pesan lama atau bagian Prompt opsional dihapus agar sesuai konteks.</string>
     <string name="world_info_budget_overflow_warning">Beberapa entri Info Dunia yang aktif dihilangkan karena keterbatasan anggaran Info Dunia.</string>
     <string name="prompt_example_behavior_normal">Utamakan riwayat</string>
     <string name="prompt_example_behavior_pinned">Sematkan contoh</string>
     <string name="prompt_example_behavior_disabled">Dinonaktifkan</string>
     <string name="prompt_include_think_context_title">Sertakan blok think dalam konteks</string>
-    <string name="prompt_include_think_context_desc">Saat dinonaktifkan, blok &lt;think&gt;...&lt;/think&gt; yang tersimpan akan dihapus dari prompt mendatang.</string>
     <string name="selected_count">%d dipilih</string>
     <string name="delete_selected_sessions_title">Hapus sesi terpilih</string>
     <string name="delete_selected_sessions_message">Hapus %d sesi terpilih dan semua pesannya? Tindakan ini tidak dapat dibatalkan.</string>
@@ -804,15 +767,7 @@ Gagal: %2$d</string>
         <item quantity="other">%1$d anggota</item>
     </plurals>
     <string name="prompt_group_nudge_title">Dorongan grup</string>
-    <string name="prompt_group_nudge_desc">Instruksi akhir yang membatasi setiap pembuatan hanya untuk pembicara terpilih.</string>
-    <string name="prompt_group_impersonation_title">Prompt peniruan pengguna di grup</string>
-    <string name="prompt_group_impersonation_desc">Digunakan untuk meniru pengguna dalam obrolan grup. {{group}} mencantumkan semua anggota dan {{groupNotMuted}} anggota yang tidak dibisukan.</string>
-    <string name="prompt_group_user_writing_title">Prompt lanjutan kotak input grup</string>
-    <string name="prompt_group_user_writing_desc">Digunakan untuk meniru pengguna di kotak input grup. {{draft}} menyisipkan teks saat ini. Tanpa makro ini, teks ditambahkan di akhir.</string>
     <string name="prompt_new_group_chat_title">Obrolan grup baru</string>
-    <string name="prompt_new_group_chat_desc">Penanda batas yang disisipkan sebelum percakapan grup baru.</string>
-    <string name="prompt_group_summarize_title">Ringkasan grup</string>
-    <string name="prompt_group_summarize_desc">Prompt memori khusus yang mempertahankan riwayat grup spesifik per pembicara.</string>
     <string name="group_chat_settings">Pengaturan obrolan grup</string>
     <string name="group_chat_basic_settings">Detail percakapan</string>
     <string name="group_chat_scenario">Skenario grup</string>
@@ -959,8 +914,6 @@ Gagal: %2$d</string>
 Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin akun, atau beralih ke konfigurasi lain.</string>
     <string name="data_management">Manajemen data</string>
     <string name="import_chat">Impor obrolan</string>
-    <string name="import_chat_desc">Impor obrolan JSONL SillyTavern atau RPClient</string>
-    <string name="reading_chat_file">Membaca file obrolan…</string>
     <string name="import_chat_failed">Gagal mengimpor obrolan</string>
     <string name="import_chat_success">Obrolan berhasil diimpor</string>
     <string name="select_import_character_title">Tautkan kartu karakter</string>
@@ -1045,15 +998,11 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="story_loading_settings">Memuat pengaturan cerita…</string>
     <string name="story_context_settings">Konteks</string>
     <string name="story_memory">Memori Cerita</string>
-    <string name="story_memory_desc">Fakta penting, alur cerita yang belum terselesaikan, dan pengetahuan dunia yang selalu disertakan dalam pembuatan.</string>
     <string name="story_author_note">Catatan Penulis</string>
-    <string name="story_author_note_desc">Petunjuk singkat dan tegas untuk gaya bahasa, sudut pandang, dan adegan berikutnya.</string>
     <string name="story_character_references">Karakter</string>
-    <string name="story_character_references_desc">Kartu terpilih membentuk pemeran kandidat cerita ini. Kartu Selalu disertakan setiap saat; kartu Otomatis diaktifkan berdasarkan nama atau alias.</string>
     <string name="story_no_characters">Tidak ada karakter yang dipilih</string>
     <string name="story_character_always">Selalu</string>
     <string name="story_character_auto">Otomatis</string>
-    <string name="story_include_user_persona">Sertakan persona pengguna</string>
     <string name="story_character_primary">Protagonis</string>
     <string name="story_linked_lorebook">Buku dunia tertaut: %1$s</string>
     <string name="story_lorebook_empty">Buku dunia ini belum memiliki entri.</string>
@@ -1101,17 +1050,8 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="story_import_failed">Tidak dapat mengimpor file ini. File mungkin terlalu besar atau menggunakan format yang tidak didukung.</string>
     <string name="story_export_succeeded">Cerita berhasil diekspor</string>
     <string name="story_export_failed">Tidak dapat mengekspor cerita</string>
-    <string name="prompt_story_section">Penulisan cerita</string>
     <string name="prompt_story_main_title">Prompt utama cerita</string>
-    <string name="prompt_story_main_desc">Instruksi sistem yang dibagikan oleh setiap operasi penulisan cerita</string>
-    <string name="prompt_story_memory_title">Templat penyuntikan memori</string>
-    <string name="prompt_story_memory_desc">Templat pesan sistem yang menggunakan {{memory}} untuk memori cerita jangka panjang</string>
-    <string name="prompt_story_summary_title">Templat penyuntikan ringkasan</string>
-    <string name="prompt_story_summary_desc">Templat pesan sistem yang menggunakan {{summary}} untuk ringkasan cerita saat ini</string>
-    <string name="prompt_story_continuation_guidance_title">Templat panduan kelanjutan</string>
-    <string name="prompt_story_continuation_guidance_desc">Templat pesan sistem yang membungkus panduan saat ini dengan placeholder {{guidance}}</string>
     <string name="prompt_story_continue_title">Kelanjutan cerita</string>
-    <string name="prompt_story_continue_desc">Tugas yang digunakan untuk melanjutkan naskah di bagian akhir</string>
     <string name="prompt_source_story_main">Prompt utama cerita</string>
     <string name="prompt_source_story_memory">Memori cerita</string>
     <string name="prompt_source_story_author_note">Catatan Penulis</string>
@@ -1128,8 +1068,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="story_summary_failed">Tidak dapat meringkas cerita ini. Periksa konfigurasi model yang dipilih dan pengaturan konteks.</string>
     <string name="story_summary_conflict">Naskah berubah saat ringkasan sedang dibuat. Hasilkan lagi.</string>
     <string name="story_summary_updated">Ringkasan cerita diperbarui</string>
-    <string name="prompt_story_summarize_title">Prompt ringkasan cerita</string>
-    <string name="prompt_story_summarize_desc">Mengontrol bagaimana ringkasan cerita diperbarui</string>
     <string name="prompt_source_story_summary">Ringkasan cerita</string>
     <string name="generation_error_character_provider_unavailable">Konfigurasi model yang ditautkan ke karakter ini dinonaktifkan atau sudah tidak ada.</string>
     <string name="generation_error_character_provider_unavailable_named">Konfigurasi model “%1$s” yang ditautkan ke karakter ini dinonaktifkan.</string>
@@ -1139,7 +1077,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="character_model_config">Konfigurasi model karakter</string>
     <string name="character_model_config_helper">Digunakan untuk balasan karakter ini. Konfigurasi yang dinonaktifkan tetap tertaut hingga diubah.</string>
     <string name="summary_model_config">Konfigurasi model ringkasan</string>
-    <string name="summary_model_config_helper">Digunakan untuk ringkasan obrolan tunggal, obrolan grup, dan cerita.</string>
     <string name="unnamed_model_config">Konfigurasi model tanpa nama</string>
     <string name="disabled_model_config_format">%1$s (dinonaktifkan)</string>
     <string name="delete_model_config">Hapus konfigurasi model</string>
@@ -1185,7 +1122,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">Batas keluaran ringkasan tercapai</string>
     <string name="summary_token_limit_message">Ringkasan mencapai batas token keluaran dan tidak disimpan. Penalaran juga menggunakan kuota ini. Buka Pengaturan → “%1$s” → “%2$s”, naikkan “%3$s”, lalu coba lagi.</string>
     <string name="summary_go_to_settings">Buka pengaturan</string>
@@ -1198,7 +1135,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="about_build_number">Nomor build</string>
     <string name="about_rate_action">Beri rating</string>
     <string name="image_send_title">Pengiriman gambar (lanjutan)</string>
-    <string name="image_send_description">Hanya berlaku untuk gambar yang ditambahkan saat mengirim pesan atau menyimpan edit. Hanya gambar yang telah diproses yang disimpan; lampiran yang ada tidak berubah.</string>
     <string name="image_send_auto">Otomatis</string>
     <string name="image_send_original">Asli</string>
     <string name="image_send_custom">Kustom</string>
@@ -1307,8 +1243,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="content_search_newer">Muat pesan yang lebih baru</string>
     <string name="content_search_latest">Kembali ke pesan terbaru</string>
     <string name="content_search_index_title">Percepatan pencarian</string>
-    <string name="content_search_index_enabled">Percepatan pencarian aktif</string>
-    <string name="content_search_index_disabled">Pencarian standar memindai konten tersimpan</string>
     <string name="content_search_index_enable">Aktifkan</string>
     <string name="content_search_index_disable">Nonaktifkan dan bersihkan</string>
     <string name="content_search_index_confirm_title">Aktifkan percepatan pencarian?</string>
@@ -1318,10 +1252,7 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="content_search_index_building">Membuat indeks… %1$d item diproses</string>
     <string name="content_search_index_cleaning">Menghapus indeks dan mengosongkan ruang…</string>
     <string name="content_search_index_cleanup_failed">Pembersihan belum selesai. Kosongkan ruang atau tunggu tugas lain selesai, lalu coba lagi. Percepatan pencarian tetap nonaktif.</string>
-    <string name="content_search_index_failed">Percepatan pencarian tidak tersedia. Pencarian standar tersedia.</string>
     <string name="backup_restore_title">Pencadangan dan pemulihan</string>
-    <string name="backup_restore_entry_desc">Ekspor atau pulihkan ZIP berisi data dan pengaturan aplikasi</string>
-    <string name="backup_restore_description">Ekspor semua data sebagai JSONL dan JSON yang dapat dibaca: karakter, cerita, obrolan pribadi dan grup, buku dunia, konfigurasi penyedia, kunci API, penggunaan token, log permintaan, preferensi, dan lampiran. Pemulihan mengganti semua data saat ini dan memulai ulang RPClient.</string>
     <string name="backup_restore_security_warning">Keamanan: RPClient-Portable-Data.zip tidak dienkripsi. Isinya mencakup kunci API, header khusus, log permintaan, percakapan pribadi, dan lampiran. Siapa pun yang memiliki ZIP dapat membaca datanya; simpan dengan aman.</string>
     <string name="backup_export_action">Ekspor cadangan ZIP</string>
     <string name="backup_restore_action">Pulihkan dari ZIP</string>
@@ -1334,7 +1265,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_restore_confirm_title">Ganti data aplikasi saat ini?</string>
     <string name="backup_restore_confirm_message">Pemulihan penuh mengganti penyedia dan kunci API, karakter, cerita, obrolan pribadi dan grup, buku dunia, skrip regex, catatan penggunaan, log permintaan, preferensi, dan lampiran. Data tidak digabungkan. Ekspor cadangan terlebih dahulu jika data saat ini masih diperlukan.</string>
     <string name="story_markdown_rendering">Tampilkan Markdown cerita</string>
-    <string name="story_markdown_rendering_desc">Tampilkan bab dengan format Markdown.</string>
     <string name="story_markdown_edit">Edit teks asli</string>
     <string name="scroll_to_top">Gulir ke atas</string>
     <string name="scroll_to_bottom">Gulir ke bawah</string>
@@ -1348,7 +1278,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="backup_security_title">Pemberitahuan Keamanan dan Privasi</string>
     <string name="backup_status_title">Status Saat Ini</string>
     <string name="message_edit_separate_think">Pisahkan penalaran</string>
-    <string name="message_edit_separate_think_desc">Edit hanya jawaban dan pertahankan penalaran asli.</string>
     <string name="backup_details_title">Detail teknis</string>
     <string name="backup_details_copy">Salin</string>
     <string name="backup_details_copied">Detail disalin</string>
@@ -1378,11 +1307,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="character_background_enable_message">Pengaturan obrolan “Gunakan latar kartu karakter” dinonaktifkan. Aktifkan sekarang? Ini berlaku untuk semua obrolan dengan latar karakter.</string>
     <string name="character_background_enable_confirm">Aktifkan</string>
     <string name="character_background_enable_later">Nanti saja</string>
-    <string name="character_selection_count">%1$d dipilih</string>
-    <string name="select_all_characters">Pilih semua</string>
-    <string name="deselect_all_characters">Batalkan semua pilihan</string>
-    <string name="character_selected">Dipilih</string>
-    <string name="character_not_selected">Tidak dipilih</string>
     <string name="export_selected_characters_zip">Ekspor karakter terpilih sebagai ZIP</string>
     <string name="export_character_archive_success">ZIP karakter berhasil diekspor.</string>
     <string name="export_character_archive_limit">ZIP karakter melebihi batas impor. Pilih lebih sedikit kartu atau perkecil ukuran kartu yang besar.</string>
@@ -1399,12 +1323,20 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
 Gagal: %2$d</string>
     <string name="batch_import_reading_progress">Membaca %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Mengimpor %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Hapus %1$d karakter terpilih? Buku dunia terkait akan disimpan. Tindakan ini tidak dapat dibatalkan.</string>
-    <string name="world_book_batch_delete_message">Hapus %1$d buku dunia terpilih beserta semua entrinya? Tautan karakter akan dihapus. Tindakan ini tidak dapat dibatalkan.</string>
-    <string name="world_book_entry_batch_delete_message">Hapus %1$d entri terpilih? Penghapusan langsung berlaku dan tidak dapat dibatalkan.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="other">Hapus %1$d karakter terpilih? Buku dunia terkait akan disimpan. Tindakan ini tidak dapat dibatalkan.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="other">Hapus %1$d buku dunia terpilih beserta semua entrinya? Tautan karakter akan dihapus. Tindakan ini tidak dapat dibatalkan.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="other">Hapus %1$d entri terpilih? Penghapusan langsung berlaku dan tidak dapat dibatalkan.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">Impor buku dunia selesai</string>
-    <string name="world_book_batch_low_budget_message">%1$d buku dunia terpilih memiliki anggaran tetap yang rendah. Anggaran terendah adalah %2$d token. Gunakan anggaran global untuk buku-buku ini?</string>
-    <string name="world_book_archive_limit">ZIP buku dunia melebihi batas impor. Pilih lebih sedikit buku atau kurangi ukuran buku yang besar.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="other">%1$d buku dunia terpilih memiliki anggaran tetap yang rendah. Anggaran terendah adalah %2$d token. Gunakan anggaran global untuk buku-buku ini?</item>
+    </plurals>
+    <string name="world_book_archive_limit">Data buku dunia yang dipilih melebihi batas impor. Pilih lebih sedikit buku atau kurangi ukuran buku yang besar.</string>
     <string name="world_book_export_selected">Ekspor buku dunia terpilih sebagai ZIP</string>
 
     <string name="prompt_template_default">Default sistem</string>
@@ -1417,7 +1349,6 @@ Gagal: %2$d</string>
     <string name="prompt_template_failed">Tidak dapat memuat atau menyimpan templat. Coba lagi.</string>
     <string name="prompt_template_conflict">Templat ini telah berubah. Salin draf Anda, lalu tutup dan buka kembali editor.</string>
     <string name="prompt_template_active">Aktif</string>
-    <string name="prompt_template_scope">Berlaku untuk pembuatan obrolan, grup, cerita, dan ringkasan berikutnya. Penggantian khusus karakter dan sesi tetap berlaku.</string>
     <string name="prompt_template_search">Cari templat</string>
     <string name="prompt_template_all">Templat prompt</string>
     <string name="prompt_template_no_results">Tidak ada templat yang cocok</string>
@@ -1432,12 +1363,8 @@ Gagal: %2$d</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Tujuan hasil peniruan pengguna</string>
     <string name="user_writing_output_message">Riwayat chat</string>
-    <string name="user_writing_output_message_desc">Simpan pesan pengguna yang dihasilkan langsung ke percakapan.</string>
     <string name="user_writing_output_draft">Kotak input</string>
-    <string name="user_writing_output_draft_desc">Buat draf di kotak input, lalu edit dan kirim saat siap.</string>
     <string name="user_writing_no_body">Tidak ada teks pesan yang dihasilkan. Draf Anda tetap disimpan.</string>
-    <string name="prompt_user_writing_title">Prompt lanjutan di kotak input</string>
-    <string name="prompt_user_writing_desc">Digunakan saat menulis sebagai pengguna di kotak input. {{draft}} menyisipkan teks saat ini; tanpa makro ini, teks ditambahkan di akhir.</string>
     <string name="summary_mode">Mode ringkasan percakapan</string>
     <string name="summary_mode_raw">Raw (bertahap)</string>
     <string name="summary_mode_classic">Classic (konteks saat ini)</string>
@@ -1470,7 +1397,9 @@ Gagal: %2$d</string>
     <string name="prompt_status_default_empty">Bawaan · kosong</string>
     <string name="prompt_status_custom">Kustom</string>
     <string name="prompt_status_custom_empty">Kustom · kosong</string>
-    <string name="prompt_catalog_count">%1$d item</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="other">%1$d item</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">Batasan karakter yang berbicara dalam grup</string>
     <string name="prompt_catalog_continue_title">Instruksi lanjutan balasan karakter</string>
     <string name="prompt_catalog_impersonation_title">Instruksi penulisan pengguna di chat pribadi</string>

@@ -54,8 +54,7 @@ fun ChatLayout(
     )
     // 首次加载使用独立页面，业务弹窗仅在会话就绪后分发。
     when (uiState) {
-        ChatUiState.None -> Unit
-        ChatUiState.Loading -> AppLoadingPage(
+        ChatUiState.None, ChatUiState.Loading -> AppLoadingPage(
             title = stringResource(R.string.session),
             background = background,
             onBack = { ChatUiIntent.Back.emit() },

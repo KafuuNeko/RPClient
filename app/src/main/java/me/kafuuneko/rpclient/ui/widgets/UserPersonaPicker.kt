@@ -22,7 +22,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 
 /**
@@ -65,7 +64,7 @@ fun UserPersonaPicker(
         modifier = modifier.fillMaxWidth(),
     ) {
         PageOutlinedTextField(
-            value = if (state.selectedId == UserPersona.NONE) specialOption.orEmpty() else state.selectedName?.let { name ->
+            value = if (state.selectedId == PersonaSelection.NO_EXPLICIT_PERSONA) specialOption.orEmpty() else state.selectedName?.let { name ->
                 if (name in repeatedNames) stringResource(
                     id = R.string.persona_name_with_id,
                     formatArgs = arrayOf<Any>(name, state.selectedId),
@@ -95,8 +94,8 @@ fun UserPersonaPicker(
             if (specialOption != null) {
                 PersonaMenuItem(
                     name = specialOption,
-                    isSelected = state.selectedId == UserPersona.NONE,
-                    onClick = { choose(UserPersona.NONE) },
+                    isSelected = state.selectedId == PersonaSelection.NO_EXPLICIT_PERSONA,
+                    onClick = { choose(PersonaSelection.NO_EXPLICIT_PERSONA) },
                 )
             }
             state.options.forEach { persona ->

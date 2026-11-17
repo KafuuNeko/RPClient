@@ -214,18 +214,24 @@ class WorldBookListViewModel : CoreViewModelWithEvent<WorldBookListUiIntent, Wor
         var failures = 0
         var total = 0
         var bytes = 0L
+        var entryCount = 0
         val limits = LorebookArchiveLimits()
         for ((index, uri) in uris.withIndex()) {
             updateImportProgress(saving = false, completed = index, total = uris.size)
             try {
-                val result = mLorebookRepository.readImportItemsFromUri(uri)
+                val remaining = limits.copy(
+                    totalJsonBytes = limits.totalJsonBytes - bytes,
+                    totalBookEntries = limits.totalBookEntries - entryCount
+                )
+                val result = mLorebookRepository.readImportItemsFromUri(uri, remaining)
                 total += result.totalCount
                 // 超出批次预算的文档计入失败，已接受的有效文档仍可继续导入。
-                if (bytes + result.decodedBytes > limits.totalJsonBytes || drafts.size + result.drafts.size > limits.entries) {
+                if (drafts.size + result.drafts.size > limits.entries) {
                     failures += result.totalCount
                     continue
                 }
                 drafts += result.drafts
+                entryCount += result.drafts.sumOf { it.entries.size }
                 bytes += result.decodedBytes
                 failures += result.failureCount
             } catch (cancellation: CancellationException) {

@@ -51,7 +51,7 @@ class GroupChatActivity : CoreActivityWithEvent() {
 
     override fun getViewEventFlow() = mViewModel.viewEventFlow
 
-    /** 加载页和群聊页共用已解析的所属背景，首帧在 Compose 应用资源后放行。 */
+    /** 加载页和群聊页共用已解析的所属背景，背景及时就绪时随首帧显示。 */
     @Composable
     override fun ViewContent() {
         val uiState by mViewModel.uiStateFlow.collectAsState()
@@ -71,7 +71,7 @@ class GroupChatActivity : CoreActivityWithEvent() {
     }
 
     /**
-     * 建立首帧就绪约束后初始化群聊。
+     * 短暂等待首帧背景并初始化群聊。
      * @param savedInstanceState 系统保存的 Activity 状态。
      */
     override fun onCreate(savedInstanceState: Bundle?) {

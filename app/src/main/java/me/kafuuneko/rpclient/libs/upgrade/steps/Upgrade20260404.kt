@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.upgrade.steps
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ class Upgrade20260404(
     }
 
     /** 已有提示词选择只跳过提示词迁入，不影响本版本的人设升级。 */
+    @SuppressLint("UseKtx") // KTX edit 不返回 commit 的结果，升级需要据此决定是否继续。
     private fun migratePromptPreset() {
         if (mPreferences.contains("activePromptPresetId")) return
         val id = PromptPresetMigration.migrate(
@@ -45,6 +47,7 @@ class Upgrade20260404(
     }
 
     /** 确认两项迁入均完成，再同步删除旧键；失败时保留 Manager 的清理检查点。 */
+    @SuppressLint("UseKtx") // 清理成功写入后才能推进升级检查点。
     override suspend fun cleanup() = withContext(Dispatchers.IO) {
         check(mPreferences.contains("activePromptPresetId")) { "Prompt migration is incomplete" }
         UserPersonaUpgrade.validate(mDatabase.openHelper.writableDatabase)

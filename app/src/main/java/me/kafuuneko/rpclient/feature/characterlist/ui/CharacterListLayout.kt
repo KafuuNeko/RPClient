@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -246,8 +247,9 @@ private fun DialogSwitch(
         is CharacterListDialogState.DeleteSelectedConfirm -> AppDangerDialog(
             onDismissRequest = { CharacterListUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_selected_items_title),
-            message = stringResource(
-                R.string.character_batch_delete_message,
+            message = pluralStringResource(
+                R.plurals.character_batch_delete_message,
+                dialogState.characterIds.size,
                 dialogState.characterIds.size
             ),
             onConfirm = { CharacterListUiIntent.ConfirmDeleteSelectedCharacters.emit() },

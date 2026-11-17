@@ -9,7 +9,13 @@ import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
  * - 固定首次导入 ID，数据库提交后 SP 写入前中断也可重试。
  */
 internal object PromptPresetMigration {
-    /** 返回需要保存到 SP 的选择，调用方成功写入后才推进升级检查点。 */
+    /**
+     * 返回需要保存到 SP 的选择，调用方成功写入后才推进升级检查点。
+     * @param db 接收迁入记录的数据库。
+     * @param legacy 尚未迁入时读取旧配置的回调。
+     * @param migratedName 新建预设使用的本地化名称。
+     * @return 应保存为当前选择的预设 ID。
+     */
     fun migrate(
         db: SupportSQLiteDatabase,
         legacy: () -> LegacyPromptSnapshot,
@@ -34,13 +40,13 @@ internal object PromptPresetMigration {
             val now = System.currentTimeMillis()
             db.execSQL(
                 "INSERT INTO prompt_presets (id, name, description, revision, createdAt, updatedAt) VALUES (?, ?, '', 1, ?, ?)",
-                arrayOf(id, migratedName, now, now),
+                arrayOf<Any>(id, migratedName, now, now),
             )
             // 正文与元数据一次提交，空串只在它区别于默认值时作为覆盖保存。
             snapshot.values.forEach { (key, content) ->
                 db.execSQL(
                     "INSERT INTO prompt_preset_entries (presetId, promptKey, content) VALUES (?, ?, ?)",
-                    arrayOf(id, key, content)
+                    arrayOf<Any>(id, key, content)
                 )
             }
             db.setTransactionSuccessful()

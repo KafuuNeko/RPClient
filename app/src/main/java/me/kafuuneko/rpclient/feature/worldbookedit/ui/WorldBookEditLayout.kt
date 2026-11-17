@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -650,8 +651,9 @@ private fun DialogSwitch(
         is WorldBookEditDialogState.DeleteEntriesConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookEditUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_selected_items_title),
-            message = stringResource(
-                R.string.world_book_entry_batch_delete_message,
+            message = pluralStringResource(
+                R.plurals.world_book_entry_batch_delete_message,
+                dialogState.entryIds.size,
                 dialogState.entryIds.size
             ),
             onConfirm = { WorldBookEditUiIntent.ConfirmDeleteSelectedEntries.emit() },

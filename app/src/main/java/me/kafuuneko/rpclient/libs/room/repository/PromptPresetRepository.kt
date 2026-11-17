@@ -19,21 +19,31 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
     private val mDao = mDatabase.getPromptPresetDao()
     private val mActiveId = MutableStateFlow(AppModel.activePromptPresetId)
 
-    /** 合并自定义列表与轻量选择状态，默认预设不需要数据库记录。 */
+    /**
+     * 合并自定义列表与轻量选择状态，默认预设不需要数据库记录。
+     * @return 包含内置预设及启用标记的列表流。
+     */
     fun observePresets() = combine(mDao.observePresets(), mActiveId) { presets, selected ->
         val active = selected.takeIf { id -> presets.any { it.id == id } }
             ?: PromptTemplateSnapshot.BUILTIN_ID
         (listOf(defaultPreset()) + presets).map { PromptPresetListing(it, it.id == active) }
     }
 
-    /** 读取指定预设，-1 直接返回枚举默认值。 */
+    /**
+     * 读取指定预设，-1 直接返回枚举默认值。
+     * @param id 预设 ID。
+     * @return 元数据与已解析的模板快照。
+     */
     suspend fun getDetail(id: Long): PromptPresetDetail = mDatabase.withTransaction {
         val preset = if (id == PromptTemplateSnapshot.BUILTIN_ID) defaultPreset() else
             requireNotNull(mDao.getPreset(id)) { "Prompt preset is missing" }
         PromptPresetDetail(preset, readSnapshot(preset))
     }
 
-    /** 捕获当前整套配置；选择失效时回到默认值，不影响已有请求快照。 */
+    /**
+     * 捕获当前整套配置；选择失效时回到默认值，不影响已有请求快照。
+     * @return 本次请求使用的模板与构建参数。
+     */
     suspend fun getActiveSnapshot(): PromptTemplateSnapshot = mDatabase.withTransaction {
         val selected = AppModel.activePromptPresetId
         val preset =
@@ -52,7 +62,13 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
         )
     }
 
-    /** 新建时只插入元数据；复制时只复制来源的覆盖项，不自动启用。 */
+    /**
+     * 新建预设，复制来源的覆盖项并保留当前启用的预设。
+     * @param sourceId 来源预设 ID，使用内置预设时只创建元数据。
+     * @param name 新预设的非空名称。
+     * @param description 新预设的说明。
+     * @return 新建预设的 ID。
+     */
     suspend fun create(
         sourceId: Long = PromptTemplateSnapshot.BUILTIN_ID,
         name: String,
@@ -77,7 +93,13 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
         id
     }
 
-    /** 使用 revision 防止另一页面覆盖尚未看到的修改。 */
+    /**
+     * 使用 revision 防止另一页面覆盖尚未看到的修改。
+     * @param id 自定义预设 ID。
+     * @param revision 编辑器读取的版本号。
+     * @param name 新名称。
+     * @param description 新说明。
+     */
     suspend fun rename(id: Long, revision: Long, name: String, description: String) =
         mDatabase.withTransaction {
             require(id != PromptTemplateSnapshot.BUILTIN_ID && name.isNotBlank()) { "Invalid custom prompt preset" }
@@ -92,7 +114,13 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
             )
         }
 
-    /** 按原文比较默认值；恢复默认删除条目，显式空串与空白保持各自语义。 */
+    /**
+     * 按原文比较默认值；恢复默认删除条目，显式空串与空白保持各自语义。
+     * @param id 自定义预设 ID。
+     * @param revision 编辑器读取的版本号。
+     * @param type 要修改的模板类型。
+     * @param content 当前编辑的正文。
+     */
     suspend fun savePrompt(id: Long, revision: Long, type: PromptType, content: String) =
         mDatabase.withTransaction {
             require(id != PromptTemplateSnapshot.BUILTIN_ID) { "Default prompt preset is read-only" }
@@ -111,13 +139,19 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
             else mDao.saveEntry(PromptPresetEntry(id, type.key, content))
         }
 
-    /** 校验自定义预设存在后把当前 ID 保存到 AppModel。 */
+    /**
+     * 校验自定义预设存在后把当前 ID 保存到 AppModel。
+     * @param id 要启用的预设 ID。
+     */
     suspend fun activate(id: Long) = mDatabase.withTransaction {
         if (id != PromptTemplateSnapshot.BUILTIN_ID) checkNotNull(mDao.getPreset(id)) { "Prompt preset is missing" }
         setActiveId(id)
     }
 
-    /** 先回到默认选择再删除当前预设，中断时最多保留尚未删除的自定义记录。 */
+    /**
+     * 先回到默认选择再删除当前预设，中断时最多保留尚未删除的自定义记录。
+     * @param id 要删除的自定义预设 ID。
+     */
     suspend fun delete(id: Long) = mDatabase.withTransaction {
         require(id != PromptTemplateSnapshot.BUILTIN_ID) { "Default prompt preset is read-only" }
         if (AppModel.activePromptPresetId == id) setActiveId(PromptTemplateSnapshot.BUILTIN_ID)

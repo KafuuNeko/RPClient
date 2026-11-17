@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">方圓</string>
     <string name="image_crop_shape_circle">圓形</string>
     <string name="about">關於</string>
-    <string name="about_desc">應用版本、聯絡信箱與開源倉庫</string>
     <string name="unknown_version">未知版本</string>
     <string name="developer_contact">聯絡信箱</string>
     <string name="tech_stack_label">技術棧</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 豐富</string>
     <string name="parameter_preset_topp_full">1.0 完整</string>
     <string name="streaming_response">串流回應</string>
-    <string name="streaming_response_desc">即時顯示模型輸出，支援停止生成</string>
     <string name="new_session_desc">選擇角色、備註和世界書條目</string>
     <string name="no_recent_chats">暫無最近聊天</string>
     <string name="no_recent_chats_desc">建立會話以開始新的對話。</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">每次請求最大訊息數</string>
     <string name="summary_max_messages_helper">0 表示由上下文預算決定</string>
     <string name="summary_response_tokens">摘要回應 Tokens</string>
-    <string name="summary_injection_template">摘要注入範本</string>
-    <string name="summary_injection_template_desc">使用 {{summary}} 作為記憶佔位符。</string>
     <string name="summary_injection_position">摘要注入位置</string>
     <string name="summary_position_before_character">角色定義之前</string>
     <string name="summary_position_after_character">角色定義之後</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">未知角色</string>
     <string name="no_messages_yet">暫無訊息</string>
     <string name="debug_mode">偵錯模式</string>
-    <string name="debug_mode_desc">在本機資料庫記錄原始 LLM 請求和回應 JSON</string>
     <string name="request_logs">請求記錄</string>
     <string name="request_logs_subtitle">原始 LLM 請求和回應 JSON，最新在前</string>
-    <string name="request_logs_entry_subtitle">檢視並複製原始 LLM 請求記錄</string>
     <string name="no_request_logs">暫無請求記錄</string>
     <string name="no_request_logs_desc">啟用偵錯模式並傳送一次 LLM 請求後會建立記錄。</string>
     <string name="clear_logs">清空記錄</string>
     <string name="clear_logs_confirm">確定要清空所有請求記錄嗎？此操作無法復原。</string>
     <string name="token_usage">消耗統計</string>
     <string name="token_usage_subtitle">成功 LLM 請求的 Token 預估，依模型與 API Host 彙總</string>
-    <string name="token_usage_entry_subtitle">依模型與 API Host 檢視輸入、輸出 Token 預估</string>
     <string name="token_usage_notice_title">統計結果為預估值</string>
     <string name="token_usage_notice_desc">優先採用服務端回報值，缺少部分由本機估算，可能與帳單存在差異。</string>
     <string name="token_usage_today">今天</string>
@@ -585,40 +578,14 @@
     <string name="prompt_preset_title">系統提示詞預設</string>
     <string name="prompt_preset_subtitle">管理 SillyTavern 風格的系統提示詞、工具提示詞和格式範本</string>
     <string name="prompt_preset_section">提示詞範本</string>
-    <string name="prompt_preset_entry_subtitle">管理系統提示詞預設和工具提示詞</string>
     <string name="prompt_behavior_section">請求行為</string>
-    <string name="prompt_manager_section">Prompt Manager</string>
-    <string name="prompt_utility_section">工具提示詞</string>
-    <string name="prompt_format_section">格式範本</string>
-    <string name="prompt_summary_section">摘要</string>
     <string name="prompt_main_title">主提示詞</string>
-    <string name="prompt_main_desc">注入每個會話開頭的主要系統提示詞</string>
     <string name="prompt_auxiliary_title">輔助提示詞</string>
-    <string name="prompt_auxiliary_desc">隨角色定義一起放在聊天歷史之前的附加系統提示詞</string>
     <string name="prompt_post_history_title">歷史後指令</string>
-    <string name="prompt_post_history_desc">追加在聊天歷史之後的最終系統指令</string>
-    <string name="prompt_summarize_title">摘要提示詞</string>
-    <string name="prompt_summarize_desc">用於將長上下文壓縮為短摘要的提示詞</string>
-    <string name="prompt_impersonation_title">扮演使用者提示詞</string>
-    <string name="prompt_impersonation_desc">從使用者人格視角生成回覆時使用</string>
-    <string name="prompt_new_chat_title">新聊天提示詞</string>
-    <string name="prompt_new_chat_desc">放在新聊天歷史之前的標記</string>
-    <string name="prompt_new_example_chat_title">新範例聊天提示詞</string>
-    <string name="prompt_new_example_chat_desc">放在範例對話區塊之前的標記</string>
-    <string name="prompt_continue_nudge_title">續寫提示詞</string>
-    <string name="prompt_continue_nudge_desc">繼續上一條助手訊息時使用的指令</string>
-    <string name="prompt_replace_empty_message_title">空訊息替換</string>
-    <string name="prompt_replace_empty_message_desc">輸入框為空時傳送的文字</string>
     <string name="prompt_world_info_format_title">世界書格式</string>
-    <string name="prompt_world_info_format_desc">啟用世界書條目的包裝範本；使用 {0} 作為佔位符</string>
     <string name="prompt_scenario_format_title">場景格式</string>
-    <string name="prompt_scenario_format_desc">角色場景的包裝範本；使用 {{scenario}} 作為佔位符</string>
     <string name="prompt_personality_format_title">性格格式</string>
-    <string name="prompt_personality_format_desc">角色性格的包裝範本；使用 {{personality}} 作為佔位符</string>
     <string name="prompt_user_persona_format_title">使用者人設格式</string>
-    <string name="prompt_user_persona_format_desc">使用者人設的包裝範本；使用 {{persona}} 和 {{user}} 作為佔位符</string>
-    <string name="prompt_empty_hint">點選設定提示詞...</string>
-    <string name="prompt_edit_hint">點選編輯</string>
     <string name="prompt_editor_label">提示詞內容</string>
     <string name="prompt_editor_placeholder">在此輸入系統提示詞…</string>
     <string name="prompt_editor_restore_default">還原預設值</string>
@@ -637,7 +604,6 @@
     <string name="prompt_post_processing_single_user">Single user message</string>
     <string name="prompt_post_processing_single_user_desc">把所有訊息轉為 user，補上發言者名稱後合併為一則訊息。</string>
     <string name="prompt_example_behavior_title">範例對話策略</string>
-    <string name="prompt_example_behavior_desc">選擇真實歷史或角色卡範例優先使用剩餘上下文預算。</string>
     <string name="prompt_max_history_messages">Prompt 最大歷史訊息數</string>
     <string name="prompt_max_history_messages_helper">一般生成只使用最近的歷史訊息；0 表示不限制</string>
     <string name="world_info_budget_section">世界資訊預算</string>
@@ -647,15 +613,12 @@
     <string name="world_info_budget_cap">預算上限</string>
     <string name="world_info_budget_cap_helper">套用上下文百分比後世界資訊可使用的最大 Token 數；0 表示不設上限</string>
     <string name="world_info_overflow_alert">預算耗盡時提醒</string>
-    <string name="world_info_overflow_alert_desc">已觸發條目無法放入世界資訊預算時顯示提示。</string>
     <string name="context_trimming_alert">上下文裁剪提示</string>
-    <string name="context_trimming_alert_desc">為配合上下文限制而移除較早訊息或可選 Prompt 內容時顯示提示。</string>
     <string name="world_info_budget_overflow_warning">部分已觸發的世界資訊條目因世界資訊預算不足而未加入上下文。</string>
     <string name="prompt_example_behavior_normal">優先歷史</string>
     <string name="prompt_example_behavior_pinned">固定範例</string>
     <string name="prompt_example_behavior_disabled">停用</string>
     <string name="prompt_include_think_context_title">上下文包含 think 區塊</string>
-    <string name="prompt_include_think_context_desc">關閉後，後續 prompt 會剝離已保存訊息中的 &lt;think&gt;...&lt;/think&gt; 內容。</string>
     <string name="selected_count">已選 %d 項</string>
     <string name="delete_selected_sessions_title">刪除已選會話</string>
     <string name="delete_selected_sessions_message">刪除 %d 個已選會話及其所有訊息？此操作無法復原。</string>
@@ -715,15 +678,7 @@
         <item quantity="other">%1$d 名成員</item>
     </plurals>
     <string name="prompt_group_nudge_title">群聊約束提示詞</string>
-    <string name="prompt_group_nudge_desc">限制每次生成僅由指定角色發言的最終指令。</string>
-    <string name="prompt_group_impersonation_title">群聊扮演使用者提示詞</string>
-    <string name="prompt_group_impersonation_desc">用於群聊中的使用者身分代寫。{{group}} 為全部成員，{{groupNotMuted}} 為未靜音成員。</string>
-    <string name="prompt_group_user_writing_title">群聊輸入框續寫提示詞</string>
-    <string name="prompt_group_user_writing_desc">用於群聊扮演使用者的輸入框輸出。{{draft}} 插入目前文字，未使用此巨集時會在末尾附加原文。</string>
     <string name="prompt_new_group_chat_title">新群聊提示詞</string>
-    <string name="prompt_new_group_chat_desc">插入在新群聊記錄前的邊界提示。</string>
-    <string name="prompt_group_summarize_title">群聊摘要提示詞</string>
-    <string name="prompt_group_summarize_desc">保留不同發言者資訊的群聊記憶提示詞。</string>
     <string name="group_chat_settings">群聊設定</string>
     <string name="group_chat_basic_settings">會話資訊</string>
     <string name="group_chat_scenario">群聊場景</string>
@@ -868,8 +823,6 @@
     <string name="model_request_failed_desc">%1$s\n\n可前往「模型設定」檢查 API Key、Base URL、模型名稱和帳號權限，或切換其他設定後重試。</string>
     <string name="data_management">資料管理</string>
     <string name="import_chat">匯入對話</string>
-    <string name="import_chat_desc">匯入酒館或 RPClient 的 JSONL 對話</string>
-    <string name="reading_chat_file">正在讀取對話檔案…</string>
     <string name="import_chat_failed">匯入對話失敗</string>
     <string name="import_chat_success">對話已匯入</string>
     <string name="select_import_character_title">關聯角色卡</string>
@@ -894,14 +847,11 @@
     <string name="move_down">下移</string>
     <string name="move_up">上移</string>
     <string name="story_author_note">作者備註</string>
-    <string name="story_author_note_desc">用簡短而明確的指令約束文風、視角和下一幕方向。</string>
-    <string name="story_include_user_persona">注入使用者人設</string>
     <string name="story_character_primary">主角</string>
     <string name="story_character_always">常駐</string>
     <string name="story_character_auto">自動</string>
     <string name="story_character_count">%1$d 字</string>
     <string name="story_character_references">角色參考</string>
-    <string name="story_character_references_desc">選中的角色卡構成本故事的候選人物。常駐角色每次注入，自動角色按名稱或別名啟用。</string>
     <string name="story_context_settings">上下文</string>
     <string name="story_continue">續寫</string>
     <string name="story_continuation_guidance">續寫引導</string>
@@ -949,7 +899,6 @@
     <string name="story_loading_settings">正在載入故事設定……</string>
     <string name="story_lorebook_empty">這本世界書還沒有條目。</string>
     <string name="story_memory">長期記憶</string>
-    <string name="story_memory_desc">長期設定、大綱、未來計畫和寫作約束。</string>
     <string name="story_my_stories">我的故事</string>
     <string name="story_no_characters">請先建立角色卡，再加入故事角色參考。</string>
     <string name="story_character_references_count">%1$d 個角色參考</string>
@@ -1007,17 +956,8 @@
     <string name="story_undo">復原上次修改</string>
     <string name="story_redo">重做上次修改</string>
     <string name="story_unsaved">未儲存</string>
-    <string name="prompt_story_continue_desc">在正文末尾繼續寫作時使用的任務</string>
     <string name="prompt_story_continue_title">故事續寫</string>
-    <string name="prompt_story_main_desc">所有故事寫作操作共用的系統指令</string>
     <string name="prompt_story_main_title">故事主提示詞</string>
-    <string name="prompt_story_memory_title">記憶注入範本</string>
-    <string name="prompt_story_memory_desc">使用 {{memory}} 佔位符包裝長期故事記憶的系統訊息範本</string>
-    <string name="prompt_story_summary_title">摘要注入範本</string>
-    <string name="prompt_story_summary_desc">使用 {{summary}} 佔位符包裝目前劇情摘要的系統訊息範本</string>
-    <string name="prompt_story_continuation_guidance_title">續寫引導範本</string>
-    <string name="prompt_story_continuation_guidance_desc">使用 {{guidance}} 佔位符包裝本次續寫引導的系統訊息範本</string>
-    <string name="prompt_story_section">故事寫作</string>
     <string name="prompt_source_story_author_note">作者註記</string>
     <string name="prompt_source_story_character">故事角色</string>
     <string name="prompt_source_story_document">正文上下文</string>
@@ -1036,8 +976,6 @@
     <string name="story_summary_failed">無法摘要此故事，請檢查目前模型設定及上下文設定。</string>
     <string name="story_summary_conflict">產生摘要期間正文發生了變化，請重新產生。</string>
     <string name="story_summary_updated">劇情摘要已更新</string>
-    <string name="prompt_story_summarize_title">故事摘要提示詞</string>
-    <string name="prompt_story_summarize_desc">控制劇情摘要的更新方式</string>
     <string name="prompt_source_story_summary">劇情摘要</string>
     <string name="request_extensions">請求擴充</string>
     <string name="request_body_patch_description">將額外欄位（包括供應商原生思考設定）合併至產生的請求主體。RPClient 會保護由應用程式管理的結構與產生參數。</string>
@@ -1135,7 +1073,6 @@
     <string name="character_model_config">角色模型設定</string>
     <string name="character_model_config_helper">用於此角色的回覆；停用後仍保留綁定，直到手動變更。</string>
     <string name="summary_model_config">摘要模型設定</string>
-    <string name="summary_model_config_helper">用於單人聊天、群組聊天和故事摘要。</string>
     <string name="unnamed_model_config">未命名模型設定</string>
     <string name="disabled_model_config_format">%1$s（已停用）</string>
     <string name="delete_model_config">刪除模型設定</string>
@@ -1179,7 +1116,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">摘要輸出額度不足</string>
     <string name="summary_token_limit_message">摘要已達到輸出 Token 上限，未儲存本次結果。模型思考也會占用此額度。請前往設定頁的“%1$s”→“%2$s”，提高“%3$s”後重試。</string>
     <string name="summary_go_to_settings">前往設定</string>
@@ -1192,7 +1129,6 @@
     <string name="about_build_number">Build 編號</string>
     <string name="about_rate_action">去評分</string>
     <string name="image_send_title">圖片傳送（進階）</string>
-    <string name="image_send_description">僅在傳送訊息或儲存編輯時處理新增圖片。只保留處理後的圖片，既有附件保持不變。</string>
     <string name="image_send_auto">自動</string>
     <string name="image_send_original">原圖</string>
     <string name="image_send_custom">自訂</string>
@@ -1301,8 +1237,6 @@
     <string name="content_search_newer">載入較新訊息</string>
     <string name="content_search_latest">回到最新訊息</string>
     <string name="content_search_index_title">搜尋加速</string>
-    <string name="content_search_index_enabled">搜尋加速已開啟</string>
-    <string name="content_search_index_disabled">一般搜尋逐筆掃描已儲存內容</string>
     <string name="content_search_index_enable">開啟</string>
     <string name="content_search_index_disable">關閉並清理</string>
     <string name="content_search_index_confirm_title">開啟搜尋加速？</string>
@@ -1312,10 +1246,7 @@
     <string name="content_search_index_building">正在建立索引…已處理 %1$d 項</string>
     <string name="content_search_index_cleaning">正在清除索引並回收空間…</string>
     <string name="content_search_index_cleanup_failed">清理未完成。請釋放部分儲存空間或等待其他工作結束後重試。搜尋加速保持關閉。</string>
-    <string name="content_search_index_failed">搜尋加速無法使用，可以使用一般搜尋。</string>
     <string name="backup_restore_title">備份與還原</string>
-    <string name="backup_restore_entry_desc">匯出或還原包含應用程式資料與設定的 ZIP 備份</string>
-    <string name="backup_restore_description">將全部應用程式資料匯出為可讀的 JSONL 和 JSON，包括角色、故事、單聊、群聊、世界書、模型設定、API 金鑰、Token 用量、請求日誌、偏好設定與附件。還原會完全取代目前資料並重新啟動 RPClient。</string>
     <string name="backup_restore_security_warning">安全提醒：RPClient-Portable-Data.zip 未加密，包含 API 金鑰、自訂請求標頭、請求日誌、私密對話與附件。任何取得此檔案的人都能讀取其中資料，請妥善保管。</string>
     <string name="backup_export_action">匯出 ZIP 備份</string>
     <string name="backup_restore_action">從 ZIP 還原</string>
@@ -1328,7 +1259,6 @@
     <string name="backup_restore_confirm_title">取代目前應用程式資料？</string>
     <string name="backup_restore_confirm_message">完整還原將取代目前所有應用程式資料，包括模型設定與 API 金鑰、角色、故事、單聊、群聊、世界書、正則腳本、用量記錄、請求日誌、偏好設定與附件，不會合併資料。如需保留目前資料，請先匯出備份。</string>
     <string name="story_markdown_rendering">渲染故事 Markdown</string>
-    <string name="story_markdown_rendering_desc">以 Markdown 格式顯示故事章節。</string>
     <string name="story_markdown_edit">編輯原文</string>
     <string name="scroll_to_top">捲動至頂部</string>
     <string name="scroll_to_bottom">捲動至底部</string>
@@ -1342,7 +1272,6 @@
     <string name="backup_security_title">安全與隱私說明</string>
     <string name="backup_status_title">目前狀態</string>
     <string name="message_edit_separate_think">分離思考鏈</string>
-    <string name="message_edit_separate_think_desc">編輯時僅修改正文，保留原有思考鏈。</string>
     <string name="backup_details_title">技術詳情</string>
     <string name="backup_details_copy">複製</string>
     <string name="backup_details_copied">詳情已複製</string>
@@ -1372,11 +1301,6 @@
     <string name="character_background_enable_message">對話背景中的「使用角色卡背景」尚未開啟，是否立即啟用？此設定將套用至所有設有角色背景的對話。</string>
     <string name="character_background_enable_confirm">立即啟用</string>
     <string name="character_background_enable_later">暫不啟用</string>
-    <string name="character_selection_count">已選取 %1$d 個</string>
-    <string name="select_all_characters">全選</string>
-    <string name="deselect_all_characters">取消全選</string>
-    <string name="character_selected">已選取</string>
-    <string name="character_not_selected">未選取</string>
     <string name="export_selected_characters_zip">將所選角色匯出為 ZIP</string>
     <string name="export_character_archive_success">角色 ZIP 匯出成功。</string>
     <string name="export_character_archive_limit">角色 ZIP 超出匯入限制。請減少所選角色數量，或縮小單張大卡的內容。</string>
@@ -1392,12 +1316,20 @@
     <string name="batch_import_result_message">成功匯入：%1$d\n匯入失敗：%2$d</string>
     <string name="batch_import_reading_progress">正在解析 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">正在匯入 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">刪除選取的 %1$d 個角色？關聯的世界書將保留。此操作無法復原。</string>
-    <string name="world_book_batch_delete_message">刪除選取的 %1$d 本世界書及其全部條目？角色綁定也將解除。此操作無法復原。</string>
-    <string name="world_book_entry_batch_delete_message">刪除選取的 %1$d 個條目？刪除將立即生效，且無法復原。</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="other">刪除選取的 %1$d 個角色？關聯的世界書將保留。此操作無法復原。</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="other">刪除選取的 %1$d 本世界書及其全部條目？角色綁定也將解除。此操作無法復原。</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="other">刪除選取的 %1$d 個條目？刪除將立即生效，且無法復原。</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">世界書匯入完成</string>
-    <string name="world_book_batch_low_budget_message">選取的 %1$d 本世界書使用了較低的固定預算，最低為 %2$d Token。是否讓這些世界書跟隨全域預算？</string>
-    <string name="world_book_archive_limit">世界書 ZIP 超出匯入限制。請減少選取數量，或縮減較大世界書的內容。</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="other">選取的 %1$d 本世界書使用了較低的固定預算，最低為 %2$d Token。是否讓這些世界書跟隨全域預算？</item>
+    </plurals>
+    <string name="world_book_archive_limit">所選世界書資料超出匯入限制。請減少選取數量，或縮減較大世界書的內容。</string>
     <string name="world_book_export_selected">將選取的世界書匯出為 ZIP</string>
 
     <string name="prompt_template_default">系統預設</string>
@@ -1410,7 +1342,6 @@
     <string name="prompt_template_failed">範本讀取或儲存失敗，請重試。</string>
     <string name="prompt_template_conflict">範本已被修改。請先複製草稿，再關閉並重新開啟編輯器。</string>
     <string name="prompt_template_active">目前啟用</string>
-    <string name="prompt_template_scope">用於後續單人聊天、群組聊天、故事與摘要生成。角色和對話的個別覆寫仍然生效。</string>
     <string name="prompt_template_search">搜尋範本</string>
     <string name="prompt_template_all">提示詞範本</string>
     <string name="prompt_template_no_results">沒有相符的範本</string>
@@ -1425,12 +1356,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">扮演使用者輸出方式</string>
     <string name="user_writing_output_message">寫入聊天記錄</string>
-    <string name="user_writing_output_message_desc">將產生的使用者訊息直接儲存至對話中。</string>
     <string name="user_writing_output_draft">填入輸入框</string>
-    <string name="user_writing_output_draft_desc">在輸入框中產生草稿，編輯完成後自行傳送。</string>
     <string name="user_writing_no_body">未產生可用正文，已保留原有草稿。</string>
-    <string name="prompt_user_writing_title">輸入框續寫提示詞</string>
-    <string name="prompt_user_writing_desc">用於扮演使用者時續寫輸入框。{{draft}} 插入目前輸入；省略此巨集時，輸入文字會附在提示詞末尾。</string>
     <string name="summary_mode">對話摘要模式</string>
     <string name="summary_mode_raw">Raw（增量摘要）</string>
     <string name="summary_mode_classic">Classic（目前上下文）</string>
@@ -1463,7 +1390,9 @@
     <string name="prompt_status_default_empty">預設 · 空白內容</string>
     <string name="prompt_status_custom">自訂</string>
     <string name="prompt_status_custom_empty">自訂 · 空白內容</string>
-    <string name="prompt_catalog_count">%1$d 項</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="other">%1$d 項</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">群聊發言角色約束</string>
     <string name="prompt_catalog_continue_title">角色訊息續寫指令</string>
     <string name="prompt_catalog_impersonation_title">單聊使用者代寫指令</string>

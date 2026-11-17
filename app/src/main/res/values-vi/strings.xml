@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">Hình vuông bo góc</string>
     <string name="image_crop_shape_circle">Hình tròn</string>
     <string name="about">Giới thiệu</string>
-    <string name="about_desc">Phiên bản ứng dụng, email và kho lưu trữ mã nguồn</string>
     <string name="unknown_version">Phiên bản không xác định</string>
     <string name="developer_contact">Liên hệ nhà phát triển</string>
     <string name="tech_stack_label">Ngăn xếp công nghệ</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 Phong phú</string>
     <string name="parameter_preset_topp_full">1.0 Tối đa</string>
     <string name="streaming_response">Phản hồi dạng luồng</string>
-    <string name="streaming_response_desc">Hiển thị phản hồi của mô hình theo thời gian thực, hỗ trợ dừng tạo văn bản</string>
     <string name="new_session_desc">Chọn nhân vật, ghi chú và các mục sách thế giới</string>
     <string name="no_recent_chats">Không có cuộc trò chuyện gần đây</string>
     <string name="no_recent_chats_desc">Tạo một phiên để bắt đầu cuộc trò chuyện mới.</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">Số tin nhắn tối đa mỗi yêu cầu</string>
     <string name="summary_max_messages_helper">0 để ngân sách ngữ cảnh tự quyết định</string>
     <string name="summary_response_tokens">Token phản hồi tóm tắt</string>
-    <string name="summary_injection_template">Mẫu chèn tóm tắt</string>
-    <string name="summary_injection_template_desc">Sử dụng {{summary}} làm trình giữ chỗ cho bộ nhớ.</string>
     <string name="summary_injection_position">Vị trí chèn tóm tắt</string>
     <string name="summary_position_before_character">Trước định nghĩa nhân vật</string>
     <string name="summary_position_after_character">Sau định nghĩa nhân vật</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">Nhân vật không xác định</string>
     <string name="no_messages_yet">Chưa có tin nhắn nào</string>
     <string name="debug_mode">Chế độ gỡ lỗi</string>
-    <string name="debug_mode_desc">Ghi lại JSON yêu cầu và phản hồi LLM thô vào cơ sở dữ liệu cục bộ</string>
     <string name="request_logs">Nhật ký yêu cầu</string>
     <string name="request_logs_subtitle">JSON yêu cầu và phản hồi LLM thô, mới nhất trước</string>
-    <string name="request_logs_entry_subtitle">Xem và sao chép các bản ghi yêu cầu LLM thô</string>
     <string name="no_request_logs">Không có nhật ký yêu cầu</string>
     <string name="no_request_logs_desc">Bật chế độ gỡ lỗi và gửi một yêu cầu LLM để tạo bản ghi.</string>
     <string name="clear_logs">Xóa nhật ký</string>
     <string name="clear_logs_confirm">Bạn có chắc chắn muốn xóa tất cả nhật ký yêu cầu không? Thao tác này không thể hoàn tác.</string>
     <string name="token_usage">Thống kê Token</string>
     <string name="token_usage_subtitle">Ước tính mức sử dụng cho các yêu cầu LLM thành công, nhóm theo mô hình và API host</string>
-    <string name="token_usage_entry_subtitle">Xem ước tính token đầu vào và đầu ra theo mô hình và API host</string>
     <string name="token_usage_notice_title">Mức sử dụng chỉ là ước tính</string>
     <string name="token_usage_notice_desc">Ưu tiên giá trị do nhà cung cấp báo cáo. Các giá trị thiếu sẽ được ước tính cục bộ và có thể khác với hóa đơn thực tế.</string>
     <string name="token_usage_today">Hôm nay</string>
@@ -676,40 +669,14 @@ Thất bại: %2$d</string>
     <string name="prompt_preset_title">Cấu hình sẵn Prompt hệ thống</string>
     <string name="prompt_preset_subtitle">Quản lý prompt hệ thống theo phong cách SillyTavern, tiện ích và mẫu định dạng</string>
     <string name="prompt_preset_section">Mẫu Prompt</string>
-    <string name="prompt_preset_entry_subtitle">Quản lý cấu hình sẵn prompt hệ thống và prompt tiện ích</string>
     <string name="prompt_behavior_section">Hành vi yêu cầu</string>
-    <string name="prompt_manager_section">Trình quản lý Prompt</string>
-    <string name="prompt_utility_section">Prompt tiện ích</string>
-    <string name="prompt_format_section">Mẫu định dạng</string>
-    <string name="prompt_summary_section">Tóm tắt</string>
     <string name="prompt_main_title">Prompt chính</string>
-    <string name="prompt_main_desc">Prompt hệ thống chính được chèn vào đầu mỗi phiên</string>
     <string name="prompt_auxiliary_title">Prompt phụ trợ</string>
-    <string name="prompt_auxiliary_desc">Prompt hệ thống bổ sung được đặt cùng định nghĩa nhân vật trước lịch sử trò chuyện</string>
     <string name="prompt_post_history_title">Hướng dẫn sau lịch sử</string>
-    <string name="prompt_post_history_desc">Các chỉ dẫn hệ thống cuối cùng được nối vào sau lịch sử trò chuyện</string>
-    <string name="prompt_summarize_title">Prompt tóm tắt</string>
-    <string name="prompt_summarize_desc">Prompt dùng để nén ngữ cảnh dài thành một bản tóm tắt ngắn</string>
-    <string name="prompt_impersonation_title">Prompt đóng vai người dùng</string>
-    <string name="prompt_impersonation_desc">Được dùng khi tạo phản hồi từ góc nhìn persona người dùng</string>
-    <string name="prompt_new_chat_title">Prompt trò chuyện mới</string>
-    <string name="prompt_new_chat_desc">Dấu đánh dấu được gửi trước lịch sử trò chuyện mới</string>
-    <string name="prompt_new_example_chat_title">Prompt trò chuyện mẫu mới</string>
-    <string name="prompt_new_example_chat_desc">Dấu đánh dấu được gửi trước các khối đối thoại mẫu</string>
-    <string name="prompt_continue_nudge_title">Prompt nhắc viết tiếp</string>
-    <string name="prompt_continue_nudge_desc">Hướng dẫn được dùng khi viết tiếp tin nhắn trước đó của trợ lý</string>
-    <string name="prompt_replace_empty_message_title">Thay thế tin nhắn trống</string>
-    <string name="prompt_replace_empty_message_desc">Văn bản gửi đi khi hộp nhập liệu trống</string>
     <string name="prompt_world_info_format_title">Định dạng sách thế giới</string>
-    <string name="prompt_world_info_format_desc">Mẫu cho các mục sách thế giới được kích hoạt; sử dụng {0} làm dấu giữ chỗ</string>
     <string name="prompt_scenario_format_title">Định dạng ngữ cảnh</string>
-    <string name="prompt_scenario_format_desc">Mẫu cho ngữ cảnh nhân vật; sử dụng {{scenario}} làm dấu giữ chỗ</string>
     <string name="prompt_personality_format_title">Định dạng tính cách</string>
-    <string name="prompt_personality_format_desc">Mẫu cho tính cách nhân vật; sử dụng {{personality}} làm dấu giữ chỗ</string>
     <string name="prompt_user_persona_format_title">Định dạng persona người dùng</string>
-    <string name="prompt_user_persona_format_desc">Mẫu cho persona người dùng; sử dụng {{persona}} và {{user}} làm dấu giữ chỗ</string>
-    <string name="prompt_empty_hint">Chạm để đặt prompt…</string>
-    <string name="prompt_edit_hint">Chạm để chỉnh sửa</string>
     <string name="prompt_editor_label">Nội dung Prompt</string>
     <string name="prompt_editor_placeholder">Nhập prompt hệ thống của bạn tại đây…</string>
     <string name="prompt_editor_restore_default">Khôi phục mặc định</string>
@@ -728,7 +695,6 @@ Thất bại: %2$d</string>
     <string name="prompt_post_processing_single_user">Tin nhắn người dùng đơn lẻ</string>
     <string name="prompt_post_processing_single_user_desc">Chuyển đổi mọi tin nhắn thành người dùng, thêm tên người nói, sau đó hợp nhất chúng.</string>
     <string name="prompt_example_behavior_title">Hành vi đối thoại mẫu</string>
-    <string name="prompt_example_behavior_desc">Chọn lịch sử trò chuyện thực tế hay ví dụ thẻ nhân vật được ưu tiên sử dụng ngân sách ngữ cảnh còn lại trước.</string>
     <string name="world_info_budget_section">Ngân sách Sách thế giới</string>
     <string name="world_info_budget_description">Tỷ lệ phần trăm ngữ cảnh được tính trước, sau đó giới hạn theo mức trần Token khi lớn hơn 0.</string>
     <string name="world_info_context_percent">Tỷ lệ phần trăm ngữ cảnh</string>
@@ -736,15 +702,12 @@ Thất bại: %2$d</string>
     <string name="world_info_budget_cap">Mức trần ngân sách</string>
     <string name="world_info_budget_cap_helper">Số token Sách thế giới tối đa sau khi áp dụng phần trăm ngữ cảnh; 0 để tắt mức trần</string>
     <string name="world_info_overflow_alert">Cảnh báo khi hết ngân sách</string>
-    <string name="world_info_overflow_alert_desc">Hiển thị thông báo khi các mục được kích hoạt không thể chứa vừa ngân sách Sách thế giới.</string>
     <string name="context_trimming_alert">Thông báo cắt bớt ngữ cảnh</string>
-    <string name="context_trimming_alert_desc">Hiển thị thông báo khi các tin nhắn cũ hơn hoặc các phần Prompt tùy chọn bị xóa để vừa với ngữ cảnh.</string>
     <string name="world_info_budget_overflow_warning">Một số mục Sách thế giới đã kích hoạt bị lược bỏ do ngân sách Sách thế giới.</string>
     <string name="prompt_example_behavior_normal">Ưu tiên lịch sử</string>
     <string name="prompt_example_behavior_pinned">Ghim ví dụ</string>
     <string name="prompt_example_behavior_disabled">Đã tắt</string>
     <string name="prompt_include_think_context_title">Bao gồm các khối think trong ngữ cảnh</string>
-    <string name="prompt_include_think_context_desc">Khi tắt, các khối &lt;think&gt;...&lt;/think&gt; đã lưu sẽ bị loại bỏ khỏi các prompt sau này.</string>
     <string name="selected_count">Đã chọn %d</string>
     <string name="delete_selected_sessions_title">Xóa các phiên đã chọn</string>
     <string name="delete_selected_sessions_message">Xóa %d phiên đã chọn và tất cả tin nhắn trong đó? Thao tác này không thể hoàn tác.</string>
@@ -804,15 +767,7 @@ Thất bại: %2$d</string>
         <item quantity="other">%1$d thành viên</item>
     </plurals>
     <string name="prompt_group_nudge_title">Prompt nhắc nhở nhóm</string>
-    <string name="prompt_group_nudge_desc">Hướng dẫn cuối cùng giới hạn mỗi lượt tạo chỉ dành cho người phát ngôn đã chọn.</string>
-    <string name="prompt_group_impersonation_title">Lời nhắc viết thay người dùng trong nhóm</string>
-    <string name="prompt_group_impersonation_desc">Dùng để viết thay người dùng trong cuộc trò chuyện nhóm. {{group}} liệt kê mọi thành viên và {{groupNotMuted}} liệt kê thành viên không bị tắt tiếng.</string>
-    <string name="prompt_group_user_writing_title">Lời nhắc viết tiếp trong ô nhập của nhóm</string>
-    <string name="prompt_group_user_writing_desc">Dùng khi viết thay người dùng trong ô nhập của nhóm. {{draft}} chèn văn bản hiện tại. Nếu không có macro này, văn bản sẽ được thêm vào cuối.</string>
     <string name="prompt_new_group_chat_title">Prompt trò chuyện nhóm mới</string>
-    <string name="prompt_new_group_chat_desc">Dấu ranh giới được chèn trước cuộc trò chuyện nhóm mới.</string>
-    <string name="prompt_group_summarize_title">Prompt tóm tắt nhóm</string>
-    <string name="prompt_group_summarize_desc">Prompt bộ nhớ chuyên dụng bảo lưu lịch sử nhóm theo từng người phát ngôn.</string>
     <string name="group_chat_settings">Cài đặt trò chuyện nhóm</string>
     <string name="group_chat_basic_settings">Chi tiết cuộc trò chuyện</string>
     <string name="group_chat_scenario">Ngữ cảnh nhóm</string>
@@ -959,8 +914,6 @@ Thất bại: %2$d</string>
 Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô hình và quyền tài khoản, hoặc chuyển sang cấu hình khác.</string>
     <string name="data_management">Quản lý dữ liệu</string>
     <string name="import_chat">Nhập cuộc trò chuyện</string>
-    <string name="import_chat_desc">Nhập cuộc trò chuyện JSONL của SillyTavern hoặc RPClient</string>
-    <string name="reading_chat_file">Đang đọc tệp trò chuyện…</string>
     <string name="import_chat_failed">Nhập cuộc trò chuyện thất bại</string>
     <string name="import_chat_success">Đã nhập cuộc trò chuyện</string>
     <string name="select_import_character_title">Liên kết thẻ nhân vật</string>
@@ -1045,15 +998,11 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="story_loading_settings">Đang tải cài đặt câu chuyện…</string>
     <string name="story_context_settings">Cài đặt ngữ cảnh câu chuyện</string>
     <string name="story_memory">Bộ nhớ câu chuyện</string>
-    <string name="story_memory_desc">Bối cảnh và các tình tiết cốt truyện chính</string>
     <string name="story_author_note">Author\'s Note</string>
-    <string name="story_author_note_desc">Phong cách và giọng điệu viết</string>
     <string name="story_character_references">Tham chiếu nhân vật</string>
-    <string name="story_character_references_desc">Các thẻ được chọn tạo thành dàn nhân vật ứng viên của câu chuyện này. Thẻ Luôn bao gồm sẽ được chèn mỗi lần; thẻ Tự động sẽ kích hoạt theo tên hoặc bí danh.</string>
     <string name="story_no_characters">Không có thẻ nhân vật khả dụng</string>
     <string name="story_character_always">Luôn bao gồm</string>
     <string name="story_character_auto">Tự động</string>
-    <string name="story_include_user_persona">Bao gồm persona người dùng</string>
     <string name="story_character_primary">Chính</string>
     <string name="story_linked_lorebook">Sách thế giới liên kết: %1$s</string>
     <string name="story_lorebook_empty">Chưa bật mục nào</string>
@@ -1101,17 +1050,8 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="story_import_failed">Không thể nhập tệp này. Tệp có thể quá lớn hoặc sử dụng định dạng không được hỗ trợ.</string>
     <string name="story_export_succeeded">Đã xuất câu chuyện</string>
     <string name="story_export_failed">Không thể xuất câu chuyện</string>
-    <string name="prompt_story_section">Sáng tác câu chuyện</string>
     <string name="prompt_story_main_title">Prompt chính cho câu chuyện</string>
-    <string name="prompt_story_main_desc">Hướng dẫn hệ thống dùng chung cho mọi thao tác sáng tác câu chuyện</string>
-    <string name="prompt_story_memory_title">Mẫu chèn bộ nhớ</string>
-    <string name="prompt_story_memory_desc">Mẫu tin nhắn hệ thống sử dụng {{memory}} cho bộ nhớ câu chuyện dài hạn</string>
-    <string name="prompt_story_summary_title">Mẫu chèn tóm tắt</string>
-    <string name="prompt_story_summary_desc">Mẫu tin nhắn hệ thống sử dụng {{summary}} cho tóm tắt câu chuyện hiện tại</string>
-    <string name="prompt_story_continuation_guidance_title">Mẫu hướng dẫn viết tiếp</string>
-    <string name="prompt_story_continuation_guidance_desc">Mẫu tin nhắn hệ thống bao bọc hướng dẫn hiện tại với trình giữ chỗ {{guidance}}</string>
     <string name="prompt_story_continue_title">Viết tiếp câu chuyện</string>
-    <string name="prompt_story_continue_desc">Tác vụ được dùng để tiếp tục bản thảo tại phần cuối</string>
     <string name="prompt_source_story_main">Prompt chính cho câu chuyện</string>
     <string name="prompt_source_story_memory">Bộ nhớ câu chuyện</string>
     <string name="prompt_source_story_author_note">Author\'s Note</string>
@@ -1128,8 +1068,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="story_summary_failed">Không thể tóm tắt câu chuyện này. Vui lòng kiểm tra cấu hình mô hình đã chọn và cài đặt ngữ cảnh.</string>
     <string name="story_summary_conflict">Bản thảo đã thay đổi trong khi tóm tắt đang được tạo. Vui lòng tạo lại.</string>
     <string name="story_summary_updated">Đã cập nhật tóm tắt câu chuyện</string>
-    <string name="prompt_story_summarize_title">Prompt tóm tắt câu chuyện</string>
-    <string name="prompt_story_summarize_desc">Kiểm soát cách cập nhật tóm tắt câu chuyện</string>
     <string name="prompt_source_story_summary">Tóm tắt cốt truyện</string>
     <string name="generation_error_character_provider_unavailable">Cấu hình mô hình được liên kết với nhân vật này đã bị tắt hoặc không còn tồn tại.</string>
     <string name="generation_error_character_provider_unavailable_named">Cấu hình mô hình "%1$s" được liên kết với nhân vật này đã bị tắt.</string>
@@ -1139,7 +1077,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="character_model_config">Cấu hình mô hình nhân vật</string>
     <string name="character_model_config_helper">Được dùng cho các câu trả lời của nhân vật này. Các cấu hình bị tắt vẫn giữ liên kết cho đến khi thay đổi.</string>
     <string name="summary_model_config">Cấu hình mô hình tóm tắt</string>
-    <string name="summary_model_config_helper">Được dùng cho tóm tắt trò chuyện đơn, trò chuyện nhóm và câu chuyện.</string>
     <string name="unnamed_model_config">Cấu hình mô hình chưa đặt tên</string>
     <string name="disabled_model_config_format">%1$s (đã tắt)</string>
     <string name="delete_model_config">Xóa cấu hình mô hình</string>
@@ -1185,7 +1122,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">Đã đạt giới hạn đầu ra của bản tóm tắt</string>
     <string name="summary_token_limit_message">Bản tóm tắt đã đạt giới hạn token đầu ra và chưa được lưu. Suy luận cũng sử dụng hạn mức này. Vào Cài đặt → “%1$s” → “%2$s”, tăng “%3$s” rồi thử lại.</string>
     <string name="summary_go_to_settings">Mở cài đặt</string>
@@ -1198,7 +1135,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="about_build_number">Số bản dựng</string>
     <string name="about_rate_action">Đánh giá</string>
     <string name="image_send_title">Gửi ảnh (nâng cao)</string>
-    <string name="image_send_description">Chỉ áp dụng cho ảnh mới thêm khi gửi tin nhắn hoặc lưu chỉnh sửa. Chỉ giữ ảnh đã xử lý; các tệp đính kèm hiện có không thay đổi.</string>
     <string name="image_send_auto">Tự động</string>
     <string name="image_send_original">Ảnh gốc</string>
     <string name="image_send_custom">Tùy chỉnh</string>
@@ -1307,8 +1243,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="content_search_newer">Tải tin nhắn mới hơn</string>
     <string name="content_search_latest">Về tin nhắn mới nhất</string>
     <string name="content_search_index_title">Tăng tốc tìm kiếm</string>
-    <string name="content_search_index_enabled">Đã bật tăng tốc tìm kiếm</string>
-    <string name="content_search_index_disabled">Tìm kiếm thông thường quét nội dung đã lưu</string>
     <string name="content_search_index_enable">Bật</string>
     <string name="content_search_index_disable">Tắt và dọn dẹp</string>
     <string name="content_search_index_confirm_title">Bật tăng tốc tìm kiếm?</string>
@@ -1318,10 +1252,7 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="content_search_index_building">Đang tạo chỉ mục… đã xử lý %1$d mục</string>
     <string name="content_search_index_cleaning">Đang xóa chỉ mục và giải phóng dung lượng…</string>
     <string name="content_search_index_cleanup_failed">Chưa thể hoàn tất dọn dẹp. Hãy giải phóng dung lượng hoặc chờ các tác vụ khác kết thúc rồi thử lại. Tăng tốc tìm kiếm vẫn tắt.</string>
-    <string name="content_search_index_failed">Không thể dùng tăng tốc tìm kiếm. Bạn vẫn có thể tìm kiếm thông thường.</string>
     <string name="backup_restore_title">Sao lưu và khôi phục</string>
-    <string name="backup_restore_entry_desc">Xuất hoặc khôi phục ZIP chứa dữ liệu và cài đặt ứng dụng</string>
-    <string name="backup_restore_description">Xuất toàn bộ dữ liệu dưới dạng JSONL và JSON có thể đọc: nhân vật, truyện, trò chuyện cá nhân và nhóm, sách thế giới, cấu hình nhà cung cấp, khóa API, lượng token sử dụng, nhật ký yêu cầu, tùy chọn và tệp đính kèm. Khôi phục sẽ thay thế toàn bộ dữ liệu hiện tại và khởi động lại RPClient.</string>
     <string name="backup_restore_security_warning">Bảo mật: RPClient-Portable-Data.zip không được mã hóa. Tệp chứa khóa API, tiêu đề tùy chỉnh, nhật ký yêu cầu, hội thoại riêng tư và tệp đính kèm. Bất kỳ ai có ZIP đều có thể đọc dữ liệu; hãy lưu giữ an toàn.</string>
     <string name="backup_export_action">Xuất bản sao lưu ZIP</string>
     <string name="backup_restore_action">Khôi phục từ ZIP</string>
@@ -1334,7 +1265,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_restore_confirm_title">Thay thế dữ liệu ứng dụng hiện tại?</string>
     <string name="backup_restore_confirm_message">Khôi phục toàn bộ sẽ thay thế nhà cung cấp và khóa API, nhân vật, truyện, trò chuyện cá nhân và nhóm, sách thế giới, tập lệnh regex, dữ liệu sử dụng, nhật ký yêu cầu, tùy chọn và tệp đính kèm. Không hợp nhất dữ liệu. Hãy xuất bản sao lưu trước nếu cần giữ dữ liệu hiện tại.</string>
     <string name="story_markdown_rendering">Hiển thị Markdown cho truyện</string>
-    <string name="story_markdown_rendering_desc">Hiển thị các chương ở định dạng Markdown.</string>
     <string name="story_markdown_edit">Chỉnh sửa văn bản gốc</string>
     <string name="scroll_to_top">Cuộn lên đầu</string>
     <string name="scroll_to_bottom">Cuộn xuống cuối</string>
@@ -1348,7 +1278,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="backup_security_title">Thông báo bảo mật và quyền riêng tư</string>
     <string name="backup_status_title">Trạng thái hiện tại</string>
     <string name="message_edit_separate_think">Tách suy luận</string>
-    <string name="message_edit_separate_think_desc">Chỉ chỉnh sửa câu trả lời và giữ nguyên suy luận.</string>
     <string name="backup_details_title">Chi tiết kỹ thuật</string>
     <string name="backup_details_copy">Sao chép</string>
     <string name="backup_details_copied">Đã sao chép chi tiết</string>
@@ -1378,11 +1307,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="character_background_enable_message">Tùy chọn “Dùng ảnh nền thẻ nhân vật” trong cài đặt trò chuyện đang tắt. Bật ngay? Cài đặt này áp dụng cho mọi cuộc trò chuyện có ảnh nền nhân vật.</string>
     <string name="character_background_enable_confirm">Bật ngay</string>
     <string name="character_background_enable_later">Để sau</string>
-    <string name="character_selection_count">Đã chọn %1$d</string>
-    <string name="select_all_characters">Chọn tất cả</string>
-    <string name="deselect_all_characters">Bỏ chọn tất cả</string>
-    <string name="character_selected">Đã chọn</string>
-    <string name="character_not_selected">Chưa chọn</string>
     <string name="export_selected_characters_zip">Xuất nhân vật đã chọn thành ZIP</string>
     <string name="export_character_archive_success">Đã xuất tệp ZIP nhân vật.</string>
     <string name="export_character_archive_limit">ZIP nhân vật vượt quá giới hạn nhập. Hãy chọn ít thẻ hơn hoặc giảm kích thước của thẻ lớn.</string>
@@ -1399,12 +1323,20 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
 Thất bại: %2$d</string>
     <string name="batch_import_reading_progress">Đang phân tích %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Đang nhập %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Xóa %1$d nhân vật đã chọn? Các sách thế giới liên kết sẽ được giữ lại. Không thể hoàn tác thao tác này.</string>
-    <string name="world_book_batch_delete_message">Xóa %1$d sách thế giới đã chọn và tất cả mục của chúng? Liên kết với nhân vật cũng sẽ bị xóa. Không thể hoàn tác thao tác này.</string>
-    <string name="world_book_entry_batch_delete_message">Xóa %1$d mục đã chọn? Việc xóa có hiệu lực ngay và không thể hoàn tác.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="other">Xóa %1$d nhân vật đã chọn? Các sách thế giới liên kết sẽ được giữ lại. Không thể hoàn tác thao tác này.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="other">Xóa %1$d sách thế giới đã chọn và tất cả mục của chúng? Liên kết với nhân vật cũng sẽ bị xóa. Không thể hoàn tác thao tác này.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="other">Xóa %1$d mục đã chọn? Việc xóa có hiệu lực ngay và không thể hoàn tác.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">Đã nhập xong sách thế giới</string>
-    <string name="world_book_batch_low_budget_message">%1$d sách thế giới đã chọn có ngân sách cố định thấp. Mức thấp nhất là %2$d token. Dùng ngân sách chung cho các sách này?</string>
-    <string name="world_book_archive_limit">ZIP sách thế giới vượt giới hạn nhập. Hãy chọn ít sách hơn hoặc giảm kích thước của sách lớn.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="other">%1$d sách thế giới đã chọn có ngân sách cố định thấp. Mức thấp nhất là %2$d token. Dùng ngân sách chung cho các sách này?</item>
+    </plurals>
+    <string name="world_book_archive_limit">Dữ liệu sách thế giới đã chọn vượt giới hạn nhập. Hãy chọn ít sách hơn hoặc giảm kích thước của sách lớn.</string>
     <string name="world_book_export_selected">Xuất sách thế giới đã chọn thành ZIP</string>
 
     <string name="prompt_template_default">Mặc định hệ thống</string>
@@ -1417,7 +1349,6 @@ Thất bại: %2$d</string>
     <string name="prompt_template_failed">Không thể tải hoặc lưu mẫu. Vui lòng thử lại.</string>
     <string name="prompt_template_conflict">Mẫu này đã thay đổi. Hãy sao chép bản nháp, rồi đóng và mở lại trình soạn thảo.</string>
     <string name="prompt_template_active">Đang dùng</string>
-    <string name="prompt_template_scope">Áp dụng cho các lần tạo trò chuyện, nhóm, truyện và tóm tắt tiếp theo. Thiết lập riêng của nhân vật và phiên vẫn được ưu tiên.</string>
     <string name="prompt_template_search">Tìm mẫu</string>
     <string name="prompt_template_all">Mẫu lời nhắc</string>
     <string name="prompt_template_no_results">Không có mẫu phù hợp</string>
@@ -1432,12 +1363,8 @@ Thất bại: %2$d</string>
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Nơi xuất nội dung đóng vai người dùng</string>
     <string name="user_writing_output_message">Lịch sử trò chuyện</string>
-    <string name="user_writing_output_message_desc">Lưu trực tiếp tin nhắn người dùng được tạo vào cuộc trò chuyện.</string>
     <string name="user_writing_output_draft">Ô nhập</string>
-    <string name="user_writing_output_draft_desc">Tạo bản nháp trong ô nhập, sau đó chỉnh sửa và gửi khi sẵn sàng.</string>
     <string name="user_writing_no_body">Không tạo được nội dung tin nhắn. Bản nháp của bạn đã được giữ lại.</string>
-    <string name="prompt_user_writing_title">Prompt viết tiếp trong ô nhập</string>
-    <string name="prompt_user_writing_desc">Dùng khi viết thay người dùng trong ô nhập. {{draft}} chèn văn bản hiện tại; nếu không có macro này, văn bản được thêm vào cuối.</string>
     <string name="summary_mode">Chế độ tóm tắt hội thoại</string>
     <string name="summary_mode_raw">Raw (tăng dần)</string>
     <string name="summary_mode_classic">Classic (ngữ cảnh hiện tại)</string>
@@ -1470,7 +1397,9 @@ Thất bại: %2$d</string>
     <string name="prompt_status_default_empty">Mặc định · trống</string>
     <string name="prompt_status_custom">Tùy chỉnh</string>
     <string name="prompt_status_custom_empty">Tùy chỉnh · trống</string>
-    <string name="prompt_catalog_count">%1$d mục</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="other">%1$d mục</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">Ràng buộc nhân vật phát ngôn trong nhóm</string>
     <string name="prompt_catalog_continue_title">Chỉ dẫn viết tiếp phản hồi nhân vật</string>
     <string name="prompt_catalog_impersonation_title">Chỉ dẫn viết thay người dùng trong trò chuyện riêng</string>

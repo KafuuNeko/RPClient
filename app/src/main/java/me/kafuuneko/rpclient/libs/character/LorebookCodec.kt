@@ -4,6 +4,12 @@ import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.Strictness
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import java.io.Reader
+import java.io.StringWriter
+import java.io.Writer
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
@@ -17,12 +23,54 @@ import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 class LorebookCodec(
     private val mGson: Gson
 ) {
-    /** 解析独立世界书，返回尚未写入数据库的书籍与条目集合。 */
-    fun parseLorebook(json: String): CharacterBookImport {
-        val root = JsonParser.parseString(json).asJsonObject
-        // 独立世界书必须包含 entries 对象，避免将角色卡、清单或普通配置导入为空书。
-        require(root.get("entries")?.isJsonObject == true) { "Missing world book entries object" }
+    // 本地底稿存储 JSON 而非 HTML，避免尖括号等在大量正文和扩展中膨胀为六字符转义。
+    private val mStorageGson = mGson.newBuilder().disableHtmlEscaping().create()
 
+    /**
+     * 解析独立世界书。
+     * @param json 备份或第三方提供的世界书 JSON。
+     * @return 尚未写入数据库的书籍与条目。
+     */
+    fun parseLorebook(json: String): CharacterBookImport = parseLorebook(json.reader())
+
+    /**
+     * 逐条转换，保留原字段顺序和 Gson 对重复键取末值的兼容行为。
+     * @param source 输入字符流，由调用方关闭。
+     * @param checkActive 文件导入时检查任务取消。
+     * @return 尚未写入数据库的书籍与条目。
+     */
+    internal fun parseLorebook(source: Reader, checkActive: () -> Unit = {}): CharacterBookImport {
+        val reader = JsonReader(source).apply { strictness = Strictness.LENIENT }
+        val root = JsonObject()
+        val entries = linkedMapOf<String, LorebookEntry?>()
+        var hasEntries = false
+        reader.beginObject()
+        // 只保留书籍自身的元数据，条目 JSON 在转换后即可释放。
+        while (reader.hasNext()) {
+            when (val name = reader.nextName()) {
+                "entries" -> {
+                    hasEntries = true
+                    entries.clear()
+                    reader.beginObject()
+                    while (reader.hasNext()) {
+                        checkActive()
+                        val uid = reader.nextName()
+                        val element = JsonParser.parseReader(reader)
+                        entries[uid] =
+                            if (element.isJsonObject) element.asJsonObject.toLorebookEntry() else null
+                    }
+                    reader.endObject()
+                }
+
+                "name", "description", "scanDepth", "tokenBudget", "recursiveScanning", "extensions" ->
+                    root.add(name, JsonParser.parseReader(reader))
+
+                else -> reader.skipValue()
+            }
+        }
+        reader.endObject()
+        require(hasEntries && reader.peek() == JsonToken.END_DOCUMENT) { "Expected one world book with entries" }
+        // 元数据可能跟在 entries 之后，因此在完整读取后再创建书籍。
         val name = root.optString("name")
         val lorebook = Lorebook(
             name = name.ifBlank { DefaultNames.IMPORTED_WORLD_BOOK },
@@ -30,21 +78,37 @@ class LorebookCodec(
             scanDepth = root.optInt(name = "scanDepth", default = 2),
             tokenBudget = root.optInt(name = "tokenBudget", default = 0),
             recursiveScanning = root.optBoolean(name = "recursiveScanning", default = false),
-            extensionsJson = mGson.toJson(root.optJsonObject("extensions") ?: JsonObject()),
+            extensionsJson = mStorageGson.toJson(root.optJsonObject("extensions") ?: JsonObject()),
         )
 
-        val entriesObj = root.optJsonObject("entries")
-        val entries = mutableListOf<LorebookEntry>()
-        entriesObj?.entrySet()?.forEach { (uid, element) ->
-            if (element.isJsonObject) {
-                entries.add(element.asJsonObject.toLorebookEntry())
-            }
-        }
-        return CharacterBookImport(lorebook, entries)
+        return CharacterBookImport(lorebook, entries.values.filterNotNull())
     }
 
-    /** 将本地世界书导出为 SillyTavern 使用的 entries 对象结构。 */
+    /**
+     * 将本地世界书导出为 SillyTavern 使用的 entries 对象结构。
+     * @param lorebook 世界书元数据。
+     * @param entries 按导出顺序排列的条目。
+     * @return 完整的独立世界书 JSON。
+     */
     fun toLorebookJson(lorebook: Lorebook, entries: List<LorebookEntry>): String {
+        val output = StringWriter()
+        writeLorebook(output, lorebook) { append -> entries.forEach(append) }
+        return output.toString()
+    }
+
+    /**
+     * 逐条写出，允许数据库在同一事务内分批提供条目。
+     * @param output 调用方持有的目标字符流。
+     * @param lorebook 世界书元数据。
+     * @param entries 将条目按顺序交给写入回调。
+     */
+    internal inline fun writeLorebook(
+        output: Writer,
+        lorebook: Lorebook,
+        entries: ((LorebookEntry) -> Unit) -> Unit
+    ) {
+        val writer = mGson.newJsonWriter(output)
+        writer.beginObject()
         val book = JsonObject()
         book.addProperty("name", lorebook.name)
         book.addProperty("description", lorebook.description)
@@ -54,12 +118,16 @@ class LorebookCodec(
         book.addProperty("recursiveScanning", lorebook.recursiveScanning)
         book.add("extensions", parseObjectOrEmpty(lorebook.extensionsJson))
 
-        val entriesObj = JsonObject()
-        entries.forEachIndexed { index, entry ->
-            entriesObj.add(index.toString(), entry.toStWorldBookEntry(index))
+        // 元数据与条目属于同一根对象，逐条释放第三方扩展树。
+        book.entrySet().forEach { (name, value) -> mGson.toJson(value, writer.name(name)) }
+        writer.name("entries").beginObject()
+        var index = 0
+        entries { entry ->
+            mGson.toJson(entry.toStWorldBookEntry(index), writer.name(index.toString()))
+            index++
         }
-        book.add("entries", entriesObj)
-        return mGson.toJson(book)
+        writer.endObject().endObject()
+        writer.flush()
     }
 
     private fun JsonObject.toLorebookEntry(): LorebookEntry {
@@ -67,8 +135,8 @@ class LorebookCodec(
         return LorebookEntry(
             lorebookId = 0L,
             name = optString("comment"),
-            keywords = mGson.toJson(getAsJsonArray("key")?.toStringList().orEmpty()),
-            secondaryKeywords = mGson.toJson(
+            keywords = mStorageGson.toJson(getAsJsonArray("key")?.toStringList().orEmpty()),
+            secondaryKeywords = mStorageGson.toJson(
                 getAsJsonArray("keysecondary")?.toStringList().orEmpty()
             ),
             constant = optBoolean(name = "constant", default = false),
@@ -98,7 +166,7 @@ class LorebookCodec(
             cooldown = optNullableInt("cooldown"),
             delay = optNullableInt("delay"),
             outletName = extensions.optString("outlet_name"),
-            triggers = mGson.toJson(
+            triggers = mStorageGson.toJson(
                 (getAsJsonArray("triggers") ?: extensions.getAsJsonArray("triggers"))
                     ?.toStringList()
                     .orEmpty(),
@@ -124,8 +192,8 @@ class LorebookCodec(
                 name = "match_creator_notes",
                 default = false
             ),
-            extensionsJson = mGson.toJson(extensions),
-            rawJson = mGson.toJson(this),
+            extensionsJson = mStorageGson.toJson(extensions),
+            rawJson = mStorageGson.toJson(this),
         )
     }
 

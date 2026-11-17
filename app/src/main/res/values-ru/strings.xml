@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">Скруглённый</string>
     <string name="image_crop_shape_circle">Круг</string>
     <string name="about">О приложении</string>
-    <string name="about_desc">Версия приложения, эл. почта и репозиторий</string>
     <string name="unknown_version">Неизвестная версия</string>
     <string name="developer_contact">Контакты разработчика</string>
     <string name="tech_stack_label">Стек технологий</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 Разнообразно</string>
     <string name="parameter_preset_topp_full">1.0 Полностью</string>
     <string name="streaming_response">Потоковый ответ</string>
-    <string name="streaming_response_desc">Отображать вывод модели в реальном времени, поддерживает остановку генерации</string>
     <string name="new_session_desc">Выберите персонажа, заметки и записи книги мира</string>
     <string name="no_recent_chats">Нет недавних чатов</string>
     <string name="no_recent_chats_desc">Создайте сессию, чтобы начать новый диалог.</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">Макс. сообщений на запрос</string>
     <string name="summary_max_messages_helper">0 позволяет бюджету контекста решать</string>
     <string name="summary_response_tokens">Токены ответа суммаризации</string>
-    <string name="summary_injection_template">Шаблон вставки сводки</string>
-    <string name="summary_injection_template_desc">Используйте {{summary}} как заполнитель памяти.</string>
     <string name="summary_injection_position">Позиция вставки сводки</string>
     <string name="summary_position_before_character">Перед определением персонажа</string>
     <string name="summary_position_after_character">После определения персонажа</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">Неизвестный персонаж</string>
     <string name="no_messages_yet">Сообщений пока нет</string>
     <string name="debug_mode">Режим отладки</string>
-    <string name="debug_mode_desc">Записывать необработанные JSON запросов и ответов LLM в локальную базу данных</string>
     <string name="request_logs">Логи запросов</string>
     <string name="request_logs_subtitle">Необработанные JSON запросов и ответов LLM, сначала новые</string>
-    <string name="request_logs_entry_subtitle">Просмотр и копирование необработанных записей запросов LLM</string>
     <string name="no_request_logs">Нет логов запросов</string>
     <string name="no_request_logs_desc">Включите режим отладки и отправьте запрос к LLM для создания записей.</string>
     <string name="clear_logs">Очистить логи</string>
     <string name="clear_logs_confirm">Вы уверены, что хотите очистить все логи запросов? Это действие нельзя отменить.</string>
     <string name="token_usage">Использование токенов</string>
     <string name="token_usage_subtitle">Оценка использования токенов для успешных запросов LLM с группировкой по модели и хосту API</string>
-    <string name="token_usage_entry_subtitle">Просмотр оценки входных и выходных токенов по модели и хосту API</string>
     <string name="token_usage_notice_title">Использование указано приблизительно</string>
     <string name="token_usage_notice_desc">В первую очередь используются значения, сообщённые провайдером. Недостающие значения оцениваются локально и могут отличаться от данных в счёте.</string>
     <string name="token_usage_today">Сегодня</string>
@@ -572,40 +565,14 @@
     <string name="prompt_preset_title">Пресет системного промпта</string>
     <string name="prompt_preset_subtitle">Управление системными промптами в стиле SillyTavern, утилитами и шаблонами</string>
     <string name="prompt_preset_section">Шаблоны промптов</string>
-    <string name="prompt_preset_entry_subtitle">Управление пресетами системных промптов и вспомогательными промптами</string>
     <string name="prompt_behavior_section">Поведение запроса</string>
-    <string name="prompt_manager_section">Менеджер промптов</string>
-    <string name="prompt_utility_section">Вспомогательные промпты</string>
-    <string name="prompt_format_section">Шаблоны форматирования</string>
-    <string name="prompt_summary_section">Сводка</string>
     <string name="prompt_main_title">Главный промпт</string>
-    <string name="prompt_main_desc">Основной системный промпт, вставляемый в начале каждой сессии</string>
     <string name="prompt_auxiliary_title">Вспомогательный промпт</string>
-    <string name="prompt_auxiliary_desc">Дополнительный системный промпт, размещаемый вместе с описанием персонажа перед историей чата</string>
     <string name="prompt_post_history_title">Инструкции после истории</string>
-    <string name="prompt_post_history_desc">Финальные системные инструкции, добавляемые после истории чата</string>
-    <string name="prompt_summarize_title">Промпт суммаризации</string>
-    <string name="prompt_summarize_desc">Промпт, используемый для сжатия длинного контекста в короткую сводку</string>
-    <string name="prompt_impersonation_title">Промпт имитации</string>
-    <string name="prompt_impersonation_desc">Используется при генерации ответа от лица пользователя</string>
-    <string name="prompt_new_chat_title">Промпт нового чата</string>
-    <string name="prompt_new_chat_desc">Маркер, отправляемый перед новой историей чата</string>
-    <string name="prompt_new_example_chat_title">Промпт нового примера чата</string>
-    <string name="prompt_new_example_chat_desc">Маркер, отправляемый перед блоками примеров диалогов</string>
-    <string name="prompt_continue_nudge_title">Подсказка для продолжения</string>
-    <string name="prompt_continue_nudge_desc">Инструкция, используемая при продолжении предыдущего сообщения ассистента</string>
-    <string name="prompt_replace_empty_message_title">Заменить пустое сообщение</string>
-    <string name="prompt_replace_empty_message_desc">Текст для отправки, когда поле ввода пусто</string>
     <string name="prompt_world_info_format_title">Формат информации о мире</string>
-    <string name="prompt_world_info_format_desc">Шаблон для активированных записей информации о мире; используйте {0} в качестве маркера</string>
     <string name="prompt_scenario_format_title">Формат сценария</string>
-    <string name="prompt_scenario_format_desc">Шаблон для сценария персонажа; используйте {{scenario}} в качестве маркера</string>
     <string name="prompt_personality_format_title">Формат личности</string>
-    <string name="prompt_personality_format_desc">Шаблон для личности персонажа; используйте {{personality}} в качестве маркера</string>
     <string name="prompt_user_persona_format_title">Формат персоны пользователя</string>
-    <string name="prompt_user_persona_format_desc">Шаблон персоны пользователя; используйте {{persona}} и {{user}} как маркеры</string>
-    <string name="prompt_empty_hint">Нажмите, чтобы задать промпт…</string>
-    <string name="prompt_edit_hint">Нажмите для редактирования</string>
     <string name="prompt_editor_label">Содержимое промпта</string>
     <string name="prompt_editor_placeholder">Введите ваш системный промпт здесь…</string>
     <string name="prompt_editor_restore_default">Восстановить по умолчанию</string>
@@ -624,12 +591,10 @@
     <string name="prompt_post_processing_single_user">Одно сообщение пользователя</string>
     <string name="prompt_post_processing_single_user_desc">Преобразовать все сообщения в пользовательские, добавить имена говорящих и объединить.</string>
     <string name="prompt_example_behavior_title">Поведение примеров диалога</string>
-    <string name="prompt_example_behavior_desc">Выберите, что первым использует оставшийся бюджет контекста: история или примеры карты.</string>
     <string name="prompt_example_behavior_normal">Приоритет истории</string>
     <string name="prompt_example_behavior_pinned">Закрепить примеры</string>
     <string name="prompt_example_behavior_disabled">Отключено</string>
     <string name="prompt_include_think_context_title">Включать блоки размышлений в контекст</string>
-    <string name="prompt_include_think_context_desc">Если выключено, сохранённые блоки &lt;think&gt;...&lt;/think&gt; будут удалены из будущих промптов.</string>
     <string name="world_info_budget_section">Бюджет информации мира</string>
     <string name="world_info_budget_description">Сначала бюджет рассчитывается по проценту контекста, затем применяется ограничение токенов, если оно больше 0.</string>
     <string name="world_info_context_percent">Доля контекста</string>
@@ -637,9 +602,7 @@
     <string name="world_info_budget_cap">Ограничение бюджета</string>
     <string name="world_info_budget_cap_helper">Максимум токенов информации мира после применения процента контекста; 0 отключает ограничение</string>
     <string name="world_info_overflow_alert">Предупреждение о превышении бюджета</string>
-    <string name="world_info_overflow_alert_desc">Предупреждать, если активированные записи пропущены из-за бюджета</string>
     <string name="context_trimming_alert">Уведомления об обрезке контекста</string>
-    <string name="context_trimming_alert_desc">Показывать уведомление, когда старые сообщения или необязательные части промпта удаляются из-за лимита контекста</string>
     <string name="world_info_budget_overflow_warning">Некоторые активированные записи информации мира пропущены из-за бюджета.</string>
     <string name="selected_count">Выбрано: %d</string>
     <string name="delete_selected_sessions_title">Удалить выбранные сессии</string>
@@ -703,15 +666,7 @@
         <item quantity="other">%1$d участника</item>
     </plurals>
     <string name="prompt_group_nudge_title">Групповая инструкция</string>
-    <string name="prompt_group_nudge_desc">Финальная инструкция, ограничивающая генерацию выбранным говорящим.</string>
-    <string name="prompt_group_impersonation_title">Промпт для ответа от лица пользователя в группе</string>
-    <string name="prompt_group_impersonation_desc">Используется для ответа от лица пользователя в группе. {{group}} перечисляет всех участников, а {{groupNotMuted}} — участников без отключения реплик.</string>
-    <string name="prompt_group_user_writing_title">Промпт продолжения текста в поле ввода группы</string>
-    <string name="prompt_group_user_writing_desc">Используется для ответа от лица пользователя в поле ввода группы. {{draft}} вставляет текущий текст. Без этого макроса текст добавляется в конец.</string>
     <string name="prompt_new_group_chat_title">Новый групповой чат</string>
-    <string name="prompt_new_group_chat_desc">Разделитель перед новой историей группового чата.</string>
-    <string name="prompt_group_summarize_title">Сводка группы</string>
-    <string name="prompt_group_summarize_desc">Память группы с сохранением информации о каждом говорящем.</string>
     <string name="group_chat_settings">Настройки группового чата</string>
     <string name="group_chat_basic_settings">Сведения о беседе</string>
     <string name="group_chat_scenario">Сценарий группы</string>
@@ -869,8 +824,6 @@
     <string name="model_request_failed_desc">%1$s\n\nОткройте настройки модели, чтобы проверить ключ API, базовый URL, имя модели и права учётной записи, либо выберите другую конфигурацию.</string>
     <string name="data_management">Управление данными</string>
     <string name="import_chat">Импортировать чат</string>
-    <string name="import_chat_desc">Импортировать чат SillyTavern или RPClient в формате JSONL</string>
-    <string name="reading_chat_file">Чтение файла чата…</string>
     <string name="import_chat_failed">Не удалось импортировать чат</string>
     <string name="import_chat_success">Чат импортирован</string>
     <string name="select_import_character_title">Связать карточку персонажа</string>
@@ -936,15 +889,11 @@
     <string name="story_loading_settings">Загрузка настроек истории…</string>
     <string name="story_context_settings">Контекст</string>
     <string name="story_memory">Память</string>
-    <string name="story_memory_desc">Долгосрочные факты, план, будущие события и авторские ограничения.</string>
     <string name="story_author_note">Заметка автора</string>
-    <string name="story_author_note_desc">Краткое и сильное указание на стиль, точку зрения и следующую сцену.</string>
     <string name="story_character_references">Персонажи</string>
-    <string name="story_character_references_desc">Выбранные карточки образуют набор персонажей. «Всегда» добавляется каждый раз, «Авто» — при совпадении имени или псевдонима.</string>
     <string name="story_no_characters">Создайте карточку персонажа, прежде чем добавлять ссылки.</string>
     <string name="story_character_always">Всегда</string>
     <string name="story_character_auto">Авто</string>
-    <string name="story_include_user_persona">Включить персону пользователя</string>
     <string name="story_character_primary">Протагонист</string>
     <string name="story_linked_lorebook">Связанный лорбук: %1$s</string>
     <string name="story_lorebook_empty">В этом лорбуке нет записей.</string>
@@ -990,17 +939,8 @@
     <string name="story_import_failed">Не удалось импортировать файл. Возможно, он слишком большой или имеет неподдерживаемый формат.</string>
     <string name="story_export_succeeded">Story экспортирована</string>
     <string name="story_export_failed">Не удалось экспортировать Story</string>
-    <string name="prompt_story_section">Написание истории</string>
     <string name="prompt_story_main_title">Основной промпт истории</string>
-    <string name="prompt_story_main_desc">Общая системная инструкция для всех операций с историей</string>
-    <string name="prompt_story_memory_title">Шаблон внедрения памяти</string>
-    <string name="prompt_story_memory_desc">Шаблон системного сообщения с {{memory}} для долговременной памяти истории</string>
-    <string name="prompt_story_summary_title">Шаблон внедрения сводки</string>
-    <string name="prompt_story_summary_desc">Шаблон системного сообщения с {{summary}} для текущей сводки сюжета</string>
-    <string name="prompt_story_continuation_guidance_title">Шаблон указания для продолжения</string>
-    <string name="prompt_story_continuation_guidance_desc">Шаблон системного сообщения с {{guidance}} для текущего указания</string>
     <string name="prompt_story_continue_title">Продолжение истории</string>
-    <string name="prompt_story_continue_desc">Задача для продолжения в конце рукописи</string>
     <string name="prompt_source_story_main">Основной промпт истории</string>
     <string name="prompt_source_story_memory">Память Story</string>
     <string name="prompt_source_story_author_note">Заметка автора</string>
@@ -1017,8 +957,6 @@
     <string name="story_summary_failed">Не удалось суммаризировать историю. Проверьте конфигурацию модели и контекст.</string>
     <string name="story_summary_conflict">Во время суммаризации рукопись изменилась. Создайте сводку заново.</string>
     <string name="story_summary_updated">Сводка сюжета обновлена</string>
-    <string name="prompt_story_summarize_title">Промпт сводки сюжета</string>
-    <string name="prompt_story_summarize_desc">Управляет обновлением сводки сюжета</string>
     <string name="prompt_source_story_summary">Сводка сюжета</string>
     <string name="request_extensions">Расширения запроса</string>
     <string name="request_body_patch_description">Добавляет в сформированное тело запроса дополнительные поля, включая нативные настройки рассуждений поставщика. RPClient защищает поля структуры и генерации, которыми управляет приложение.</string>
@@ -1116,7 +1054,6 @@
     <string name="character_model_config">Конфигурация модели персонажа</string>
     <string name="character_model_config_helper">Используется для ответов этого персонажа. Отключённая конфигурация остаётся привязанной до изменения.</string>
     <string name="summary_model_config">Конфигурация модели суммаризации</string>
-    <string name="summary_model_config_helper">Используется для резюме личных и групповых чатов, а также историй.</string>
     <string name="unnamed_model_config">Конфигурация модели без имени</string>
     <string name="disabled_model_config_format">%1$s (отключена)</string>
     <string name="delete_model_config">Удалить конфигурацию модели</string>
@@ -1189,7 +1126,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">Достигнут лимит вывода сводки</string>
     <string name="summary_token_limit_message">Сводка достигла лимита выходных токенов и не была сохранена. Рассуждения модели тоже расходуют этот лимит. Откройте Настройки → “%1$s” → “%2$s”, увеличьте “%3$s” и повторите попытку.</string>
     <string name="summary_go_to_settings">Открыть настройки</string>
@@ -1202,7 +1139,6 @@
     <string name="about_build_number">Номер сборки</string>
     <string name="about_rate_action">Оценить</string>
     <string name="image_send_title">Отправка изображений (дополнительно)</string>
-    <string name="image_send_description">Применяется только к изображениям, добавленным при отправке сообщения или сохранении правки. Сохраняется только обработанное изображение; существующие вложения не меняются.</string>
     <string name="image_send_auto">Авто</string>
     <string name="image_send_original">Оригинал</string>
     <string name="image_send_custom">Настроить</string>
@@ -1311,8 +1247,6 @@
     <string name="content_search_newer">Загрузить более новые сообщения</string>
     <string name="content_search_latest">К последним сообщениям</string>
     <string name="content_search_index_title">Ускорение поиска</string>
-    <string name="content_search_index_enabled">Ускорение поиска включено</string>
-    <string name="content_search_index_disabled">Обычный поиск просматривает сохранённые данные</string>
     <string name="content_search_index_enable">Включить</string>
     <string name="content_search_index_disable">Выключить и очистить</string>
     <string name="content_search_index_confirm_title">Включить ускорение поиска?</string>
@@ -1322,10 +1256,7 @@
     <string name="content_search_index_building">Создание индекса… обработано: %1$d</string>
     <string name="content_search_index_cleaning">Удаление индекса и освобождение места…</string>
     <string name="content_search_index_cleanup_failed">Не удалось завершить очистку. Освободите место или дождитесь завершения других задач и повторите попытку. Ускорение поиска остаётся выключенным.</string>
-    <string name="content_search_index_failed">Ускорение поиска недоступно. Можно использовать обычный поиск.</string>
     <string name="backup_restore_title">Резервное копирование и восстановление</string>
-    <string name="backup_restore_entry_desc">Экспорт или восстановление ZIP с данными и настройками</string>
-    <string name="backup_restore_description">Экспорт всех данных в читаемые JSONL и JSON: персонажи, истории, личные и групповые чаты, книги мира, настройки провайдеров, ключи API, расход токенов, журналы запросов, настройки и вложения. Восстановление полностью заменяет текущие данные и перезапускает RPClient.</string>
     <string name="backup_restore_security_warning">Безопасность: RPClient-Portable-Data.zip не зашифрован. Архив содержит ключи API, пользовательские заголовки, журналы запросов, личные беседы и вложения. Любой владелец ZIP может прочитать эти данные; храните его в безопасном месте.</string>
     <string name="backup_export_action">Экспортировать ZIP-копию</string>
     <string name="backup_restore_action">Восстановить из ZIP</string>
@@ -1338,7 +1269,6 @@
     <string name="backup_restore_confirm_title">Заменить текущие данные приложения?</string>
     <string name="backup_restore_confirm_message">Полное восстановление заменяет провайдеров и ключи API, персонажей, истории, личные и групповые чаты, книги мира, скрипты regex, записи об использовании, журналы запросов, настройки и вложения. Данные не объединяются. Сначала экспортируйте копию, если текущие данные могут понадобиться.</string>
     <string name="story_markdown_rendering">Отображать Markdown в историях</string>
-    <string name="story_markdown_rendering_desc">Показывать главы с форматированием Markdown.</string>
     <string name="story_markdown_edit">Редактировать исходный текст</string>
     <string name="scroll_to_top">Прокрутить вверх</string>
     <string name="scroll_to_bottom">Прокрутить вниз</string>
@@ -1352,7 +1282,6 @@
     <string name="backup_security_title">Безопасность и конфиденциальность</string>
     <string name="backup_status_title">Текущий статус</string>
     <string name="message_edit_separate_think">Отделять рассуждения</string>
-    <string name="message_edit_separate_think_desc">Редактировать только ответ, сохраняя исходные рассуждения.</string>
     <string name="backup_details_title">Технические подробности</string>
     <string name="backup_details_copy">Копировать</string>
     <string name="backup_details_copied">Подробности скопированы</string>
@@ -1382,11 +1311,6 @@
     <string name="character_background_enable_message">Настройка чата «Использовать фон карточки персонажа» выключена. Включить сейчас? Она применяется ко всем чатам с фонами персонажей.</string>
     <string name="character_background_enable_confirm">Включить</string>
     <string name="character_background_enable_later">Не сейчас</string>
-    <string name="character_selection_count">Выбрано: %1$d</string>
-    <string name="select_all_characters">Выбрать все</string>
-    <string name="deselect_all_characters">Снять выбор со всех</string>
-    <string name="character_selected">Выбрано</string>
-    <string name="character_not_selected">Не выбрано</string>
     <string name="export_selected_characters_zip">Экспортировать выбранных персонажей в ZIP</string>
     <string name="export_character_archive_success">ZIP с персонажами успешно экспортирован.</string>
     <string name="export_character_archive_limit">ZIP с персонажами превышает ограничения импорта. Выберите меньше карточек или уменьшите размер большой карточки.</string>
@@ -1402,12 +1326,32 @@
     <string name="batch_import_result_message">Импортировано: %1$d\nОшибок: %2$d</string>
     <string name="batch_import_reading_progress">Чтение: %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Импорт: %1$d/%2$d</string>
-    <string name="character_batch_delete_message">Удалить выбранных персонажей (%1$d)? Связанные книги мира сохранятся. Это действие нельзя отменить.</string>
-    <string name="world_book_batch_delete_message">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</string>
-    <string name="world_book_entry_batch_delete_message">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="one">Удалить %1$d выбранного персонажа? Связанные книги мира сохранятся. Это действие нельзя отменить.</item>
+        <item quantity="few">Удалить выбранных персонажей (%1$d)? Связанные книги мира сохранятся. Это действие нельзя отменить.</item>
+        <item quantity="many">Удалить выбранных персонажей (%1$d)? Связанные книги мира сохранятся. Это действие нельзя отменить.</item>
+        <item quantity="other">Удалить выбранных персонажей (%1$d)? Связанные книги мира сохранятся. Это действие нельзя отменить.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="one">Удалить %1$d выбранную книгу мира со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</item>
+        <item quantity="few">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</item>
+        <item quantity="many">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</item>
+        <item quantity="other">Удалить выбранные книги мира (%1$d) со всеми записями? Связи с персонажами будут удалены. Это действие нельзя отменить.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="one">Удалить %1$d выбранную запись? Удаление вступит в силу сразу и не может быть отменено.</item>
+        <item quantity="few">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</item>
+        <item quantity="many">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</item>
+        <item quantity="other">Удалить выбранные записи (%1$d)? Удаление вступит в силу сразу и не может быть отменено.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">Импорт книг мира завершён</string>
-    <string name="world_book_batch_low_budget_message">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</string>
-    <string name="world_book_archive_limit">ZIP книг мира превышает ограничения импорта. Выберите меньше книг или уменьшите размер большой книги.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="one">Низкий фиксированный бюджет у %1$d выбранной книги мира. Число токенов — %2$d. Использовать глобальный бюджет для этой книги?</item>
+        <item quantity="few">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</item>
+        <item quantity="many">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</item>
+        <item quantity="other">У выбранных книг мира (%1$d) низкие фиксированные бюджеты. Минимальный — %2$d токенов. Использовать глобальный бюджет для этих книг?</item>
+    </plurals>
+    <string name="world_book_archive_limit">Выбранные данные книг мира превышают ограничения импорта. Выберите меньше книг или уменьшите размер большой книги.</string>
     <string name="world_book_export_selected">Экспортировать выбранные книги мира в ZIP</string>
 
     <string name="prompt_template_default">Системный шаблон</string>
@@ -1420,7 +1364,6 @@
     <string name="prompt_template_failed">Не удалось загрузить или сохранить шаблон. Повторите попытку.</string>
     <string name="prompt_template_conflict">Шаблон изменён. Скопируйте черновик, затем закройте и снова откройте редактор.</string>
     <string name="prompt_template_active">Активен</string>
-    <string name="prompt_template_scope">Применяется к последующим генерациям чатов, групп, историй и сводок. Индивидуальные настройки персонажей и сеансов сохраняют приоритет.</string>
     <string name="prompt_template_search">Поиск шаблонов</string>
     <string name="prompt_template_all">Шаблоны промптов</string>
     <string name="prompt_template_no_results">Подходящих шаблонов нет</string>
@@ -1435,12 +1378,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Куда выводить текст от лица пользователя</string>
     <string name="user_writing_output_message">История чата</string>
-    <string name="user_writing_output_message_desc">Сохранять созданное сообщение пользователя сразу в беседе.</string>
     <string name="user_writing_output_draft">Поле ввода</string>
-    <string name="user_writing_output_draft_desc">Создать черновик в поле ввода, затем отредактировать и отправить.</string>
     <string name="user_writing_no_body">Текст сообщения не был создан. Ваш черновик сохранён.</string>
-    <string name="prompt_user_writing_title">Промпт продолжения в поле ввода</string>
-    <string name="prompt_user_writing_desc">Используется для написания текста от лица пользователя в поле ввода. {{draft}} вставляет текущий текст; без этого макроса текст добавляется в конец.</string>
     <string name="summary_mode">Режим сводки переписки</string>
     <string name="summary_mode_raw">Raw (пошаговый)</string>
     <string name="summary_mode_classic">Classic (текущий контекст)</string>
@@ -1473,7 +1412,12 @@
     <string name="prompt_status_default_empty">По умолчанию · пусто</string>
     <string name="prompt_status_custom">Изменено</string>
     <string name="prompt_status_custom_empty">Изменено · пусто</string>
-    <string name="prompt_catalog_count">Элементов: %1$d</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="one">%1$d элемент</item>
+        <item quantity="few">Элементов: %1$d</item>
+        <item quantity="many">Элементов: %1$d</item>
+        <item quantity="other">Элементов: %1$d</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">Ограничения говорящего в группе</string>
     <string name="prompt_catalog_continue_title">Инструкции продолжения ответа персонажа</string>
     <string name="prompt_catalog_impersonation_title">Текст от лица пользователя в личном чате</string>

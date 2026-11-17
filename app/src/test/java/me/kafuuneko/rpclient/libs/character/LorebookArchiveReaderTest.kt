@@ -151,6 +151,40 @@ class LorebookArchiveReaderTest {
         assertCacheEmpty()
     }
 
+    /** 密集空对象先验证条目预算；单本失败可跳过，累计超限整包拒绝。 */
+    @Test
+    fun denseBooksRespectPerBookAndBatchEntryBudgets() = runBlocking {
+        val pair = """{"entries":{"0":{},"1":{}}}"""
+        val dense = """{"entries":{"0":{},"1":{},"2":{}}}"""
+        val limits = LorebookArchiveLimits(bookEntries = 2, totalBookEntries = 4)
+        val archive = zip("dense.json" to dense, "a.json" to pair, "b.json" to pair)
+        val accepted = read(archive, limits)
+        assertEquals(listOf(2, 2), accepted.drafts.map { it.entries.size })
+        assertEquals(1, accepted.failureCount)
+        assertTrue(runCatching { read(archive, limits.copy(totalBookEntries = 3)) }.isFailure)
+        assertTrue(runCatching { read(dense.toByteArray(), limits) }.isFailure)
+        assertCacheEmpty()
+    }
+
+    /** 单条扩展也可能含有过深或过宽的树，不应影响同包后续世界书。 */
+    @Test
+    fun oversizedExtensionTreesAreRejectedBeforeMapping() = runBlocking {
+        val nested = "[".repeat(130) + "0" + "]".repeat(130)
+        val wide = "[" + "0,".repeat(65_536) + "0]"
+        val inputs = listOf(nested, wide).map { """{"entries":{"1":{"extension":$it}}}""" }
+        val result =
+            read(
+                zip(
+                    "manifest.json" to inputs[0],
+                    "wide.json" to inputs[1],
+                    "ok.json" to book("OK")
+                )
+            )
+        assertEquals(2, result.failureCount)
+        assertEquals("OK", result.drafts.single().lorebook.name)
+        assertCacheEmpty()
+    }
+
     /** 缓存复制按压缩流实际大小受限，超限和条目数量超限都清理暂存文件。 */
     @Test
     fun compressedSizeAndEntryCountLimitsRejectArchive() = runBlocking {

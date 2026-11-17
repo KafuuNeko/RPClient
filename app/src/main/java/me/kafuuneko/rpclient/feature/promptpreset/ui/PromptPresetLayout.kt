@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -198,7 +199,8 @@ private fun PromptCategoryCard(
     busy: Boolean,
     emit: PromptPresetUiIntent.() -> Unit,
 ) {
-    val countDescription = stringResource(R.string.prompt_catalog_count, group.itemCount)
+    val countDescription =
+        pluralStringResource(R.plurals.prompt_catalog_count, group.itemCount, group.itemCount)
     // 一个用途分类只使用一个容器，字段行不重复显示正文和装饰图标。
     RpSettingsGroup {
         RpSettingsTile(

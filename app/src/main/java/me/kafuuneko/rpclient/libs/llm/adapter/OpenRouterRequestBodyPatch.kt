@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.kafuuneko.rpclient.utils.toPrettyJson
 
 /** OpenRouter 路由快捷配置；底层仍以通用请求体 Patch 为唯一数据源。 */
 internal data class OpenRouterRoutingPreferences(
@@ -99,9 +99,7 @@ private fun String.updateOpenRouterPatch(block: (JsonObject) -> Unit): String {
         ?: JsonObject()
     block(provider)
     if (provider.size() == 0) root.remove("provider") else root.add("provider", provider)
-    return PATCH_GSON.toJson(root)
+    return root.toPrettyJson()
 }
 
 private fun JsonArray?.isNullOrEmpty(): Boolean = this == null || size() == 0
-
-private val PATCH_GSON = GsonBuilder().setPrettyPrinting().create()

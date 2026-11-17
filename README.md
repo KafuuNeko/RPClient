@@ -77,7 +77,7 @@ Home, chat, story editor, and settings screens with a custom background and tran
 
 ### Models and Prompts
 
-- OpenAI Responses API (native protocol; [integration notes](doc/OpenAI-Responses接入与规范复核.md))
+- OpenAI Responses API (native protocol; [integration notes](doc/archive/OpenAI-Responses接入与规范复核.md))
 - OpenAI Compatible API (Chat Completions)
 - Google Gemini API
 - Anthropic Messages API

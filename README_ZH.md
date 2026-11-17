@@ -77,7 +77,7 @@ RPClient 使用 Kotlin 与 Jetpack Compose 编写，在 Android 设备上提供�
 
 ### 模型与 Prompt
 
-- OpenAI Responses API（独立原生协议；[接入与规范复核](doc/OpenAI-Responses接入与规范复核.md)）
+- OpenAI Responses API（独立原生协议；[接入与规范复核](doc/archive/OpenAI-Responses接入与规范复核.md)）
 - OpenAI Compatible API（Chat Completions）
 - Google Gemini API
 - Anthropic Messages API

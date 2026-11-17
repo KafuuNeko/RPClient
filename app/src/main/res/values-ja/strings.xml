@@ -10,7 +10,6 @@
     <string name="image_crop_shape_squircle">角丸四角</string>
     <string name="image_crop_shape_circle">円形</string>
     <string name="about">アプリについて</string>
-    <string name="about_desc">アプリのバージョン、メール、およびリポジトリ</string>
     <string name="unknown_version">不明なバージョン</string>
     <string name="developer_contact">開発者の連絡先</string>
     <string name="tech_stack_label">技術スタック</string>
@@ -95,7 +94,6 @@
     <string name="parameter_preset_topp_rich">0.95 多様</string>
     <string name="parameter_preset_topp_full">1.0 全体</string>
     <string name="streaming_response">ストリーミング応答</string>
-    <string name="streaming_response_desc">モデルの出力をリアルタイムで表示し、生成の中止をサポートします</string>
     <string name="new_session_desc">キャラクター、ノート、ワールドブックのエントリを選択します</string>
     <string name="no_recent_chats">最近のチャットはありません</string>
     <string name="no_recent_chats_desc">セッションを作成して、新しい会話を開始します。</string>
@@ -112,8 +110,6 @@
     <string name="summary_max_messages_per_request">リクエストあたりの最大メッセージ数</string>
     <string name="summary_max_messages_helper">0に設定するとコンテキストバジェットで決定されます</string>
     <string name="summary_response_tokens">要約の応答トークン数</string>
-    <string name="summary_injection_template">要約挿入テンプレート</string>
-    <string name="summary_injection_template_desc">メモリのプレースホルダーとして {{summary}} を使用します。</string>
     <string name="summary_injection_position">要約の挿入位置</string>
     <string name="summary_position_before_character">キャラクター定義の前</string>
     <string name="summary_position_after_character">キャラクター定義の後</string>
@@ -133,17 +129,14 @@
     <string name="unknown_character">不明なキャラクター</string>
     <string name="no_messages_yet">メッセージはまだありません</string>
     <string name="debug_mode">デバッグモード</string>
-    <string name="debug_mode_desc">LLMの生のリクエストとレスポンスのJSONをローカルデータベースに記録します</string>
     <string name="request_logs">リクエストログ</string>
     <string name="request_logs_subtitle">LLMの生のリクエストとレスポンスのJSON（新しい順）</string>
-    <string name="request_logs_entry_subtitle">LLMの生のリクエスト記録を表示およびコピーします</string>
     <string name="no_request_logs">リクエストログはありません</string>
     <string name="no_request_logs_desc">デバッグモードを有効にしてLLMリクエストを送信し、ログを記録してください。</string>
     <string name="clear_logs">ログをクリア</string>
     <string name="clear_logs_confirm">すべてのリクエストログをクリアしてもよろしいですか？この操作は取り消せません。</string>
     <string name="token_usage">トークン使用量</string>
     <string name="token_usage_subtitle">成功した LLM リクエストの推定トークン使用量を、モデルと API ホスト別に集計します</string>
-    <string name="token_usage_entry_subtitle">モデルと API ホスト別に入力・出力トークンの推定値を表示します</string>
     <string name="token_usage_notice_title">使用量は推定値です</string>
     <string name="token_usage_notice_desc">プロバイダーが報告した値を優先します。不足している値はローカルで推定され、請求内容と異なる場合があります。</string>
     <string name="token_usage_today">今日</string>
@@ -573,40 +566,14 @@
     <string name="prompt_preset_title">システムプロンプトプリセット</string>
     <string name="prompt_preset_subtitle">SillyTavernスタイルのシステムプロンプト、ユーティリティ、テンプレートを管理します</string>
     <string name="prompt_preset_section">プロンプトテンプレート</string>
-    <string name="prompt_preset_entry_subtitle">システムプロンプトのプリセットとユーティリティプロンプトを管理します</string>
     <string name="prompt_behavior_section">リクエスト動作</string>
-    <string name="prompt_manager_section">プロンプトマネージャー</string>
-    <string name="prompt_utility_section">ユーティリティプロンプト</string>
-    <string name="prompt_format_section">フォーマットテンプレート</string>
-    <string name="prompt_summary_section">要約</string>
     <string name="prompt_main_title">メインプロンプト</string>
-    <string name="prompt_main_desc">各セッションの開始時に挿入される主要なシステムプロンプト</string>
     <string name="prompt_auxiliary_title">補助プロンプト</string>
-    <string name="prompt_auxiliary_desc">チャット履歴の前に、キャラクター定義と共に配置される追加のシステムプロンプト</string>
     <string name="prompt_post_history_title">履歴後の指示</string>
-    <string name="prompt_post_history_desc">チャット履歴の後に追加される最終的なシステム指示</string>
-    <string name="prompt_summarize_title">要約プロンプト</string>
-    <string name="prompt_summarize_desc">長いコンテキストを短い要約に凝縮するために使用されるプロンプト</string>
-    <string name="prompt_impersonation_title">ユーザー模倣プロンプト</string>
-    <string name="prompt_impersonation_desc">ユーザーペルソナの視点から返信を生成する際に使用されます</string>
-    <string name="prompt_new_chat_title">新規チャットプロンプト</string>
-    <string name="prompt_new_chat_desc">新しいチャット履歴の前に送信されるマーカー</string>
-    <string name="prompt_new_example_chat_title">新規対話例プロンプト</string>
-    <string name="prompt_new_example_chat_desc">対話例ブロックの前に送信されるマーカー</string>
-    <string name="prompt_continue_nudge_title">続行の促し</string>
-    <string name="prompt_continue_nudge_desc">アシスタントの前回のメッセージを続行する際に使用される指示</string>
-    <string name="prompt_replace_empty_message_title">空のメッセージの置換</string>
-    <string name="prompt_replace_empty_message_desc">入力ボックスが空のときに送信するテキスト</string>
     <string name="prompt_world_info_format_title">ワールド情報フォーマット</string>
-    <string name="prompt_world_info_format_desc">有効化されたワールド情報エントリのテンプレート。マーカーとして {0} を使用します</string>
     <string name="prompt_scenario_format_title">シナリオフォーマット</string>
-    <string name="prompt_scenario_format_desc">キャラクターシナリオのテンプレート。マーカーとして {{scenario}} を使用します</string>
     <string name="prompt_personality_format_title">性格フォーマット</string>
-    <string name="prompt_personality_format_desc">キャラクター性格のテンプレート。マーカーとして {{personality}} を使用します</string>
     <string name="prompt_user_persona_format_title">ユーザーペルソナ形式</string>
-    <string name="prompt_user_persona_format_desc">ユーザーペルソナのテンプレート。{{persona}} と {{user}} を使用します</string>
-    <string name="prompt_empty_hint">タップしてプロンプトを設定…</string>
-    <string name="prompt_edit_hint">タップして編集</string>
     <string name="prompt_editor_label">プロンプト内容</string>
     <string name="prompt_editor_placeholder">ここにシステムプロンプトを入力してください…</string>
     <string name="prompt_editor_restore_default">デフォルトに戻す</string>
@@ -625,12 +592,10 @@
     <string name="prompt_post_processing_single_user">単一ユーザーメッセージ</string>
     <string name="prompt_post_processing_single_user_desc">すべてを user メッセージに変換し、話者名を付けてから結合します。</string>
     <string name="prompt_example_behavior_title">例示対話の動作</string>
-    <string name="prompt_example_behavior_desc">実際の履歴とキャラクターカードの例のどちらを優先するか選択します。</string>
     <string name="prompt_example_behavior_normal">履歴を優先</string>
     <string name="prompt_example_behavior_pinned">例を固定</string>
     <string name="prompt_example_behavior_disabled">無効</string>
     <string name="prompt_include_think_context_title">思考ブロックをコンテキストに含める</string>
-    <string name="prompt_include_think_context_desc">無効にすると、保存された &lt;think&gt;...&lt;/think&gt; ブロックが今後のプロンプトから削除されます。</string>
     <string name="world_info_budget_section">ワールド情報予算</string>
     <string name="world_info_budget_description">まずコンテキスト割合で予算を計算し、トークン上限が 0 より大きい場合にその上限を適用します。</string>
     <string name="world_info_context_percent">コンテキスト比率</string>
@@ -638,9 +603,7 @@
     <string name="world_info_budget_cap">予算上限</string>
     <string name="world_info_budget_cap_helper">コンテキスト割合を適用した後のワールド情報トークン上限。0 で上限なし</string>
     <string name="world_info_overflow_alert">予算超過を通知</string>
-    <string name="world_info_overflow_alert_desc">有効化されたワールド情報が予算不足で省略されたときに通知します</string>
     <string name="context_trimming_alert">コンテキスト切り詰め通知</string>
-    <string name="context_trimming_alert_desc">コンテキスト上限に合わせて古いメッセージや任意のプロンプト項目が削除されたときに通知します</string>
     <string name="world_info_budget_overflow_warning">有効化されたワールド情報の一部が予算不足のため省略されました。</string>
     <string name="selected_count">%d 件選択</string>
     <string name="delete_selected_sessions_title">選択したセッションを削除</string>
@@ -701,15 +664,7 @@
         <item quantity="other">%1$d人のメンバー</item>
     </plurals>
     <string name="prompt_group_nudge_title">グループ制約プロンプト</string>
-    <string name="prompt_group_nudge_desc">各生成を指定した話者だけに制限する最終指示です。</string>
-    <string name="prompt_group_impersonation_title">グループチャットのユーザー代筆プロンプト</string>
-    <string name="prompt_group_impersonation_desc">グループチャットでのユーザー代筆に使用します。{{group}} は全メンバー、{{groupNotMuted}} はミュートされていないメンバーを示します。</string>
-    <string name="prompt_group_user_writing_title">グループチャット入力欄の続筆プロンプト</string>
-    <string name="prompt_group_user_writing_desc">グループチャットの入力欄でユーザーの代筆を行う際に使用します。{{draft}} は現在の文字を挿入し、このマクロがない場合は原文を末尾に追加します。</string>
     <string name="prompt_new_group_chat_title">新規グループチャット</string>
-    <string name="prompt_new_group_chat_desc">新しいグループ履歴の前に挿入する境界プロンプトです。</string>
-    <string name="prompt_group_summarize_title">グループ要約</string>
-    <string name="prompt_group_summarize_desc">話者ごとの情報を保つグループ記憶プロンプトです。</string>
     <string name="group_chat_settings">グループチャット設定</string>
     <string name="group_chat_basic_settings">会話情報</string>
     <string name="group_chat_scenario">グループシナリオ</string>
@@ -867,8 +822,6 @@
     <string name="model_request_failed_desc">%1$s\n\nモデル設定で API キー、ベース URL、モデル名、アカウント権限を確認するか、別の設定に切り替えて再試行してください。</string>
     <string name="data_management">データ管理</string>
     <string name="import_chat">チャットをインポート</string>
-    <string name="import_chat_desc">SillyTavern または RPClient の JSONL チャットをインポート</string>
-    <string name="reading_chat_file">チャットファイルを読み込み中…</string>
     <string name="import_chat_failed">チャットのインポートに失敗しました</string>
     <string name="import_chat_success">チャットをインポートしました</string>
     <string name="select_import_character_title">キャラクターカードを関連付ける</string>
@@ -893,14 +846,11 @@
     <string name="move_down">下へ移動</string>
     <string name="move_up">上へ移動</string>
     <string name="story_author_note">作者ノート</string>
-    <string name="story_author_note_desc">文体、視点、次の場面を短く明確に指示します。</string>
-    <string name="story_include_user_persona">ユーザーペルソナを含める</string>
     <string name="story_character_primary">主人公</string>
     <string name="story_character_always">常時</string>
     <string name="story_character_auto">自動</string>
     <string name="story_character_count">%1$d文字</string>
     <string name="story_character_references">キャラクター</string>
-    <string name="story_character_references_desc">選択したカードが候補人物になります。「常時」は毎回、「自動」は名前や別名に一致したときに有効になります。</string>
     <string name="story_context_settings">コンテキスト</string>
     <string name="story_continue">続きを書く</string>
     <string name="story_continuation_guidance">続きの指示</string>
@@ -948,7 +898,6 @@
     <string name="story_loading_settings">ストーリー設定を読み込み中…</string>
     <string name="story_lorebook_empty">この世界書には項目がありません。</string>
     <string name="story_memory">メモリー</string>
-    <string name="story_memory_desc">長期設定、構成、今後の計画、執筆上の制約。</string>
     <string name="story_my_stories">マイストーリー</string>
     <string name="story_no_characters">参照を追加する前にキャラクターカードを作成してください。</string>
     <string name="story_character_references_count">キャラクター参照 %1$d件</string>
@@ -982,17 +931,8 @@
     <string name="story_undo">直前の編集を元に戻す</string>
     <string name="story_redo">直前の編集をやり直す</string>
     <string name="story_unsaved">未保存</string>
-    <string name="prompt_story_continue_desc">本文末尾から続きを書くタスク</string>
     <string name="prompt_story_continue_title">物語の続き</string>
-    <string name="prompt_story_main_desc">すべての物語操作で共通するシステム指示</string>
     <string name="prompt_story_main_title">物語メインプロンプト</string>
-    <string name="prompt_story_memory_title">メモリ注入テンプレート</string>
-    <string name="prompt_story_memory_desc">{{memory}} を使って長期物語メモリを包むシステムメッセージテンプレート</string>
-    <string name="prompt_story_summary_title">要約注入テンプレート</string>
-    <string name="prompt_story_summary_desc">{{summary}} を使って現在の物語要約を包むシステムメッセージテンプレート</string>
-    <string name="prompt_story_continuation_guidance_title">続きの指針テンプレート</string>
-    <string name="prompt_story_continuation_guidance_desc">{{guidance}} プレースホルダーで今回の指針を包むシステムメッセージテンプレート</string>
-    <string name="prompt_story_section">物語執筆</string>
     <string name="prompt_source_story_author_note">作者ノート</string>
     <string name="prompt_source_story_character">物語キャラクター</string>
     <string name="prompt_source_story_document">本文コンテキスト</string>
@@ -1011,8 +951,6 @@
     <string name="story_summary_failed">ストーリーを要約できませんでした。モデル設定とコンテキスト設定を確認してください。</string>
     <string name="story_summary_conflict">要約中に本文が変更されました。もう一度生成してください。</string>
     <string name="story_summary_updated">ストーリー要約を更新しました</string>
-    <string name="prompt_story_summarize_title">ストーリー要約プロンプト</string>
-    <string name="prompt_story_summarize_desc">ストーリー要約の更新方法を制御します</string>
     <string name="prompt_source_story_summary">ストーリー要約</string>
     <string name="request_extensions">リクエスト拡張</string>
     <string name="request_body_patch_description">プロバイダー固有の推論設定を含む追加フィールドを、生成されたリクエスト本文にマージします。RPClient が管理する構造および生成フィールドは保護されます。</string>
@@ -1110,7 +1048,6 @@
     <string name="character_model_config">キャラクターのモデル設定</string>
     <string name="character_model_config_helper">このキャラクターの返信に使用します。無効化後も変更するまで割り当ては保持されます。</string>
     <string name="summary_model_config">要約モデル設定</string>
-    <string name="summary_model_config_helper">個別チャット、グループチャット、ストーリーの要約に使用します。</string>
     <string name="unnamed_model_config">名前のないモデル設定</string>
     <string name="disabled_model_config_format">%1$s（無効）</string>
     <string name="delete_model_config">モデル設定を削除</string>
@@ -1180,7 +1117,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">要約の出力上限に達しました</string>
     <string name="summary_token_limit_message">要約が出力トークンの上限に達したため、今回の結果は保存されていません。モデルの思考もこの上限に含まれます。設定 → “%1$s” → “%2$s”で“%3$s”を増やしてから、もう一度お試しください。</string>
     <string name="summary_go_to_settings">設定を開く</string>
@@ -1193,7 +1130,6 @@
     <string name="about_build_number">ビルド番号</string>
     <string name="about_rate_action">評価する</string>
     <string name="image_send_title">画像送信（詳細設定）</string>
-    <string name="image_send_description">メッセージ送信時や編集保存時に追加した画像のみを処理します。処理後の画像のみを保存し、既存の添付画像は変更しません。</string>
     <string name="image_send_auto">自動</string>
     <string name="image_send_original">元画像</string>
     <string name="image_send_custom">カスタム</string>
@@ -1302,8 +1238,6 @@
     <string name="content_search_newer">新しいメッセージを読み込む</string>
     <string name="content_search_latest">最新のメッセージへ</string>
     <string name="content_search_index_title">検索の高速化</string>
-    <string name="content_search_index_enabled">検索の高速化はオンです</string>
-    <string name="content_search_index_disabled">通常検索は保存済みの内容を順に検索します</string>
     <string name="content_search_index_enable">有効にする</string>
     <string name="content_search_index_disable">無効にして削除</string>
     <string name="content_search_index_confirm_title">検索を高速化しますか？</string>
@@ -1313,10 +1247,7 @@
     <string name="content_search_index_building">索引を作成中…%1$d 件処理済み</string>
     <string name="content_search_index_cleaning">索引を削除して容量を解放中…</string>
     <string name="content_search_index_cleanup_failed">削除が完了しませんでした。空き容量を増やすか、他の処理が終わってから再試行してください。検索の高速化は無効のままです。</string>
-    <string name="content_search_index_failed">検索の高速化を利用できません。通常検索は利用できます。</string>
     <string name="backup_restore_title">バックアップと復元</string>
-    <string name="backup_restore_entry_desc">アプリのデータと設定を ZIP にエクスポート、または復元します</string>
-    <string name="backup_restore_description">キャラクター、物語、個別・グループチャット、ワールドブック、モデル設定、API キー、トークン使用量、リクエストログ、設定、添付ファイルを読み取り可能な JSONL と JSON にエクスポートします。復元は現在のデータをすべて置き換え、RPClient を再起動します。</string>
     <string name="backup_restore_security_warning">注意：RPClient-Portable-Data.zip は暗号化されていません。API キー、カスタムヘッダー、リクエストログ、私的な会話、添付ファイルが含まれます。この ZIP を入手した人は内容を読めるため、安全に保管してください。</string>
     <string name="backup_export_action">ZIP バックアップをエクスポート</string>
     <string name="backup_restore_action">ZIP から復元</string>
@@ -1329,7 +1260,6 @@
     <string name="backup_restore_confirm_title">現在のアプリデータを置き換えますか？</string>
     <string name="backup_restore_confirm_message">完全復元ではモデル設定と API キー、キャラクター、物語、個別・グループチャット、ワールドブック、正規表現スクリプト、使用量、リクエストログ、設定、添付ファイルをすべて置き換えます。統合は行いません。現在のデータが必要な場合は、先にバックアップしてください。</string>
     <string name="story_markdown_rendering">物語の Markdown 表示</string>
-    <string name="story_markdown_rendering_desc">物語の章を Markdown 形式で表示します。</string>
     <string name="story_markdown_edit">原文を編集</string>
     <string name="scroll_to_top">先頭へ移動</string>
     <string name="scroll_to_bottom">末尾へ移動</string>
@@ -1343,7 +1273,6 @@
     <string name="backup_security_title">セキュリティとプライバシーについて</string>
     <string name="backup_status_title">現在の状態</string>
     <string name="message_edit_separate_think">思考過程を分離</string>
-    <string name="message_edit_separate_think_desc">編集時は本文のみを変更し、元の思考過程を保持します。</string>
     <string name="backup_details_title">技術的な詳細</string>
     <string name="backup_details_copy">コピー</string>
     <string name="backup_details_copied">詳細をコピーしました</string>
@@ -1373,11 +1302,6 @@
     <string name="character_background_enable_message">チャット背景の「キャラクターカードの背景を使用」がオフになっています。今すぐ有効にしますか？背景が設定されたすべてのキャラクターとのチャットに適用されます。</string>
     <string name="character_background_enable_confirm">今すぐ有効化</string>
     <string name="character_background_enable_later">今はしない</string>
-    <string name="character_selection_count">%1$d 件選択中</string>
-    <string name="select_all_characters">すべて選択</string>
-    <string name="deselect_all_characters">選択をすべて解除</string>
-    <string name="character_selected">選択済み</string>
-    <string name="character_not_selected">未選択</string>
     <string name="export_selected_characters_zip">選択したキャラクターを ZIP でエクスポート</string>
     <string name="export_character_archive_success">キャラクターの ZIP をエクスポートしました。</string>
     <string name="export_character_archive_limit">キャラクター ZIP がインポートの上限を超えています。選択するカードを減らすか、大きなカードの内容を減らしてください。</string>
@@ -1393,12 +1317,20 @@
     <string name="batch_import_result_message">成功：%1$d\n失敗：%2$d</string>
     <string name="batch_import_reading_progress">解析中 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">インポート中 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">選択した %1$d 人のキャラクターを削除しますか？関連するワールドブックは保持されます。この操作は取り消せません。</string>
-    <string name="world_book_batch_delete_message">選択した %1$d 冊のワールドブックとすべてのエントリーを削除しますか？キャラクターとの関連付けも解除されます。この操作は取り消せません。</string>
-    <string name="world_book_entry_batch_delete_message">選択した %1$d 件のエントリーを削除しますか？削除は直ちに反映され、取り消せません。</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="other">選択した %1$d 人のキャラクターを削除しますか？関連するワールドブックは保持されます。この操作は取り消せません。</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="other">選択した %1$d 冊のワールドブックとすべてのエントリーを削除しますか？キャラクターとの関連付けも解除されます。この操作は取り消せません。</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="other">選択した %1$d 件のエントリーを削除しますか？削除は直ちに反映され、取り消せません。</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">ワールドブックのインポートが完了しました</string>
-    <string name="world_book_batch_low_budget_message">選択した %1$d 冊のワールドブックの固定予算が低く設定されています。最小値は %2$d トークンです。これらのブックにグローバル予算を使用しますか？</string>
-    <string name="world_book_archive_limit">ワールドブックの ZIP がインポート上限を超えています。選択数を減らすか、大きなブックの内容を減らしてください。</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="other">選択した %1$d 冊のワールドブックの固定予算が低く設定されています。最小値は %2$d トークンです。これらのブックにグローバル予算を使用しますか？</item>
+    </plurals>
+    <string name="world_book_archive_limit">選択したワールドブックのデータがインポート上限を超えています。選択数を減らすか、大きなブックの内容を減らしてください。</string>
     <string name="world_book_export_selected">選択したワールドブックを ZIP としてエクスポート</string>
 
     <string name="prompt_template_default">システム既定</string>
@@ -1411,7 +1343,6 @@
     <string name="prompt_template_failed">テンプレートを読み込むか保存できませんでした。再試行してください。</string>
     <string name="prompt_template_conflict">テンプレートが変更されました。下書きをコピーしてから、エディターを開き直してください。</string>
     <string name="prompt_template_active">使用中</string>
-    <string name="prompt_template_scope">今後のチャット、グループチャット、物語、要約の生成に適用されます。キャラクターやセッションの個別設定は引き続き優先されます。</string>
     <string name="prompt_template_search">テンプレートを検索</string>
     <string name="prompt_template_all">プロンプトテンプレート</string>
     <string name="prompt_template_no_results">一致するテンプレートがありません</string>
@@ -1426,12 +1357,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">ユーザー模倣の出力先</string>
     <string name="user_writing_output_message">チャット履歴</string>
-    <string name="user_writing_output_message_desc">生成したユーザーメッセージを会話に直接保存します。</string>
     <string name="user_writing_output_draft">入力欄</string>
-    <string name="user_writing_output_draft_desc">入力欄に下書きを生成し、編集してから送信します。</string>
     <string name="user_writing_no_body">メッセージ本文が生成されませんでした。元の下書きを保持しました。</string>
-    <string name="prompt_user_writing_title">入力欄の続き書きプロンプト</string>
-    <string name="prompt_user_writing_desc">ユーザーの代わりに入力欄の続きを書く際に使用します。{{draft}} で現在の入力を挿入します。このマクロがない場合、入力はプロンプトの末尾に追加されます。</string>
     <string name="summary_mode">会話の要約モード</string>
     <string name="summary_mode_raw">Raw（増分要約）</string>
     <string name="summary_mode_classic">Classic（現在のコンテキスト）</string>
@@ -1464,7 +1391,9 @@
     <string name="prompt_status_default_empty">デフォルト · 空</string>
     <string name="prompt_status_custom">カスタム</string>
     <string name="prompt_status_custom_empty">カスタム · 空</string>
-    <string name="prompt_catalog_count">%1$d 件</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="other">%1$d 件</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">グループ発言者の制約</string>
     <string name="prompt_catalog_continue_title">キャラクターの返信を続ける指示</string>
     <string name="prompt_catalog_impersonation_title">個別チャットのユーザー代筆指示</string>

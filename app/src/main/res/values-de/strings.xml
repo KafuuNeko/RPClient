@@ -10,7 +10,6 @@
     <string name="image_crop_shape_squircle">Abgerundet</string>
     <string name="image_crop_shape_circle">Kreis</string>
     <string name="about">Über</string>
-    <string name="about_desc">App-Version, E-Mail und Repository</string>
     <string name="unknown_version">Unbekannte Version</string>
     <string name="developer_contact">Entwicklerkontakt</string>
     <string name="tech_stack_label">Technologiestapel</string>
@@ -95,7 +94,6 @@
     <string name="parameter_preset_topp_rich">0.95 Vielfältig</string>
     <string name="parameter_preset_topp_full">1.0 Vollständig</string>
     <string name="streaming_response">Antwort-Streaming</string>
-    <string name="streaming_response_desc">Modellausgabe in Echtzeit anzeigen, unterstützt das Stoppen der Generierung</string>
     <string name="new_session_desc">Wähle einen Charakter, Notizen und Weltbuch-Einträge</string>
     <string name="no_recent_chats">Keine letzten Chats</string>
     <string name="no_recent_chats_desc">Erstelle eine Sitzung, um eine neue Konversation zu beginnen.</string>
@@ -112,8 +110,6 @@
     <string name="summary_max_messages_per_request">Maximale Nachrichten pro Anfrage</string>
     <string name="summary_max_messages_helper">0 lässt das Kontextbudget entscheiden</string>
     <string name="summary_response_tokens">Zusammenfassungs-Antwort-Tokens</string>
-    <string name="summary_injection_template">Vorlage für Zusammenfassungs-Einfügung</string>
-    <string name="summary_injection_template_desc">Verwende {{summary}} als Platzhalter für den Speicher.</string>
     <string name="summary_injection_position">Position der Zusammenfassung</string>
     <string name="summary_position_before_character">Vor der Charakterdefinition</string>
     <string name="summary_position_after_character">Nach der Charakterdefinition</string>
@@ -133,17 +129,14 @@
     <string name="unknown_character">Unbekannter Charakter</string>
     <string name="no_messages_yet">Noch keine Nachrichten</string>
     <string name="debug_mode">Debug-Modus</string>
-    <string name="debug_mode_desc">LLM-Rohdaten von Anfrage und Antwort in lokaler Datenbank speichern</string>
     <string name="request_logs">Anfrage-Protokolle</string>
     <string name="request_logs_subtitle">LLM-Rohdaten von Anfrage und Antwort JSON, neueste zuerst</string>
-    <string name="request_logs_entry_subtitle">LLM-Rohanfragen anzeigen und kopieren</string>
     <string name="no_request_logs">Keine Anfrage-Protokolle</string>
     <string name="no_request_logs_desc">Aktiviere den Debug-Modus und sende eine LLM-Anfrage, um Einträge zu erstellen.</string>
     <string name="clear_logs">Protokolle löschen</string>
     <string name="clear_logs_confirm">Möchtest du wirklich alle Anfrage-Protokolle löschen? Dies kann nicht rückgängig gemacht werden.</string>
     <string name="token_usage">Token-Verbrauch</string>
     <string name="token_usage_subtitle">Geschätzter Token-Verbrauch erfolgreicher LLM-Anfragen, gruppiert nach Modell und API-Host</string>
-    <string name="token_usage_entry_subtitle">Schätzungen für Eingabe- und Ausgabe-Tokens nach Modell und API-Host anzeigen</string>
     <string name="token_usage_notice_title">Der Token-Verbrauch ist geschätzt</string>
     <string name="token_usage_notice_desc">Vom Anbieter gemeldete Werte werden bevorzugt. Fehlende Werte werden lokal geschätzt und können von der Abrechnung abweichen.</string>
     <string name="token_usage_today">Heute</string>
@@ -573,40 +566,14 @@
     <string name="prompt_preset_title">System-Prompt-Preset</string>
     <string name="prompt_preset_subtitle">SillyTavern-ähnliche System-Prompts, Dienstprogramme und Vorlagen verwalten</string>
     <string name="prompt_preset_section">Prompt-Vorlagen</string>
-    <string name="prompt_preset_entry_subtitle">System-Prompt-Presets und Hilfs-Prompts verwalten</string>
     <string name="prompt_behavior_section">Anfrageverhalten</string>
-    <string name="prompt_manager_section">Prompt-Manager</string>
-    <string name="prompt_utility_section">Hilfs-Prompts</string>
-    <string name="prompt_format_section">Formatvorlagen</string>
-    <string name="prompt_summary_section">Zusammenfassung</string>
     <string name="prompt_main_title">Haupt-Prompt</string>
-    <string name="prompt_main_desc">Primärer System-Prompt, der zu Beginn jeder Sitzung eingefügt wird</string>
     <string name="prompt_auxiliary_title">Hilfs-Prompt (Auxiliary)</string>
-    <string name="prompt_auxiliary_desc">Zusätzlicher System-Prompt, der zusammen mit den Charakterdefinitionen vor dem Chatverlauf platziert wird</string>
     <string name="prompt_post_history_title">Post-History-Anweisungen</string>
-    <string name="prompt_post_history_desc">Letzte Systemanweisungen, die an das Ende des Chatverlaufs angehängt werden</string>
-    <string name="prompt_summarize_title">Zusammenfassungs-Prompt</string>
-    <string name="prompt_summarize_desc">Prompt, der verwendet wird, um einen langen Kontext in eine kurze Zusammenfassung zu kondensieren</string>
-    <string name="prompt_impersonation_title">Impersonations-Prompt</string>
-    <string name="prompt_impersonation_desc">Wird verwendet, um eine Antwort aus der Perspektive der Benutzer-Persona zu generieren</string>
-    <string name="prompt_new_chat_title">Neuer Chat-Prompt</string>
-    <string name="prompt_new_chat_desc">Marker, der vor einem neuen Chatverlauf gesendet wird</string>
-    <string name="prompt_new_example_chat_title">Neuer Beispieldialog-Prompt</string>
-    <string name="prompt_new_example_chat_desc">Marker, der vor Beispieldialog-Blöcken gesendet wird</string>
-    <string name="prompt_continue_nudge_title">Fortsetzungs-Prompt</string>
-    <string name="prompt_continue_nudge_desc">Anweisung, die beim Fortsetzen der vorherigen Assistentennachricht verwendet wird</string>
-    <string name="prompt_replace_empty_message_title">Leere Nachricht ersetzen</string>
-    <string name="prompt_replace_empty_message_desc">Text, der gesendet wird, wenn das Eingabefeld leer ist</string>
     <string name="prompt_world_info_format_title">Weltinfo-Format</string>
-    <string name="prompt_world_info_format_desc">Vorlage für aktivierte Weltinfo-Einträge; verwende {0} als Platzhalter</string>
     <string name="prompt_scenario_format_title">Szenario-Format</string>
-    <string name="prompt_scenario_format_desc">Vorlage für das Charakterszenario; verwende {{scenario}} als Platzhalter</string>
     <string name="prompt_personality_format_title">Persönlichkeitsformat</string>
-    <string name="prompt_personality_format_desc">Vorlage für die Charakterpersönlichkeit; verwende {{personality}} als Platzhalter</string>
     <string name="prompt_user_persona_format_title">Benutzerpersona-Format</string>
-    <string name="prompt_user_persona_format_desc">Vorlage für die Benutzerpersona; verwende {{persona}} und {{user}} als Platzhalter</string>
-    <string name="prompt_empty_hint">Tippe, um einen Prompt festzulegen…</string>
-    <string name="prompt_edit_hint">Tippe zum Bearbeiten</string>
     <string name="prompt_editor_label">Prompt-Inhalt</string>
     <string name="prompt_editor_placeholder">Gib deinen System-Prompt hier ein…</string>
     <string name="prompt_editor_restore_default">Standard wiederherstellen</string>
@@ -625,12 +592,10 @@
     <string name="prompt_post_processing_single_user">Einzelne Benutzernachricht</string>
     <string name="prompt_post_processing_single_user_desc">Wandle alle Nachrichten in Benutzer um, ergänze Sprechernamen und führe sie zusammen.</string>
     <string name="prompt_example_behavior_title">Beispieldialoge</string>
-    <string name="prompt_example_behavior_desc">Legt fest, ob der echte Verlauf oder Kartenbeispiele das restliche Kontextbudget zuerst erhalten.</string>
     <string name="prompt_example_behavior_normal">Verlauf bevorzugen</string>
     <string name="prompt_example_behavior_pinned">Beispiele anheften</string>
     <string name="prompt_example_behavior_disabled">Deaktiviert</string>
     <string name="prompt_include_think_context_title">Denkblöcke (Think) im Kontext einschließen</string>
-    <string name="prompt_include_think_context_desc">Wenn deaktiviert, werden gespeicherte &lt;think&gt;...&lt;/think&gt; Blöcke aus zukünftigen Prompts entfernt.</string>
     <string name="world_info_budget_section">Weltinfo-Budget</string>
     <string name="world_info_budget_description">Der Kontextanteil wird zuerst berechnet und anschließend durch die Token-Obergrenze begrenzt, sofern diese größer als 0 ist.</string>
     <string name="world_info_context_percent">Kontextanteil</string>
@@ -638,9 +603,7 @@
     <string name="world_info_budget_cap">Budgetobergrenze</string>
     <string name="world_info_budget_cap_helper">Maximale Weltinfo-Tokens nach Anwendung des Kontextanteils; 0 deaktiviert die Obergrenze</string>
     <string name="world_info_overflow_alert">Warnung bei Budgetüberschreitung</string>
-    <string name="world_info_overflow_alert_desc">Warnen, wenn aktivierte Weltinfo-Einträge wegen des Budgets ausgelassen werden</string>
     <string name="context_trimming_alert">Hinweise zur Kontextkürzung</string>
-    <string name="context_trimming_alert_desc">Hinweis anzeigen, wenn ältere Nachrichten oder optionale Prompt-Abschnitte für das Kontextlimit entfernt werden</string>
     <string name="world_info_budget_overflow_warning">Einige aktivierte Weltinfo-Einträge wurden wegen des Weltinfo-Budgets ausgelassen.</string>
     <string name="selected_count">%d ausgewählt</string>
     <string name="delete_selected_sessions_title">Ausgewählte Sitzungen löschen</string>
@@ -702,15 +665,7 @@
         <item quantity="other">%1$d Mitglieder</item>
     </plurals>
     <string name="prompt_group_nudge_title">Gruppenanweisung</string>
-    <string name="prompt_group_nudge_desc">Abschließende Anweisung, die jede Generierung auf den gewählten Sprecher begrenzt.</string>
-    <string name="prompt_group_impersonation_title">Prompt zur Benutzerimitation im Gruppenchat</string>
-    <string name="prompt_group_impersonation_desc">Zum Imitieren des Benutzers im Gruppenchat. {{group}} listet alle Mitglieder auf, {{groupNotMuted}} nur die nicht stummgeschalteten.</string>
-    <string name="prompt_group_user_writing_title">Prompt zur Fortsetzung im Gruppeneingabefeld</string>
-    <string name="prompt_group_user_writing_desc">Für die Benutzerimitation im Gruppeneingabefeld. {{draft}} fügt den aktuellen Text ein. Ohne dieses Makro wird der Text am Ende angehängt.</string>
     <string name="prompt_new_group_chat_title">Neuer Gruppenchat</string>
-    <string name="prompt_new_group_chat_desc">Trennhinweis vor einem neuen Gruppenverlauf.</string>
-    <string name="prompt_group_summarize_title">Gruppenzusammenfassung</string>
-    <string name="prompt_group_summarize_desc">Speichervorlage mit sprecherspezifischem Gruppenverlauf.</string>
     <string name="group_chat_settings">Gruppenchat-Einstellungen</string>
     <string name="group_chat_basic_settings">Unterhaltungsdetails</string>
     <string name="group_chat_scenario">Gruppenszenario</string>
@@ -868,8 +823,6 @@
     <string name="model_request_failed_desc">%1$s\n\nÖffne die Modelleinstellungen, um API-Schlüssel, Basis-URL, Modellnamen und Kontoberechtigungen zu prüfen, oder wechsle zu einer anderen Konfiguration.</string>
     <string name="data_management">Datenverwaltung</string>
     <string name="import_chat">Chat importieren</string>
-    <string name="import_chat_desc">SillyTavern- oder RPClient-Chat als JSONL importieren</string>
-    <string name="reading_chat_file">Chatdatei wird gelesen…</string>
     <string name="import_chat_failed">Chat konnte nicht importiert werden</string>
     <string name="import_chat_success">Chat importiert</string>
     <string name="select_import_character_title">Charakterkarte zuordnen</string>
@@ -933,15 +886,11 @@
     <string name="story_loading_settings">Geschichtseinstellungen werden geladen …</string>
     <string name="story_context_settings">Kontext</string>
     <string name="story_memory">Gedächtnis</string>
-    <string name="story_memory_desc">Langfristige Fakten, Gliederung, Zukunftspläne und Schreibvorgaben.</string>
     <string name="story_author_note">Autorenhinweis</string>
-    <string name="story_author_note_desc">Eine kurze, deutliche Vorgabe für Stimme, Perspektive und die nächste Szene.</string>
     <string name="story_character_references">Figuren</string>
-    <string name="story_character_references_desc">Ausgewählte Karten bilden die Figurenmenge dieser Geschichte. „Immer“ wird stets eingefügt, „Auto“ bei Name oder Alias.</string>
     <string name="story_no_characters">Erstelle zuerst eine Figurenkarte, um Referenzen hinzuzufügen.</string>
     <string name="story_character_always">Immer</string>
     <string name="story_character_auto">Auto</string>
-    <string name="story_include_user_persona">Benutzerpersona einbeziehen</string>
     <string name="story_character_primary">Protagonist</string>
     <string name="story_linked_lorebook">Verknüpftes Weltenbuch: %1$s</string>
     <string name="story_lorebook_empty">Dieses Weltenbuch enthält keine Einträge.</string>
@@ -987,17 +936,8 @@
     <string name="story_import_failed">Datei konnte nicht importiert werden. Sie ist eventuell zu groß oder nicht unterstützt.</string>
     <string name="story_export_succeeded">Story exportiert</string>
     <string name="story_export_failed">Story konnte nicht exportiert werden</string>
-    <string name="prompt_story_section">Geschichtenschreiben</string>
     <string name="prompt_story_main_title">Geschichte-Hauptprompt</string>
-    <string name="prompt_story_main_desc">Gemeinsame Systemanweisung für alle Schreiboperationen</string>
-    <string name="prompt_story_memory_title">Vorlage zur Gedächtnisinjektion</string>
-    <string name="prompt_story_memory_desc">Systemnachrichtenvorlage mit {{memory}} für das langfristige Story-Gedächtnis</string>
-    <string name="prompt_story_summary_title">Vorlage zur Zusammenfassungsinjektion</string>
-    <string name="prompt_story_summary_desc">Systemnachrichtenvorlage mit {{summary}} für die aktuelle Handlungszusammenfassung</string>
-    <string name="prompt_story_continuation_guidance_title">Vorlage für Fortsetzungshinweise</string>
-    <string name="prompt_story_continuation_guidance_desc">Systemnachrichtenvorlage mit dem Platzhalter {{guidance}} für den aktuellen Hinweis</string>
     <string name="prompt_story_continue_title">Geschichte fortsetzen</string>
-    <string name="prompt_story_continue_desc">Aufgabe zum Fortsetzen am Manuskriptende</string>
     <string name="prompt_source_story_main">Geschichte-Hauptprompt</string>
     <string name="prompt_source_story_memory">Story-Memory</string>
     <string name="prompt_source_story_author_note">Autorennotiz</string>
@@ -1014,8 +954,6 @@
     <string name="story_summary_failed">Die Story konnte nicht zusammengefasst werden. Prüfe Modellkonfiguration und Kontext.</string>
     <string name="story_summary_conflict">Das Manuskript wurde während der Zusammenfassung geändert. Erstelle sie erneut.</string>
     <string name="story_summary_updated">Handlungszusammenfassung aktualisiert</string>
-    <string name="prompt_story_summarize_title">Prompt für Story-Zusammenfassung</string>
-    <string name="prompt_story_summarize_desc">Steuert, wie die Handlungszusammenfassung aktualisiert wird</string>
     <string name="prompt_source_story_summary">Handlungszusammenfassung</string>
     <string name="request_extensions">Anfrageerweiterungen</string>
     <string name="request_body_patch_description">Fügt dem erzeugten Anfragekörper zusätzliche Felder einschließlich anbieterspezifischer Denkeinstellungen hinzu. RPClient schützt die von der App verwalteten Struktur- und Generierungsfelder.</string>
@@ -1113,7 +1051,6 @@
     <string name="character_model_config">Modellkonfiguration des Charakters</string>
     <string name="character_model_config_helper">Wird für Antworten dieses Charakters verwendet. Deaktivierte Konfigurationen bleiben bis zur Änderung gebunden.</string>
     <string name="summary_model_config">Modellkonfiguration für Zusammenfassungen</string>
-    <string name="summary_model_config_helper">Wird für Einzelchat-, Gruppenchat- und Story-Zusammenfassungen verwendet.</string>
     <string name="unnamed_model_config">Unbenannte Modellkonfiguration</string>
     <string name="disabled_model_config_format">%1$s (deaktiviert)</string>
     <string name="delete_model_config">Modellkonfiguration löschen</string>
@@ -1184,7 +1121,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">Ausgabelimit der Zusammenfassung erreicht</string>
     <string name="summary_token_limit_message">Die Zusammenfassung hat das Ausgabelimit für Tokens erreicht und wurde nicht gespeichert. Auch das Nachdenken verbraucht dieses Budget. Erhöhen Sie unter Einstellungen → “%1$s” → “%2$s” “%3$s” und versuchen Sie es erneut.</string>
     <string name="summary_go_to_settings">Zu den Einstellungen</string>
@@ -1197,7 +1134,6 @@
     <string name="about_build_number">Build-Nummer</string>
     <string name="about_rate_action">App bewerten</string>
     <string name="image_send_title">Bildversand (erweitert)</string>
-    <string name="image_send_description">Gilt nur für neu hinzugefügte Bilder beim Senden oder Speichern einer Bearbeitung. Nur das verarbeitete Bild wird gespeichert; vorhandene Anhänge bleiben unverändert.</string>
     <string name="image_send_auto">Automatisch</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Benutzerdefiniert</string>
@@ -1306,8 +1242,6 @@
     <string name="content_search_newer">Neuere Nachrichten laden</string>
     <string name="content_search_latest">Zu den neuesten Nachrichten</string>
     <string name="content_search_index_title">Suchbeschleunigung</string>
-    <string name="content_search_index_enabled">Suchbeschleunigung ist aktiviert</string>
-    <string name="content_search_index_disabled">Die Standardsuche durchsucht gespeicherte Inhalte</string>
     <string name="content_search_index_enable">Aktivieren</string>
     <string name="content_search_index_disable">Deaktivieren und leeren</string>
     <string name="content_search_index_confirm_title">Suchbeschleunigung aktivieren?</string>
@@ -1317,10 +1251,7 @@
     <string name="content_search_index_building">Index wird erstellt… %1$d Einträge verarbeitet</string>
     <string name="content_search_index_cleaning">Index wird gelöscht und Speicherplatz freigegeben…</string>
     <string name="content_search_index_cleanup_failed">Die Bereinigung konnte nicht abgeschlossen werden. Gib Speicherplatz frei oder warte auf andere Aufgaben und versuche es erneut. Die Suchbeschleunigung bleibt deaktiviert.</string>
-    <string name="content_search_index_failed">Die Suchbeschleunigung ist nicht verfügbar. Die Standardsuche ist verfügbar.</string>
     <string name="backup_restore_title">Sicherung und Wiederherstellung</string>
-    <string name="backup_restore_entry_desc">App-Daten und Einstellungen als ZIP exportieren oder wiederherstellen</string>
-    <string name="backup_restore_description">Exportiert alle Daten als lesbares JSONL und JSON: Charaktere, Geschichten, Einzel- und Gruppenchats, Weltbücher, Anbieter-Einstellungen, API-Schlüssel, Token-Verbrauch, Anfrageprotokolle, Einstellungen und Anhänge. Die Wiederherstellung ersetzt alle aktuellen Daten und startet RPClient neu.</string>
     <string name="backup_restore_security_warning">Sicherheit: RPClient-Portable-Data.zip ist unverschlüsselt. Die Datei enthält API-Schlüssel, eigene Header, Anfrageprotokolle, private Gespräche und Anhänge. Jeder mit dieser ZIP kann die Daten lesen. Bewahren Sie sie sicher auf.</string>
     <string name="backup_export_action">ZIP-Sicherung exportieren</string>
     <string name="backup_restore_action">Aus ZIP wiederherstellen</string>
@@ -1333,7 +1264,6 @@
     <string name="backup_restore_confirm_title">Aktuelle App-Daten ersetzen?</string>
     <string name="backup_restore_confirm_message">Die vollständige Wiederherstellung ersetzt Anbieter und API-Schlüssel, Charaktere, Geschichten, Einzel- und Gruppenchats, Weltbücher, Regex-Skripte, Nutzungs- und Anfrageprotokolle, Einstellungen und Anhänge. Es wird nichts zusammengeführt. Sichern Sie zuerst Ihre aktuellen Daten, falls Sie sie später benötigen.</string>
     <string name="story_markdown_rendering">Markdown in Geschichten anzeigen</string>
-    <string name="story_markdown_rendering_desc">Kapitel mit Markdown-Formatierung anzeigen.</string>
     <string name="story_markdown_edit">Quelltext bearbeiten</string>
     <string name="scroll_to_top">Nach oben scrollen</string>
     <string name="scroll_to_bottom">Nach unten scrollen</string>
@@ -1347,7 +1277,6 @@
     <string name="backup_security_title">Sicherheits- und Datenschutzhinweis</string>
     <string name="backup_status_title">Aktueller Status</string>
     <string name="message_edit_separate_think">Denkprozess trennen</string>
-    <string name="message_edit_separate_think_desc">Nur die Antwort bearbeiten und den Denkprozess beibehalten.</string>
     <string name="backup_details_title">Technische Details</string>
     <string name="backup_details_copy">Kopieren</string>
     <string name="backup_details_copied">Details kopiert</string>
@@ -1377,11 +1306,6 @@
     <string name="character_background_enable_message">Die Chat-Einstellung „Hintergrund der Charakterkarte verwenden“ ist deaktiviert. Jetzt aktivieren? Dies gilt für alle Chats mit Charakterhintergründen.</string>
     <string name="character_background_enable_confirm">Aktivieren</string>
     <string name="character_background_enable_later">Nicht jetzt</string>
-    <string name="character_selection_count">%1$d ausgewählt</string>
-    <string name="select_all_characters">Alle auswählen</string>
-    <string name="deselect_all_characters">Auswahl aufheben</string>
-    <string name="character_selected">Ausgewählt</string>
-    <string name="character_not_selected">Nicht ausgewählt</string>
     <string name="export_selected_characters_zip">Ausgewählte Charaktere als ZIP exportieren</string>
     <string name="export_character_archive_success">Charakter-ZIP erfolgreich exportiert.</string>
     <string name="export_character_archive_limit">Die Charakter-ZIP-Datei überschreitet die Importgrenzen. Wähle weniger Karten aus oder verkleinere eine große Karte.</string>
@@ -1397,12 +1321,24 @@
     <string name="batch_import_result_message">Importiert: %1$d\nFehlgeschlagen: %2$d</string>
     <string name="batch_import_reading_progress">Dateien werden gelesen: %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Import läuft: %1$d/%2$d</string>
-    <string name="character_batch_delete_message">%1$d ausgewählte Charaktere löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="world_book_batch_delete_message">%1$d ausgewählte Weltbücher und alle ihre Einträge löschen? Charakterverknüpfungen werden entfernt. Dies kann nicht rückgängig gemacht werden.</string>
-    <string name="world_book_entry_batch_delete_message">%1$d ausgewählte Einträge löschen? Die Löschung erfolgt sofort und kann nicht rückgängig gemacht werden.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="one">%1$d ausgewählten Charakter löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">%1$d ausgewählte Charaktere löschen? Verknüpfte Weltbücher bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="one">%1$d ausgewähltes Weltbuch und alle seine Einträge löschen? Charakterverknüpfungen werden entfernt. Dies kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">%1$d ausgewählte Weltbücher und alle ihre Einträge löschen? Charakterverknüpfungen werden entfernt. Dies kann nicht rückgängig gemacht werden.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="one">%1$d ausgewählten Eintrag löschen? Die Löschung erfolgt sofort und kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">%1$d ausgewählte Einträge löschen? Die Löschung erfolgt sofort und kann nicht rückgängig gemacht werden.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">Weltbuchimport abgeschlossen</string>
-    <string name="world_book_batch_low_budget_message">%1$d ausgewählte Weltbücher haben niedrige feste Budgets. Das niedrigste beträgt %2$d Tokens. Das globale Budget für diese Bücher verwenden?</string>
-    <string name="world_book_archive_limit">Die Weltbuch-ZIP überschreitet die Importgrenzen. Wähle weniger Bücher oder verkleinere ein großes Buch.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="one">%1$d ausgewähltes Weltbuch hat ein niedriges festes Tokenbudget von %2$d. Das globale Budget für dieses Buch verwenden?</item>
+        <item quantity="other">%1$d ausgewählte Weltbücher haben niedrige feste Budgets. Das niedrigste beträgt %2$d Tokens. Das globale Budget für diese Bücher verwenden?</item>
+    </plurals>
+    <string name="world_book_archive_limit">Die ausgewählten Weltbuchdaten überschreiten die Importgrenzen. Wähle weniger Bücher oder verkleinere ein großes Buch.</string>
     <string name="world_book_export_selected">Ausgewählte Weltbücher als ZIP exportieren</string>
 
     <string name="prompt_template_default">Systemstandard</string>
@@ -1415,7 +1351,6 @@
     <string name="prompt_template_failed">Vorlage konnte nicht geladen oder gespeichert werden. Bitte erneut versuchen.</string>
     <string name="prompt_template_conflict">Diese Vorlage wurde geändert. Kopiere deinen Entwurf und öffne den Editor erneut.</string>
     <string name="prompt_template_active">Aktiv</string>
-    <string name="prompt_template_scope">Gilt für künftige Chats, Gruppenchats, Geschichten und Zusammenfassungen. Individuelle Vorgaben für Charaktere und Sitzungen gelten weiterhin.</string>
     <string name="prompt_template_search">Vorlagen suchen</string>
     <string name="prompt_template_all">Prompt-Vorlagen</string>
     <string name="prompt_template_no_results">Keine passenden Vorlagen</string>
@@ -1430,12 +1365,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Ausgabe der Benutzerimitation</string>
     <string name="user_writing_output_message">Chatverlauf</string>
-    <string name="user_writing_output_message_desc">Die erzeugte Benutzernachricht direkt im Gespräch speichern.</string>
     <string name="user_writing_output_draft">Eingabefeld</string>
-    <string name="user_writing_output_draft_desc">Einen Entwurf im Eingabefeld erstellen, anschließend bearbeiten und senden.</string>
     <string name="user_writing_no_body">Es wurde kein Nachrichtentext erzeugt. Der Entwurf wurde beibehalten.</string>
-    <string name="prompt_user_writing_title">Prompt zum Weiterschreiben im Eingabefeld</string>
-    <string name="prompt_user_writing_desc">Wird beim Schreiben aus Nutzersicht im Eingabefeld verwendet. {{draft}} fügt den aktuellen Text ein; ohne dieses Makro wird der Text angehängt.</string>
     <string name="summary_mode">Zusammenfassungsmodus für Chats</string>
     <string name="summary_mode_raw">Raw (inkrementell)</string>
     <string name="summary_mode_classic">Classic (aktueller Kontext)</string>
@@ -1468,7 +1399,10 @@
     <string name="prompt_status_default_empty">Standard · leer</string>
     <string name="prompt_status_custom">Angepasst</string>
     <string name="prompt_status_custom_empty">Angepasst · leer</string>
-    <string name="prompt_catalog_count">%1$d Einträge</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="one">%1$d Eintrag</item>
+        <item quantity="other">%1$d Einträge</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">Sprechende Figur im Gruppenchat</string>
     <string name="prompt_catalog_continue_title">Anweisung zur Fortsetzung einer Figurenantwort</string>
     <string name="prompt_catalog_impersonation_title">Benutzertext im Einzelchat</string>

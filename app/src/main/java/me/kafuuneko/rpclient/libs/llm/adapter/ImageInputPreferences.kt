@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import me.kafuuneko.rpclient.utils.toPrettyJson
 import me.kafuuneko.rpclient.libs.llm.image.ImageInputCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputOptions
 import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
@@ -74,7 +74,7 @@ internal fun String.withImageQuality(quality: ImageQuality): String {
         CLIENT_IMAGE_OPTIONS_KEY,
         client
     )
-    return IMAGE_OPTIONS_GSON.toJson(root)
+    return root.toPrettyJson()
 }
 
 /** 仅在协议边界将通用画质转换为 OpenAI Compatible/Responses 的 detail 字段。 */
@@ -100,4 +100,3 @@ private val geminiQualityValues = mapOf(
     "MEDIA_RESOLUTION_HIGH" to ImageQuality.High,
     "MEDIA_RESOLUTION_ULTRA_HIGH" to ImageQuality.UltraHigh,
 )
-private val IMAGE_OPTIONS_GSON = GsonBuilder().setPrettyPrinting().create()

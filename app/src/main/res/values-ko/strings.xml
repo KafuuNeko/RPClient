@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">둥근 사각형</string>
     <string name="image_crop_shape_circle">원형</string>
     <string name="about">정보</string>
-    <string name="about_desc">앱 버전, 이메일 및 저장소</string>
     <string name="unknown_version">알 수 없는 버전</string>
     <string name="developer_contact">개발자 연락처</string>
     <string name="tech_stack_label">기술 스택</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 풍부</string>
     <string name="parameter_preset_topp_full">1.0 전체</string>
     <string name="streaming_response">스트리밍 응답</string>
-    <string name="streaming_response_desc">모델 출력을 실시간으로 표시하며, 생성 중단을 지원합니다</string>
     <string name="new_session_desc">캐릭터, 메모 및 월드북 항목 선택</string>
     <string name="no_recent_chats">최근 대화 없음</string>
     <string name="no_recent_chats_desc">새 세션을 생성하여 대화를 시작해보세요.</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">요청당 최대 메시지 수</string>
     <string name="summary_max_messages_helper">0으로 설정 시 컨텍스트 제한량에 따라 결정됩니다</string>
     <string name="summary_response_tokens">요약 응답 토큰</string>
-    <string name="summary_injection_template">요약 삽입 템플릿</string>
-    <string name="summary_injection_template_desc">{{summary}}를 메모리 자리 표시자로 사용합니다.</string>
     <string name="summary_injection_position">요약 삽입 위치</string>
     <string name="summary_position_before_character">캐릭터 정의 전</string>
     <string name="summary_position_after_character">캐릭터 정의 후</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">알 수 없는 캐릭터</string>
     <string name="no_messages_yet">아직 메시지가 없습니다</string>
     <string name="debug_mode">디버그 모드</string>
-    <string name="debug_mode_desc">LLM 원본 요청 및 응답 JSON을 로컬 데이터베이스에 기록합니다</string>
     <string name="request_logs">요청 로그</string>
     <string name="request_logs_subtitle">LLM 원본 요청 및 응답 JSON (최신순)</string>
-    <string name="request_logs_entry_subtitle">LLM 원본 요청 기록 조회 및 복사</string>
     <string name="no_request_logs">요청 로그 없음</string>
     <string name="no_request_logs_desc">디버그 모드를 활성화하고 LLM 요청을 보내 기록을 생성하세요.</string>
     <string name="clear_logs">로그 지우기</string>
     <string name="clear_logs_confirm">모든 요청 로그를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.</string>
     <string name="token_usage">토큰 사용량</string>
     <string name="token_usage_subtitle">성공한 LLM 요청의 예상 토큰 사용량을 모델 및 API 호스트별로 집계합니다</string>
-    <string name="token_usage_entry_subtitle">모델 및 API 호스트별 입력·출력 토큰 예상치를 확인합니다</string>
     <string name="token_usage_notice_title">사용량은 예상치입니다</string>
     <string name="token_usage_notice_desc">공급자가 보고한 값을 우선 사용합니다. 누락된 값은 로컬에서 추정하므로 청구 내역과 다를 수 있습니다.</string>
     <string name="token_usage_today">오늘</string>
@@ -572,40 +565,14 @@
     <string name="prompt_preset_title">시스템 프롬프트 프리셋</string>
     <string name="prompt_preset_subtitle">SillyTavern 스타일의 시스템 프롬프트, 유틸리티 및 템플릿 관리</string>
     <string name="prompt_preset_section">프롬프트 템플릿</string>
-    <string name="prompt_preset_entry_subtitle">시스템 프롬프트 프리셋 및 유틸리티 프롬프트 관리</string>
     <string name="prompt_behavior_section">요청 동작 (Request Behavior)</string>
-    <string name="prompt_manager_section">프롬프트 관리자</string>
-    <string name="prompt_utility_section">유틸리티 프롬프트</string>
-    <string name="prompt_format_section">형식 템플릿</string>
-    <string name="prompt_summary_section">요약</string>
     <string name="prompt_main_title">메인 프롬프트</string>
-    <string name="prompt_main_desc">모든 세션 시작 시에 삽입되는 기본 시스템 프롬프트</string>
     <string name="prompt_auxiliary_title">보조 프롬프트</string>
-    <string name="prompt_auxiliary_desc">대화 기록 이전의 캐릭터 정의와 함께 배치되는 추가 시스템 프롬프트</string>
     <string name="prompt_post_history_title">Post-History Instructions</string>
-    <string name="prompt_post_history_desc">대화 기록 뒤에 덧붙여지는 최종 시스템 지침</string>
-    <string name="prompt_summarize_title">요약 프롬프트</string>
-    <string name="prompt_summarize_desc">긴 컨텍스트를 짧은 요약으로 압축하는 데 사용되는 프롬프트</string>
-    <string name="prompt_impersonation_title">사용자 대변 프롬프트</string>
-    <string name="prompt_impersonation_desc">사용자 페르소나 관점에서 답변을 생성할 때 사용됩니다</string>
-    <string name="prompt_new_chat_title">새 대화 프롬프트</string>
-    <string name="prompt_new_chat_desc">새 대화 기록 앞에 전송되는 마커</string>
-    <string name="prompt_new_example_chat_title">새 대화 예시 프롬프트</string>
-    <string name="prompt_new_example_chat_desc">대화 예시 블록 앞에 전송되는 마커</string>
-    <string name="prompt_continue_nudge_title">이어 쓰기 넛지</string>
-    <string name="prompt_continue_nudge_desc">이전 어시스턴트 메시지를 이어 쓸 때 사용되는 지침</string>
-    <string name="prompt_replace_empty_message_title">빈 메시지 대체</string>
-    <string name="prompt_replace_empty_message_desc">입력창이 비어 있을 때 전송할 텍스트</string>
     <string name="prompt_world_info_format_title">세계관 정보 형식</string>
-    <string name="prompt_world_info_format_desc">활성화된 세계관 정보 항목의 템플릿; 마커로 {0}을(를) 사용합니다</string>
     <string name="prompt_scenario_format_title">시나리오 형식</string>
-    <string name="prompt_scenario_format_desc">캐릭터 시나리오 템플릿; 마커로 {{scenario}}을(를) 사용합니다</string>
     <string name="prompt_personality_format_title">성격 형식</string>
-    <string name="prompt_personality_format_desc">캐릭터 성격 템플릿; 마커로 {{personality}}을(를) 사용합니다</string>
     <string name="prompt_user_persona_format_title">사용자 페르소나 형식</string>
-    <string name="prompt_user_persona_format_desc">사용자 페르소나 템플릿; {{persona}}와 {{user}}를 사용합니다</string>
-    <string name="prompt_empty_hint">프롬프트를 설정하려면 탭하세요…</string>
-    <string name="prompt_edit_hint">탭하여 편집</string>
     <string name="prompt_editor_label">프롬프트 내용</string>
     <string name="prompt_editor_placeholder">여기에 시스템 프롬프트를 입력하세요…</string>
     <string name="prompt_editor_restore_default">기본값 복원</string>
@@ -624,12 +591,10 @@
     <string name="prompt_post_processing_single_user">단일 사용자 메시지</string>
     <string name="prompt_post_processing_single_user_desc">모든 메시지를 user로 변환하고 화자 이름을 추가한 뒤 병합합니다</string>
     <string name="prompt_example_behavior_title">예시 대화 동작</string>
-    <string name="prompt_example_behavior_desc">실제 대화 기록과 캐릭터 카드 예시 중 남은 컨텍스트 예산을 먼저 사용할 항목을 선택합니다</string>
     <string name="prompt_example_behavior_normal">기록 우선</string>
     <string name="prompt_example_behavior_pinned">예시 고정</string>
     <string name="prompt_example_behavior_disabled">사용 안 함</string>
     <string name="prompt_include_think_context_title">컨텍스트에 생각 블록 포함</string>
-    <string name="prompt_include_think_context_desc">비활성화 시, 저장된 &lt;think&gt;...&lt;/think&gt; 블록은 향후 프롬프트에서 제거됩니다.</string>
     <string name="world_info_budget_section">월드 정보 예산</string>
     <string name="world_info_budget_description">먼저 컨텍스트 비율로 예산을 계산한 뒤 토큰 상한이 0보다 크면 해당 상한을 적용합니다.</string>
     <string name="world_info_context_percent">컨텍스트 비율</string>
@@ -637,9 +602,7 @@
     <string name="world_info_budget_cap">예산 상한</string>
     <string name="world_info_budget_cap_helper">컨텍스트 비율 적용 후 월드 정보가 사용할 수 있는 최대 토큰 수; 0이면 상한 없음</string>
     <string name="world_info_overflow_alert">예산 초과 알림</string>
-    <string name="world_info_overflow_alert_desc">활성화된 월드 정보 항목이 예산 때문에 제외되면 알립니다</string>
     <string name="context_trimming_alert">컨텍스트 잘림 알림</string>
-    <string name="context_trimming_alert_desc">컨텍스트 제한에 맞추기 위해 이전 메시지나 선택적 프롬프트 항목이 제거되면 알립니다</string>
     <string name="world_info_budget_overflow_warning">활성화된 일부 월드 정보 항목이 예산 부족으로 제외되었습니다.</string>
     <string name="selected_count">%d개 선택됨</string>
     <string name="delete_selected_sessions_title">선택한 세션 삭제</string>
@@ -700,15 +663,7 @@
         <item quantity="other">멤버 %1$d명</item>
     </plurals>
     <string name="prompt_group_nudge_title">그룹 제약 프롬프트</string>
-    <string name="prompt_group_nudge_desc">각 생성을 지정된 화자의 발언으로 제한하는 최종 지시입니다.</string>
-    <string name="prompt_group_impersonation_title">그룹 채팅 사용자 대필 프롬프트</string>
-    <string name="prompt_group_impersonation_desc">그룹 채팅에서 사용자 대필에 사용됩니다. {{group}}은 모든 멤버를, {{groupNotMuted}}는 음소거되지 않은 멤버를 나열합니다.</string>
-    <string name="prompt_group_user_writing_title">그룹 채팅 입력창 이어쓰기 프롬프트</string>
-    <string name="prompt_group_user_writing_desc">그룹 채팅 입력창에서 사용자 대필 시 사용됩니다. {{draft}}는 현재 텍스트를 삽입하며, 이 매크로가 없으면 원문이 끝에 추가됩니다.</string>
     <string name="prompt_new_group_chat_title">새 그룹 채팅</string>
-    <string name="prompt_new_group_chat_desc">새 그룹 기록 앞에 삽입되는 경계 프롬프트입니다.</string>
-    <string name="prompt_group_summarize_title">그룹 요약</string>
-    <string name="prompt_group_summarize_desc">화자별 정보를 보존하는 그룹 기억 프롬프트입니다.</string>
     <string name="group_chat_settings">그룹 채팅 설정</string>
     <string name="group_chat_basic_settings">대화 정보</string>
     <string name="group_chat_scenario">그룹 시나리오</string>
@@ -866,8 +821,6 @@
     <string name="model_request_failed_desc">%1$s\n\n모델 구성에서 API 키, 기본 URL, 모델 이름, 계정 권한을 확인하거나 다른 구성으로 전환한 후 다시 시도하세요.</string>
     <string name="data_management">데이터 관리</string>
     <string name="import_chat">채팅 가져오기</string>
-    <string name="import_chat_desc">SillyTavern 또는 RPClient JSONL 채팅 가져오기</string>
-    <string name="reading_chat_file">채팅 파일을 읽는 중…</string>
     <string name="import_chat_failed">채팅을 가져오지 못했습니다</string>
     <string name="import_chat_success">채팅을 가져왔습니다</string>
     <string name="select_import_character_title">캐릭터 카드 연결</string>
@@ -892,14 +845,11 @@
     <string name="move_down">아래로 이동</string>
     <string name="move_up">위로 이동</string>
     <string name="story_author_note">작가 노트</string>
-    <string name="story_author_note_desc">문체, 시점과 다음 장면에 대한 짧고 강한 지침입니다.</string>
-    <string name="story_include_user_persona">사용자 페르소나 포함</string>
     <string name="story_character_primary">주인공</string>
     <string name="story_character_always">항상</string>
     <string name="story_character_auto">자동</string>
     <string name="story_character_count">%1$d자</string>
     <string name="story_character_references">캐릭터</string>
-    <string name="story_character_references_desc">선택한 카드가 이야기의 후보 인물이 됩니다. 항상은 매번, 자동은 이름이나 별칭이 일치할 때 활성화됩니다.</string>
     <string name="story_context_settings">컨텍스트</string>
     <string name="story_continue">이어쓰기</string>
     <string name="story_continuation_guidance">이어쓰기 지침</string>
@@ -947,7 +897,6 @@
     <string name="story_loading_settings">이야기 설정 불러오는 중…</string>
     <string name="story_lorebook_empty">이 월드북에는 항목이 없습니다.</string>
     <string name="story_memory">메모리</string>
-    <string name="story_memory_desc">장기 설정, 개요, 향후 계획과 작성 제약.</string>
     <string name="story_my_stories">내 이야기</string>
     <string name="story_no_characters">이야기 참조를 추가하기 전에 캐릭터 카드를 만드세요.</string>
     <string name="story_character_references_count">캐릭터 참조 %1$d개</string>
@@ -981,17 +930,8 @@
     <string name="story_undo">마지막 편집 실행 취소</string>
     <string name="story_redo">마지막 편집 다시 실행</string>
     <string name="story_unsaved">저장 안 됨</string>
-    <string name="prompt_story_continue_desc">원고 끝에서 계속 쓰는 작업</string>
     <string name="prompt_story_continue_title">이야기 이어쓰기</string>
-    <string name="prompt_story_main_desc">모든 이야기 쓰기 작업이 공유하는 시스템 지시</string>
     <string name="prompt_story_main_title">이야기 기본 프롬프트</string>
-    <string name="prompt_story_memory_title">메모리 주입 템플릿</string>
-    <string name="prompt_story_memory_desc">{{memory}} 자리표시자로 장기 이야기 메모리를 감싸는 시스템 메시지 템플릿</string>
-    <string name="prompt_story_summary_title">요약 주입 템플릿</string>
-    <string name="prompt_story_summary_desc">{{summary}} 자리표시자로 현재 이야기 요약을 감싸는 시스템 메시지 템플릿</string>
-    <string name="prompt_story_continuation_guidance_title">이어쓰기 지침 템플릿</string>
-    <string name="prompt_story_continuation_guidance_desc">{{guidance}} 자리표시자로 현재 지침을 감싸는 시스템 메시지 템플릿</string>
-    <string name="prompt_story_section">이야기 쓰기</string>
     <string name="prompt_source_story_author_note">작가 노트</string>
     <string name="prompt_source_story_character">이야기 캐릭터</string>
     <string name="prompt_source_story_document">원고 컨텍스트</string>
@@ -1010,8 +950,6 @@
     <string name="story_summary_failed">스토리를 요약하지 못했습니다. 모델 구성과 컨텍스트 설정을 확인하세요.</string>
     <string name="story_summary_conflict">요약 중 원고가 변경되었습니다. 다시 생성하세요.</string>
     <string name="story_summary_updated">스토리 요약이 업데이트되었습니다</string>
-    <string name="prompt_story_summarize_title">스토리 요약 프롬프트</string>
-    <string name="prompt_story_summarize_desc">스토리 요약 업데이트 방식을 제어합니다</string>
     <string name="prompt_source_story_summary">스토리 요약</string>
     <string name="request_extensions">요청 확장</string>
     <string name="request_body_patch_description">공급자 고유 추론 설정을 포함한 추가 필드를 생성된 요청 본문에 병합합니다. RPClient가 관리하는 구조 및 생성 필드는 보호됩니다.</string>
@@ -1109,7 +1047,6 @@
     <string name="character_model_config">캐릭터 모델 설정</string>
     <string name="character_model_config_helper">이 캐릭터의 답변에 사용합니다. 비활성화된 설정도 변경할 때까지 연결이 유지됩니다.</string>
     <string name="summary_model_config">요약 모델 설정</string>
-    <string name="summary_model_config_helper">일대일 채팅, 그룹 채팅 및 스토리 요약에 사용합니다.</string>
     <string name="unnamed_model_config">이름 없는 모델 설정</string>
     <string name="disabled_model_config_format">%1$s(비활성화됨)</string>
     <string name="delete_model_config">모델 설정 삭제</string>
@@ -1179,7 +1116,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">요약 출력 한도 도달</string>
     <string name="summary_token_limit_message">요약이 출력 토큰 한도에 도달하여 저장되지 않았습니다. 모델의 추론도 이 한도를 사용합니다. 설정 → “%1$s” → “%2$s”에서 “%3$s”를 늘린 후 다시 시도하세요.</string>
     <string name="summary_go_to_settings">설정으로 이동</string>
@@ -1192,7 +1129,6 @@
     <string name="about_build_number">빌드 번호</string>
     <string name="about_rate_action">앱 평가</string>
     <string name="image_send_title">이미지 전송 (고급)</string>
-    <string name="image_send_description">메시지 전송 또는 편집 저장 시 새로 추가된 이미지만 처리합니다. 처리된 이미지만 보관하며 기존 첨부 이미지는 변경하지 않습니다.</string>
     <string name="image_send_auto">자동</string>
     <string name="image_send_original">원본</string>
     <string name="image_send_custom">사용자 지정</string>
@@ -1301,8 +1237,6 @@
     <string name="content_search_newer">더 최근 메시지 불러오기</string>
     <string name="content_search_latest">최신 메시지로 돌아가기</string>
     <string name="content_search_index_title">검색 가속</string>
-    <string name="content_search_index_enabled">검색 가속이 켜져 있습니다</string>
-    <string name="content_search_index_disabled">일반 검색은 저장된 내용을 순서대로 검색합니다</string>
     <string name="content_search_index_enable">켜기</string>
     <string name="content_search_index_disable">끄고 정리</string>
     <string name="content_search_index_confirm_title">검색 가속을 켤까요?</string>
@@ -1312,10 +1246,7 @@
     <string name="content_search_index_building">색인 생성 중… %1$d개 처리됨</string>
     <string name="content_search_index_cleaning">색인을 삭제하고 공간을 확보하는 중…</string>
     <string name="content_search_index_cleanup_failed">정리를 완료하지 못했습니다. 저장 공간을 확보하거나 다른 작업이 끝난 후 다시 시도하세요. 검색 가속은 꺼진 상태로 유지됩니다.</string>
-    <string name="content_search_index_failed">검색 가속을 사용할 수 없습니다. 일반 검색을 사용할 수 있습니다.</string>
     <string name="backup_restore_title">백업 및 복원</string>
-    <string name="backup_restore_entry_desc">앱 데이터와 설정을 ZIP으로 내보내거나 복원합니다</string>
-    <string name="backup_restore_description">캐릭터, 스토리, 개인 및 그룹 채팅, 월드북, 모델 설정, API 키, 토큰 사용량, 요청 로그, 환경설정, 첨부 파일을 읽을 수 있는 JSONL과 JSON으로 내보냅니다. 복원하면 현재 데이터가 모두 교체되고 RPClient가 다시 시작됩니다.</string>
     <string name="backup_restore_security_warning">보안 안내: RPClient-Portable-Data.zip은 암호화되지 않습니다. API 키, 사용자 지정 헤더, 요청 로그, 비공개 대화, 첨부 파일이 포함됩니다. ZIP을 가진 누구나 데이터를 읽을 수 있으므로 안전하게 보관하세요.</string>
     <string name="backup_export_action">ZIP 백업 내보내기</string>
     <string name="backup_restore_action">ZIP에서 복원</string>
@@ -1328,7 +1259,6 @@
     <string name="backup_restore_confirm_title">현재 앱 데이터를 교체할까요?</string>
     <string name="backup_restore_confirm_message">전체 복원은 모델 설정과 API 키, 캐릭터, 스토리, 개인 및 그룹 채팅, 월드북, 정규식 스크립트, 사용량 기록, 요청 로그, 환경설정, 첨부 파일을 모두 교체합니다. 데이터는 병합되지 않습니다. 현재 데이터가 필요하다면 먼저 백업을 내보내세요.</string>
     <string name="story_markdown_rendering">스토리 Markdown 표시</string>
-    <string name="story_markdown_rendering_desc">스토리 챕터를 Markdown 형식으로 표시합니다.</string>
     <string name="story_markdown_edit">원문 편집</string>
     <string name="scroll_to_top">맨 위로 이동</string>
     <string name="scroll_to_bottom">맨 아래로 이동</string>
@@ -1342,7 +1272,6 @@
     <string name="backup_security_title">보안 및 개인정보 안내</string>
     <string name="backup_status_title">현재 상태</string>
     <string name="message_edit_separate_think">사고 과정 분리</string>
-    <string name="message_edit_separate_think_desc">본문만 편집하고 기존 사고 과정은 유지합니다.</string>
     <string name="backup_details_title">기술 세부 정보</string>
     <string name="backup_details_copy">복사</string>
     <string name="backup_details_copied">세부 정보를 복사했습니다</string>
@@ -1372,11 +1301,6 @@
     <string name="character_background_enable_message">채팅 배경의 “캐릭터 카드 배경 사용”이 꺼져 있습니다. 지금 켤까요? 캐릭터 배경이 설정된 모든 채팅에 적용됩니다.</string>
     <string name="character_background_enable_confirm">지금 켜기</string>
     <string name="character_background_enable_later">나중에</string>
-    <string name="character_selection_count">%1$d개 선택됨</string>
-    <string name="select_all_characters">모두 선택</string>
-    <string name="deselect_all_characters">모두 선택 해제</string>
-    <string name="character_selected">선택됨</string>
-    <string name="character_not_selected">선택되지 않음</string>
     <string name="export_selected_characters_zip">선택한 캐릭터를 ZIP으로 내보내기</string>
     <string name="export_character_archive_success">캐릭터 ZIP을 내보냈습니다.</string>
     <string name="export_character_archive_limit">캐릭터 ZIP이 가져오기 한도를 초과합니다. 선택한 카드 수를 줄이거나 큰 카드의 크기를 줄이세요.</string>
@@ -1392,12 +1316,20 @@
     <string name="batch_import_result_message">성공: %1$d\n실패: %2$d</string>
     <string name="batch_import_reading_progress">분석 중 %1$d/%2$d</string>
     <string name="batch_import_saving_progress">가져오는 중 %1$d/%2$d</string>
-    <string name="character_batch_delete_message">선택한 캐릭터 %1$d개를 삭제할까요? 연결된 월드북은 유지됩니다. 이 작업은 되돌릴 수 없습니다.</string>
-    <string name="world_book_batch_delete_message">선택한 월드북 %1$d개와 모든 항목을 삭제할까요? 캐릭터 연결도 해제됩니다. 이 작업은 되돌릴 수 없습니다.</string>
-    <string name="world_book_entry_batch_delete_message">선택한 항목 %1$d개를 삭제할까요? 삭제는 즉시 적용되며 되돌릴 수 없습니다.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="other">선택한 캐릭터 %1$d개를 삭제할까요? 연결된 월드북은 유지됩니다. 이 작업은 되돌릴 수 없습니다.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="other">선택한 월드북 %1$d개와 모든 항목을 삭제할까요? 캐릭터 연결도 해제됩니다. 이 작업은 되돌릴 수 없습니다.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="other">선택한 항목 %1$d개를 삭제할까요? 삭제는 즉시 적용되며 되돌릴 수 없습니다.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">월드북 가져오기 완료</string>
-    <string name="world_book_batch_low_budget_message">선택한 월드북 %1$d개의 고정 예산이 낮습니다. 최솟값은 %2$d토큰입니다. 이 월드북에 전역 예산을 사용할까요?</string>
-    <string name="world_book_archive_limit">월드북 ZIP이 가져오기 한도를 초과합니다. 더 적은 월드북을 선택하거나 큰 월드북의 크기를 줄이세요.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="other">선택한 월드북 %1$d개의 고정 예산이 낮습니다. 최솟값은 %2$d토큰입니다. 이 월드북에 전역 예산을 사용할까요?</item>
+    </plurals>
+    <string name="world_book_archive_limit">선택한 월드북 데이터가 가져오기 한도를 초과합니다. 더 적은 월드북을 선택하거나 큰 월드북의 크기를 줄이세요.</string>
     <string name="world_book_export_selected">선택한 월드북을 ZIP으로 내보내기</string>
 
     <string name="prompt_template_default">시스템 기본값</string>
@@ -1410,7 +1342,6 @@
     <string name="prompt_template_failed">템플릿을 불러오거나 저장하지 못했습니다. 다시 시도하세요.</string>
     <string name="prompt_template_conflict">템플릿이 변경되었습니다. 초안을 복사한 후 편집기를 닫고 다시 여세요.</string>
     <string name="prompt_template_active">사용 중</string>
-    <string name="prompt_template_scope">이후 채팅, 그룹 채팅, 이야기 및 요약 생성에 적용됩니다. 캐릭터와 세션의 개별 설정은 계속 우선 적용됩니다.</string>
     <string name="prompt_template_search">템플릿 검색</string>
     <string name="prompt_template_all">프롬프트 템플릿</string>
     <string name="prompt_template_no_results">일치하는 템플릿이 없습니다</string>
@@ -1425,12 +1356,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">사용자 흉내내기 출력 위치</string>
     <string name="user_writing_output_message">채팅 기록</string>
-    <string name="user_writing_output_message_desc">생성된 사용자 메시지를 대화에 바로 저장합니다.</string>
     <string name="user_writing_output_draft">입력란</string>
-    <string name="user_writing_output_draft_desc">입력란에 초안을 생성한 뒤 편집하고 준비되면 전송합니다.</string>
     <string name="user_writing_no_body">메시지 본문이 생성되지 않았습니다. 기존 초안을 유지했습니다.</string>
-    <string name="prompt_user_writing_title">입력창 이어쓰기 프롬프트</string>
-    <string name="prompt_user_writing_desc">입력창에서 사용자를 대신해 이어 쓸 때 사용합니다. {{draft}}는 현재 입력을 삽입하며, 이 매크로가 없으면 입력한 텍스트가 끝에 추가됩니다.</string>
     <string name="summary_mode">대화 요약 모드</string>
     <string name="summary_mode_raw">Raw (증분 요약)</string>
     <string name="summary_mode_classic">Classic (현재 컨텍스트)</string>
@@ -1463,7 +1390,9 @@
     <string name="prompt_status_default_empty">기본값 · 빈 내용</string>
     <string name="prompt_status_custom">사용자 지정</string>
     <string name="prompt_status_custom_empty">사용자 지정 · 빈 내용</string>
-    <string name="prompt_catalog_count">%1$d개</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="other">%1$d개</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">그룹 발언 캐릭터 제약</string>
     <string name="prompt_catalog_continue_title">캐릭터 답변 이어 쓰기 지침</string>
     <string name="prompt_catalog_impersonation_title">개인 대화 사용자 대필 지침</string>

@@ -1,6 +1,18 @@
 package me.kafuuneko.rpclient.utils
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
+
+private val prettyGson =
+    GsonBuilder().serializeNulls().disableHtmlEscaping().setPrettyPrinting().create()
+
+/**
+ * 格式化已解析的 JSON，保留对象中用于删除请求字段的显式 null。
+ * @return 供编辑器展示和保存的 JSON。
+ */
+internal fun JsonElement.toPrettyJson(): String = prettyGson.toJson(this)
 
 /**
  * 将 JSON 字符串解析为字符串列表。
@@ -28,21 +40,13 @@ fun Gson.toJsonString(list: List<String>?): String {
 /**
  * 将 JSON 字符串格式化为 2 空格缩进的 Pretty 结构。
  * 如果解析失败或字符串为空，则返回原始去除首尾空白的字符串。
+ * @param raw 待格式化的 JSON 原文。
+ * @return 保留显式空值的格式化文本或原文。
  */
 fun formatJsonPretty(raw: String): String {
     val trimmed = raw.trim()
     if (trimmed.isBlank()) return ""
     return runCatching {
-        val jsonElement = com.google.gson.JsonParser.parseString(trimmed)
-        val gson = com
-            .google
-            .gson
-            .GsonBuilder()
-            .setPrettyPrinting()
-            .disableHtmlEscaping()
-            .create()
-        gson.toJson(jsonElement)
+        JsonParser.parseString(trimmed).toPrettyJson()
     }.getOrDefault(trimmed)
 }
-
-

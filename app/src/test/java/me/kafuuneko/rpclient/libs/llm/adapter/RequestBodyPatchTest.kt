@@ -2,6 +2,10 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
+import me.kafuuneko.rpclient.feature.llmprovideredit.model.toEditForm
+import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_CLAUDE_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_DEEPSEEK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON
@@ -15,6 +19,39 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RequestBodyPatchTest {
+    /** 已保存配置经过表单、画质与路由快捷设置，删除指令仍反映在最终协议请求中。 */
+    @Test
+    fun editingImageQualityPreservesExplicitPatchDeletionsOnSave() {
+        val provider = LLMProvider(
+            name = "Test",
+            model = "test",
+            baseUrl = "",
+            providerType = LLMProviderType.Custom,
+            protocol = LLMProviderProtocol.OpenAIResponses,
+            requestBodyPatchJson = """{"reasoning":{"summary":null},"flags":[null]}"""
+        )
+        val form = provider.toEditForm()
+        val high = form.requestBodyPatchJson.withImageQuality(ImageQuality.High)
+        val base = """{"reasoning":{"summary":"auto","effort":"low"}}"""
+        // 读取表单、设置高画质、恢复自动画质及修改路由均走实际保存与请求合并路径。
+        for (patch in listOf(
+            form.requestBodyPatchJson, high, high.withImageQuality(ImageQuality.Auto),
+            high.withOpenRouterFallbacks(false)
+        )) {
+            val saved = requireNotNull(form.copy(requestBodyPatchJson = patch).toProviderOrNull())
+            val wire = JsonParser.parseString(
+                mergeRequestBodyJson(
+                    base, saved.requestBodyPatchJson,
+                    protectedRequestBodyPaths(saved.protocol), protocol = saved.protocol
+                )
+            ).asJsonObject
+            assertFalse(wire.getAsJsonObject("reasoning").has("summary"))
+            assertEquals("low", wire.getAsJsonObject("reasoning").get("effort").asString)
+            assertTrue(wire.getAsJsonArray("flags").single().isJsonNull)
+            assertFalse(wire.has(CLIENT_IMAGE_OPTIONS_KEY))
+        }
+    }
+
     @Test
     fun recursivelyMergesObjectsAndReplacesArrays() {
         val result = JsonParser.parseString(

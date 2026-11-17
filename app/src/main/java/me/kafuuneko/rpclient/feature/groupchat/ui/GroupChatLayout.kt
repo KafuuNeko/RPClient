@@ -52,8 +52,7 @@ fun GroupChatLayout(
         },
     )
     when (uiState) {
-        GroupChatUiState.None -> Unit
-        GroupChatUiState.Loading -> AppLoadingPage(
+        GroupChatUiState.None, GroupChatUiState.Loading -> AppLoadingPage(
             title = stringResource(R.string.group_chat),
             background = background,
             onBack = { emitIntent(GroupChatUiIntent.Back) },

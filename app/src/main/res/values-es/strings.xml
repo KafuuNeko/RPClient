@@ -9,7 +9,6 @@
     <string name="image_crop_shape_squircle">Cuadrado redondeado</string>
     <string name="image_crop_shape_circle">Círculo</string>
     <string name="about">Acerca de</string>
-    <string name="about_desc">Versión de la app, correo electrónico y repositorio</string>
     <string name="unknown_version">Versión desconocida</string>
     <string name="developer_contact">Contacto del desarrollador</string>
     <string name="tech_stack_label">Pila tecnológica</string>
@@ -94,7 +93,6 @@
     <string name="parameter_preset_topp_rich">0.95 Rico</string>
     <string name="parameter_preset_topp_full">1.0 Completo</string>
     <string name="streaming_response">Respuesta en streaming</string>
-    <string name="streaming_response_desc">Muestra la salida del modelo en tiempo real y permite detener la generación</string>
     <string name="new_session_desc">Elija un personaje, notas y entradas del libro del mundo</string>
     <string name="no_recent_chats">No hay chats recientes</string>
     <string name="no_recent_chats_desc">Cree una sesión para iniciar una nueva conversación.</string>
@@ -111,8 +109,6 @@
     <string name="summary_max_messages_per_request">Máx. mensajes por solicitud</string>
     <string name="summary_max_messages_helper">0 deja que el límite de contexto decida</string>
     <string name="summary_response_tokens">Tokens de respuesta para el resumen</string>
-    <string name="summary_injection_template">Plantilla de inyección de resumen</string>
-    <string name="summary_injection_template_desc">Use {{summary}} como marcador para la memoria.</string>
     <string name="summary_injection_position">Posición de inyección del resumen</string>
     <string name="summary_position_before_character">Antes de la definición del personaje</string>
     <string name="summary_position_after_character">Después de la definición del personaje</string>
@@ -132,17 +128,14 @@
     <string name="unknown_character">Personaje desconocido</string>
     <string name="no_messages_yet">No hay mensajes todavía</string>
     <string name="debug_mode">Modo depuración</string>
-    <string name="debug_mode_desc">Registra el JSON sin procesar de solicitudes y respuestas del LLM en la base de datos local</string>
     <string name="request_logs">Registros de solicitudes</string>
     <string name="request_logs_subtitle">JSON sin procesar de solicitudes y respuestas, los más recientes primero</string>
-    <string name="request_logs_entry_subtitle">Ver y copiar registros de solicitudes al LLM</string>
     <string name="no_request_logs">No hay registros de solicitudes</string>
     <string name="no_request_logs_desc">Habilite el modo depuración y envíe una solicitud al LLM para crear registros.</string>
     <string name="clear_logs">Borrar registros</string>
     <string name="clear_logs_confirm">¿Está seguro de que desea borrar todos los registros? Esta acción no se puede deshacer.</string>
     <string name="token_usage">Uso de tokens</string>
     <string name="token_usage_subtitle">Uso estimado de tokens de solicitudes LLM completadas correctamente, agrupado por modelo y host de API</string>
-    <string name="token_usage_entry_subtitle">Consulta las estimaciones de tokens de entrada y salida por modelo y host de API</string>
     <string name="token_usage_notice_title">El uso es una estimación</string>
     <string name="token_usage_notice_desc">Se priorizan los valores informados por el proveedor. Los valores que faltan se estiman localmente y pueden diferir de la facturación.</string>
     <string name="token_usage_today">Hoy</string>
@@ -675,40 +668,14 @@
     <string name="prompt_preset_title">Preajustes de prompt del sistema</string>
     <string name="prompt_preset_subtitle">Administre prompts del sistema, utilidades y plantillas al estilo SillyTavern</string>
     <string name="prompt_preset_section">Plantillas de prompt</string>
-    <string name="prompt_preset_entry_subtitle">Administre preajustes de prompt del sistema y prompts de utilidad</string>
     <string name="prompt_behavior_section">Comportamiento de la solicitud</string>
-    <string name="prompt_manager_section">Administrador de prompts</string>
-    <string name="prompt_utility_section">Prompts de utilidad</string>
-    <string name="prompt_format_section">Plantillas de formato</string>
-    <string name="prompt_summary_section">Resumen</string>
     <string name="prompt_main_title">Prompt principal</string>
-    <string name="prompt_main_desc">Prompt del sistema primario inyectado al inicio de cada sesión</string>
     <string name="prompt_auxiliary_title">Prompt auxiliar</string>
-    <string name="prompt_auxiliary_desc">Prompt del sistema adicional colocado con las definiciones del personaje antes del historial</string>
     <string name="prompt_post_history_title">Instrucciones posteriores al historial</string>
-    <string name="prompt_post_history_desc">Instrucciones finales del sistema añadidas después del historial de chat</string>
-    <string name="prompt_summarize_title">Prompt de resumen</string>
-    <string name="prompt_summarize_desc">Prompt utilizado para condensar un contexto largo en un resumen corto</string>
-    <string name="prompt_impersonation_title">Prompt de suplantación</string>
-    <string name="prompt_impersonation_desc">Utilizado al generar una respuesta desde la perspectiva del usuario</string>
-    <string name="prompt_new_chat_title">Prompt de nuevo chat</string>
-    <string name="prompt_new_chat_desc">Marcador enviado antes de un nuevo historial de chat</string>
-    <string name="prompt_new_example_chat_title">Prompt de nuevo chat de ejemplo</string>
-    <string name="prompt_new_example_chat_desc">Marcador enviado antes de los bloques de diálogo de ejemplo</string>
-    <string name="prompt_continue_nudge_title">Empuje de continuación</string>
-    <string name="prompt_continue_nudge_desc">Instrucción utilizada para continuar el mensaje anterior del asistente</string>
-    <string name="prompt_replace_empty_message_title">Reemplazar mensaje vacío</string>
-    <string name="prompt_replace_empty_message_desc">Texto a enviar cuando la caja de entrada esté vacía</string>
     <string name="prompt_world_info_format_title">Formato de World Info</string>
-    <string name="prompt_world_info_format_desc">Plantilla para entradas activadas de world info; use {0} como marcador</string>
     <string name="prompt_scenario_format_title">Formato de escenario</string>
-    <string name="prompt_scenario_format_desc">Plantilla para el escenario del personaje; use {{scenario}} como marcador</string>
     <string name="prompt_personality_format_title">Formato de personalidad</string>
-    <string name="prompt_personality_format_desc">Plantilla para la personalidad del personaje; use {{personality}} como marcador</string>
     <string name="prompt_user_persona_format_title">Formato del personaje del usuario</string>
-    <string name="prompt_user_persona_format_desc">Plantilla para el personaje del usuario; use {{persona}} y {{user}} como marcadores</string>
-    <string name="prompt_empty_hint">Toque para establecer un prompt…</string>
-    <string name="prompt_edit_hint">Toque para editar</string>
     <string name="prompt_editor_label">Contenido del prompt</string>
     <string name="prompt_editor_placeholder">Escriba su prompt de sistema aquí…</string>
     <string name="prompt_editor_restore_default">Restaurar predeterminado</string>
@@ -727,7 +694,6 @@
     <string name="prompt_post_processing_single_user">Mensaje de usuario único</string>
     <string name="prompt_post_processing_single_user_desc">Convierte cada mensaje a usuario, añade nombres de hablantes y luego los combina.</string>
     <string name="prompt_example_behavior_title">Comportamiento del diálogo de ejemplo</string>
-    <string name="prompt_example_behavior_desc">Elija si el historial de chat real o los ejemplos de la tarjeta de personaje reciben primero el presupuesto de contexto restante.</string>
     <string name="world_info_budget_section">Presupuesto de World Info</string>
     <string name="world_info_budget_description">El porcentaje de contexto se calcula primero y luego se limita por el tope de tokens si es mayor que 0.</string>
     <string name="world_info_context_percent">Porcentaje de contexto</string>
@@ -735,15 +701,12 @@
     <string name="world_info_budget_cap">Tope de presupuesto</string>
     <string name="world_info_budget_cap_helper">Tokens máximos de World Info tras aplicar el porcentaje; 0 desactiva el tope</string>
     <string name="world_info_overflow_alert">Alerta de presupuesto agotado</string>
-    <string name="world_info_overflow_alert_desc">Mostrar aviso cuando las entradas activadas no quepan en el presupuesto de World Info.</string>
     <string name="context_trimming_alert">Avisos de recorte de contexto</string>
-    <string name="context_trimming_alert_desc">Mostrar aviso cuando se eliminen mensajes antiguos o secciones opcionales de prompt para ajustarse al contexto.</string>
     <string name="world_info_budget_overflow_warning">Algunas entradas activadas de World Info se omitieron por límite de presupuesto.</string>
     <string name="prompt_example_behavior_normal">Preferir historial</string>
     <string name="prompt_example_behavior_pinned">Fijar ejemplos</string>
     <string name="prompt_example_behavior_disabled">Deshabilitado</string>
     <string name="prompt_include_think_context_title">Incluir bloques think en el contexto</string>
-    <string name="prompt_include_think_context_desc">Si se deshabilita, los bloques &lt;think&gt;...&lt;/think&gt; guardados se eliminarán de futuros prompts.</string>
     <string name="selected_count">%d seleccionados</string>
     <string name="delete_selected_sessions_title">Eliminar sesiones seleccionadas</string>
     <string name="delete_selected_sessions_message">¿Eliminar las %d sesiones seleccionadas y todos sus mensajes? Esta acción no se puede deshacer.</string>
@@ -804,15 +767,7 @@
         <item quantity="other">%1$d miembros</item>
     </plurals>
     <string name="prompt_group_nudge_title">Empuje de grupo</string>
-    <string name="prompt_group_nudge_desc">Instrucción final que restringe cada generación al hablante seleccionado.</string>
-    <string name="prompt_group_impersonation_title">Prompt para imitar al usuario en el grupo</string>
-    <string name="prompt_group_impersonation_desc">Se usa para imitar al usuario en chats de grupo. {{group}} enumera todos los miembros y {{groupNotMuted}} los no silenciados.</string>
-    <string name="prompt_group_user_writing_title">Prompt de continuación en el campo de entrada del grupo</string>
-    <string name="prompt_group_user_writing_desc">Se usa para imitar al usuario en el campo de entrada del grupo. {{draft}} inserta el texto actual. Sin esta macro, el texto se añade al final.</string>
     <string name="prompt_new_group_chat_title">Nuevo chat grupal</string>
-    <string name="prompt_new_group_chat_desc">Marcador insertado antes de una nueva conversación grupal.</string>
-    <string name="prompt_group_summarize_title">Resumen de grupo</string>
-    <string name="prompt_group_summarize_desc">Prompt de memoria dedicado que conserva el historial grupal específico de cada hablante.</string>
     <string name="group_chat_settings">Ajustes del chat grupal</string>
     <string name="group_chat_basic_settings">Detalles de la conversación</string>
     <string name="group_chat_scenario">Escenario de grupo</string>
@@ -957,8 +912,6 @@
     <string name="model_request_failed_desc">%1$s\n\nAbra la configuración del modelo para comprobar la clave API, la URL base, el nombre del modelo y los permisos de la cuenta, o cambie de configuración.</string>
     <string name="data_management">Gestión de datos</string>
     <string name="import_chat">Importar chat</string>
-    <string name="import_chat_desc">Importar un chat JSONL de SillyTavern o RPClient</string>
-    <string name="reading_chat_file">Leyendo archivo de chat…</string>
     <string name="import_chat_failed">Error al importar chat</string>
     <string name="import_chat_success">Chat importado</string>
     <string name="select_import_character_title">Asociar tarjeta de personaje</string>
@@ -1045,15 +998,11 @@
     <string name="story_loading_settings">Cargando ajustes de la historia…</string>
     <string name="story_context_settings">Contexto</string>
     <string name="story_memory">Memoria</string>
-    <string name="story_memory_desc">Hechos a largo plazo, notas de esquema, planes futuros y restricciones de escritura.</string>
     <string name="story_author_note">Nota del autor</string>
-    <string name="story_author_note_desc">Una dirección breve y firme sobre el tono, punto de vista y la próxima escena.</string>
     <string name="story_character_references">Personajes</string>
-    <string name="story_character_references_desc">Las tarjetas seleccionadas forman el elenco candidato. Siempre se incluyen las tarjetas fijas; Auto se activan por nombre.</string>
     <string name="story_no_characters">Cree una tarjeta de personaje antes de añadir referencias a la historia.</string>
     <string name="story_character_always">Siempre</string>
     <string name="story_character_auto">Auto</string>
-    <string name="story_include_user_persona">Incluir personaje del usuario</string>
     <string name="story_character_primary">Protagonista</string>
     <string name="story_linked_lorebook">Libro del mundo vinculado: %1$s</string>
     <string name="story_lorebook_empty">Este libro del mundo no tiene entradas.</string>
@@ -1101,17 +1050,8 @@
     <string name="story_import_failed">No se pudo importar este archivo. Puede ser demasiado grande o usar un formato no compatible.</string>
     <string name="story_export_succeeded">Historia exportada</string>
     <string name="story_export_failed">No se pudo exportar la historia</string>
-    <string name="prompt_story_section">Escritura de historias</string>
     <string name="prompt_story_main_title">Prompt principal de la historia</string>
-    <string name="prompt_story_main_desc">Instrucción del sistema compartida por todas las operaciones de escritura de historias</string>
-    <string name="prompt_story_memory_title">Plantilla de inyección de memoria</string>
-    <string name="prompt_story_memory_desc">Plantilla de mensaje del sistema usando {{memory}} para memoria de la historia</string>
-    <string name="prompt_story_summary_title">Plantilla de inyección de resumen</string>
-    <string name="prompt_story_summary_desc">Plantilla de mensaje del sistema usando {{summary}} para el resumen de la historia</string>
-    <string name="prompt_story_continuation_guidance_title">Plantilla de guía de continuación</string>
-    <string name="prompt_story_continuation_guidance_desc">Plantilla de mensaje del sistema que envuelve la guía actual con el marcador {{guidance}}</string>
     <string name="prompt_story_continue_title">Continuación de historia</string>
-    <string name="prompt_story_continue_desc">Tarea para continuar un manuscrito al final</string>
     <string name="prompt_source_story_main">Prompt principal de historia</string>
     <string name="prompt_source_story_memory">Memoria de la historia</string>
     <string name="prompt_source_story_author_note">Nota del autor</string>
@@ -1128,8 +1068,6 @@
     <string name="story_summary_failed">No se pudo resumir esta historia. Compruebe el modelo y los ajustes de contexto.</string>
     <string name="story_summary_conflict">El manuscrito cambió durante la generación del resumen. Genérelo de nuevo.</string>
     <string name="story_summary_updated">Resumen de la historia actualizado</string>
-    <string name="prompt_story_summarize_title">Prompt de resumen de historia</string>
-    <string name="prompt_story_summarize_desc">Controla cómo se actualiza el resumen de la historia</string>
     <string name="prompt_source_story_summary">Resumen de la historia</string>
     <string name="generation_error_character_provider_unavailable">La configuración de modelo vinculada a este personaje está desactivada o ya no existe.</string>
     <string name="generation_error_character_provider_unavailable_named">La configuración de modelo «%1$s» vinculada a este personaje está desactivada.</string>
@@ -1139,7 +1077,6 @@
     <string name="character_model_config">Configuración de modelo del personaje</string>
     <string name="character_model_config_helper">Utilizada para las respuestas de este personaje. Las configuraciones desactivadas siguen vinculadas hasta que se cambien.</string>
     <string name="summary_model_config">Configuración de modelo de resumen</string>
-    <string name="summary_model_config_helper">Utilizada para resúmenes de chat individual, grupal e historias.</string>
     <string name="unnamed_model_config">Configuración de modelo sin nombre</string>
     <string name="disabled_model_config_format">%1$s (desactivado)</string>
     <string name="delete_model_config">Eliminar configuración de modelo</string>
@@ -1186,7 +1123,7 @@
     <string name="image_estimator_tile_mini">GPT-4o-mini (Tile)</string>
     <string name="image_estimator_patch_41">GPT-4.1-mini (Patch)</string>
     <string name="image_estimator_patch_54">GPT-5.4 (Patch)</string>
-    <string name="image_estimator_gemini">Gemini 3 / 4</string>
+    <string name="image_estimator_gemini">Gemini 3 · Gemini 4</string>
     <string name="summary_token_limit_title">Límite de salida del resumen alcanzado</string>
     <string name="summary_token_limit_message">El resumen alcanzó el límite de tokens de salida y no se guardó. El razonamiento también consume este límite. Ve a Ajustes → “%1$s” → “%2$s”, aumenta “%3$s” e inténtalo de nuevo.</string>
     <string name="summary_go_to_settings">Ir a ajustes</string>
@@ -1199,7 +1136,6 @@
     <string name="about_build_number">Número de compilación</string>
     <string name="about_rate_action">Valorar app</string>
     <string name="image_send_title">Envío de imágenes (avanzado)</string>
-    <string name="image_send_description">Solo se aplica a las imágenes añadidas al enviar un mensaje o guardar una edición. Solo se conserva la imagen procesada; los archivos adjuntos existentes no cambian.</string>
     <string name="image_send_auto">Automático</string>
     <string name="image_send_original">Original</string>
     <string name="image_send_custom">Personalizado</string>
@@ -1308,8 +1244,6 @@
     <string name="content_search_newer">Cargar mensajes más recientes</string>
     <string name="content_search_latest">Volver a los mensajes más recientes</string>
     <string name="content_search_index_title">Aceleración de búsqueda</string>
-    <string name="content_search_index_enabled">Aceleración de búsqueda activada</string>
-    <string name="content_search_index_disabled">La búsqueda estándar recorre el contenido guardado</string>
     <string name="content_search_index_enable">Activar</string>
     <string name="content_search_index_disable">Desactivar y borrar</string>
     <string name="content_search_index_confirm_title">¿Activar la aceleración de búsqueda?</string>
@@ -1319,10 +1253,7 @@
     <string name="content_search_index_building">Creando índice… %1$d elementos procesados</string>
     <string name="content_search_index_cleaning">Borrando el índice y liberando espacio…</string>
     <string name="content_search_index_cleanup_failed">No se pudo completar la limpieza. Libera espacio o espera a que terminen otras tareas y vuelve a intentarlo. La aceleración sigue desactivada.</string>
-    <string name="content_search_index_failed">La aceleración no está disponible. Puedes usar la búsqueda estándar.</string>
     <string name="backup_restore_title">Copia de seguridad y restauración</string>
-    <string name="backup_restore_entry_desc">Exporta o restaura un ZIP con los datos y ajustes de la app</string>
-    <string name="backup_restore_description">Exporta todos los datos como JSONL y JSON legibles: personajes, historias, chats individuales y grupales, libros de mundo, configuración de proveedores, claves de API, uso de tokens, registros de solicitudes, preferencias y adjuntos. La restauración sustituye todos los datos actuales y reinicia RPClient.</string>
     <string name="backup_restore_security_warning">Seguridad: RPClient-Portable-Data.zip no está cifrado. Incluye claves de API, cabeceras personalizadas, registros de solicitudes, conversaciones privadas y adjuntos. Cualquiera que tenga el ZIP puede leer los datos; guárdalo de forma segura.</string>
     <string name="backup_export_action">Exportar copia ZIP</string>
     <string name="backup_restore_action">Restaurar desde ZIP</string>
@@ -1335,7 +1266,6 @@
     <string name="backup_restore_confirm_title">¿Sustituir los datos actuales de la app?</string>
     <string name="backup_restore_confirm_message">La restauración completa sustituye proveedores y claves de API, personajes, historias, chats individuales y grupales, libros de mundo, scripts regex, registros de uso y solicitudes, preferencias y adjuntos. No se fusiona nada. Exporta antes una copia si vas a necesitar los datos actuales.</string>
     <string name="story_markdown_rendering">Mostrar Markdown en historias</string>
-    <string name="story_markdown_rendering_desc">Mostrar capítulos con formato Markdown.</string>
     <string name="story_markdown_edit">Editar texto original</string>
     <string name="scroll_to_top">Ir al principio</string>
     <string name="scroll_to_bottom">Ir al final</string>
@@ -1349,7 +1279,6 @@
     <string name="backup_security_title">Aviso de seguridad y privacidad</string>
     <string name="backup_status_title">Estado actual</string>
     <string name="message_edit_separate_think">Separar razonamiento</string>
-    <string name="message_edit_separate_think_desc">Edita solo la respuesta y conserva el razonamiento original.</string>
     <string name="backup_details_title">Detalles técnicos</string>
     <string name="backup_details_copy">Copiar</string>
     <string name="backup_details_copied">Detalles copiados</string>
@@ -1379,11 +1308,6 @@
     <string name="character_background_enable_message">La opción «Usar fondo de la tarjeta de personaje» está desactivada en los ajustes del chat. ¿Activarla ahora? Se aplica a todos los chats con fondos de personajes.</string>
     <string name="character_background_enable_confirm">Activar</string>
     <string name="character_background_enable_later">Ahora no</string>
-    <string name="character_selection_count">%1$d seleccionados</string>
-    <string name="select_all_characters">Seleccionar todos</string>
-    <string name="deselect_all_characters">Deseleccionar todos</string>
-    <string name="character_selected">Seleccionado</string>
-    <string name="character_not_selected">No seleccionado</string>
     <string name="export_selected_characters_zip">Exportar personajes seleccionados como ZIP</string>
     <string name="export_character_archive_success">ZIP de personajes exportado correctamente.</string>
     <string name="export_character_archive_limit">El ZIP de personajes supera los límites de importación. Selecciona menos tarjetas o reduce el tamaño de una tarjeta grande.</string>
@@ -1399,12 +1323,28 @@
     <string name="batch_import_result_message">Importadas: %1$d\nFallidas: %2$d</string>
     <string name="batch_import_reading_progress">Leyendo %1$d/%2$d</string>
     <string name="batch_import_saving_progress">Importando %1$d/%2$d</string>
-    <string name="character_batch_delete_message">¿Eliminar %1$d personajes seleccionados? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</string>
-    <string name="world_book_batch_delete_message">¿Eliminar %1$d libros de mundo seleccionados y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</string>
-    <string name="world_book_entry_batch_delete_message">¿Eliminar %1$d entradas seleccionadas? La eliminación es inmediata y no se puede deshacer.</string>
+    <plurals name="character_batch_delete_message">
+        <item quantity="one">¿Eliminar %1$d personaje seleccionado? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</item>
+        <item quantity="many">¿Eliminar %1$d personajes seleccionados? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</item>
+        <item quantity="other">¿Eliminar %1$d personajes seleccionados? Se conservarán los libros de mundo asociados. Esta acción no se puede deshacer.</item>
+    </plurals>
+    <plurals name="world_book_batch_delete_message">
+        <item quantity="one">¿Eliminar %1$d libro de mundo seleccionado y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</item>
+        <item quantity="many">¿Eliminar %1$d libros de mundo seleccionados y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</item>
+        <item quantity="other">¿Eliminar %1$d libros de mundo seleccionados y todas sus entradas? Se eliminarán los vínculos con personajes. Esta acción no se puede deshacer.</item>
+    </plurals>
+    <plurals name="world_book_entry_batch_delete_message">
+        <item quantity="one">¿Eliminar %1$d entrada seleccionada? La eliminación es inmediata y no se puede deshacer.</item>
+        <item quantity="many">¿Eliminar %1$d entradas seleccionadas? La eliminación es inmediata y no se puede deshacer.</item>
+        <item quantity="other">¿Eliminar %1$d entradas seleccionadas? La eliminación es inmediata y no se puede deshacer.</item>
+    </plurals>
     <string name="world_book_batch_import_result_title">Importación de libros de mundo completada</string>
-    <string name="world_book_batch_low_budget_message">%1$d libros de mundo seleccionados tienen presupuestos fijos bajos. El menor es de %2$d tokens. ¿Usar el presupuesto global para estos libros?</string>
-    <string name="world_book_archive_limit">El ZIP de libros de mundo supera los límites de importación. Selecciona menos libros o reduce el tamaño de un libro grande.</string>
+    <plurals name="world_book_batch_low_budget_message">
+        <item quantity="one">%1$d libro de mundo seleccionado tiene un presupuesto fijo bajo de %2$d tokens. ¿Usar el presupuesto global para este libro?</item>
+        <item quantity="many">%1$d libros de mundo seleccionados tienen presupuestos fijos bajos. El menor es de %2$d tokens. ¿Usar el presupuesto global para estos libros?</item>
+        <item quantity="other">%1$d libros de mundo seleccionados tienen presupuestos fijos bajos. El menor es de %2$d tokens. ¿Usar el presupuesto global para estos libros?</item>
+    </plurals>
+    <string name="world_book_archive_limit">Los datos de libros de mundo seleccionados superan los límites de importación. Selecciona menos libros o reduce el tamaño de un libro grande.</string>
     <string name="world_book_export_selected">Exportar libros de mundo seleccionados como ZIP</string>
 
     <string name="prompt_template_default">Predeterminado del sistema</string>
@@ -1417,7 +1357,6 @@
     <string name="prompt_template_failed">No se pudo cargar o guardar la plantilla. Inténtalo de nuevo.</string>
     <string name="prompt_template_conflict">Esta plantilla ha cambiado. Copia tu borrador y vuelve a abrir el editor.</string>
     <string name="prompt_template_active">Activa</string>
-    <string name="prompt_template_scope">Se aplica a futuras generaciones de chats, grupos, historias y resúmenes. Se mantienen las instrucciones específicas del personaje y de la sesión.</string>
     <string name="prompt_template_search">Buscar plantillas</string>
     <string name="prompt_template_all">Plantillas de instrucciones</string>
     <string name="prompt_template_no_results">No hay plantillas coincidentes</string>
@@ -1432,12 +1371,8 @@
     <!-- 用户代写草稿 -->
     <string name="user_writing_output_title">Destino de la suplantación</string>
     <string name="user_writing_output_message">Historial del chat</string>
-    <string name="user_writing_output_message_desc">Guardar el mensaje generado del usuario directamente en la conversación.</string>
     <string name="user_writing_output_draft">Cuadro de texto</string>
-    <string name="user_writing_output_draft_desc">Crear un borrador en el cuadro de texto para editarlo y enviarlo cuando quieras.</string>
     <string name="user_writing_no_body">No se generó texto para el mensaje. Se ha conservado tu borrador.</string>
-    <string name="prompt_user_writing_title">Prompt para continuar en el campo de entrada</string>
-    <string name="prompt_user_writing_desc">Se usa al escribir como el usuario en el campo de entrada. {{draft}} inserta el texto actual; sin esta macro, el texto se añade al final.</string>
     <string name="summary_mode">Modo de resumen de conversación</string>
     <string name="summary_mode_raw">Raw (incremental)</string>
     <string name="summary_mode_classic">Classic (contexto actual)</string>
@@ -1470,7 +1405,11 @@
     <string name="prompt_status_default_empty">Predeterminado · vacío</string>
     <string name="prompt_status_custom">Personalizado</string>
     <string name="prompt_status_custom_empty">Personalizado · vacío</string>
-    <string name="prompt_catalog_count">%1$d elementos</string>
+    <plurals name="prompt_catalog_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="many">%1$d elementos</item>
+        <item quantity="other">%1$d elementos</item>
+    </plurals>
     <string name="prompt_catalog_group_nudge_title">Restricciones del hablante del grupo</string>
     <string name="prompt_catalog_continue_title">Instrucciones para continuar una respuesta</string>
     <string name="prompt_catalog_impersonation_title">Escritura como usuario en chat individual</string>

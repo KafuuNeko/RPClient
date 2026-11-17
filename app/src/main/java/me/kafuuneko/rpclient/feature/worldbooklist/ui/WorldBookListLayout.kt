@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -186,8 +187,9 @@ private fun DialogSwitch(
         is WorldBookListDialogState.DeleteSelectedConfirm -> AppDangerDialog(
             onDismissRequest = { WorldBookListUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.delete_selected_items_title),
-            message = stringResource(
-                R.string.world_book_batch_delete_message,
+            message = pluralStringResource(
+                R.plurals.world_book_batch_delete_message,
+                dialogState.lorebookIds.size,
                 dialogState.lorebookIds.size
             ),
             onConfirm = { WorldBookListUiIntent.ConfirmDeleteSelectedWorldBooks.emit() },
@@ -215,8 +217,9 @@ private fun DialogSwitch(
                     dialogState.importedTokenBudget
                 )
             } else {
-                stringResource(
-                    R.string.world_book_batch_low_budget_message,
+                pluralStringResource(
+                    R.plurals.world_book_batch_low_budget_message,
+                    dialogState.affectedBookCount,
                     dialogState.affectedBookCount,
                     dialogState.importedTokenBudget
                 )
