@@ -3,8 +3,8 @@ package me.kafuuneko.rpclient.feature.appearance.presentation
 import android.net.Uri
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
-import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+import me.kafuuneko.rpclient.model.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemePalette
 
 /** 外观页的用户动作，后台处理细节不进入 Intent。 */
 sealed interface AppearanceUiIntent {

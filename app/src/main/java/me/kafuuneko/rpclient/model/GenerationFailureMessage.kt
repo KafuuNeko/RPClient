@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.feature
+package me.kafuuneko.rpclient.model
 
 import android.content.Context
 import androidx.annotation.StringRes

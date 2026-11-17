@@ -35,7 +35,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.main.model.items.MainRecentCharacterItem
 import me.kafuuneko.rpclient.feature.main.presentation.MainHomeRecentState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUiIntent
-import me.kafuuneko.rpclient.libs.HomeRecentMode
+import me.kafuuneko.rpclient.model.HomeRecentMode
 import me.kafuuneko.rpclient.ui.widgets.RecentContentCard
 import me.kafuuneko.rpclient.ui.widgets.RecentContentIconSize
 import me.kafuuneko.rpclient.ui.widgets.RpInfoCard

@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
-import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem

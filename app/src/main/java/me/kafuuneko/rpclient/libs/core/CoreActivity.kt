@@ -18,7 +18,7 @@ import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
-import me.kafuuneko.rpclient.libs.theme.AppThemeManager
+import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.LocalDialogAppearance
 import me.kafuuneko.rpclient.ui.widgets.PageBackdrop

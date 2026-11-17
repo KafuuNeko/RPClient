@@ -12,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
-import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+import me.kafuuneko.rpclient.model.AppThemePalette
 
 private val DarkColorScheme = darkColorScheme(
     background = BackgroundDarkColor,

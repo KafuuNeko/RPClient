@@ -117,7 +117,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AccentAmberColor
 import me.kafuuneko.rpclient.ui.theme.AccentBlueColor
 import me.kafuuneko.rpclient.ui.theme.AccentEmeraldColor

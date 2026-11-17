@@ -10,7 +10,7 @@ import me.kafuuneko.rpclient.feature.main.model.items.MainGroupChatSessionItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainHomeContentItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainRecentCharacterItem
 import me.kafuuneko.rpclient.feature.main.model.items.MainStoryItem
-import me.kafuuneko.rpclient.libs.HomeRecentMode
+import me.kafuuneko.rpclient.model.HomeRecentMode
 
 /** 首页常驻的资源入口，以及当前选中的最近区域。 */
 data class MainHomeState(

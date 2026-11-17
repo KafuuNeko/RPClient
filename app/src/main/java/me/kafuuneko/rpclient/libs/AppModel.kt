@@ -4,7 +4,8 @@ import com.chibatching.kotpref.KotprefModel
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemeMode
+import me.kafuuneko.rpclient.model.HomeRecentMode
 
 /**
  * 应用级持久偏好模型。

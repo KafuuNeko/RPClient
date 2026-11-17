@@ -88,7 +88,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.MainUserAvatarState
 import me.kafuuneko.rpclient.feature.main.presentation.MainUserIdentityState
 import me.kafuuneko.rpclient.feature.main.presentation.MainWorldInfoBudgetState
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemeMode
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface

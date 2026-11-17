@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.theme
+package me.kafuuneko.rpclient.model
 
 /** 应用可用的配色主题模式，并提供稳定的偏好存储值。 */
 enum class AppThemeMode(val persistedValue: String) {

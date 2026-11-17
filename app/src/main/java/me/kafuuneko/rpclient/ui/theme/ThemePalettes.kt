@@ -4,7 +4,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+import me.kafuuneko.rpclient.model.AppThemePalette
 
 /**
  * 低饱和 Material 色阶预设，明暗两套均覆盖容器与语义颜色。

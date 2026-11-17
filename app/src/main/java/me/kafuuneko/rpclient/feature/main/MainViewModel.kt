@@ -77,7 +77,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.HomeRecentMode
+import me.kafuuneko.rpclient.model.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ChatCharacterMatcher
@@ -104,7 +104,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
 import me.kafuuneko.rpclient.libs.search.SearchKind
-import me.kafuuneko.rpclient.libs.theme.AppThemeManager
+import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import me.kafuuneko.rpclient.utils.toPreview
 import org.koin.core.component.KoinComponent

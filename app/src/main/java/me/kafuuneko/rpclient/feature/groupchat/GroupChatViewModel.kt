@@ -48,8 +48,8 @@ import me.kafuuneko.rpclient.feature.groupchat.utils.macroContext
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
-import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage

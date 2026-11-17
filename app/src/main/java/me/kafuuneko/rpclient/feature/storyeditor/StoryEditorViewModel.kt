@@ -20,7 +20,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.feature.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.feature.storyeditor.model.ActiveStoryGeneration
 import me.kafuuneko.rpclient.feature.storyeditor.model.LoadedStory
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterDestination
@@ -63,7 +63,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.presentation.moveChapterForDrag
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.shouldScheduleStoryAutoSaveAfterComposition
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryDialogState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.toStoryGenerationFailure
-import me.kafuuneko.rpclient.feature.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider

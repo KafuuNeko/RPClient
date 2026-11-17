@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs
+package me.kafuuneko.rpclient.model
 
 /** 首页最近区域的浏览方式，整数编码独立于枚举声明顺序。 */
 enum class HomeRecentMode(val persistedValue: Int) {

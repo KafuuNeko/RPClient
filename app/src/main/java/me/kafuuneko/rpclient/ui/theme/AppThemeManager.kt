@@ -1,13 +1,15 @@
-package me.kafuuneko.rpclient.libs.theme
+package me.kafuuneko.rpclient.ui.theme
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.model.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemePalette
 
 /**
  * 应用配色主题管理器。
  *
- * - 统一读写轻量主题偏好，避免 Compose 或 Activity 直接访问 [AppModel]。
+ * - 统一读写轻量主题偏好，避免 Compose 或 Activity 直接访问 [me.kafuuneko.rpclient.libs.AppModel]。
  * - 通过进程级状态流让当前活动页面即时响应主题切换。
  */
 class AppThemeManager {

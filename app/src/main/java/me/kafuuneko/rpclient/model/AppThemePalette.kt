@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.theme
+package me.kafuuneko.rpclient.model
 
 /** 与明暗模式独立的配色选择；稳定标识允许新增预设而不破坏旧偏好。 */
 enum class AppThemePalette(val persistedValue: String) {

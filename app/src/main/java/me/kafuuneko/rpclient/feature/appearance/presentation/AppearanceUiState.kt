@@ -3,8 +3,8 @@ package me.kafuuneko.rpclient.feature.appearance.presentation
 import androidx.annotation.StringRes
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
-import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+import me.kafuuneko.rpclient.model.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemePalette
 
 /** 外观页按预设选择区与背景编辑区组织状态，关闭时保留最后一帧。 */
 sealed interface AppearanceUiState {

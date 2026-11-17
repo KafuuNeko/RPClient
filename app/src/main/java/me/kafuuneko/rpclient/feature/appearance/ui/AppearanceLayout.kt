@@ -57,8 +57,8 @@ import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorLoa
 import me.kafuuneko.rpclient.feature.appearance.presentation.BackgroundEditorState
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
-import me.kafuuneko.rpclient.libs.theme.AppThemePalette
+import me.kafuuneko.rpclient.model.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemePalette
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar

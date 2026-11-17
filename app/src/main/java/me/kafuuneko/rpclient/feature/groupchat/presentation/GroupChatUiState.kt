@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
-import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem

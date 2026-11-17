@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.storyeditor.presentation
 
-import me.kafuuneko.rpclient.feature.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryEditorSnapshot
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure

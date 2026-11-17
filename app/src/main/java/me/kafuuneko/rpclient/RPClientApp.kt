@@ -74,7 +74,7 @@ import me.kafuuneko.rpclient.libs.story.StoryContextSelector
 import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
-import me.kafuuneko.rpclient.libs.theme.AppThemeManager
+import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager

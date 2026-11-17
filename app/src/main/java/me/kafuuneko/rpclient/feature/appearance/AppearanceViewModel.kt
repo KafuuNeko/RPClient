@@ -24,7 +24,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
-import me.kafuuneko.rpclient.libs.theme.AppThemeManager
+import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.UUID

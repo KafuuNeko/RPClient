@@ -6,7 +6,7 @@ import me.kafuuneko.rpclient.feature.main.model.MainGenerationParameter
 import me.kafuuneko.rpclient.feature.main.model.MainHomeContentTab
 import me.kafuuneko.rpclient.feature.main.model.MainHomeItemSelection
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.libs.HomeRecentMode
+import me.kafuuneko.rpclient.model.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
 import me.kafuuneko.rpclient.libs.media.ImageSendMode
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
@@ -14,7 +14,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemeMode
 
 /** 首页及全局设置页可接收的全部用户意图。 */
 sealed class MainUiIntent {

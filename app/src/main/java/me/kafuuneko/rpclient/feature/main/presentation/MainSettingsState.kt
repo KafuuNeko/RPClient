@@ -15,7 +15,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
-import me.kafuuneko.rpclient.libs.theme.AppThemeMode
+import me.kafuuneko.rpclient.model.AppThemeMode
 
 /** 全局设置页状态树，各子状态与设置页的可渲染面板一一对应。 */
 data class MainSettingsState(
