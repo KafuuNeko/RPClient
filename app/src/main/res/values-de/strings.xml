@@ -332,6 +332,7 @@
     <string name="continue_latest_reply">Letzte Antwort fortsetzen</string>
     <string name="impersonate_user">Benutzer imitieren</string>
     <string name="summarize_now">Jetzt zusammenfassen</string>
+    <string name="resummarize">Erneut zusammenfassen</string>
     <string name="summarize_now_desc">Diesen Chat-Speicher mit den globalen Zusammenfassungseinstellungen aktualisieren</string>
     <string name="delete_chat_title">Chat löschen</string>
     <string name="delete_chat_message">Möchtest du "%s" und alle zugehörigen Nachrichten löschen? Dies kann nicht rückgängig gemacht werden.</string>

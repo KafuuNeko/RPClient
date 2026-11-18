@@ -10,7 +10,7 @@ data class ChatSessionItem(
     val id: Long,
     /** 供界面展示或持久化的标题。 */
     val title: String,
-    /** 当前会话是否存在可供展示的摘要。 */
+    /** 当前会话的摘要正文。 */
     val summarize: String,
     /** 仅供当前会话 Prompt 使用的用户备注。 */
     val userNote: String,
@@ -27,5 +27,7 @@ data class ChatSessionItem(
     /** 当前会话已启用的世界书条目 ID 集合。 */
     val enabledLorebookEntryIds: Set<Long>,
     /** 是否允许注入当前角色卡的示例对话。 */
-    val includeCharacterExamples: Boolean = true
+    val includeCharacterExamples: Boolean = true,
+    /** 当前摘要是否已覆盖最新普通消息。 */
+    val canResummarize: Boolean = false
 )

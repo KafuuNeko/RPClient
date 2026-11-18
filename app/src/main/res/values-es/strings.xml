@@ -331,6 +331,7 @@
     <string name="continue_latest_reply">Continuar última respuesta</string>
     <string name="impersonate_user">Suplantar usuario</string>
     <string name="summarize_now">Resumir ahora</string>
+    <string name="resummarize">Volver a resumir</string>
     <string name="summarize_now_desc">Actualizar la memoria de este chat con los ajustes globales de resumen</string>
     <string name="delete_chat_title">Eliminar chat</string>
     <string name="delete_chat_message">¿Eliminar «%s» y todos sus mensajes? Esta acción no se puede deshacer.</string>

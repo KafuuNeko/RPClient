@@ -332,6 +332,7 @@
     <string name="continue_latest_reply">最新の返信を続行</string>
     <string name="impersonate_user">ユーザーを模倣</string>
     <string name="summarize_now">今すぐ要約</string>
+    <string name="resummarize">再要約する</string>
     <string name="summarize_now_desc">グローバルな要約設定を使用して、このチャットのメモリを更新します</string>
     <string name="delete_chat_title">チャットを削除</string>
     <string name="delete_chat_message">「%s」とすべてのメッセージを削除しますか？この操作は取り消せません。</string>

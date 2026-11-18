@@ -348,6 +348,7 @@
     <string name="continue_latest_reply">Continue latest reply</string>
     <string name="impersonate_user">Impersonate user</string>
     <string name="summarize_now">Summarize now</string>
+    <string name="resummarize">Resummarize</string>
     <string name="summarize_now_desc">Update this chat memory using the global summary settings</string>
     <string name="delete_chat_title">Delete chat</string>
     <string name="delete_chat_message">Delete "%s" and all of its messages? This cannot be undone.</string>

@@ -117,28 +117,31 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     ): GroupChatMessage?
 
     /**
-     * 读取摘要边界之后、最新消息之前的最早候选窗口。
+     * 读取摘要范围中最早的群聊消息，供 Raw 按预算选择连续前缀。
      *
-     * 最新消息由 Repository 单独附加，确保 Builder 继续按旧规则将其排除。
+     * @param sessionId 群聊会话 ID。
+     * @param afterMessageId 旧摘要的覆盖边界，该消息本身不包含在结果中。
+     * @param throughMessageId 本次可用范围的上界，包含该消息。
+     * @param excludedMessageId 自动摘要保留的末条原文 ID；手动摘要传 null。
+     * @param limit 查询条数上限，负数表示不限条数。
+     * @return 按创建时间和 ID 正序排列的候选消息。
      */
     @Query(
         """
         SELECT * FROM group_chat_messages
         WHERE sessionId = :sessionId
-          AND id > :messageId
-          AND (
-              createTime < :latestCreateTime
-              OR (createTime = :latestCreateTime AND id < :latestMessageId)
-          )
+          AND id > :afterMessageId
+          AND id <= :throughMessageId
+          AND (:excludedMessageId IS NULL OR id != :excludedMessageId)
         ORDER BY createTime ASC, id ASC
         LIMIT :limit
         """
     )
-    suspend fun getFirstMessagesBeforeLatestAfterId(
+    suspend fun getSummaryMessageCandidates(
         sessionId: Long,
-        messageId: Long,
-        latestCreateTime: Long,
-        latestMessageId: Long,
+        afterMessageId: Long,
+        throughMessageId: Long,
+        excludedMessageId: Long?,
         limit: Int,
     ): List<GroupChatMessage>
 

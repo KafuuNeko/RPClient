@@ -179,33 +179,6 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         coveredMessageId: Long,
     ): ChatMessage?
 
-    /**
-     * 读取总结边界之后、最新消息之前的最早候选窗口。
-     *
-     * 最新消息由 Repository 单独附加，确保 Builder 继续按旧规则将其排除。
-     */
-    @Query(
-        """
-        SELECT * FROM chat_messages
-        WHERE sessionId = :sessionId
-          AND source != 'Summary'
-          AND id > :coveredMessageId
-          AND (
-              createTime < :latestCreateTime
-              OR (createTime = :latestCreateTime AND id < :latestMessageId)
-          )
-        ORDER BY createTime ASC, id ASC
-        LIMIT :limit
-        """
-    )
-    suspend fun getFirstMessagesBeforeLatestAfterId(
-        sessionId: Long,
-        coveredMessageId: Long,
-        latestCreateTime: Long,
-        latestMessageId: Long,
-        limit: Int,
-    ): List<ChatMessage>
-
     /** 从会话末尾读取总结边界之后的有限普通消息窗口。 */
     @Query(
         """
@@ -247,7 +220,16 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         throughMessageId: Long,
     ): List<ChatMessage>
 
-    /** 读取指定摘要范围按稳定顺序排列的最后一条普通消息。 */
+    /**
+     * 读取摘要范围中最早的普通消息，供 Raw 按预算选择连续前缀。
+     *
+     * @param sessionId 会话 ID。
+     * @param afterMessageId 旧摘要的覆盖边界，该消息本身不包含在结果中。
+     * @param throughMessageId 本次可用范围的上界，包含该消息。
+     * @param excludedMessageId 自动摘要保留的末条原文 ID；手动摘要传 null。
+     * @param limit 查询条数上限，负数表示不限条数。
+     * @return 按创建时间和 ID 正序排列的候选消息。
+     */
     @Query(
         """
         SELECT * FROM chat_messages
@@ -255,38 +237,16 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
           AND source != 'Summary'
           AND id > :afterMessageId
           AND id <= :throughMessageId
-        ORDER BY createTime DESC, id DESC
-        LIMIT 1
-        """
-    )
-    suspend fun getLatestMessageInRange(
-        sessionId: Long,
-        afterMessageId: Long,
-        throughMessageId: Long,
-    ): ChatMessage?
-
-    /** 读取指定摘要范围内、最后一条消息之前的最早候选窗口。 */
-    @Query(
-        """
-        SELECT * FROM chat_messages
-        WHERE sessionId = :sessionId
-          AND source != 'Summary'
-          AND id > :afterMessageId
-          AND id <= :throughMessageId
-          AND (
-              createTime < :latestCreateTime
-              OR (createTime = :latestCreateTime AND id < :latestMessageId)
-          )
+          AND (:excludedMessageId IS NULL OR id != :excludedMessageId)
         ORDER BY createTime ASC, id ASC
         LIMIT :limit
         """
     )
-    suspend fun getFirstMessagesBeforeLatestInRange(
+    suspend fun getSummaryMessageCandidates(
         sessionId: Long,
         afterMessageId: Long,
         throughMessageId: Long,
-        latestCreateTime: Long,
-        latestMessageId: Long,
+        excludedMessageId: Long?,
         limit: Int,
     ): List<ChatMessage>
 

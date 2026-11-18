@@ -124,6 +124,10 @@ data class GroupChatSettingsState(
     val inheritedDescription: String = "",
     /** 群聊摘要的未保存草稿。 */
     val summaryDraft: String = "",
+    /** 表单上次同步到的摘要正文，用来判断用户是否实际编辑。 */
+    val savedSummary: String = "",
+    /** 当前摘要是否已覆盖群聊最新消息。 */
+    val canResummarize: Boolean = false,
     /** 当前会话的自动摘要是否暂停。 */
     val autoSummaryPaused: Boolean = false,
     /** 群聊系统提示词的未保存草稿。 */

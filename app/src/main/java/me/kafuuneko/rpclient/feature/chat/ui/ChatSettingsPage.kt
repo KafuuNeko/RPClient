@@ -37,10 +37,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -165,7 +165,9 @@ internal fun ChatSettingsPage(
                     // 摘要操作紧随正文，与群聊保持一致，便于查看内容后直接处理。
                     SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
-                        title = stringResource(R.string.summarize_now),
+                        title = stringResource(
+                            if (session.canResummarize) R.string.resummarize else R.string.summarize_now
+                        ),
                         onClick = { ChatUiIntent.SummarizeNow.emit() },
                     )
                     SettingsActionRow(
@@ -436,6 +438,7 @@ private fun SessionLoreSettings(
     }
 }
 
+/** 自动保存用户编辑，外部加载的正文直接同步到输入框。 */
 @Composable
 private fun AutoSaveTextField(
     label: String,
@@ -447,32 +450,46 @@ private fun AutoSaveTextField(
     singleLine: Boolean = false,
     onSave: (String) -> Unit,
 ) {
-    // 编辑草稿和焦点保留在字段内部，外部值同步与防抖保存沿用原有时序。
-    var text by remember(label) { mutableStateOf(value) }
-    var isFocused by remember(label) { mutableStateOf(false) }
+    var draft by remember(label) { mutableStateOf(value) }
+    var pendingEdit by remember(label) { mutableStateOf<String?>(null) }
+    val submittedEdits = remember(label) { ArrayDeque<String>() }
+    val savedValue by rememberUpdatedState(value)
+    val save by rememberUpdatedState(onSave)
 
-    LaunchedEffect(value, isFocused) {
-        if (!isFocused && text != value) {
-            text = value
+    LaunchedEffect(value) {
+        // 较早一次保存的回显不能替换用户随后输入的草稿。
+        val acknowledged = submittedEdits.indexOf(value)
+        if (acknowledged >= 0) {
+            repeat(acknowledged + 1) { submittedEdits.removeFirst() }
+        } else {
+            // 生成或恢复的摘要即使在输入框聚焦时也应更新正文。
+            submittedEdits.clear()
+            pendingEdit = null
+            draft = value
         }
     }
 
-    LaunchedEffect(text, value) {
-        if (text != value) {
-            delay(timeMillis = 450)
-            onSave(text)
+    LaunchedEffect(pendingEdit) {
+        // 只有输入回调提交的修改能够触发防抖保存。
+        val edit = pendingEdit ?: return@LaunchedEffect
+        delay(timeMillis = 450)
+        if (edit != savedValue || submittedEdits.isNotEmpty()) {
+            submittedEdits.addLast(edit)
+            save(edit)
         }
+        pendingEdit = null
     }
     val placeholderContent: (@Composable () -> Unit)? = placeholder?.let { placeholderText ->
         { Text(placeholderText) }
     }
 
     RpScrollableOutlinedTextField(
-        modifier = Modifier
-            .fillMaxWidth()
-            .onFocusChanged(onFocusChanged = { isFocused = it.isFocused }),
-        value = text,
-        onValueChange = { text = it },
+        modifier = Modifier.fillMaxWidth(),
+        value = draft,
+        onValueChange = { edit ->
+            draft = edit
+            pendingEdit = edit
+        },
         label = { Text(label) },
         placeholder = placeholderContent,
         alwaysMinimizeLabel = alwaysMinimizeLabel,

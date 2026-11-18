@@ -7,5 +7,6 @@ import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 internal data class PreparedGroupSummaryRequest(
     val request: LLMGenerationRequest,
     val coveredMessageId: Long,
+    val summaryIdToUpdate: Long?,
     val inputSnapshot: SummaryInputSnapshot
 )

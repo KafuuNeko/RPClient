@@ -89,14 +89,14 @@ class ChatRepositorySummaryTest {
         repository.saveSummary(sessionId, "existing memory", ids[1])
         // 同一积压在 Raw 中保留最早前缀，在 Classic 中选择近期窗口。
         val raw = repository.getSummaryGenerationContext(
-            sessionId = sessionId, allowRefreshLatest = false,
+            sessionId = sessionId, manual = false,
             maxCandidateMessages = 2, mode = SummaryMode.Raw,
         )
         val classic = repository.getSummaryGenerationContext(
-            sessionId = sessionId, allowRefreshLatest = false,
+            sessionId = sessionId, manual = false,
             maxCandidateMessages = 2, mode = SummaryMode.Classic,
         )
-        assertEquals(listOf(ids[2], ids[3], ids[5]), raw.messages.map { it.id })
+        assertEquals(ids.subList(2, 4), raw.messages.map { it.id })
         assertEquals(ids.takeLast(3), classic.messages.map { it.id })
         assertEquals("existing memory", classic.existingSummary)
         assertEquals(ids[1], repository.getLatestSummary(sessionId)?.coveredMessageId)
@@ -142,7 +142,7 @@ class ChatRepositorySummaryTest {
 
         val refreshContext = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = true,
+            manual = true,
         )
         assertEquals("summary-through-5", refreshContext.existingSummary)
         assertEquals(
@@ -163,7 +163,7 @@ class ChatRepositorySummaryTest {
 
         val automaticContext = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = false,
+            manual = false,
         )
         assertTrue(automaticContext.messages.isEmpty())
         assertEquals(null, automaticContext.summaryToUpdate)
@@ -285,10 +285,19 @@ class ChatRepositorySummaryTest {
         assertEquals("summary-through-6", unlimited.summary)
         assertTrue(unlimited.messages.isEmpty())
         assertEquals(6, unlimited.totalMessageCount)
+
+        val continuation = repository.getPromptHistoryContext(
+            sessionId = sessionId,
+            excludedMessageId = null,
+            maxHistoryMessages = 3,
+            keepLatestMessage = true,
+        )
+        assertEquals("summary-through-6", continuation.summary)
+        assertEquals(listOf("message-6"), continuation.messages.map { it.content })
     }
 
     @Test
-    fun summaryGenerationWindowKeepsOldestCandidatesAndLatestExclusionSentinel() = runBlocking {
+    fun rawAutomaticSummaryKeepsOnlyTheOldestEligibleCandidates() = runBlocking {
         val messageIds = (1..6).map { index ->
             repository.createMessage(
                 sessionId = sessionId,
@@ -300,11 +309,11 @@ class ChatRepositorySummaryTest {
 
         val limited = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = false,
+            manual = false,
             maxCandidateMessages = 2,
         )
         assertEquals(
-            listOf("message-1", "message-2", "message-6"),
+            listOf("message-1", "message-2"),
             limited.messages.map { message -> message.content },
         )
         assertTrue(limited.hasMoreCandidateMessages)
@@ -312,11 +321,11 @@ class ChatRepositorySummaryTest {
         repository.saveSummary(sessionId, "summary-through-2", messageIds[1])
         val afterSummary = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = false,
+            manual = false,
             maxCandidateMessages = 2,
         )
         assertEquals(
-            listOf("message-3", "message-4", "message-6"),
+            listOf("message-3", "message-4"),
             afterSummary.messages.map { message -> message.content },
         )
         assertTrue(afterSummary.hasMoreCandidateMessages)
@@ -324,13 +333,80 @@ class ChatRepositorySummaryTest {
 
         val expanded = repository.getSummaryGenerationContext(
             sessionId = sessionId,
-            allowRefreshLatest = false,
+            manual = false,
             maxCandidateMessages = 10,
         )
         assertEquals(
-            listOf("message-3", "message-4", "message-5", "message-6"),
+            listOf("message-3", "message-4", "message-5"),
             expanded.messages.map { message -> message.content },
         )
         assertFalse(expanded.hasMoreCandidateMessages)
+
+        // 旧自动摘要留下的末条仍能手动推进，自动任务则没有可摘要素材。
+        repository.saveSummary(sessionId, "summary-through-5", messageIds[4])
+        val automatic = repository.getSummaryGenerationContext(sessionId, manual = false)
+        assertTrue(automatic.messages.isEmpty())
+        val manual = repository.getSummaryGenerationContext(sessionId, manual = true)
+        assertEquals(listOf(messageIds.last()), manual.messages.map { it.id })
+        assertEquals(null, manual.summaryToUpdate)
+    }
+
+    /** 单聊重做使用初次请求的旧摘要和历史范围，并复用当前快照的 ID。 */
+    @Test
+    fun resummarizingUsesPreviousMemoryAndKeepsItAvailableForRestore() = runBlocking {
+        val ids = (1..20).map { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = ChatMessage.Source.User,
+                content = "message-$index",
+                createTime = index.toLong(),
+            )
+        }
+        val firstId = repository.saveSummary(sessionId, "memory through 10", ids[9])
+
+        for (mode in SummaryMode.entries) {
+            // 先用旧摘要推进到末尾，再从一个早期搜索位置读取按钮状态。
+            assertFalse(repository.getChatPageData(sessionId, pageSize = 2).canResummarize)
+            val initial = repository.getSummaryGenerationContext(
+                sessionId = sessionId, manual = true, maxCandidateMessages = 10, mode = mode,
+            )
+            assertEquals("memory through 10", initial.existingSummary)
+            assertEquals(ids.last(), initial.messages.last().id)
+            val currentId = repository.saveSummary(sessionId, "memory through 20", ids.last())
+            assertTrue(
+                repository.getChatPageData(
+                    sessionId = sessionId, pageSize = 2, anchorMessageId = ids.first(),
+                ).canResummarize
+            )
+
+            // 重做使用原来的输入。写回成功后回滚仍能直接恢复更早的摘要。
+            val rerun = repository.getSummaryGenerationContext(
+                sessionId = sessionId, manual = true, maxCandidateMessages = 10, mode = mode,
+            )
+            assertEquals(initial.messages, rerun.messages)
+            assertEquals(initial.existingSummary, rerun.existingSummary)
+            assertEquals(currentId, rerun.summaryToUpdate?.id)
+            val snapshot =
+                repository.getSummaryInputSnapshot(sessionId, rerun.messages.map { it.id })
+            val updatedId = repository.saveSummary(
+                sessionId = sessionId,
+                content = "new memory through 20",
+                coveredMessageId = ids.last(),
+                summaryIdToUpdate = rerun.summaryToUpdate?.id,
+                expectedSnapshot = snapshot,
+            )
+            assertEquals(currentId, updatedId)
+            assertEquals("new memory through 20", repository.getLatestSummary(sessionId)?.content)
+            val newMessage = repository.createMessage(
+                sessionId = sessionId,
+                source = ChatMessage.Source.User,
+                content = "message-21",
+                createTime = 21L,
+            )
+            assertFalse(repository.getChatPageData(sessionId, pageSize = 2).canResummarize)
+            repository.deleteMessage(newMessage)
+            assertTrue(repository.restorePreviousSummary(sessionId))
+            assertEquals(firstId, repository.getLatestSummary(sessionId)?.id)
+        }
     }
 }

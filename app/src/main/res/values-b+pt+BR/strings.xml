@@ -332,6 +332,7 @@ Falhas: %2$d</string>
     <string name="continue_latest_reply">Continuar última resposta</string>
     <string name="impersonate_user">Personificar usuário</string>
     <string name="summarize_now">Resumir agora</string>
+    <string name="resummarize">Resumir novamente</string>
     <string name="summarize_now_desc">Atualizar a memória deste chat usando as configurações globais de resumo</string>
     <string name="delete_chat_title">Excluir chat</string>
     <string name="delete_chat_message">Excluir "%s" e todas as suas mensagens? Esta ação não pode ser desfeita.</string>

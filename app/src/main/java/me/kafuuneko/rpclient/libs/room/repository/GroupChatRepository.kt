@@ -56,12 +56,14 @@ data class GroupChatPromptData(
 /**
  * 群聊摘要构建使用的有限候选窗口。
  *
- * @property data 会话、成员、摘要及保留末尾排除哨兵的消息窗口。
+ * @property data 会话、成员、作为输入的旧摘要和候选消息窗口。
  * @property hasMoreCandidateMessages 当前窗口之后是否还有可继续扩展的候选消息。
+ * @property summaryToUpdate 用户重新摘要时原地更新的当前快照。
  */
 data class GroupChatSummaryGenerationData(
     val data: GroupChatData,
-    val hasMoreCandidateMessages: Boolean
+    val hasMoreCandidateMessages: Boolean,
+    val summaryToUpdate: GroupChatSummary?
 )
 
 /**
@@ -87,12 +89,14 @@ data class GroupChatSpeakerSelectionData(
  * @property data 会话、成员、当前消息窗口和摘要组成的聚合数据。
  * @property canLoadOlderMessages 当前窗口之前是否仍有更早消息。
  * @property hasCharacterMessage 完整群聊历史中是否存在角色消息。
+ * @property canResummarize 当前摘要已经覆盖最新消息，允许重新摘要。
  */
 data class GroupChatPageData(
     val data: GroupChatData,
     val canLoadOlderMessages: Boolean,
     val hasCharacterMessage: Boolean,
     val latestReplySpeakerId: Long?,
+    val canResummarize: Boolean,
     val messageImages: List<MessageWithImages> = emptyList(),
     val canLoadNewerMessages: Boolean = false,
     val newerMessageCount: Int = 0
@@ -229,10 +233,11 @@ class GroupChatRepository(
     /**
      * 在同一事务中读取群聊摘要所需的会话数据和最早候选窗口。
      *
-     * 最新未覆盖消息始终附在窗口末尾，供 Builder 继续按旧规则排除；有限窗口额外查询
-     * 一条候选消息，仅用于判断 Token 预算允许时是否需要扩展。
+     * - 手动摘要可以覆盖末条消息，自动摘要保留末条原文。
+     * - 手动重做时读取更早的摘要作为输入，并将结果写回当前快照。
      *
      * @param sessionId 群聊会话 ID。
+     * @param manual 是否由用户主动触发。
      * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
      * @param mode Raw 读取增量前缀，Classic 读取与旧摘要边界无关的近期窗口。
      * @return 群聊摘要聚合数据；会话不存在时返回 null。
@@ -241,48 +246,62 @@ class GroupChatRepository(
         sessionId: Long,
         maxCandidateMessages: Int = 0,
         mode: SummaryMode = SummaryMode.Raw,
+        manual: Boolean = false,
     ): GroupChatSummaryGenerationData? {
         require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
-            // 会话、成员和摘要必须与候选消息共享同一数据库快照
+            // 会话、成员和摘要必须与候选消息共享同一数据库快照。
             val session = mSessionDao.getSessionById(sessionId) ?: return@withTransaction null
-            val summary = mSummaryDao.getLatest(sessionId)
-            // Classic 同时保留最新消息和前一条，写回时使用前一条作为稳定覆盖位置。
-            if (mode == SummaryMode.Classic) {
-                val recent = if (maxCandidateMessages == 0) {
-                    mMessageDao.getMessages(sessionId)
-                } else {
-                    mMessageDao.getLatestMessagePage(
-                        sessionId = sessionId,
-                        limit = maxCandidateMessages.coerceAtMost(Int.MAX_VALUE - 1) + 1,
-                    ).asReversed()
+            val latestSummary = mSummaryDao.getLatest(sessionId)
+            val summaryToUpdate = if (manual) {
+                val latestMessageId = mMessageDao.getLatestMessage(sessionId)?.id
+                latestSummary.takeIf { it.coversLatestMessage(latestMessageId) }
+            } else null
+            val replayBoundary = summaryToUpdate?.coveredMessageId
+            val baseSummary = if (replayBoundary == null) latestSummary else {
+                mSummaryDao.getPrevious(sessionId, replayBoundary)
+            }
+            val coveredMessageId = baseSummary?.coveredMessageId ?: 0L
+            val queryLimit = if (maxCandidateMessages == 0) -1
+            else maxCandidateMessages.coerceAtMost(Int.MAX_VALUE - 1) + 1
+
+            // Classic 复用最近窗口；Raw 直接查询可摘要的连续前缀。
+            val candidates = if (mode == SummaryMode.Classic) {
+                val recent = mMessageDao.getLatestMessagePage(sessionId, queryLimit).asReversed()
+                val canAdvance =
+                    (recent.getOrNull(recent.lastIndex - 1)?.id ?: 0L) > coveredMessageId
+                if (manual || canAdvance) recent else emptyList()
+            } else {
+                val excludedMessageId = if (manual) null else {
+                    mMessageDao.getLatestMessageAfterId(sessionId, coveredMessageId)?.id
                 }
-                return@withTransaction GroupChatSummaryGenerationData(
-                    data = GroupChatData(
-                        persona = mPersonas.resolve(session),
-                        session = session, members = getMemberData(sessionId),
-                        messages = recent, summary = summary,
-                    ),
-                    hasMoreCandidateMessages = false,
+                mMessageDao.getSummaryMessageCandidates(
+                    sessionId = sessionId,
+                    afterMessageId = coveredMessageId,
+                    throughMessageId = replayBoundary ?: Long.MAX_VALUE,
+                    excludedMessageId = excludedMessageId,
+                    limit = queryLimit,
                 )
             }
-            val messageWindow = loadSummaryMessagesAfterId(
-                sessionId = sessionId,
-                coveredMessageId = summary?.coveredMessageId ?: 0L,
-                maxCandidateMessages = maxCandidateMessages,
-            )
+            val hasMore = mode == SummaryMode.Raw && maxCandidateMessages > 0 &&
+                candidates.size > maxCandidateMessages
             GroupChatSummaryGenerationData(
                 data = GroupChatData(
                     persona = mPersonas.resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
-                    messages = messageWindow.messages,
-                    summary = summary,
+                    messages = if (hasMore) candidates.take(maxCandidateMessages) else candidates,
+                    summary = baseSummary,
                 ),
-                hasMoreCandidateMessages = messageWindow.hasMoreCandidateMessages,
+                hasMoreCandidateMessages = hasMore,
+                summaryToUpdate = summaryToUpdate,
             )
         }
     }
+
+    /** 群聊按钮状态与请求选材共享同一末尾判断。 */
+    private fun GroupChatSummary?.coversLatestMessage(latestMessageId: Long?): Boolean =
+        latestMessageId != null && this != null && coveredMessageId == latestMessageId && content.isNotBlank()
 
     /**
      * 在同一事务中读取群聊生成所需的最近历史窗口和完整消息总数。
@@ -290,6 +309,7 @@ class GroupChatRepository(
      * @param sessionId 群聊会话 ID。
      * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
      * @param replacingReply 设置页请求替换的末尾角色回复，生成时排除它及覆盖它的摘要。
+     * @param keepLatestMessage 续写时保留已被手动摘要覆盖的末条原文。
      * @return 群聊生成快照；会话不存在时返回 null。
      */
     suspend fun getGroupChatPromptData(
@@ -298,6 +318,7 @@ class GroupChatRepository(
         protectedUserMessageId: Long? = null,
         batchPersona: UserPersona? = null,
         replacingReply: GroupChatMessage? = null,
+        keepLatestMessage: Boolean = false,
     ): GroupChatPromptData? {
         require(maxHistoryMessages >= 0) { "maxHistoryMessages must not be negative" }
         return mAppDatabase.withTransaction {
@@ -324,6 +345,13 @@ class GroupChatRepository(
             val retained =
                 messages.filter { message -> message.id > (summary?.coveredMessageId ?: 0L) }
                     .toMutableList()
+            // 续写或重试最后一条用户消息时，摘要不能代替生成目标的原文。
+            val latestMessage = messages.lastOrNull()
+            if (replacingReply == null && retained.isEmpty() && latestMessage != null &&
+                (keepLatestMessage || latestMessage.id == protectedUserMessageId)
+            ) {
+                retained.add(latestMessage)
+            }
             protectedUserMessageId?.let { id ->
                 val trigger = mMessageDao.getMessageById(id)
                 val shouldRetainTriggerMessage =
@@ -498,17 +526,23 @@ class GroupChatRepository(
                 page.messages.lastOrNull()
                     ?.takeIf { it.source == GroupChatMessage.Source.Character }?.speakerCharacterId
             }
+            val summary = mSummaryDao.getLatest(sessionId)
+            // 搜索结果可能不包含会话末尾，按钮状态需要实际的最新消息 ID。
+            val latestMessageId = if (page.canLoadNewerMessages && summary != null) {
+                mMessageDao.getLatestMessage(sessionId)?.id
+            } else page.messages.lastOrNull()?.id
             GroupChatPageData(
                 data = GroupChatData(
                     persona = mPersonas.resolve(session),
                     session = session,
                     members = getMemberData(sessionId),
                     messages = page.messages,
-                    summary = mSummaryDao.getLatest(sessionId),
+                    summary = summary,
                 ),
                 canLoadOlderMessages = page.canLoadOlderMessages,
                 hasCharacterMessage = mMessageDao.hasCharacterMessage(sessionId),
                 latestReplySpeakerId = latestReplySpeakerId,
+                canResummarize = summary.coversLatestMessage(latestMessageId),
                 messageImages = page.messageImages,
                 canLoadNewerMessages = page.canLoadNewerMessages,
                 newerMessageCount = page.newerMessageCount,
@@ -818,19 +852,19 @@ class GroupChatRepository(
     /**
      * 在同一事务内提交设置表单及有变化的摘要，保留表单范围外的最新会话字段。
      * @param sessionId 群聊 ID。
-     * @param summary 设置页摘要草稿。
+     * @param summary 用户编辑后的摘要；null 表示表单只保存其他设置。
      * @param edit 将表单字段应用到当前会话。
      */
     suspend fun saveSettings(
         sessionId: Long,
-        summary: String,
+        summary: String?,
         edit: (GroupChatSession) -> GroupChatSession,
     ) = mAppDatabase.withTransaction {
         val session =
             checkNotNull(mSessionDao.getSessionById(sessionId)) { "Group chat does not exist" }
         val edited = edit(session)
         if (edited != session) updateSession(edited)
-        if (summary != mSummaryDao.getLatest(sessionId)?.content.orEmpty()) {
+        if (summary != null && summary != mSummaryDao.getLatest(sessionId)?.content.orEmpty()) {
             updateCurrentSummary(sessionId = sessionId, content = summary)
         }
     }
@@ -898,8 +932,15 @@ class GroupChatRepository(
             )
             require(current == expectedSnapshot) { "Summary input changed, summarize again" }
         }
+        // 重做只能覆盖同一会话中仍为当前版本的摘要。
+        require(mMessageDao.getMessageById(coveredMessageId)?.sessionId == sessionId) {
+            "Summary boundary must reference a message in the same group chat"
+        }
         val now = System.currentTimeMillis()
         if (summaryIdToUpdate != null) {
+            require(mSummaryDao.getLatest(sessionId)?.id == summaryIdToUpdate) {
+                "Summary to update is no longer the latest snapshot"
+            }
             mSummaryDao.updateContent(summaryIdToUpdate, content, coveredMessageId, now)
             return@withTransaction summaryIdToUpdate
         }
@@ -1007,45 +1048,6 @@ class GroupChatRepository(
         return mMessageDao.getMessageCount(sessionId)
     }
 
-    /** 读取群聊摘要窗口，并把真实最新消息附在末尾供 Builder 按旧规则排除。 */
-    private suspend fun loadSummaryMessagesAfterId(
-        sessionId: Long,
-        coveredMessageId: Long,
-        maxCandidateMessages: Int,
-    ): GroupSummaryMessageWindow {
-        // 无限制调用保留旧接口的完整范围语义
-        if (maxCandidateMessages == 0) {
-            return GroupSummaryMessageWindow(
-                messages = mMessageDao.getMessagesAfterId(sessionId, coveredMessageId),
-                hasMoreCandidateMessages = false,
-            )
-        }
-        // 最新消息不参与候选窗口计数，但必须交给 Builder 执行固定排除规则
-        val latestMessage = mMessageDao.getLatestMessageAfterId(
-            sessionId = sessionId,
-            messageId = coveredMessageId,
-        ) ?: return GroupSummaryMessageWindow(
-            messages = emptyList(),
-            hasMoreCandidateMessages = false
-        )
-        val queryLimit = if (maxCandidateMessages == Int.MAX_VALUE) {
-            Int.MAX_VALUE
-        } else {
-            maxCandidateMessages + 1
-        }
-        val candidates = mMessageDao.getFirstMessagesBeforeLatestAfterId(
-            sessionId = sessionId,
-            messageId = coveredMessageId,
-            latestCreateTime = latestMessage.createTime,
-            latestMessageId = latestMessage.id,
-            limit = queryLimit,
-        )
-        return GroupSummaryMessageWindow(
-            messages = candidates.take(maxCandidateMessages) + latestMessage,
-            hasMoreCandidateMessages = candidates.size > maxCandidateMessages,
-        )
-    }
-
     /** 补全群聊成员关系对应的角色卡，已被删除的角色不会进入业务聚合。 */
     private suspend fun getMemberData(sessionId: Long): List<GroupChatMemberData> {
         return mMemberDao.getMembers(sessionId).mapNotNull { relation ->
@@ -1066,9 +1068,4 @@ class GroupChatRepository(
         )
     }
 
-    /** Builder 使用的有限群聊候选窗口及其扩展标记。 */
-    private data class GroupSummaryMessageWindow(
-        val messages: List<GroupChatMessage>,
-        val hasMoreCandidateMessages: Boolean
-    )
 }

@@ -134,7 +134,7 @@ class GroupChatRepositorySummaryTest {
         val classic = repository.getGroupChatSummaryData(
             sessionId = sessionId, maxCandidateMessages = 2, mode = SummaryMode.Classic,
         )!!.data
-        assertEquals(listOf(ids[2], ids[3], ids[5]), raw.messages.map { it.id })
+        assertEquals(ids.subList(2, 4), raw.messages.map { it.id })
         assertEquals(ids.takeLast(3), classic.messages.map { it.id })
         assertEquals(ids[1], repository.getGroupChatData(sessionId)?.summary?.coveredMessageId)
         val snapshot = repository.getSummaryInputSnapshot(sessionId, classic.messages.map { it.id })
@@ -205,7 +205,7 @@ class GroupChatRepositorySummaryTest {
 
     @Test
     fun promptDataUsesLatestWindowAndKeepsFullMessageCount() = runBlocking {
-        (1..5).forEach { index ->
+        val messageIds = (1..5).map { index ->
             repository.createMessage(
                 sessionId = sessionId,
                 source = GroupChatMessage.Source.User,
@@ -232,6 +232,15 @@ class GroupChatRepositorySummaryTest {
         ) ?: error("Group chat should exist")
         assertEquals(5, unlimited.data.messages.size)
         assertEquals(5, unlimited.totalMessageCount)
+
+        repository.saveSummary(sessionId, "memory through 5", messageIds.last())
+        val continuation = requireNotNull(
+            repository.getGroupChatPromptData(
+                sessionId = sessionId, maxHistoryMessages = 2, keepLatestMessage = true,
+            )
+        )
+        assertEquals("memory through 5", continuation.data.summary?.content)
+        assertEquals(listOf(messageIds.last()), continuation.data.messages.map { it.id })
     }
 
     @Test
@@ -269,8 +278,8 @@ class GroupChatRepositorySummaryTest {
     }
 
     @Test
-    fun summaryGenerationDataKeepsOldestCandidatesAndLatestExclusionSentinel() = runBlocking {
-        (1..5).forEach { index ->
+    fun rawAutomaticSummaryKeepsOnlyTheOldestEligibleGroupMessages() = runBlocking {
+        val ids = (1..5).map { index ->
             repository.createMessage(
                 sessionId = sessionId,
                 source = GroupChatMessage.Source.User,
@@ -286,7 +295,7 @@ class GroupChatRepositorySummaryTest {
             maxCandidateMessages = 2,
         ) ?: error("Group chat should exist")
         assertEquals(
-            listOf("message-1", "message-2", "message-5"),
+            listOf("message-1", "message-2"),
             limited.data.messages.map { message -> message.content },
         )
         assertTrue(limited.hasMoreCandidateMessages)
@@ -297,9 +306,87 @@ class GroupChatRepositorySummaryTest {
             maxCandidateMessages = 10,
         ) ?: error("Group chat should exist")
         assertEquals(
-            listOf("message-1", "message-2", "message-3", "message-4", "message-5"),
+            listOf("message-1", "message-2", "message-3", "message-4"),
             expanded.data.messages.map { message -> message.content },
         )
         assertFalse(expanded.hasMoreCandidateMessages)
+
+        // 只剩末条时手动摘要仍有素材，自动摘要无需启动。
+        repository.saveSummary(sessionId, "memory through 4", ids[3])
+        val automatic = requireNotNull(repository.getGroupChatSummaryData(sessionId))
+        assertTrue(automatic.data.messages.isEmpty())
+        val manual = requireNotNull(repository.getGroupChatSummaryData(sessionId, manual = true))
+        assertEquals(listOf(ids.last()), manual.data.messages.map { it.id })
+        assertEquals(null, manual.summaryToUpdate)
+    }
+
+    /** 群聊重做复用原素材，保存未修改摘要的设置表单时保留生成结果。 */
+    @Test
+    fun resummarizingReusesPreviousMemoryAndPreservesTheNewSnapshot() = runBlocking {
+        val ids = (1..20).map { index ->
+            repository.createMessage(
+                sessionId = sessionId,
+                source = GroupChatMessage.Source.User,
+                content = "message-$index",
+                speakerCharacterId = null,
+                speakerNameSnapshot = "Alice",
+                createTime = index.toLong(),
+            )
+        }
+        val firstId = repository.saveSummary(sessionId, "memory through 10", ids[9])
+        for (mode in SummaryMode.entries) {
+            // 读取推进到末尾前后的按钮状态，历史分页不能改变动作。
+            assertFalse(
+                requireNotNull(
+                    repository.getGroupChatPageData(
+                        sessionId,
+                        pageSize = 2
+                    )
+                ).canResummarize
+            )
+            val initial = requireNotNull(
+                repository.getGroupChatSummaryData(
+                    sessionId = sessionId, maxCandidateMessages = 10, mode = mode, manual = true,
+                )
+            )
+            assertEquals(firstId, initial.data.summary?.id)
+            assertEquals(ids.last(), initial.data.messages.last().id)
+            val currentId = repository.saveSummary(sessionId, "memory through 20", ids.last())
+            assertTrue(
+                requireNotNull(
+                    repository.getGroupChatPageData(
+                        sessionId = sessionId, pageSize = 2, anchorMessageId = ids.first(),
+                    )
+                ).canResummarize
+            )
+
+            // 重新摘要原地替换当前快照，其他设置的保存不应补写一条旧草稿。
+            val rerun = requireNotNull(
+                repository.getGroupChatSummaryData(
+                    sessionId = sessionId, maxCandidateMessages = 10, mode = mode, manual = true,
+                )
+            )
+            assertEquals(initial.data, rerun.data)
+            assertEquals(currentId, rerun.summaryToUpdate?.id)
+            val snapshot =
+                repository.getSummaryInputSnapshot(sessionId, rerun.data.messages.map { it.id })
+            val updatedId = repository.saveSummary(
+                sessionId = sessionId,
+                content = "new memory through 20",
+                coveredMessageId = ids.last(),
+                summaryIdToUpdate = rerun.summaryToUpdate?.id,
+                expectedSnapshot = snapshot,
+            )
+            assertEquals(currentId, updatedId)
+            repository.saveSettings(sessionId = sessionId, summary = null) { session ->
+                session.copy(title = "Renamed group")
+            }
+            assertEquals(
+                "new memory through 20",
+                repository.getGroupChatData(sessionId)?.summary?.content
+            )
+            assertTrue(repository.restorePreviousSummary(sessionId))
+            assertEquals(firstId, repository.getGroupChatData(sessionId)?.summary?.id)
+        }
     }
 }

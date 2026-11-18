@@ -331,6 +331,7 @@
     <string name="continue_latest_reply">Продолжить последний ответ</string>
     <string name="impersonate_user">Имитировать пользователя</string>
     <string name="summarize_now">Суммировать сейчас</string>
+    <string name="resummarize">Суммировать заново</string>
     <string name="summarize_now_desc">Обновить память этого чата, используя глобальные настройки суммаризации</string>
     <string name="delete_chat_title">Удалить чат</string>
     <string name="delete_chat_message">Удалить «%s» и все его сообщения? Это действие нельзя отменить.</string>

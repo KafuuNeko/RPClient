@@ -331,6 +331,7 @@
     <string name="continue_latest_reply">Continuer la dernière réponse</string>
     <string name="impersonate_user">Incarner l\'utilisateur</string>
     <string name="summarize_now">Résumer maintenant</string>
+    <string name="resummarize">Résumer à nouveau</string>
     <string name="summarize_now_desc">Mettre à jour la mémoire de cette discussion en utilisant les paramètres globaux de résumé</string>
     <string name="delete_chat_title">Supprimer la discussion</string>
     <string name="delete_chat_message">Supprimer "%s" et tous ses messages ? Cette action est irréversible.</string>

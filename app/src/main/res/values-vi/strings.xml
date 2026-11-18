@@ -332,6 +332,7 @@ Thất bại: %2$d</string>
     <string name="continue_latest_reply">Viết tiếp phản hồi mới nhất</string>
     <string name="impersonate_user">Đóng vai người dùng</string>
     <string name="summarize_now">Tóm tắt ngay</string>
+    <string name="resummarize">Tóm tắt lại</string>
     <string name="summarize_now_desc">Cập nhật bộ nhớ trò chuyện này bằng cài đặt tóm tắt toàn cục</string>
     <string name="delete_chat_title">Xóa cuộc trò chuyện</string>
     <string name="delete_chat_message">Xóa "%s" và tất cả tin nhắn trong đó? Thao tác này không thể hoàn tác.</string>

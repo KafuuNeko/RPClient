@@ -195,7 +195,9 @@ internal fun GroupChatSettingsPage(
                     )
                     SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
-                        title = stringResource(R.string.summarize_now),
+                        title = stringResource(
+                            if (state.canResummarize) R.string.resummarize else R.string.summarize_now
+                        ),
                         onClick = { emitIntent(GroupChatUiIntent.SummarizeNow) },
                     )
                     SettingsActionRow(

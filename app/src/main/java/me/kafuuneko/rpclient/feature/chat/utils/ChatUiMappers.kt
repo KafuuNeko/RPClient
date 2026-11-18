@@ -18,11 +18,12 @@ import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.utils.formatTimestamp
 
-/** 将会话实体和聚合信息转换为聊天页展示模型。 */
+/** 将会话实体和摘要状态等聚合信息转换为聊天页展示模型。 */
 fun ChatSession.toChatSessionItem(
     selection: PersonaSelection,
     inheritedDescription: String,
     summary: String,
+    canResummarize: Boolean,
     creatorNotes: String,
     messageCount: Int,
     enabledIds: Set<Long>,
@@ -32,6 +33,7 @@ fun ChatSession.toChatSessionItem(
         id = id,
         title = title,
         summarize = summary,
+        canResummarize = canResummarize,
         userNote = userNote,
         userName = userName.orEmpty(),
         persona = selection,

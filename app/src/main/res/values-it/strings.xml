@@ -326,6 +326,7 @@ Non riusciti: %2$d</string>
     <string name="continue_latest_reply">Continua ultima risposta</string>
     <string name="impersonate_user">Impersona utente</string>
     <string name="summarize_now">Riassumi ora</string>
+    <string name="resummarize">Riassumi di nuovo</string>
     <string name="summarize_now_desc">Aggiorna la memoria di questa chat usando le impostazioni di riassunto globali</string>
     <string name="delete_chat_title">Elimina chat</string>
     <string name="delete_chat_message">Eliminare "%s" e tutti i suoi messaggi? Questa azione non può essere annullata.</string>

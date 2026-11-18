@@ -62,10 +62,12 @@ class SummaryPromptBuilder(
      *
      * 核心步骤：
      * - 校验上下文 Token 上限与回复预留；
-     * - 获取用于生成摘要的候选历史消息（排除最新的正在生成或编辑的消息）；
+     * - 按已确定的末条保留规则与单批条数上限选择候选消息。
      * - 对历史消息与已有摘要进行 Think 思考块剥离与清洗；
      * - 从最早消息开始贪婪选择不超过 Prompt 预算的最大消息前缀；
      * - 组装并渲染包含总结指令模板与格式化历史的请求对象。
+     *
+     * @param includeLastMessage 候选窗口已在数据层选定时，保留窗口中的末条消息。
      */
     fun buildWithSelection(
         userName: String,
@@ -78,14 +80,18 @@ class SummaryPromptBuilder(
         messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
         unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
         templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
+        includeLastMessage: Boolean = false,
     ): SummaryPromptBuildResult {
         // 计算扣除回复预留后的输入 Prompt 预算
         val maxContextTokens = provider?.contextTokens ?: DEFAULT_SUMMARY_CONTEXT_TOKENS
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = summaryPromptBudget(maxContextTokens, responseTokens)
         val tokenizer = mRequestFinalizer.tokenizerFor(provider)
-        // 获取候选摘要消息（排除最后一条正在变动的消息并限制最大单次处理条数）
-        val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
+        // 单聊仓库已排除自动摘要需保留的原文，窗口末条在这里也可参与预算选择。
+        val limited = messages.summaryCandidates(
+            maxMessages = AppModel.summaryMaxMessagesPerRequest,
+            includeLastMessage = includeLastMessage,
+        )
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitized = limited.map { message ->
             message.copy(content = message.content.summarySafeContent())
@@ -220,16 +226,15 @@ class SummaryPromptBuilder(
 /**
  * 选择本轮可摘要消息。
  *
- * 最后一条消息固定排除，再按用户配置保留连续前缀。
+ * 按用户配置保留连续前缀，调用方可保留已确定的候选窗口末条。
  */
-internal fun <T> List<T>.summaryCandidates(maxMessages: Int): List<T> {
-    if (size <= 1) return emptyList()
-    val candidateCount = if (maxMessages > 0) {
-        minOf(size - 1, maxMessages)
-    } else {
-        size - 1
-    }
-    return subList(fromIndex = 0, toIndex = candidateCount).toList()
+internal fun <T> List<T>.summaryCandidates(
+    maxMessages: Int,
+    includeLastMessage: Boolean = false,
+): List<T> {
+    val availableCount = if (includeLastMessage) size else (size - 1).coerceAtLeast(0)
+    val candidateCount = if (maxMessages > 0) minOf(availableCount, maxMessages) else availableCount
+    return take(candidateCount)
 }
 
 /** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */

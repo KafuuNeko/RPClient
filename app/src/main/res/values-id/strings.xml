@@ -332,6 +332,7 @@ Gagal: %2$d</string>
     <string name="continue_latest_reply">Lanjutkan balasan terbaru</string>
     <string name="impersonate_user">Tirukan pengguna</string>
     <string name="summarize_now">Ringkas sekarang</string>
+    <string name="resummarize">Ringkas ulang</string>
     <string name="summarize_now_desc">Perbarui memori obrolan ini menggunakan pengaturan ringkasan global</string>
     <string name="delete_chat_title">Hapus obrolan</string>
     <string name="delete_chat_message">Hapus "%s" dan semua pesannya? Tindakan ini tidak dapat dibatalkan.</string>

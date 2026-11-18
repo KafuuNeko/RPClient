@@ -35,7 +35,11 @@ data class GroupChatSummaryBuildResult(
 class GroupChatSummaryPromptBuilder(
     private val mRequestFinalizer: PromptRequestFinalizer = PromptRequestFinalizer()
 ) {
-    /** 使用当前摘要和未覆盖消息构建群聊摘要请求。 */
+    /**
+     * 使用已有摘要和候选消息构建群聊摘要请求。
+     *
+     * @param includeLastMessage 候选窗口已在数据层选定时，保留窗口中的末条消息。
+     */
     fun buildWithSelection(
         session: GroupChatSession,
         memberNames: List<String>,
@@ -46,11 +50,15 @@ class GroupChatSummaryPromptBuilder(
         unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
         templates: PromptTemplateSnapshot = PromptTemplateSnapshot.defaults(),
         userName: String = session.userName ?: DefaultNames.USER,
+        includeLastMessage: Boolean = false,
     ): GroupChatSummaryBuildResult {
         // 摘要先按模型预算选择历史，再使用同一身份渲染请求与检查信息。
         val responseTokens = AppModel.summaryResponseTokens
         val promptBudget = summaryPromptBudget(provider.contextTokens, responseTokens)
-        val limited = messages.summaryCandidates(AppModel.summaryMaxMessagesPerRequest)
+        val limited = messages.summaryCandidates(
+            maxMessages = AppModel.summaryMaxMessagesPerRequest,
+            includeLastMessage = includeLastMessage,
+        )
         val safeExistingSummary = existingSummary.summarySafeContent()
         val sanitized = limited.map { message ->
             message.copy(content = message.content.summarySafeContent())

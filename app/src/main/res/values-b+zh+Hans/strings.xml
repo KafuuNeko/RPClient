@@ -331,6 +331,7 @@
     <string name="continue_latest_reply">续写最新回复</string>
     <string name="impersonate_user">扮演用户</string>
     <string name="summarize_now">立即摘要</string>
+    <string name="resummarize">重新摘要</string>
     <string name="summarize_now_desc">使用全局摘要设置更新此聊天记忆</string>
     <string name="delete_chat_title">删除聊天</string>
     <string name="delete_chat_message">删除“%s”及其所有消息？此操作无法撤销。</string>

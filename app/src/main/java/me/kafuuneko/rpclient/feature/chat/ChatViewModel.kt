@@ -705,7 +705,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ): BuiltGenerationRequest {
         val built =
             withContext(Dispatchers.IO) {
-                buildGenerationRequest(sessionId, templates = templates, personaOverride = persona)
+                buildGenerationRequest(
+                    sessionId = sessionId,
+                    templates = templates,
+                    personaOverride = persona,
+                    keepLatestMessage = true,
+                )
             }
         recordPromptInspection(built.inspection)
         val output = GenerationOutput.Create(ChatMessage.Source.Char)
@@ -1236,7 +1241,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 手动触发立即总结会话历史。
+     * 手动生成或重做当前会话摘要。
      */
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
@@ -1247,7 +1252,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 .tryEmit()
             return
         }
-        launchSummaryJob(sessionId = sessionId, showToast = true)
+        if (mSummaryJob?.isActive == true) return
+        launchSummaryJob(sessionId = sessionId, manual = true)
     }
 
     /**
@@ -1912,7 +1918,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 val generationMode =
                     if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
                 val built = withContext(Dispatchers.IO) {
-                    buildGenerationRequest(sessionId, generationMode, templates = templates)
+                    buildGenerationRequest(
+                        sessionId = sessionId,
+                        generationMode = generationMode,
+                        templates = templates,
+                        keepLatestMessage = true,
+                    )
                 }
                 recordPromptInspection(built.inspection)
                 // 调用模型生成，续写结果作为新建角色消息保存
@@ -2190,14 +2201,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 避免旧任务的 finally 块意外关闭新任务刚展示的“总结中”弹窗。
      *
      * @param sessionId 会话 ID
-     * @param showToast 是否在总结完成或出错时弹出 Toast（手动触发为 true，自动触发为 false）
+     * @param manual 是否由用户主动触发。
      * @param templates 自动摘要复用的模板；手动摘要在任务内读取。
      * @param persona 自动摘要复用的回复身份；手动摘要在任务内读取。
      * @return 启动的任务 Job
      */
     private suspend fun launchSummaryJob(
         sessionId: Long,
-        showToast: Boolean,
+        manual: Boolean,
         templates: PromptTemplateSnapshot? = null,
         persona: UserPersona? = null,
     ): Job {
@@ -2207,7 +2218,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 启动新的总结协程任务
             viewModelScope.launch {
                 try {
-                    summarizeSession(sessionId, showToast, templates, persona)
+                    summarizeSession(sessionId, manual, templates, persona)
                 } finally {
                     // 收尾处理：若弹窗仍处于“总结中”状态，则安全关闭弹窗
                     withContext(NonCancellable) {
@@ -2255,7 +2266,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val job =
                 launchSummaryJob(
                     sessionId = sessionId,
-                    showToast = false,
+                    manual = false,
                     templates = templates,
                     persona = persona
                 )
@@ -2273,13 +2284,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * - 将新摘要及其实际覆盖的消息边界 ID（coveredMessageId）保存至数据库。
      *
      * @param sessionId 会话 ID
-     * @param showToast 是否显示 Toast 提示
+     * @param manual 是否由用户主动触发。
      * @param templates 调用方固定的预设快照，为空时读取当前预设。
      * @param persona 自动摘要复用的回复身份；为空时捕获当次身份。
      */
     private suspend fun summarizeSession(
         sessionId: Long,
-        showToast: Boolean,
+        manual: Boolean,
         templates: PromptTemplateSnapshot?,
         persona: UserPersona? = null,
     ) {
@@ -2300,7 +2311,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
             } ?: return
             // 自动摘要使用计数查询复核触发条件，不再反序列化完整历史
-            if (!showToast) {
+            if (!manual) {
                 val unsummarizedCount = withContext(Dispatchers.IO) {
                     mChatRepository.getUnsummarizedMessageCount(sessionId)
                 }
@@ -2321,13 +2332,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val initialContext = withContext(Dispatchers.IO) {
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
-                    allowRefreshLatest = showToast,
+                    manual = manual,
                     maxCandidateMessages = initialWindowSize,
                     mode = summaryMode,
                 )
             }
             if (initialContext.messages.isEmpty()) {
-                if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages)
+                if (manual) AppViewEvent.PopupToastMessageByResId(R.string.no_unsummarized_messages)
                     .tryEmit()
                 return
             }
@@ -2340,7 +2351,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val prepared = buildSummaryRequest(
                 templates = promptTemplates,
                 sessionId = sessionId,
-                allowRefreshLatest = showToast,
+                manual = manual,
                 data = data,
                 initialContext = initialContext,
                 initialWindowSize = initialWindowSize,
@@ -2381,7 +2392,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     expectedSnapshot = prepared.inputSnapshot,
                 )
             }
-            if (showToast) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
+            if (manual) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure { throwable ->
             val cause = classifyGenerationFailure(throwable)
             // Repository 会先拦截空正文，因此额度提示还必须覆盖异常路径。
@@ -2391,7 +2402,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 return@onFailure
             }
             val imageFailure = cause is GenerationFailure.Image
-            if (!showToast && imageFailure) {
+            if (!manual && imageFailure) {
                 mChatRepository.updateAutoSummaryPaused(id = sessionId, paused = true)
                 AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()
             }
@@ -2414,7 +2425,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 只有当前窗口全部进入预算且数据库仍有更早候选时才扩大窗口；一旦 Token 预算截断，
      * 立即返回与完整历史构建相同的连续前缀及覆盖边界。
      * @param sessionId 单聊会话 ID。
-     * @param allowRefreshLatest 是否允许重做已覆盖末尾的 Raw 摘要。
+     * @param manual 是否允许覆盖末条消息或重做当前摘要。
      * @param data 固定的会话、角色和模型配置。
      * @param initialContext 初次读取的摘要窗口。
      * @param initialWindowSize 初次读取窗口的条数上限。
@@ -2425,7 +2436,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun buildSummaryRequest(
         sessionId: Long,
-        allowRefreshLatest: Boolean,
+        manual: Boolean,
         data: AutoSummaryData,
         initialContext: ChatSummaryGenerationContext,
         initialWindowSize: Int,
@@ -2435,11 +2446,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ): PreparedSummaryRequest? {
         if (mode == SummaryMode.Classic) {
             return buildClassicSummaryRequest(
-                sessionId,
-                data,
-                initialContext,
-                initialWindowSize,
-                templates
+                sessionId = sessionId,
+                data = data,
+                context = initialContext,
+                windowSize = initialWindowSize,
+                templates = templates,
+                manual = manual,
             )
         }
         var windowSize = initialWindowSize
@@ -2450,15 +2462,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 mChatRepository.getSummaryInputSnapshot(sessionId, context.messages.map { it.id })
             require(
                 mChatRepository.getSummaryGenerationContext(
-                    sessionId,
-                    allowRefreshLatest,
-                    windowSize
+                    sessionId = sessionId,
+                    manual = manual,
+                    maxCandidateMessages = windowSize,
                 ) == context
             ) {
                 "Summary input changed, retry"
             }
-            val summaryImages =
-                mImageRuntime.prepareCandidates(mChatRepository.getMessagesWithImages(context.messages.map { it.id }))
+            val summaryImages = mImageRuntime.prepareCandidates(inputSnapshot.messages)
             // 格式化与 BPE Token 统计属于 CPU 密集任务，不能占用 UI 主线程
             val built = withContext(Dispatchers.Default) {
                 mSummaryPromptBuilder.buildWithSelection(
@@ -2472,14 +2483,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     messageImages = summaryImages.references,
                     unavailableImages = summaryImages.unavailable,
                     provider = data.provider,
+                    includeLastMessage = true,
                 )
             }
-            val candidateCount = (context.messages.size - 1).coerceAtLeast(0)
-            val shouldExpand = built.selectedMessages.size == candidateCount
+            val shouldExpand = built.selectedMessages.size == context.messages.size
                 && context.hasMoreCandidateMessages
                 && windowSize < maximumCandidates
             if (!shouldExpand) {
                 val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
+                // 预算设置变化时保留已覆盖末尾的快照，避免用缩短范围的结果替换它。
+                val originalBoundary = context.summaryToUpdate?.coveredMessageId
+                check(originalBoundary == null || originalBoundary == coveredMessageId) {
+                    "The original summary range no longer fits the current summary limits"
+                }
                 return PreparedSummaryRequest(
                     request = built.request,
                     coveredMessageId = coveredMessageId,
@@ -2489,27 +2505,34 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             // 下一窗口仍从同一摘要边界读取，最终结果不依赖中间探测请求
             windowSize = nextSummaryCandidateWindowSize(windowSize, maximumCandidates)
-            context = withContext(Dispatchers.IO) {
+            val expandedContext = withContext(Dispatchers.IO) {
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
-                    allowRefreshLatest = allowRefreshLatest,
+                    manual = manual,
                     maxCandidateMessages = windowSize,
                 )
             }
+            check(
+                expandedContext.summaryToUpdate == context.summaryToUpdate
+                    && expandedContext.existingSummary == context.existingSummary
+                    && expandedContext.messages.take(context.messages.size) == context.messages
+            ) { "Summary input changed, retry" }
+            context = expandedContext
         }
     }
 
     /**
      * 使用近期普通聊天上下文生成 Classic 摘要请求。
      *
-     * - 最新一条保留在请求中，覆盖位置取前一条，与酒馆的稳定边界一致。
+     * - 手动摘要覆盖末条原文；自动摘要保留末条作为后续回复的直接上下文。
      * - 乐观快照仍校验原始消息和旧摘要，网络失败或输入变更不会推进位置。
      * @param sessionId 单聊会话 ID。
      * @param data 会话、角色及摘要模型。
      * @param context 近期消息与已有摘要。
      * @param windowSize 查询使用的近期窗口大小。
      * @param templates 本轮预设快照。
-     * @return 可以提交的摘要请求；不足两条消息时返回 null。
+     * @param manual 是否允许覆盖末条消息或重做当前摘要。
+     * @return 可以提交的摘要请求；未找到可覆盖的消息时返回 null。
      */
     private suspend fun buildClassicSummaryRequest(
         sessionId: Long,
@@ -2517,15 +2540,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         context: ChatSummaryGenerationContext,
         windowSize: Int,
         templates: PromptTemplateSnapshot,
+        manual: Boolean,
     ): PreparedSummaryRequest? {
-        val boundary = context.messages.dropLast(1).lastOrNull()?.id ?: return null
+        val boundaryIndex =
+            if (manual) context.messages.lastIndex else context.messages.lastIndex - 1
+        val boundary = context.messages.getOrNull(boundaryIndex)?.id ?: return null
         // 读取原始图文快照后复核摘要基线，避免预算构建和写回使用不同版本。
         val snapshot =
             mChatRepository.getSummaryInputSnapshot(sessionId, context.messages.map { it.id })
         require(
             mChatRepository.getSummaryGenerationContext(
-                sessionId = sessionId, allowRefreshLatest = false,
-                maxCandidateMessages = windowSize, mode = SummaryMode.Classic,
+                sessionId = sessionId,
+                manual = manual,
+                maxCandidateMessages = windowSize,
+                mode = SummaryMode.Classic,
             ) == context
         ) { "Summary input changed, retry" }
         val historyLimit =
@@ -2548,8 +2576,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ),
         )
         return PreparedSummaryRequest(
-            request = built.request, coveredMessageId = boundary,
-            summaryIdToUpdate = null, inputSnapshot = snapshot,
+            request = built.request,
+            coveredMessageId = boundary,
+            summaryIdToUpdate = context.summaryToUpdate?.id,
+            inputSnapshot = snapshot,
         )
     }
 
@@ -2569,6 +2599,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param templates 本次操作使用的模板快照。
      * @param userWritingDraft 扮演用户时参考的草稿。
      * @param personaOverride 发送或摘要开始时捕获的有效身份，省略时在构建前读取。
+     * @param keepLatestMessage 续写或回复待回答消息时保留末条原文。
      * @return 构建完成的生成请求数据包装对象
      */
     private suspend fun buildGenerationRequest(
@@ -2581,6 +2612,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         providerOverride: LLMProvider? = null,
         summaryInstruction: String? = null,
         personaOverride: UserPersona? = null,
+        keepLatestMessage: Boolean = false,
     ): BuiltGenerationRequest {
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
@@ -2593,6 +2625,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             sessionId = sessionId,
             excludedMessageId = excludedMessageId,
             maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
+            keepLatestMessage = keepLatestMessage,
         )
         // 收集并过滤当前会话已启用的世界书条目与递归扫描设置
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
@@ -2763,7 +2796,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mMessageDisplayContext = displayContext
         mOldestLoadedMessageCursor = messagePage.messages.firstOrNull()?.toChatMessageCursor()
         // 获取摘要、世界书及角色头像资源
-        val summary = mChatRepository.getLatestSummary(sessionId)?.content.orEmpty()
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
         val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
@@ -2778,7 +2810,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             page = page,
             loadState = loadState,
             session = session.toChatSessionItem(
-                summary = summary,
+                summary = pageData.summary,
+                canResummarize = pageData.canResummarize,
                 creatorNotes = effectiveCreatorNotes,
                 selection = mPersonas.chatSelection(session.userPersonaId),
                 inheritedDescription = mPersonas.chatPersona(session.userPersonaId).description,
