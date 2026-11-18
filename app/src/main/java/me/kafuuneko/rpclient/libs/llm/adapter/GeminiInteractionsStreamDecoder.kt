@@ -1,0 +1,128 @@
+package me.kafuuneko.rpclient.libs.llm.adapter
+
+import com.google.gson.JsonObject
+import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
+import me.kafuuneko.rpclient.libs.llm.LLMResponseException
+import me.kafuuneko.rpclient.libs.llm.model.LLMReasoningKind
+import java.io.IOException
+
+/**
+ * 将一次 Interactions SSE 响应转换为普通聊天事件。
+ * - 按步骤索引关联增量；若步骤交错，延后后续步骤输出，保证和完整响应的步骤顺序一致。
+ * - 只在收到交互级终态时报告完成。步骤结束、连接关闭和取消都不能代替终态。
+ */
+internal class GeminiInteractionsStreamDecoder {
+    private class Step(val type: String) {
+        val pending = mutableListOf<LLMProviderStreamPart>()
+        var closed = false
+    }
+
+    private val mSteps = linkedMapOf<Int, Step>()
+    private var mLastIndex = -1
+    private var mHasText = false
+    var isFinished = false
+        private set
+
+    /** 解析完整帧并返回本次新可展示的片段；签名和服务端工具步骤不进入正文。 */
+    fun accept(event: SseEvent): List<LLMProviderStreamPart> {
+        if (isFinished) return emptyList()
+        if (event.data == "[DONE]") throw IOException("Interaction closed before completion.")
+        val json =
+            parseStreamJsonObject(event.data) ?: throw LLMResponseException("invalid_stream_event")
+        val type = json.cleanString("event_type").ifEmpty { event.event }
+        return when (type) {
+            "step.start" -> start(json, event.data)
+            "step.delta" -> delta(json, event.data)
+            "step.stop" -> {
+                openStep(json).closed = true
+                drain()
+            }
+
+            "interaction.completed" -> finish(json)
+            "error" -> throw LLMResponseException(json.objectOrNull("error")?.cleanString("code"))
+            else -> emptyList()
+        }
+    }
+
+    /** EOF 可能发生在最后一条正文之后，仍须等待服务端确认整轮状态。 */
+    fun requireFinished() {
+        if (!isFinished) throw IOException("Interaction stream closed before completion.")
+    }
+
+    /** 登记有序步骤；兼容开始帧内已经携带的文本。 */
+    private fun start(json: JsonObject, raw: String): List<LLMProviderStreamPart> {
+        val index = index(json)
+        val data = json.objectOrNull("step") ?: throw LLMResponseException("invalid_step")
+        if (index <= mLastIndex) throw LLMResponseException("invalid_step_order")
+        mLastIndex = index
+        val step = Step(data.cleanString("type"))
+        mSteps[index] = step
+        GeminiInteractionsResponseCodec.displayPart(data, raw)?.let { append(step, it) }
+        return drain()
+    }
+
+    /** 依据步骤类型读取增量，避免误把工具或思考签名拼入聊天。 */
+    private fun delta(json: JsonObject, raw: String): List<LLMProviderStreamPart> {
+        val step = openStep(json)
+        val delta = json.objectOrNull("delta") ?: throw LLMResponseException("invalid_step_delta")
+        when (step.type) {
+            "model_output" -> if (delta.cleanString("type") == "text") append(
+                step,
+                LLMProviderStreamPart.Text(delta.interactionText(), raw)
+            )
+
+            "thought" -> if (delta.cleanString("type") == "thought_summary") {
+                val content = delta.objectOrNull("content")
+                    ?: throw LLMResponseException("invalid_summary_delta")
+                if (content.cleanString("type") == "text") append(
+                    step,
+                    LLMProviderStreamPart.Reasoning(
+                        content.interactionText(),
+                        raw,
+                        LLMReasoningKind.Summary
+                    )
+                )
+            }
+        }
+        return drain()
+    }
+
+    private fun index(json: JsonObject): Int =
+        json.get("index")?.toString()?.toIntOrNull()?.takeIf { it >= 0 }
+            ?: throw LLMResponseException("invalid_step_index")
+
+    private fun openStep(json: JsonObject): Step =
+        mSteps[index(json)]?.takeUnless { it.closed } ?: throw LLMResponseException("step_not_open")
+
+    private fun append(step: Step, part: LLMProviderStreamPart) {
+        if (part is LLMProviderStreamPart.Text && part.content.isNotBlank()) mHasText = true
+        step.pending += part
+    }
+
+    /** 只释放当前最早步骤及其已确认的后继；已交付的正文不再留在缓冲中。 */
+    private fun drain(): List<LLMProviderStreamPart> = buildList {
+        val steps = mSteps.values.iterator()
+        while (steps.hasNext()) {
+            val step = steps.next()
+            addAll(step.pending)
+            step.pending.clear()
+            if (!step.closed) break
+            steps.remove()
+        }
+    }
+
+    private fun finish(json: JsonObject): List<LLMProviderStreamPart> {
+        val response =
+            json.objectOrNull("interaction") ?: throw LLMResponseException("missing_interaction")
+        val reason = GeminiInteractionsResponseCodec.finishReason(response)
+        if (mSteps.isNotEmpty()) throw LLMResponseException("unfinished_step")
+        if (!mHasText) throw LLMEmptyResponseException()
+        isFinished = true
+        return listOf(
+            LLMProviderStreamPart.Finished(
+                finishReason = reason, model = response.cleanString("model").ifBlank { null },
+                usage = GeminiInteractionsResponseCodec.usage(response),
+            )
+        )
+    }
+}

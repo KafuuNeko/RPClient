@@ -18,6 +18,7 @@ class LLMModelCatalogClientFactory(
                 OpenAICompatibleModelCatalogClient(mOkHttpClient, provider)
             }
 
+            LLMProviderProtocol.GeminiInteractions,
             LLMProviderProtocol.Gemini -> {
                 GeminiModelCatalogClient(mOkHttpClient, provider)
             }

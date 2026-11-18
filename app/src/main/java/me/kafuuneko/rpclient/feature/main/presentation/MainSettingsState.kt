@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionRole
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
+import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
@@ -98,7 +99,9 @@ data class MainGenerationParametersState(
     /** 单次生成允许返回的最大 Token 数。 */
     val maxTokens: Int,
     /** 模型输入与输出共享的上下文 Token 上限。 */
-    val contextTokens: Int
+    val contextTokens: Int,
+    /** 当前协议是否允许编辑采样参数。 */
+    val supportsSampling: Boolean = true,
 )
 
 /** Prompt 行为面板状态。 */
@@ -244,6 +247,7 @@ internal fun LLMProvider.toGenerationParametersState(): MainGenerationParameters
         topP = topP,
         maxTokens = maxTokens,
         contextTokens = contextTokens,
+        supportsSampling = protocol.supportsSampling,
     )
 }
 

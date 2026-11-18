@@ -21,6 +21,7 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BOD
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
+import me.kafuuneko.rpclient.libs.llm.model.GEMINI_INTERACTIONS_BASE_URL
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
@@ -442,6 +443,20 @@ internal fun createDefaultLLMProviders(
             baseUrl = "https://openrouter.ai/api/v1",
             model = DEFAULT_OPENROUTER_MODEL,
             requestBodyPatchJson = DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON,
+            createTime = now,
+            updateTime = now,
+            isEnabled = false,
+        ),
+        LLMProvider(
+            name = "Gemini Interactions",
+            providerType = LLMProviderType.Gemini,
+            protocol = LLMProviderProtocol.GeminiInteractions,
+            baseUrl = GEMINI_INTERACTIONS_BASE_URL,
+            model = DEFAULT_GEMINI_MODEL,
+            localTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
+            sendTemperature = false,
+            sendTopP = false,
+            useServerReportedUsage = true,
             createTime = now,
             updateTime = now,
             isEnabled = false,

@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderCapabilities
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -15,6 +16,9 @@ import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PER
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
+
+private const val DEFAULT_TEMPERATURE = 0.8f
+private const val DEFAULT_TOP_P = 1.0f
 
 /**
  * 模型配置编辑页的可渲染表单。
@@ -51,9 +55,9 @@ data class LLMProviderEditForm(
     /** 合并到协议请求体的高级 JSON Patch 配置。 */
     val requestBodyPatchJson: String = "{}",
     /** 控制模型输出随机性的温度参数。 */
-    val temperature: String = "0.8",
+    val temperature: String = DEFAULT_TEMPERATURE.toString(),
     /** 限制模型候选词累计概率的 Top P 参数。 */
-    val topP: String = "1.0",
+    val topP: String = DEFAULT_TOP_P.toString(),
     /** 单次生成允许返回的最大 Token 数。 */
     val maxTokens: String = DEFAULT_LLM_MAX_TOKENS.toString(),
     /** 模型输入与输出共享的上下文 Token 上限。 */
@@ -81,8 +85,14 @@ data class LLMProviderEditForm(
         apiKey: String = "",
     ): LLMProvider? {
         // 先校验生成参数与扩展配置，避免保存不可发送的模型配置。
-        val parsedTemperature = temperature.toFloatOrNull() ?: return null
-        val parsedTopP = topP.toFloatOrNull() ?: return null
+        // 不支持采样的协议会隐藏输入框，切换前尚未填完的值不能阻塞保存或连接测试。
+        val parsedTemperature = temperature.toFloatOrNull()
+            ?: DEFAULT_TEMPERATURE.takeUnless { protocol.supportsSampling } ?: return null
+        val parsedTopP =
+            topP.toFloatOrNull() ?: DEFAULT_TOP_P.takeUnless { protocol.supportsSampling }
+            ?: return null
+        val sendsTemperature = protocol.supportsSampling && sendTemperature
+        val sendsTopP = protocol.supportsSampling && sendTopP
         val parsedMaxTokens = maxTokens.toIntOrNull() ?: return null
         val parsedContextTokens = contextTokens.toIntOrNull() ?: return null
         val capabilities = LLMProviderCapabilities.forProtocol(protocol)
@@ -91,8 +101,8 @@ data class LLMProviderEditForm(
         if (tokenEstimateReservePercent !in
             MIN_TOKEN_ESTIMATE_RESERVE_PERCENT..MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
         ) return null
-        if (sendTemperature && parsedTemperature !in capabilities.temperatureRange) return null
-        if (sendTopP && parsedTopP !in capabilities.topPRange) return null
+        if (sendsTemperature && parsedTemperature !in capabilities.temperatureRange) return null
+        if (sendsTopP && parsedTopP !in capabilities.topPRange) return null
         if (validateRequestBodyPatch(
                 patchJson = requestBodyPatchJson,
                 protocol = protocol,
@@ -119,8 +129,8 @@ data class LLMProviderEditForm(
             contextTokens = parsedContextTokens,
             tokenEstimateReservePercent = tokenEstimateReservePercent,
             localTokenEstimatorType = localTokenEstimatorType,
-            sendTemperature = sendTemperature,
-            sendTopP = sendTopP,
+            sendTemperature = sendsTemperature,
+            sendTopP = sendsTopP,
             useServerReportedUsage = useServerReportedUsage,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
             imageInputSetting = imageInputSetting,

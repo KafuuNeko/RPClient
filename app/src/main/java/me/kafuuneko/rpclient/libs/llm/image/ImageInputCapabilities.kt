@@ -27,7 +27,9 @@ internal object ImageInputCapabilities {
         val type = ImageModelAliases.typeFor(model)
         return when (protocol) {
             LLMProviderProtocol.AnthropicMessages -> emptyList()
+            LLMProviderProtocol.GeminiInteractions,
             LLMProviderProtocol.Gemini -> if (type == ImageTokenEstimatorType.Gemini25) mGeminiLegacy else mGemini
+
             LLMProviderProtocol.OpenAICompatible, LLMProviderProtocol.OpenAIResponses -> {
                 // 第三方兼容接口不等于原生媒体参数；没有公开映射时保持模型默认处理。
                 if (type in mNativeOnlyQualityTypes) emptyList()

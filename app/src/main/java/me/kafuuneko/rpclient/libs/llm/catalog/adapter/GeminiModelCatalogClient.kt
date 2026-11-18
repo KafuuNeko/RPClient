@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.catalog.adapter
 
+import com.google.gson.JsonObject
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.adapter.applyProviderHeaders
 import me.kafuuneko.rpclient.libs.llm.adapter.await
 import me.kafuuneko.rpclient.libs.llm.adapter.normalizedBaseUrl
@@ -11,22 +13,30 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** Gemini 模型目录适配器，只返回支持 generateContent 的模型。 */
+/**
+ * Gemini 模型目录适配器。
+ * - 两种协议共用分页与目录条目映射，各自保留版本路径及认证方式。
+ * - Interactions 的模型目录可能只列出旧接口的方法名，保留能力未知的候选模型。
+ */
 class GeminiModelCatalogClient(
     private val mOkHttpClient: OkHttpClient,
     private val mProvider: LLMProviderConfig
 ) : LLMModelCatalogClient {
+    /** 查询所选协议的模型目录；分页令牌仅在本次请求中使用。 */
     override suspend fun listModels(): List<LLMAvailableModel> {
         val models = mutableListOf<LLMAvailableModel>()
         var pageToken: String? = null
         val visitedTokens = mutableSetOf<String>()
+        val interactions = mProvider.protocol == LLMProviderProtocol.GeminiInteractions
+        val path = if (interactions) "/models" else "/v1beta/models"
+        // 新协议的版本是预设地址的一部分，第三方网关前缀按原值保留。
         do {
-            val url = "${mProvider.normalizedBaseUrl()}/v1beta/models"
+            val url = "${mProvider.normalizedBaseUrl()}$path"
                 .toHttpUrl()
                 .newBuilder()
                 .addQueryParameter("pageSize", "1000")
                 .apply {
-                    if (mProvider.apiKey.isNotBlank()) {
+                    if (!interactions && mProvider.apiKey.isNotBlank()) {
                         addQueryParameter("key", mProvider.apiKey)
                     }
                     pageToken?.let { text -> addQueryParameter("pageToken", text) }
@@ -34,9 +44,15 @@ class GeminiModelCatalogClient(
                 .build()
             val request = Request.Builder()
                 .url(url)
+                .apply {
+                    if (interactions && mProvider.apiKey.isNotBlank()) header(
+                        "x-goog-api-key",
+                        mProvider.apiKey
+                    )
+                }
                 .applyProviderHeaders(mProvider)
                 .build()
-            val page = parseGeminiModelCatalogPage(mOkHttpClient.await(request))
+            val page = parseGeminiModelCatalogPage(mOkHttpClient.await(request), mProvider.protocol)
             models += page.models
             pageToken = page.nextPageToken?.takeIf { visitedTokens.add(it) }
         } while (pageToken != null)
@@ -51,11 +67,14 @@ internal data class GeminiModelCatalogPage(
 )
 
 /**
- * 解析 Gemini 模型页，仅保留明确声明支持 `generateContent` 的模型。
+ * 按协议筛选 Gemini 模型页，保留服务端返回的显示名和上下文限制。
  *
  * 同时兼容官方 `supportedGenerationMethods` 与部分网关使用的 `supportedActions` 字段。
  */
-internal fun parseGeminiModelCatalogPage(raw: String): GeminiModelCatalogPage {
+internal fun parseGeminiModelCatalogPage(
+    raw: String,
+    protocol: LLMProviderProtocol = LLMProviderProtocol.Gemini
+): GeminiModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
     val data = json.arrayOrNull("models") ?: throw LLMModelCatalogInvalidResponseException()
     return GeminiModelCatalogPage(
@@ -63,7 +82,7 @@ internal fun parseGeminiModelCatalogPage(raw: String): GeminiModelCatalogPage {
             data.forEach { element ->
                 val item = element.takeIf { element -> element.isJsonObject }?.asJsonObject
                     ?: return@forEach
-                if (!item.supportsGeminiGeneration()) return@forEach
+                if (!item.supportsGeminiGeneration(protocol)) return@forEach
                 val id = item.stringOrNull("name")
                     ?.removePrefix("models/") ?: return@forEach
                 add(
@@ -81,8 +100,16 @@ internal fun parseGeminiModelCatalogPage(raw: String): GeminiModelCatalogPage {
     )
 }
 
-private fun com.google.gson.JsonObject.supportsGeminiGeneration(): Boolean {
+private fun JsonObject.supportsGeminiGeneration(protocol: LLMProviderProtocol): Boolean {
     val methods = arrayOrNull("supportedGenerationMethods")
-        ?: arrayOrNull("supportedActions") ?: return false
-    return methods.containsString("generateContent")
+        ?: arrayOrNull("supportedActions")
+    if (protocol == LLMProviderProtocol.GeminiInteractions) {
+        // 目录缺少新方法不表示不可用；仅排除明确只做嵌入等非生成任务的型号。
+        val actions = methods?.toStringSet().orEmpty()
+        return actions.isEmpty() || actions.any { it !in nonConversationalActions }
+    }
+    return methods?.containsString("generateContent") == true
 }
+
+private val nonConversationalActions =
+    setOf("embedContent", "batchEmbedContents", "embedText", "countTokens", "countTextTokens")

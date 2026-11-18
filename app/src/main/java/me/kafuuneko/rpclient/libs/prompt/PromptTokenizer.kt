@@ -183,6 +183,7 @@ class PromptTokenizerRegistry(
             },
             AutomaticEstimatorMatcher { context ->
                 context.protocol == LLMProviderProtocol.Gemini
+                    || context.protocol == LLMProviderProtocol.GeminiInteractions
                     || context.providerType == LLMProviderType.Gemini
                     || context.providerType == LLMProviderType.Grok
                     || o200kProxyMarkers.any(context.normalizedModel::contains)

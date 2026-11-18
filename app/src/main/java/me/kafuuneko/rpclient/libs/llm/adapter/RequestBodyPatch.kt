@@ -148,6 +148,7 @@ internal fun protectedRequestBodyPaths(
         LLMProviderProtocol.OpenAIResponses -> OPEN_AI_RESPONSES_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.OpenAICompatible -> OPEN_AI_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.AnthropicMessages -> ANTHROPIC_PROTECTED_REQUEST_FIELDS
+        LLMProviderProtocol.GeminiInteractions -> INTERACTIONS_PROTECTED_REQUEST_FIELDS
         LLMProviderProtocol.Gemini -> GEMINI_PROTECTED_REQUEST_FIELDS
     }
     return protocolPaths
@@ -237,4 +238,32 @@ private val GEMINI_PROTECTED_REQUEST_FIELDS = setOf(
     "generationConfig.temperature",
     "generationConfig.topP",
     "generationConfig.stopSequences",
+)
+
+/** Interactions 只发送本地历史，并阻止旧协议或服务端状态字段改变请求的含义。 */
+private val INTERACTIONS_PROTECTED_REQUEST_FIELDS = setOf(
+    "model",
+    "input",
+    "steps",
+    "system_instruction",
+    "systemInstruction",
+    "store",
+    "stream",
+    "agent",
+    "agent_config",
+    "agentConfig",
+    "background",
+    "previous_interaction_id",
+    "previousInteractionId",
+    "continuation_token",
+    "continuationToken",
+    "generation_config.max_output_tokens",
+    "generation_config.maxOutputTokens",
+    "generation_config.stop_sequences",
+    "generation_config.stopSequences",
+    "generation_config.temperature",
+    "generation_config.top_p",
+    "generation_config.topP",
+    "generationConfig",
+    "contents",
 )

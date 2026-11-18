@@ -15,6 +15,7 @@ data class LLMProviderCapabilities(
         /** 按协议给出保守默认值；用户仍可在模型配置页面显式调整发送开关。 */
         fun forProtocol(protocol: LLMProviderProtocol): LLMProviderCapabilities {
             return when (protocol) {
+                LLMProviderProtocol.GeminiInteractions,
                 LLMProviderProtocol.OpenAIResponses -> LLMProviderCapabilities(
                     temperatureRange = 0f..2f,
                     topPRange = 0f..1f,
@@ -46,3 +47,7 @@ data class LLMProviderCapabilities(
         }
     }
 }
+
+/** Interactions v1 使用模型自身的采样设置，配置页和请求投影均跳过采样字段。 */
+internal val LLMProviderProtocol.supportsSampling: Boolean
+    get() = this != LLMProviderProtocol.GeminiInteractions

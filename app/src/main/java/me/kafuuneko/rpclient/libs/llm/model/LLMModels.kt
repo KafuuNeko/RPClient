@@ -20,6 +20,9 @@ const val LLM_REQUEST_VARIABLE_ROUTING_SESSION_ID = "\$rpclient.routing_session_
 const val OPENROUTER_SESSION_AFFINITY_REQUEST_BODY_PATCH_JSON =
     "{\"session_id\":\"\$rpclient.routing_session_id\"}"
 
+/** Interactions 基础地址包含 API 版本，网关可替换完整前缀。 */
+const val GEMINI_INTERACTIONS_BASE_URL = "https://generativelanguage.googleapis.com/v1"
+
 /** 内置 Gemini 模板显式展示默认思考等级和摘要返回开关，用户可在高级 JSON 中调整。 */
 const val DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON =
     "{\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"low\",\"includeThoughts\":true}}}"
@@ -71,7 +74,10 @@ enum class LLMProviderProtocol {
 
     AnthropicMessages,
 
-    OpenAIResponses
+    OpenAIResponses,
+
+    /** 无状态的 Interactions v1 协议，旧 Gemini 标识继续使用 GenerateContent。 */
+    GeminiInteractions
 }
 
 /**
@@ -195,13 +201,14 @@ fun LLMGenerationOptions.resolveFor(
     provider: LLMProviderConfig,
 ): ResolvedLLMGenerationOptions {
     return ResolvedLLMGenerationOptions(
-        temperature = if (provider.sendTemperature) {
+        temperature = if (provider.protocol.supportsSampling && provider.sendTemperature) {
             temperature ?: provider.temperature
         } else {
             null
         },
         maxTokens = maxTokens ?: provider.maxTokens,
-        topP = if (provider.sendTopP) topP ?: provider.topP else null,
+        topP = if (provider.protocol.supportsSampling && provider.sendTopP) topP
+            ?: provider.topP else null,
         stop = stop,
     )
 }

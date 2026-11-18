@@ -393,9 +393,12 @@ private fun ProviderListCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     RpMetaPill(
-                        text = if (provider.protocol == LLMProviderProtocol.OpenAIResponses) {
-                            stringResource(R.string.protocol_openai_responses)
-                        } else provider.protocol.name,
+                        text = when (provider.protocol) {
+                            LLMProviderProtocol.OpenAIResponses -> stringResource(R.string.protocol_openai_responses)
+                            LLMProviderProtocol.Gemini -> stringResource(R.string.protocol_gemini_generate_content)
+                            LLMProviderProtocol.GeminiInteractions -> stringResource(R.string.protocol_gemini_interactions)
+                            else -> provider.protocol.name
+                        },
                     )
                     ProviderStatusDot(
                         isEnabled = provider.isEnabled,

@@ -89,6 +89,12 @@ class ImageConversationFlowTest {
         verifyPersonaSnapshot(SummaryMode.Raw)
     }
 
+    /** 从普通单聊入口走通新协议、原始历史摘要及人设切换。 */
+    @Test
+    fun interactionsChatSendAndRawSummaryUseTheSelectedProtocol() = runBlocking {
+        verifyPersonaSnapshot(SummaryMode.Raw, LLMProviderProtocol.GeminiInteractions)
+    }
+
     /** Classic 摘要重建 Prompt 时也不得重新查询本轮有效身份。 */
     @Test
     fun chatSendFreezesPersonaThroughClassicSummary() = runBlocking {
@@ -99,7 +105,10 @@ class ImageConversationFlowTest {
      * 在用户消息提交与请求构建之间制造确定的身份切换，验证实际发出的内容。
      * @param mode 本轮自动摘要采用的模式。
      */
-    private suspend fun verifyPersonaSnapshot(mode: SummaryMode) = withFixture { fixture ->
+    private suspend fun verifyPersonaSnapshot(
+        mode: SummaryMode,
+        protocol: LLMProviderProtocol = LLMProviderProtocol.OpenAICompatible,
+    ) = withFixture(protocol) { fixture ->
         val koin = GlobalContext.get()
         val personas = koin.get<UserPersonaRepository>()
         val chats = koin.get<ChatRepository>()
@@ -168,6 +177,10 @@ class ImageConversationFlowTest {
                     messages.first { it.source == ChatMessage.Source.Char }.content
                 )
                 assertTrue(fixture.server.requests.size >= 2)
+                val usage = fixture.db.getLLMTokenUsageDao().getRecentRecords(0L, 20)
+                    .filter { it.providerId == AppModel.currentLLMProvider }
+                assertTrue(usage.size >= 2)
+                assertTrue(usage.all { it.protocol == protocol })
                 assertTrue(fixture.server.requests.all { "alpha-persona-marker" in it && "beta-persona-marker" !in it })
                 await("$mode summary dialog dismissal") { (vm.uiStateFlow.value as? ChatUiState.Normal)?.dialogState == ChatDialogState.None }
                 AppModel.autoSummaryEnabled = false
@@ -308,7 +321,21 @@ class ImageConversationFlowTest {
 
     @Test
     fun groupPureImageRunsTwoSpeakersWithTheSameAttachmentInSmallHistoryWindow() = runBlocking {
-        withFixture { fixture ->
+        verifyGroupImageFlow(LLMProviderProtocol.OpenAICompatible)
+    }
+
+    /** 新协议群聊的图像发言、流式重试与原位重生成复用相同的业务回归。 */
+    @Test
+    fun interactionsGroupImageStreamingPreservesMembersAndRetryHistory() = runBlocking {
+        verifyGroupImageFlow(LLMProviderProtocol.GeminiInteractions)
+    }
+
+    private suspend fun verifyGroupImageFlow(protocol: LLMProviderProtocol) {
+        withFixture(protocol) { fixture ->
+            val interactions = protocol == LLMProviderProtocol.GeminiInteractions
+            AppModel.streamEnabled = interactions
+            val historyField = if (interactions) "input" else "messages"
+            val imageMarker = if (interactions) "\"type\":\"image\"" else "data:image/"
             val repository = GlobalContext.get().get<GroupChatRepository>()
             val id = fixture.db.getGroupChatSessionDao().insertOrReplace(
                 data = GroupChatSession(
@@ -384,8 +411,8 @@ class ImageConversationFlowTest {
                     1,
                     repository.getGroupChatData(id)!!.messages.count { message -> message.source == GroupChatMessage.Source.User },
                 )
-                assertTrue(fixture.server.requests.take(3).all { text -> "data:image/" in text })
-                assertFalse("data:image/" in fixture.server.requests[3])
+                assertTrue(fixture.server.requests.take(3).all { text -> imageMarker in text })
+                assertFalse(imageMarker in fixture.server.requests[3])
                 vm.emit(GroupChatUiIntent.StopGeneration)
                 await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
                 assertEquals(
@@ -401,7 +428,7 @@ class ImageConversationFlowTest {
                 vm.emit(GroupChatUiIntent.SendMessage)
                 await { fixture.server.requests.size >= 5 }
                 await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
-                assertTrue(fixture.server.requests.drop(3).all { text -> "data:image/" !in text })
+                assertTrue(fixture.server.requests.drop(3).all { text -> imageMarker !in text })
                 // Continue / Regenerate 失败恢复保留各自模式；重生成的删除只在原入口执行一次。
                 for (regenerate in listOf(false, true)) {
                     val before = repository.getGroupChatData(id)!!.messages
@@ -412,13 +439,13 @@ class ImageConversationFlowTest {
                     else vm.emit(GroupChatUiIntent.ContinueLast)
                     await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState is GroupChatGenerationState.Failed }
                     val failedRequest =
-                        JSONObject(fixture.server.requests.last()).getJSONArray("messages")
+                        JSONObject(fixture.server.requests.last()).getJSONArray(historyField)
                             .toString()
                     vm.emit(GroupChatUiIntent.RetryImageReply)
                     await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
                     assertEquals(
                         failedRequest,
-                        JSONObject(fixture.server.requests.last()).getJSONArray("messages")
+                        JSONObject(fixture.server.requests.last()).getJSONArray(historyField)
                             .toString(),
                     )
                     assertEquals(
@@ -951,7 +978,10 @@ class ImageConversationFlowTest {
     }
 
     /** 测试仅创建并清理自己拥有的实体，所有偏好在 finally 中恢复。 */
-    private suspend fun withFixture(block: suspend (Fixture) -> Unit) {
+    private suspend fun withFixture(
+        protocol: LLMProviderProtocol = LLMProviderProtocol.OpenAICompatible,
+        block: suspend (Fixture) -> Unit,
+    ) {
         val koin = GlobalContext.get()
         val db = koin.get<AppDatabase>()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -962,8 +992,8 @@ class ImageConversationFlowTest {
             provider = LLMProvider(
                 name = "Image flow fixture",
                 providerType = LLMProviderType.Custom,
-                protocol = LLMProviderProtocol.OpenAICompatible,
-                baseUrl = "http://127.0.0.1:${server.port}",
+                protocol = protocol,
+                baseUrl = if (protocol == LLMProviderProtocol.GeminiInteractions) "http://127.0.0.1:${server.port}/gateway/v1" else "http://127.0.0.1:${server.port}",
                 model = "fixture",
                 contextTokens = 100_000,
             ),
@@ -1075,6 +1105,7 @@ class ImageConversationFlowTest {
                 try {
                     socket.accept().use { client ->
                         val input = DataInputStream(client.getInputStream())
+                        val route = input.readLine()
                         var length = 0
                         while (true) {
                             val line = ByteArrayOutputStream()
@@ -1118,10 +1149,17 @@ class ImageConversationFlowTest {
                             failNext.also { failNext = false } || requests.size == failAtRequest
                         val response =
                             if (failure) """{"error":{"message":"fixture failure"}}""" else """{"choices":[{"message":{"content":"A blue square is visible."},"finish_reason":"stop"}]}"""
-                        val bytes = response.toByteArray()
+                        // 仅匹配新协议的完整网关路径；走错端点会收到不兼容的响应。
+                        val interactions = route == "POST /gateway/v1/interactions HTTP/1.1"
+                        val streaming =
+                            interactions && JSONObject(body.toString(Charsets.UTF_8)).getBoolean("stream")
+                        val bytes =
+                            if (interactions && !failure) interactionsReply(streaming).toByteArray() else response.toByteArray()
+                        val mimeType =
+                            if (streaming && !failure) "text/event-stream" else "application/json"
                         client.getOutputStream().apply {
                             val status = if (failure) "400 Bad Request" else "200 OK"
-                            write("HTTP/1.1 $status\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
+                            write("HTTP/1.1 $status\r\nContent-Type: $mimeType\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
                             write(bytes)
                             flush()
                         }
@@ -1130,6 +1168,18 @@ class ImageConversationFlowTest {
                     if (socket.isClosed) break
                 }
             }
+        }
+
+        /** 相同的合成回复经原生 JSON 和有终态的 SSE 两条链路交付。 */
+        private fun interactionsReply(stream: Boolean): String {
+            val text = """{"type":"text","text":"A blue square is visible."}"""
+            if (!stream) return """{"status":"completed","steps":[{"type":"model_output","content":[$text]}]}"""
+            return listOf(
+                """{"event_type":"step.start","index":0,"step":{"type":"model_output"}}""",
+                """{"event_type":"step.delta","index":0,"delta":$text}""",
+                """{"event_type":"step.stop","index":0}""",
+                """{"event_type":"interaction.completed","interaction":{"status":"completed"}}""",
+            ).joinToString(separator = "\n\n", postfix = "\n\n") { "data: $it" }
         }
 
         override fun close() {

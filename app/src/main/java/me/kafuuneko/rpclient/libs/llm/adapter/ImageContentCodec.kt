@@ -55,6 +55,16 @@ internal class ImageContentCodec(private val mProvider: LLMProviderConfig) {
                 })
             }
 
+            LLMProviderProtocol.GeminiInteractions -> JsonObject().apply {
+                addProperty("type", "image")
+                addProperty("mime_type", image.mimeType)
+                addProperty("data", marker)
+                if (mQuality != ImageQuality.Auto) addProperty(
+                    "resolution",
+                    mQuality.persistedValue
+                )
+            }
+
             LLMProviderProtocol.Gemini -> JsonObject().apply {
                 add("inlineData", JsonObject().apply {
                     addProperty("mimeType", image.mimeType)
@@ -99,7 +109,7 @@ internal class ImageContentCodec(private val mProvider: LLMProviderConfig) {
                 throw ImageRequestException(ImageRequestFailure.UnsupportedDetail)
             }
 
-            LLMProviderProtocol.AnthropicMessages -> Unit
+            LLMProviderProtocol.GeminiInteractions, LLMProviderProtocol.AnthropicMessages -> Unit
         }
     }
 }

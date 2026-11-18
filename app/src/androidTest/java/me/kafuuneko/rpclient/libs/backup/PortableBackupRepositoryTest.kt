@@ -1,6 +1,9 @@
 package me.kafuuneko.rpclient.libs.backup
 
 import android.content.Context
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
+import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import android.content.ContextWrapper
 import android.net.Uri
 import androidx.room.Room
@@ -288,6 +291,46 @@ class PortableBackupRepositoryTest {
     @Test
     fun malformedRowsLeaveLiveDataReadable() = runBlocking {
         assertRejectedBeforeReplacement("tables/backup_probe.jsonl") { "not json\n" }
+    }
+
+    /** 两种 Gemini 协议可以绑定同一模型，跨整库备份后仍按各自协议及高级配置发送。 */
+    @Test
+    fun geminiProtocolsRemainDistinctAcrossRestore() = runBlocking {
+        val legacy = LLMProvider(
+            name = "legacy",
+            providerType = LLMProviderType.Gemini,
+            protocol = LLMProviderProtocol.Gemini,
+            baseUrl = "https://example.invalid",
+            model = "same",
+            requestBodyPatchJson = """{"generationConfig":{"thinkingConfig":{"includeThoughts":true}}}""",
+        )
+        val native = legacy.copy(
+            name = "native", protocol = LLMProviderProtocol.GeminiInteractions,
+            baseUrl = "https://example.invalid/v1", requestBodyPatchJson = "{}",
+        )
+        val legacyId = primary.getLLMProviderDao().insertOrReplace(legacy)
+        val nativeId = primary.getLLMProviderDao().insertOrReplace(native)
+        val repository = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        val uri = Uri.fromFile(File(root, "gemini.zip"))
+        // 先移除在线行，再恢复并重新打开 Room，避免误读原库数据。
+        repository.exportArchive(uri)
+        primary.getLLMProviderDao().deleteProviderById(nativeId)
+        primary.getLLMProviderDao().deleteProviderById(legacyId)
+        repository.restoreArchive(uri)
+        openDatabases()
+        assertEquals(
+            legacy.copy(id = legacyId),
+            primary.getLLMProviderDao().getProviderById(legacyId)
+        )
+        assertEquals(
+            native.copy(id = nativeId),
+            primary.getLLMProviderDao().getProviderById(nativeId)
+        )
     }
 
     /** 完整备份保留多开场白的空段与空白，旧 v3 未带扩展的角色仍可恢复。 */

@@ -107,6 +107,7 @@ import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
+import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -200,6 +201,7 @@ private fun LLMProviderEditNormal(
                     ProviderPresetsSection(
                         selectedType = state.form.providerType,
                         selectedBaseUrl = state.form.baseUrl,
+                        selectedProtocol = state.form.protocol,
                         onSelectPreset = { preset ->
                             LLMProviderEditUiIntent.ApplyPresetTemplate(preset).emit()
                         },
@@ -231,6 +233,7 @@ private fun LLMProviderEditNormal(
 private fun ProviderPresetsSection(
     selectedType: LLMProviderType,
     selectedBaseUrl: String,
+    selectedProtocol: LLMProviderProtocol,
     onSelectPreset: (ProviderPreset) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -246,7 +249,7 @@ private fun ProviderPresetsSection(
         ) {
             items(ProviderPreset.entries) { preset ->
                 val isSelected = preset.providerType == selectedType
-                    && (preset == ProviderPreset.Custom || preset.baseUrl == selectedBaseUrl)
+                    && (preset == ProviderPreset.Custom || (preset.protocol == selectedProtocol && preset.baseUrl == selectedBaseUrl))
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelectPreset(preset) },
@@ -254,6 +257,8 @@ private fun ProviderPresetsSection(
                         Text(
                             text = if (preset == ProviderPreset.Custom) {
                                 stringResource(R.string.preset_custom)
+                            } else if (preset == ProviderPreset.Gemini) {
+                                stringResource(R.string.protocol_gemini_generate_content)
                             } else {
                                 preset.displayName
                             },
@@ -262,7 +267,7 @@ private fun ProviderPresetsSection(
                     leadingIcon = {
                         val icon = when (preset) {
                             ProviderPreset.DeepSeek -> Icons.Rounded.Memory
-                            ProviderPreset.Gemini -> Icons.Rounded.AutoAwesome
+                            ProviderPreset.GeminiInteractions, ProviderPreset.Gemini -> Icons.Rounded.AutoAwesome
                             ProviderPreset.Claude -> Icons.Rounded.Psychology
                             ProviderPreset.ChatGPT -> Icons.Rounded.SmartToy
                             ProviderPreset.OpenRouter -> Icons.Rounded.Hub
@@ -665,40 +670,45 @@ private fun ParameterPanel(
     Panel {
         RpSectionHeader(title = stringResource(R.string.generation_parameters))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            FormTextField(
-                label = stringResource(R.string.temperature),
-                value = form.temperature,
-                modifier = Modifier.weight(1f),
-                enabled = form.sendTemperature,
-                keyboardType = KeyboardType.Decimal,
-                onChange = { text -> LLMProviderEditUiIntent.ChangeTemperature(text).emit() },
+        // 稳定版 Interactions 没有采样字段，表单仅展示可发送的生成参数。
+        if (form.protocol.supportsSampling) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                FormTextField(
+                    label = stringResource(R.string.temperature),
+                    value = form.temperature,
+                    modifier = Modifier.weight(1f),
+                    enabled = form.sendTemperature,
+                    keyboardType = KeyboardType.Decimal,
+                    onChange = { text -> LLMProviderEditUiIntent.ChangeTemperature(text).emit() },
+                )
+                FormTextField(
+                    label = stringResource(R.string.top_p),
+                    value = form.topP,
+                    modifier = Modifier.weight(1f),
+                    enabled = form.sendTopP,
+                    keyboardType = KeyboardType.Decimal,
+                    onChange = { text -> LLMProviderEditUiIntent.ChangeTopP(text).emit() },
+                )
+            }
+
+            ParameterSwitchRow(
+                title = stringResource(R.string.provider_send_temperature),
+                checked = form.sendTemperature,
+                onCheckedChange = { enabled ->
+                    LLMProviderEditUiIntent.ToggleSendTemperature(enabled).emit()
+                },
             )
-            FormTextField(
-                label = stringResource(R.string.top_p),
-                value = form.topP,
-                modifier = Modifier.weight(1f),
-                enabled = form.sendTopP,
-                keyboardType = KeyboardType.Decimal,
-                onChange = { text -> LLMProviderEditUiIntent.ChangeTopP(text).emit() },
+            ParameterSwitchRow(
+                title = stringResource(R.string.provider_send_top_p),
+                checked = form.sendTopP,
+                onCheckedChange = { enabled ->
+                    LLMProviderEditUiIntent.ToggleSendTopP(enabled).emit()
+                },
             )
         }
-
-        ParameterSwitchRow(
-            title = stringResource(R.string.provider_send_temperature),
-            checked = form.sendTemperature,
-            onCheckedChange = { enabled ->
-                LLMProviderEditUiIntent.ToggleSendTemperature(enabled).emit()
-            },
-        )
-        ParameterSwitchRow(
-            title = stringResource(R.string.provider_send_top_p),
-            checked = form.sendTopP,
-            onCheckedChange = { enabled -> LLMProviderEditUiIntent.ToggleSendTopP(enabled).emit() },
-        )
         // 推理模型可能忽略已勾选的采样开关，需要在参数旁说明实际发送行为。
         if (form.protocol == LLMProviderProtocol.OpenAIResponses) {
             Text(
@@ -823,9 +833,12 @@ private fun CollapsibleAdvancedPanel(
                         values = LLMProviderProtocol.entries,
                         selected = form.protocol,
                         label = { llmProviderProtocol ->
-                            if (llmProviderProtocol == LLMProviderProtocol.OpenAIResponses) {
-                                stringResource(R.string.protocol_openai_responses)
-                            } else llmProviderProtocol.name
+                            when (llmProviderProtocol) {
+                                LLMProviderProtocol.OpenAIResponses -> stringResource(R.string.protocol_openai_responses)
+                                LLMProviderProtocol.Gemini -> stringResource(R.string.protocol_gemini_generate_content)
+                                LLMProviderProtocol.GeminiInteractions -> stringResource(R.string.protocol_gemini_interactions)
+                                else -> llmProviderProtocol.name
+                            }
                         },
                         onSelect = { llmProviderProtocol ->
                             LLMProviderEditUiIntent.ChangeProtocol(

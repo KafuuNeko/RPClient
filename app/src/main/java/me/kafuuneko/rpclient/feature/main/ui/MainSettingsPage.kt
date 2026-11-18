@@ -927,29 +927,31 @@ private fun ParameterPanel(
             }
         }
         RpSettingsDivider(startIndent = false)
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Thermostat,
-            iconColor = AccentAmberColor,
-            iconContainerColor = AccentAmberColor.copy(alpha = 0.14f),
-            title = stringResource(R.string.temperature),
-            value = state.temperature.toString(),
-            onClick = {
-                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.Temperature)
-                    .emit()
-            },
-        )
-        RpSettingsDivider()
-        RpSettingsValueTile(
-            icon = Icons.Rounded.Tune,
-            iconColor = AccentBlueColor,
-            iconContainerColor = AccentBlueColor.copy(alpha = 0.14f),
-            title = stringResource(R.string.top_p),
-            value = state.topP.toString(),
-            onClick = {
-                MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit()
-            },
-        )
-        RpSettingsDivider()
+        if (state.supportsSampling) {
+            RpSettingsValueTile(
+                icon = Icons.Rounded.Thermostat,
+                iconColor = AccentAmberColor,
+                iconContainerColor = AccentAmberColor.copy(alpha = 0.14f),
+                title = stringResource(R.string.temperature),
+                value = state.temperature.toString(),
+                onClick = {
+                    MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.Temperature)
+                        .emit()
+                },
+            )
+            RpSettingsDivider()
+            RpSettingsValueTile(
+                icon = Icons.Rounded.Tune,
+                iconColor = AccentBlueColor,
+                iconContainerColor = AccentBlueColor.copy(alpha = 0.14f),
+                title = stringResource(R.string.top_p),
+                value = state.topP.toString(),
+                onClick = {
+                    MainUiIntent.ShowGenerationParameterDialog(MainGenerationParameter.TopP).emit()
+                },
+            )
+            RpSettingsDivider()
+        }
         RpSettingsValueTile(
             icon = Icons.Rounded.Numbers,
             iconColor = AccentVioletColor,

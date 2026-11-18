@@ -37,7 +37,7 @@ class ImageTokenEstimatorRegistry(
         val manualProxy =
             selected != ImageTokenEstimatorType.Automatic && selected != automaticType(provider?.model.orEmpty())
         val protocolProxy = when (type) {
-            ImageTokenEstimatorType.Gemini3, ImageTokenEstimatorType.Gemini25 -> provider?.protocol != LLMProviderProtocol.Gemini
+            ImageTokenEstimatorType.Gemini3, ImageTokenEstimatorType.Gemini25 -> provider?.protocol != LLMProviderProtocol.Gemini && provider?.protocol != LLMProviderProtocol.GeminiInteractions
             ImageTokenEstimatorType.ClaudeStandard, ImageTokenEstimatorType.ClaudeHighResolution -> provider?.protocol != LLMProviderProtocol.AnthropicMessages
             else -> false
         }

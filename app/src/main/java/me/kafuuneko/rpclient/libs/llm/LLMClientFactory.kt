@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm
 
 import me.kafuuneko.rpclient.libs.llm.adapter.AnthropicMessagesLLMClient
+import me.kafuuneko.rpclient.libs.llm.adapter.GeminiInteractionsLLMClient
 import me.kafuuneko.rpclient.libs.llm.adapter.GeminiLLMClient
 import me.kafuuneko.rpclient.libs.llm.adapter.OpenAICompatibleLLMClient
 import me.kafuuneko.rpclient.libs.llm.adapter.OpenAIResponsesLLMClient
@@ -44,6 +45,14 @@ class LLMClientFactory(
             )
 
             LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
+                mOkHttpClient = mOkHttpClient,
+                mLLMRequestLogRepository = mLLMRequestLogRepository,
+                mProvider = provider,
+                mImageRuntime = mImageRuntime,
+                mImageCapabilities = mImageCapabilities,
+            )
+
+            LLMProviderProtocol.GeminiInteractions -> GeminiInteractionsLLMClient(
                 mOkHttpClient = mOkHttpClient,
                 mLLMRequestLogRepository = mLLMRequestLogRepository,
                 mProvider = provider,

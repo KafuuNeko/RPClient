@@ -231,5 +231,13 @@ internal fun normalizeProtocolMessages(
     if (protocol == null || protocol == LLMProviderProtocol.OpenAICompatible
         || protocol == LLMProviderProtocol.OpenAIResponses
     ) return messages
+    if (protocol == LLMProviderProtocol.GeminiInteractions) {
+        // 开头连续系统指令归入同一字段，后续系统资料留在原位置。步骤允许同角色相邻。
+        val leading = messages.takeWhile { it.role == LLMMessageRole.System }
+        val history = messages.drop(leading.size).map { message ->
+            if (message.role == LLMMessageRole.System) message.copy(role = LLMMessageRole.User) else message
+        }
+        return leading.mergeConsecutiveRoles() + history
+    }
     return messages.toStrictMessages(DEFAULT_STRICT_PROMPT_PLACEHOLDER)
 }

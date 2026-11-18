@@ -7,10 +7,12 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.GEMINI_INTERACTIONS_BASE_URL
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.room.repository.DEFAULT_CLAUDE_MODEL
+import me.kafuuneko.rpclient.libs.room.repository.DEFAULT_GEMINI_MODEL
 
 /**
  * 常用模型配置预设模板，用于快速填入标准接入参数。
@@ -45,6 +47,17 @@ enum class ProviderPreset(
         defaultRequestBodyPatchJson = DEFAULT_GEMINI_REQUEST_BODY_PATCH_JSON,
         defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
         defaultUseServerReportedUsage = true
+    ),
+
+    GeminiInteractions(
+        displayName = "Gemini Interactions",
+        providerType = LLMProviderType.Gemini,
+        protocol = LLMProviderProtocol.GeminiInteractions,
+        baseUrl = GEMINI_INTERACTIONS_BASE_URL,
+        defaultModel = DEFAULT_GEMINI_MODEL,
+        defaultRequestBodyPatchJson = "{}",
+        defaultLocalTokenEstimatorType = LocalTokenEstimatorType.O200kBase,
+        defaultUseServerReportedUsage = true,
     ),
 
     Claude(

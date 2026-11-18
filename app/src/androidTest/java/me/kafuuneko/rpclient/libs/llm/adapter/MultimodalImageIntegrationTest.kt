@@ -35,6 +35,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -44,7 +45,6 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
-import me.kafuuneko.rpclient.libs.llm.LLMClient
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -1003,35 +1003,11 @@ class MultimodalImageIntegrationTest {
         )
         for (protocol in LLMProviderProtocol.entries) {
             val invalidProvider = provider.copy(protocol = protocol, baseUrl = "invalid-address")
-            val invalidClient: LLMClient = when (protocol) {
-                LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
-                    mOkHttpClient = OkHttpClient(),
-                    mLLMRequestLogRepository = logs,
-                    mProvider = invalidProvider,
-                    mImageRuntime = media,
-                )
-
-                LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
-                    mOkHttpClient = OkHttpClient(),
-                    mLLMRequestLogRepository = logs,
-                    mProvider = invalidProvider,
-                    mImageRuntime = media,
-                )
-
-                LLMProviderProtocol.Gemini -> GeminiLLMClient(
-                    mOkHttpClient = OkHttpClient(),
-                    mLLMRequestLogRepository = logs,
-                    mProvider = invalidProvider,
-                    mImageRuntime = media,
-                )
-
-                LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(
-                    mOkHttpClient = OkHttpClient(),
-                    mLLMRequestLogRepository = logs,
-                    mProvider = invalidProvider,
-                    mImageRuntime = media,
-                )
-            }
+            val invalidClient = LLMClientFactory(
+                mOkHttpClient = OkHttpClient(),
+                mLLMRequestLogRepository = logs,
+                mImageRuntime = media,
+            ).create(invalidProvider)
             assertTrue(runCatching { invalidClient.generate(request) }.exceptionOrNull() is IllegalArgumentException)
             assertTrue(
                 File(context.cacheDir, "image-requests").listFiles()
@@ -1148,35 +1124,11 @@ class MultimodalImageIntegrationTest {
                         baseUrl = "https://example.invalid",
                         model = "test",
                     )
-                    val client: LLMClient = when (protocol) {
-                        LLMProviderProtocol.OpenAICompatible -> OpenAICompatibleLLMClient(
-                            mOkHttpClient = http,
-                            mLLMRequestLogRepository = logs,
-                            mProvider = provider,
-                            mImageRuntime = media,
-                        )
-
-                        LLMProviderProtocol.OpenAIResponses -> OpenAIResponsesLLMClient(
-                            mOkHttpClient = http,
-                            mLLMRequestLogRepository = logs,
-                            mProvider = provider,
-                            mImageRuntime = media,
-                        )
-
-                        LLMProviderProtocol.Gemini -> GeminiLLMClient(
-                            mOkHttpClient = http,
-                            mLLMRequestLogRepository = logs,
-                            mProvider = provider,
-                            mImageRuntime = media,
-                        )
-
-                        LLMProviderProtocol.AnthropicMessages -> AnthropicMessagesLLMClient(
-                            mOkHttpClient = http,
-                            mLLMRequestLogRepository = logs,
-                            mProvider = provider,
-                            mImageRuntime = media,
-                        )
-                    }
+                    val client = LLMClientFactory(
+                        mOkHttpClient = http,
+                        mLLMRequestLogRepository = logs,
+                        mImageRuntime = media,
+                    ).create(provider)
                     val blocks = (0 until count).flatMap { index ->
                         listOf(LLMContentBlock.Image(reference)) + if (count == 2) listOf(
                             LLMContentBlock.Text("after-$index")
@@ -1195,13 +1147,20 @@ class MultimodalImageIntegrationTest {
                     val json = JSONObject(payload)
                     val messagesKey = when (protocol) {
                         LLMProviderProtocol.Gemini -> "contents"
-                        LLMProviderProtocol.OpenAIResponses -> "input"
+                        LLMProviderProtocol.GeminiInteractions, LLMProviderProtocol.OpenAIResponses -> "input"
                         else -> "messages"
                     }
                     val messageJson = json.getJSONArray(messagesKey).getJSONObject(0)
                     val expectedRole = if (role == LLMMessageRole.User) "user"
                     else if (protocol == LLMProviderProtocol.Gemini) "model" else "assistant"
-                    assertEquals(expectedRole, messageJson.getString("role"))
+                    if (protocol == LLMProviderProtocol.GeminiInteractions) {
+                        assertEquals(
+                            if (role == LLMMessageRole.User) "user_input" else "model_output",
+                            messageJson.getString("type")
+                        )
+                        assertFalse(json.getBoolean("store"))
+                        assertFalse(json.has("tools"))
+                    } else assertEquals(expectedRole, messageJson.getString("role"))
                     val contentKey =
                         if (protocol == LLMProviderProtocol.Gemini) "parts" else "content"
                     if (count > 0) {
@@ -1217,6 +1176,7 @@ class MultimodalImageIntegrationTest {
                             LLMProviderProtocol.OpenAIResponses -> first.getString("image_url")
                                 .substringAfter("base64,")
 
+                            LLMProviderProtocol.GeminiInteractions -> first.getString("data")
                             LLMProviderProtocol.Gemini -> first.getJSONObject("inlineData")
                                 .getString("data")
 
@@ -1280,73 +1240,86 @@ class MultimodalImageIntegrationTest {
 
     @Test
     fun nativeResponsesCloseIdleSocketsAndReleaseImageFilesOnCancelAndCompletion() = runBlocking {
-        val prepared = media.prepare("responses", Uri.fromFile(fixture()))
-        val saved = chat.createUserMessageWithImages(
-            sessionId,
-            "",
-            listOf(MessageImageInput.Prepared(prepared))
-        )
-        val reference = media
-            .references(listOf(saved))
-            .getValue(saved.key.messageId)
-            .single()
-        val request = LLMGenerationRequest(
-            messages = listOf(
-                element = messageWithBlocks(
-                    role = LLMMessageRole.User,
-                    blocks = listOf(LLMContentBlock.Image(reference)),
-                ),
-            ),
-        )
-        // 真正保持 HTTP 连接开启，分别检查用户停止和收到终态后的主动关闭。
-        for (cancel in listOf(true, false)) {
-            val body = if (cancel) "" else response(
-                protocol = LLMProviderProtocol.OpenAIResponses,
-                stream = true
+        verifyIdleSocket(LLMProviderProtocol.OpenAIResponses, "/v1/responses")
+    }
+
+    /** Interactions 的交互级终态和用户停止都应释放连接与临时图像请求文件。 */
+    @Test
+    fun interactionsReleasesSocketAndImageFile() = runBlocking {
+        verifyIdleSocket(LLMProviderProtocol.GeminiInteractions, "/v1/interactions")
+    }
+
+    private suspend fun verifyIdleSocket(protocol: LLMProviderProtocol, path: String) =
+        coroutineScope {
+            val prepared = media.prepare("responses", Uri.fromFile(fixture()))
+            val saved = chat.createUserMessageWithImages(
+                sessionId,
+                "",
+                listOf(MessageImageInput.Prepared(prepared))
             )
-            IdleResponsesServer(body).use { server ->
-                val provider = LLMProviderConfig(
-                    name = "test",
-                    providerType = LLMProviderType.ChatGPT,
-                    protocol = LLMProviderProtocol.OpenAIResponses,
-                    baseUrl = "http://127.0.0.1:${server.port}/v1",
-                    model = "test",
+            val reference = media
+                .references(listOf(saved))
+                .getValue(saved.key.messageId)
+                .single()
+            val request = LLMGenerationRequest(
+                messages = listOf(
+                    element = messageWithBlocks(
+                        role = LLMMessageRole.User,
+                        blocks = listOf(LLMContentBlock.Image(reference)),
+                    ),
+                ),
+            )
+            // 真正保持 HTTP 连接开启，分别检查用户停止和收到终态后的主动关闭。
+            for (cancel in listOf(true, false)) {
+                val body = if (cancel) "" else response(
+                    protocol = protocol,
+                    stream = true
                 )
-                val client = LLMClientFactory(
-                    mOkHttpClient = OkHttpClient(),
-                    mLLMRequestLogRepository = logs,
-                    mImageRuntime = media,
-                ).create(provider)
-                val connected = CompletableDeferred<Unit>()
-                val events = mutableListOf<LLMStreamEvent>()
-                val job = async {
-                    client.streamGenerate(request).collect { event ->
-                        events += event
-                        if (event == LLMStreamEvent.Connected) connected.complete(Unit)
-                    }
-                }
-                try {
-                    withTimeout(timeMillis = 5_000) {
-                        connected.await()
-                        if (cancel) job.cancelAndJoin() else job.await()
-                        server.closed.await()
-                    }
-                    assertEquals(!cancel, events.any { event -> event is LLMStreamEvent.Finished })
-                    assertTrue(
-                        File(context.cacheDir, "image-requests").listFiles()
-                            .orEmpty()
-                            .isEmpty(),
+                IdleGenerationServer(path, body).use { server ->
+                    val provider = LLMProviderConfig(
+                        name = "test",
+                        providerType = LLMProviderType.ChatGPT,
+                        protocol = protocol,
+                        baseUrl = "http://127.0.0.1:${server.port}/v1",
+                        model = "test",
                     )
-                    assertEquals(
-                        1,
-                        media.references(listOf(saved)).getValue(saved.key.messageId).size
-                    )
-                } finally {
-                    job.cancelAndJoin()
+                    val client = LLMClientFactory(
+                        mOkHttpClient = OkHttpClient(),
+                        mLLMRequestLogRepository = logs,
+                        mImageRuntime = media,
+                    ).create(provider)
+                    val connected = CompletableDeferred<Unit>()
+                    val events = mutableListOf<LLMStreamEvent>()
+                    val job = async {
+                        client.streamGenerate(request).collect { event ->
+                            events += event
+                            if (event == LLMStreamEvent.Connected) connected.complete(Unit)
+                        }
+                    }
+                    try {
+                        withTimeout(timeMillis = 5_000) {
+                            connected.await()
+                            if (cancel) job.cancelAndJoin() else job.await()
+                            server.closed.await()
+                        }
+                        assertEquals(
+                            !cancel,
+                            events.any { event -> event is LLMStreamEvent.Finished })
+                        assertTrue(
+                            File(context.cacheDir, "image-requests").listFiles()
+                                .orEmpty()
+                                .isEmpty(),
+                        )
+                        assertEquals(
+                            1,
+                            media.references(listOf(saved)).getValue(saved.key.messageId).size
+                        )
+                    } finally {
+                        job.cancelAndJoin()
+                    }
                 }
             }
         }
-    }
 
     @Test
     fun missingFilesAndConcurrentImageEditsRejectRequestsAndSummaryCommit() = runBlocking {
@@ -1377,6 +1350,15 @@ class MultimodalImageIntegrationTest {
     }
 
     private fun response(protocol: LLMProviderProtocol, stream: Boolean): String = when (protocol) {
+        LLMProviderProtocol.GeminiInteractions -> if (stream) {
+            listOf(
+                """{"event_type":"step.start","index":0,"step":{"type":"model_output"}}""",
+                """{"event_type":"step.delta","index":0,"delta":{"type":"text","text":"ok"}}""",
+                """{"event_type":"step.stop","index":0}""",
+                """{"event_type":"interaction.completed","interaction":{"status":"completed"}}""",
+            ).joinToString(separator = "\n\n", postfix = "\n\n") { "data: $it" }
+        } else """{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"ok"}]}]}"""
+
         LLMProviderProtocol.OpenAIResponses -> {
             val response =
                 """{"id":"resp_test","status":"completed","model":"test","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ok"}]}]}"""
@@ -1394,7 +1376,7 @@ class MultimodalImageIntegrationTest {
     }
 
     /** 仅监听设备回环地址，响应发送后等待客户端关闭，验证传输资源的真实释放。 */
-    private class IdleResponsesServer(body: String) : AutoCloseable {
+    private class IdleGenerationServer(path: String, body: String) : AutoCloseable {
         private val mSocket = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         val port: Int get() = mSocket.localPort
         val closed = CompletableDeferred<Unit>()
@@ -1406,7 +1388,7 @@ class MultimodalImageIntegrationTest {
                         .getInputStream()
                         .source()
                         .buffer()
-                    check(input.readUtf8LineStrict() == "POST /v1/responses HTTP/1.1")
+                    check(input.readUtf8LineStrict() == "POST $path HTTP/1.1")
                     var length = 0L
                     while (true) {
                         val header = input.readUtf8LineStrict()
