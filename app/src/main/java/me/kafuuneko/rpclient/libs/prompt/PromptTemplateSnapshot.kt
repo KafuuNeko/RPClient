@@ -26,6 +26,7 @@ data class PromptTemplateSnapshot(
     override val continueNudgePrompt: String get() = values.getValue(PromptType.ContinueNudge)
     val replaceEmptyMessagePrompt: String get() = values.getValue(PromptType.ReplaceEmptyMessage)
     override val worldInfoFormat: String get() = values.getValue(PromptType.WorldInfoFormat)
+    override val descriptionFormat: String get() = values.getValue(PromptType.DescriptionFormat)
     override val scenarioFormat: String get() = values.getValue(PromptType.ScenarioFormat)
     override val personalityFormat: String get() = values.getValue(PromptType.PersonalityFormat)
     override val userPersonaFormat: String get() = values.getValue(PromptType.UserPersonaFormat)

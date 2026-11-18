@@ -62,6 +62,13 @@ private val DEFAULT_WORLD_INFO_FORMAT = """
 {0}
 """.trimLineBreaks()
 
+private val DEFAULT_DESCRIPTION_FORMAT = """
+<description>
+Char Description ({{char}}):
+{{description}}
+</description>
+""".trimLineBreaks()
+
 private val DEFAULT_SCENARIO_FORMAT = """
 <scenario>
 Char Scenario ({{char}}):
@@ -192,6 +199,7 @@ enum class PromptType(val key: String, val defaultValue: String) {
         defaultValue = DEFAULT_REPLACE_EMPTY_MESSAGE
     ),
     WorldInfoFormat(key = "world_info_format", defaultValue = DEFAULT_WORLD_INFO_FORMAT),
+    DescriptionFormat(key = "description_format", defaultValue = DEFAULT_DESCRIPTION_FORMAT),
     ScenarioFormat(key = "scenario_format", defaultValue = DEFAULT_SCENARIO_FORMAT),
     PersonalityFormat(key = "personality_format", defaultValue = DEFAULT_PERSONALITY_FORMAT),
     UserPersonaFormat(key = "user_persona_format", defaultValue = DEFAULT_USER_PERSONA_FORMAT),
@@ -248,6 +256,7 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.StoryMemory -> listOf("{{memory}}")
         PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
         PromptType.WorldInfoFormat -> listOf("{0}")
+        PromptType.DescriptionFormat -> listOf("{{description}}", "{{char}}")
         PromptType.ScenarioFormat -> listOf("{{scenario}}", "{{char}}")
         PromptType.PersonalityFormat -> listOf("{{personality}}", "{{char}}")
         PromptType.UserPersonaFormat -> listOf("{{persona}}", "{{user}}")

@@ -17,6 +17,7 @@ internal class TestPromptPreferences(
     override val groupUserWritingPrompt: String = PromptType.GroupUserWriting.defaultValue,
     override val newGroupChatPrompt: String = PromptType.NewGroupChat.defaultValue,
     override val worldInfoFormat: String = PromptType.WorldInfoFormat.defaultValue,
+    override val descriptionFormat: String = PromptType.DescriptionFormat.defaultValue,
     override val scenarioFormat: String = PromptType.ScenarioFormat.defaultValue,
     override val personalityFormat: String = PromptType.PersonalityFormat.defaultValue,
     override val userPersonaFormat: String = PromptType.UserPersonaFormat.defaultValue,

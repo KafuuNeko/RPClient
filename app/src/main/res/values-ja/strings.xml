@@ -577,6 +577,7 @@
     <string name="prompt_auxiliary_title">補助プロンプト</string>
     <string name="prompt_post_history_title">履歴後の指示</string>
     <string name="prompt_world_info_format_title">ワールド情報フォーマット</string>
+    <string name="prompt_description_format_title">キャラクター説明フォーマット</string>
     <string name="prompt_scenario_format_title">シナリオフォーマット</string>
     <string name="prompt_personality_format_title">性格フォーマット</string>
     <string name="prompt_user_persona_format_title">ユーザーペルソナ形式</string>

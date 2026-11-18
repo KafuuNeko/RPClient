@@ -176,6 +176,12 @@ val promptPresetFields = listOf(
         scopes = allScopes,
     ),
     PromptPresetField(
+        type = PromptType.DescriptionFormat,
+        titleRes = R.string.prompt_description_format_title,
+        section = PromptPresetSection.ContentFormat,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
         type = PromptType.ScenarioFormat,
         titleRes = R.string.prompt_scenario_format_title,
         section = PromptPresetSection.ContentFormat,

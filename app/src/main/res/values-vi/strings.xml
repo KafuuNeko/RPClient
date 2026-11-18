@@ -680,6 +680,7 @@ Thất bại: %2$d</string>
     <string name="prompt_auxiliary_title">Prompt phụ trợ</string>
     <string name="prompt_post_history_title">Hướng dẫn sau lịch sử</string>
     <string name="prompt_world_info_format_title">Định dạng sách thế giới</string>
+    <string name="prompt_description_format_title">Định dạng mô tả nhân vật</string>
     <string name="prompt_scenario_format_title">Định dạng ngữ cảnh</string>
     <string name="prompt_personality_format_title">Định dạng tính cách</string>
     <string name="prompt_user_persona_format_title">Định dạng persona người dùng</string>

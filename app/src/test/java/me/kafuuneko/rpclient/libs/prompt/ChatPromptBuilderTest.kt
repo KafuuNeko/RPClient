@@ -433,6 +433,39 @@ class ChatPromptBuilderTest {
             listOf(10L, 20L),
             sourceOrder.filter { it.kind == PromptSourceKind.WorldInfo }.map { it.referenceId },
         )
+        assertTrue(result.request.messages.any {
+            it.role == LLMMessageRole.System &&
+                it.content == "<description>\nChar Description (Char):\nCharacter description\n</description>"
+        })
+    }
+
+    @Test
+    fun characterDescriptionUsesSelectedFormatAndFallsBackToRenderedCardText() {
+        val character = context().character.copy(description = "{{char}} knows {{user}}.")
+        val input = context(character = character)
+        val formatted = PromptTemplateSnapshot.resolve(
+            presetId = 41L,
+            revision = 1L,
+            overrides = mapOf("description_format" to "Profile of {{char}}: {{description}}"),
+        )
+        val request = builder.build(input, formatted)
+        assertTrue(request.messages.any { it.content == "Profile of Char: Char knows User." })
+
+        val blankDescription = context(character = character.copy(description = "  "))
+        assertFalse(builder.build(blankDescription, formatted).messages.any {
+            it.content.startsWith("Profile of ")
+        })
+
+        // 自定义预设清空格式或省略正文槽时，卡片正文仍进入请求。
+        for (template in listOf("", "Profile of {{char}}")) {
+            val fallbackPreset = PromptTemplateSnapshot.resolve(
+                presetId = 41L,
+                revision = 1L,
+                overrides = mapOf("description_format" to template),
+            )
+            val fallbackRequest = builder.build(input, fallbackPreset)
+            assertTrue(fallbackRequest.messages.any { it.content == "Char knows User." })
+        }
     }
 
     @Test
@@ -1108,7 +1141,7 @@ class ChatPromptBuilderTest {
                         position = LorebookEntry.POSITION_BEFORE,
                     ),
                 ),
-                maxContextTokens = 170,
+                maxContextTokens = 220,
                 maxResponseTokens = 50,
             ),
         )

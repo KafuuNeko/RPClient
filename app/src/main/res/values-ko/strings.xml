@@ -576,6 +576,7 @@
     <string name="prompt_auxiliary_title">보조 프롬프트</string>
     <string name="prompt_post_history_title">Post-History Instructions</string>
     <string name="prompt_world_info_format_title">세계관 정보 형식</string>
+    <string name="prompt_description_format_title">캐릭터 설명 형식</string>
     <string name="prompt_scenario_format_title">시나리오 형식</string>
     <string name="prompt_personality_format_title">성격 형식</string>
     <string name="prompt_user_persona_format_title">사용자 페르소나 형식</string>

@@ -679,6 +679,7 @@
     <string name="prompt_auxiliary_title">Prompt auxiliar</string>
     <string name="prompt_post_history_title">Instrucciones posteriores al historial</string>
     <string name="prompt_world_info_format_title">Formato de World Info</string>
+    <string name="prompt_description_format_title">Formato de descripción del personaje</string>
     <string name="prompt_scenario_format_title">Formato de escenario</string>
     <string name="prompt_personality_format_title">Formato de personalidad</string>
     <string name="prompt_user_persona_format_title">Formato del personaje del usuario</string>

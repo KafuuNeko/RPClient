@@ -680,6 +680,7 @@ Falhas: %2$d</string>
     <string name="prompt_auxiliary_title">Prompt Auxiliar</string>
     <string name="prompt_post_history_title">Instruções Pós-Histórico</string>
     <string name="prompt_world_info_format_title">Formato de World Info</string>
+    <string name="prompt_description_format_title">Formato da Descrição do Personagem</string>
     <string name="prompt_scenario_format_title">Formato do Cenário</string>
     <string name="prompt_personality_format_title">Formato da Personalidade</string>
     <string name="prompt_user_persona_format_title">Formato da Persona do Usuário</string>

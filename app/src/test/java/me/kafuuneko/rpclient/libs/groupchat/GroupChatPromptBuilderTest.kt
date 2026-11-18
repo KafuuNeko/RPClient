@@ -248,7 +248,7 @@ class GroupChatPromptBuilderTest {
                 members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(message(GroupChatMessage.Source.User, "Alex", "Actual")),
-                provider = provider(contextTokens = 500, maxTokens = 100),
+                provider = provider(contextTokens = 550, maxTokens = 100),
                 candidateLorebookEntries = listOf(example, normal),
             ),
         )
@@ -385,8 +385,21 @@ class GroupChatPromptBuilderTest {
         val descriptions = result.inspection.items.first { promptInspectionItem ->
             promptInspectionItem.sources.any { source -> source.kind == PromptSourceKind.CharacterDescription }
         }.content
-        assertTrue(descriptions.contains("Lyra:\nLyra description"))
-        assertTrue(descriptions.contains("Mina:\nMina description"))
+        assertEquals(
+            """
+            Lyra:
+            <description>
+            Char Description (Lyra):
+            Lyra description
+            </description>
+            Mina:
+            <description>
+            Char Description (Mina):
+            Mina description
+            </description>
+            """.trimIndent(),
+            descriptions,
+        )
         assertEquals(
             LLMMessageRole.Assistant,
             result.request.messages.first { it.content == "Lyra depth" }.role,
@@ -770,7 +783,7 @@ class GroupChatPromptBuilderTest {
                 members = listOf(member(character = lyra, order = 0)),
                 speaker = lyra,
                 messages = listOf(message(GroupChatMessage.Source.User, "Alex", "LATEST")),
-                provider = provider(contextTokens = 310, maxTokens = 50),
+                provider = provider(contextTokens = 360, maxTokens = 50),
                 candidateLorebookEntries = listOf(
                     element = worldEntry(
                         id = 95L,
@@ -1015,7 +1028,7 @@ class GroupChatPromptBuilderTest {
                 result.inspection.items.map { it.content })
             val content = result.request.messages.joinToString("\n") { it.content }
             for (fragment in listOf(
-                "Alice greets Alex; Alice guards",
+                "Alice:\n<description>\nChar Description (Alice):\nAlice greets Alex; Alice guards",
                 "Char Personality (Alice):",
                 "Alice keeps notes",
                 "Char Personality (Bob):",
@@ -1035,13 +1048,16 @@ class GroupChatPromptBuilderTest {
             session = context.session.copy(characterCardMode = GroupChatSession.CharacterCardMode.Swap),
             speaker = alice,
         )
-        val text = builder.build(
+        val swapRequest = builder.build(
             swap,
-            TestPromptPreferences(mainPrompt = "{{scenario}} / {{charIfNotGroup}}END")
+            TestPromptPreferences(
+                mainPrompt = "{{scenario}} / {{charIfNotGroup}}END",
+                descriptionFormat = "Profile of {{char}}: {{description}}",
+            )
         )
-            .messages.joinToString("\n") { it.content }
-        assertTrue("Alice guards / END" in text)
-        assertFalse("Bob sings" in text)
+        assertTrue(swapRequest.messages.any { it.content == "Alice guards / END" })
+        assertTrue(swapRequest.messages.any { it.content == "Profile of Alice: Alice greets Alex; Alice guards" })
+        assertFalse(swapRequest.messages.any { "Bob sings" in it.content || "Bob description" in it.content })
         // 用户和角色同名时，示例的角色标签仍应生成 assistant 消息。
         val sameName = swap.copy(persona = swap.persona.copy(name = alice.name))
         assertTrue(builder.build(sameName).messages.any {

@@ -393,7 +393,11 @@ private class ChatPromptBuildSession(
         )
         beforeHistory += PromptPiece.required(
             role = LLMMessageRole.System,
-            content = context.character.description,
+            content = applyFormat(
+                template = mPreferences.descriptionFormat,
+                marker = "{{description}}",
+                content = context.character.description,
+            ),
             sourceKind = PromptSourceKind.CharacterDescription,
         )
         beforeHistory += PromptPiece.required(

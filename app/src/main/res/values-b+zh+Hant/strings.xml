@@ -589,6 +589,7 @@
     <string name="prompt_auxiliary_title">輔助提示詞</string>
     <string name="prompt_post_history_title">歷史後指令</string>
     <string name="prompt_world_info_format_title">世界書格式</string>
+    <string name="prompt_description_format_title">角色描述格式</string>
     <string name="prompt_scenario_format_title">場景格式</string>
     <string name="prompt_personality_format_title">性格格式</string>
     <string name="prompt_user_persona_format_title">使用者人設格式</string>

@@ -576,6 +576,7 @@
     <string name="prompt_auxiliary_title">Вспомогательный промпт</string>
     <string name="prompt_post_history_title">Инструкции после истории</string>
     <string name="prompt_world_info_format_title">Формат информации о мире</string>
+    <string name="prompt_description_format_title">Формат описания персонажа</string>
     <string name="prompt_scenario_format_title">Формат сценария</string>
     <string name="prompt_personality_format_title">Формат личности</string>
     <string name="prompt_user_persona_format_title">Формат персоны пользователя</string>

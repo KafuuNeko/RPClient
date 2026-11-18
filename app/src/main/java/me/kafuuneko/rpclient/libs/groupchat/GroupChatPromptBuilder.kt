@@ -586,7 +586,11 @@ private class GroupChatPromptBuildSession(
      */
     private fun buildCharacterCards(context: GroupChatPromptContext): List<PromptMessageDraft> {
         val members = mMacros.cardMembers
-        val description = context.combineCharacterField(members) { it.description }
+        val description = context.combineCharacterField(
+            cardMembers = members,
+            template = mPreferences.descriptionFormat,
+            slot = "description",
+        ) { it.description }
         val personality = context.combineCharacterField(
             cardMembers = members, template = mPreferences.personalityFormat, slot = "personality",
         ) { it.personality }
@@ -635,8 +639,8 @@ private class GroupChatPromptBuildSession(
      */
     private fun GroupChatPromptContext.combineCharacterField(
         cardMembers: List<GroupChatMemberData>,
-        template: String = "",
-        slot: String = "",
+        template: String,
+        slot: String,
         readField: (Character) -> String,
     ): MacroExpansion {
         val rendered = cardMembers.mapNotNull { member ->

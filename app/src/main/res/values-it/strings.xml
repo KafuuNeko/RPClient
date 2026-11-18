@@ -656,6 +656,7 @@ Non riusciti: %2$d</string>
     <string name="prompt_auxiliary_title">Prompt Ausiliario</string>
     <string name="prompt_post_history_title">Istruzioni Post-Cronologia</string>
     <string name="prompt_world_info_format_title">Formato World Info</string>
+    <string name="prompt_description_format_title">Formato descrizione del personaggio</string>
     <string name="prompt_scenario_format_title">Formato Scenario</string>
     <string name="prompt_personality_format_title">Formato Personalità</string>
     <string name="prompt_user_persona_format_title">Formato Persona Utente</string>

@@ -680,6 +680,7 @@ Gagal: %2$d</string>
     <string name="prompt_auxiliary_title">Prompt Tambahan</string>
     <string name="prompt_post_history_title">Petunjuk Pasca-Riwayat</string>
     <string name="prompt_world_info_format_title">Format Info Dunia</string>
+    <string name="prompt_description_format_title">Format Deskripsi Karakter</string>
     <string name="prompt_scenario_format_title">Format Skenario</string>
     <string name="prompt_personality_format_title">Format Kepribadian</string>
     <string name="prompt_user_persona_format_title">Format Persona Pengguna</string>

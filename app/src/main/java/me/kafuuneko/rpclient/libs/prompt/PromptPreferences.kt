@@ -45,6 +45,9 @@ interface PromptPreferences {
     /** 世界书内容包装模板。 */
     val worldInfoFormat: String
 
+    /** 角色描述包装模板。 */
+    val descriptionFormat: String
+
     /** 场景包装模板。 */
     val scenarioFormat: String
 
