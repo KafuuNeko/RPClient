@@ -1431,6 +1431,11 @@ Falhas: %2$d</string>
     <string name="prompt_catalog_empty_input_title">Texto de substituição de entrada vazia</string>
     <string name="prompt_catalog_summarize_title">Instruções de resumo de chat individual</string>
     <string name="prompt_catalog_group_summarize_title">Instruções de resumo de chat em grupo</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Resumo Raw: formato do resumo anterior</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Resumo Raw: formato do histórico da conversa</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Resumo Raw: formato de cada mensagem</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Resumo Raw: instruções para imagens</string>
+    <string name="prompt_raw_summary_format_requires_macro">O formato deve conter %1$s exatamente uma vez.</string>
     <string name="prompt_catalog_story_summarize_title">Instruções de atualização do resumo da história</string>
     <string name="prompt_catalog_summary_injection_title">Formato de inserção do resumo do chat</string>
     <string name="prompt_catalog_story_memory_title">Formato de inserção da memória da história</string>

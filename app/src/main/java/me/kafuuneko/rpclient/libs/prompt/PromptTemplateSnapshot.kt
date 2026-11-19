@@ -18,6 +18,9 @@ data class PromptTemplateSnapshot(
     override val auxiliaryPrompt: String get() = values.getValue(PromptType.Auxiliary)
     override val postHistoryInstructions: String get() = values.getValue(PromptType.PostHistory)
     val summarizePrompt: String get() = values.getValue(PromptType.Summarize)
+    internal val rawSummaryImagePrompt: String
+        get() = values[PromptType.RawSummaryImagePrompt]
+            ?: PromptType.RawSummaryImagePrompt.defaultValue
     override val summaryInjectionTemplate: String get() = values.getValue(PromptType.SummaryInjection)
     override val impersonationPrompt: String get() = values.getValue(PromptType.Impersonation)
     override val userWritingPrompt: String get() = values.getValue(PromptType.UserWriting)

@@ -1406,6 +1406,11 @@ Non riusciti: %2$d</string>
     <string name="prompt_catalog_empty_input_title">Testo sostitutivo per input vuoto</string>
     <string name="prompt_catalog_summarize_title">Istruzioni di riassunto della chat singola</string>
     <string name="prompt_catalog_group_summarize_title">Istruzioni di riassunto della chat di gruppo</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Riepilogo Raw: formato del riepilogo precedente</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Riepilogo Raw: formato della cronologia della chat</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Riepilogo Raw: formato di ogni messaggio</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Riepilogo Raw: istruzioni per le immagini</string>
+    <string name="prompt_raw_summary_format_requires_macro">Il formato deve contenere %1$s esattamente una volta.</string>
     <string name="prompt_catalog_story_summarize_title">Istruzioni di aggiornamento del riassunto della storia</string>
     <string name="prompt_catalog_summary_injection_title">Formato di inserimento del riassunto della chat</string>
     <string name="prompt_catalog_story_memory_title">Formato di inserimento della memoria della storia</string>

@@ -23,6 +23,24 @@ Rules:
 - Keep it within {{words}} words.
 """.trimLineBreaks()
 
+private val DEFAULT_RAW_SUMMARY_PREVIOUS_FORMAT = """
+<history_summary>
+{{summary}}
+</history_summary>
+""".trimLineBreaks()
+
+private val DEFAULT_RAW_SUMMARY_HISTORY_FORMAT = """
+<chat_history>
+{{history}}
+</chat_history>
+""".trimLineBreaks()
+
+private const val DEFAULT_RAW_SUMMARY_MESSAGE_FORMAT = "{{speaker}}: {{message}}"
+
+private val DEFAULT_RAW_SUMMARY_IMAGE_PROMPT = """
+Record relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details.
+""".trimLineBreaks()
+
 private val DEFAULT_SUMMARY_INJECTION = """
 <summary>
 {{summary}}
@@ -183,11 +201,34 @@ Do not repeat or summarize existing text. Advance the current scene naturally an
  *
  * key 是稳定存储标识，不能随枚举名称或显示文案变化。
  */
-enum class PromptType(val key: String, val defaultValue: String) {
+enum class PromptType(
+    val key: String,
+    val defaultValue: String,
+    internal val rawSummaryContentMacro: String? = null,
+) {
     Main(key = "main", defaultValue = DEFAULT_MAIN),
     Auxiliary(key = "auxiliary", defaultValue = DEFAULT_AUXILIARY),
     PostHistory(key = "post_history", defaultValue = DEFAULT_POST_HISTORY),
     Summarize(key = "summarize", defaultValue = DEFAULT_SUMMARIZE),
+    RawSummaryPreviousFormat(
+        key = "raw_summary_previous_format",
+        defaultValue = DEFAULT_RAW_SUMMARY_PREVIOUS_FORMAT,
+        rawSummaryContentMacro = "summary",
+    ),
+    RawSummaryHistoryFormat(
+        key = "raw_summary_history_format",
+        defaultValue = DEFAULT_RAW_SUMMARY_HISTORY_FORMAT,
+        rawSummaryContentMacro = "history",
+    ),
+    RawSummaryMessageFormat(
+        key = "raw_summary_message_format",
+        defaultValue = DEFAULT_RAW_SUMMARY_MESSAGE_FORMAT,
+        rawSummaryContentMacro = "message",
+    ),
+    RawSummaryImagePrompt(
+        key = "raw_summary_image_prompt",
+        defaultValue = DEFAULT_RAW_SUMMARY_IMAGE_PROMPT,
+    ),
     SummaryInjection(key = "summary_injection", defaultValue = DEFAULT_SUMMARY_INJECTION),
     Impersonation(key = "impersonation", defaultValue = DEFAULT_IMPERSONATION),
     UserWriting(key = "user_writing", defaultValue = DEFAULT_USER_WRITING),
@@ -221,6 +262,11 @@ enum class PromptType(val key: String, val defaultValue: String) {
 
 /** 获取指定提示词类型支持注入的宏变量标签列表（如 `{{char}}`, `{{user}}` 等）。 */
 internal fun availableMacros(type: PromptType): List<String> {
+    type.rawSummaryContentMacro?.let { macro ->
+        val content = "{{$macro}}"
+        return if (type == PromptType.RawSummaryMessageFormat) listOf("{{speaker}}", content)
+        else listOf(content)
+    }
     // 每种模板保留原有宏集合和展示顺序，避免引入不支持的占位符。
     return when (type) {
         PromptType.Main,
@@ -249,6 +295,8 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.Summarize,
         PromptType.GroupSummarize,
         PromptType.StorySummarize -> listOf("{{words}}", "{{char}}", "{{user}}")
+
+        PromptType.RawSummaryImagePrompt -> emptyList()
 
         PromptType.SummaryInjection,
         PromptType.StorySummary -> listOf("{{summary}}")

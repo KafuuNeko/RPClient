@@ -3,13 +3,10 @@ package me.kafuuneko.rpclient.libs.prompt
 import me.kafuuneko.rpclient.libs.macro.MacroScope
 import me.kafuuneko.rpclient.libs.macro.MacroValue
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
 import me.kafuuneko.rpclient.libs.prompt.model.requireAvailable
@@ -113,7 +110,6 @@ class SummaryPromptBuilder(
                     messages = sanitized.subList(fromIndex = 0, toIndex = prefix.size),
                     provider = provider,
                     messageImages = messageImages,
-                    unavailableImages = unavailableImages,
                 ),
                 budget = promptBudget,
                 unavailableCount = prefix.sumOf { message -> unavailableImages[message.id].orEmpty().size },
@@ -132,7 +128,6 @@ class SummaryPromptBuilder(
                     messages = listOf(sanitized.first()),
                     provider = provider,
                     messageImages = messageImages,
-                    unavailableImages = unavailableImages,
                 ),
             )
             throw PromptBudgetExceededException(
@@ -155,7 +150,6 @@ class SummaryPromptBuilder(
                 messages = sanitizedSelected,
                 provider = provider,
                 messageImages = messageImages,
-                unavailableImages = unavailableImages,
             ),
             model = provider?.model,
             options = LLMGenerationOptions(
@@ -179,10 +173,9 @@ class SummaryPromptBuilder(
         existingSummary: String,
         messages: List<ChatMessage>,
         provider: LLMProvider?,
-        messageImages: Map<Long, List<LLMImageReference>> = emptyMap(),
-        unavailableImages: Map<Long, List<UnavailablePromptImage>> = emptyMap(),
+        messageImages: Map<Long, List<LLMImageReference>>,
     ): List<LLMMessage> {
-        val history = mHistoryBuilder.build(messages, userName, character.name)
+        // 摘要任务只展开指令宏，历史与旧摘要由独立的素材模板承载。
         val context = PromptBuildContext(
             userName = userName,
             userDescription = userDescription,
@@ -202,22 +195,18 @@ class SummaryPromptBuilder(
             history = "",
             bindings = mapOf("words" to MacroValue.Literal(AppModel.summaryWordsLimit.toString())),
         )
-        val historyBlocks = messages.flatMap { message ->
-            val speakerName =
-                if (message.source == ChatMessage.Source.User) userName else character.name
-            listOf(element = LLMContentBlock.Text("$speakerName:")) +
-                messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
-                LLMContentBlock.Text(message.content)
-        }
+        // 保留候选历史的单条消息边界，预算探测与实际发送使用同一套格式。
+        val history = mHistoryBuilder.buildSummaryHistory(
+            messages = messages,
+            userName = userName,
+            characterName = character.name,
+            messageImages = messageImages,
+        )
         return buildRawSummaryMessages(
+            templates = templates,
             instruction = instruction,
             existingSummary = existingSummary,
             history = history,
-            historyBlocks = historyBlocks.takeIf {
-                messages.any { message ->
-                    !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
-                }
-            },
         )
     }
 
@@ -235,34 +224,6 @@ internal fun <T> List<T>.summaryCandidates(
     val availableCount = if (includeLastMessage) size else (size - 1).coerceAtLeast(0)
     val candidateCount = if (maxMessages > 0) minOf(availableCount, maxMessages) else availableCount
     return take(candidateCount)
-}
-
-/** 构建 Raw 摘要路径发送给模型的 system 指令和 user 素材。 */
-internal fun buildRawSummaryMessages(
-    instruction: String,
-    existingSummary: String,
-    history: String,
-    historyBlocks: List<LLMContentBlock>? = null,
-): List<LLMMessage> {
-    val rawPrompt = buildList {
-        existingSummary.takeIf { text -> text.isNotBlank() }?.let { text ->
-            add("Existing summary:\n$text")
-        }
-        history.takeIf { text -> text.isNotBlank() }?.let { text ->
-            add("Chat history:\n$text")
-        }
-    }.joinToString("\n\n")
-    return listOf(
-        LLMMessage(
-            role = LLMMessageRole.System,
-            content = instruction.trim() + if (historyBlocks != null) "\nRecord relevant visible image facts; distinguish user claims and uncertain details. Do not invent visual details." else "",
-        ),
-        if (historyBlocks == null) LLMMessage(LLMMessageRole.User, rawPrompt)
-        else messageWithBlocks(
-            role = LLMMessageRole.User,
-            blocks = listOf(LLMContentBlock.Text("Existing summary:\n$existingSummary\nChat history:")) + historyBlocks,
-        ),
-    ).filter { it.content.isNotBlank() || it.images.isNotEmpty() }
 }
 
 /**

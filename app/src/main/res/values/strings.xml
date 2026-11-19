@@ -1428,6 +1428,11 @@
     <string name="prompt_catalog_empty_input_title">Empty-input replacement text</string>
     <string name="prompt_catalog_summarize_title">Single-chat summary instructions</string>
     <string name="prompt_catalog_group_summarize_title">Group-chat summary instructions</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Raw summary: previous summary format</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Raw summary: chat history format</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Raw summary: individual message format</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Raw summary: image instructions</string>
+    <string name="prompt_raw_summary_format_requires_macro">The format must contain %1$s exactly once.</string>
     <string name="prompt_catalog_story_summarize_title">Story summary update instructions</string>
     <string name="prompt_catalog_summary_injection_title">Chat summary format</string>
     <string name="prompt_catalog_story_memory_title">Story memory format</string>

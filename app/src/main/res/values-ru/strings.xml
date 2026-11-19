@@ -1436,6 +1436,11 @@
     <string name="prompt_catalog_empty_input_title">Текст замены пустого ввода</string>
     <string name="prompt_catalog_summarize_title">Инструкции сводки личного чата</string>
     <string name="prompt_catalog_group_summarize_title">Инструкции сводки группового чата</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Сводка Raw: формат предыдущей сводки</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Сводка Raw: формат истории чата</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Сводка Raw: формат отдельного сообщения</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Сводка Raw: инструкции для изображений</string>
+    <string name="prompt_raw_summary_format_requires_macro">Формат должен содержать %1$s ровно один раз.</string>
     <string name="prompt_catalog_story_summarize_title">Инструкции обновления сводки истории</string>
     <string name="prompt_catalog_summary_injection_title">Формат вставки сводки чата</string>
     <string name="prompt_catalog_story_memory_title">Формат вставки долговременной памяти истории</string>

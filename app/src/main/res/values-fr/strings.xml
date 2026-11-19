@@ -1427,6 +1427,11 @@
     <string name="prompt_catalog_empty_input_title">Texte de remplacement d’une saisie vide</string>
     <string name="prompt_catalog_summarize_title">Instructions de résumé de discussion individuelle</string>
     <string name="prompt_catalog_group_summarize_title">Instructions de résumé de groupe</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Résumé Raw : format du résumé précédent</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Résumé Raw : format de l’historique de la conversation</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Résumé Raw : format de chaque message</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Résumé Raw : consignes pour les images</string>
+    <string name="prompt_raw_summary_format_requires_macro">Le format doit contenir %1$s exactement une fois.</string>
     <string name="prompt_catalog_story_summarize_title">Instructions de mise à jour du résumé de l’histoire</string>
     <string name="prompt_catalog_summary_injection_title">Format d’insertion du résumé de discussion</string>
     <string name="prompt_catalog_story_memory_title">Format d’insertion de la mémoire de l’histoire</string>

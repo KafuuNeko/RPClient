@@ -152,6 +152,30 @@ val promptPresetFields = listOf(
         scopes = storyScope,
     ),
     PromptPresetField(
+        type = PromptType.RawSummaryPreviousFormat,
+        titleRes = R.string.prompt_catalog_raw_summary_previous_format_title,
+        section = PromptPresetSection.SummaryGeneration,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
+        type = PromptType.RawSummaryHistoryFormat,
+        titleRes = R.string.prompt_catalog_raw_summary_history_format_title,
+        section = PromptPresetSection.SummaryGeneration,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
+        type = PromptType.RawSummaryMessageFormat,
+        titleRes = R.string.prompt_catalog_raw_summary_message_format_title,
+        section = PromptPresetSection.SummaryGeneration,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
+        type = PromptType.RawSummaryImagePrompt,
+        titleRes = R.string.prompt_catalog_raw_summary_image_prompt_title,
+        section = PromptPresetSection.SummaryGeneration,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
         type = PromptType.SummaryInjection,
         titleRes = R.string.prompt_catalog_summary_injection_title,
         section = PromptPresetSection.MemoryInjection,

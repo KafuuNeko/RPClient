@@ -1412,6 +1412,11 @@
     <string name="prompt_catalog_empty_input_title">空の入力の置き換えテキスト</string>
     <string name="prompt_catalog_summarize_title">個別チャットの要約生成指示</string>
     <string name="prompt_catalog_group_summarize_title">グループの要約生成指示</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Raw 要約：既存の要約の形式</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Raw 要約：チャット履歴の形式</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Raw 要約：個別メッセージの形式</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Raw 要約：画像の要約指示</string>
+    <string name="prompt_raw_summary_format_requires_macro">形式には %1$s を一つだけ含めてください。</string>
     <string name="prompt_catalog_story_summarize_title">物語の要約更新指示</string>
     <string name="prompt_catalog_summary_injection_title">チャット要約の挿入書式</string>
     <string name="prompt_catalog_story_memory_title">物語の長期記憶の挿入書式</string>

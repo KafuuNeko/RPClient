@@ -1418,6 +1418,11 @@ Gagal: %2$d</string>
     <string name="prompt_catalog_empty_input_title">Teks pengganti input kosong</string>
     <string name="prompt_catalog_summarize_title">Instruksi ringkasan chat pribadi</string>
     <string name="prompt_catalog_group_summarize_title">Instruksi ringkasan chat grup</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Ringkasan Raw: format ringkasan sebelumnya</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Ringkasan Raw: format riwayat obrolan</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Ringkasan Raw: format tiap pesan</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Ringkasan Raw: petunjuk untuk gambar</string>
+    <string name="prompt_raw_summary_format_requires_macro">Format harus memuat %1$s tepat satu kali.</string>
     <string name="prompt_catalog_story_summarize_title">Instruksi pembaruan ringkasan cerita</string>
     <string name="prompt_catalog_summary_injection_title">Format penyisipan ringkasan chat</string>
     <string name="prompt_catalog_story_memory_title">Format penyisipan memori cerita</string>

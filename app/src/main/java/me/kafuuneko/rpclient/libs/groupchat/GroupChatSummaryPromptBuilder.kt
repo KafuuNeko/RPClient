@@ -2,7 +2,6 @@ package me.kafuuneko.rpclient.libs.groupchat
 
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
-import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
@@ -10,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.RawSummaryHistoryMessage
 import me.kafuuneko.rpclient.libs.prompt.buildRawSummaryMessages
 import me.kafuuneko.rpclient.libs.prompt.countSummaryTokens
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
@@ -72,7 +72,6 @@ class GroupChatSummaryPromptBuilder(
                 existingSummary = safeExistingSummary,
                 messages = sanitized.subList(fromIndex = 0, toIndex = prefix.size),
                 messageImages = messageImages,
-                unavailableImages = unavailableImages,
             )
             countSummaryTokens(
                 tokenizer = tokenizer,
@@ -89,7 +88,6 @@ class GroupChatSummaryPromptBuilder(
                 existingSummary = safeExistingSummary,
                 messages = listOf(sanitized.first()),
                 messageImages = messageImages,
-                unavailableImages = unavailableImages,
             )
             throw PromptBudgetExceededException(
                 requiredTokens = (tokenizer.countMessages(requestMessages).toLong() +
@@ -104,7 +102,6 @@ class GroupChatSummaryPromptBuilder(
             existingSummary = safeExistingSummary,
             messages = sanitized.take(selected.size),
             messageImages = messageImages,
-            unavailableImages = unavailableImages,
         )
         selected.flatMap { unavailableImages[it.id].orEmpty() }.requireAvailable()
         return GroupChatSummaryBuildResult(
@@ -130,12 +127,8 @@ class GroupChatSummaryPromptBuilder(
         existingSummary: String,
         messages: List<GroupChatMessage>,
         messageImages: Map<Long, List<LLMImageReference>>,
-        unavailableImages: Map<Long, List<UnavailablePromptImage>>,
     ): List<LLMMessage> {
-        // 成员的既有署名保留，仅为缺少用户署名的旧消息补齐名称。
-        val history = messages.joinToString("\n") { message ->
-            "${message.speakerName(userName)}: ${message.content}"
-        }
+        // 摘要任务独立于图文素材，旧摘要与历史不在指令中重复展开。
         val instruction = renderGroupMacros(
             templates.groupSummarizePrompt,
             mapOf(
@@ -146,20 +139,19 @@ class GroupChatSummaryPromptBuilder(
                 "words" to AppModel.summaryWordsLimit.toString(),
             ),
         )
-        val historyBlocks = messages.flatMap { message ->
-            listOf(LLMContentBlock.Text("${message.speakerName(userName)}:")) +
-                messageImages[message.id].orEmpty().map { image -> LLMContentBlock.Image(image) } +
-                LLMContentBlock.Text(message.content)
+        // 保留发送时的成员署名及图文顺序。
+        val history = messages.map { message ->
+            RawSummaryHistoryMessage(
+                speakerName = message.speakerName(userName),
+                content = message.content,
+                images = messageImages[message.id].orEmpty(),
+            )
         }
         return buildRawSummaryMessages(
+            templates = templates,
             instruction = instruction,
             existingSummary = existingSummary,
             history = history,
-            historyBlocks = historyBlocks.takeIf {
-                messages.any { message ->
-                    !messageImages[message.id].isNullOrEmpty() || !unavailableImages[message.id].isNullOrEmpty()
-                }
-            },
         )
     }
 }

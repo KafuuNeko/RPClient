@@ -1411,6 +1411,11 @@
     <string name="prompt_catalog_empty_input_title">空白輸入替代文字</string>
     <string name="prompt_catalog_summarize_title">單聊摘要生成指令</string>
     <string name="prompt_catalog_group_summarize_title">群聊摘要生成指令</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Raw 摘要：既有摘要格式</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Raw 摘要：聊天記錄格式</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Raw 摘要：單則訊息格式</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Raw 摘要：圖片摘要指令</string>
+    <string name="prompt_raw_summary_format_requires_macro">格式中必須恰好包含一個 %1$s。</string>
     <string name="prompt_catalog_story_summarize_title">故事摘要更新指令</string>
     <string name="prompt_catalog_summary_injection_title">聊天摘要注入格式</string>
     <string name="prompt_catalog_story_memory_title">故事長期記憶注入格式</string>

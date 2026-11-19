@@ -1421,6 +1421,11 @@
     <string name="prompt_catalog_empty_input_title">Ersatztext für leere Eingaben</string>
     <string name="prompt_catalog_summarize_title">Anweisungen zur Einzelchat-Zusammenfassung</string>
     <string name="prompt_catalog_group_summarize_title">Anweisungen zur Gruppenchat-Zusammenfassung</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Raw-Zusammenfassung: Format der bisherigen Zusammenfassung</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Raw-Zusammenfassung: Format des Chatverlaufs</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Raw-Zusammenfassung: Format einzelner Nachrichten</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Raw-Zusammenfassung: Bildanweisungen</string>
+    <string name="prompt_raw_summary_format_requires_macro">Das Format muss %1$s genau einmal enthalten.</string>
     <string name="prompt_catalog_story_summarize_title">Anweisungen zur Aktualisierung der Geschichtenzusammenfassung</string>
     <string name="prompt_catalog_summary_injection_title">Format für Chat-Zusammenfassungen</string>
     <string name="prompt_catalog_story_memory_title">Format für das Langzeitgedächtnis einer Geschichte</string>

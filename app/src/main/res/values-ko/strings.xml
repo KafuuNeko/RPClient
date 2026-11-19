@@ -1411,6 +1411,11 @@
     <string name="prompt_catalog_empty_input_title">빈 입력 대체 텍스트</string>
     <string name="prompt_catalog_summarize_title">개인 대화 요약 생성 지침</string>
     <string name="prompt_catalog_group_summarize_title">그룹 대화 요약 생성 지침</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Raw 요약: 이전 요약 형식</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Raw 요약: 채팅 기록 형식</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Raw 요약: 개별 메시지 형식</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Raw 요약: 이미지 요약 지침</string>
+    <string name="prompt_raw_summary_format_requires_macro">형식에는 %1$s을(를) 정확히 한 번 포함해야 합니다.</string>
     <string name="prompt_catalog_story_summarize_title">이야기 요약 갱신 지침</string>
     <string name="prompt_catalog_summary_injection_title">대화 요약 삽입 형식</string>
     <string name="prompt_catalog_story_memory_title">이야기 장기 기억 삽입 형식</string>

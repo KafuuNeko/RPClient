@@ -1418,6 +1418,11 @@ Thất bại: %2$d</string>
     <string name="prompt_catalog_empty_input_title">Văn bản thay thế đầu vào trống</string>
     <string name="prompt_catalog_summarize_title">Chỉ dẫn tạo tóm tắt trò chuyện riêng</string>
     <string name="prompt_catalog_group_summarize_title">Chỉ dẫn tạo tóm tắt trò chuyện nhóm</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Tóm tắt Raw: định dạng bản tóm tắt trước</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Tóm tắt Raw: định dạng lịch sử trò chuyện</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Tóm tắt Raw: định dạng từng tin nhắn</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Tóm tắt Raw: hướng dẫn tóm tắt hình ảnh</string>
+    <string name="prompt_raw_summary_format_requires_macro">Định dạng phải chứa %1$s đúng một lần.</string>
     <string name="prompt_catalog_story_summarize_title">Chỉ dẫn cập nhật tóm tắt truyện</string>
     <string name="prompt_catalog_summary_injection_title">Định dạng chèn tóm tắt trò chuyện</string>
     <string name="prompt_catalog_story_memory_title">Định dạng chèn ký ức dài hạn của truyện</string>

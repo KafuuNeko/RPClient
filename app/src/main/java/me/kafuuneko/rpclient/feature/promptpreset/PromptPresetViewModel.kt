@@ -24,6 +24,7 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.PromptType
 import me.kafuuneko.rpclient.libs.prompt.availableMacros
+import me.kafuuneko.rpclient.libs.prompt.splitRawSummaryFormat
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.koin.core.component.KoinComponent
@@ -145,6 +146,16 @@ class PromptPresetViewModel :
     private fun onSavePrompt() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptPresetDialogState.EditPrompt ?: return
+        val contentMacro = dialog.type.rawSummaryContentMacro
+        if (contentMacro != null && dialog.type.splitRawSummaryFormat(dialog.draftText) == null) {
+            AppViewEvent.PopupToastMessage(
+                mContext.getString(
+                    R.string.prompt_raw_summary_format_requires_macro,
+                    "{{$contentMacro}}"
+                )
+            ).tryEmit()
+            return
+        }
         perform {
             mRepository.savePrompt(mPresetId, state.revision, dialog.type, dialog.draftText)
             refresh()

@@ -169,13 +169,24 @@ class MultimodalPromptTest {
 
     @Test
     fun summaryPrefixCannotSkipOversizedFirstImageOrExceedImageCount() {
+        val templates = PromptTemplateSnapshot.defaults()
         val items = (1..4).toList()
         val selected = selectSummaryPrefix(items = items, promptBudget = 100_000) { prefix ->
-            val blocks =
-                prefix.flatMap { n -> (1..4).map { value -> LLMContentBlock.Image(image("$n-$value")) } }
+            val history = prefix.map { messageIndex ->
+                RawSummaryHistoryMessage(
+                    speakerName = "User",
+                    content = "",
+                    images = (1..4).map { imageIndex -> image("$messageIndex-$imageIndex") },
+                )
+            }
             countSummaryTokens(
                 tokenizer = tokenizer,
-                messages = buildRawSummaryMessages("summary", "", "", blocks),
+                messages = buildRawSummaryMessages(
+                    templates = templates,
+                    instruction = "summary",
+                    existingSummary = "",
+                    history = history,
+                ),
                 budget = 100_000,
             )
         }
@@ -184,10 +195,16 @@ class MultimodalPromptTest {
             countSummaryTokens(
                 tokenizer = tokenizer,
                 messages = buildRawSummaryMessages(
+                    templates = templates,
                     instruction = "summary",
                     existingSummary = "",
-                    history = "",
-                    historyBlocks = prefix.map { value -> LLMContentBlock.Image(image("$value")) },
+                    history = prefix.map { messageIndex ->
+                        RawSummaryHistoryMessage(
+                            speakerName = "User",
+                            content = "",
+                            images = listOf(image("$messageIndex")),
+                        )
+                    },
                 ),
                 budget = 100,
             )
@@ -292,11 +309,18 @@ class MultimodalPromptTest {
 
     @Test
     fun summaryOnlyCountsMissingAttachmentsInItsSelectedPrefix() {
+        val templates = PromptTemplateSnapshot.defaults()
+        val messages = buildRawSummaryMessages(
+            templates = templates,
+            instruction = "summarize",
+            existingSummary = "",
+            history = listOf(RawSummaryHistoryMessage(speakerName = "User", content = "ok")),
+        )
         val items = listOf(1, 2, 3)
         val selected = selectSummaryPrefix(items = items, promptBudget = 100) { prefix ->
             countSummaryTokens(
                 tokenizer = tokenizer,
-                messages = buildRawSummaryMessages("summarize", "", "ok"),
+                messages = messages,
                 budget = 100,
                 unavailableCount = if (2 in prefix) 1 else 0,
             )

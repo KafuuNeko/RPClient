@@ -1428,6 +1428,11 @@
     <string name="prompt_catalog_empty_input_title">Texto de sustitución de entrada vacía</string>
     <string name="prompt_catalog_summarize_title">Instrucciones de resumen de chat individual</string>
     <string name="prompt_catalog_group_summarize_title">Instrucciones de resumen de chat grupal</string>
+    <string name="prompt_catalog_raw_summary_previous_format_title">Resumen Raw: formato del resumen anterior</string>
+    <string name="prompt_catalog_raw_summary_history_format_title">Resumen Raw: formato del historial del chat</string>
+    <string name="prompt_catalog_raw_summary_message_format_title">Resumen Raw: formato de cada mensaje</string>
+    <string name="prompt_catalog_raw_summary_image_prompt_title">Resumen Raw: instrucciones para imágenes</string>
+    <string name="prompt_raw_summary_format_requires_macro">El formato debe contener %1$s exactamente una vez.</string>
     <string name="prompt_catalog_story_summarize_title">Instrucciones de actualización del resumen de la historia</string>
     <string name="prompt_catalog_summary_injection_title">Formato de inserción del resumen del chat</string>
     <string name="prompt_catalog_story_memory_title">Formato de inserción de memoria de la historia</string>
