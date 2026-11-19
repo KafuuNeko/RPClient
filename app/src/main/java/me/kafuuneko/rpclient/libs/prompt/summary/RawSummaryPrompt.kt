@@ -13,9 +13,17 @@ import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 private val rawSummaryMacroPattern = Regex("""\{\{([^{}]*)\}\}""")
 
+/** 为预设编辑器和请求构建提供同一条 Raw 素材占位符规则。 */
+internal fun PromptType.requiredRawSummaryMacro(): String? = when (this) {
+    PromptType.RawSummaryPreviousFormat -> "summary"
+    PromptType.RawSummaryHistoryFormat -> "history"
+    PromptType.RawSummaryMessageFormat -> "message"
+    else -> null
+}
+
 /** 读取唯一的素材占位符前后文本，避免模板漏掉或重复发送历史。 */
 internal fun PromptType.splitRawSummaryFormat(template: String): Pair<String, String>? {
-    val macro = rawSummaryContentMacro ?: return null
+    val macro = requiredRawSummaryMacro() ?: return null
     val match = rawSummaryMacroPattern.findAll(template).singleOrNull { reference ->
         reference.groupValues[1].trim().equals(macro, ignoreCase = true)
     } ?: return null

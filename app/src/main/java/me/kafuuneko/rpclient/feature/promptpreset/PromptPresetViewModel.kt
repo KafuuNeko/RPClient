@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetSection
+import me.kafuuneko.rpclient.feature.promptpreset.model.availableMacros
 import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetFields
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetBrowserState
 import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetDialogState
@@ -23,7 +24,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
-import me.kafuuneko.rpclient.libs.prompt.preset.availableMacros
+import me.kafuuneko.rpclient.libs.prompt.summary.requiredRawSummaryMacro
 import me.kafuuneko.rpclient.libs.prompt.summary.splitRawSummaryFormat
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
@@ -146,7 +147,8 @@ class PromptPresetViewModel :
     private fun onSavePrompt() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptPresetDialogState.EditPrompt ?: return
-        val contentMacro = dialog.type.rawSummaryContentMacro
+        // 提前提示无效的素材占位符，避免生成摘要时回退默认格式。
+        val contentMacro = dialog.type.requiredRawSummaryMacro()
         if (contentMacro != null && dialog.type.splitRawSummaryFormat(dialog.draftText) == null) {
             AppViewEvent.PopupToastMessage(
                 mContext.getString(

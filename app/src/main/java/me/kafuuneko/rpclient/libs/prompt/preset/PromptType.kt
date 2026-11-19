@@ -201,11 +201,7 @@ Do not repeat or summarize existing text. Advance the current scene naturally an
  *
  * key 是稳定存储标识，不能随枚举名称或显示文案变化。
  */
-enum class PromptType(
-    val key: String,
-    val defaultValue: String,
-    internal val rawSummaryContentMacro: String? = null,
-) {
+enum class PromptType(val key: String, val defaultValue: String) {
     Main(key = "main", defaultValue = DEFAULT_MAIN),
     Auxiliary(key = "auxiliary", defaultValue = DEFAULT_AUXILIARY),
     PostHistory(key = "post_history", defaultValue = DEFAULT_POST_HISTORY),
@@ -213,17 +209,14 @@ enum class PromptType(
     RawSummaryPreviousFormat(
         key = "raw_summary_previous_format",
         defaultValue = DEFAULT_RAW_SUMMARY_PREVIOUS_FORMAT,
-        rawSummaryContentMacro = "summary",
     ),
     RawSummaryHistoryFormat(
         key = "raw_summary_history_format",
         defaultValue = DEFAULT_RAW_SUMMARY_HISTORY_FORMAT,
-        rawSummaryContentMacro = "history",
     ),
     RawSummaryMessageFormat(
         key = "raw_summary_message_format",
         defaultValue = DEFAULT_RAW_SUMMARY_MESSAGE_FORMAT,
-        rawSummaryContentMacro = "message",
     ),
     RawSummaryImagePrompt(
         key = "raw_summary_image_prompt",
@@ -258,56 +251,4 @@ enum class PromptType(
         defaultValue = DEFAULT_STORY_CONTINUATION_GUIDANCE
     ),
     StoryContinue(key = "story_continue", defaultValue = DEFAULT_STORY_CONTINUE)
-}
-
-/** 获取指定提示词类型支持注入的宏变量标签列表（如 `{{char}}`, `{{user}}` 等）。 */
-internal fun availableMacros(type: PromptType): List<String> {
-    type.rawSummaryContentMacro?.let { macro ->
-        val content = "{{$macro}}"
-        return if (type == PromptType.RawSummaryMessageFormat) listOf("{{speaker}}", content)
-        else listOf(content)
-    }
-    // 每种模板保留原有宏集合和展示顺序，避免引入不支持的占位符。
-    return when (type) {
-        PromptType.Main,
-        PromptType.Auxiliary,
-        PromptType.PostHistory,
-        PromptType.Impersonation,
-        PromptType.ContinueNudge -> listOf("{{char}}", "{{user}}")
-
-        PromptType.UserWriting -> listOf("{{draft}}", "{{char}}", "{{user}}")
-
-        PromptType.GroupNudge -> listOf("{{char}}", "{{user}}", "{{group}}")
-        PromptType.GroupImpersonation -> listOf(
-            "{{user}}",
-            "{{group}}",
-            "{{groupNotMuted}}"
-        )
-
-        PromptType.GroupUserWriting -> listOf(
-            "{{draft}}",
-            "{{user}}",
-            "{{group}}",
-            "{{groupNotMuted}}"
-        )
-
-        PromptType.NewGroupChat -> listOf("{{group}}", "{{char}}", "{{user}}")
-        PromptType.Summarize,
-        PromptType.GroupSummarize,
-        PromptType.StorySummarize -> listOf("{{words}}", "{{char}}", "{{user}}")
-
-        PromptType.RawSummaryImagePrompt -> emptyList()
-
-        PromptType.SummaryInjection,
-        PromptType.StorySummary -> listOf("{{summary}}")
-
-        PromptType.StoryMemory -> listOf("{{memory}}")
-        PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
-        PromptType.WorldInfoFormat -> listOf("{0}")
-        PromptType.DescriptionFormat -> listOf("{{description}}", "{{char}}")
-        PromptType.ScenarioFormat -> listOf("{{scenario}}", "{{char}}")
-        PromptType.PersonalityFormat -> listOf("{{personality}}", "{{char}}")
-        PromptType.UserPersonaFormat -> listOf("{{persona}}", "{{user}}")
-        else -> listOf("{{char}}", "{{user}}")
-    }
 }
