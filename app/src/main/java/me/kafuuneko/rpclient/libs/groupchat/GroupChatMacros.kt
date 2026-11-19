@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.libs.groupchat
 import me.kafuuneko.rpclient.libs.macro.MacroReference
 import me.kafuuneko.rpclient.libs.macro.MacroScope
 import me.kafuuneko.rpclient.libs.macro.MacroValue
-import me.kafuuneko.rpclient.libs.prompt.promptMacroExpander
+import me.kafuuneko.rpclient.libs.prompt.macro.promptMacroExpander
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession

@@ -48,6 +48,17 @@ ui/widgets/      # 通用组件
 ui/message/      # Markdown 与消息内容渲染
 ```
 
+`libs/prompt/` 顶层保留 `ChatPromptBuilder` 和单聊、群聊共用的素材处理代码。按领域查找时使用以下子包。
+
+| 子包 | 职责 |
+|------|------|
+| `macro/` | Prompt 宏语法和会话作用域，通用展开器位于 `libs/macro/` |
+| `preset/` | 模板类型、默认值、预设快照和只读偏好 |
+| `request/` | Token 统计、预算、消息后处理和请求组装 |
+| `summary/` | 摘要请求构建、历史选择和 Raw 素材格式 |
+| `worldbook/` | 世界书匹配、激活、条目内容变换和预算选择 |
+| `model/` | 构建器共用的数据结构与检查结果 |
+
 ---
 
 ## 3. 分层职责

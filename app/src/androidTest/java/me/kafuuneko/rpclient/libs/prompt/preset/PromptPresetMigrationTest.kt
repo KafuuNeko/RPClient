@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.preset
 
 import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper

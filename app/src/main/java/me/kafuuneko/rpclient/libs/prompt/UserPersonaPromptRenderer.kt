@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.macro.MacroScope
 import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.macro.promptMacroExpander
 
 /**
  * 使用统一模板包装用户人设，并按当前会话作用域展开名称宏。

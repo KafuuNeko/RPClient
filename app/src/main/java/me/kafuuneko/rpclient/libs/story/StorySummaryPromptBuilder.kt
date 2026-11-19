@@ -4,13 +4,13 @@ import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
-import me.kafuuneko.rpclient.libs.prompt.DEFAULT_STRICT_PROMPT_PLACEHOLDER
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.request.DEFAULT_STRICT_PROMPT_PLACEHOLDER
+import me.kafuuneko.rpclient.libs.prompt.request.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 
 /** 使用与故事续写相同的正文裁剪规则，构建单次剧情摘要请求。 */

@@ -1,12 +1,12 @@
 package me.kafuuneko.rpclient.libs.story
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
-import me.kafuuneko.rpclient.libs.prompt.WorldBookActivator
-import me.kafuuneko.rpclient.libs.prompt.WorldBookGenerationType
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanContext
-import me.kafuuneko.rpclient.libs.prompt.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizer
+import me.kafuuneko.rpclient.libs.prompt.worldbook.WorldBookActivator
+import me.kafuuneko.rpclient.libs.prompt.worldbook.WorldBookGenerationType
+import me.kafuuneko.rpclient.libs.prompt.worldbook.WorldBookScanContext
+import me.kafuuneko.rpclient.libs.prompt.worldbook.WorldBookScanMessage
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

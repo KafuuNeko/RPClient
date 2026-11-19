@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.summary
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
@@ -7,6 +7,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.macro.MacroScope
 import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.macro.promptMacroExpander
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 private val rawSummaryMacroPattern = Regex("""\{\{([^{}]*)\}\}""")
 

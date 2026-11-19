@@ -19,7 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character

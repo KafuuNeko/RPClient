@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.request
 
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure

@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
+import me.kafuuneko.rpclient.libs.prompt.summary.RawSummaryHistoryMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 
 /** 为历史文本宏与 Raw 摘要提供带发言者的素材。 */

@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.characterlist.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 

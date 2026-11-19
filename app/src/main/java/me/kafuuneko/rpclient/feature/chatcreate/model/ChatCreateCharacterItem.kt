@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.chatcreate.model
 
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 
 /** 新建单聊页角色选择器所需的最小快照。 */

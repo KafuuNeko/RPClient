@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.promptpreset.presentation
 
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetCategory
 import me.kafuuneko.rpclient.feature.promptpreset.model.PromptPresetScope
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 /** Prompt 预设页的用户意图。 */
 sealed class PromptPresetUiIntent {

@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.worldbook
 
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 

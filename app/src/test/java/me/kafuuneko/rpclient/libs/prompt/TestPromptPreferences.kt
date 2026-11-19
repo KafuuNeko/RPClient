@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.libs.prompt
 
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryInjectionPosition
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptPreferences
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 /** JVM 测试显式提供的配置；引用编译期常量，不初始化 Android 偏好存储。 */
 internal class TestPromptPreferences(

@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.model
 
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 

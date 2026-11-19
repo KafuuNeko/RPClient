@@ -76,10 +76,6 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
-import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
-import me.kafuuneko.rpclient.libs.prompt.classicSummaryInstruction
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
@@ -87,9 +83,13 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptGenerationMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.prompt.nextSummaryCandidateWindowSize
-import me.kafuuneko.rpclient.libs.prompt.summaryCandidateMessageLimit
-import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.summary.INITIAL_SUMMARY_CANDIDATE_WINDOW_SIZE
+import me.kafuuneko.rpclient.libs.prompt.summary.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.summary.classicSummaryInstruction
+import me.kafuuneko.rpclient.libs.prompt.summary.nextSummaryCandidateWindowSize
+import me.kafuuneko.rpclient.libs.prompt.summary.summaryCandidateMessageLimit
+import me.kafuuneko.rpclient.libs.prompt.summary.summarySafeContent
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository

@@ -6,7 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.File
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.upgrade.LegacyPromptSnapshot
 import me.kafuuneko.rpclient.libs.upgrade.PromptPresetMigration
 import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade

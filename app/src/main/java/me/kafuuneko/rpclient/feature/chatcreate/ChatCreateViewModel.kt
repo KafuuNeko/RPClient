@@ -24,12 +24,12 @@ import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
-import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
+import me.kafuuneko.rpclient.libs.prompt.macro.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository

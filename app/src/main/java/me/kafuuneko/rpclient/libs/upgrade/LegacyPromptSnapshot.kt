@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.upgrade
 
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 /** 旧偏好的一次性快照，只保留实际保存且不同于枚举默认值的项。 */
 data class LegacyPromptSnapshot(val hasSavedValues: Boolean, val values: Map<String, String>) {

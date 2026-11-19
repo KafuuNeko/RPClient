@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.upgrade
 
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

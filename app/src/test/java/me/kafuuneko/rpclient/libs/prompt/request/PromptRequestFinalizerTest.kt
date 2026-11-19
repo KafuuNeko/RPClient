@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.request
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole

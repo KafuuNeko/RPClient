@@ -13,9 +13,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
 import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizer
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.room.Converters
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig

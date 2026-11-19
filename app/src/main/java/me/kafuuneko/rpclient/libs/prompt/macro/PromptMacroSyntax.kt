@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.macro
 
 import me.kafuuneko.rpclient.libs.macro.MacroExpander
 

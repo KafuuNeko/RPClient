@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import com.google.gson.JsonParser
-import me.kafuuneko.rpclient.libs.prompt.matchesPlainTextKey
+import me.kafuuneko.rpclient.libs.prompt.worldbook.matchesPlainTextKey
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatMemberData

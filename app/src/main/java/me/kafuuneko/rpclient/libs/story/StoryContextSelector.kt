@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.libs.story
 
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizer
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizer
 
 /** 一段可独立预算和追踪来源的连续正文上下文。 */
 data class StoryContextChunk(

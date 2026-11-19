@@ -4,8 +4,8 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.PromptPreset
 import me.kafuuneko.rpclient.libs.room.entity.PromptPresetEntry

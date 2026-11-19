@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.promptpreset.presentation
 
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 /** Prompt 预设页状态，编辑文本通过对话框子状态承载。 */
 sealed class PromptPresetUiState {

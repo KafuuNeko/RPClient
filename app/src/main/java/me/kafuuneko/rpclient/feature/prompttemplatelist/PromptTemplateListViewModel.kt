@@ -19,7 +19,7 @@ import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTempl
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.koin.core.component.KoinComponent

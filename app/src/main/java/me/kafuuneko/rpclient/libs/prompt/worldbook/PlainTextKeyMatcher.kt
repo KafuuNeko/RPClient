@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.worldbook
 
 /**
  * 按 SillyTavern 风格匹配非正则关键词，并为不使用空格分词的文字保留子串语义。

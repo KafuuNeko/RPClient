@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Context

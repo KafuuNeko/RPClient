@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.upgrade
 
 import androidx.sqlite.db.SupportSQLiteDatabase
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 
 /**
  * 启动升级与旧备份暂存共用的预设迁入事务。

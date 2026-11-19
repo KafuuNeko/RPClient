@@ -62,10 +62,10 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
-import me.kafuuneko.rpclient.libs.prompt.PromptMacroResolver
-import me.kafuuneko.rpclient.libs.prompt.PromptRequestFinalizer
-import me.kafuuneko.rpclient.libs.prompt.SummaryPromptBuilder
+import me.kafuuneko.rpclient.libs.prompt.macro.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.model.UnavailablePromptImage
+import me.kafuuneko.rpclient.libs.prompt.request.PromptRequestFinalizer
+import me.kafuuneko.rpclient.libs.prompt.summary.SummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character

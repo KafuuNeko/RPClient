@@ -1,9 +1,10 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.macro
 
 import me.kafuuneko.rpclient.libs.macro.MacroExpander
 import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
 import me.kafuuneko.rpclient.libs.macro.MacroScope
 import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.PromptBuildContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter

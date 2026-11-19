@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.llm.adapter.OpenAIResponsesLLMClient
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import okhttp3.OkHttpClient

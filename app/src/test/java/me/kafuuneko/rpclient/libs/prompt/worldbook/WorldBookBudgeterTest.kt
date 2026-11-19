@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.worldbook
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizer
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import org.junit.Assert.assertEquals

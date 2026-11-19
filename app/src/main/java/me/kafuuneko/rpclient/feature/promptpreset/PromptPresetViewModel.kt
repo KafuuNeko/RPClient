@@ -21,10 +21,10 @@ import me.kafuuneko.rpclient.feature.promptpreset.presentation.PromptPresetViewE
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
-import me.kafuuneko.rpclient.libs.prompt.PromptType
-import me.kafuuneko.rpclient.libs.prompt.availableMacros
-import me.kafuuneko.rpclient.libs.prompt.splitRawSummaryFormat
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.availableMacros
+import me.kafuuneko.rpclient.libs.prompt.summary.splitRawSummaryFormat
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.koin.core.component.KoinComponent

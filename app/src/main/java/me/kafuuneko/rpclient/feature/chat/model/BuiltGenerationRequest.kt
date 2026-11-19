@@ -1,8 +1,8 @@
 package me.kafuuneko.rpclient.feature.chat.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 

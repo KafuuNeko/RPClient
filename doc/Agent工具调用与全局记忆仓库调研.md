@@ -97,7 +97,7 @@ RPClient 使用工具注册、按生成类型开放能力和限制循环等机�
 | Responses 边界 | [响应编码器](../app/src/main/java/me/kafuuneko/rpclient/libs/llm/adapter/OpenAIResponsesResponseCodec.kt#L82) 遇到客户端工具 Item 明确报告等待结果 | 为已支持的函数调用接入执行器；其他未实现类型继续明确失败 |
 | 单聊生成 | [generateCommittedReply](../app/src/main/java/me/kafuuneko/rpclient/feature/chat/ChatViewModel.kt#L701) 构建请求后执行一次流式或非流式生成 | 将一次模型请求扩展为一次角色运行 |
 | 群聊调度 | [generateReplyBatch](../app/src/main/java/me/kafuuneko/rpclient/feature/groupchat/GroupChatViewModel.kt#L2068) 顺序执行选定成员 | 每位成员内部运行工具循环，完成后继续下一位 |
-| Prompt 最终化 | [PromptRequestFinalizer](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/PromptRequestFinalizer.kt#L49) 负责后处理、预算和同源检查报告 | 计入工具定义、返回结果和续接数据，保护调用与结果的完整关系 |
+| Prompt 最终化 | [PromptRequestFinalizer](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/request/PromptRequestFinalizer.kt#L49) 负责后处理、预算和同源检查报告 | 计入工具定义、返回结果和续接数据，保护调用与结果的完整关系 |
 | 用量统计 | [LLMTokenUsageTrackingClient](../app/src/main/java/me/kafuuneko/rpclient/libs/llm/LLMTokenUsageTrackingClient.kt#L33) 记录单次模型请求 | 增加运行聚合，估算覆盖工具相关输入及输出，避免重复计数 |
 | 内容检索 | [ContentSearchRepository](../app/src/main/java/me/kafuuneko/rpclient/libs/room/repository/ContentSearchRepository.kt#L82) 提供统一搜索、分页与结果复核 | 封装面向工具的限定范围和短结果格式 |
 | 正则兼容 | [JavaScriptRegexCompiler](../app/src/main/java/me/kafuuneko/rpclient/libs/regex/JavaScriptRegexCompiler.kt#L3) 转换 JS 风格表达式并使用 Kotlin Regex | 继续只处理对应文本，不承担通用插件执行 |
@@ -238,7 +238,7 @@ Koin 注册不自动启动执行。Application 启动只恢复元数据和标记
 | 上下文压缩 | 单聊、群聊直接使用相应预设已有的 `summarize`、`group_summarize`；Agent 特有的压缩侧重点放在可选字段 `agent_compaction_guidance` | 只有实际发起 Agent 压缩时追加。原手动／普通摘要只读取原字段 |
 | 工作流和图像请求 | 在流程编辑器编辑 Model 节点指令、Agent 节点任务补充、AskUser 提问及选项；在工具设置编辑图像／搜索请求模板、参数绑定与结果映射 | 节点文字属于 WorkflowNode，接口映射属于 ToolDefinition。引用本步获准访问的变量，带入已冻结的运行快照 |
 
-引入新键时同步更新 `PromptType`、`availableMacros`、编辑目录和实际调用方。默认指令只在对应模板默认值定义一次，业务代码按键取值。只在 `prompt_preset_entries(presetId,promptKey,content)` 保存用户覆盖，恢复默认删除覆盖行。旧预设缺项自动得到新键默认值，显式空串表示省略该段。记忆外层或条目模板清空时省略对应内容；非空格式模板保存、导入时提示并定位缺失的正文槽。可选行为指令清空后，Runtime 仍依据模型原生工具调用、预算和授权执行。复用 MacroExpander 与各字段实际需要的 MacroScope，名字、人设和群成员取本轮快照。事实、证据和工具结果按字面数据处理，插入的 `{{char}}` 不再作为模板执行。[模板及稳定键](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/PromptType.kt) · [快照的缺项与空串语义](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/PromptTemplateSnapshot.kt) · [宏值类型](../app/src/main/java/me/kafuuneko/rpclient/libs/macro/MacroScope.kt)
+引入新键时同步更新 `PromptType`、`availableMacros`、编辑目录和实际调用方。默认指令只在对应模板默认值定义一次，业务代码按键取值。只在 `prompt_preset_entries(presetId,promptKey,content)` 保存用户覆盖，恢复默认删除覆盖行。旧预设缺项自动得到新键默认值，显式空串表示省略该段。记忆外层或条目模板清空时省略对应内容；非空格式模板保存、导入时提示并定位缺失的正文槽。可选行为指令清空后，Runtime 仍依据模型原生工具调用、预算和授权执行。复用 MacroExpander 与各字段实际需要的 MacroScope，名字、人设和群成员取本轮快照。事实、证据和工具结果按字面数据处理，插入的 `{{char}}` 不再作为模板执行。[模板及稳定键](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/preset/PromptType.kt) · [快照的缺项与空串语义](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/preset/PromptTemplateSnapshot.kt) · [宏值类型](../app/src/main/java/me/kafuuneko/rpclient/libs/macro/MacroScope.kt)
 
 会话的 `agentPromptPresetId` 为可空正 ID，外键指向 prompt_presets，删除预设时 SET NULL。NULL 表示跟随现有全局活动预设，系统默认虚拟 ID 保持在预设层。此选择只覆盖 Agent／其维护和压缩使用的**新增字段与相应摘要任务字段**；角色基础提示仍按原角色卡、群聊覆盖及全局生成配置解析。普通角色记忆格式和用户显式提取使用原全局活动预设。分支复制会话选择，整库备份保留引用。新会话默认跟随全局。
 
@@ -725,7 +725,7 @@ ORDER BY c.id DESC;
 </character_memories>
 ```
 
-正文中的标签字符按文本转义，宏或工具调用样式按字面保留。参考块在宏、Regex、世界书扫描完成后进入草稿。角色隔离由 Repository 和实际请求构建保证，标签只帮助模型理解资料边界。选择这个位置兼顾角色定义等固定前缀的稳定性和当前用户发言的位置，是项目设计取舍，具体上限用真实 tokenizer 的边界用例验收。[单聊 Builder](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/ChatPromptBuilder.kt) · [群聊 Builder](../app/src/main/java/me/kafuuneko/rpclient/libs/groupchat/GroupChatPromptBuilder.kt) · [Finalizer](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/PromptRequestFinalizer.kt) · [Claude 提示结构](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) · [OpenAI 前缀缓存原理](https://developers.openai.com/api/docs/guides/prompt-caching)
+正文中的标签字符按文本转义，宏或工具调用样式按字面保留。参考块在宏、Regex、世界书扫描完成后进入草稿。角色隔离由 Repository 和实际请求构建保证，标签只帮助模型理解资料边界。选择这个位置兼顾角色定义等固定前缀的稳定性和当前用户发言的位置，是项目设计取舍，具体上限用真实 tokenizer 的边界用例验收。[单聊 Builder](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/ChatPromptBuilder.kt) · [群聊 Builder](../app/src/main/java/me/kafuuneko/rpclient/libs/groupchat/GroupChatPromptBuilder.kt) · [Finalizer](../app/src/main/java/me/kafuuneko/rpclient/libs/prompt/request/PromptRequestFinalizer.kt) · [Claude 提示结构](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) · [OpenAI 前缀缓存原理](https://developers.openai.com/api/docs/guides/prompt-caching)
 
 ### 记忆工作包的独立验收
 

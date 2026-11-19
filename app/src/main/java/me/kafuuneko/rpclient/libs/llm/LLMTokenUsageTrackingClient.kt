@@ -8,8 +8,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
-import me.kafuuneko.rpclient.libs.prompt.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageSource
 import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository

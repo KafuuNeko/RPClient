@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
 import kotlin.random.Random
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 
 /** 创建群聊时可供开场白规划器使用的角色及候选文本。 */
 data class GroupChatGreetingCandidate(

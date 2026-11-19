@@ -77,9 +77,9 @@ import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
-import me.kafuuneko.rpclient.libs.prompt.resolveCharacterUserMacros
-import me.kafuuneko.rpclient.libs.prompt.summarySafeContent
+import me.kafuuneko.rpclient.libs.prompt.summary.summarySafeContent
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Story
 import me.kafuuneko.rpclient.libs.room.entity.StoryChapter

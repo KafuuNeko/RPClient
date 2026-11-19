@@ -5,7 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.prompt.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.upgrade.UserPersonaUpgrade

@@ -1,4 +1,4 @@
-package me.kafuuneko.rpclient.libs.prompt
+package me.kafuuneko.rpclient.libs.prompt.worldbook
 
 import com.google.gson.Gson
 import com.google.gson.JsonParser

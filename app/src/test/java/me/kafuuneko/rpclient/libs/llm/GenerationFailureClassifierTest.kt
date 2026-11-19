@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm
 
 import kotlinx.coroutines.CancellationException
-import me.kafuuneko.rpclient.libs.prompt.PromptBudgetExceededException
+import me.kafuuneko.rpclient.libs.prompt.request.PromptBudgetExceededException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

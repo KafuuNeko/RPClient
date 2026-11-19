@@ -2,7 +2,7 @@ package me.kafuuneko.rpclient.feature.promptpreset.model
 
 import androidx.annotation.StringRes
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.prompt.PromptType
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 
 /** 预设字段按用途组织，分类顺序不参与实际 Prompt 拼接。 */
 enum class PromptPresetCategory(@param:StringRes val titleRes: Int) {
