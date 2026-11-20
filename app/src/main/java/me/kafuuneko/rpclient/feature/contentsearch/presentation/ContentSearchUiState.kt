@@ -15,7 +15,9 @@ sealed class ContentSearchUiState {
         val inputState: ContentSearchInputState = ContentSearchInputState(),
         val scopeState: ContentSearchScopeState = ContentSearchScopeState(),
         val indexState: SearchIndexState = SearchIndexState.Preparing,
-        val resultState: ContentSearchResultState = ContentSearchResultState.Idle
+        val resultState: ContentSearchResultState = ContentSearchResultState.Idle,
+        val resultParentId: Long? = null,
+        val resultEpoch: Long = 0L,
     ) : ContentSearchUiState()
 
     data class Finished(val previous: ContentSearchUiState) : ContentSearchUiState()
@@ -34,7 +36,13 @@ data class ContentSearchScopeState(
 sealed class ContentSearchResultState {
     data object Idle : ContentSearchResultState()
 
-    data class Searching(val items: List<SearchHit> = emptyList()) : ContentSearchResultState()
+    /**
+     * 查询执行中；[isAppending] 区分底部翻页加载与重新检索，避免分页时误闪顶部占位态。
+     */
+    data class Searching(
+        val items: List<SearchHit> = emptyList(),
+        val isAppending: Boolean = false,
+    ) : ContentSearchResultState()
 
     data class Partial(
         val items: List<SearchHit>,
