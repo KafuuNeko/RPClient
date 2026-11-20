@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.model
 
-import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
@@ -23,8 +22,6 @@ data class GroupChatCreateCharacterItem(
     val greetingPreviews: List<String> = greetings,
     /** 与其它创建页保持一致的标签检索字段。 */
     val tags: List<String> = emptyList(),
-    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
-    val avatarImage: ImageBitmap? = null,
 )
 
 /**

@@ -1,10 +1,12 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.presentation
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
+import me.kafuuneko.rpclient.ui.model.WorldBookSelectionSummaryItem
 
 /** 新建群聊页面状态树。 */
 sealed class GroupChatCreateUiState {
@@ -19,10 +21,16 @@ sealed class GroupChatCreateUiState {
         val title: String = "",
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<GroupChatCreateCharacterItem> = emptyList(),
+        /** 主表单展示的已选群成员。 */
+        val selectedCharacters: List<GroupChatCreateCharacterItem> = emptyList(),
+        /** 仅包含可见或常驻角色的已解码头像。 */
+        val characterAvatars: Map<Long, ImageBitmap> = emptyMap(),
         /** 按世界书分组后的条目列表。 */
         val lorebookGroups: List<GroupChatLorebookGroupItem> = emptyList(),
         /** 当前已选中的世界书条目 ID 集合。 */
         val selectedLorebookEntryIds: Set<Long> = emptySet(),
+        /** 主表单展示的已启用世界书摘要。 */
+        val selectedWorldBookSummaries: List<WorldBookSelectionSummaryItem> = emptyList(),
         /** 当前场景采用的世界书激活策略。 */
         val activationStrategy: GroupChatActivationStrategy =
             GroupChatActivationStrategy.Natural,
@@ -39,7 +47,7 @@ sealed class GroupChatCreateUiState {
     ) : GroupChatCreateUiState() {
         /** 当前已选择加入群聊的角色数量。 */
         val selectedCount: Int
-            get() = characters.count { it.selected }
+            get() = selectedCharacters.size
 
         /** 当前成员数量和开场白配置是否允许提交。 */
         val canCreate: Boolean
@@ -49,6 +57,7 @@ sealed class GroupChatCreateUiState {
     data class Finished(val previous: GroupChatCreateUiState) : GroupChatCreateUiState()
 
     companion object {
+        /** 保留最后一个可渲染状态，供页面退出过渡使用。 */
         fun finished(previous: GroupChatCreateUiState): GroupChatCreateUiState {
             if (previous is Finished) return previous
             return Finished(previous)

@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.groupchat.model
 
-import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.utils.filterLorebookGroups
 
@@ -16,8 +15,6 @@ data class GroupChatAvailableCharacterItem(
     val description: String = "",
     /** 角色标签列表，供检索与识别使用。 */
     val tags: List<String> = emptyList(),
-    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
-    val avatarImage: ImageBitmap? = null,
 )
 
 /**

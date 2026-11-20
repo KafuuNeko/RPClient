@@ -84,6 +84,7 @@ import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
 import me.kafuuneko.rpclient.libs.media.CharacterAvatarLoader
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
@@ -690,19 +691,15 @@ class GroupChatViewModel :
         val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
         if (candidates.isEmpty()) return
         mAddMembersSearchJob?.cancel()
-        // 注册全部候选角色头像索引，并优先复用已缓存缩略图
-        mAddMembersAvatarLoader.registerCharacters(mAvailableCharacterAvatarUuids)
-        val hydratedCandidates = candidates.map { character ->
-            character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
-        }
         uiState.copy(
             dialogState = GroupChatDialogState.AddMembers(
                 query = "",
                 showSelectedOnly = false,
-                visibleCharacters = hydratedCandidates,
+                visibleCharacters = candidates,
                 selectedCharacterIds = emptySet(),
             ),
         ).setup()
+        mAddMembersAvatarLoader.registerCharacters(mAvailableCharacterAvatarUuids)
     }
 
     /** 根据添加成员弹窗当前可见窗口按需加载候选角色头像缩略图。 */
@@ -726,7 +723,7 @@ class GroupChatViewModel :
         mAddMembersSearchJob?.cancel()
         uiState.copy(dialogState = dialogState.copy(query = intent.value)).setup()
         val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
-        // 后台计算匹配角色 ID，回写时结合最新勾选状态与已缓存头像恢复展示列表
+        // 后台计算匹配角色 ID，回写时使用最新的候选池和勾选状态。
         mAddMembersSearchJob = viewModelScope.launch {
             val matchedIds = withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
@@ -752,9 +749,6 @@ class GroupChatViewModel :
                             .filter { character ->
                                 character.id in matchedIds &&
                                     (!currentDialog.showSelectedOnly || character.id in currentDialog.selectedCharacterIds)
-                            }
-                            .map { character ->
-                                character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
                             },
                     ),
                 ).setup()
@@ -781,9 +775,6 @@ class GroupChatViewModel :
                         tags = character.tags,
                         query = dialogState.query,
                     )
-            }
-            .map { character ->
-                character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
             }
         uiState.copy(
             dialogState = dialogState.copy(
@@ -815,9 +806,6 @@ class GroupChatViewModel :
                                     tags = character.tags,
                                     query = dialogState.query,
                                 )
-                        }
-                        .map { character ->
-                            character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
                         }
                 } else {
                     dialogState.visibleCharacters
@@ -991,19 +979,11 @@ class GroupChatViewModel :
         )
     }
 
-    /** 将最新解码完成的候选角色头像同步回添加成员弹窗状态。 */
-    private fun publishLoadedAddMemberAvatars() {
+    /** 更新添加成员弹窗的视口头像快照。 */
+    private fun publishLoadedAddMemberAvatars(avatars: Map<Long, ImageBitmap>) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val dialog = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
-        val updatedVisible = dialog.visibleCharacters.map { character ->
-            val image = mAddMembersAvatarLoader.avatarOf(character.id)
-            if (character.avatarImage === image) character else character.copy(avatarImage = image)
-        }
-        if (updatedVisible != dialog.visibleCharacters) {
-            uiState.copy(
-                dialogState = dialog.copy(visibleCharacters = updatedVisible),
-            ).setup()
-        }
+        uiState.copy(dialogState = dialog.copy(characterAvatars = avatars)).setup()
     }
 
     /** 跳转至全局世界书管理界面，并关闭当前快捷管理对话框。 */
@@ -3328,15 +3308,21 @@ class GroupChatViewModel :
             character.id to character.avatar
         }
         val availableCharacters = allCharacters.map { character ->
+            // 候选简介仅用于展示与检索，宏展开失败时保留原文，避免影响无关群聊的加载。
+            val description = try {
+                resolveCharacterUserMacros(
+                    template = character.description,
+                    characterName = character.name,
+                    userName = data.persona.name,
+                )
+            } catch (_: MacroExpansionException) {
+                character.description
+            }
             GroupChatAvailableCharacterItem(
                 id = character.id,
                 name = character.name,
                 alreadyMember = character.id in memberIds,
-                description = resolveCharacterUserMacros(
-                    template = character.description,
-                    characterName = character.name,
-                    userName = data.persona.name,
-                ),
+                description = description,
                 tags = character.getCharacterTagList(),
             )
         }

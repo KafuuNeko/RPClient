@@ -19,13 +19,13 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
  * - 自动取消淘汰：列表滚动离开视口或弹窗关闭时取消不再需要的后台解码任务，防止内存与 IO 浪费。
  *
  * @param mFileRepository 提供租约保护的下采样解码能力
- * @param mScope 绑定 ViewModel 生命周期的协程作用域
- * @param mOnAvatarsUpdated 头像解码完成或命中缓存后通知调用方刷新 UI 状态
+ * @param mScope 绑定 ViewModel 生命周期的主线程协程作用域
+ * @param mOnAvatarsUpdated 发布已加载的可见及常驻头像快照，包含离开视口时的移除
  */
 class CharacterAvatarLoader(
     private val mFileRepository: FileRepository,
     private val mScope: CoroutineScope,
-    private val mOnAvatarsUpdated: () -> Unit,
+    private val mOnAvatarsUpdated: (Map<Long, ImageBitmap>) -> Unit,
 ) {
     private val mCache = AvatarBitmapCache(MAX_AVATAR_CACHE_BYTES)
     private var mAvatarUuids: Map<Long, String> = emptyMap()
@@ -37,6 +37,7 @@ class CharacterAvatarLoader(
     private val mJobs = mutableMapOf<Long, Job>()
     private val mJobKeys = mutableMapOf<Long, AvatarCacheKey>()
     private val mJobTokens = mutableMapOf<Long, Any>()
+    private var mPublishedAvatars: Map<Long, ImageBitmap> = emptyMap()
 
     /**
      * 注册或刷新角色与头像文件 UUID 的映射，并清理已删除或已更换头像的旧状态。
@@ -97,41 +98,19 @@ class CharacterAvatarLoader(
         reconcileLoads()
     }
 
-    /**
-     * 读取指定角色当前已就绪的头像位图；若未在活跃表中但命中 LRU 缓存则即时恢复。
-     *
-     * @param characterId 目标角色 ID
-     * @return 已解码的 [ImageBitmap]，无头像或尚未加载完成时返回 null
-     */
-    fun avatarOf(characterId: Long): ImageBitmap? {
-        mLoaded[characterId]?.let { return it.image }
-        val uuid = mAvatarUuids[characterId]?.takeIf { it.isNotBlank() } ?: return null
-        // 优先尝试按弹窗视口尺寸命中 LRU 缓存，未命中再回退到常驻摘要尺寸
-        val visibleKey = AvatarCacheKey(uuid, mVisibleSizePx, mVisibleSizePx)
-        mCache.get(visibleKey)?.let { bitmap ->
-            return bitmap.asImageBitmap().also { image ->
-                mLoaded[characterId] = LoadedAvatar(visibleKey, image)
-            }
-        }
-        val pinnedKey = AvatarCacheKey(uuid, mPinnedSizePx, mPinnedSizePx)
-        mCache.get(pinnedKey)?.let { bitmap ->
-            return bitmap.asImageBitmap().also { image ->
-                mLoaded[characterId] = LoadedAvatar(pinnedKey, image)
-            }
-        }
-        return null
-    }
-
     /** 释放所有进行中的协程任务与内存缓存，应在 ViewModel 销毁时调用。 */
     fun clear() {
-        mJobs.values.forEach(Job::cancel)
+        // 先使令牌失效，取消触发的收尾不能再修改正在清理的任务表。
+        val jobs = mJobs.values.toList()
+        mJobTokens.clear()
         mJobs.clear()
         mJobKeys.clear()
-        mJobTokens.clear()
+        jobs.forEach(Job::cancel)
         mLoaded.clear()
         mVisibleIds = emptySet()
         mPinnedIds = emptySet()
         mAvatarUuids = emptyMap()
+        mPublishedAvatars = emptyMap()
         mCache.clear()
     }
 
@@ -149,7 +128,6 @@ class CharacterAvatarLoader(
         // 移除不再活跃的引用，底层位图仍保留在 LRU 缓存中供快速复用
         mLoaded.keys.retainAll(desired.keys)
 
-        var updatedFromCache = false
         desired.forEach { (characterId, sizePx) ->
             val uuid = mAvatarUuids[characterId].orEmpty()
             if (uuid.isBlank()) {
@@ -163,7 +141,6 @@ class CharacterAvatarLoader(
             mCache.get(key)?.let { cached ->
                 cancelJob(characterId)
                 mLoaded[characterId] = LoadedAvatar(key, cached.asImageBitmap())
-                updatedFromCache = true
                 return@forEach
             }
             // 同尺寸任务已在执行时直接等待结果
@@ -172,9 +149,7 @@ class CharacterAvatarLoader(
             }
             launchDecodeJob(characterId = characterId, key = key)
         }
-        if (updatedFromCache) {
-            mOnAvatarsUpdated()
-        }
+        publishAvatars()
     }
 
     /** 在 IO 线程下采样解码单个角色头像，完成后校验时效性并写入缓存。 */
@@ -200,7 +175,7 @@ class CharacterAvatarLoader(
                 if (!isCurrent) return@launch
                 mCache.put(key, bitmap)
                 mLoaded[characterId] = LoadedAvatar(key, bitmap.asImageBitmap())
-                mOnAvatarsUpdated()
+                publishAvatars()
             } finally {
                 if (mJobTokens[characterId] === token) {
                     mJobTokens.remove(characterId)
@@ -209,6 +184,14 @@ class CharacterAvatarLoader(
                 }
             }
         }
+    }
+
+    /** 仅发布本次可见及常驻角色的位图，已离屏的位图只由有界缓存持有。 */
+    private fun publishAvatars() {
+        val avatars = mLoaded.mapValues { (_, loaded) -> loaded.image }
+        if (avatars == mPublishedAvatars) return
+        mPublishedAvatars = avatars
+        mOnAvatarsUpdated(avatars)
     }
 
     /** 取消并清理单个角色的解码任务状态。 */
@@ -234,20 +217,25 @@ class CharacterAvatarLoader(
         private val mEntries = LinkedHashMap<AvatarCacheKey, Bitmap>(16, 0.75f, true)
         private var mSizeBytes: Long = 0L
 
+        /** 读取带指定尺寸的位图并更新其最近访问顺序。 */
         fun get(key: AvatarCacheKey): Bitmap? = mEntries[key]
 
+        /** 缓存解码结果，并按字节预算淘汰最久未访问的位图。 */
         fun put(key: AvatarCacheKey, bitmap: Bitmap) {
+            val bitmapBytes = bitmap.byteCount.toLong()
+            if (bitmapBytes > mMaxBytes) return
             mEntries.put(key, bitmap)?.let { old -> mSizeBytes -= old.byteCount.toLong() }
-            mSizeBytes += bitmap.byteCount.toLong()
+            mSizeBytes += bitmapBytes
             val iterator = mEntries.entries.iterator()
-            // 超过字节预算且缓存多于一项时按访问顺序淘汰旧缩略图
-            while (mSizeBytes > mMaxBytes && mEntries.size > 1 && iterator.hasNext()) {
+            // 腾出空间时优先淘汰最久未访问的缩略图。
+            while (mSizeBytes > mMaxBytes && iterator.hasNext()) {
                 val eldest = iterator.next()
                 mSizeBytes -= eldest.value.byteCount.toLong()
                 iterator.remove()
             }
         }
 
+        /** 释放缓存持有的全部位图引用。 */
         fun clear() {
             mEntries.clear()
             mSizeBytes = 0L

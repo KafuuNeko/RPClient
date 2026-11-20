@@ -207,6 +207,7 @@ private fun SearchProgressOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    // 进度与列表独立测量，切换状态时保持结果位置。
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
@@ -339,37 +340,14 @@ private fun SearchInputCapsule(
                 tint = leadingIconTint,
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (query.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.content_search_placeholder),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    )
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focus)
-                        .onFocusChanged { focusState -> isFocused = focusState.isFocused },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
-                )
-            }
+            SearchQueryTextField(
+                query = query,
+                focus = focus,
+                onQueryChange = onQueryChange,
+                onFocusChange = { isFocused = it },
+                onSubmit = onSubmit,
+                modifier = Modifier.weight(1f),
+            )
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = { onQueryChange("") },
@@ -387,6 +365,48 @@ private fun SearchInputCapsule(
     }
 }
 
+/** 保留紧凑占位样式和键盘搜索动作。 */
+@Composable
+private fun SearchQueryTextField(
+    query: String,
+    focus: FocusRequester,
+    onQueryChange: (String) -> Unit,
+    onFocusChange: (Boolean) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier,
+) {
+    // 占位文案与真实输入重叠测量，开始输入时高度保持一致。
+    Box(
+        modifier = modifier.padding(vertical = 10.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (query.isEmpty()) {
+            Text(
+                text = stringResource(R.string.content_search_placeholder),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            )
+        }
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focus)
+                .onFocusChanged { focusState -> onFocusChange(focusState.isFocused) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+        )
+    }
+}
+
 /** 顶部栏右侧的搜索/停止胶囊按钮，保持稳定尺寸与平滑淡入淡出。 */
 @Composable
 private fun SearchActionPill(
@@ -395,78 +415,75 @@ private fun SearchActionPill(
     onSubmit: () -> Unit,
     onStop: () -> Unit,
 ) {
-    val topBarOpacity = LocalPageTopBarOpacity.current
-    // 搜索与停止共享固定最小宽度与平滑过渡，防止状态切换导致输入框水平抖动。
+    // 搜索与停止共用固定尺寸，切换时让已退场的按钮失去点击能力。
     AnimatedContent(
         targetState = busy,
         transitionSpec = {
-            (fadeIn(animationSpec = tween(140)) togetherWith fadeOut(animationSpec = tween(100)))
-                .using(SizeTransform(clip = false))
+            (
+                fadeIn(animationSpec = tween(durationMillis = 140)) togetherWith
+                    fadeOut(animationSpec = tween(durationMillis = 100))
+                ).using(SizeTransform(clip = false))
         },
         label = "searchActionPill",
     ) { searching ->
-        if (searching) {
-            AppSurface(
-                onClick = onStop,
-                modifier = Modifier
-                    .widthIn(min = 60.dp)
-                    .heightIn(min = 40.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
-                border = BorderStroke(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.35f),
-                ),
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.stop),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-            }
-        } else {
-            val containerColor = if (canSubmit) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-            }
-            // 透明壁纸模式下避免浅色底板上出现低对比白字，沿用 PageButton 前景策略。
-            val contentColor = when {
-                !canSubmit -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                topBarOpacity < 0.5f -> MaterialTheme.colorScheme.onSurface
-                else -> MaterialTheme.colorScheme.onPrimary
-            }
-            AppSurface(
-                onClick = onSubmit,
-                enabled = canSubmit,
-                modifier = Modifier
-                    .widthIn(min = 60.dp)
-                    .heightIn(min = 40.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = containerColor,
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(R.string.content_search_submit),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = contentColor,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-            }
+        SearchActionButton(
+            searching = searching,
+            canSubmit = canSubmit,
+            isCurrentAction = searching == busy,
+            onClick = if (searching) onStop else onSubmit,
+        )
+    }
+}
+
+/** 为搜索与停止动作提供同尺寸的按钮表面。 */
+@Composable
+private fun SearchActionButton(
+    searching: Boolean,
+    canSubmit: Boolean,
+    isCurrentAction: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val topBarOpacity = LocalPageTopBarOpacity.current
+    val containerColor = when {
+        searching -> colors.error.copy(alpha = 0.14f)
+        canSubmit -> colors.primary
+        else -> colors.surfaceVariant.copy(alpha = 0.55f)
+    }
+    // 壁纸透明度较高时使用表面前景色，保持搜索标签对比度。
+    val contentColor = when {
+        searching -> colors.error
+        !canSubmit -> colors.onSurfaceVariant.copy(alpha = 0.45f)
+        topBarOpacity < 0.5f -> colors.onSurface
+        else -> colors.onPrimary
+    }
+    val border = if (searching) {
+        BorderStroke(width = 0.5.dp, color = colors.error.copy(alpha = 0.35f))
+    } else {
+        null
+    }
+    AppSurface(
+        onClick = onClick,
+        enabled = isCurrentAction && (searching || canSubmit),
+        modifier = Modifier
+            .widthIn(min = 60.dp)
+            .heightIn(min = 40.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
+        border = border,
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(if (searching) R.string.stop else R.string.content_search_submit),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }
@@ -477,7 +494,6 @@ private fun ScopeControls(
     scope: ContentSearchScopeState,
     emit: ContentSearchUiIntent.() -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     val chipShape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier
@@ -487,64 +503,11 @@ private fun ScopeControls(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 检索范围下拉选择器（全部内容、标题与角色、正文）。
-        Box {
-            FilterChip(
-                selected = scope.scope != SearchScope.All,
-                onClick = { menuExpanded = true },
-                shape = chipShape,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Tune,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                },
-                label = { Text(stringResource(scopeLabel(scope.scope))) },
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                },
-            )
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                SearchScope.entries.forEach { range ->
-                    val selected = range == scope.scope
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(scopeLabel(range)),
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            )
-                        },
-                        trailingIcon = if (selected) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        } else null,
-                        onClick = {
-                            menuExpanded = false
-                            ContentSearchUiIntent.SelectScope(range).emit()
-                        },
-                    )
-                }
-            }
-        }
+        SearchScopePicker(
+            scope = scope.scope,
+            shape = chipShape,
+            onSelect = { range -> ContentSearchUiIntent.SelectScope(range).emit() },
+        )
         // 竖向分隔线将范围维度与内容类型维度清晰拆开。
         Box(
             modifier = Modifier
@@ -567,12 +530,81 @@ private fun ScopeControls(
     }
 }
 
+/** 通过下拉菜单选择标题与角色、正文或全部检索范围。 */
+@Composable
+private fun SearchScopePicker(
+    scope: SearchScope,
+    shape: RoundedCornerShape,
+    onSelect: (SearchScope) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    // 检索范围下拉选择器（全部内容、标题与角色、正文）。
+    Box {
+        FilterChip(
+            selected = scope != SearchScope.All,
+            onClick = { menuExpanded = true },
+            shape = shape,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
+            label = { Text(stringResource(scopeLabel(scope))) },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
+        )
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            SearchScope.entries.forEach { range ->
+                val selected = range == scope
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(scopeLabel(range)),
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    },
+                    trailingIcon = if (selected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    } else null,
+                    onClick = {
+                        menuExpanded = false
+                        onSelect(range)
+                    },
+                )
+            }
+        }
+    }
+}
+
 /** 限定在单个会话或故事内检索时的可折叠上下文区域，退场动画期间保留末次标题避免空白闪烁。 */
 @Composable
 private fun ActiveObjectScopeSection(
     scope: ContentSearchScopeState,
     emit: ContentSearchUiIntent.() -> Unit,
 ) {
+    // 退场时沿用上一对象的名称与类型，避免先清空再播放收起动画。
     var displayTitle by remember { mutableStateOf(scope.parentTitle) }
     var displayKindCode by remember { mutableIntStateOf(scope.kind.code) }
     if (scope.parentId != null) {
@@ -581,8 +613,16 @@ private fun ActiveObjectScopeSection(
     }
     AnimatedVisibility(
         visible = scope.parentId != null,
-        enter = fadeIn(tween(150)) + expandVertically(tween(180)),
-        exit = fadeOut(tween(120)) + shrinkVertically(tween(150)),
+        enter = fadeIn(animationSpec = tween(durationMillis = 150)) + expandVertically(
+            animationSpec = tween(
+                durationMillis = 180
+            )
+        ),
+        exit = fadeOut(animationSpec = tween(durationMillis = 120)) + shrinkVertically(
+            animationSpec = tween(
+                durationMillis = 150
+            )
+        ),
     ) {
         ActiveObjectScopeBanner(
             kindCode = displayKindCode,
@@ -681,6 +721,7 @@ private fun SearchResults(
             SearchResultCard(
                 hit = hit,
                 showWithin = state.resultParentId == null,
+                enabled = !state.isReplacingResults,
                 emit = emit,
             )
         }
@@ -688,6 +729,7 @@ private fun SearchResults(
             item(key = "more") {
                 SearchPaginationFooter(
                     isLoading = result is ContentSearchResultState.Searching,
+                    enabled = !state.isReplacingResults,
                     onLoadMore = { ContentSearchUiIntent.More.emit() },
                 )
             }

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
@@ -174,7 +175,9 @@ sealed class GroupChatDialogState {
         val query: String,
         val showSelectedOnly: Boolean,
         val visibleCharacters: List<GroupChatAvailableCharacterItem>,
-        val selectedCharacterIds: Set<Long>
+        val selectedCharacterIds: Set<Long>,
+        /** 当前视口内已解码的候选角色头像。 */
+        val characterAvatars: Map<Long, ImageBitmap> = emptyMap(),
     ) : GroupChatDialogState()
 
     /** 群聊设置页添加新世界书的可检索多选弹窗状态（仅展示当前未启用的世界书）。 */

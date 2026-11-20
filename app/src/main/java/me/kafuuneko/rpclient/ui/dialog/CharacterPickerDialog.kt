@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +28,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +42,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import kotlinx.coroutines.flow.distinctUntilChanged
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
@@ -60,14 +61,12 @@ import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
  * @param name 角色名称
  * @param description 角色简介摘要
  * @param tags 角色标签列表
- * @param avatarImage 已按需解码的角色头像位图，为空时显示首字母占位
  */
 data class CharacterPickerDialogItem(
     val id: Long,
     val name: String,
     val description: String,
     val tags: List<String> = emptyList(),
-    val avatarImage: ImageBitmap? = null,
 )
 
 /** 通用角色选择器弹窗的交互模式。 */
@@ -91,6 +90,7 @@ enum class CharacterPickerMode {
  * @param totalCount 当前候选角色总数
  * @param visibleCharacters 经当前搜索和筛选条件过滤后可见的角色列表
  * @param selectedIds 当前已选中的角色 ID 集合
+ * @param characterAvatars 当前视口或主表单常驻角色的已解码头像
  * @param query 当前搜索关键词
  * @param showSelectedOnly 是否仅展示已选中的角色（多选模式有效）
  * @param badgeIcon 标题栏图标
@@ -104,7 +104,6 @@ enum class CharacterPickerMode {
  * @param onConfirm 多选模式确认回调
  * @param onDismissRequest 关闭弹窗回调
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CharacterPickerDialog(
     title: String,
@@ -113,6 +112,7 @@ fun CharacterPickerDialog(
     visibleCharacters: List<CharacterPickerDialogItem>,
     selectedIds: Set<Long>,
     query: String,
+    characterAvatars: Map<Long, ImageBitmap> = emptyMap(),
     showSelectedOnly: Boolean = false,
     badgeIcon: ImageVector = if (mode == CharacterPickerMode.Single) {
         Icons.Rounded.Person
@@ -142,29 +142,6 @@ fun CharacterPickerDialog(
             totalCount,
         )
     }
-    val listState = rememberLazyListState()
-    val avatarSizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
-    val showFilterChips = mode == CharacterPickerMode.Multiple &&
-        onShowSelectedOnlyChange != null &&
-        totalCount > 0
-
-    // 仅在列表 ID 序列或目标尺寸变化时重启监听，避免头像位图回填触发不必要的协程重建
-    val visibleCharacterOrder = remember(visibleCharacters) {
-        visibleCharacters.map { item -> item.id }
-    }
-    LaunchedEffect(listState, visibleCharacterOrder, avatarSizePx, onVisibleCharactersChanged) {
-        val callback = onVisibleCharactersChanged ?: return@LaunchedEffect
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo
-                .mapNotNull { itemInfo -> itemInfo.key as? Long }
-                .toSet()
-        }
-            .distinctUntilChanged()
-            .collect { visibleIds ->
-                callback(visibleIds, avatarSizePx)
-            }
-    }
-
     AppDialogScaffold(
         onDismissRequest = onDismissRequest,
         title = title,
@@ -182,87 +159,178 @@ fun CharacterPickerDialog(
             .padding(horizontal = 20.dp)
             .widthIn(max = 560.dp),
     ) {
-        // 搜索框、筛选条与虚拟化列表共享弹窗剩余高度，软键盘弹出时自动压缩列表区域
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (totalCount > 0) {
-                CharacterSearchField(
-                    query = query,
-                    onQueryChange = onQueryChange,
-                )
-            }
-            if (showFilterChips) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    FilterChip(
-                        selected = !showSelectedOnly,
-                        onClick = { onShowSelectedOnlyChange(false) },
-                        label = {
-                            Text(
-                                text = stringResource(R.string.picker_filter_all_count, totalCount),
-                                maxLines = 1,
-                            )
-                        },
-                        colors = pageFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    )
-                    FilterChip(
-                        selected = showSelectedOnly,
-                        onClick = { onShowSelectedOnlyChange(true) },
-                        label = {
-                            Text(
-                                text = stringResource(
-                                    R.string.picker_filter_selected_count,
-                                    selectedIds.size,
-                                ),
-                                maxLines = 1,
-                            )
-                        },
-                        colors = pageFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    )
-                }
-            }
-            // 按总列表、仅看已选和搜索结果分别给出明确的空态引导
-            when {
-                totalCount == 0 -> PickerEmptyText(text = emptyText)
+        CharacterPickerContent(
+            mode = mode,
+            totalCount = totalCount,
+            visibleCharacters = visibleCharacters,
+            selectedIds = selectedIds,
+            query = query,
+            characterAvatars = characterAvatars,
+            showSelectedOnly = showSelectedOnly,
+            emptyText = emptyText,
+            onQueryChange = onQueryChange,
+            onShowSelectedOnlyChange = onShowSelectedOnlyChange,
+            onVisibleCharactersChanged = onVisibleCharactersChanged,
+            onCharacterClick = onCharacterClick,
+        )
+    }
+}
 
-                visibleCharacters.isEmpty() && showSelectedOnly && query.isBlank() -> PickerEmptyText(
-                    text = stringResource(R.string.picker_no_selected_characters),
-                )
+/** 组织选择器的筛选、空态和虚拟化列表。 */
+@Composable
+private fun CharacterPickerContent(
+    mode: CharacterPickerMode,
+    totalCount: Int,
+    visibleCharacters: List<CharacterPickerDialogItem>,
+    selectedIds: Set<Long>,
+    query: String,
+    characterAvatars: Map<Long, ImageBitmap>,
+    showSelectedOnly: Boolean,
+    emptyText: String,
+    onQueryChange: (String) -> Unit,
+    onShowSelectedOnlyChange: ((Boolean) -> Unit)?,
+    onVisibleCharactersChanged: ((Set<Long>, Int) -> Unit)?,
+    onCharacterClick: (Long) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    ObserveCharacterPickerViewport(
+        listState = listState,
+        isEmpty = visibleCharacters.isEmpty(),
+        onViewportChange = onVisibleCharactersChanged,
+    )
+    // 搜索和滤镜留在列表之外，键盘弹出时仍可操作且列表保持有界。
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (totalCount > 0) {
+            CharacterSearchField(query = query, onQueryChange = onQueryChange)
+        }
+        if (mode == CharacterPickerMode.Multiple && onShowSelectedOnlyChange != null && totalCount > 0) {
+            CharacterPickerFilters(
+                totalCount = totalCount,
+                selectedCount = selectedIds.size,
+                showSelectedOnly = showSelectedOnly,
+                onShowSelectedOnlyChange = onShowSelectedOnlyChange,
+            )
+        }
+        // 区分无候选角色、无已选角色和搜索无匹配。
+        when {
+            totalCount == 0 -> PickerEmptyText(text = emptyText)
+            visibleCharacters.isEmpty() && showSelectedOnly && query.isBlank() ->
+                PickerEmptyText(text = stringResource(R.string.picker_no_selected_characters))
 
-                visibleCharacters.isEmpty() -> PickerEmptyText(
-                    text = stringResource(R.string.no_matching_characters),
-                )
+            visibleCharacters.isEmpty() ->
+                PickerEmptyText(text = stringResource(R.string.no_matching_characters))
 
-                else -> LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 380.dp)
-                        .draggableLazyListScrollIndicator(listState),
-                    contentPadding = PaddingValues(end = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(
-                        items = visibleCharacters,
-                        key = { item -> item.id },
-                    ) { character ->
-                        CharacterPickerRow(
-                            character = character,
-                            mode = mode,
-                            selected = character.id in selectedIds,
-                            onClick = { onCharacterClick(character.id) },
-                        )
-                    }
-                }
-            }
+            else -> CharacterPickerList(
+                mode = mode,
+                listState = listState,
+                characters = visibleCharacters,
+                selectedIds = selectedIds,
+                characterAvatars = characterAvatars,
+                onCharacterClick = onCharacterClick,
+            )
+        }
+    }
+}
+
+/** 视口变化驱动头像加载；列表因筛选消失时立即发布空视口。 */
+@Composable
+private fun ObserveCharacterPickerViewport(
+    listState: LazyListState,
+    isEmpty: Boolean,
+    onViewportChange: ((Set<Long>, Int) -> Unit)?,
+) {
+    val avatarSizePx = with(LocalDensity.current) { 40.dp.roundToPx() }
+    val currentCallback by rememberUpdatedState(onViewportChange)
+    LaunchedEffect(listState, isEmpty, avatarSizePx) {
+        // 空态不再测量 LazyColumn，旧布局可能仍留在 listState 中。
+        if (isEmpty) {
+            currentCallback?.invoke(emptySet(), avatarSizePx)
+            return@LaunchedEffect
+        }
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo
+                .mapNotNull { itemInfo -> itemInfo.key as? Long }
+                .toSet()
+        }.collect { visibleIds ->
+            currentCallback?.invoke(visibleIds, avatarSizePx)
+        }
+    }
+}
+
+/** 显示全部角色与已选角色的筛选和计数。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CharacterPickerFilters(
+    totalCount: Int,
+    selectedCount: Int,
+    showSelectedOnly: Boolean,
+    onShowSelectedOnlyChange: (Boolean) -> Unit,
+) {
+    // 已选计数使用全部勾选，切换搜索词时仍能看到完整草稿数量。
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        FilterChip(
+            selected = !showSelectedOnly,
+            onClick = { onShowSelectedOnlyChange(false) },
+            label = {
+                Text(
+                    text = stringResource(R.string.picker_filter_all_count, totalCount),
+                    maxLines = 1,
+                )
+            },
+            colors = pageFilterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        )
+        FilterChip(
+            selected = showSelectedOnly,
+            onClick = { onShowSelectedOnlyChange(true) },
+            label = {
+                Text(
+                    text = stringResource(R.string.picker_filter_selected_count, selectedCount),
+                    maxLines = 1,
+                )
+            },
+            colors = pageFilterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        )
+    }
+}
+
+/** 在虚拟化列表内按角色 ID 查询头像，回填时无需重建整个候选列表。 */
+@Composable
+private fun CharacterPickerList(
+    mode: CharacterPickerMode,
+    listState: LazyListState,
+    characters: List<CharacterPickerDialogItem>,
+    selectedIds: Set<Long>,
+    characterAvatars: Map<Long, ImageBitmap>,
+    onCharacterClick: (Long) -> Unit,
+) {
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 380.dp)
+            .draggableLazyListScrollIndicator(listState),
+        contentPadding = PaddingValues(end = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // 使用稳定 ID 保持筛选及头像回填时的列表定位。
+        items(items = characters, key = { item -> item.id }) { character ->
+            CharacterPickerRow(
+                character = character,
+                mode = mode,
+                selected = character.id in selectedIds,
+                avatarImage = characterAvatars[character.id],
+                onClick = { onCharacterClick(character.id) },
+            )
         }
     }
 }
@@ -273,6 +341,7 @@ private fun CharacterPickerRow(
     character: CharacterPickerDialogItem,
     mode: CharacterPickerMode,
     selected: Boolean,
+    avatarImage: ImageBitmap?,
     onClick: () -> Unit,
 ) {
     val accent = getMacaronColor(character.name)
@@ -306,7 +375,7 @@ private fun CharacterPickerRow(
                 color = accent,
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(12.dp),
-                image = character.avatarImage,
+                image = avatarImage,
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(

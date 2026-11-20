@@ -85,6 +85,7 @@ internal data class SearchBannerAction(
  *
  * @param hit 当前搜索命中模型。
  * @param showWithin 是否展示“查看此内容中的匹配”底部入口。
+ * @param enabled 当前结果是否可打开或用于缩小检索范围。
  * @param modifier 卡片外部布局修饰符。
  * @param emit 页面意图分发回调。
  */
@@ -92,6 +93,7 @@ internal data class SearchBannerAction(
 internal fun SearchResultCard(
     hit: SearchHit,
     showWithin: Boolean,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
     emit: ContentSearchUiIntent.() -> Unit,
 ) {
@@ -137,23 +139,27 @@ internal fun SearchResultCard(
                     hit = hit,
                     accentColor = accentColor,
                     compactBottom = hasLocateZone || showWithin,
+                    enabled = enabled,
                     onClick = { ContentSearchUiIntent.Open(hit = hit, locate = false).emit() },
                 )
                 if (hit.snippet.isNotEmpty()) {
                     SearchResultSnippetBox(
                         hit = hit,
                         bottomPadding = if (showWithin) 10.dp else 12.dp,
+                        enabled = enabled,
                         onClick = { ContentSearchUiIntent.Open(hit = hit, locate = true).emit() },
                     )
                 } else if (hit.sourceId > 0L) {
                     SearchResultLocateRow(
                         sourceLabel = hit.sourceLabel,
                         bottomPadding = if (showWithin) 10.dp else 12.dp,
+                        enabled = enabled,
                         onClick = { ContentSearchUiIntent.Open(hit = hit, locate = true).emit() },
                     )
                 }
                 if (showWithin) {
                     SearchResultWithinFooter(
+                        enabled = enabled,
                         onClick = { ContentSearchUiIntent.SearchWithin(hit).emit() },
                     )
                 }
@@ -169,6 +175,7 @@ private fun SearchResultHeader(
     hit: SearchHit,
     accentColor: Color,
     compactBottom: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val participantNames = remember(hit.names) {
@@ -184,7 +191,7 @@ private fun SearchResultHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .heightIn(min = 48.dp)
             .padding(
                 start = 12.dp,
@@ -241,6 +248,7 @@ private fun SearchResultHeader(
 private fun SearchResultSnippetBox(
     hit: SearchHit,
     bottomPadding: Dp,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     val darkTheme = LocalAppDarkTheme.current
@@ -273,6 +281,7 @@ private fun SearchResultSnippetBox(
     // 独立嵌套摘录底板增强层级区分，整块可点击以跳转至命中源位置。
     AppSurface(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 12.dp, end = 12.dp, bottom = bottomPadding)
@@ -291,33 +300,7 @@ private fun SearchResultSnippetBox(
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             if (hit.sourceLabel.isNotBlank()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FormatQuote,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = hit.sourceLabel,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                    )
-                }
+                SearchSnippetSourceLabel(label = hit.sourceLabel)
             }
             Text(
                 text = snippet,
@@ -330,16 +313,52 @@ private fun SearchResultSnippetBox(
     }
 }
 
+/** 在摘录中标示对应消息或章节的来源。 */
+@Composable
+private fun SearchSnippetSourceLabel(label: String) {
+    val accent = MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        // 保留箭头空间，过长的来源名称在同一行内截断。
+        Icon(
+            imageVector = Icons.Rounded.FormatQuote,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = accent,
+        )
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = accent,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier.size(13.dp),
+            tint = accent.copy(alpha = 0.72f),
+        )
+    }
+}
+
 /** 无正文片段但存在精确源定位（如匹配章节标题）时的直达操作条。 */
 @Composable
 private fun SearchResultLocateRow(
     sourceLabel: String,
     bottomPadding: Dp,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     // 使用轻主色底板提示可直达具体来源位置。
     AppSurface(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 12.dp, end = 12.dp, bottom = bottomPadding)
@@ -395,7 +414,7 @@ private fun SearchResultLocateRow(
 
 /** 卡片底部的“查看此内容中的匹配”紧凑动作条。 */
 @Composable
-private fun SearchResultWithinFooter(onClick: () -> Unit) {
+private fun SearchResultWithinFooter(enabled: Boolean, onClick: () -> Unit) {
     // 以内缩细线分隔主体与二次钻取入口，保持卡片底部紧凑对称。
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 12.dp),
@@ -405,7 +424,7 @@ private fun SearchResultWithinFooter(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .heightIn(min = 40.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -612,31 +631,7 @@ internal fun SearchEmptyStateCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // 顶部展示主图标气泡或加载指示器。
-            if (isLoading) {
-                AppSurface(
-                    modifier = Modifier.size(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            } else if (icon != null) {
-                RpIconBubble(
-                    icon = icon,
-                    size = 52.dp,
-                    iconSize = 26.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    containerColor = iconTint.copy(alpha = 0.14f),
-                    contentColor = iconTint,
-                )
-            }
+            SearchEmptyStateIndicator(isLoading = isLoading, icon = icon, iconTint = iconTint)
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
@@ -670,20 +665,52 @@ internal fun SearchEmptyStateCard(
     }
 }
 
+/** 图标与进度指示器共用空态卡片中的同一占位。 */
+@Composable
+private fun SearchEmptyStateIndicator(isLoading: Boolean, icon: ImageVector?, iconTint: Color) {
+    // 顶部展示主图标气泡或加载指示器。
+    if (isLoading) {
+        AppSurface(
+            modifier = Modifier.size(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.5.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    } else if (icon != null) {
+        RpIconBubble(
+            icon = icon,
+            size = 52.dp,
+            iconSize = 26.dp,
+            shape = RoundedCornerShape(16.dp),
+            containerColor = iconTint.copy(alpha = 0.14f),
+            contentColor = iconTint,
+        )
+    }
+}
+
 /**
  * 底部翻页占位条；加载更多与加载中保持一致高度，防止翻页时底部视图跳动。
  *
  * @param isLoading 是否正在加载下一页。
+ * @param enabled 当前游标是否仍可用于继续分页。
  * @param onLoadMore 点击加载更多回调。
  */
 @Composable
 internal fun SearchPaginationFooter(
     isLoading: Boolean,
+    enabled: Boolean,
     onLoadMore: () -> Unit,
 ) {
     // 复用同一圆角容器与最小高度，在触发分页和拉取过程中保持底部布局稳定。
     AppSurface(
-        onClick = if (isLoading) null else onLoadMore,
+        onClick = onLoadMore.takeIf { enabled && !isLoading },
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 46.dp),
@@ -781,6 +808,7 @@ private fun buildHighlightedSnippet(
     foreground: Color,
 ): AnnotatedString = buildAnnotatedString {
     append(snippet)
+    // 索引或原文变更可能使范围失效，此时仍展示未高亮的完整摘录。
     if (matchStart >= 0 && matchEnd in (matchStart + 1)..length) {
         addStyle(
             style = SpanStyle(

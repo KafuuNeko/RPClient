@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,7 +104,6 @@ data class SessionLorebookDialogEntry(
  * @param showSelectedOnly 是否仅展示已启用的世界书与条目
  * @param onShowSelectedOnlyChange 切换“全部 / 已启用”筛选回调
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SessionLorebookDialog(
     groups: List<SessionLorebookDialogGroup>,
@@ -124,16 +124,7 @@ fun SessionLorebookDialog(
     showSelectedOnly: Boolean = false,
     onShowSelectedOnlyChange: ((Boolean) -> Unit)? = null,
 ) {
-    var expandedGroupIds by remember { mutableStateOf(emptySet<Long>()) }
-    val listState = rememberLazyListState()
-    val isSearching = query.isNotBlank()
-    val completeGroupsById = remember(groups) {
-        groups.associateBy { group -> group.id }
-    }
-    val totalEntryCount = remember(groups) {
-        groups.sumOf { group -> group.entries.size }
-    }
-
+    // 共用弹窗的操作区，长列表与软键盘只压缩正文。
     AppDialogScaffold(
         onDismissRequest = onDismissRequest,
         title = title,
@@ -151,114 +142,179 @@ fun SessionLorebookDialog(
             .padding(horizontal = 20.dp)
             .widthIn(max = 560.dp),
     ) {
-        // 搜索框、筛选条与虚拟化列表共享固定上限，避免大量条目撑出屏幕边界
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (onManageWorldBooks != null) {
-                SessionLorebookManagerLink(onClick = onManageWorldBooks)
-            }
-            if (groups.isNotEmpty()) {
-                SessionLorebookSearchField(
-                    query = query,
-                    onQueryChange = onQueryChange,
+        SessionLorebookPickerContent(
+            groups = groups,
+            visibleGroups = visibleGroups,
+            query = query,
+            enabledEntryIds = enabledEntryIds,
+            emptyText = emptyText,
+            showSelectedOnly = showSelectedOnly,
+            onQueryChange = onQueryChange,
+            onShowSelectedOnlyChange = onShowSelectedOnlyChange,
+            onToggleGroup = onToggleGroup,
+            onToggleEntry = onToggleEntry,
+            onManageWorldBooks = onManageWorldBooks,
+        )
+    }
+}
+
+/** 组织世界书筛选、空态及分组列表。 */
+@Composable
+private fun SessionLorebookPickerContent(
+    groups: List<SessionLorebookDialogGroup>,
+    visibleGroups: List<SessionLorebookDialogGroup>,
+    query: String,
+    enabledEntryIds: Set<Long>,
+    emptyText: String,
+    showSelectedOnly: Boolean,
+    onQueryChange: (String) -> Unit,
+    onShowSelectedOnlyChange: ((Boolean) -> Unit)?,
+    onToggleGroup: (Long) -> Unit,
+    onToggleEntry: (Long) -> Unit,
+    onManageWorldBooks: (() -> Unit)?,
+) {
+    val isSearching = query.isNotBlank()
+    // 搜索短暂无结果时保留展开项及列表位置，恢复结果后继续浏览。
+    var expandedGroupIds by remember { mutableStateOf(emptySet<Long>()) }
+    val listState = rememberLazyListState()
+    // 搜索和筛选操作保持在列表上方，列表独立滚动，避免长世界书挤出操作区。
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        if (onManageWorldBooks != null) {
+            SessionLorebookManagerLink(onClick = onManageWorldBooks)
+        }
+        if (groups.isNotEmpty()) {
+            SessionLorebookSearchField(query = query, onQueryChange = onQueryChange)
+        }
+        if (onShowSelectedOnlyChange != null && groups.isNotEmpty()) {
+            val totalEntryCount = remember(groups) { groups.sumOf { it.entries.size } }
+            SessionLorebookFilters(
+                totalEntryCount = totalEntryCount,
+                enabledCount = enabledEntryIds.size,
+                showSelectedOnly = showSelectedOnly,
+                onShowSelectedOnlyChange = onShowSelectedOnlyChange,
+            )
+        }
+        // 空库、仅看已启用、搜索无命中各有独立提示。
+        when {
+            groups.isEmpty() -> SessionLorebookEmptyText(text = emptyText)
+            visibleGroups.isEmpty() && showSelectedOnly && !isSearching -> SessionLorebookEmptyText(
+                text = stringResource(R.string.picker_no_enabled_world_books),
+            )
+
+            visibleGroups.isEmpty() -> SessionLorebookEmptyText(
+                text = stringResource(R.string.no_world_book_search_results),
+            )
+
+            else -> SessionLorebookGroupList(
+                groups = groups,
+                visibleGroups = visibleGroups,
+                enabledEntryIds = enabledEntryIds,
+                isSearching = isSearching,
+                listState = listState,
+                expandedGroupIds = expandedGroupIds,
+                onToggleExpanded = { id -> expandedGroupIds = expandedGroupIds.toggle(id) },
+                onToggleGroup = onToggleGroup,
+                onToggleEntry = onToggleEntry,
+            )
+        }
+    }
+}
+
+/** 显示当前世界书可选及已启用的条目计数。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SessionLorebookFilters(
+    totalEntryCount: Int,
+    enabledCount: Int,
+    showSelectedOnly: Boolean,
+    onShowSelectedOnlyChange: (Boolean) -> Unit,
+) {
+    // 两个计数均基于完整候选池，搜索过滤不会改变它们的含义。
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        FilterChip(
+            selected = !showSelectedOnly,
+            onClick = { onShowSelectedOnlyChange(false) },
+            label = {
+                Text(
+                    text = stringResource(R.string.picker_filter_all_count, totalEntryCount),
+                    maxLines = 1,
+                )
+            },
+            colors = pageFilterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        )
+        FilterChip(
+            selected = showSelectedOnly,
+            onClick = { onShowSelectedOnlyChange(true) },
+            label = {
+                Text(
+                    text = stringResource(R.string.picker_filter_enabled_count, enabledCount),
+                    maxLines = 1,
+                )
+            },
+            colors = pageFilterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        )
+    }
+}
+
+/** 将分组标题与展开条目分别作为独立的虚拟化列表项。 */
+@Composable
+private fun SessionLorebookGroupList(
+    groups: List<SessionLorebookDialogGroup>,
+    visibleGroups: List<SessionLorebookDialogGroup>,
+    enabledEntryIds: Set<Long>,
+    isSearching: Boolean,
+    listState: LazyListState,
+    expandedGroupIds: Set<Long>,
+    onToggleExpanded: (Long) -> Unit,
+    onToggleGroup: (Long) -> Unit,
+    onToggleEntry: (Long) -> Unit,
+) {
+    val completeGroupsById = remember(groups) { groups.associateBy { it.id } }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 380.dp)
+            .draggableLazyListScrollIndicator(listState),
+        contentPadding = PaddingValues(end = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        visibleGroups.forEach { group ->
+            val expanded = isSearching || group.id in expandedGroupIds
+            item(key = "group-${group.id}") {
+                // 整本开关作用于完整分组，即使搜索结果只显示其中部分条目。
+                val completeEntries = (completeGroupsById[group.id] ?: group).entries
+                val enabledCount = completeEntries.count { it.id in enabledEntryIds }
+                SessionLorebookGroupHeaderCard(
+                    groupName = group.name,
+                    enabledCount = enabledCount,
+                    totalCount = completeEntries.size,
+                    allEnabled = enabledCount > 0 && enabledCount == completeEntries.size,
+                    expanded = expanded,
+                    onExpandedChange = { onToggleExpanded(group.id) },
+                    onToggleGroup = { onToggleGroup(group.id) },
                 )
             }
-            if (onShowSelectedOnlyChange != null && groups.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    FilterChip(
-                        selected = !showSelectedOnly,
-                        onClick = { onShowSelectedOnlyChange(false) },
-                        label = {
-                            Text(
-                                text = stringResource(R.string.picker_filter_all_count, totalEntryCount),
-                                maxLines = 1,
-                            )
-                        },
-                        colors = pageFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
+            if (expanded) {
+                items(
+                    items = group.entries,
+                    key = { entry -> "entry-${group.id}-${entry.id}" },
+                ) { entry ->
+                    SessionLorebookEntryRow(
+                        entry = entry,
+                        enabled = entry.id in enabledEntryIds,
+                        onToggle = { onToggleEntry(entry.id) },
                     )
-                    FilterChip(
-                        selected = showSelectedOnly,
-                        onClick = { onShowSelectedOnlyChange(true) },
-                        label = {
-                            Text(
-                                text = stringResource(
-                                    R.string.picker_filter_enabled_count,
-                                    enabledEntryIds.size,
-                                ),
-                                maxLines = 1,
-                            )
-                        },
-                        colors = pageFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    )
-                }
-            }
-            // 按空库、仅看已启用和搜索无命中分别呈现空态说明
-            when {
-                groups.isEmpty() -> SessionLorebookEmptyText(text = emptyText)
-
-                visibleGroups.isEmpty() && showSelectedOnly && !isSearching -> SessionLorebookEmptyText(
-                    text = stringResource(R.string.picker_no_enabled_world_books),
-                )
-
-                visibleGroups.isEmpty() -> SessionLorebookEmptyText(
-                    text = stringResource(R.string.no_world_book_search_results),
-                )
-
-                else -> LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 380.dp)
-                        .draggableLazyListScrollIndicator(listState),
-                    contentPadding = PaddingValues(end = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // 将分组标题与展开条目分别作为独立 item 渲染，确保单本大世界书也具备虚拟化性能
-                    visibleGroups.forEach { group ->
-                        val expanded = isSearching || group.id in expandedGroupIds
-                        val completeGroup = completeGroupsById[group.id] ?: group
-                        val completeEntryIds = completeGroup.entries.mapTo(mutableSetOf()) { entry ->
-                            entry.id
-                        }
-                        val enabledCount = completeEntryIds.count { id -> id in enabledEntryIds }
-                        val totalCount = completeEntryIds.size
-                        val allEnabled = totalCount > 0 && enabledCount == totalCount
-
-                        item(key = "group-${group.id}") {
-                            SessionLorebookGroupHeaderCard(
-                                groupName = group.name,
-                                enabledCount = enabledCount,
-                                totalCount = totalCount,
-                                allEnabled = allEnabled,
-                                expanded = expanded,
-                                onExpandedChange = {
-                                    expandedGroupIds = expandedGroupIds.toggle(group.id)
-                                },
-                                onToggleGroup = { onToggleGroup(group.id) },
-                            )
-                        }
-                        if (expanded) {
-                            items(
-                                items = group.entries,
-                                key = { entry -> "entry-${group.id}-${entry.id}" },
-                            ) { entry ->
-                                SessionLorebookEntryRow(
-                                    entry = entry,
-                                    enabled = entry.id in enabledEntryIds,
-                                    onToggle = { onToggleEntry(entry.id) },
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }

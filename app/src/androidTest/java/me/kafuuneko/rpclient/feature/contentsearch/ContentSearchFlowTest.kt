@@ -26,6 +26,7 @@ import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chat.ChatViewModel
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchResultState
+import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiIntent
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.ContentSearchUiState
 import me.kafuuneko.rpclient.feature.contentsearch.presentation.items
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatActivity
@@ -41,6 +42,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.search.SearchKind
 import me.kafuuneko.rpclient.libs.search.SearchNavigation
+import me.kafuuneko.rpclient.libs.search.SearchScope
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -52,6 +54,72 @@ import kotlin.math.abs
 class ContentSearchFlowTest {
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
+
+    /** 切换分类时排队的旧卡片操作不能取消新查询或进入旧对象范围。 */
+    @Test
+    fun staleResultActionsCannotCancelReplacementQuery() = runBlocking {
+        val database = GlobalContext.get().get<AppDatabase>()
+        val character = createCharacter(database)
+        val title = "rpscopechangefixture"
+        val session = database.getChatSessionDao().insertOrReplace(
+            data = ChatSession(
+                characterId = character,
+                title = title,
+                createTime = 1L,
+                latestTime = 1L,
+                lorebookEntrySet = "[]",
+                userNote = "",
+            ),
+        )
+        try {
+            val intent = Intent(
+                InstrumentationRegistry.getInstrumentation().targetContext,
+                ContentSearchActivity::class.java,
+            ).putExtra(ContentSearchActivity.EXTRA_KIND, SearchKind.Chat.code)
+            ActivityScenario.launch<ContentSearchActivity>(intent).use { scenario ->
+                lateinit var model: ContentSearchViewModel
+                scenario.onActivity { activity ->
+                    model = ViewModelProvider(activity)[ContentSearchViewModel::class.java]
+                }
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val state = model.uiStateFlow.value as? ContentSearchUiState.Normal
+                    state != null && !state.indexState.busy
+                }
+                // 先用真实仓库取得单聊命中，再同批发出切换与旧卡片操作。
+                scenario.onActivity {
+                    model.emit(ContentSearchUiIntent.SelectScope(SearchScope.Metadata))
+                    model.emit(ContentSearchUiIntent.ChangeQuery(title))
+                    model.emit(ContentSearchUiIntent.Submit)
+                }
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val state = model.uiStateFlow.value as? ContentSearchUiState.Normal
+                    val result = state?.resultState as? ContentSearchResultState.Complete
+                    result?.items?.singleOrNull()?.parentId == session
+                }
+                scenario.onActivity {
+                    val current = model.uiStateFlow.value as ContentSearchUiState.Normal
+                    val oldHit = current.resultState.items().single()
+                    model.emit(ContentSearchUiIntent.SelectKind(SearchKind.Story))
+                    model.emit(ContentSearchUiIntent.Open(hit = oldHit, locate = false))
+                    model.emit(ContentSearchUiIntent.SearchWithin(oldHit))
+                }
+                // 新分类没有命中，但查询仍应正常完成并保留新范围。
+                rule.waitUntil(timeoutMillis = 10_000) {
+                    val state = model.uiStateFlow.value as? ContentSearchUiState.Normal
+                    val result = state?.resultState as? ContentSearchResultState.Complete
+                    state?.scopeState?.kind == SearchKind.Story &&
+                        state.scopeState.parentId == null &&
+                        !state.isReplacingResults &&
+                        result?.items?.isEmpty() == true
+                }
+            }
+        } finally {
+            database.openHelper.writableDatabase.execSQL(
+                "DELETE FROM character WHERE id = ?",
+                arrayOf(character),
+            )
+        }
+    }
 
     /** 数据完整的搜索结果仍可分多页，真实按钮必须追加后续结果并在末页消失。 */
     @Test

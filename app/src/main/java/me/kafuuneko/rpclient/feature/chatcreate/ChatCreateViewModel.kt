@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.chatcreate
 
 import android.os.Bundle
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -11,6 +12,7 @@ import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.ChatActivity
 import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateForm
+import me.kafuuneko.rpclient.feature.chatcreate.model.ChatCreateLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chatcreate.model.FirstMessageSelection
 import me.kafuuneko.rpclient.feature.chatcreate.model.defaultLorebookEntryIds
 import me.kafuuneko.rpclient.feature.chatcreate.model.filterForQuery
@@ -39,6 +41,7 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
+import me.kafuuneko.rpclient.ui.model.selectedWorldBookSummaries
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -73,7 +76,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         CharacterAvatarLoader(
             mFileRepository = mFileRepository,
             mScope = viewModelScope,
-            mOnAvatarsUpdated = ::publishLoadedAvatars,
+            mOnAvatarsUpdated = ::publishCharacterAvatars,
         )
     }
 
@@ -86,7 +89,6 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         // 从原始角色内容重新展开用户名，保持候选项与开场白采用同一身份
         val characters = mCharactersById.values.map { character ->
             character.toChatCreateCharacterItem(name)
-                .copy(avatarImage = mAvatarLoader.avatarOf(character.id))
         }
         val dialogState = when (val dialog = state.dialogState) {
             is ChatCreateDialogState.CharacterPicker -> dialog.copy(
@@ -106,7 +108,8 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         state.copy(
             persona = selection,
             characters = characters,
-            selectedCharacterFirstMessages = state.selectedCharacter()?.openingPreviews(name)
+            selectedCharacter = characters.firstOrNull { it.id == state.form.selectedCharacterId },
+            selectedCharacterFirstMessages = state.selectedCharacterEntity()?.openingPreviews(name)
                 .orEmpty(),
             dialogState = dialogState,
         ).setup()
@@ -144,23 +147,25 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val selection = mPersonas.chatSelection()
         val userName = requireNotNull(selection.selectedName)
         val selectedCharacterFirstMessages = selectedCharacter?.openingPreviews(userName).orEmpty()
+        val characters =
+            data.first.map { character -> character.toChatCreateCharacterItem(userName) }
+        val form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
+            .selectCharacter(
+                characterId = selectedCharacter?.id,
+                hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
+                linkedLorebookEntryIds = selectedLorebookEntryIds,
+            )
         ChatCreateUiState.Normal(
             persona = selection,
             loadState = ChatCreateLoadState.None,
             showCharacterExamplesSwitch =
                 mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
-            form = (getOrNull<ChatCreateUiState.Normal>()?.form ?: ChatCreateForm())
-                .selectCharacter(
-                    characterId = selectedCharacter?.id,
-                    hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
-                    linkedLorebookEntryIds = selectedLorebookEntryIds,
-                ),
-            characters = data.first.map { character ->
-                character.toChatCreateCharacterItem(userName)
-                    .copy(avatarImage = mAvatarLoader.avatarOf(character.id))
-            },
+            form = form,
+            characters = characters,
+            selectedCharacter = characters.firstOrNull { it.id == form.selectedCharacterId },
             selectedCharacterFirstMessages = selectedCharacterFirstMessages,
             lorebookGroups = data.second,
+            selectedWorldBookSummaries = data.second.summarizeSelection(form.selectedLorebookEntryIds),
         ).setup()
         mAvatarLoader.updatePinnedCharacters(
             selectedCharacter?.id?.let { id -> setOf(id) } ?: emptySet(),
@@ -173,14 +178,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         if (uiState.loadState != ChatCreateLoadState.None || uiState.characters.isEmpty()) return
         mCharacterSearchJob?.cancel()
-        val hydrated = uiState.characters.map { character ->
-            character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
-        }
         uiState.copy(
-            characters = hydrated,
             dialogState = ChatCreateDialogState.CharacterPicker(
                 query = "",
-                visibleCharacters = hydrated,
+                visibleCharacters = uiState.characters,
             ),
         ).setup()
     }
@@ -226,10 +227,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
                 current.copy(
                     dialogState = currentPicker.copy(
                         visibleCharacters = current.characters
-                            .filter { character -> character.id in visibleIds }
-                            .map { character ->
-                                character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
-                            },
+                            .filter { character -> character.id in visibleIds },
                     ),
                 ).setup()
             }
@@ -253,29 +251,34 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         val character = mCharactersById[intent.characterId] ?: return
         mCharacterSearchJob?.cancel()
-        mAvatarLoader.clearVisibleCharacters()
         // 重复点击当前已选角色时仅收起选择器，不重置已调整的开场白与世界书
         if (uiState.form.selectedCharacterId == character.id) {
             uiState.copy(dialogState = ChatCreateDialogState.None).setup()
+            mAvatarLoader.clearVisibleCharacters()
             return
         }
         // 记录上一个角色绑定的条目集合用于差量剔除
-        val previousLinkedLorebookEntryIds = uiState.selectedCharacter()
+        val previousLinkedLorebookEntryIds = uiState.selectedCharacterEntity()
             ?.defaultLorebookEntryIds(uiState.lorebookGroups)
             .orEmpty()
         val selectedCharacterFirstMessages = character.openingPreviews(uiState.persona.selectedName)
-        // 更新表单角色选择、世界书勾选集合并关闭弹窗
+        val form = uiState.form.selectCharacter(
+            characterId = character.id,
+            hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
+            previousLinkedLorebookEntryIds = previousLinkedLorebookEntryIds,
+            linkedLorebookEntryIds = character.defaultLorebookEntryIds(uiState.lorebookGroups),
+        )
+        // 表单与摘要一同发布，随后把刚选中的头像转为常驻。
         uiState.copy(
-            form = uiState.form.selectCharacter(
-                characterId = character.id,
-                hasFirstMessage = selectedCharacterFirstMessages.isNotEmpty(),
-                previousLinkedLorebookEntryIds = previousLinkedLorebookEntryIds,
-                linkedLorebookEntryIds = character.defaultLorebookEntryIds(uiState.lorebookGroups),
-            ),
+            form = form,
+            selectedCharacter = uiState.characters.firstOrNull { it.id == character.id },
             selectedCharacterFirstMessages = selectedCharacterFirstMessages,
+            selectedWorldBookSummaries = uiState.lorebookGroups
+                .summarizeSelection(form.selectedLorebookEntryIds),
             dialogState = ChatCreateDialogState.None,
         ).setup()
         mAvatarLoader.updatePinnedCharacters(setOf(character.id))
+        mAvatarLoader.clearVisibleCharacters()
     }
 
     /** 选择角色预置的多条开场白中的某一条。 */
@@ -423,6 +426,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val picker = uiState.dialogState as? ChatCreateDialogState.LorebookPicker ?: return
         uiState.copy(
             form = uiState.form.copy(selectedLorebookEntryIds = picker.enabledEntryIds),
+            selectedWorldBookSummaries = uiState.lorebookGroups.summarizeSelection(picker.enabledEntryIds),
             dialogState = ChatCreateDialogState.None,
         ).setup()
     }
@@ -432,40 +436,17 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
     private fun onDismissDialog() {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         mCharacterSearchJob?.cancel()
-        mAvatarLoader.clearVisibleCharacters()
         uiState.copy(dialogState = ChatCreateDialogState.None).setup()
+        mAvatarLoader.clearVisibleCharacters()
     }
 
-    /** 将最新解码完成的头像位图同步回主列表与角色选择器弹窗状态。 */
-    private fun publishLoadedAvatars() {
+    /** 更新角色头像快照，候选列表和表单数据沿用当前状态。 */
+    private fun publishCharacterAvatars(avatars: Map<Long, ImageBitmap>) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
-        val updatedCharacters = uiState.characters.map { character ->
-            val image = mAvatarLoader.avatarOf(character.id)
-            if (character.avatarImage === image) character else character.copy(avatarImage = image)
-        }
-        val updatedDialog = when (val dialog = uiState.dialogState) {
-            is ChatCreateDialogState.CharacterPicker -> dialog.copy(
-                visibleCharacters = dialog.visibleCharacters.map { character ->
-                    val image = mAvatarLoader.avatarOf(character.id)
-                    if (character.avatarImage === image) {
-                        character
-                    } else {
-                        character.copy(avatarImage = image)
-                    }
-                },
-            )
-
-            else -> dialog
-        }
-        // 仅在位图引用实际变化时触发状态发布，避免多余重组
-        if (updatedCharacters != uiState.characters || updatedDialog != uiState.dialogState) {
-            uiState.copy(
-                characters = updatedCharacters,
-                dialogState = updatedDialog,
-            ).setup()
-        }
+        uiState.copy(characterAvatars = avatars).setup()
     }
 
+    /** 随创建页销毁取消头像解码，并释放缓存位图。 */
     override fun onCleared() {
         mAvatarLoader.clear()
         super.onCleared()
@@ -482,7 +463,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
         if (uiState.loadState != ChatCreateLoadState.None) return
         // 校验选中的角色
-        val character = uiState.selectedCharacter() ?: run {
+        val character = uiState.selectedCharacterEntity() ?: run {
             AppViewEvent.PopupToastMessageByResId(R.string.no_character_selected).tryEmit()
             return
         }
@@ -563,13 +544,22 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         uiState.copy(form = uiState.form.block()).setup()
     }
 
+    /** 从已提交的条目选择生成主表单展示的世界书摘要。 */
+    private fun List<ChatCreateLorebookGroupItem>.summarizeSelection(selectedIds: Set<Long>) =
+        selectedWorldBookSummaries(
+            id = ChatCreateLorebookGroupItem::lorebookId,
+            name = ChatCreateLorebookGroupItem::lorebookName,
+            totalCount = ChatCreateLorebookGroupItem::entryCount,
+            selectedCount = { group -> group.entries.count { entry -> entry.id in selectedIds } },
+        )
+
     /** 展示时只替换角色和用户名，创建时仍用原文执行完整的宏解析。 */
     private fun Character.openingPreviews(userName: String?) = getChatFirstMessageList().map {
         resolveCharacterUserMacros(it, name, userName)
     }
 
     /** 读取当前选中的角色实体。 */
-    private fun ChatCreateUiState.Normal.selectedCharacter(): Character? {
+    private fun ChatCreateUiState.Normal.selectedCharacterEntity(): Character? {
         val characterId = form.selectedCharacterId ?: return null
         return mCharactersById[characterId]
     }
@@ -583,7 +573,7 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
             return null
         }
         return FirstMessageSelection(
-            selectedCharacter()?.getChatFirstMessageList()?.get(selectedIndex)
+            selectedCharacterEntity()?.getChatFirstMessageList()?.get(selectedIndex)
         )
     }
 

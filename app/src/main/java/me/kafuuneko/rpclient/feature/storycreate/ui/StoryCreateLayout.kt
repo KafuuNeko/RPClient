@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +72,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryCard
-import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryItem
+import me.kafuuneko.rpclient.ui.model.WorldBookSelectionSummaryItem
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 
 /** 新建 Story 页面 Compose 入口。 */
@@ -100,29 +102,6 @@ private fun StoryCreateNormal(
     emit: StoryCreateUiIntent.() -> Unit,
 ) {
     val controlsEnabled = state.loadState == StoryCreateLoadState.Ready
-    val selectedCharacters = remember(state.characters, state.form.selectedCharacterIds) {
-        state.characters.filter { character -> character.id in state.form.selectedCharacterIds }
-    }
-    val selectedWorldBookSummaries = remember(
-        state.lorebookGroups,
-        state.form.selectedLorebookEntryIds,
-    ) {
-        state.lorebookGroups.mapNotNull { group ->
-            val count = group.entries.count { entry ->
-                entry.id in state.form.selectedLorebookEntryIds
-            }
-            if (count > 0) {
-                WorldBookSelectionSummaryItem(
-                    lorebookId = group.lorebookId,
-                    name = group.lorebookName,
-                    selectedCount = count,
-                    totalCount = group.entryCount,
-                )
-            } else {
-                null
-            }
-        }
-    }
 
     AppPageScaffold(
         // 缩小整个表单视口，底栏与输入区共同避让键盘
@@ -172,63 +151,11 @@ private fun StoryCreateNormal(
                             emit = emit,
                         )
                     }
-                    // 角色参考区：主表单仅呈现已选角色及其激活模式，避免海量未选角色阻塞页面
-                    item {
-                        RpSectionHeader(
-                            title = stringResource(R.string.story_character_references),
-                            action = if (state.characters.isNotEmpty() && controlsEnabled) {
-                                stringResource(
-                                    if (selectedCharacters.isNotEmpty()) R.string.manage
-                                    else R.string.picker_choose,
-                                )
-                            } else {
-                                null
-                            },
-                            onAction = { StoryCreateUiIntent.ShowCharacterPicker.emit() },
-                        )
-                    }
-                    when {
-                        state.characters.isEmpty() -> {
-                            item {
-                                EmptyCard(
-                                    icon = Icons.Rounded.Person,
-                                    text = stringResource(R.string.story_no_characters),
-                                )
-                            }
-                        }
-
-                        selectedCharacters.isEmpty() -> {
-                            item {
-                                StoryCharactersPromptCard(
-                                    totalCount = state.characters.size,
-                                    enabled = controlsEnabled,
-                                    onClick = { StoryCreateUiIntent.ShowCharacterPicker.emit() },
-                                )
-                            }
-                        }
-
-                        else -> {
-                            items(
-                                items = selectedCharacters,
-                                key = { character -> "selected-character-${character.id}" },
-                            ) { character ->
-                                SelectedStoryCharacterCard(
-                                    character = character,
-                                    activationMode = state.form.activationModeOf(character.id),
-                                    enabled = controlsEnabled,
-                                    onRemove = {
-                                        StoryCreateUiIntent.ToggleCharacter(character.id).emit()
-                                    },
-                                    onActivationModeClick = { activationMode ->
-                                        StoryCreateUiIntent.SetCharacterActivationMode(
-                                            characterId = character.id,
-                                            activationMode = activationMode,
-                                        ).emit()
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    storyCharacterReferenceItems(
+                        state = state,
+                        controlsEnabled = controlsEnabled,
+                        emit = emit
+                    )
                     // 世界书摘要区：展示活跃书目概览并拉起独立检索选择器
                     item {
                         RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
@@ -237,7 +164,7 @@ private fun StoryCreateNormal(
                         WorldBookSelectionSummaryCard(
                             totalGroupCount = state.lorebookGroups.size,
                             selectedEntryCount = state.form.selectedLorebookEntryIds.size,
-                            selectedGroups = selectedWorldBookSummaries,
+                            selectedGroups = state.selectedWorldBookSummaries,
                             enabled = controlsEnabled,
                             onClick = { StoryCreateUiIntent.ShowLorebookPicker.emit() },
                         )
@@ -246,6 +173,73 @@ private fun StoryCreateNormal(
             }
         },
     )
+}
+
+/** 故事参演角色的选择入口及激活模式列表。 */
+private fun LazyListScope.storyCharacterReferenceItems(
+    state: StoryCreateUiState.Normal,
+    controlsEnabled: Boolean,
+    emit: StoryCreateUiIntent.() -> Unit,
+) {
+    val selectedCharacters = state.selectedCharacters
+    // 角色参考区：主表单仅呈现已选角色及其激活模式，避免海量未选角色阻塞页面
+    item {
+        RpSectionHeader(
+            title = stringResource(R.string.story_character_references),
+            action = if (state.characters.isNotEmpty() && controlsEnabled) {
+                stringResource(
+                    if (selectedCharacters.isNotEmpty()) R.string.manage
+                    else R.string.picker_choose,
+                )
+            } else {
+                null
+            },
+            onAction = { StoryCreateUiIntent.ShowCharacterPicker.emit() },
+        )
+    }
+    when {
+        state.characters.isEmpty() -> {
+            item {
+                EmptyCard(
+                    icon = Icons.Rounded.Person,
+                    text = stringResource(R.string.story_no_characters),
+                )
+            }
+        }
+
+        selectedCharacters.isEmpty() -> {
+            item {
+                StoryCharactersPromptCard(
+                    totalCount = state.characters.size,
+                    enabled = controlsEnabled,
+                    onClick = { StoryCreateUiIntent.ShowCharacterPicker.emit() },
+                )
+            }
+        }
+
+        else -> {
+            items(
+                items = selectedCharacters,
+                key = { character -> "selected-character-${character.id}" },
+            ) { character ->
+                SelectedStoryCharacterCard(
+                    character = character,
+                    avatarImage = state.characterAvatars[character.id],
+                    activationMode = state.form.activationModeOf(character.id),
+                    enabled = controlsEnabled,
+                    onRemove = {
+                        StoryCreateUiIntent.ToggleCharacter(character.id).emit()
+                    },
+                    onActivationModeClick = { activationMode ->
+                        StoryCreateUiIntent.SetCharacterActivationMode(
+                            characterId = character.id,
+                            activationMode = activationMode,
+                        ).emit()
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -265,7 +259,6 @@ private fun DialogSwitch(
                         name = character.name,
                         description = character.description,
                         tags = character.tags,
-                        avatarImage = character.avatarImage,
                     )
                 }
             }
@@ -274,6 +267,7 @@ private fun DialogSwitch(
                 mode = CharacterPickerMode.Multiple,
                 totalCount = state.characters.size,
                 visibleCharacters = visibleItems,
+                characterAvatars = state.characterAvatars,
                 selectedIds = dialogState.selectedCharacterIds,
                 query = dialogState.query,
                 showSelectedOnly = dialogState.showSelectedOnly,
@@ -423,12 +417,12 @@ private fun StoryCharactersPromptCard(
 @Composable
 private fun SelectedStoryCharacterCard(
     character: StoryCreateCharacterItem,
+    avatarImage: ImageBitmap?,
     activationMode: StoryCreateCharacterActivationMode,
     enabled: Boolean,
     onRemove: () -> Unit,
     onActivationModeClick: (StoryCreateCharacterActivationMode) -> Unit,
 ) {
-    val accent = getMacaronColor(character.name)
     // 主表单只展示已加入阵容的角色，直接暴露激活模式切换与一键移除
     AppCard(
         modifier = Modifier.fillMaxWidth(),
@@ -445,87 +439,119 @@ private fun SelectedStoryCharacterCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RpAvatar(
-                    text = character.name.firstOrNull()?.uppercase() ?: "?",
-                    color = accent,
-                    modifier = Modifier.size(42.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    image = character.avatarImage,
-                )
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text(
-                        text = character.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = character.description.ifBlank {
-                            stringResource(R.string.no_description)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(
-                    enabled = enabled,
-                    onClick = onRemove,
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.picker_remove_selection),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FilterChip(
-                    selected = activationMode == StoryCreateCharacterActivationMode.Primary,
-                    onClick = {
-                        onActivationModeClick(StoryCreateCharacterActivationMode.Primary)
-                    },
-                    enabled = enabled,
-                    label = { Text(stringResource(R.string.story_character_primary)) },
-                )
-                FilterChip(
-                    selected = activationMode == StoryCreateCharacterActivationMode.Always,
-                    onClick = {
-                        onActivationModeClick(StoryCreateCharacterActivationMode.Always)
-                    },
-                    enabled = enabled,
-                    label = { Text(stringResource(R.string.story_character_always)) },
-                )
-                FilterChip(
-                    selected = activationMode == StoryCreateCharacterActivationMode.Auto,
-                    onClick = {
-                        onActivationModeClick(StoryCreateCharacterActivationMode.Auto)
-                    },
-                    enabled = enabled,
-                    label = { Text(stringResource(R.string.story_character_auto)) },
-                )
-            }
+            StoryCharacterIdentity(
+                character = character,
+                avatarImage = avatarImage,
+                enabled = enabled,
+                onRemove = onRemove,
+            )
+            StoryCharacterActivationChips(
+                activationMode = activationMode,
+                enabled = enabled,
+                onActivationModeClick = onActivationModeClick,
+            )
             character.linkedLorebookName?.let { lorebookName ->
                 RpTagRow(
                     tags = listOf(stringResource(R.string.story_linked_lorebook, lorebookName)),
                 )
             }
         }
+    }
+}
+
+/** 在角色卡片顶部展示身份信息和移除入口。 */
+@Composable
+private fun StoryCharacterIdentity(
+    character: StoryCreateCharacterItem,
+    avatarImage: ImageBitmap?,
+    enabled: Boolean,
+    onRemove: () -> Unit,
+) {
+    // 描述允许两行，给窄屏上的头像和移除按钮保留空间。
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RpAvatar(
+            text = character.name.firstOrNull()?.uppercase() ?: "?",
+            color = getMacaronColor(character.name),
+            modifier = Modifier.size(42.dp),
+            shape = RoundedCornerShape(14.dp),
+            image = avatarImage,
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = character.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = character.description.ifBlank {
+                    stringResource(R.string.no_description)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(
+            enabled = enabled,
+            onClick = onRemove,
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = stringResource(R.string.picker_remove_selection),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+/** 切换参演角色是否常驻，以及是否作为主角注入。 */
+@Composable
+private fun StoryCharacterActivationChips(
+    activationMode: StoryCreateCharacterActivationMode,
+    enabled: Boolean,
+    onActivationModeClick: (StoryCreateCharacterActivationMode) -> Unit,
+) {
+    // 窄屏保留三个模式的可点击范围，通过横移查看剩余选项。
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = activationMode == StoryCreateCharacterActivationMode.Primary,
+            onClick = {
+                onActivationModeClick(StoryCreateCharacterActivationMode.Primary)
+            },
+            enabled = enabled,
+            label = { Text(stringResource(R.string.story_character_primary)) },
+        )
+        FilterChip(
+            selected = activationMode == StoryCreateCharacterActivationMode.Always,
+            onClick = {
+                onActivationModeClick(StoryCreateCharacterActivationMode.Always)
+            },
+            enabled = enabled,
+            label = { Text(stringResource(R.string.story_character_always)) },
+        )
+        FilterChip(
+            selected = activationMode == StoryCreateCharacterActivationMode.Auto,
+            onClick = {
+                onActivationModeClick(StoryCreateCharacterActivationMode.Auto)
+            },
+            enabled = enabled,
+            label = { Text(stringResource(R.string.story_character_auto)) },
+        )
     }
 }
 
@@ -601,6 +627,15 @@ private fun EmptyCard(
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun StoryCreateLayoutPreview() {
+    // 预览与运行时使用相同的已选角色状态。
+    val character = StoryCreateCharacterItem(
+        id = 1L,
+        name = "Lyra",
+        description = "An archivist following a trail through the old city.",
+        tags = listOf("Mystery"),
+        linkedLorebookId = 2L,
+        linkedLorebookName = "Fog Harbor",
+    )
     AppTheme(dynamicColor = false) {
         val lorebookGroup = StoryCreateLorebookGroupItem(
             lorebookId = 2L,
@@ -626,14 +661,14 @@ private fun StoryCreateLayoutPreview() {
                     characterActivationModes = mapOf(1L to StoryCreateCharacterActivationMode.Primary),
                     selectedLorebookEntryIds = setOf(10L),
                 ),
-                characters = listOf(
-                    element = StoryCreateCharacterItem(
-                        id = 1L,
-                        name = "Lyra",
-                        description = "An archivist following a trail through the old city.",
-                        tags = listOf("Mystery"),
-                        linkedLorebookId = 2L,
-                        linkedLorebookName = "Fog Harbor",
+                characters = listOf(character),
+                selectedCharacters = listOf(character),
+                selectedWorldBookSummaries = listOf(
+                    WorldBookSelectionSummaryItem(
+                        lorebookId = 2L,
+                        name = "Fog Harbor",
+                        selectedCount = 1,
+                        totalCount = 1,
                     ),
                 ),
                 lorebookGroups = listOf(lorebookGroup),

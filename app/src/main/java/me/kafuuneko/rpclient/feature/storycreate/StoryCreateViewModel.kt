@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.storycreate
 
 import android.os.Bundle
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateForm
+import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateLorebookGroupItem
 import me.kafuuneko.rpclient.feature.storycreate.model.StoryCreateOptions
 import me.kafuuneko.rpclient.feature.storycreate.model.filterCharactersForQuery
 import me.kafuuneko.rpclient.feature.storycreate.model.filterForQuery
@@ -33,6 +35,7 @@ import me.kafuuneko.rpclient.libs.room.repository.StoryCharacterSelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryLorebookEntrySelection
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
+import me.kafuuneko.rpclient.ui.model.selectedWorldBookSummaries
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toggle
@@ -62,7 +65,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         CharacterAvatarLoader(
             mFileRepository = mFileRepository,
             mScope = viewModelScope,
-            mOnAvatarsUpdated = ::publishLoadedAvatars,
+            mOnAvatarsUpdated = ::publishCharacterAvatars,
         )
     }
 
@@ -72,7 +75,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         if (!isStateOf<StoryCreateUiState.None>()) return
         StoryCreateUiState.Normal().setup()
         try {
-            // 在 IO 线程并发拉取角色与世界书选项
+            // 在 IO 线程拉取角色与世界书选项，避免阻塞页面首帧。
             val data = withContext(Dispatchers.IO) { loadOptions() }
             val current = getOrNull<StoryCreateUiState.Normal>() ?: return
             mAvatarLoader.registerCharacters(data.avatarUuids)
@@ -80,9 +83,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             current.copy(
                 loadState = StoryCreateLoadState.Ready,
                 form = current.form.copy(persona = mPersonas.selection(-1L)),
-                characters = data.characters.map { character ->
-                    character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
-                },
+                characters = data.characters,
                 lorebookGroups = data.lorebookGroups,
             ).setup()
         } catch (cancellation: CancellationException) {
@@ -119,12 +120,11 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val rawCharacters = withContext(Dispatchers.IO) {
             mCharacterRepository.getAllCharacters()
         }
-        mAvatarLoader.registerCharacters(rawCharacters.associate { it.id to it.avatar })
-        val characters = rawCharacters.map {
-            it.toStoryCreateCharacterItem(name, lorebookNames)
-                .copy(avatarImage = mAvatarLoader.avatarOf(it.id))
+        val current = readyState() ?: return
+        val characters = rawCharacters.map { character ->
+            character.toStoryCreateCharacterItem(userName = name, lorebookNames = lorebookNames)
         }
-        val dialogState = when (val dialog = state.dialogState) {
+        val dialogState = when (val dialog = current.dialogState) {
             is StoryCreateDialogState.CharacterPicker -> dialog.copy(
                 visibleCharacters = characters.filterCharactersForQuery(
                     query = dialog.query,
@@ -134,11 +134,13 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
 
             else -> dialog
         }
-        state.copy(
-            form = state.form.copy(persona = state.form.persona.copy(selectedId = intent.id)),
+        current.copy(
+            form = current.form.copy(persona = current.form.persona.copy(selectedId = intent.id)),
             characters = characters,
+            selectedCharacters = characters.filter { it.id in current.form.selectedCharacterIds },
             dialogState = dialogState,
         ).setup()
+        mAvatarLoader.registerCharacters(rawCharacters.associate { it.id to it.avatar })
     }
 
     /** 打开角色参考多选检索弹窗，并以当前已选角色初始化草稿集合。 */
@@ -147,16 +149,12 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val uiState = readyState() ?: return
         if (uiState.characters.isEmpty()) return
         mCharacterSearchJob?.cancel()
-        val hydrated = uiState.characters.map { character ->
-            character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
-        }
         uiState.copy(
-            characters = hydrated,
             dialogState = StoryCreateDialogState.CharacterPicker(
                 query = "",
                 showSelectedOnly = false,
-                visibleCharacters = hydrated,
-                selectedCharacterIds = uiState.form.selectedCharacterIds,
+                visibleCharacters = uiState.characters,
+                selectedCharacterOrder = uiState.form.selectedCharacterIds.toList(),
             ),
         ).setup()
     }
@@ -205,9 +203,6 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                             .filter { character ->
                                 character.id in matchedIds &&
                                     (!currentPicker.showSelectedOnly || character.id in currentPicker.selectedCharacterIds)
-                            }
-                            .map { character ->
-                                character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
                             },
                     ),
                 ).setup()
@@ -242,15 +237,20 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val uiState = readyState() ?: return
         val picker = uiState.dialogState as? StoryCreateDialogState.CharacterPicker ?: return
         if (uiState.characters.none { character -> character.id == intent.characterId }) return
-        val nextSelectedIds = picker.selectedCharacterIds.toggle(intent.characterId)
+        // 取消后再次勾选会追加到末尾，默认主角按最终的勾选顺序确定。
+        val nextOrder = if (intent.characterId in picker.selectedCharacterIds) {
+            picker.selectedCharacterOrder - intent.characterId
+        } else {
+            picker.selectedCharacterOrder + intent.characterId
+        }
         // 处于仅看已选筛选时同步更新列表，防止已取消勾选的条目滞留视图
         uiState.copy(
             dialogState = picker.copy(
-                selectedCharacterIds = nextSelectedIds,
+                selectedCharacterOrder = nextOrder,
                 visibleCharacters = if (picker.showSelectedOnly) {
                     uiState.characters.filterCharactersForQuery(
                         query = picker.query,
-                        selectedIds = nextSelectedIds,
+                        selectedIds = nextOrder.toSet(),
                     )
                 } else {
                     picker.visibleCharacters
@@ -267,10 +267,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val uiState = readyState() ?: return
         val picker = uiState.dialogState as? StoryCreateDialogState.CharacterPicker ?: return
         mCharacterSearchJob?.cancel()
-        mAvatarLoader.clearVisibleCharacters()
-        // 识别本次新增选中的角色并收集其专属绑定的世界书条目
-        val confirmedIds = picker.selectedCharacterIds
-        val addedIds = confirmedIds - uiState.form.selectedCharacterIds
+        val availableIds = uiState.characters.map { it.id }.toSet()
+        val confirmedOrder = picker.selectedCharacterOrder.filter { it in availableIds }
+        // 只为本次新增角色补齐关联世界书，保留既有选择与已选角色的设置。
+        val addedIds = confirmedOrder.toSet() - uiState.form.selectedCharacterIds
         val addedLorebookIds = uiState.characters
             .filter { character -> character.id in addedIds && character.linkedLorebookId != null }
             .mapNotNullTo(mutableSetOf()) { character -> character.linkedLorebookId }
@@ -279,16 +279,13 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
             .flatMap { group -> group.entries }
             .mapTo(mutableSetOf()) { entry -> entry.id }
         val nextForm = uiState.form
-            .applyCharacterSelection(
-                selectedIds = confirmedIds,
-                characterOrder = uiState.characters.map { character -> character.id },
-            )
+            .applyCharacterSelection(selectedIdsInOrder = confirmedOrder)
             .copy(selectedLorebookEntryIds = uiState.form.selectedLorebookEntryIds + linkedEntryIds)
-        uiState.copy(
+        updateCharacterSelection(
+            state = uiState.copy(dialogState = StoryCreateDialogState.None),
             form = nextForm,
-            dialogState = StoryCreateDialogState.None,
-        ).setup()
-        mAvatarLoader.updatePinnedCharacters(nextForm.selectedCharacterIds)
+        )
+        mAvatarLoader.clearVisibleCharacters()
     }
 
     /**
@@ -318,8 +315,17 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                 uiState.form.selectedLorebookEntryIds
             },
         )
-        uiState.copy(form = nextForm).setup()
-        mAvatarLoader.updatePinnedCharacters(nextForm.selectedCharacterIds)
+        updateCharacterSelection(state = uiState, form = nextForm)
+    }
+
+    /** 联动角色选择、世界书摘要与主表单的常驻头像。 */
+    private fun updateCharacterSelection(state: StoryCreateUiState.Normal, form: StoryCreateForm) {
+        state.copy(
+            form = form,
+            selectedCharacters = state.characters.filter { it.id in form.selectedCharacterIds },
+            selectedWorldBookSummaries = state.lorebookGroups.summarizeSelection(form.selectedLorebookEntryIds),
+        ).setup()
+        mAvatarLoader.updatePinnedCharacters(form.selectedCharacterIds)
     }
 
     /** 设置已选角色的激活模式，并在设置新主角时自动清除旧主角。 */
@@ -443,6 +449,7 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         val picker = uiState.dialogState as? StoryCreateDialogState.LorebookPicker ?: return
         uiState.copy(
             form = uiState.form.copy(selectedLorebookEntryIds = picker.enabledEntryIds),
+            selectedWorldBookSummaries = uiState.lorebookGroups.summarizeSelection(picker.enabledEntryIds),
             dialogState = StoryCreateDialogState.None,
         ).setup()
     }
@@ -452,8 +459,8 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
     private fun onDismissDialog() {
         val uiState = readyState() ?: return
         mCharacterSearchJob?.cancel()
-        mAvatarLoader.clearVisibleCharacters()
         uiState.copy(dialogState = StoryCreateDialogState.None).setup()
+        mAvatarLoader.clearVisibleCharacters()
     }
 
     /** Story 与初始引用必须在同一事务中创建，避免配置校验失败后留下空 Story。 */
@@ -473,16 +480,13 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
                     lorebookSelections = uiState.form.selectedLorebookEntryIds
                         .sorted()
                         .map(::StoryLorebookEntrySelection),
-                    characterSelections = uiState.characters
-                        .filter { storyCreateCharacterItem -> storyCreateCharacterItem.id in uiState.form.selectedCharacterIds }
-                        .map { character ->
-                            StoryCharacterSelection(
-                                characterId = character.id,
-                                activationMode = uiState.form
-                                    .activationModeOf(character.id)
-                                    .toStorageValue(),
-                            )
-                        },
+                    characterSelections = uiState.selectedCharacters.map { character ->
+                        StoryCharacterSelection(
+                            characterId = character.id,
+                            activationMode = uiState.form.activationModeOf(character.id)
+                                .toStorageValue(),
+                        )
+                    },
                 )
             }
             // 启动故事编辑器页面并等待返回
@@ -524,36 +528,22 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         )
     }
 
-    /** 将最新解码完成的头像位图同步回主列表与角色参考选择器弹窗状态。 */
-    private fun publishLoadedAvatars() {
+    /** 更新角色头像快照，保持候选、已选角色和世界书摘要列表稳定。 */
+    private fun publishCharacterAvatars(avatars: Map<Long, ImageBitmap>) {
         val uiState = getOrNull<StoryCreateUiState.Normal>() ?: return
-        val updatedCharacters = uiState.characters.map { character ->
-            val image = mAvatarLoader.avatarOf(character.id)
-            if (character.avatarImage === image) character else character.copy(avatarImage = image)
-        }
-        val updatedDialog = when (val dialog = uiState.dialogState) {
-            is StoryCreateDialogState.CharacterPicker -> dialog.copy(
-                visibleCharacters = dialog.visibleCharacters.map { character ->
-                    val image = mAvatarLoader.avatarOf(character.id)
-                    if (character.avatarImage === image) {
-                        character
-                    } else {
-                        character.copy(avatarImage = image)
-                    }
-                },
-            )
-
-            else -> dialog
-        }
-        // 仅在头像位图引用实际变化时触发状态发布，避免多余重组
-        if (updatedCharacters != uiState.characters || updatedDialog != uiState.dialogState) {
-            uiState.copy(
-                characters = updatedCharacters,
-                dialogState = updatedDialog,
-            ).setup()
-        }
+        uiState.copy(characterAvatars = avatars).setup()
     }
 
+    /** 从已提交的条目选择生成主表单展示的世界书摘要。 */
+    private fun List<StoryCreateLorebookGroupItem>.summarizeSelection(selectedIds: Set<Long>) =
+        selectedWorldBookSummaries(
+            id = StoryCreateLorebookGroupItem::lorebookId,
+            name = StoryCreateLorebookGroupItem::lorebookName,
+            totalCount = StoryCreateLorebookGroupItem::entryCount,
+            selectedCount = { group -> group.entries.count { entry -> entry.id in selectedIds } },
+        )
+
+    /** 随创建页销毁取消头像解码，并释放缓存位图。 */
     override fun onCleared() {
         mAvatarLoader.clear()
         super.onCleared()

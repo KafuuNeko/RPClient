@@ -702,6 +702,7 @@ private fun SettingsSwitch(
 
 /** 将群聊世界书分组转换为设置页通用世界书展示模型。 */
 private fun GroupChatLorebookGroupItem.toSessionWorldBookGroupItem(): SessionWorldBookGroupItem {
+    // 保留未启用条目，设置页展开后仍可重新开启同一本世界书内的其他条目。
     return SessionWorldBookGroupItem(
         lorebookId = lorebookId,
         lorebookName = lorebookName,

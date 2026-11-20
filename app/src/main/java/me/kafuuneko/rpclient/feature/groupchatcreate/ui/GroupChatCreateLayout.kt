@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,7 +54,6 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreat
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
-import me.kafuuneko.rpclient.libs.core.ActivityPreview
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialog
@@ -62,6 +63,7 @@ import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogEntry
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialogGroup
+import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
@@ -78,7 +80,6 @@ import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryCard
-import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryItem
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 import me.kafuuneko.rpclient.ui.widgets.pageFilterChipColors
 
@@ -109,24 +110,6 @@ private fun GroupChatCreateNormalView(
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
     val controlsEnabled = state.loadState == GroupChatCreateLoadState.None
-    val selectedCharacters = remember(state.characters) {
-        state.characters.filter { character -> character.selected }
-    }
-    val selectedWorldBookSummaries = remember(state.lorebookGroups) {
-        state.lorebookGroups.mapNotNull { group ->
-            if (group.enabledCount > 0) {
-                WorldBookSelectionSummaryItem(
-                    lorebookId = group.lorebookId,
-                    name = group.lorebookName,
-                    selectedCount = group.enabledCount,
-                    totalCount = group.totalCount,
-                )
-            } else {
-                null
-            }
-        }
-    }
-
     AppPageScaffold(
         // 缩小整个表单视口，底栏与输入区共同避让键盘
         modifier = Modifier.imePadding(),
@@ -156,101 +139,12 @@ private fun GroupChatCreateNormalView(
                 ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 基础信息与人设配置
-                item {
-                    OutlinedTextField(
-                        value = state.title,
-                        onValueChange = { text ->
-                            emitIntent(GroupChatCreateUiIntent.ChangeTitle(text))
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .generalContentBackground(
-                                shape = RoundedCornerShape(16.dp),
-                                hasLabel = true,
-                            ),
-                        label = { Text(stringResource(R.string.group_chat_title_label)) },
-                        placeholder = {
-                            Text(stringResource(R.string.group_chat_title_placeholder))
-                        },
-                        enabled = controlsEnabled,
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                    )
-                }
-                item {
-                    UserPersonaPicker(
-                        state = state.persona,
-                        enabled = controlsEnabled,
-                        onSelect = { emitIntent(GroupChatCreateUiIntent.SelectPersona(it)) },
-                    )
-                }
-                // 群聊成员摘要区置于开场白之前，方便先确立参演阵容再配置手动或自定义开场白
-                item {
-                    RpSectionHeader(
-                        title = stringResource(R.string.group_chat_members),
-                        action = if (state.characters.isNotEmpty() && controlsEnabled) {
-                            stringResource(
-                                if (selectedCharacters.isNotEmpty()) R.string.manage
-                                else R.string.picker_choose,
-                            )
-                        } else {
-                            null
-                        },
-                        onAction = { emitIntent(GroupChatCreateUiIntent.ShowCharacterPicker) },
-                    )
-                }
-                item {
-                    SelectedMembersSummaryCard(
-                        totalCharacterCount = state.characters.size,
-                        selectedCharacters = selectedCharacters,
-                        enabled = controlsEnabled,
-                        onOpenPicker = { emitIntent(GroupChatCreateUiIntent.ShowCharacterPicker) },
-                        onRemoveMember = { characterId ->
-                            emitIntent(GroupChatCreateUiIntent.ToggleCharacter(characterId))
-                        },
-                    )
-                }
-                // 发言轮转与开场白配置区
-                item {
-                    StrategySection(
-                        selected = state.activationStrategy,
-                        onSelect = { strategy ->
-                            emitIntent(GroupChatCreateUiIntent.SelectStrategy(strategy))
-                        },
-                    )
-                }
-                item {
-                    RpCreationSwitchCard(
-                        title = stringResource(R.string.group_chat_allow_consecutive),
-                        subtitle = stringResource(R.string.group_chat_allow_consecutive_desc),
-                        icon = Icons.Rounded.AutoAwesome,
-                        checked = state.allowSelfResponses,
-                        onCheckedChange = { enabled ->
-                            emitIntent(GroupChatCreateUiIntent.ToggleAllowSelfResponses(enabled))
-                        },
-                    )
-                }
-                item {
-                    GreetingSection(
-                        state = state.greetingState,
-                        emitIntent = emitIntent,
-                    )
-                }
-                if (state.showCharacterExamplesSwitch) {
-                    item {
-                        RpCreationSwitchCard(
-                            title = stringResource(R.string.chat_include_character_examples),
-                            icon = Icons.Rounded.FormatQuote,
-                            checked = state.includeCharacterExamples,
-                            onCheckedChange = { enabled ->
-                                emitIntent(
-                                    GroupChatCreateUiIntent.ToggleIncludeCharacterExamples(enabled),
-                                )
-                            },
-                        )
-                    }
-                }
+                groupMemberSetupItems(
+                    state = state,
+                    controlsEnabled = controlsEnabled,
+                    emitIntent = emitIntent
+                )
+                groupPromptItems(state = state, emitIntent = emitIntent)
                 // 世界书摘要区：点击打开独立检索选择器弹窗
                 item {
                     RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
@@ -259,7 +153,7 @@ private fun GroupChatCreateNormalView(
                     WorldBookSelectionSummaryCard(
                         totalGroupCount = state.lorebookGroups.size,
                         selectedEntryCount = state.selectedLorebookEntryIds.size,
-                        selectedGroups = selectedWorldBookSummaries,
+                        selectedGroups = state.selectedWorldBookSummaries,
                         enabled = controlsEnabled,
                         onClick = { emitIntent(GroupChatCreateUiIntent.ShowLorebookPicker) },
                     )
@@ -269,40 +163,132 @@ private fun GroupChatCreateNormalView(
     )
 }
 
+/** 群聊主表单中的轮转、开场白以及角色卡示例配置。 */
+private fun LazyListScope.groupPromptItems(
+    state: GroupChatCreateUiState.Normal,
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
+) {
+    // 发言轮转与开场白配置区
+    item {
+        StrategySection(
+            selected = state.activationStrategy,
+            onSelect = { strategy ->
+                emitIntent(GroupChatCreateUiIntent.SelectStrategy(strategy))
+            },
+        )
+    }
+    item {
+        RpCreationSwitchCard(
+            title = stringResource(R.string.group_chat_allow_consecutive),
+            subtitle = stringResource(R.string.group_chat_allow_consecutive_desc),
+            icon = Icons.Rounded.AutoAwesome,
+            checked = state.allowSelfResponses,
+            onCheckedChange = { enabled ->
+                emitIntent(GroupChatCreateUiIntent.ToggleAllowSelfResponses(enabled))
+            },
+        )
+    }
+    item {
+        GreetingSection(
+            state = state.greetingState,
+            emitIntent = emitIntent,
+        )
+    }
+    if (state.showCharacterExamplesSwitch) {
+        item {
+            RpCreationSwitchCard(
+                title = stringResource(R.string.chat_include_character_examples),
+                icon = Icons.Rounded.FormatQuote,
+                checked = state.includeCharacterExamples,
+                onCheckedChange = { enabled ->
+                    emitIntent(
+                        GroupChatCreateUiIntent.ToggleIncludeCharacterExamples(enabled),
+                    )
+                },
+            )
+        }
+    }
+}
+
+/** 群聊基础信息、人设与成员摘要区域。 */
+private fun LazyListScope.groupMemberSetupItems(
+    state: GroupChatCreateUiState.Normal,
+    controlsEnabled: Boolean,
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
+) {
+    // 基础信息与人设配置
+    item {
+        OutlinedTextField(
+            value = state.title,
+            onValueChange = { text ->
+                emitIntent(GroupChatCreateUiIntent.ChangeTitle(text))
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .generalContentBackground(
+                    shape = RoundedCornerShape(16.dp),
+                    hasLabel = true,
+                ),
+            label = { Text(stringResource(R.string.group_chat_title_label)) },
+            placeholder = {
+                Text(stringResource(R.string.group_chat_title_placeholder))
+            },
+            enabled = controlsEnabled,
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+        )
+    }
+    item {
+        UserPersonaPicker(
+            state = state.persona,
+            enabled = controlsEnabled,
+            onSelect = { emitIntent(GroupChatCreateUiIntent.SelectPersona(it)) },
+        )
+    }
+    // 群聊成员摘要区置于开场白之前，方便先确立参演阵容再配置手动或自定义开场白
+    item {
+        RpSectionHeader(
+            title = stringResource(R.string.group_chat_members),
+            action = if (state.characters.isNotEmpty() && controlsEnabled) {
+                stringResource(
+                    if (state.selectedCharacters.isNotEmpty()) R.string.manage
+                    else R.string.picker_choose,
+                )
+            } else {
+                null
+            },
+            onAction = { emitIntent(GroupChatCreateUiIntent.ShowCharacterPicker) },
+        )
+    }
+    item {
+        SelectedMembersSummaryCard(
+            totalCharacterCount = state.characters.size,
+            selectedCharacters = state.selectedCharacters,
+            characterAvatars = state.characterAvatars,
+            enabled = controlsEnabled,
+            onOpenPicker = { emitIntent(GroupChatCreateUiIntent.ShowCharacterPicker) },
+            onRemoveMember = { characterId ->
+                emitIntent(GroupChatCreateUiIntent.ToggleCharacter(characterId))
+            },
+        )
+    }
+}
+
 /**
  * 展示群聊已选成员的紧凑摘要卡片，支持快速移除单个成员或拉起完整检索选择器。
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedMembersSummaryCard(
     totalCharacterCount: Int,
     selectedCharacters: List<GroupChatCreateCharacterItem>,
+    characterAvatars: Map<Long, ImageBitmap>,
     enabled: Boolean,
     onOpenPicker: () -> Unit,
     onRemoveMember: (Long) -> Unit,
 ) {
     // 本地尚无任何角色卡时展示空态引导
     if (totalCharacterCount == 0) {
-        AppCard(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RpIconBubble(icon = Icons.Rounded.Groups)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.no_characters_for_chat),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        NoMemberCandidatesCard()
         return
     }
 
@@ -345,63 +331,125 @@ private fun SelectedMembersSummaryCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            // 顶部摘要行负责拉起成员选择器弹窗
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = enabled, onClick = onOpenPicker)
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RpIconBubble(icon = Icons.Rounded.Groups)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = titleText,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = subtitleText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = subtitleColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
+            SelectedMembersSummaryHeader(
+                title = titleText,
+                subtitle = subtitleText,
+                subtitleColor = subtitleColor,
+                enabled = enabled,
+                onOpenPicker = onOpenPicker,
+            )
+            SelectedMemberChips(
+                selectedCharacters = selectedCharacters,
+                characterAvatars = characterAvatars,
+                enabled = enabled,
+                onRemoveMember = onRemoveMember,
+            )
+        }
+    }
+}
+
+
+/** 展示已选成员及表单内的一键移除入口。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SelectedMemberChips(
+    selectedCharacters: List<GroupChatCreateCharacterItem>,
+    characterAvatars: Map<Long, ImageBitmap>,
+    enabled: Boolean,
+    onRemoveMember: (Long) -> Unit,
+) {
+    // 以紧凑流式标签展示已选成员，支持在表单中直接移除成员
+    if (selectedCharacters.isNotEmpty()) {
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            selectedCharacters.forEach { character ->
+                SelectedMemberChip(
+                    name = character.name,
+                    avatarImage = characterAvatars[character.id],
+                    enabled = enabled,
+                    onRemove = { onRemoveMember(character.id) },
                 )
             }
-            // 以紧凑流式标签展示已选成员，支持在表单中直接移除成员
-            if (selectedCharacters.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    selectedCharacters.forEach { character ->
-                        SelectedMemberChip(
-                            name = character.name,
-                            avatarImage = character.avatarImage,
-                            enabled = enabled,
-                            onRemove = { onRemoveMember(character.id) },
-                        )
-                    }
-                }
-            }
         }
+    }
+}
+
+/** 没有可选角色时使用静态空态。 */
+@Composable
+private fun NoMemberCandidatesCard() {
+    // 无可选角色时不提供打开选择器的入口。
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RpIconBubble(icon = Icons.Rounded.Groups)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.no_characters_for_chat),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 显示已选成员计数和打开选择器的入口。 */
+@Composable
+private fun SelectedMembersSummaryHeader(
+    title: String,
+    subtitle: String,
+    subtitleColor: Color,
+    enabled: Boolean,
+    onOpenPicker: () -> Unit,
+) {
+    // 顶部摘要行负责拉起成员选择器弹窗
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onOpenPicker)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RpIconBubble(icon = Icons.Rounded.Groups)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = subtitleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -711,25 +759,18 @@ private fun DialogSwitch(
     state: GroupChatCreateUiState.Normal,
     emitIntent: (GroupChatCreateUiIntent) -> Unit,
 ) {
-    // 优先展示加载或创建进度遮罩，就绪态下按弹窗状态树分发角色或世界书选择器
-    when (state.loadState) {
-        GroupChatCreateLoadState.Loading -> {
-            LoadingDialog(
-                title = stringResource(R.string.group_chat_create_title),
-                description = stringResource(R.string.group_chat_loading_characters),
-            )
-            return
-        }
-
-        GroupChatCreateLoadState.Creating -> {
-            LoadingDialog(
-                title = stringResource(R.string.group_chat_create_title),
-                description = stringResource(R.string.group_chat_creating),
-            )
-            return
-        }
-
-        GroupChatCreateLoadState.None -> Unit
+    // 加载与创建期间优先遮罩表单，选择器只在就绪时显示。
+    val progressMessage = when (state.loadState) {
+        GroupChatCreateLoadState.Loading -> R.string.group_chat_loading_characters
+        GroupChatCreateLoadState.Creating -> R.string.group_chat_creating
+        GroupChatCreateLoadState.None -> null
+    }
+    if (progressMessage != null) {
+        LoadingDialog(
+            title = stringResource(R.string.group_chat_create_title),
+            description = stringResource(progressMessage),
+        )
+        return
     }
 
     when (val dialogState = state.dialogState) {
@@ -743,7 +784,6 @@ private fun DialogSwitch(
                         name = character.name,
                         description = character.description,
                         tags = character.tags,
-                        avatarImage = character.avatarImage,
                     )
                 }
             }
@@ -752,6 +792,7 @@ private fun DialogSwitch(
                 mode = CharacterPickerMode.Multiple,
                 totalCount = state.characters.size,
                 visibleCharacters = visibleItems,
+                characterAvatars = state.characterAvatars,
                 selectedIds = dialogState.selectedCharacterIds,
                 query = dialogState.query,
                 showSelectedOnly = dialogState.showSelectedOnly,
@@ -760,7 +801,11 @@ private fun DialogSwitch(
                     emitIntent(GroupChatCreateUiIntent.ChangeSearchQuery(text))
                 },
                 onShowSelectedOnlyChange = { selectedOnly ->
-                    emitIntent(GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly(selectedOnly))
+                    emitIntent(
+                        GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly(
+                            selectedOnly
+                        )
+                    )
                 },
                 onVisibleCharactersChanged = { visibleIds, targetSizePx ->
                     emitIntent(
@@ -778,37 +823,50 @@ private fun DialogSwitch(
             )
         }
 
-        is GroupChatCreateDialogState.LorebookPicker -> {
-            val allDialogGroups = remember(state.lorebookGroups) {
-                state.lorebookGroups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
-            }
-            val visibleDialogGroups = remember(dialogState.visibleGroups) {
-                dialogState.visibleGroups.map(
-                    GroupChatLorebookGroupItem::toSessionLorebookDialogGroup,
-                )
-            }
-            SessionLorebookDialog(
-                groups = allDialogGroups,
-                visibleGroups = visibleDialogGroups,
-                query = dialogState.query,
-                enabledEntryIds = dialogState.enabledEntryIds,
-                title = stringResource(R.string.enabled_world_book_entries),
-                showSelectedOnly = dialogState.showSelectedOnly,
-                onQueryChange = { text ->
-                    emitIntent(GroupChatCreateUiIntent.ChangeLorebookQuery(text))
-                },
-                onShowSelectedOnlyChange = { selectedOnly ->
-                    emitIntent(GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly(selectedOnly))
-                },
-                onToggleGroup = { id -> emitIntent(GroupChatCreateUiIntent.ToggleLorebook(id)) },
-                onToggleEntry = { id ->
-                    emitIntent(GroupChatCreateUiIntent.ToggleLorebookEntry(id))
-                },
-                onConfirmSelection = { emitIntent(GroupChatCreateUiIntent.ConfirmLorebookPicker) },
-                onDismissRequest = { emitIntent(GroupChatCreateUiIntent.DismissDialog) },
-            )
-        }
+        is GroupChatCreateDialogState.LorebookPicker -> GroupCreateLorebookPicker(
+            groups = state.lorebookGroups,
+            dialogState = dialogState,
+            emitIntent = emitIntent,
+        )
     }
+}
+
+/** 将群聊创建草稿适配为通用世界书选择器。 */
+@Composable
+private fun GroupCreateLorebookPicker(
+    groups: List<GroupChatLorebookGroupItem>,
+    dialogState: GroupChatCreateDialogState.LorebookPicker,
+    emitIntent: (GroupChatCreateUiIntent) -> Unit,
+) {
+    // 完整分组用于整本切换，当前搜索结果只决定可见列表。
+    val allDialogGroups = remember(groups) {
+        groups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(
+            GroupChatLorebookGroupItem::toSessionLorebookDialogGroup,
+        )
+    }
+    SessionLorebookDialog(
+        groups = allDialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        enabledEntryIds = dialogState.enabledEntryIds,
+        title = stringResource(R.string.enabled_world_book_entries),
+        showSelectedOnly = dialogState.showSelectedOnly,
+        onQueryChange = { text ->
+            emitIntent(GroupChatCreateUiIntent.ChangeLorebookQuery(text))
+        },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            emitIntent(GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly(selectedOnly))
+        },
+        onToggleGroup = { id -> emitIntent(GroupChatCreateUiIntent.ToggleLorebook(id)) },
+        onToggleEntry = { id ->
+            emitIntent(GroupChatCreateUiIntent.ToggleLorebookEntry(id))
+        },
+        onConfirmSelection = { emitIntent(GroupChatCreateUiIntent.ConfirmLorebookPicker) },
+        onDismissRequest = { emitIntent(GroupChatCreateUiIntent.DismissDialog) },
+    )
 }
 
 /** 将群聊创建页的世界书分组转换为通用选择器弹窗展示模型。 */
@@ -888,10 +946,12 @@ private fun GroupChatGreetingMode.descriptionRes(): Int {
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun GroupChatCreatePreview() {
-    ActivityPreview(darkTheme = false) {
+    // 预览已满足最低成员数且手动开场白已就绪的表单。
+    AppTheme(darkTheme = false, dynamicColor = false) {
         GroupChatCreateLayout(
             uiState = GroupChatCreateUiState.Normal(
                 characters = previewCharacters,
+                selectedCharacters = previewCharacters.filter { it.selected },
                 greetingState = GroupChatCreateGreetingState(
                     characters = previewCharacters.filter { character -> character.selected }
                         .map { character ->

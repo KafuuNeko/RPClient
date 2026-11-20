@@ -29,24 +29,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.ui.model.WorldBookSelectionSummaryItem
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 
 private const val MAX_PREVIEW_WORLD_BOOKS = 5
-
-/**
- * 世界书摘要卡片中单本已启用世界书的计数快照。
- *
- * @param lorebookId 世界书唯一标识
- * @param name 世界书名称
- * @param selectedCount 当前已启用的条目数
- * @param totalCount 该世界书包含的全部条目数
- */
-data class WorldBookSelectionSummaryItem(
-    val lorebookId: Long,
-    val name: String,
-    val selectedCount: Int,
-    val totalCount: Int,
-)
 
 /**
  * 创建页与设置页共用的世界书选择摘要卡片，点击后由页面拉起完整检索选择器。
@@ -73,26 +59,7 @@ fun WorldBookSelectionSummaryCard(
 ) {
     // 本地没有可选世界书时直接展示静态空态提示
     if (totalGroupCount == 0) {
-        AppCard(
-            modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RpIconBubble(icon = Icons.AutoMirrored.Rounded.MenuBook)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.no_world_book_entries_selectable),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        NoWorldBookEntriesCard(modifier = modifier)
         return
     }
 
@@ -135,53 +102,11 @@ fun WorldBookSelectionSummaryCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // 顶部摘要行展示状态图标、条目统计以及打开选择器的操作引导
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RpIconBubble(icon = Icons.AutoMirrored.Rounded.MenuBook)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = titleText,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = subtitleText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = actionText,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
+            WorldBookSelectionSummaryHeader(
+                title = titleText,
+                subtitle = subtitleText,
+                action = actionText,
+            )
 
             // 存在已启用世界书时以紧凑标签预览前几本，超出上限折叠为增量计数
             if (selectedGroups.isNotEmpty()) {
@@ -202,9 +127,88 @@ fun WorldBookSelectionSummaryCard(
     }
 }
 
+/** 当库中无可选条目时展示静态说明。 */
+@Composable
+private fun NoWorldBookEntriesCard(modifier: Modifier) {
+    // 空库仍保留摘要卡片的样式，便于在主表单中找到世界书区域。
+    AppCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RpIconBubble(icon = Icons.AutoMirrored.Rounded.MenuBook)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.no_world_book_entries_selectable),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 显示世界书条目统计及选择器入口。 */
+@Composable
+private fun WorldBookSelectionSummaryHeader(title: String, subtitle: String, action: String) {
+    // 顶部摘要行展示状态图标、条目统计以及打开选择器的操作引导
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RpIconBubble(icon = Icons.AutoMirrored.Rounded.MenuBook)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = action,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                softWrap = false,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true, widthDp = 390)
 @Composable
 private fun WorldBookSelectionSummaryCardPreview() {
+    // 对比已有选择与等待选择时的摘要内容。
     AppTheme(dynamicColor = false) {
         Column(
             modifier = Modifier.padding(16.dp),

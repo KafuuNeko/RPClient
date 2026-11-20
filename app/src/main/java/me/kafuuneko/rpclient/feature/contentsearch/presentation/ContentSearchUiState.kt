@@ -18,6 +18,8 @@ sealed class ContentSearchUiState {
         val resultState: ContentSearchResultState = ContentSearchResultState.Idle,
         val resultParentId: Long? = null,
         val resultEpoch: Long = 0L,
+        /** 新一轮查询已提交，宽限期内仍渲染的旧结果暂不可操作。 */
+        val isReplacingResults: Boolean = false,
     ) : ContentSearchUiState()
 
     data class Finished(val previous: ContentSearchUiState) : ContentSearchUiState()

@@ -240,7 +240,6 @@ private fun GroupAddMembersDialog(
                 name = character.name,
                 description = character.description,
                 tags = character.tags,
-                avatarImage = character.avatarImage,
             )
         }
     }
@@ -255,6 +254,7 @@ private fun GroupAddMembersDialog(
         mode = CharacterPickerMode.Multiple,
         totalCount = totalCandidateCount,
         visibleCharacters = visibleItems,
+        characterAvatars = dialogState.characterAvatars,
         selectedIds = dialogState.selectedCharacterIds,
         query = dialogState.query,
         showSelectedOnly = dialogState.showSelectedOnly,

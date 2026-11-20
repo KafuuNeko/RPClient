@@ -88,6 +88,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                     indexState = index,
                     resultState = if (changed) ContentSearchResultState.Idle else current.resultState,
                     resultParentId = if (changed) null else current.resultParentId,
+                    isReplacingResults = !changed && current.isReplacingResults,
                 ).setup()
             }
         }
@@ -119,6 +120,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             inputState = state.inputState.copy(draft = intent.value),
             resultState = ContentSearchResultState.Idle,
             resultParentId = null,
+            isReplacingResults = false,
         ).setup()
     }
 
@@ -151,15 +153,13 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 搜索按钮与键盘 Search 共用提交入口。 */
     @UiIntentObserver(ContentSearchUiIntent.Submit::class)
     private fun onSubmit() {
-        mDirectScan = false
-        search()
+        search(directScan = false)
     }
 
     /** 明确选择慢速全文扫描时才绕过索引，保留停止和部分结果。 */
     @UiIntentObserver(ContentSearchUiIntent.SearchDirectly::class)
     private fun onSearchDirectly() {
-        mDirectScan = true
-        search()
+        search(directScan = true)
     }
 
     /** 使用当前游标请求下一页，不允许重复分页任务。 */
@@ -172,14 +172,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     @UiIntentObserver(ContentSearchUiIntent.Stop::class)
     private fun onStop() {
         val state = interactiveState() ?: return
-        val preserved = latestQueryItems(state)
-        cancelQuery()
-        state.copy(
-            resultState = ContentSearchResultState.Stopped(
-                items = preserved,
-            ),
-            resultParentId = state.scopeState.parentId,
-        ).setup()
+        if (mSearchJob?.isActive != true) return
+        stopSearch(state)
     }
 
     /** 返回对象范围的上一层，或结束整个搜索页。 */
@@ -201,31 +195,33 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     @UiIntentObserver(ContentSearchUiIntent.OpenSearchSettings::class)
     private fun onOpenSearchSettings() {
         val state = getOrNull<ContentSearchUiState.Normal>() ?: return
-        val preserved = latestQueryItems(state)
-        cancelQuery()
-        state.copy(resultState = stoppedResult(state.resultState, preserved)).setup()
+        if (mSearchJob?.isActive == true) {
+            stopSearch(state)
+        } else {
+            cancelQuery()
+        }
         AppViewEvent.StartActivity(
             activity = MainActivity::class.java,
             extras = Bundle().apply { putString(MainActivity.EXTRA_ROUTE, Route.Setting.name) },
         ).tryEmit()
     }
 
-    /** 停止的查询保留已取得结果，打开设置后不能留下无人执行的 Loading。 */
-    private fun stoppedResult(
-        result: ContentSearchResultState,
-        preserved: List<SearchHit>,
-    ): ContentSearchResultState =
-        if (result is ContentSearchResultState.Searching) {
-            ContentSearchResultState.Stopped(items = preserved)
-        } else {
-            result
-        }
+    /** 停止查询时保存当前请求已取得的部分结果，宽限期内也使用新范围。 */
+    private fun stopSearch(state: ContentSearchUiState.Normal) {
+        val preserved = latestQueryItems(state)
+        cancelQuery()
+        state.copy(
+            resultState = ContentSearchResultState.Stopped(items = preserved),
+            resultParentId = state.scopeState.parentId,
+            isReplacingResults = false,
+        ).setup()
+    }
 
     /** 在同一页面内按单个对象展示命中消息／章节。 */
     @UiIntentObserver(ContentSearchUiIntent.SearchWithin::class)
     private fun onSearchWithin(intent: ContentSearchUiIntent.SearchWithin) {
-        val state = interactiveState() ?: return
-        val kind = SearchKind.entries.first { it.code == intent.hit.kind }
+        val state = stateForResultAction(intent.hit) ?: return
+        val kind = SearchKind.entries.firstOrNull { it.code == intent.hit.kind } ?: return
         updateScope(
             scope = state.scopeState.copy(
                 kind = kind,
@@ -246,8 +242,8 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     /** 验证目标后分发导航事件；点击标题保留普通打开行为。 */
     @UiIntentObserver(ContentSearchUiIntent.Open::class)
     private fun onOpen(intent: ContentSearchUiIntent.Open) {
-        val state = interactiveState() ?: return
         val hit = intent.hit
+        val state = stateForResultAction(hit) ?: return
         val preserved = latestQueryItems(state)
         // 打开目标前先终止正在进行的搜索，避免跳转过程中状态继续抖动。
         cancelQuery()
@@ -268,7 +264,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 if (generation != mGeneration) return@launch
                 if (!available) {
                     AppViewEvent.PopupToastMessageByResId(R.string.content_search_changed).tryEmit()
-                    search(replaceRunning = true)
+                    search()
                     return@launch
                 }
                 // 标题打开不带锚点，正文或章节命中携带稳定源 ID。
@@ -292,14 +288,15 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     }
 
     /** 按搜索命中类型组装导航参数并返回目标宿主页面类。 */
-    private fun resolveNavigationTarget(hit: SearchHit, extras: Bundle): Class<*> =
-        when (hit.kind) {
-            1 -> {
+    private fun resolveNavigationTarget(hit: SearchHit, extras: Bundle): Class<*> {
+        // 会话导航沿用字符串 ID，故事编辑器使用 Long ID。
+        return when (hit.kind) {
+            SearchKind.Chat.code -> {
                 extras.putString(ChatActivity.EXTRA_SESSION_ID, hit.parentId.toString())
                 ChatActivity::class.java
             }
 
-            2 -> {
+            SearchKind.Group.code -> {
                 extras.putString(GroupChatActivity.EXTRA_SESSION_ID, hit.parentId.toString())
                 GroupChatActivity::class.java
             }
@@ -309,47 +306,57 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 StoryEditorActivity::class.java
             }
         }
+    }
 
     /** 更新筛选范围并在已提交查询匹配当前草稿时无缝重查，避免先闪回空闲态。 */
     private fun updateScope(scope: ContentSearchScopeState) {
         val state = interactiveState() ?: return
         val shouldResearch = state.inputState.draft.isNotBlank()
             && state.inputState.draft == state.inputState.submitted
-        cancelQuery()
         mSavedState["kind"] = scope.kind.code
         mSavedState["scope"] = scope.scope.name
         if (shouldResearch) {
-            // 保留上一帧结果直至新结果返回或超过加载宽限期，消除切换筛选时的空白闪烁。
-            state.copy(scopeState = scope).setup()
-            search(replaceRunning = true)
-        } else {
-            state.copy(
-                scopeState = scope,
-                resultState = ContentSearchResultState.Idle,
-                resultParentId = null,
-            ).setup()
+            // 新范围与旧结果的只读标记一同发布，避免切换范围时旧卡片仍可触发导航。
+            search(newScope = scope)
+            return
         }
+        cancelQuery()
+        state.copy(
+            scopeState = scope,
+            resultState = ContentSearchResultState.Idle,
+            resultParentId = null,
+            isReplacingResults = false,
+        ).setup()
     }
 
     /**
      * 启动独立搜索任务，所有回写都使用代次守卫和最新父状态。
      *
      * @param append 是否基于当前游标追加下一页结果。
-     * @param replaceRunning 是否允许替换进行中的检索（用于范围切换和失效刷新）。
+     * @param newScope 切换筛选时使用的新范围，允许替换正在执行的查询。
+     * @param directScan 是否绕过索引直接搜索原文。
      */
-    private fun search(append: Boolean = false, replaceRunning: Boolean = false) {
+    private fun search(
+        append: Boolean = false,
+        newScope: ContentSearchScopeState? = null,
+        directScan: Boolean = mDirectScan,
+    ) {
         val state = interactiveState() ?: return
         // 非强制替换场景下，拦截进行中的重复提交与重复分页请求。
-        if (!replaceRunning && mSearchJob?.isActive == true) return
+        if (newScope == null && mSearchJob?.isActive == true) return
+        val scope = newScope ?: state.scopeState
         when (mRepository.validateQuery(state.inputState.draft)) {
             SearchQueryValidation.Empty -> return
             SearchQueryValidation.TooLong -> {
+                cancelQuery()
                 state.copy(
+                    scopeState = scope,
                     resultState = ContentSearchResultState.Error(
                         items = emptyList(),
                         message = R.string.content_search_too_long,
                     ),
                     resultParentId = null,
+                    isReplacingResults = false,
                 ).setup()
                 return
             }
@@ -358,22 +365,23 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         }
         val cursor = if (append) state.resultState.nextCursor() ?: return else null
         cancelQuery()
+        mDirectScan = directScan
         val generation = mGeneration
         val existing = if (append) state.resultState.items() else emptyList()
         mActiveExisting = existing
         val request = SearchRequest(
             query = state.inputState.draft,
-            kind = state.scopeState.kind,
-            scope = state.scopeState.scope,
-            parentId = state.scopeState.parentId,
-            directScan = mDirectScan,
+            kind = scope.kind,
+            scope = scope.scope,
+            parentId = scope.parentId,
+            directScan = directScan,
         )
-        // 同步记录已提交关键词，但暂不立即切换 Searching，待宽限期满再展示加载态。
-        if (state.inputState.submitted != state.inputState.draft) {
-            state.copy(
-                inputState = state.inputState.copy(submitted = state.inputState.draft),
-            ).setup()
-        }
+        // 分页沿用当前结果，首页查询的旧卡片在宽限期内只保留画面。
+        state.copy(
+            inputState = state.inputState.copy(submitted = state.inputState.draft),
+            scopeState = scope,
+            isReplacingResults = !append,
+        ).setup()
         launchSearchJob(
             generation = generation,
             request = request,
@@ -402,11 +410,11 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         // 长任务退出 Intent 消费器，取消、停止和重新输入才能立即得到处理。
         mSearchJob = viewModelScope.launch {
             val gate = SearchProgressGate(
-                scope = this,
-                generation = generation,
-                append = append,
-                parentId = request.parentId,
-                existing = existing,
+                mScope = this,
+                mRequestGeneration = generation,
+                mAppend = append,
+                mParentId = request.parentId,
+                mExisting = existing,
             )
             gate.startGraceTimer()
             try {
@@ -457,54 +465,58 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
      * 控制单次查询的加载态宽限延迟与部分结果节流推送，所有操作均在主线程串行执行。
      */
     private inner class SearchProgressGate(
-        private val scope: CoroutineScope,
-        private val generation: Long,
-        private val append: Boolean,
-        private val parentId: Long?,
-        private val existing: List<SearchHit>,
+        private val mScope: CoroutineScope,
+        private val mRequestGeneration: Long,
+        private val mAppend: Boolean,
+        private val mParentId: Long?,
+        private val mExisting: List<SearchHit>,
     ) {
         var enteredSearching: Boolean = false
             private set
 
-        private var indicatorJob: Job? = null
-        private var flushJob: Job? = null
-        private var lastPublishMark: TimeSource.Monotonic.ValueTimeMark? = null
-        private var lastPublishedItems: List<SearchHit>? = null
+        private var mIndicatorJob: Job? = null
+        private var mFlushJob: Job? = null
+        private var mLastPublishMark: TimeSource.Monotonic.ValueTimeMark? = null
+        private var mLastPublishedItems: List<SearchHit>? = null
 
         /** 启动加载态宽限计时器；快查询在到期前结束可完全跳过 Loading 闪烁。 */
         fun startGraceTimer() {
-            indicatorJob = scope.launch {
+            mIndicatorJob = mScope.launch {
                 delay(SEARCH_INDICATOR_DELAY_MS)
-                if (generation != mGeneration) return@launch
+                if (mRequestGeneration != mGeneration) return@launch
                 enteredSearching = true
                 publishSnapshot(
-                    items = mPendingPartialHits ?: existing,
-                    bumpEpoch = !append,
+                    items = mPendingPartialHits ?: mExisting,
+                    bumpEpoch = !mAppend,
                 )
             }
         }
 
-        /** 接收最新累计命中，未过宽限期只缓存，进入搜索态后按固定间隔节流刷新。 */
+        /**
+         * 接收最新累计命中，未过宽限期只缓存，进入搜索态后按固定间隔节流刷新。
+         *
+         * @param combined 当前查询已获得的累计命中，分页时包含原有结果前缀。
+         */
         fun onPartial(combined: List<SearchHit>) {
-            if (generation != mGeneration) return
+            if (mRequestGeneration != mGeneration) return
             mPendingPartialHits = combined
-            if (!enteredSearching || combined == lastPublishedItems) return
-            val elapsedMs = lastPublishMark?.elapsedNow()?.inWholeMilliseconds ?: Long.MAX_VALUE
+            if (!enteredSearching || combined == mLastPublishedItems) return
+            val elapsedMs = mLastPublishMark?.elapsedNow()?.inWholeMilliseconds ?: Long.MAX_VALUE
             if (elapsedMs >= PARTIAL_PUBLISH_INTERVAL_MS) {
-                flushJob?.cancel()
-                flushJob = null
+                mFlushJob?.cancel()
+                mFlushJob = null
                 publishSnapshot(items = combined, bumpEpoch = false)
                 return
             }
-            if (flushJob != null) return
+            if (mFlushJob != null) return
             // 在节流窗口尾部补发一次最新缓存，避免最后一批新命中长时间滞留在内存。
             val delayMs = PARTIAL_PUBLISH_INTERVAL_MS - elapsedMs
-            flushJob = scope.launch {
+            mFlushJob = mScope.launch {
                 delay(delayMs)
-                flushJob = null
-                if (generation != mGeneration || !enteredSearching) return@launch
+                mFlushJob = null
+                if (mRequestGeneration != mGeneration || !enteredSearching) return@launch
                 val latest = mPendingPartialHits ?: return@launch
-                if (latest != lastPublishedItems) {
+                if (latest != mLastPublishedItems) {
                     publishSnapshot(items = latest, bumpEpoch = false)
                 }
             }
@@ -512,22 +524,28 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
 
         /** 取消待执行的宽限计时器与节流补发协程。 */
         fun cancel() {
-            indicatorJob?.cancel()
-            indicatorJob = null
-            flushJob?.cancel()
-            flushJob = null
+            mIndicatorJob?.cancel()
+            mIndicatorJob = null
+            mFlushJob?.cancel()
+            mFlushJob = null
         }
 
+        /**
+         * 发布当前查询的搜索中快照，并记录节流时间与已发布结果。
+         *
+         * @param items 本次可展示的累计命中。
+         * @param bumpEpoch 是否作为全新查询的首个快照触发列表回顶，分页和后续增量为 false。
+         */
         private fun publishSnapshot(items: List<SearchHit>, bumpEpoch: Boolean) {
-            lastPublishMark = TimeSource.Monotonic.markNow()
-            lastPublishedItems = items
+            mLastPublishMark = TimeSource.Monotonic.markNow()
+            mLastPublishedItems = items
             publish(
-                generation = generation,
+                generation = mRequestGeneration,
                 result = ContentSearchResultState.Searching(
                     items = items,
-                    isAppending = append,
+                    isAppending = mAppend,
                 ),
-                resultParentId = parentId,
+                resultParentId = mParentId,
                 bumpEpoch = bumpEpoch,
             )
         }
@@ -543,6 +561,21 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         getOrNull<ContentSearchUiState.Normal>()
             ?.takeUnless { it.indexState.busy }
 
+    /** 拦截宽限期的旧结果以及已从列表移除的延迟点击。 */
+    private fun stateForResultAction(hit: SearchHit): ContentSearchUiState.Normal? {
+        val state = interactiveState() ?: return null
+        if (state.isReplacingResults || hit !in state.resultState.items()) return null
+        return state
+    }
+
+    /**
+     * 仅将仍属于当前请求的结果合并到最新页面状态，旧查询不得覆盖新筛选范围。
+     *
+     * @param generation 结果所属的请求代次。
+     * @param result 要发布的检索结果状态。
+     * @param resultParentId 结果所属的对象范围，null 表示全部对象。
+     * @param bumpEpoch 是否开启新的结果批次，通知列表回到顶部。
+     */
     private fun publish(
         generation: Long,
         result: ContentSearchResultState,
@@ -556,14 +589,17 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
             resultState = result,
             resultParentId = resultParentId,
             resultEpoch = nextEpoch,
+            isReplacingResults = false,
         ).setup()
     }
 
+    /** 清除本次查询的部分结果与分页前缀，防止下一次查询停止时混入旧命中。 */
     private fun clearActiveTracking() {
         mPendingPartialHits = null
         mActiveExisting = emptyList()
     }
 
+    /** 先使请求代次失效，再取消查询和目标验证任务，并释放当前结果追踪快照。 */
     private fun cancelQuery() {
         mGeneration++
         mSearchJob?.cancel()

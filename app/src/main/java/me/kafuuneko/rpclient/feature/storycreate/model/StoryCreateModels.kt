@@ -1,6 +1,5 @@
 package me.kafuuneko.rpclient.feature.storycreate.model
 
-import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
@@ -45,32 +44,26 @@ data class StoryCreateForm(
      * 批量应用选择器确认后的角色集合。
      *
      * - 既有已选角色保留原有激活模式；
-     * - 若应用后原集合为空，按候选项顺序将首位新增角色设为主角（Primary），其余默认为自动（Auto）。
+     * - 若无保留角色，将最早勾选的新增角色设为主角（Primary），其余默认为自动（Auto）。
      *
-     * @param selectedIds 确认选中的角色 ID 集合
-     * @param characterOrder 候选角色的标准顺序，确保首个主角推导稳定
+     * @param selectedIdsInOrder 按勾选顺序排列的确认角色 ID
      * @return 更新后的表单副本
      */
     fun applyCharacterSelection(
-        selectedIds: Set<Long>,
-        characterOrder: List<Long>,
+        selectedIdsInOrder: List<Long>,
     ): StoryCreateForm {
-        val nextModes = LinkedHashMap<Long, StoryCreateCharacterActivationMode>()
-        // 先保留继续留在列表中的原有角色及其激活模式
-        characterActivationModes.forEach { (id, mode) ->
-            if (id in selectedIds) {
-                nextModes[id] = mode
-            }
-        }
-        // 按列表顺序补充新增角色，仅在当前无任何已选角色时自动将首位设为主角
-        characterOrder.forEach { id ->
-            if (id in selectedIds && id !in nextModes) {
-                val initialMode = if (nextModes.isEmpty()) {
+        val selectedIds = selectedIdsInOrder.toSet()
+        val nextModes = buildMap {
+            // 先保留既有模式，只有未保留任何角色时才为首位新角色设置主角。
+            putAll(characterActivationModes.filterKeys { it in selectedIds })
+            for (id in selectedIdsInOrder) {
+                if (id in this) continue
+                val mode = if (isEmpty()) {
                     StoryCreateCharacterActivationMode.Primary
                 } else {
                     StoryCreateCharacterActivationMode.Auto
                 }
-                nextModes[id] = initialMode
+                put(id, mode)
             }
         }
         return copy(characterActivationModes = nextModes)
@@ -126,8 +119,6 @@ data class StoryCreateCharacterItem(
     val linkedLorebookId: Long? = null,
     /** 已绑定世界书的显示名称。 */
     val linkedLorebookName: String? = null,
-    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
-    val avatarImage: ImageBitmap? = null,
 )
 
 /** 新建 Story 页面中可独立开启或关闭的世界书条目。 */

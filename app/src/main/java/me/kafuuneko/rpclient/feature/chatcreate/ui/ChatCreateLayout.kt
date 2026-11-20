@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +70,7 @@ import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.RpTagRow
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryCard
-import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryItem
+import me.kafuuneko.rpclient.ui.model.WorldBookSelectionSummaryItem
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 
 /** 新建单角色会话页 Compose 入口。 */
@@ -97,29 +99,7 @@ private fun ChatCreateNormal(
     emit: ChatCreateUiIntent.() -> Unit,
 ) {
     val controlsEnabled = state.loadState == ChatCreateLoadState.None
-    val selectedCharacter = remember(state.characters, state.form.selectedCharacterId) {
-        state.characters.firstOrNull { character -> character.id == state.form.selectedCharacterId }
-    }
-    val selectedWorldBookSummaries = remember(
-        state.lorebookGroups,
-        state.form.selectedLorebookEntryIds,
-    ) {
-        state.lorebookGroups.mapNotNull { group ->
-            val count = group.entries.count { entry ->
-                entry.id in state.form.selectedLorebookEntryIds
-            }
-            if (count > 0) {
-                WorldBookSelectionSummaryItem(
-                    lorebookId = group.lorebookId,
-                    name = group.lorebookName,
-                    selectedCount = count,
-                    totalCount = group.entryCount,
-                )
-            } else {
-                null
-            }
-        }
-    }
+    val selectedCharacter = state.selectedCharacter
 
     AppPageScaffold(
         // 缩小整个表单视口，底栏与输入区共同避让键盘
@@ -169,54 +149,12 @@ private fun ChatCreateNormal(
                             onSelect = { ChatCreateUiIntent.SelectPersona(it).emit() },
                         )
                     }
-                    // 角色绑定摘要区：仅展示已选角色，海量角色切换交由独立检索弹窗完成
-                    item {
-                        RpSectionHeader(
-                            title = stringResource(R.string.bind_character),
-                            action = if (state.characters.isNotEmpty() && controlsEnabled) {
-                                stringResource(
-                                    if (selectedCharacter != null) R.string.picker_change
-                                    else R.string.picker_choose,
-                                )
-                            } else {
-                                null
-                            },
-                            onAction = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
-                        )
-                    }
-                    item {
-                        when {
-                            state.characters.isEmpty() -> EmptyCard(
-                                icon = Icons.Rounded.Person,
-                                text = stringResource(R.string.no_characters_for_chat),
-                            )
-
-                            selectedCharacter == null -> CharacterSelectionPromptCard(
-                                totalCount = state.characters.size,
-                                enabled = controlsEnabled,
-                                onClick = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
-                            )
-
-                            else -> SelectedCharacterSummaryCard(
-                                character = selectedCharacter,
-                                enabled = controlsEnabled,
-                                onClick = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
-                            )
-                        }
-                    }
-                    // 角色开场白紧随角色摘要展示，切换角色后可立即预览并选择
-                    if (state.selectedCharacterFirstMessages.isNotEmpty()) {
-                        item {
-                            RpSectionHeader(title = stringResource(R.string.first_messages))
-                        }
-                        itemsIndexed(state.selectedCharacterFirstMessages) { index, message ->
-                            FirstMessageOption(
-                                message = message,
-                                selected = state.form.selectedFirstMessageIndex == index,
-                                onClick = { ChatCreateUiIntent.SelectFirstMessage(index).emit() },
-                            )
-                        }
-                    }
+                    chatCharacterSummaryItems(
+                        state = state,
+                        controlsEnabled = controlsEnabled,
+                        emit = emit
+                    )
+                    chatOpeningPreviewItems(state = state, emit = emit)
                     // 世界书摘要区：展示已启用计数与活跃书目概览，点击打开检索选择器
                     item {
                         RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
@@ -225,7 +163,7 @@ private fun ChatCreateNormal(
                         WorldBookSelectionSummaryCard(
                             totalGroupCount = state.lorebookGroups.size,
                             selectedEntryCount = state.form.selectedLorebookEntryIds.size,
-                            selectedGroups = selectedWorldBookSummaries,
+                            selectedGroups = state.selectedWorldBookSummaries,
                             enabled = controlsEnabled,
                             onClick = { ChatCreateUiIntent.ShowLorebookPicker.emit() },
                         )
@@ -234,6 +172,71 @@ private fun ChatCreateNormal(
             }
         },
     )
+}
+
+/** 在已选角色下方展示可用开场白及当前选择。 */
+private fun LazyListScope.chatOpeningPreviewItems(
+    state: ChatCreateUiState.Normal,
+    emit: ChatCreateUiIntent.() -> Unit,
+) {
+    // 角色开场白紧随角色摘要展示，切换角色后可立即预览并选择
+    if (state.selectedCharacterFirstMessages.isNotEmpty()) {
+        item {
+            RpSectionHeader(title = stringResource(R.string.first_messages))
+        }
+        itemsIndexed(state.selectedCharacterFirstMessages) { index, message ->
+            FirstMessageOption(
+                message = message,
+                selected = state.form.selectedFirstMessageIndex == index,
+                onClick = { ChatCreateUiIntent.SelectFirstMessage(index).emit() },
+            )
+        }
+    }
+}
+
+/** 单聊主表单的角色选择入口与已选摘要。 */
+private fun LazyListScope.chatCharacterSummaryItems(
+    state: ChatCreateUiState.Normal,
+    controlsEnabled: Boolean,
+    emit: ChatCreateUiIntent.() -> Unit,
+) {
+    val selectedCharacter = state.selectedCharacter
+    // 角色绑定摘要区：仅展示已选角色，海量角色切换交由独立检索弹窗完成
+    item {
+        RpSectionHeader(
+            title = stringResource(R.string.bind_character),
+            action = if (state.characters.isNotEmpty() && controlsEnabled) {
+                stringResource(
+                    if (selectedCharacter != null) R.string.picker_change
+                    else R.string.picker_choose,
+                )
+            } else {
+                null
+            },
+            onAction = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
+        )
+    }
+    item {
+        when {
+            state.characters.isEmpty() -> EmptyCard(
+                icon = Icons.Rounded.Person,
+                text = stringResource(R.string.no_characters_for_chat),
+            )
+
+            selectedCharacter == null -> CharacterSelectionPromptCard(
+                totalCount = state.characters.size,
+                enabled = controlsEnabled,
+                onClick = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
+            )
+
+            else -> SelectedCharacterSummaryCard(
+                character = selectedCharacter,
+                avatarImage = state.characterAvatars[selectedCharacter.id],
+                enabled = controlsEnabled,
+                onClick = { ChatCreateUiIntent.ShowCharacterPicker.emit() },
+            )
+        }
+    }
 }
 
 @Composable
@@ -253,7 +256,6 @@ private fun DialogSwitch(
                         name = character.name,
                         description = character.description,
                         tags = character.tags,
-                        avatarImage = character.avatarImage,
                     )
                 }
             }
@@ -262,6 +264,7 @@ private fun DialogSwitch(
                 mode = CharacterPickerMode.Single,
                 totalCount = state.characters.size,
                 visibleCharacters = visibleItems,
+                characterAvatars = state.characterAvatars,
                 selectedIds = state.form.selectedCharacterId?.let { id -> setOf(id) } ?: emptySet(),
                 query = dialogState.query,
                 emptyText = stringResource(R.string.no_characters_for_chat),
@@ -374,6 +377,7 @@ private fun BasicForm(
 @Composable
 private fun SelectedCharacterSummaryCard(
     character: ChatCreateCharacterItem,
+    avatarImage: ImageBitmap?,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -397,7 +401,7 @@ private fun SelectedCharacterSummaryCard(
             RpAvatar(
                 text = character.name.firstOrNull()?.uppercase() ?: "?",
                 color = accent,
-                image = character.avatarImage,
+                image = avatarImage,
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(
@@ -586,6 +590,13 @@ private fun EmptyCard(
 @Preview(widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun ChatCreateLayoutPreview() {
+    // 预览提供与真实表单一致的已选角色和世界书摘要。
+    val character = ChatCreateCharacterItem(
+        id = 1L,
+        name = "Lyra",
+        tags = listOf("Mystery"),
+        description = "Archivist",
+    )
     AppTheme(dynamicColor = false) {
         ChatCreateLayout(
             uiState = ChatCreateUiState.Normal(
@@ -598,12 +609,14 @@ private fun ChatCreateLayoutPreview() {
                     "The rain taps gently against the window as Lyra opens the case file.",
                     "You arrive at the archive just before midnight.",
                 ),
-                characters = listOf(
-                    element = ChatCreateCharacterItem(
-                        id = 1L,
-                        name = "Lyra",
-                        tags = listOf("Mystery"),
-                        description = "Archivist",
+                characters = listOf(character),
+                selectedCharacter = character,
+                selectedWorldBookSummaries = listOf(
+                    WorldBookSelectionSummaryItem(
+                        lorebookId = 1L,
+                        name = "Fog Harbor",
+                        selectedCount = 1,
+                        totalCount = 1,
                     ),
                 ),
                 lorebookGroups = listOf(
