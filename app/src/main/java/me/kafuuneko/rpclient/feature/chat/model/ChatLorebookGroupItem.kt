@@ -21,19 +21,22 @@ data class ChatLorebookGroupItem(
 }
 
 /**
- * 依据搜索词过滤世界书分组及其内部条目。
+ * 依据搜索词与可选的已选条目集合过滤世界书分组及其内部条目。
  *
  * 匹配范围：世界书名称、条目名称、条目正文、主关键字、次关键字。
  *
  * @param query 搜索关键词
+ * @param selectedEntryIds 非空时仅保留位于该集合内的条目
  * @return 过滤后的世界书分组列表
  */
 internal fun List<ChatLorebookGroupItem>.filterForQuery(
     query: String,
+    selectedEntryIds: Set<Long>? = null,
 ): List<ChatLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
     entries = { it.entries },
+    entryFilter = selectedEntryIds?.let { ids -> { entry -> entry.id in ids } },
     entrySearchFields = { entry ->
         sequenceOf(entry.lorebookName, entry.name, entry.content) +
             entry.keywords.asSequence() +

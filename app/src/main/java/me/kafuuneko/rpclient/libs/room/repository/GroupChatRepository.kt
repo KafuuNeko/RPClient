@@ -762,18 +762,38 @@ class GroupChatRepository(
 
     /** 将角色追加到群聊成员列表末尾。 */
     suspend fun addMember(sessionId: Long, characterId: Long) {
+        addMembers(sessionId = sessionId, characterIds = listOf(characterId))
+    }
+
+    /**
+     * 在单次事务中批量添加群聊成员并连续追加排序号，已存在的成员自动跳过。
+     *
+     * @param sessionId 目标群聊会话 ID
+     * @param characterIds 待添加的角色 ID 列表
+     */
+    suspend fun addMembers(sessionId: Long, characterIds: List<Long>) {
+        val distinctIds = characterIds.distinct()
+        if (distinctIds.isEmpty()) return
         mAppDatabase.withTransaction {
-            val nextOrder = mMemberDao.getMembers(sessionId)
+            val existingMembers = mMemberDao.getMembers(sessionId)
+            val existingIds = existingMembers.mapTo(mutableSetOf()) { member -> member.characterId }
+            var nextOrder = existingMembers
                 .maxOfOrNull { groupChatMember -> groupChatMember.sortOrder }
                 ?.plus(1)
                 ?: 0
-            mMemberDao.insertOrIgnore(
-                data = GroupChatMember(
-                    sessionId = sessionId,
-                    characterId = characterId,
-                    sortOrder = nextOrder,
-                ),
-            )
+            // 仅插入尚未加入群聊的角色，保证排序号连续且不产生空洞
+            distinctIds.forEach { characterId ->
+                if (characterId !in existingIds) {
+                    mMemberDao.insertOrIgnore(
+                        data = GroupChatMember(
+                            sessionId = sessionId,
+                            characterId = characterId,
+                            sortOrder = nextOrder,
+                        ),
+                    )
+                    nextOrder += 1
+                }
+            }
         }
     }
 

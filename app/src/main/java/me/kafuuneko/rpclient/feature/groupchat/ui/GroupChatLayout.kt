@@ -21,8 +21,12 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
+import me.kafuuneko.rpclient.ui.dialog.AddSessionLorebooksDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialog
+import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialogItem
+import me.kafuuneko.rpclient.ui.dialog.CharacterPickerMode
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
@@ -99,6 +103,19 @@ private fun DialogSwitch(
         GroupChatDialogState.None -> Unit
         is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
             groups = state.settingsState.lorebookGroups,
+            dialogState = dialogState,
+            emitIntent = emitIntent,
+        )
+
+        is GroupChatDialogState.AddMembers -> GroupAddMembersDialog(
+            totalCandidateCount = state.settingsState.availableCharacters.count { character ->
+                !character.alreadyMember
+            },
+            dialogState = dialogState,
+            emitIntent = emitIntent,
+        )
+
+        is GroupChatDialogState.AddLorebooks -> GroupAddLorebooksDialog(
             dialogState = dialogState,
             emitIntent = emitIntent,
         )
@@ -193,12 +210,101 @@ private fun GroupSessionLorebookDialog(
         visibleGroups = visibleDialogGroups,
         query = dialogState.query,
         enabledEntryIds = dialogState.enabledEntryIds,
+        showSelectedOnly = dialogState.showSelectedOnly,
         onQueryChange = { emitIntent(GroupChatUiIntent.ChangeSessionLorebookDialogQuery(it)) },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogSelectedOnly(selectedOnly))
+        },
         onToggleGroup = { emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogGroup(it)) },
         onToggleEntry = { emitIntent(GroupChatUiIntent.ToggleSessionLorebookDialogEntry(it)) },
         onConfirmSelection = {
             emitIntent(GroupChatUiIntent.ConfirmSessionLorebookSelection)
         },
+        onManageWorldBooks = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
+        onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+    )
+}
+
+/** 将群聊设置页的添加成员弹窗状态适配到通用角色多选检索弹窗。 */
+@Composable
+private fun GroupAddMembersDialog(
+    totalCandidateCount: Int,
+    dialogState: GroupChatDialogState.AddMembers,
+    emitIntent: (GroupChatUiIntent) -> Unit,
+) {
+    // 将候选角色映射为通用选择器模型，未勾选任何角色时禁用提交按钮
+    val visibleItems = remember(dialogState.visibleCharacters) {
+        dialogState.visibleCharacters.map { character ->
+            CharacterPickerDialogItem(
+                id = character.id,
+                name = character.name,
+                description = character.description,
+                tags = character.tags,
+                avatarImage = character.avatarImage,
+            )
+        }
+    }
+    val selectedCount = dialogState.selectedCharacterIds.size
+    val confirmText = if (selectedCount > 0) {
+        stringResource(R.string.picker_add_confirm, selectedCount)
+    } else {
+        stringResource(R.string.confirm)
+    }
+    CharacterPickerDialog(
+        title = stringResource(R.string.group_chat_add_members_title),
+        mode = CharacterPickerMode.Multiple,
+        totalCount = totalCandidateCount,
+        visibleCharacters = visibleItems,
+        selectedIds = dialogState.selectedCharacterIds,
+        query = dialogState.query,
+        showSelectedOnly = dialogState.showSelectedOnly,
+        confirmText = confirmText,
+        confirmEnabled = selectedCount > 0,
+        emptyText = stringResource(R.string.group_chat_all_characters_added),
+        onQueryChange = { text -> emitIntent(GroupChatUiIntent.ChangeAddMembersQuery(text)) },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            emitIntent(GroupChatUiIntent.ToggleAddMembersSelectedOnly(selectedOnly))
+        },
+        onVisibleCharactersChanged = { visibleIds, targetSizePx ->
+            emitIntent(
+                GroupChatUiIntent.VisibleAddMemberCharactersChanged(
+                    characterIds = visibleIds,
+                    targetSizePx = targetSizePx,
+                ),
+            )
+        },
+        onCharacterClick = { id -> emitIntent(GroupChatUiIntent.ToggleAddMemberSelection(id)) },
+        onConfirm = { emitIntent(GroupChatUiIntent.ConfirmAddMembers) },
+        onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+    )
+}
+
+/** 将群聊设置页的添加新世界书弹窗状态适配到通用添加世界书弹窗。 */
+@Composable
+private fun GroupAddLorebooksDialog(
+    dialogState: GroupChatDialogState.AddLorebooks,
+    emitIntent: (GroupChatUiIntent) -> Unit,
+) {
+    // 仅向选择器传入当前未启用的候选世界书，确认后与既有已启用条目合并持久化
+    val dialogGroups = remember(dialogState.candidateGroups) {
+        dialogState.candidateGroups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(GroupChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    AddSessionLorebooksDialog(
+        groups = dialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        selectedEntryIds = dialogState.selectedEntryIds,
+        showSelectedOnly = dialogState.showSelectedOnly,
+        onQueryChange = { text -> emitIntent(GroupChatUiIntent.ChangeAddLorebooksQuery(text)) },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            emitIntent(GroupChatUiIntent.ToggleAddLorebooksSelectedOnly(selectedOnly))
+        },
+        onToggleGroup = { id -> emitIntent(GroupChatUiIntent.ToggleAddLorebooksGroup(id)) },
+        onToggleEntry = { id -> emitIntent(GroupChatUiIntent.ToggleAddLorebooksEntry(id)) },
+        onConfirmSelection = { emitIntent(GroupChatUiIntent.ConfirmAddLorebooks) },
         onManageWorldBooks = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
         onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
     )

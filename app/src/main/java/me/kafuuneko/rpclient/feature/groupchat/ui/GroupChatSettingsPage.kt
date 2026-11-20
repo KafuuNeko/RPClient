@@ -24,9 +24,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +58,7 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsSta
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
@@ -67,10 +68,12 @@ import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.SessionWorldBookEntryItem
+import me.kafuuneko.rpclient.ui.widgets.SessionWorldBookGroupItem
+import me.kafuuneko.rpclient.ui.widgets.SessionWorldBookSettingsSection
 import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
 import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
-import me.kafuuneko.rpclient.ui.widgets.groupchat.GroupChatLorebookSelector
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
 
 /**
@@ -351,41 +354,46 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
+                val addableCount = remember(state.availableCharacters) {
+                    state.availableCharacters.count { character -> !character.alreadyMember }
+                }
                 SettingsSection(title = stringResource(R.string.group_chat_members)) {
                     GroupMemberSettingsList(members, emitIntent)
-                    state.availableCharacters
-                        .filterNot { groupChatAvailableCharacterItem -> groupChatAvailableCharacterItem.alreadyMember }
-                        .forEach { character ->
-                            SettingsActionRow(
-                                icon = Icons.Rounded.Groups,
-                                title = stringResource(
-                                    R.string.group_chat_add_member,
-                                    character.name,
-                                ),
-                                onClick = {
-                                    emitIntent(GroupChatUiIntent.AddMember(character.id))
-                                },
-                            )
-                        }
+                    // 候选角色较多时通过独立可检索多选弹窗添加，避免设置页平铺全部角色卡
+                    if (addableCount > 0) {
+                        SettingsActionRow(
+                            icon = Icons.Rounded.PersonAdd,
+                            title = stringResource(
+                                R.string.group_chat_add_members_action,
+                                addableCount,
+                            ),
+                            onClick = { emitIntent(GroupChatUiIntent.ShowAddMembersDialog) },
+                        )
+                    } else if (state.availableCharacters.isNotEmpty()) {
+                        Text(
+                            text = stringResource(R.string.group_chat_all_characters_added),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             item {
-                SettingsSection(title = stringResource(R.string.world_book)) {
-                    GroupChatLorebookSelector(
-                        groups = state.lorebookGroups,
-                        visibleGroups = state.visibleLorebookGroups,
-                        query = state.lorebookQuery,
-                        onQueryChange = { text ->
-                            emitIntent(GroupChatUiIntent.ChangeLorebookQuery(text))
-                        },
-                        onToggleLorebook = { id ->
-                            emitIntent(GroupChatUiIntent.ToggleLorebook(id))
-                        },
-                        onToggleEntry = { id ->
-                            emitIntent(GroupChatUiIntent.ToggleLorebookEntry(id))
-                        },
-                    )
+                val enabledWorldBooks = remember(state.enabledLorebookGroups) {
+                    state.enabledLorebookGroups.map(GroupChatLorebookGroupItem::toSessionWorldBookGroupItem)
                 }
+                SessionWorldBookSettingsSection(
+                    totalGroupCount = state.lorebookGroups.size,
+                    enabledGroups = enabledWorldBooks,
+                    onOpenWorldBookManager = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
+                    onAddWorldBooks = { emitIntent(GroupChatUiIntent.ShowAddLorebooksDialog) },
+                    onToggleLorebook = { lorebookId ->
+                        emitIntent(GroupChatUiIntent.ToggleLorebook(lorebookId))
+                    },
+                    onToggleEntry = { entryId ->
+                        emitIntent(GroupChatUiIntent.ToggleLorebookEntry(entryId))
+                    },
+                )
             }
             item {
                 Button(
@@ -690,4 +698,24 @@ private fun SettingsSwitch(
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+/** 将群聊世界书分组转换为设置页通用世界书展示模型。 */
+private fun GroupChatLorebookGroupItem.toSessionWorldBookGroupItem(): SessionWorldBookGroupItem {
+    return SessionWorldBookGroupItem(
+        lorebookId = lorebookId,
+        lorebookName = lorebookName,
+        enabledCount = enabledCount,
+        totalCount = totalCount,
+        entries = entries.map { entry ->
+            SessionWorldBookEntryItem(
+                id = entry.id,
+                name = entry.name,
+                content = entry.content,
+                keywords = entry.keywords,
+                constant = entry.constant,
+                enabled = entry.enabled,
+            )
+        },
+    )
 }

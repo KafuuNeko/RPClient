@@ -13,9 +13,21 @@ sealed class GroupChatCreateUiIntent {
 
     data class ChangeTitle(val value: String) : GroupChatCreateUiIntent()
 
+    data object ShowCharacterPicker : GroupChatCreateUiIntent()
+
     data class ChangeSearchQuery(val value: String) : GroupChatCreateUiIntent()
 
-    data class ChangeLorebookQuery(val value: String) : GroupChatCreateUiIntent()
+    data class VisiblePickerCharactersChanged(
+        val characterIds: Set<Long>,
+        val targetSizePx: Int,
+    ) : GroupChatCreateUiIntent()
+
+    data class ToggleCharacterPickerSelectedOnly(val selectedOnly: Boolean) :
+        GroupChatCreateUiIntent()
+
+    data class ToggleCharacterPickerItem(val characterId: Long) : GroupChatCreateUiIntent()
+
+    data object ConfirmCharacterPicker : GroupChatCreateUiIntent()
 
     data class ToggleCharacter(val characterId: Long) : GroupChatCreateUiIntent()
 
@@ -43,9 +55,20 @@ sealed class GroupChatCreateUiIntent {
         val value: String
     ) : GroupChatCreateUiIntent()
 
+    data object ShowLorebookPicker : GroupChatCreateUiIntent()
+
+    data class ChangeLorebookQuery(val value: String) : GroupChatCreateUiIntent()
+
+    data class ToggleLorebookPickerSelectedOnly(val selectedOnly: Boolean) :
+        GroupChatCreateUiIntent()
+
     data class ToggleLorebook(val lorebookId: Long) : GroupChatCreateUiIntent()
 
     data class ToggleLorebookEntry(val entryId: Long) : GroupChatCreateUiIntent()
+
+    data object ConfirmLorebookPicker : GroupChatCreateUiIntent()
+
+    data object DismissDialog : GroupChatCreateUiIntent()
 
     data object Create : GroupChatCreateUiIntent()
 }

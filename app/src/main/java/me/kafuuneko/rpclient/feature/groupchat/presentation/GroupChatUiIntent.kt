@@ -40,11 +40,41 @@ sealed class GroupChatUiIntent {
 
     data class ChangeSessionLorebookDialogQuery(val value: String) : GroupChatUiIntent()
 
+    data class ToggleSessionLorebookDialogSelectedOnly(val selectedOnly: Boolean) :
+        GroupChatUiIntent()
+
     data class ToggleSessionLorebookDialogEntry(val entryId: Long) : GroupChatUiIntent()
 
     data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : GroupChatUiIntent()
 
     data object ConfirmSessionLorebookSelection : GroupChatUiIntent()
+
+    data object ShowAddMembersDialog : GroupChatUiIntent()
+
+    data class ChangeAddMembersQuery(val value: String) : GroupChatUiIntent()
+
+    data class VisibleAddMemberCharactersChanged(
+        val characterIds: Set<Long>,
+        val targetSizePx: Int,
+    ) : GroupChatUiIntent()
+
+    data class ToggleAddMembersSelectedOnly(val selectedOnly: Boolean) : GroupChatUiIntent()
+
+    data class ToggleAddMemberSelection(val characterId: Long) : GroupChatUiIntent()
+
+    data object ConfirmAddMembers : GroupChatUiIntent()
+
+    data object ShowAddLorebooksDialog : GroupChatUiIntent()
+
+    data class ChangeAddLorebooksQuery(val value: String) : GroupChatUiIntent()
+
+    data class ToggleAddLorebooksSelectedOnly(val selectedOnly: Boolean) : GroupChatUiIntent()
+
+    data class ToggleAddLorebooksGroup(val lorebookId: Long) : GroupChatUiIntent()
+
+    data class ToggleAddLorebooksEntry(val entryId: Long) : GroupChatUiIntent()
+
+    data object ConfirmAddLorebooks : GroupChatUiIntent()
 
     data object OpenPromptInspector : GroupChatUiIntent()
 
@@ -107,8 +137,6 @@ sealed class GroupChatUiIntent {
     data class ToggleTrimOtherSpeakers(val enabled: Boolean) : GroupChatUiIntent()
 
     data class ToggleAllowSelfResponses(val enabled: Boolean) : GroupChatUiIntent()
-
-    data class ChangeLorebookQuery(val value: String) : GroupChatUiIntent()
 
     data class ToggleLorebook(val lorebookId: Long) : GroupChatUiIntent()
 

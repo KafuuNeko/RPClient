@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.model
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
@@ -21,21 +22,31 @@ data class GroupChatCreateCharacterItem(
     /** 由 ViewModel 映射的开场白预览，与原文索引对应。 */
     val greetingPreviews: List<String> = greetings,
     /** 与其它创建页保持一致的标签检索字段。 */
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
+    val avatarImage: ImageBitmap? = null,
 )
 
-/** 根据检索关键词过滤可见角色。 */
+/**
+ * 根据检索关键词和可选已选集合过滤可见角色。
+ *
+ * @param query 搜索关键词
+ * @param selectedIds 非空时仅保留处于该集合内的角色
+ * @return 过滤后的角色列表
+ */
 internal fun List<GroupChatCreateCharacterItem>.visibleFor(
     query: String,
+    selectedIds: Set<Long>? = null,
 ): List<GroupChatCreateCharacterItem> {
     val normalized = query.trim()
-    return filter { groupChatCreateCharacterItem ->
-        matchesCharacterQuery(
-            name = groupChatCreateCharacterItem.name,
-            description = groupChatCreateCharacterItem.description,
-            tags = groupChatCreateCharacterItem.tags,
-            query = normalized,
-        )
+    return filter { character ->
+        (selectedIds == null || character.id in selectedIds) &&
+            matchesCharacterQuery(
+                name = character.name,
+                description = character.description,
+                tags = character.tags,
+                query = normalized,
+            )
     }
 }
 

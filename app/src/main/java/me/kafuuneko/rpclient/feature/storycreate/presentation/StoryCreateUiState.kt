@@ -15,16 +15,10 @@ sealed class StoryCreateUiState {
         val form: StoryCreateForm = StoryCreateForm(),
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<StoryCreateCharacterItem> = emptyList(),
-        /** 角色列表当前使用的搜索关键词。 */
-        val characterQuery: String = "",
-        /** 按搜索条件过滤后实际展示的角色列表。 */
-        val visibleCharacters: List<StoryCreateCharacterItem> = characters,
-        /** 世界书列表当前使用的搜索关键词。 */
-        val lorebookQuery: String = "",
         /** 按世界书分组后的条目列表。 */
         val lorebookGroups: List<StoryCreateLorebookGroupItem> = emptyList(),
-        /** 按搜索条件过滤后实际展示的世界书分组。 */
-        val visibleLorebookGroups: List<StoryCreateLorebookGroupItem> = lorebookGroups
+        /** 当前页面互斥展示的选择器弹窗状态。 */
+        val dialogState: StoryCreateDialogState = StoryCreateDialogState.None
     ) : StoryCreateUiState() {
         val selectedCharacterCount: Int
             get() = form.selectedCharacterIds.size
@@ -37,6 +31,27 @@ sealed class StoryCreateUiState {
             return previous as? Finished ?: Finished(previous)
         }
     }
+}
+
+/** 新建 Story 页面的互斥选择器弹窗状态。 */
+sealed class StoryCreateDialogState {
+    data object None : StoryCreateDialogState()
+
+    /** 多选角色参考检索弹窗状态。 */
+    data class CharacterPicker(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleCharacters: List<StoryCreateCharacterItem>,
+        val selectedCharacterIds: Set<Long>,
+    ) : StoryCreateDialogState()
+
+    /** 世界书条目检索与草稿选择弹窗状态。 */
+    data class LorebookPicker(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleGroups: List<StoryCreateLorebookGroupItem>,
+        val enabledEntryIds: Set<Long>,
+    ) : StoryCreateDialogState()
 }
 
 /** 新建 Story 页面的加载和提交状态。 */

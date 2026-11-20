@@ -23,6 +23,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.model.MessageContentPart
+import me.kafuuneko.rpclient.ui.dialog.AddSessionLorebooksDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
@@ -115,6 +116,11 @@ private fun DialogSwitch(
             emit = emit,
         )
 
+        is ChatDialogState.AddLorebooks -> ChatAddLorebooksDialog(
+            dialogState = dialogState,
+            emit = emit,
+        )
+
         ChatDialogState.SummaryTokenLimit -> AppConfirmDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.summary_token_limit_title),
@@ -198,10 +204,45 @@ private fun ChatSessionLorebookDialog(
         visibleGroups = visibleDialogGroups,
         query = dialogState.query,
         enabledEntryIds = dialogState.enabledEntryIds,
+        showSelectedOnly = dialogState.showSelectedOnly,
         onQueryChange = { ChatUiIntent.ChangeSessionLorebookDialogQuery(it).emit() },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            ChatUiIntent.ToggleSessionLorebookDialogSelectedOnly(selectedOnly).emit()
+        },
         onToggleGroup = { ChatUiIntent.ToggleSessionLorebookDialogGroup(it).emit() },
         onToggleEntry = { ChatUiIntent.ToggleSessionLorebookDialogEntry(it).emit() },
         onConfirmSelection = { ChatUiIntent.ConfirmSessionLorebookSelection.emit() },
+        onManageWorldBooks = { ChatUiIntent.OpenWorldBookManager.emit() },
+        onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+    )
+}
+
+/** 将单聊设置页的添加新世界书弹窗状态适配到通用添加世界书弹窗。 */
+@Composable
+private fun ChatAddLorebooksDialog(
+    dialogState: ChatDialogState.AddLorebooks,
+    emit: ChatUiIntent.() -> Unit,
+) {
+    // 仅向选择器传入当前未启用的候选世界书，确认后与既有已启用条目合并持久化
+    val dialogGroups = remember(dialogState.candidateGroups) {
+        dialogState.candidateGroups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    val visibleDialogGroups = remember(dialogState.visibleGroups) {
+        dialogState.visibleGroups.map(ChatLorebookGroupItem::toSessionLorebookDialogGroup)
+    }
+    AddSessionLorebooksDialog(
+        groups = dialogGroups,
+        visibleGroups = visibleDialogGroups,
+        query = dialogState.query,
+        selectedEntryIds = dialogState.selectedEntryIds,
+        showSelectedOnly = dialogState.showSelectedOnly,
+        onQueryChange = { text -> ChatUiIntent.ChangeAddLorebooksQuery(text).emit() },
+        onShowSelectedOnlyChange = { selectedOnly ->
+            ChatUiIntent.ToggleAddLorebooksSelectedOnly(selectedOnly).emit()
+        },
+        onToggleGroup = { id -> ChatUiIntent.ToggleAddLorebooksGroup(id).emit() },
+        onToggleEntry = { id -> ChatUiIntent.ToggleAddLorebooksEntry(id).emit() },
+        onConfirmSelection = { ChatUiIntent.ConfirmAddLorebooks.emit() },
         onManageWorldBooks = { ChatUiIntent.OpenWorldBookManager.emit() },
         onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
     )

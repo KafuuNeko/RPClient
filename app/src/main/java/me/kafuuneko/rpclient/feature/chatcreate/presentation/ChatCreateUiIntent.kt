@@ -8,7 +8,14 @@ sealed class ChatCreateUiIntent {
 
     data object Back : ChatCreateUiIntent()
 
+    data object ShowCharacterPicker : ChatCreateUiIntent()
+
     data class ChangeCharacterQuery(val value: String) : ChatCreateUiIntent()
+
+    data class VisiblePickerCharactersChanged(
+        val characterIds: Set<Long>,
+        val targetSizePx: Int,
+    ) : ChatCreateUiIntent()
 
     data class SelectCharacter(val characterId: Long) : ChatCreateUiIntent()
 
@@ -20,11 +27,19 @@ sealed class ChatCreateUiIntent {
 
     data class ToggleIncludeCharacterExamples(val enabled: Boolean) : ChatCreateUiIntent()
 
+    data object ShowLorebookPicker : ChatCreateUiIntent()
+
     data class ChangeLorebookQuery(val value: String) : ChatCreateUiIntent()
+
+    data class ToggleLorebookPickerSelectedOnly(val selectedOnly: Boolean) : ChatCreateUiIntent()
 
     data class ToggleLorebookEntry(val entryId: Long) : ChatCreateUiIntent()
 
     data class ToggleLorebook(val lorebookId: Long) : ChatCreateUiIntent()
+
+    data object ConfirmLorebookPicker : ChatCreateUiIntent()
+
+    data object DismissDialog : ChatCreateUiIntent()
 
     data object CreateChat : ChatCreateUiIntent()
 }

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.storycreate.model
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.StoryCharacter
@@ -38,6 +39,41 @@ data class StoryCreateForm(
             StoryCreateCharacterActivationMode.Auto
         }
         return copy(characterActivationModes = characterActivationModes + (characterId to initialMode))
+    }
+
+    /**
+     * 批量应用选择器确认后的角色集合。
+     *
+     * - 既有已选角色保留原有激活模式；
+     * - 若应用后原集合为空，按候选项顺序将首位新增角色设为主角（Primary），其余默认为自动（Auto）。
+     *
+     * @param selectedIds 确认选中的角色 ID 集合
+     * @param characterOrder 候选角色的标准顺序，确保首个主角推导稳定
+     * @return 更新后的表单副本
+     */
+    fun applyCharacterSelection(
+        selectedIds: Set<Long>,
+        characterOrder: List<Long>,
+    ): StoryCreateForm {
+        val nextModes = LinkedHashMap<Long, StoryCreateCharacterActivationMode>()
+        // 先保留继续留在列表中的原有角色及其激活模式
+        characterActivationModes.forEach { (id, mode) ->
+            if (id in selectedIds) {
+                nextModes[id] = mode
+            }
+        }
+        // 按列表顺序补充新增角色，仅在当前无任何已选角色时自动将首位设为主角
+        characterOrder.forEach { id ->
+            if (id in selectedIds && id !in nextModes) {
+                val initialMode = if (nextModes.isEmpty()) {
+                    StoryCreateCharacterActivationMode.Primary
+                } else {
+                    StoryCreateCharacterActivationMode.Auto
+                }
+                nextModes[id] = initialMode
+            }
+        }
+        return copy(characterActivationModes = nextModes)
     }
 
     /** 设置指定角色的激活模式；若设为 Primary 则自动将既有主角降级为 Auto。 */
@@ -89,7 +125,9 @@ data class StoryCreateCharacterItem(
     /** 通过角色卡或业务关系绑定的世界书 ID。 */
     val linkedLorebookId: Long? = null,
     /** 已绑定世界书的显示名称。 */
-    val linkedLorebookName: String? = null
+    val linkedLorebookName: String? = null,
+    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
+    val avatarImage: ImageBitmap? = null,
 )
 
 /** 新建 Story 页面中可独立开启或关闭的世界书条目。 */
@@ -125,9 +163,16 @@ data class StoryCreateLorebookGroupItem(
         get() = entries.size
 }
 
-/** 根据检索文本对世界书分组及条目进行匹配过滤。 */
+/**
+ * 根据可选已选集合和检索文本对世界书分组及条目进行匹配过滤。
+ *
+ * @param query 搜索关键词
+ * @param selectedEntryIds 非空时仅保留处于该集合内的条目
+ * @return 过滤后的世界书分组列表
+ */
 internal fun List<StoryCreateLorebookGroupItem>.filterForQuery(
     query: String,
+    selectedEntryIds: Set<Long>? = null,
 ): List<StoryCreateLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -137,21 +182,29 @@ internal fun List<StoryCreateLorebookGroupItem>.filterForQuery(
             entry.keywords.asSequence()
     },
     copyWithEntries = { group, entries -> group.copy(entries = entries) },
+    entryFilter = selectedEntryIds?.let { ids -> { entry -> entry.id in ids } },
 )
 
-/** 根据检索文本匹配角色名称、简介或标签。 */
+/**
+ * 根据可选已选集合和检索文本匹配角色名称、简介或标签。
+ *
+ * @param query 搜索关键词
+ * @param selectedIds 非空时仅保留处于该集合内的角色
+ * @return 过滤后的角色列表
+ */
 internal fun List<StoryCreateCharacterItem>.filterCharactersForQuery(
     query: String,
+    selectedIds: Set<Long>? = null,
 ): List<StoryCreateCharacterItem> {
     val normalizedQuery = query.trim()
-    if (normalizedQuery.isBlank()) return this
     return filter { character ->
-        matchesCharacterQuery(
-            character.name,
-            character.description,
-            character.tags,
-            normalizedQuery
-        )
+        (selectedIds == null || character.id in selectedIds) &&
+            matchesCharacterQuery(
+                name = character.name,
+                description = character.description,
+                tags = character.tags,
+                query = normalizedQuery,
+            )
     }
 }
 

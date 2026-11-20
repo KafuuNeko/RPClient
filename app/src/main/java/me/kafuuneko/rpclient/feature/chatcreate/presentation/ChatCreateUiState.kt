@@ -20,17 +20,12 @@ sealed class ChatCreateUiState {
         val showCharacterExamplesSwitch: Boolean = true,
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<ChatCreateCharacterItem> = emptyList(),
-        /** 角色区独立的查询与展示列表，过滤不影响已选角色。 */
-        val characterQuery: String = "",
-        val visibleCharacters: List<ChatCreateCharacterItem> = characters,
         /** 当前角色可供选择的开场白列表。 */
         val selectedCharacterFirstMessages: List<String> = emptyList(),
-        /** 世界书列表当前使用的搜索关键词。 */
-        val lorebookQuery: String = "",
         /** 按世界书分组后的条目列表。 */
         val lorebookGroups: List<ChatCreateLorebookGroupItem> = emptyList(),
-        /** 按搜索条件过滤后实际展示的世界书分组。 */
-        val visibleLorebookGroups: List<ChatCreateLorebookGroupItem> = lorebookGroups
+        /** 当前页面互斥展示的选择器弹窗状态。 */
+        val dialogState: ChatCreateDialogState = ChatCreateDialogState.None
     ) : ChatCreateUiState()
 
     data class Finished(val previous: ChatCreateUiState) : ChatCreateUiState()
@@ -41,6 +36,25 @@ sealed class ChatCreateUiState {
             return Finished(previous)
         }
     }
+}
+
+/** 新建单聊页面的互斥选择器弹窗状态。 */
+sealed class ChatCreateDialogState {
+    data object None : ChatCreateDialogState()
+
+    /** 单选角色检索弹窗状态。 */
+    data class CharacterPicker(
+        val query: String,
+        val visibleCharacters: List<ChatCreateCharacterItem>,
+    ) : ChatCreateDialogState()
+
+    /** 世界书条目检索与草稿选择弹窗状态。 */
+    data class LorebookPicker(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleGroups: List<ChatCreateLorebookGroupItem>,
+        val enabledEntryIds: Set<Long>,
+    ) : ChatCreateDialogState()
 }
 
 /** 新建单聊页面的数据加载与创建状态。 */

@@ -576,22 +576,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 更新世界书面板的搜索查询词，并动态过滤匹配的世界书分组与条目列表。
-     *
-     * @param intent 包含搜索关键字的意图
-     */
-    @UiIntentObserver(ChatUiIntent.ChangeLorebookQuery::class)
-    private fun onChangeLorebookQuery(intent: ChatUiIntent.ChangeLorebookQuery) {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(
-            lorebookState = uiState.lorebookState.copy(
-                query = intent.value,
-                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value),
-            ),
-        ).setup()
-    }
-
-    /**
      * 发送用户消息并触发角色回复生成。
      *
      * 核心业务流程：
@@ -1008,6 +992,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 query = "",
                 visibleGroups = groups,
                 enabledEntryIds = uiState.session.enabledLorebookEntryIds,
+                showSelectedOnly = false,
             ),
         ).setup()
     }
@@ -1022,7 +1007,28 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(
             dialogState = dialogState.copy(
                 query = intent.value,
-                visibleGroups = uiState.lorebookState.groups.filterForQuery(intent.value),
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(
+                    query = intent.value,
+                    selectedEntryIds = dialogState.enabledEntryIds.takeIf { dialogState.showSelectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换单聊快捷管理对话框中的“仅看已启用”筛选状态。 */
+    @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogSelectedOnly::class)
+    private fun onToggleSessionLorebookDialogSelectedOnly(
+        intent: ChatUiIntent.ToggleSessionLorebookDialogSelectedOnly,
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleGroups = uiState.lorebookState.groups.filterForQuery(
+                    query = dialogState.query,
+                    selectedEntryIds = dialogState.enabledEntryIds.takeIf { intent.selectedOnly },
+                ),
             ),
         ).setup()
     }
@@ -1034,15 +1040,23 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
+        // 校验条目归属有效世界书分组后再更新草稿，并按筛选态同步可见结果
         val entryExists = uiState.lorebookState.groups.any { group ->
-            group.entries.any { chatLorebookEntryItem -> chatLorebookEntryItem.id == intent.entryId }
+            group.entries.any { entry -> entry.id == intent.entryId }
         }
         if (!entryExists) return
+        val nextEnabledIds = dialogState.enabledEntryIds.toggle(intent.entryId)
         uiState.copy(
             dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggle(
-                    intent.entryId
-                )
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    uiState.lorebookState.groups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
             ),
         ).setup()
     }
@@ -1054,20 +1068,158 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? ChatDialogState.SessionLorebook ?: return
-        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响。
+        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响
         val entryIds = uiState.lorebookState.groups
             .firstOrNull { it.lorebookId == intent.lorebookId }
             ?.entries
             ?.mapTo(mutableSetOf()) { it.id }
             .orEmpty()
         if (entryIds.isEmpty()) return
+        val nextEnabledIds = dialogState.enabledEntryIds.toggleAll(entryIds)
         uiState.copy(
             dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(
-                    entryIds
-                )
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    uiState.lorebookState.groups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
             ),
         ).setup()
+    }
+
+    /** 打开单聊设置页的添加世界书弹窗，仅列出尚未启用的候选世界书。 */
+    @UiIntentObserver(ChatUiIntent.ShowAddLorebooksDialog::class)
+    private fun onShowAddLorebooksDialog() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings) return
+        val candidateGroups = uiState.lorebookState.groups.filter { it.enabledCount == 0 }
+        if (candidateGroups.isEmpty()) return
+        uiState.copy(
+            dialogState = ChatDialogState.AddLorebooks(
+                candidateGroups = candidateGroups,
+                query = "",
+                showSelectedOnly = false,
+                visibleGroups = candidateGroups,
+                selectedEntryIds = emptySet(),
+            ),
+        ).setup()
+    }
+
+    /** 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。 */
+    @UiIntentObserver(ChatUiIntent.ChangeAddLorebooksQuery::class)
+    private fun onChangeAddLorebooksQuery(intent: ChatUiIntent.ChangeAddLorebooksQuery) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.AddLorebooks ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                query = intent.value,
+                visibleGroups = dialogState.candidateGroups.filterForQuery(
+                    query = intent.value,
+                    selectedEntryIds = dialogState.selectedEntryIds.takeIf { dialogState.showSelectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换添加世界书弹窗中的“仅看已选”筛选状态。 */
+    @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksSelectedOnly::class)
+    private fun onToggleAddLorebooksSelectedOnly(
+        intent: ChatUiIntent.ToggleAddLorebooksSelectedOnly,
+    ) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.AddLorebooks ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleGroups = dialogState.candidateGroups.filterForQuery(
+                    query = dialogState.query,
+                    selectedEntryIds = dialogState.selectedEntryIds.takeIf { intent.selectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。 */
+    @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksGroup::class)
+    private fun onToggleAddLorebooksGroup(intent: ChatUiIntent.ToggleAddLorebooksGroup) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.AddLorebooks ?: return
+        // 仅允许切换未启用候选池中的整本世界书
+        val entryIds = dialogState.candidateGroups
+            .firstOrNull { group -> group.lorebookId == intent.lorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { entry -> entry.id }
+            .orEmpty()
+        if (entryIds.isEmpty()) return
+        val nextSelectedIds = dialogState.selectedEntryIds.toggleAll(entryIds)
+        uiState.copy(
+            dialogState = dialogState.copy(
+                selectedEntryIds = nextSelectedIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    dialogState.candidateGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextSelectedIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
+            ),
+        ).setup()
+    }
+
+    /** 切换添加世界书弹窗中单个候选条目的待添加状态。 */
+    @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksEntry::class)
+    private fun onToggleAddLorebooksEntry(intent: ChatUiIntent.ToggleAddLorebooksEntry) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.AddLorebooks ?: return
+        // 校验目标条目属于未启用候选池后再更新草稿
+        val entryExists = dialogState.candidateGroups.any { group ->
+            group.entries.any { entry -> entry.id == intent.entryId }
+        }
+        if (!entryExists) return
+        val nextSelectedIds = dialogState.selectedEntryIds.toggle(intent.entryId)
+        uiState.copy(
+            dialogState = dialogState.copy(
+                selectedEntryIds = nextSelectedIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    dialogState.candidateGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextSelectedIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
+            ),
+        ).setup()
+    }
+
+    /** 确认将新勾选的世界书条目合并至当前单聊会话的启用集合。 */
+    @UiIntentObserver(ChatUiIntent.ConfirmAddLorebooks::class)
+    private suspend fun onConfirmAddLorebooks() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? ChatDialogState.AddLorebooks ?: return
+        val sessionId = mSessionId ?: return
+        if (dialogState.selectedEntryIds.isEmpty()) {
+            uiState.copy(dialogState = ChatDialogState.None).setup()
+            return
+        }
+        // 将本次新增条目与当前已启用条目合并后持久化，避免覆盖原有启用配置
+        val validEntryIds = uiState.lorebookState.groups
+            .flatMap { group -> group.entries }
+            .mapTo(mutableSetOf()) { entry -> entry.id }
+        val mergedIds = (uiState.session.enabledLorebookEntryIds + dialogState.selectedEntryIds)
+            .intersect(validEntryIds)
+        saveSessionLorebookEntryIds(sessionId, mergedIds)
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = uiState.conversationState.inputDraft,
+            generationState = uiState.conversationState.generationState,
+            dialogState = ChatDialogState.None,
+        )
     }
 
     /**
@@ -2735,12 +2887,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 展示特性：
      * - Display 正则：历史消息在内存中执行 Display 阶段正则，以便支持 Markdown 替换，而数据库中的原始 Source 正文保持纯净。
      * - 头像解析：将角色头像本地文件路径解码为 [ImageBitmap]。
-     * - 世界书分组：将条目按所属世界书组织，并应用当前搜索词过滤。
+     * - 世界书分组：将条目按所属世界书组织并拆分出已启用分组。
      *
      * @param sessionId 会话 ID
      * @param inputDraft 输入框草稿
      * @param page 当前子页面（对话/设置）
-     * @param lorebookQuery 世界书搜索词
      * @param loadState 页面整体加载/保存状态
      * @param generationState 大模型生成状态
      * @param expandedThinkBlockIds 已展开的思考块 ID 集合
@@ -2754,7 +2905,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         sessionId: Long,
         inputDraft: String = "",
         page: ChatPage = ChatPage.Conversation,
-        lorebookQuery: String = "",
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = ChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
@@ -2846,8 +2996,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ).let { groups ->
                 ChatLorebookState(
                     groups = groups,
-                    visibleGroups = groups.filterForQuery(lorebookQuery),
-                    query = lorebookQuery,
+                    enabledGroups = groups.filter { group -> group.enabledCount > 0 },
                 )
             },
             streamEnabled = AppModel.streamEnabled,
@@ -2926,7 +3075,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         inputDraft: String = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.inputDraft.orEmpty(),
         page: ChatPage = getOrNull<ChatUiState.Normal>()?.page ?: ChatPage.Conversation,
-        lorebookQuery: String = getOrNull<ChatUiState.Normal>()?.lorebookState?.query.orEmpty(),
         loadState: ChatLoadState = ChatLoadState.None,
         generationState: ChatGenerationState = getOrNull<ChatUiState.Normal>()
             ?.conversationState?.generationState ?: ChatGenerationState.Idle,
@@ -2951,7 +3099,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 sessionId = sessionId,
                 inputDraft = inputDraft,
                 page = page,
-                lorebookQuery = lorebookQuery,
                 loadState = loadState,
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,

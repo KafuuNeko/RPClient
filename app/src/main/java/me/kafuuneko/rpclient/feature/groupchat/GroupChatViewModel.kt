@@ -84,6 +84,7 @@ import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.media.CharacterAvatarLoader
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
@@ -125,6 +126,7 @@ import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.matchesCharacterQuery
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -219,6 +221,7 @@ class GroupChatViewModel :
     override fun onCleared() {
         clearReplyRetry()
         mAvatarCache.evictAll()
+        mAddMembersAvatarLoader.clear()
         super.onCleared()
         CoroutineScope(Dispatchers.IO).launch { mImageCoordinator.releaseDrafts() }
     }
@@ -334,6 +337,21 @@ class GroupChatViewModel :
     /** 一次成员拖动的原始顺序与等待持久化的最终顺序。 */
     private var mPendingMemberOrder: PendingMemberOrder? = null
 
+    /** 添加成员选择器弹窗中的异步检索任务。 */
+    private var mAddMembersSearchJob: Job? = null
+
+    /** 添加成员候选角色的头像 UUID 索引，供按需缩略图解码使用。 */
+    private var mAvailableCharacterAvatarUuids: Map<Long, String> = emptyMap()
+
+    /** 添加成员弹窗专用的视口驱动头像缩略图加载器。 */
+    private val mAddMembersAvatarLoader by lazy {
+        CharacterAvatarLoader(
+            mFileRepository = mFileRepository,
+            mScope = viewModelScope,
+            mOnAvatarsUpdated = ::publishLoadedAddMemberAvatars,
+        )
+    }
+
     /** 当前消息窗口最早记录的稳定分页游标。 */
     private var mOldestLoadedMessageCursor: GroupChatMessageCursor? = null
 
@@ -387,6 +405,7 @@ class GroupChatViewModel :
             editingMessageId = uiState.conversationState.editingMessageId,
             editingMessageDraft = uiState.conversationState.editingMessageDraft,
             dialogState = uiState.dialogState,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
         )
     }
 
@@ -564,6 +583,7 @@ class GroupChatViewModel :
                 query = "",
                 visibleGroups = groups,
                 enabledEntryIds = enabledEntryIds,
+                showSelectedOnly = false,
             ),
         ).setup()
     }
@@ -578,7 +598,28 @@ class GroupChatViewModel :
         uiState.copy(
             dialogState = dialogState.copy(
                 query = intent.value,
-                visibleGroups = uiState.settingsState.lorebookGroups.filterForQuery(intent.value),
+                visibleGroups = uiState.settingsState.lorebookGroups.filterForQuery(
+                    query = intent.value,
+                    selectedEntryIds = dialogState.enabledEntryIds.takeIf { dialogState.showSelectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换群聊世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogSelectedOnly::class)
+    private fun onToggleSessionLorebookDialogSelectedOnly(
+        intent: GroupChatUiIntent.ToggleSessionLorebookDialogSelectedOnly,
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleGroups = uiState.settingsState.lorebookGroups.filterForQuery(
+                    query = dialogState.query,
+                    selectedEntryIds = dialogState.enabledEntryIds.takeIf { intent.selectedOnly },
+                ),
             ),
         ).setup()
     }
@@ -590,15 +631,23 @@ class GroupChatViewModel :
     ) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
+        // 校验目标条目归属有效分组后再切换草稿，并按筛选态刷新可见结果
         val entryExists = uiState.settingsState.lorebookGroups.any { group ->
-            group.entries.any { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.id == intent.entryId }
+            group.entries.any { entry -> entry.id == intent.entryId }
         }
         if (!entryExists) return
+        val nextEnabledIds = dialogState.enabledEntryIds.toggle(intent.entryId)
         uiState.copy(
             dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggle(
-                    intent.entryId
-                )
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    uiState.settingsState.lorebookGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
             ),
         ).setup()
     }
@@ -610,20 +659,351 @@ class GroupChatViewModel :
     ) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? GroupChatDialogState.SessionLorebook ?: return
-        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响。
+        // 分组开关始终作用于完整分组，不受当前搜索结果裁剪影响
         val entryIds = uiState.settingsState.lorebookGroups
             .firstOrNull { it.lorebookId == intent.lorebookId }
             ?.entries
             ?.mapTo(mutableSetOf()) { it.id }
             .orEmpty()
         if (entryIds.isEmpty()) return
+        val nextEnabledIds = dialogState.enabledEntryIds.toggleAll(entryIds)
         uiState.copy(
             dialogState = dialogState.copy(
-                enabledEntryIds = dialogState.enabledEntryIds.toggleAll(
-                    entryIds
-                )
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    uiState.settingsState.lorebookGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
             ),
         ).setup()
+    }
+
+    /** 打开群聊设置页的添加成员多选检索弹窗，仅展示尚未加入当前群聊的角色卡。 */
+    @UiIntentObserver(GroupChatUiIntent.ShowAddMembersDialog::class)
+    private fun onShowAddMembersDialog() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
+        if (candidates.isEmpty()) return
+        mAddMembersSearchJob?.cancel()
+        // 注册全部候选角色头像索引，并优先复用已缓存缩略图
+        mAddMembersAvatarLoader.registerCharacters(mAvailableCharacterAvatarUuids)
+        val hydratedCandidates = candidates.map { character ->
+            character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
+        }
+        uiState.copy(
+            dialogState = GroupChatDialogState.AddMembers(
+                query = "",
+                showSelectedOnly = false,
+                visibleCharacters = hydratedCandidates,
+                selectedCharacterIds = emptySet(),
+            ),
+        ).setup()
+    }
+
+    /** 根据添加成员弹窗当前可见窗口按需加载候选角色头像缩略图。 */
+    @UiIntentObserver(GroupChatUiIntent.VisibleAddMemberCharactersChanged::class)
+    private fun onVisibleAddMemberCharactersChanged(
+        intent: GroupChatUiIntent.VisibleAddMemberCharactersChanged,
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState !is GroupChatDialogState.AddMembers) return
+        mAddMembersAvatarLoader.updateVisibleCharacters(
+            characterIds = intent.characterIds,
+            targetSizePx = intent.targetSizePx,
+        )
+    }
+
+    /** 在添加成员选择器弹窗内后台筛选可添加角色。 */
+    @UiIntentObserver(GroupChatUiIntent.ChangeAddMembersQuery::class)
+    private fun onChangeAddMembersQuery(intent: GroupChatUiIntent.ChangeAddMembersQuery) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
+        mAddMembersSearchJob?.cancel()
+        uiState.copy(dialogState = dialogState.copy(query = intent.value)).setup()
+        val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
+        // 后台计算匹配角色 ID，回写时结合最新勾选状态与已缓存头像恢复展示列表
+        mAddMembersSearchJob = viewModelScope.launch {
+            val matchedIds = withContext(Dispatchers.Default) {
+                val context = currentCoroutineContext()
+                candidates.filter { character ->
+                    context.ensureActive()
+                    matchesCharacterQuery(
+                        name = character.name,
+                        description = character.description,
+                        tags = character.tags,
+                        query = intent.value,
+                    )
+                }.mapTo(HashSet()) { character -> character.id }
+            }
+            val current = getOrNull<GroupChatUiState.Normal>() ?: return@launch
+            val currentDialog = current.dialogState as? GroupChatDialogState.AddMembers
+                ?: return@launch
+            if (currentDialog.query == intent.value) {
+                val latestCandidates = current.settingsState.availableCharacters
+                    .filterNot { it.alreadyMember }
+                current.copy(
+                    dialogState = currentDialog.copy(
+                        visibleCharacters = latestCandidates
+                            .filter { character ->
+                                character.id in matchedIds &&
+                                    (!currentDialog.showSelectedOnly || character.id in currentDialog.selectedCharacterIds)
+                            }
+                            .map { character ->
+                                character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
+                            },
+                    ),
+                ).setup()
+            }
+        }
+    }
+
+    /** 切换添加成员选择器弹窗中的“仅看已选”筛选状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleAddMembersSelectedOnly::class)
+    private fun onToggleAddMembersSelectedOnly(
+        intent: GroupChatUiIntent.ToggleAddMembersSelectedOnly,
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
+        mAddMembersSearchJob?.cancel()
+        // 叠加“仅看已选”与当前搜索词，仅展示尚未入群且满足条件的候选角色
+        val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
+        val filtered = candidates
+            .filter { character ->
+                (!intent.selectedOnly || character.id in dialogState.selectedCharacterIds) &&
+                    matchesCharacterQuery(
+                        name = character.name,
+                        description = character.description,
+                        tags = character.tags,
+                        query = dialogState.query,
+                    )
+            }
+            .map { character ->
+                character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
+            }
+        uiState.copy(
+            dialogState = dialogState.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleCharacters = filtered,
+            ),
+        ).setup()
+    }
+
+    /** 切换添加成员选择器草稿中单个角色的待添加状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleAddMemberSelection::class)
+    private fun onToggleAddMemberSelection(intent: GroupChatUiIntent.ToggleAddMemberSelection) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
+        // 仅允许切换尚未加入群聊的合法候选角色，并按筛选态同步列表
+        val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
+        if (candidates.none { character -> character.id == intent.characterId }) return
+        val nextSelectedIds = dialogState.selectedCharacterIds.toggle(intent.characterId)
+        uiState.copy(
+            dialogState = dialogState.copy(
+                selectedCharacterIds = nextSelectedIds,
+                visibleCharacters = if (dialogState.showSelectedOnly) {
+                    candidates
+                        .filter { character ->
+                            character.id in nextSelectedIds &&
+                                matchesCharacterQuery(
+                                    name = character.name,
+                                    description = character.description,
+                                    tags = character.tags,
+                                    query = dialogState.query,
+                                )
+                        }
+                        .map { character ->
+                            character.copy(avatarImage = mAddMembersAvatarLoader.avatarOf(character.id))
+                        }
+                } else {
+                    dialogState.visibleCharacters
+                },
+            ),
+        ).setup()
+    }
+
+    /** 批量确认并将已勾选角色加入当前群聊，同时保留设置页其余未保存草稿。 */
+    @UiIntentObserver(GroupChatUiIntent.ConfirmAddMembers::class)
+    private suspend fun onConfirmAddMembers() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
+        mAddMembersSearchJob?.cancel()
+        mAddMembersAvatarLoader.clearVisibleCharacters()
+        // 按候选列表顺序收集待加入角色，保证追加排序号稳定可预期
+        val orderedIds = uiState.settingsState.availableCharacters
+            .filter { character -> !character.alreadyMember && character.id in dialogState.selectedCharacterIds }
+            .map { character -> character.id }
+        if (orderedIds.isEmpty()) {
+            uiState.copy(dialogState = GroupChatDialogState.None).setup()
+            return
+        }
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.addMembers(
+                sessionId = uiState.sessionId,
+                characterIds = orderedIds,
+            )
+        }
+        refreshState(
+            page = uiState.page,
+            dialogState = GroupChatDialogState.None,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
+    }
+
+    /** 打开群聊设置页的添加世界书弹窗，仅列出尚未启用的候选世界书。 */
+    @UiIntentObserver(GroupChatUiIntent.ShowAddLorebooksDialog::class)
+    private fun onShowAddLorebooksDialog() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        val candidateGroups = uiState.settingsState.lorebookGroups.filter { it.enabledCount == 0 }
+        if (candidateGroups.isEmpty()) return
+        uiState.copy(
+            dialogState = GroupChatDialogState.AddLorebooks(
+                candidateGroups = candidateGroups,
+                query = "",
+                showSelectedOnly = false,
+                visibleGroups = candidateGroups,
+                selectedEntryIds = emptySet(),
+            ),
+        ).setup()
+    }
+
+    /** 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。 */
+    @UiIntentObserver(GroupChatUiIntent.ChangeAddLorebooksQuery::class)
+    private fun onChangeAddLorebooksQuery(intent: GroupChatUiIntent.ChangeAddLorebooksQuery) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddLorebooks ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                query = intent.value,
+                visibleGroups = dialogState.candidateGroups.filterForQuery(
+                    query = intent.value,
+                    selectedEntryIds = dialogState.selectedEntryIds.takeIf { dialogState.showSelectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换添加世界书弹窗中的“仅看已选”筛选状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksSelectedOnly::class)
+    private fun onToggleAddLorebooksSelectedOnly(
+        intent: GroupChatUiIntent.ToggleAddLorebooksSelectedOnly,
+    ) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddLorebooks ?: return
+        uiState.copy(
+            dialogState = dialogState.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleGroups = dialogState.candidateGroups.filterForQuery(
+                    query = dialogState.query,
+                    selectedEntryIds = dialogState.selectedEntryIds.takeIf { intent.selectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksGroup::class)
+    private fun onToggleAddLorebooksGroup(intent: GroupChatUiIntent.ToggleAddLorebooksGroup) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddLorebooks ?: return
+        // 仅允许切换未启用候选池中的整本世界书
+        val entryIds = dialogState.candidateGroups
+            .firstOrNull { group -> group.lorebookId == intent.lorebookId }
+            ?.entries
+            ?.mapTo(mutableSetOf()) { entry -> entry.id }
+            .orEmpty()
+        if (entryIds.isEmpty()) return
+        val nextSelectedIds = dialogState.selectedEntryIds.toggleAll(entryIds)
+        uiState.copy(
+            dialogState = dialogState.copy(
+                selectedEntryIds = nextSelectedIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    dialogState.candidateGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextSelectedIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
+            ),
+        ).setup()
+    }
+
+    /** 切换添加世界书弹窗中单个候选条目的待添加状态。 */
+    @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksEntry::class)
+    private fun onToggleAddLorebooksEntry(intent: GroupChatUiIntent.ToggleAddLorebooksEntry) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddLorebooks ?: return
+        // 校验目标条目属于未启用候选池后再更新草稿
+        val entryExists = dialogState.candidateGroups.any { group ->
+            group.entries.any { entry -> entry.id == intent.entryId }
+        }
+        if (!entryExists) return
+        val nextSelectedIds = dialogState.selectedEntryIds.toggle(intent.entryId)
+        uiState.copy(
+            dialogState = dialogState.copy(
+                selectedEntryIds = nextSelectedIds,
+                visibleGroups = if (dialogState.showSelectedOnly) {
+                    dialogState.candidateGroups.filterForQuery(
+                        query = dialogState.query,
+                        selectedEntryIds = nextSelectedIds,
+                    )
+                } else {
+                    dialogState.visibleGroups
+                },
+            ),
+        ).setup()
+    }
+
+    /** 确认将新勾选的世界书条目合并至当前群聊启用集合，并保留设置页未保存草稿。 */
+    @UiIntentObserver(GroupChatUiIntent.ConfirmAddLorebooks::class)
+    private suspend fun onConfirmAddLorebooks() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialogState = uiState.dialogState as? GroupChatDialogState.AddLorebooks ?: return
+        if (dialogState.selectedEntryIds.isEmpty()) {
+            uiState.copy(dialogState = GroupChatDialogState.None).setup()
+            return
+        }
+        // 将本次新增条目与当前已启用条目合并后持久化，避免覆盖原有启用配置
+        val validEntryIds = uiState.settingsState.lorebookGroups
+            .flatMap { group -> group.entries }
+            .mapTo(mutableSetOf()) { entry -> entry.id }
+        val currentEnabledIds = uiState.settingsState.lorebookGroups
+            .flatMap { group -> group.entries }
+            .filter { entry -> entry.enabled }
+            .mapTo(mutableSetOf()) { entry -> entry.id }
+        val mergedIds = (currentEnabledIds + dialogState.selectedEntryIds).intersect(validEntryIds)
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.updateSessionLorebookEntryIds(
+                sessionId = uiState.sessionId,
+                entryIds = mergedIds.toList(),
+            )
+        }
+        refreshState(
+            page = uiState.page,
+            dialogState = GroupChatDialogState.None,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
+    }
+
+    /** 将最新解码完成的候选角色头像同步回添加成员弹窗状态。 */
+    private fun publishLoadedAddMemberAvatars() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialog = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
+        val updatedVisible = dialog.visibleCharacters.map { character ->
+            val image = mAddMembersAvatarLoader.avatarOf(character.id)
+            if (character.avatarImage === image) character else character.copy(avatarImage = image)
+        }
+        if (updatedVisible != dialog.visibleCharacters) {
+            uiState.copy(
+                dialogState = dialog.copy(visibleCharacters = updatedVisible),
+            ).setup()
+        }
     }
 
     /** 跳转至全局世界书管理界面，并关闭当前快捷管理对话框。 */
@@ -1365,22 +1745,6 @@ class GroupChatViewModel :
     }
 
     /**
-     * 搜索过滤群聊设置页中的世界书条目列表。
-     *
-     * @param intent 包含搜索关键字的意图
-     */
-    @UiIntentObserver(GroupChatUiIntent.ChangeLorebookQuery::class)
-    private fun onChangeLorebookQuery(intent: GroupChatUiIntent.ChangeLorebookQuery) {
-        if (!isStateOf<GroupChatUiState.Normal>()) return
-        updateSettingsState {
-            copy(
-                lorebookQuery = intent.value,
-                visibleLorebookGroups = lorebookGroups.filterForQuery(intent.value),
-            )
-        }
-    }
-
-    /**
      * 保存群聊设置到数据库。
      *
      * 只有用户修改了摘要草稿才提交摘要，保存其他设置时保留数据库中的新版本。
@@ -1466,8 +1830,11 @@ class GroupChatViewModel :
                 entryIds = enabledIds.toList(),
             )
         }
-        // 刷新当前页面
-        refreshState(page = uiState.page)
+        // 刷新当前页面并保留设置页其余未保存草稿
+        refreshState(
+            page = uiState.page,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
     }
 
     /**
@@ -1497,8 +1864,11 @@ class GroupChatViewModel :
                 entryIds = enabledIds.toList(),
             )
         }
-        // 刷新页面
-        refreshState(page = uiState.page)
+        // 刷新页面并保留设置页其余未保存草稿
+        refreshState(
+            page = uiState.page,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
     }
 
     /**
@@ -1522,6 +1892,7 @@ class GroupChatViewModel :
         refreshState(
             page = uiState.page,
             dialogState = GroupChatDialogState.None,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
         )
     }
 
@@ -1536,7 +1907,10 @@ class GroupChatViewModel :
         withContext(Dispatchers.IO) {
             mGroupChatRepository.addMember(uiState.sessionId, intent.characterId)
         }
-        refreshState(page = uiState.page)
+        refreshState(
+            page = uiState.page,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
     }
 
     /**
@@ -1557,7 +1931,10 @@ class GroupChatViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.group_chat_select_two_characters)
                 .tryEmit()
         }
-        refreshState(page = uiState.page)
+        refreshState(
+            page = uiState.page,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
     }
 
     /**
@@ -1575,7 +1952,10 @@ class GroupChatViewModel :
                 offset = intent.offset,
             )
         }
-        refreshState(page = uiState.page)
+        refreshState(
+            page = uiState.page,
+            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+        )
     }
 
     /** 在内存中即时重排群聊成员，为长按拖动提供连续反馈。 */
@@ -1957,6 +2337,8 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        mAddMembersSearchJob?.cancel()
+        mAddMembersAvatarLoader.clearVisibleCharacters()
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
     }
 
@@ -2785,8 +3167,6 @@ class GroupChatViewModel :
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.inputDraft.orEmpty(),
         selectedSpeakerId: Long? =
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.selectedSpeakerId,
-        lorebookQuery: String =
-            getOrNull<GroupChatUiState.Normal>()?.settingsState?.lorebookQuery.orEmpty(),
         generationState: GroupChatGenerationState =
             getOrNull<GroupChatUiState.Normal>()?.conversationState?.generationState
                 ?: GroupChatGenerationState.Idle,
@@ -2803,6 +3183,7 @@ class GroupChatViewModel :
             ?.conversationState?.messages?.size
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE,
+        preserveSettingsDraft: Boolean = false,
     ) {
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
         if (generationState is GroupChatGenerationState.Generating) mSearchAnchorId = null
@@ -2815,7 +3196,6 @@ class GroupChatViewModel :
                 page = page,
                 inputDraft = inputDraft,
                 selectedSpeakerId = selectedSpeakerId,
-                lorebookQuery = lorebookQuery,
                 generationState = generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,
@@ -2826,7 +3206,8 @@ class GroupChatViewModel :
         } ?: return
         mPendingMemberOrder = null
         // 读取人设和群成员期间，图片选择器可以提交新的附件草稿。
-        val current = getOrNull<GroupChatUiState.Normal>()?.conversationState ?: return
+        val currentState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val current = currentState.conversationState
         // 后台恢复等读取可与代写增量并行，不能用读取前的快照覆盖正文或复活已结束的任务。
         if (generationState is GroupChatGenerationState.Impersonating && current.generationState !is GroupChatGenerationState.Impersonating) return
         val conversation =
@@ -2836,7 +3217,38 @@ class GroupChatViewModel :
                     generationState = current.generationState
                 )
             } else next.conversationState
-        next.copy(conversationState = conversation, imageState = mImageCoordinator.state).setup()
+        // 成员与世界书属于即时持久化项；刷新后保留设置页其余未保存的表单草稿
+        val mergedSettings = if (preserveSettingsDraft) {
+            val draft = currentState.settingsState
+            next.settingsState.copy(
+                persona = draft.persona,
+                activationStrategy = draft.activationStrategy,
+                characterCardMode = draft.characterCardMode,
+                allowSelfResponses = draft.allowSelfResponses,
+                includeMutedCards = draft.includeMutedCards,
+                includeCharacterExamples = draft.includeCharacterExamples,
+                autoModeEnabled = draft.autoModeEnabled,
+                trimOtherSpeakers = draft.trimOtherSpeakers,
+                scenarioDraft = draft.scenarioDraft,
+                userNoteDraft = draft.userNoteDraft,
+                userNameDraft = draft.userNameDraft,
+                userDescriptionDraft = draft.userDescriptionDraft,
+                inheritedDescription = draft.inheritedDescription,
+                summaryDraft = draft.summaryDraft,
+                autoSummaryPaused = draft.autoSummaryPaused,
+                systemPromptDraft = draft.systemPromptDraft,
+                groupNudgePromptDraft = draft.groupNudgePromptDraft,
+                newGroupChatPromptDraft = draft.newGroupChatPromptDraft,
+                titleDraft = draft.titleDraft,
+            )
+        } else {
+            next.settingsState
+        }
+        next.copy(
+            conversationState = conversation,
+            settingsState = mergedSettings,
+            imageState = mImageCoordinator.state,
+        ).setup()
     }
 
     /**
@@ -2857,7 +3269,6 @@ class GroupChatViewModel :
         page: GroupChatPage = GroupChatPage.Conversation,
         inputDraft: String = "",
         selectedSpeakerId: Long? = null,
-        lorebookQuery: String = "",
         generationState: GroupChatGenerationState = GroupChatGenerationState.Idle,
         expandedThinkBlockIds: Set<String> = emptySet(),
         editingMessageId: Long? = null,
@@ -2910,13 +3321,23 @@ class GroupChatViewModel :
         } else {
             validSelectedSpeakerId ?: members.firstOrNull { !it.muted }?.id
         }
-        // 组装可用添加角色列表
+        // 组装可用添加角色列表，同步记录头像 UUID 供添加成员弹窗按需解码缩略图
         val memberIds = members.map { it.id }.toSet()
-        val availableCharacters = mCharacterRepository.getAllCharacters().map { character ->
+        val allCharacters = mCharacterRepository.getAllCharacters()
+        mAvailableCharacterAvatarUuids = allCharacters.associate { character ->
+            character.id to character.avatar
+        }
+        val availableCharacters = allCharacters.map { character ->
             GroupChatAvailableCharacterItem(
                 id = character.id,
                 name = character.name,
                 alreadyMember = character.id in memberIds,
+                description = resolveCharacterUserMacros(
+                    template = character.description,
+                    characterName = character.name,
+                    userName = data.persona.name,
+                ),
+                tags = character.getCharacterTagList(),
             )
         }
         // 组装世界书分组与条目启用状态
@@ -3008,8 +3429,7 @@ class GroupChatViewModel :
                 titleDraft = data.session.title,
                 availableCharacters = availableCharacters,
                 lorebookGroups = lorebookGroups,
-                visibleLorebookGroups = lorebookGroups.filterForQuery(lorebookQuery),
-                lorebookQuery = lorebookQuery,
+                enabledLorebookGroups = lorebookGroups.filter { group -> group.enabledCount > 0 },
             ),
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,

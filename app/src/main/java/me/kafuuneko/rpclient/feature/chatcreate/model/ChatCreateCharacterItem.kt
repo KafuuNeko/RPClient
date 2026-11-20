@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.feature.chatcreate.model
 
+import androidx.compose.ui.graphics.ImageBitmap
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 
@@ -12,7 +13,9 @@ data class ChatCreateCharacterItem(
     /** 用于说明当前对象的描述文本。 */
     val description: String,
     /** 角色用于分类和搜索的标签列表。 */
-    val tags: List<String>
+    val tags: List<String>,
+    /** 已按需解码的角色头像位图，为空时显示首字母占位。 */
+    val avatarImage: ImageBitmap? = null,
 )
 
 /** 将持久化角色转换为当前页面的候选展示项。 */

@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.feature.groupchatcreate.model.toGroupChatCreateChar
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.toGroupChatCreateLorebookGroups
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.toSelection
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.visibleFor
+import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateDialogState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateLoadState
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiIntent
 import me.kafuuneko.rpclient.feature.groupchatcreate.presentation.GroupChatCreateUiState
@@ -26,9 +27,11 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingCandidate
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGreetingPlanner
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
+import me.kafuuneko.rpclient.libs.media.CharacterAvatarLoader
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
+import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
@@ -56,10 +59,18 @@ class GroupChatCreateViewModel :
     private var mCharacterSearchJob: Job? = null
     private val mPersonas by inject<UserPersonaRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
+    private val mFileRepository by inject<FileRepository>()
     private val mGroupChatRepository by inject<GroupChatRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
     private val mGreetingPlanner by inject<GroupChatGreetingPlanner>()
     private val mExampleDialogueBehaviorProvider by inject<ExampleDialogueBehaviorProvider>()
+    private val mAvatarLoader by lazy {
+        CharacterAvatarLoader(
+            mFileRepository = mFileRepository,
+            mScope = viewModelScope,
+            mOnAvatarsUpdated = ::publishLoadedAvatars,
+        )
+    }
 
     /** 切换创建草稿的人设，并重新计算含用户名宏的候选角色。 */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectPersona::class)
@@ -68,15 +79,33 @@ class GroupChatCreateViewModel :
         val selection = state.persona.copy(selectedId = intent.id)
         val name = selection.selectedName ?: return
         mCharacterSearchJob?.cancel()
-        // 保留已选群成员，按新身份重建描述和开场白预览。
+        // 保留已选群成员，按新身份重建描述和开场白预览
         val selected = state.characters.filter { it.selected }.mapTo(mutableSetOf()) { it.id }
-        val characters = mCharacterRepository.getAllCharacters()
-            .map { it.toGroupChatCreateCharacterItem(name).copy(selected = it.id in selected) }
+        val loadedCharacters = withContext(Dispatchers.IO) {
+            mCharacterRepository.getAllCharacters()
+        }
+        mAvatarLoader.registerCharacters(loadedCharacters.associate { it.id to it.avatar })
+        val characters = loadedCharacters.map {
+            it.toGroupChatCreateCharacterItem(name).copy(
+                selected = it.id in selected,
+                avatarImage = mAvatarLoader.avatarOf(it.id),
+            )
+        }
+        val dialogState = when (val dialog = state.dialogState) {
+            is GroupChatCreateDialogState.CharacterPicker -> dialog.copy(
+                visibleCharacters = characters.visibleFor(
+                    query = dialog.query,
+                    selectedIds = dialog.selectedCharacterIds.takeIf { dialog.showSelectedOnly },
+                ),
+            )
+
+            else -> dialog
+        }
         state.copy(
             persona = selection,
             characters = characters,
-            visibleCharacters = characters.visibleFor(state.searchQuery),
-            greetingState = state.greetingState.reconcile(characters)
+            greetingState = state.greetingState.reconcile(characters),
+            dialogState = dialogState,
         ).setup()
     }
 
@@ -89,22 +118,23 @@ class GroupChatCreateViewModel :
         val userName = requireNotNull(selection.selectedName)
         // 在 IO 线程并发查询候选角色与带条目的世界书分组
         val data = withContext(Dispatchers.IO) {
-            val characters = mCharacterRepository.getAllCharacters().map { character ->
-                character.toGroupChatCreateCharacterItem(userName)
-            }
+            val rawCharacters = mCharacterRepository.getAllCharacters()
             val lorebookGroups = mLorebookRepository.getAllLorebooksWithEntries()
                 .toGroupChatCreateLorebookGroups()
-            characters to lorebookGroups
+            rawCharacters to lorebookGroups
+        }
+        mAvatarLoader.registerCharacters(data.first.associate { it.id to it.avatar })
+        val characters = data.first.map { character ->
+            character.toGroupChatCreateCharacterItem(userName)
+                .copy(avatarImage = mAvatarLoader.avatarOf(character.id))
         }
         // 渲染就绪状态
         GroupChatCreateUiState.Normal(
             persona = selection,
-            characters = data.first,
+            characters = characters,
             showCharacterExamplesSwitch =
                 mExampleDialogueBehaviorProvider.current() != ExampleDialogueBehavior.Disabled,
-            visibleCharacters = data.first,
             lorebookGroups = data.second,
-            visibleLorebookGroups = data.second,
         ).setup()
     }
 
@@ -122,47 +152,167 @@ class GroupChatCreateViewModel :
         uiState.copy(title = intent.value).setup()
     }
 
-    /** 后台筛选角色；取消旧请求并保留同时发生的表单与选择修改。 */
+    /** 打开群成员多选检索弹窗，并以当前已选成员初始化草稿集合。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ShowCharacterPicker::class)
+    private fun onShowCharacterPicker() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        if (uiState.loadState != GroupChatCreateLoadState.None || uiState.characters.isEmpty()) return
+        mCharacterSearchJob?.cancel()
+        val hydrated = uiState.characters.map { character ->
+            character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
+        }
+        val selectedIds = hydrated
+            .filter { character -> character.selected }
+            .mapTo(mutableSetOf()) { character -> character.id }
+        uiState.copy(
+            characters = hydrated,
+            dialogState = GroupChatCreateDialogState.CharacterPicker(
+                query = "",
+                showSelectedOnly = false,
+                visibleCharacters = hydrated,
+                selectedCharacterIds = selectedIds,
+            ),
+        ).setup()
+    }
+
+    /** 根据群成员选择器弹窗当前可见窗口按需加载头像缩略图。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.VisiblePickerCharactersChanged::class)
+    private fun onVisiblePickerCharactersChanged(
+        intent: GroupChatCreateUiIntent.VisiblePickerCharactersChanged,
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        if (uiState.dialogState !is GroupChatCreateDialogState.CharacterPicker) return
+        mAvatarLoader.updateVisibleCharacters(
+            characterIds = intent.characterIds,
+            targetSizePx = intent.targetSizePx,
+        )
+    }
+
+    /** 在群成员选择器弹窗内后台筛选角色，取消旧任务并保留最新勾选状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeSearchQuery::class)
     private fun onChangeSearchQuery(intent: GroupChatCreateUiIntent.ChangeSearchQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.CharacterPicker ?: return
         mCharacterSearchJob?.cancel()
-        uiState.copy(searchQuery = intent.value).setup()
-        // 后台计算仅返回 ID，回写时从最新列表恢复选择状态。
+        uiState.copy(dialogState = picker.copy(query = intent.value)).setup()
+        // 后台计算命中的角色 ID，回写时结合最新勾选集合与筛选态恢复可见列表
         mCharacterSearchJob = viewModelScope.launch {
-            val visibleIds = withContext(Dispatchers.Default) {
+            val matchedIds = withContext(Dispatchers.Default) {
                 val context = currentCoroutineContext()
-                uiState.characters.filter { groupChatCreateCharacterItem ->
+                uiState.characters.filter { character ->
                     context.ensureActive()
                     matchesCharacterQuery(
-                        name = groupChatCreateCharacterItem.name,
-                        description = groupChatCreateCharacterItem.description,
-                        tags = groupChatCreateCharacterItem.tags,
+                        name = character.name,
+                        description = character.description,
+                        tags = character.tags,
                         query = intent.value,
                     )
-                }
-                    .mapTo(HashSet()) { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.id }
+                }.mapTo(HashSet()) { character -> character.id }
             }
             val current = getOrNull<GroupChatCreateUiState.Normal>() ?: return@launch
-            if (current.searchQuery == intent.value) {
-                current.copy(visibleCharacters = current.characters.filter { groupChatCreateCharacterItem -> groupChatCreateCharacterItem.id in visibleIds })
-                    .setup()
+            val currentPicker = current.dialogState as? GroupChatCreateDialogState.CharacterPicker
+                ?: return@launch
+            if (currentPicker.query == intent.value) {
+                current.copy(
+                    dialogState = currentPicker.copy(
+                        visibleCharacters = current.characters
+                            .filter { character ->
+                                character.id in matchedIds &&
+                                    (!currentPicker.showSelectedOnly || character.id in currentPicker.selectedCharacterIds)
+                            }
+                            .map { character ->
+                                character.copy(avatarImage = mAvatarLoader.avatarOf(character.id))
+                            },
+                    ),
+                ).setup()
             }
         }
     }
 
-    /** 修改世界书检索关键词，实时过滤展示的分组与条目。 */
-    @UiIntentObserver(GroupChatCreateUiIntent.ChangeLorebookQuery::class)
-    private fun onChangeLorebookQuery(intent: GroupChatCreateUiIntent.ChangeLorebookQuery) {
+    /** 切换群成员选择器弹窗中的“仅看已选”筛选状态。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly::class)
+    private fun onToggleCharacterPickerSelectedOnly(
+        intent: GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly,
+    ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.CharacterPicker ?: return
+        mCharacterSearchJob?.cancel()
         uiState.copy(
-            lorebookQuery = intent.value,
-            visibleLorebookGroups = uiState.lorebookGroups.filterForQuery(intent.value),
+            dialogState = picker.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleCharacters = uiState.characters.visibleFor(
+                    query = picker.query,
+                    selectedIds = picker.selectedCharacterIds.takeIf { intent.selectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换群成员选择器弹窗草稿中单个角色的选中状态。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacterPickerItem::class)
+    private fun onToggleCharacterPickerItem(
+        intent: GroupChatCreateUiIntent.ToggleCharacterPickerItem,
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.CharacterPicker ?: return
+        if (uiState.characters.none { character -> character.id == intent.characterId }) return
+        val nextSelectedIds = picker.selectedCharacterIds.toggle(intent.characterId)
+        // 仅看已选视图下同步刷新列表，保证可见成员与选中计数实时一致
+        uiState.copy(
+            dialogState = picker.copy(
+                selectedCharacterIds = nextSelectedIds,
+                visibleCharacters = if (picker.showSelectedOnly) {
+                    uiState.characters.visibleFor(
+                        query = picker.query,
+                        selectedIds = nextSelectedIds,
+                    )
+                } else {
+                    picker.visibleCharacters
+                },
+            ),
         ).setup()
     }
 
     /**
-     * 切换群聊成员选中状态，自动同步专属世界书条目授权并收敛开场白候选。
+     * 确认群成员选择器草稿，对新加入角色自动联动其专属世界书并收敛开场白状态。
+     */
+    @UiIntentObserver(GroupChatCreateUiIntent.ConfirmCharacterPicker::class)
+    private fun onConfirmCharacterPicker() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.CharacterPicker ?: return
+        mCharacterSearchJob?.cancel()
+        mAvatarLoader.clearVisibleCharacters()
+        // 识别本次新勾选的角色，仅对新增成员自动附加专属世界书条目
+        val previousSelectedIds = uiState.characters
+            .filter { character -> character.selected }
+            .mapTo(mutableSetOf()) { character -> character.id }
+        val confirmedIds = picker.selectedCharacterIds
+        val addedIds = confirmedIds - previousSelectedIds
+        val characters = uiState.characters.map { character ->
+            character.copy(selected = character.id in confirmedIds)
+        }
+        val addedLorebookIds = characters
+            .filter { character -> character.id in addedIds && character.characterLorebookId > 0L }
+            .mapTo(mutableSetOf()) { character -> character.characterLorebookId }
+        val defaultEntryIds = uiState.lorebookGroups
+            .filter { group -> group.lorebookId in addedLorebookIds }
+            .flatMap { group -> group.entries }
+            .mapTo(mutableSetOf()) { entry -> entry.id }
+        val selectedEntryIds = uiState.selectedLorebookEntryIds + defaultEntryIds
+        val lorebookGroups = uiState.lorebookGroups.withEnabledIds(selectedEntryIds)
+        // 提交成员与世界书联动更新并关闭选择器弹窗
+        uiState.copy(
+            characters = characters,
+            selectedLorebookEntryIds = selectedEntryIds,
+            lorebookGroups = lorebookGroups,
+            greetingState = uiState.greetingState.reconcile(characters),
+            dialogState = GroupChatCreateDialogState.None,
+        ).setup()
+        mAvatarLoader.updatePinnedCharacters(confirmedIds)
+    }
+
+    /**
+     * 直接切换群聊成员选中状态（用于主表单已选标签快捷移除），同步收敛开场白候选。
      *
      * @param intent 包含目标角色 ID 的意图
      */
@@ -170,10 +320,12 @@ class GroupChatCreateViewModel :
     private fun onToggleCharacter(intent: GroupChatCreateUiIntent.ToggleCharacter) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
         // 切换目标角色选中态
-        val characters = uiState.characters.map { groupChatCreateCharacterItem ->
-            if (groupChatCreateCharacterItem.id == intent.characterId) groupChatCreateCharacterItem.copy(
-                selected = !groupChatCreateCharacterItem.selected
-            ) else groupChatCreateCharacterItem
+        val characters = uiState.characters.map { character ->
+            if (character.id == intent.characterId) {
+                character.copy(selected = !character.selected)
+            } else {
+                character
+            }
         }
         val selectedCharacter = characters.firstOrNull { it.id == intent.characterId }
         // 提取角色专属绑定的世界书条目
@@ -183,9 +335,9 @@ class GroupChatCreateViewModel :
             ?.takeIf { it > 0L }
             ?.let { lorebookId ->
                 uiState.lorebookGroups
-                    .firstOrNull { groupChatLorebookGroupItem -> groupChatLorebookGroupItem.lorebookId == lorebookId }
+                    .firstOrNull { group -> group.lorebookId == lorebookId }
                     ?.entries
-                    ?.mapTo(mutableSetOf()) { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.id }
+                    ?.mapTo(mutableSetOf()) { entry -> entry.id }
             }
             .orEmpty()
         val selectedEntryIds = uiState.selectedLorebookEntryIds + defaultEntryIds
@@ -193,12 +345,14 @@ class GroupChatCreateViewModel :
         // 更新 UI 状态并收敛开场白候选成员
         uiState.copy(
             characters = characters,
-            visibleCharacters = characters.visibleFor(uiState.searchQuery),
             selectedLorebookEntryIds = selectedEntryIds,
             lorebookGroups = lorebookGroups,
-            visibleLorebookGroups = lorebookGroups.filterForQuery(uiState.lorebookQuery),
             greetingState = uiState.greetingState.reconcile(characters),
         ).setup()
+        mAvatarLoader.updatePinnedCharacters(
+            characters.filter { character -> character.selected }
+                .mapTo(mutableSetOf()) { character -> character.id },
+        )
     }
 
     /** 选择群聊角色轮转激活策略。 */
@@ -278,10 +432,60 @@ class GroupChatCreateViewModel :
             .setup()
     }
 
-    /** 批量切换某一本世界书下所有条目的选中状态。 */
+    /** 打开世界书条目选择器弹窗，并以当前表单启用集合初始化草稿。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ShowLorebookPicker::class)
+    private fun onShowLorebookPicker() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        if (uiState.loadState != GroupChatCreateLoadState.None || uiState.lorebookGroups.isEmpty()) return
+        uiState.copy(
+            dialogState = GroupChatCreateDialogState.LorebookPicker(
+                query = "",
+                showSelectedOnly = false,
+                visibleGroups = uiState.lorebookGroups,
+                enabledEntryIds = uiState.selectedLorebookEntryIds,
+            ),
+        ).setup()
+    }
+
+    /** 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ChangeLorebookQuery::class)
+    private fun onChangeLorebookQuery(intent: GroupChatCreateUiIntent.ChangeLorebookQuery) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.LorebookPicker ?: return
+        uiState.copy(
+            dialogState = picker.copy(
+                query = intent.value,
+                visibleGroups = uiState.lorebookGroups.filterForQuery(
+                    query = intent.value,
+                    selectedEntryIds = picker.enabledEntryIds.takeIf { picker.showSelectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 切换世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly::class)
+    private fun onToggleLorebookPickerSelectedOnly(
+        intent: GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly,
+    ) {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.LorebookPicker ?: return
+        uiState.copy(
+            dialogState = picker.copy(
+                showSelectedOnly = intent.selectedOnly,
+                visibleGroups = uiState.lorebookGroups.filterForQuery(
+                    query = picker.query,
+                    selectedEntryIds = picker.enabledEntryIds.takeIf { intent.selectedOnly },
+                ),
+            ),
+        ).setup()
+    }
+
+    /** 批量切换世界书选择器草稿中某本世界书下全部条目的选中状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: GroupChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.LorebookPicker ?: return
         // 收集该世界书下所有条目 ID
         val entryIds = uiState.lorebookGroups
             .firstOrNull { it.lorebookId == intent.lorebookId }
@@ -289,33 +493,106 @@ class GroupChatCreateViewModel :
             ?.mapTo(mutableSetOf()) { it.id }
             .orEmpty()
         if (entryIds.isEmpty()) return
-        // 批量切换选中集合
-        val selectedIds = uiState.selectedLorebookEntryIds.toggleAll(entryIds)
-        val groups = uiState.lorebookGroups.withEnabledIds(selectedIds)
+        // 批量切换草稿选中集合并按筛选态刷新可见列表
+        val nextEnabledIds = picker.enabledEntryIds.toggleAll(entryIds)
         uiState.copy(
-            selectedLorebookEntryIds = selectedIds,
-            lorebookGroups = groups,
-            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery),
+            dialogState = picker.copy(
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (picker.showSelectedOnly) {
+                    uiState.lorebookGroups.filterForQuery(
+                        query = picker.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    picker.visibleGroups
+                },
+            ),
         ).setup()
     }
 
-    /** 切换单个世界书条目的选中状态。 */
+    /** 切换世界书选择器草稿中单个条目的选中状态。 */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(
         intent: GroupChatCreateUiIntent.ToggleLorebookEntry,
     ) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
-        if (uiState.lorebookGroups.none { group ->
-                group.entries.any { groupChatLorebookEntryItem -> groupChatLorebookEntryItem.id == intent.entryId }
-            }
-        ) return
-        val selectedIds = uiState.selectedLorebookEntryIds.toggle(intent.entryId)
-        val groups = uiState.lorebookGroups.withEnabledIds(selectedIds)
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.LorebookPicker ?: return
+        // 校验目标条目仍存在于当前分组，避免无效 ID 污染草稿
+        val entryExists = uiState.lorebookGroups.any { group ->
+            group.entries.any { entry -> entry.id == intent.entryId }
+        }
+        if (!entryExists) return
+        val nextEnabledIds = picker.enabledEntryIds.toggle(intent.entryId)
+        uiState.copy(
+            dialogState = picker.copy(
+                enabledEntryIds = nextEnabledIds,
+                visibleGroups = if (picker.showSelectedOnly) {
+                    uiState.lorebookGroups.filterForQuery(
+                        query = picker.query,
+                        selectedEntryIds = nextEnabledIds,
+                    )
+                } else {
+                    picker.visibleGroups
+                },
+            ),
+        ).setup()
+    }
+
+    /** 确认并提交世界书选择器草稿到群聊创建表单。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.ConfirmLorebookPicker::class)
+    private fun onConfirmLorebookPicker() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val picker = uiState.dialogState as? GroupChatCreateDialogState.LorebookPicker ?: return
+        val selectedIds = picker.enabledEntryIds
         uiState.copy(
             selectedLorebookEntryIds = selectedIds,
-            lorebookGroups = groups,
-            visibleLorebookGroups = groups.filterForQuery(uiState.lorebookQuery),
+            lorebookGroups = uiState.lorebookGroups.withEnabledIds(selectedIds),
+            dialogState = GroupChatCreateDialogState.None,
         ).setup()
+    }
+
+    /** 关闭当前选择器弹窗并丢弃未提交的临时筛选与勾选草稿。 */
+    @UiIntentObserver(GroupChatCreateUiIntent.DismissDialog::class)
+    private fun onDismissDialog() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        mCharacterSearchJob?.cancel()
+        mAvatarLoader.clearVisibleCharacters()
+        uiState.copy(dialogState = GroupChatCreateDialogState.None).setup()
+    }
+
+    /** 将最新解码完成的头像位图同步回主列表与群成员选择器弹窗状态。 */
+    private fun publishLoadedAvatars() {
+        val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
+        val updatedCharacters = uiState.characters.map { character ->
+            val image = mAvatarLoader.avatarOf(character.id)
+            if (character.avatarImage === image) character else character.copy(avatarImage = image)
+        }
+        val updatedDialog = when (val dialog = uiState.dialogState) {
+            is GroupChatCreateDialogState.CharacterPicker -> dialog.copy(
+                visibleCharacters = dialog.visibleCharacters.map { character ->
+                    val image = mAvatarLoader.avatarOf(character.id)
+                    if (character.avatarImage === image) {
+                        character
+                    } else {
+                        character.copy(avatarImage = image)
+                    }
+                },
+            )
+
+            else -> dialog
+        }
+        // 仅在头像位图引用实际变化时发布状态，减少无意义重组
+        if (updatedCharacters != uiState.characters || updatedDialog != uiState.dialogState) {
+            uiState.copy(
+                characters = updatedCharacters,
+                dialogState = updatedDialog,
+            ).setup()
+        }
+    }
+
+    override fun onCleared() {
+        mAvatarLoader.clear()
+        super.onCleared()
     }
 
     /**

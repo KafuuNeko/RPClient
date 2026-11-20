@@ -12,7 +12,20 @@ sealed class StoryCreateUiIntent {
 
     data class SelectPersona(val id: Long) : StoryCreateUiIntent()
 
+    data object ShowCharacterPicker : StoryCreateUiIntent()
+
     data class ChangeCharacterQuery(val value: String) : StoryCreateUiIntent()
+
+    data class VisiblePickerCharactersChanged(
+        val characterIds: Set<Long>,
+        val targetSizePx: Int,
+    ) : StoryCreateUiIntent()
+
+    data class ToggleCharacterPickerSelectedOnly(val selectedOnly: Boolean) : StoryCreateUiIntent()
+
+    data class ToggleCharacterPickerItem(val characterId: Long) : StoryCreateUiIntent()
+
+    data object ConfirmCharacterPicker : StoryCreateUiIntent()
 
     data class ToggleCharacter(val characterId: Long) : StoryCreateUiIntent()
 
@@ -21,11 +34,19 @@ sealed class StoryCreateUiIntent {
         val activationMode: StoryCreateCharacterActivationMode
     ) : StoryCreateUiIntent()
 
+    data object ShowLorebookPicker : StoryCreateUiIntent()
+
     data class ChangeLorebookQuery(val value: String) : StoryCreateUiIntent()
+
+    data class ToggleLorebookPickerSelectedOnly(val selectedOnly: Boolean) : StoryCreateUiIntent()
 
     data class ToggleLorebook(val lorebookId: Long) : StoryCreateUiIntent()
 
     data class ToggleLorebookEntry(val entryId: Long) : StoryCreateUiIntent()
+
+    data object ConfirmLorebookPicker : StoryCreateUiIntent()
+
+    data object DismissDialog : StoryCreateUiIntent()
 
     data object CreateStory : StoryCreateUiIntent()
 }

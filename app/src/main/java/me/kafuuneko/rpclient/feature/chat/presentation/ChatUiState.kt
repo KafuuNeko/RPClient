@@ -83,14 +83,12 @@ data class ChatConversationState(
     val canLoadNewerMessages: Boolean = false,
 )
 
-/** 单聊设置页中的世界书列表与搜索状态。 */
+/** 单聊设置页与会话快捷弹窗共用的世界书分组状态。 */
 data class ChatLorebookState(
-    /** 当前页面或结果包含的分组列表。 */
+    /** 当前本地可用的全部世界书分组列表。 */
     val groups: List<ChatLorebookGroupItem>,
-    /** 按搜索条件过滤后实际展示的分组列表。 */
-    val visibleGroups: List<ChatLorebookGroupItem> = groups,
-    /** 当前列表或对话框使用的搜索关键词。 */
-    val query: String = ""
+    /** 当前会话已启用的世界书分组列表，供设置页直接展示与操作。 */
+    val enabledGroups: List<ChatLorebookGroupItem> = groups.filter { it.enabledCount > 0 },
 )
 
 /** 单聊页面当前展示的一级页面。 */
@@ -125,7 +123,23 @@ sealed class ChatDialogState {
         /** 按搜索条件过滤后实际展示的分组列表。 */
         val visibleGroups: List<ChatLorebookGroupItem>,
         /** 当前会话已启用的世界书条目 ID 集合。 */
-        val enabledEntryIds: Set<Long>
+        val enabledEntryIds: Set<Long>,
+        /** 是否仅展示当前草稿中已启用的条目。 */
+        val showSelectedOnly: Boolean = false,
+    ) : ChatDialogState()
+
+    /** 单聊设置页添加新世界书的可检索多选弹窗状态（仅展示当前未启用的世界书）。 */
+    data class AddLorebooks(
+        /** 当前尚未启用的全部候选世界书分组。 */
+        val candidateGroups: List<ChatLorebookGroupItem>,
+        /** 当前弹窗使用的搜索关键词。 */
+        val query: String,
+        /** 是否仅展示弹窗草稿中已勾选的条目。 */
+        val showSelectedOnly: Boolean,
+        /** 按搜索词与筛选条件过滤后当前展示的候选分组列表。 */
+        val visibleGroups: List<ChatLorebookGroupItem>,
+        /** 弹窗草稿中待添加的世界书条目 ID 集合。 */
+        val selectedEntryIds: Set<Long>,
     ) : ChatDialogState()
 
     data object Exporting : ChatDialogState()

@@ -17,18 +17,10 @@ sealed class GroupChatCreateUiState {
         val loadState: GroupChatCreateLoadState = GroupChatCreateLoadState.None,
         /** 供界面展示或持久化的标题。 */
         val title: String = "",
-        /** 当前列表使用的搜索关键词。 */
-        val searchQuery: String = "",
         /** 当前页面或流程可使用的角色列表。 */
         val characters: List<GroupChatCreateCharacterItem> = emptyList(),
-        /** 按搜索条件过滤后实际展示的角色列表。 */
-        val visibleCharacters: List<GroupChatCreateCharacterItem> = emptyList(),
         /** 按世界书分组后的条目列表。 */
         val lorebookGroups: List<GroupChatLorebookGroupItem> = emptyList(),
-        /** 按搜索条件过滤后实际展示的世界书分组。 */
-        val visibleLorebookGroups: List<GroupChatLorebookGroupItem> = lorebookGroups,
-        /** 世界书列表当前使用的搜索关键词。 */
-        val lorebookQuery: String = "",
         /** 当前已选中的世界书条目 ID 集合。 */
         val selectedLorebookEntryIds: Set<Long> = emptySet(),
         /** 当前场景采用的世界书激活策略。 */
@@ -41,7 +33,9 @@ sealed class GroupChatCreateUiState {
         /** 全局允许示例对话时才展示会话开关，隐藏不改变表单选择。 */
         val showCharacterExamplesSwitch: Boolean = true,
         /** 群聊创建页的开场白选择状态。 */
-        val greetingState: GroupChatCreateGreetingState = GroupChatCreateGreetingState()
+        val greetingState: GroupChatCreateGreetingState = GroupChatCreateGreetingState(),
+        /** 当前页面互斥展示的选择器弹窗状态。 */
+        val dialogState: GroupChatCreateDialogState = GroupChatCreateDialogState.None
     ) : GroupChatCreateUiState() {
         /** 当前已选择加入群聊的角色数量。 */
         val selectedCount: Int
@@ -60,6 +54,27 @@ sealed class GroupChatCreateUiState {
             return Finished(previous)
         }
     }
+}
+
+/** 新建群聊页面的互斥选择器弹窗状态。 */
+sealed class GroupChatCreateDialogState {
+    data object None : GroupChatCreateDialogState()
+
+    /** 多选群成员检索弹窗状态。 */
+    data class CharacterPicker(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleCharacters: List<GroupChatCreateCharacterItem>,
+        val selectedCharacterIds: Set<Long>,
+    ) : GroupChatCreateDialogState()
+
+    /** 世界书条目检索与草稿选择弹窗状态。 */
+    data class LorebookPicker(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleGroups: List<GroupChatLorebookGroupItem>,
+        val enabledEntryIds: Set<Long>,
+    ) : GroupChatCreateDialogState()
 }
 
 /** 新建群聊页面的数据加载与创建状态。 */

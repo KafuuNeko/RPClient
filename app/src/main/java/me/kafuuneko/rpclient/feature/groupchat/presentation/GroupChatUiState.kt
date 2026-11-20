@@ -140,12 +140,10 @@ data class GroupChatSettingsState(
     val titleDraft: String = "",
     /** 当前流程允许选择的角色列表。 */
     val availableCharacters: List<GroupChatAvailableCharacterItem> = emptyList(),
-    /** 按世界书分组后的条目列表。 */
+    /** 按世界书分组后的全部条目列表。 */
     val lorebookGroups: List<GroupChatLorebookGroupItem> = emptyList(),
-    /** 按搜索条件过滤后实际展示的世界书分组。 */
-    val visibleLorebookGroups: List<GroupChatLorebookGroupItem> = lorebookGroups,
-    /** 世界书列表当前使用的搜索关键词。 */
-    val lorebookQuery: String = "",
+    /** 当前群聊已启用的世界书分组列表，供设置页直接展示与操作。 */
+    val enabledLorebookGroups: List<GroupChatLorebookGroupItem> = lorebookGroups.filter { it.enabledCount > 0 },
     /** 设置页可操作的回复来自完整历史，不受当前搜索窗口影响。 */
     val canContinueLatestReply: Boolean = false,
     val canRegenerateLatestReply: Boolean = false
@@ -167,7 +165,25 @@ sealed class GroupChatDialogState {
     data class SessionLorebook(
         val query: String,
         val visibleGroups: List<GroupChatLorebookGroupItem>,
-        val enabledEntryIds: Set<Long>
+        val enabledEntryIds: Set<Long>,
+        val showSelectedOnly: Boolean = false
+    ) : GroupChatDialogState()
+
+    /** 群聊设置页批量添加成员的可检索多选弹窗状态。 */
+    data class AddMembers(
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleCharacters: List<GroupChatAvailableCharacterItem>,
+        val selectedCharacterIds: Set<Long>
+    ) : GroupChatDialogState()
+
+    /** 群聊设置页添加新世界书的可检索多选弹窗状态（仅展示当前未启用的世界书）。 */
+    data class AddLorebooks(
+        val candidateGroups: List<GroupChatLorebookGroupItem>,
+        val query: String,
+        val showSelectedOnly: Boolean,
+        val visibleGroups: List<GroupChatLorebookGroupItem>,
+        val selectedEntryIds: Set<Long>
     ) : GroupChatDialogState()
 
     data class ModelSettingsGuide(

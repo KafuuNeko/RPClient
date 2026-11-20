@@ -28,9 +28,16 @@ internal fun Character.defaultLorebookEntryIds(
         .orEmpty()
 }
 
-/** 根据关键词多字段过滤世界书分组与条目。 */
+/**
+ * 根据可选已选集合和关键词多字段过滤世界书分组与条目。
+ *
+ * @param query 搜索关键词
+ * @param selectedEntryIds 非空时仅保留处于该集合内的条目
+ * @return 过滤后的世界书分组列表
+ */
 internal fun List<ChatCreateLorebookGroupItem>.filterForQuery(
     query: String,
+    selectedEntryIds: Set<Long>? = null,
 ): List<ChatCreateLorebookGroupItem> = filterLorebookGroups(
     query = query,
     groupName = { it.lorebookName },
@@ -42,6 +49,7 @@ internal fun List<ChatCreateLorebookGroupItem>.filterForQuery(
             entry.category.asSequence()
     },
     copyWithEntries = { group, entries -> group.copy(entries = entries) },
+    entryFilter = selectedEntryIds?.let { ids -> { entry -> entry.id in ids } },
 )
 
 /** 按条目的 order 构建创建页世界书分组，并排除空分组。 */

@@ -51,17 +51,29 @@ sealed class ChatUiIntent {
 
     data class ChangeSessionLorebookDialogQuery(val value: String) : ChatUiIntent()
 
+    data class ToggleSessionLorebookDialogSelectedOnly(val selectedOnly: Boolean) : ChatUiIntent()
+
     data class ToggleSessionLorebookDialogEntry(val entryId: Long) : ChatUiIntent()
 
     data class ToggleSessionLorebookDialogGroup(val lorebookId: Long) : ChatUiIntent()
 
     data object ConfirmSessionLorebookSelection : ChatUiIntent()
 
+    data object ShowAddLorebooksDialog : ChatUiIntent()
+
+    data class ChangeAddLorebooksQuery(val value: String) : ChatUiIntent()
+
+    data class ToggleAddLorebooksSelectedOnly(val selectedOnly: Boolean) : ChatUiIntent()
+
+    data class ToggleAddLorebooksGroup(val lorebookId: Long) : ChatUiIntent()
+
+    data class ToggleAddLorebooksEntry(val entryId: Long) : ChatUiIntent()
+
+    data object ConfirmAddLorebooks : ChatUiIntent()
+
     data object OpenCharacterEditor : ChatUiIntent()
 
     data class ChangeInputDraft(val value: String) : ChatUiIntent()
-
-    data class ChangeLorebookQuery(val value: String) : ChatUiIntent()
 
     data class ToggleSessionLoreEntry(val entryId: Long) : ChatUiIntent()
 
